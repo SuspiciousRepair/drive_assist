@@ -1,0 +1,393 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  UI text, in ENGLISH (the default). The Portuguese translation lives in
+  res/values-pt/strings.xml and the head unit picks it by its locale.
+
+  The rule: no text that appears on screen may go back to being a literal in the
+  middle of the Java. Displayed language is a resource choice, not a code edit.
+
+  Concatenation becomes a PLACEHOLDER, never a fragment. "Enviando (a cada " + n
+  + "s)" cannot be translated: word order moves between languages and a dangling
+  piece carries no context. Hence %1$d, %1$s and friends.
+
+  Values wrapped in "quotes" have leading/trailing or repeated spaces that aapt2
+  would otherwise collapse. The AC readout depends on exactly three spaces around
+  its separators.
+
+  NOT here: MQTT topics, SharedPreferences keys, log messages, theme ids, and the
+  Home Assistant entity names in Telemetry.java (renaming those would rename the
+  user's HA entities and break their automations).
+
+  This file is the SOURCE. It was once merged from per-file fragments by a
+  scratchpad script that no longer exists — edit it directly.
+-->
+<resources>
+    <string name="app_name">Drive Assist</string>
+    <string name="ac_title">Air conditioning</string>
+
+    <!-- comfort -->
+    <!-- ComfortActivity: tela do ar-condicionado. ac_title ja existe, nao repetir. -->
+    <string name="ac_outside_label">outside</string>
+    <string name="ac_reading">Reading...</string>
+    <string name="ac_adjust_header">What to adjust?</string>
+    <string name="ac_cooler">Cooler</string>
+    <string name="ac_warmer">Warmer</string>
+    <string name="ac_recirc_label">Recirculate</string>
+    <string name="ac_recirc_on_label">Outside air</string>
+    <string name="ac_recirc_refused">Recirculation: the car refused</string>
+    <string name="ac_recirc_on">Recirculating — outside air intake closed</string>
+    <string name="ac_recirc_off">Outside air intake open</string>
+    <string name="ac_connect_failed">Could not connect to the car</string>
+    <string name="clima_title">Climate</string>
+    <!-- Turbo card: 30s Sport-mode boost, then back to whatever mode was running before -->
+    <string name="turbo_title">Turbo</string>
+    <string name="regen_boost_title">Regen</string>
+    <!-- Linha de verdade dos atuadores. %1$s = setpoint, %2$s = ventoinha.
+    As aspas preservam os espacos multiplos (o aapt colapsaria). -->
+    <string name="ac_readout">"Air %1$s °C   ·   fan %2$s"</string>
+    <!-- %1$s = a linha ate aqui; a clausula inteira volta traduzida -->
+    <string name="ac_readout_recirc">"%1$s   ·   recirculating"</string>
+    <!-- %1$s = a linha ate aqui, %2$s = status da regua de conforto -->
+    <string name="ac_readout_status">"%1$s   —   %2$s"</string>
+
+    <!-- misc -->
+    <string name="cleanup_title">Cleanup</string>
+    <string name="cleanup_subtitle">Removes what was added after the factory image. Does not undo ADB (that came from recovery) and does not touch system apps.</string>
+    <string name="cleanup_step1_header">Step 1 — leftovers</string>
+    <string name="cleanup_step2_header">Step 2 — remove apps</string>
+    <string name="cleanup_action_stop_wipe">Stop services and wipe Drive Assist\'s data</string>
+    <string name="cleanup_action_uninstall_apps">Uninstall custom apps</string>
+    <string name="cleanup_action_uninstall_self">Uninstall Drive Assist itself</string>
+    <string name="cleanup_log_idle">Nothing done yet.\nEvery button asks for confirmation (tap twice).</string>
+    <string name="cleanup_confirm_prompt">Tap \"%1$s\" again to confirm.</string>
+    <string name="cleanup_stopping">Stopping services...</string>
+    <string name="cleanup_wiped">Services stopped, icons removed, alarm cancelled and data wiped.\nDrive Assist is still installed, but inert.</string>
+    <string name="cleanup_uninstall_header">Requesting uninstall of:</string>
+    <string name="cleanup_uninstall_item_failed">failed: %1$s</string>
+    <string name="cleanup_uninstall_footer">Confirm each system dialog. One at a time.</string>
+    <string name="cleanup_none_found">No custom apps found.</string>
+    <string name="cleanup_removing_self">Requesting Drive Assist\'s removal...</string>
+    <string name="cleanup_failed">Failed: %1$s</string>
+    <string name="notif_tele_channel">Telemetry</string>
+    <string name="notif_tele_title">Drive Assist — telemetry</string>
+    <string name="notif_tele_text">Sending data to Home Assistant</string>
+    <string name="notif_outtemp_channel">Outside temp.</string>
+    <string name="notif_outtemp_fg_text">outside temp</string>
+    <string name="notif_outtemp_title">Outside temperature</string>
+    <string name="notif_outtemp_unavailable">unavailable</string>
+    <string name="notif_outtemp_value">%1$s °C</string>
+    <string name="notif_wifi_channel">Wi-Fi</string>
+    <string name="notif_wifi_fg_text">wi-fi</string>
+    <string name="notif_wifi_title">Wi-Fi</string>
+    <string name="notif_wifi_disconnected">disconnected</string>
+    <string name="notif_wifi_no_network">no network</string>
+    <string name="notif_soc_channel">Battery %</string>
+    <string name="notif_soc_fg_text">battery %</string>
+    <string name="notif_soc_title">Battery</string>
+    <string name="notif_soc_unavailable">unavailable</string>
+    <string name="notif_soc_value">%1$s%%</string>
+
+    <!-- config -->
+    <string name="cfg_title">Settings</string>
+    <string name="cfg_nav_doors">Doors</string>
+    <string name="cfg_nav_mqtt">MQTT</string>
+    <string name="cfg_nav_drive">Driving mode</string>
+    <string name="cfg_nav_bar">Menu bar</string>
+    <string name="cfg_nav_look">Appearance</string>
+    <string name="cfg_nav_spotify">Spotify</string>
+    <string name="cfg_nav_system">System</string>
+    <!-- sidebar group captions -->
+    <string name="cfg_group_car">Car</string>
+    <string name="cfg_group_display">Display</string>
+    <string name="cfg_group_integrations">Integrations</string>
+    <string name="cfg_group_system">System</string>
+    <string name="cfg_system_header">System</string>
+    <string name="cfg_app_info_header">Application info</string>
+    <string name="cfg_version_label">Version: %1$s (build %2$d)</string>
+    <string name="cfg_sha_label">APK SHA-256</string>
+    <string name="cfg_update_header">Software update</string>
+    <string name="cfg_update_url_label">Update URL (HTTPS)</string>
+    <string name="cfg_btn_check_update">Check &amp; Install Update</string>
+    <string name="cfg_touch_header">Touch controls &amp; cooldown</string>
+    <string name="cfg_cooldown_label">Switch cooldown</string>
+    <string name="cfg_cooldown_hint">Temporary lock duration after tapping any switch to prevent accidental double-touches while driving.</string>
+    <string name="cfg_maintenance_header">Maintenance</string>
+    <string name="cfg_mqtt_header">Sending to Home Assistant</string>
+    <string name="cfg_mqtt_enable_label">Enable MQTT telemetry</string>
+    <string name="cfg_mqtt_enable_hint">Connects to the broker and sends vehicle telemetry to Home Assistant.</string>
+    <string name="cfg_status_sending">Sending to Home Assistant</string>
+    <string name="cfg_status_off">Off</string>
+    <string name="cfg_sending_every">Sending (every %1$ds)</string>
+    <string name="cfg_broker_header">MQTT broker</string>
+    <string name="cfg_field_hosts">Addresses (one per line)</string>
+    <string name="cfg_field_user">Username</string>
+    <string name="cfg_field_pass">Password</string>
+    <string name="cfg_field_interval">Interval</string>
+    <string name="cfg_seconds_suffix">s</string>
+    <string name="cfg_lock_short_label">Switch lock</string>
+    <string name="cfg_saved">Settings saved</string>
+    <string name="cfg_btn_save_all">Save all settings</string>
+    <string name="cfg_log_title">Real-time log &amp; feedback</string>
+    <string name="cfg_active_status_title">Connection status</string>
+    <string name="cfg_active_broker">Active broker: %1$s</string>
+    <string name="cfg_client_id">Client ID: %1$s</string>
+    <string name="cfg_last_sent">Last sent: %1$s</string>
+
+    <!-- certificates / tls -->
+    <string name="cfg_certs_header">Certificates &amp; TLS</string>
+    <string name="cfg_client_cert_label">Client certificate (mTLS)</string>
+    <string name="cfg_ca_cert_label">CA certificate (server trust)</string>
+    <string name="cfg_cert_status_installed">Installed: %1$s (valid until %2$s)</string>
+    <string name="cfg_cert_status_none">None installed (required for remote mTLS)</string>
+    <string name="cfg_ca_status_default">Default (bundled in app)</string>
+    <string name="cfg_ca_status_custom">Custom: %1$s (valid until %2$s)</string>
+    <string name="cfg_btn_import_cert">Import</string>
+    <string name="cfg_btn_remove_cert">Remove</string>
+    <string name="cfg_btn_reset_default">Reset to default</string>
+    <string name="cfg_btn_test_tls">Test TLS handshake</string>
+    <string name="cfg_tls_test_target_label">TLS broker address to test</string>
+    <string name="cfg_cert_import_title">Import certificate</string>
+    <string name="cfg_cert_import_usb">USB Drive</string>
+    <string name="cfg_cert_import_url">Download from URL</string>
+    <string name="cfg_cert_import_file">Storage file picker</string>
+    <string name="cfg_cert_import_paste">Paste text (PEM / Base64)</string>
+    <string name="cfg_cert_usb_not_found">No USB drive found under /storage</string>
+    <string name="cfg_cert_usb_no_files">No certificate files (.p12, .pfx, .crt, .cer, .pem) found on USB drive</string>
+    <string name="cfg_cert_usb_pick_file">Select certificate on USB drive</string>
+    <string name="cfg_cert_url_prompt">Enter URL to download certificate (.p12, .pfx, .crt, .pem):</string>
+    <string name="cfg_cert_paste_prompt">Paste certificate content (PEM or Base64):</string>
+    <string name="cfg_cert_password_prompt">Enter certificate password:</string>
+    <string name="cfg_cert_password_incorrect">Incorrect certificate password.</string>
+    <string name="cfg_cert_import_success">Certificate installed successfully: %1$s</string>
+    <string name="cfg_cert_import_failed">Failed to import certificate: %1$s</string>
+    <string name="cfg_cert_remove_confirm">Remove certificate %1$s?</string>
+    <string name="cfg_cert_testing_tls">Testing TLS handshake...</string>
+
+    <string name="cfg_spotify_header">Spotify</string>
+    <string name="cfg_spotify_client_id">Client ID</string>
+    <string name="cfg_spotify_connect">Connect</string>
+    <string name="cfg_spotify_disconnect">Disconnect</string>
+    <string name="cfg_spotify_status_on">Connected</string>
+    <string name="cfg_spotify_status_off">Not connected</string>
+    <string name="cfg_spotify_need_id">Enter the Client ID first</string>
+    <string name="spotify_connected">Spotify connected</string>
+    <string name="spotify_connect_failed">Spotify: could not connect</string>
+    <string name="cfg_security_header">Security</string>
+    <string name="cfg_commands_label">Accept commands from HA</string>
+    <string name="cfg_commands_on">Accepting commands from HA</string>
+    <string name="cfg_commands_off">Commands BLOCKED — telemetry only</string>
+    <string name="cfg_commands_hint">When off, the car ignores charging and light commands coming from Home Assistant.</string>
+    <string name="cfg_lock_label">Switch lock duration (s), after each tap</string>
+    <string name="cfg_adb_label">adb</string>
+    <string name="cfg_adb_off">Closed. While open, anyone on the same network gets a root shell on this unit.</string>
+    <string name="cfg_adb_on">Open — closes on its own in %1$d min.</string>
+    <string name="cfg_adb_no_helper">modehelper is not installed, so nothing here can turn adb on or off.</string>
+    <string name="cfg_trusted_wifi_label">Privileged Wi-Fi (SSID)</string>
+    <string name="cfg_trusted_wifi_hint">While connected to this network, ADB stays open indefinitely and a WakeLock prevents the unit from suspending.</string>
+    <string name="cfg_btn_use_current_wifi">Use Current Wi-Fi</string>
+    <string name="cfg_trusted_wifi_saved">Privileged Wi-Fi saved</string>
+    <string name="cfg_doors_header">Doors</string>
+    <string name="cfg_window_on_door">Crack the window when the door opens</string>
+    <string name="cfg_window_on_door_hint">Drops that door\'s window ~1 cm so the door closes without fighting the sealed cabin, and puts it back when the door shuts. It only ever closes a window it opened itself, and leaves alone any window you have moved.</string>
+    <string name="cfg_actions_header">Actions</string>
+    <string name="cfg_btn_on">Turn on</string>
+    <string name="cfg_btn_off">Turn off</string>
+    <string name="cfg_btn_test">Test</string>
+    <string name="cfg_btn_discovery">MQTT Discovery</string>
+    <string name="cfg_btn_update">Update</string>
+    <string name="cfg_btn_save">Save</string>
+    <string name="cfg_testing">Testing...</string>
+    <string name="cfg_discovery_sending">Sending MQTT discovery…</string>
+    <string name="cfg_discovery_ok">MQTT discovery sent successfully</string>
+    <string name="cfg_discovery_failed">Discovery failed: %1$s</string>
+    <string name="cfg_discovery_svc_inactive">Telemetry service is not running</string>
+    <string name="cfg_discovery_no_client">MQTT client not initialized</string>
+    <string name="cfg_cleanup">Cleanup and removal…</string>
+    <string name="cfg_drive_header">Driving mode</string>
+    <string name="cfg_connecting">Connecting…</string>
+    <string name="cfg_mode_eco">Eco</string>
+    <string name="cfg_mode_comfort">Comfort</string>
+    <string name="cfg_mode_sport">Sport</string>
+    <string name="cfg_regen_header">Regeneration</string>
+    <string name="cfg_regen_low">Low</string>
+    <string name="cfg_regen_mid">Medium</string>
+    <string name="cfg_regen_high">High</string>
+    <string name="turbo_header">Turbo</string>
+    <string name="turbo_enable_label">Show the Turbo card</string>
+    <string name="turbo_duration_label">Duration (s)</string>
+    <string name="cfg_btn_apply">Apply now</string>
+    <string name="cfg_btn_save_default">Save as default</string>
+    <string name="cfg_car_connect_fail">Could not connect to the car</string>
+    <string name="cfg_applied">Applied: %1$s + %2$s</string>
+    <string name="cfg_applied_turbo_active">Applied: %1$s. Drive kept as-is — Turbo is active.</string>
+    <string name="cfg_startup_default">Startup default: %1$s + %2$s</string>
+    <string name="cfg_mode_unknown">Current mode unknown — pick one to apply</string>
+    <string name="cfg_current">Current: %1$s + %2$s</string>
+    <string name="cfg_bar_header">Menu bar displays</string>
+    <string name="cfg_bar_outtemp">Outside temperature in the bar</string>
+    <string name="cfg_bar_wifi">Wi-Fi in the bar (opens settings)</string>
+    <string name="cfg_bar_soc">Battery % in the bar</string>
+    <string name="cfg_appearance_header">Appearance</string>
+    <string name="cfg_appearance_light">Light</string>
+    <string name="cfg_appearance_dark">Dark</string>
+    <string name="cfg_appearance_auto">Auto</string>
+    <string name="cfg_appearance_note">Auto follows this head unit\'s own day/night setting. Neon and Noturno always use their one fixed colour scheme, whatever this is set to.</string>
+    <string name="cfg_theme_header">Theme</string>
+    <string name="cfg_theme_sub">Applies to every Drive Assist screen. The thumbnail shows the colour and the shape of the cards — the change is immediate.</string>
+    <string name="cfg_theme_selected">%1$s  ✓</string>
+    <string name="cfg_theme_ambient_on">This theme lets the cabin ambient light drive the accent colour.</string>
+    <string name="cfg_theme_ambient_off">This theme ignores the cabin light on purpose — the accent stays amber.</string>
+    <string name="theme_geely_blurb">Gunmetal grey by night, ivory by day</string>
+    <string name="theme_noturno_blurb">Black and amber · vaporwave panel</string>
+    <string name="theme_neon_blurb">Lit outline, cyan and magenta</string>
+
+    <!-- ruler -->
+    <!-- Two different faults, and telling them apart is not cosmetic: one
+         message covering both named the outside temperature while the real
+         problem was a dead binder, and cost an hour aimed at the wrong half. -->
+    <string name="ruler_no_car">not connected to the car</string>
+    <string name="ruler_no_outside_temp">no outside temperature</string>
+    <string name="ruler_defrosting">defrosting</string>
+    <string name="ruler_at_limit">%1$s · at the limit</string>
+    <string name="ruler_car_refused">the car would not accept %1$d°</string>
+    <string name="ruler_committed">comfort saved</string>
+    <string name="ruler_steady">steady</string>
+    <string name="ruler_level">%1$s · level %2$d</string>
+    <string name="ruler_src_cold">cooling</string>
+    <string name="ruler_src_fresh">outside air</string>
+    <string name="ruler_src_hold">circulating</string>
+    <string name="ruler_src_hot">heating</string>
+
+    <!-- cmd -->
+    <!-- second command column + the gate -->
+    <string name="cmd_title">Commands</string>
+    <string name="gate_title">Gate</string>
+    <string name="gate_open">Open the gate</string>
+    <string name="gate_sent">Gate: request sent</string>
+    <!-- gate button on the comfort board: short, the card title already says "Gate" -->
+    <string name="gate_button_open">Open</string>
+    <string name="gate_button_close">Close</string>
+    <string name="gate_button_sent">Request sent</string>
+    <string name="gate_no_link">No link to Home Assistant</string>
+    <string name="gate_close">Close the gate</string>
+    <string name="gate_opening">Opening…</string>
+    <string name="gate_closing">Closing…</string>
+
+    <!-- purge: drop every window half way, press again to put them back -->
+    <string name="purge_label">Open windows</string>
+    <string name="purge_close_label">Close the windows</string>
+    <string name="purge_opening">Windows going down</string>
+    <string name="purge_closing">Windows going back up</string>
+    <string name="purge_nothing">Nothing to move</string>
+    <string name="purge_unreadable">Cannot read the windows — is the car awake?</string>
+    <!-- dashcam gallery -->
+    <string name="clips_title">Recordings</string>
+    <string name="clips_usage">%1$d clips · %2$s used · %3$s held · %4$s free</string>
+    <string name="clips_none">Nothing recorded yet.</string>
+    <string name="clips_play">Play</string>
+    <string name="clips_hold">Hold</string>
+    <string name="clips_release">Release</string>
+    <string name="clips_delete">Delete</string>
+    <string name="clips_delete_q">Delete %1$s?</string>
+    <string name="clip_play_failed">Could not play this clip (%1$d/%2$d)</string>
+    <string name="clips_recording">recording</string>
+    <string name="clips_orphan">unclosed — recoverable</string>
+    <string name="clips_record">Record</string>
+    <string name="clips_stop">Stop</string>
+    <string name="cfg_nav_clips">Dashcam</string>
+    <string name="clips_back">← Back</string>
+    <string name="cam_all">All</string>
+    <string name="cam_front">Front</string>
+    <string name="cam_rear">Rear</string>
+    <string name="cam_left">Left</string>
+    <string name="cam_right">Right</string>
+    <string name="cam_orbit">Orbit</string>
+    <!-- charging history -->
+    <string name="cfg_nav_charge">Charging</string>
+    <string name="charge_title">Charging history</string>
+    <string name="charge_summary">%1$d charges · %2$.1f kWh total</string>
+    <string name="charge_ltm_title">Last 12 months</string>
+    <string name="charge_period_30d">Last 30 days</string>
+    <string name="charge_ltm_count_label">charges</string>
+    <string name="charge_row_subtitle">SoC %1$d%%→%2$d%% · %3$.1f kWh · %4$.1f kW</string>
+    <string name="charge_none">No charging session recorded yet.</string>
+    <!-- stats -->
+    <string name="cfg_nav_stats">Stats</string>
+    <string name="stats_title">Driving stats</string>
+    <string name="stats_driving_header">This week</string>
+    <string name="stats_trips_label">trips</string>
+    <string name="stats_chart_header">km per day</string>
+    <!-- OBD2 + ABRP -->
+    <string name="cfg_nav_obd">OBD2 / ABRP</string>
+    <string name="obd_title">OBD2 dongle and ABRP</string>
+    <string name="obd_status_connected">Connected — reading real power from the battery</string>
+    <string name="obd_status_searching">Looking for the dongle…</string>
+    <string name="obd_status_off">Off</string>
+    <string name="obd_enable_label">Use the Bluetooth OBD2 dongle</string>
+    <string name="obd_hint">When on, looks for an already-paired ELM327-style dongle and reads real battery power/voltage/current straight from it — more accurate than the estimate, and used instead of it whenever the dongle is connected.</string>
+    <string name="abrp_header">ABRP (A Better Route Planner)</string>
+    <string name="abrp_enable_label">Send live data to ABRP</string>
+    <string name="abrp_location_label">Send GPS location</string>
+    <string name="abrp_location_hint">When off, ABRP uses your phone\'s location instead of vehicle GPS.</string>
+    <string name="abrp_field_user_token">ABRP user token</string>
+    <string name="abrp_test_sending">Sending a test ping to ABRP…</string>
+    <string name="abrp_test_ok">Sent — check ABRP\'s app/site to confirm it connected.</string>
+    <string name="abrp_test_fail">Failed: %1$s</string>
+    <string name="abrp_debug_header">Live debug</string>
+    <string name="abrp_debug_sent_header">Sent to ABRP</string>
+    <string name="abrp_debug_no_data">No data yet</string>
+    <string name="abrp_debug_last_ok">Last sent: %1$s — OK</string>
+    <string name="abrp_debug_last_fail">Last attempt: %1$s — Failed: %2$s</string>
+    <string name="abrp_debug_log_header">Recent activity</string>
+    <string name="abrp_debug_connected">Connected: %1$s</string>
+    <string name="abrp_debug_yes">yes</string>
+    <string name="abrp_debug_no">no</string>
+    <string name="charge_export">Export to USB</string>
+    <string name="charge_export_ok">%1$d files exported to USB</string>
+    <string name="charge_export_no_drive">No USB drive found</string>
+    <string name="charge_export_nothing">Nothing to export</string>
+    <!-- charge card (ComfortActivity) -->
+    <string name="charge_card_title">Battery</string>
+    <string name="charge_card_soc">%1$d%%</string>
+    <string name="charge_card_elapsed">%1$d min charging</string>
+    <string name="charge_card_remaining">~%1$d min to 100%%</string>
+    <string name="charge_card_calculating">Estimating…</string>
+    <string name="charge_card_ready">Ready</string>
+    <string name="charge_card_unknown">Unknown</string>
+
+    <!-- charge stats & cost tracking -->
+    <string name="charge_stats_title">Charging stats</string>
+    <string name="charge_completed_title">Charge completed</string>
+    <string name="charge_cost_label">Cost</string>
+    <string name="charge_cost_input_title">Charge Cost</string>
+    <string name="charge_cost_input_hint">Total cost (e.g. 45.00)</string>
+    <string name="charge_cost_btn_input">Enter Cost</string>
+    <string name="charge_cost_btn_edit">Edit</string>
+    <string name="charge_cost_btn_save">Save</string>
+    <string name="charge_cost_btn_dismiss">Dismiss</string>
+    <string name="charge_cost_not_set">Cost not set</string>
+    <string name="charge_cost_invalid">Invalid cost value</string>
+    <string name="charge_cost_parked_only">Cost can only be entered while parked.</string>
+    <string name="charge_stat_total_cost">Total cost</string>
+    <string name="charge_stat_avg_cost_kwh">Cost / kWh</string>
+    <string name="charge_stat_cost_100km">Cost / 100km</string>
+
+    <!-- software update dialog & prompt -->
+    <string name="update_dialog_title">Software Update Available</string>
+    <string name="update_dialog_version_comp">Version: %1$s   ➔   %2$s</string>
+    <string name="update_dialog_current_ver">Current version: %1$s</string>
+    <string name="update_dialog_new_ver">New version: %1$s</string>
+    <string name="update_dialog_changelog_header">What\'s new:</string>
+    <string name="update_dialog_accept">Accept &amp; Update</string>
+    <string name="update_dialog_decline">Later</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_up_to_date">Drive Assist is up to date (%1$s)</string>
+    <string name="update_check_failed">Could not check for updates: %1$s</string>
+    <string name="update_downloading">Downloading update (%1$s) …</string>
+    <string name="update_installing">Handing over to ModeHelper for installation…</string>
+    <string name="update_not_parked">Updates can only be reviewed and installed while parked.</string>
+
+    <!-- daily stats day navigator -->
+    <string name="daily_stats_prev_day">Previous</string>
+    <string name="daily_stats_next_day">Next</string>
+</resources>

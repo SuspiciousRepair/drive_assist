@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Translation of values/strings.xml (Korean / ko). See that file for authoring notes. -->
+<resources>
+    <string name="app_name">Drive Assist</string>
+    <string name="ac_title">에어컨</string>
+
+    <!-- comfort -->
+    <!-- ComfortActivity: tela do ar-condicionado. ac_title ja existe, nao repetir. -->
+    <string name="ac_outside_label">외부</string>
+    <string name="ac_reading">읽는 중...</string>
+    <string name="ac_adjust_header">무엇을 조정할까요?</string>
+    <string name="ac_cooler">더 시원하게</string>
+    <string name="ac_warmer">더 따뜻하게</string>
+    <string name="ac_recirc_label">내기 순환</string>
+    <string name="ac_recirc_on_label">외부 공기</string>
+    <string name="ac_recirc_refused">내기 순환: 차량이 거부했습니다</string>
+    <string name="ac_recirc_on">내기 순환 중 — 외부 공기 유입구 닫힘</string>
+    <string name="ac_recirc_off">외부 공기 유입구 열림</string>
+    <string name="ac_connect_failed">차량에 연결할 수 없습니다</string>
+    <string name="clima_title">기후</string>
+    <!-- Turbo card: 30s Sport-mode boost, then back to whatever mode was running before -->
+    <string name="turbo_title">터보</string>
+    <string name="regen_boost_title">회생 제동</string>
+    <!-- Linha de verdade dos atuadores. %1$s = setpoint, %2$s = ventoinha.
+    As aspas preservam os espacos multiplos (o aapt colapsaria). -->
+    <string name="ac_readout">"공기 %1$s °C   ·   팬 %2$s"</string>
+    <!-- %1$s = a linha ate aqui; a clausula inteira volta traduzida -->
+    <string name="ac_readout_recirc">"%1$s   ·   내기 순환 중"</string>
+    <!-- %1$s = a linha ate aqui, %2$s = status da regua de conforto -->
+    <string name="ac_readout_status">"%1$s   —   %2$s"</string>
+
+    <!-- misc -->
+    <string name="cleanup_title">정리</string>
+    <string name="cleanup_subtitle">공장 이미지 이후에 추가된 모든 항목을 제거합니다. ADB는 되돌리지 않습니다(recovery에서 온 것이므로). 시스템 앱은 건드리지 않습니다.</string>
+    <string name="cleanup_step1_header">1단계 — 남은 항목</string>
+    <string name="cleanup_step2_header">2단계 — 앱 제거</string>
+    <string name="cleanup_action_stop_wipe">서비스 중지 및 Drive Assist 데이터 삭제</string>
+    <string name="cleanup_action_uninstall_apps">사용자 지정 앱 제거</string>
+    <string name="cleanup_action_uninstall_self">Drive Assist 자체 제거</string>
+    <string name="cleanup_log_idle">아직 아무것도 실행되지 않았습니다.\n각 버튼은 확인을 요청합니다(두 번 탭).</string>
+    <string name="cleanup_confirm_prompt">확인하려면 \"%1$s\"을(를) 다시 탭하세요.</string>
+    <string name="cleanup_stopping">서비스 중지 중...</string>
+    <string name="cleanup_wiped">서비스가 중지되고, 아이콘이 제거되고, 알람이 취소되고, 데이터가 삭제되었습니다.\nDrive Assist는 여전히 설치되어 있지만 작동하지 않습니다.</string>
+    <string name="cleanup_uninstall_header">제거 요청 중:</string>
+    <string name="cleanup_uninstall_item_failed">실패: %1$s</string>
+    <string name="cleanup_uninstall_footer">각 시스템 대화 상자를 확인하세요. 하나씩.</string>
+    <string name="cleanup_none_found">사용자 지정 앱을 찾을 수 없습니다.</string>
+    <string name="cleanup_removing_self">Drive Assist 제거 요청 중...</string>
+    <string name="cleanup_failed">실패: %1$s</string>
+    <string name="notif_tele_channel">텔레메트리</string>
+    <string name="notif_tele_title">Drive Assist — 텔레메트리</string>
+    <string name="notif_tele_text">Home Assistant에 데이터 전송 중</string>
+    <string name="notif_outtemp_channel">외부 온도</string>
+    <string name="notif_outtemp_fg_text">외부 온도</string>
+    <string name="notif_outtemp_title">외부 온도</string>
+    <string name="notif_outtemp_unavailable">사용 불가</string>
+    <string name="notif_outtemp_value">%1$s °C</string>
+    <string name="notif_wifi_channel">Wi-Fi</string>
+    <string name="notif_wifi_fg_text">wi-fi</string>
+    <string name="notif_wifi_title">Wi-Fi</string>
+    <string name="notif_wifi_disconnected">연결 끊김</string>
+    <string name="notif_wifi_no_network">네트워크 없음</string>
+    <string name="notif_soc_channel">배터리 %</string>
+    <string name="notif_soc_fg_text">배터리 %</string>
+    <string name="notif_soc_title">배터리</string>
+    <string name="notif_soc_unavailable">사용 불가</string>
+    <string name="notif_soc_value">%1$s%%</string>
+
+    <!-- config -->
+    <string name="cfg_title">설정</string>
+    <string name="cfg_nav_doors">도어</string>
+    <string name="cfg_nav_mqtt">MQTT</string>
+    <string name="cfg_nav_drive">주행 모드</string>
+    <string name="cfg_nav_bar">메뉴 바</string>
+    <string name="cfg_nav_look">모양</string>
+    <string name="cfg_nav_spotify">Spotify</string>
+    <string name="cfg_nav_system">시스템</string>
+    <!-- sidebar group captions -->
+    <string name="cfg_group_car">차량</string>
+    <string name="cfg_group_display">디스플레이</string>
+    <string name="cfg_group_integrations">통합</string>
+    <string name="cfg_group_system">시스템</string>
+    <string name="cfg_system_header">시스템</string>
+    <string name="cfg_app_info_header">애플리케이션 정보</string>
+    <string name="cfg_version_label">버전: %1$s (빌드 %2$d)</string>
+    <string name="cfg_sha_label">APK SHA-256</string>
+    <string name="cfg_update_header">소프트웨어 업데이트</string>
+    <string name="cfg_update_url_label">업데이트 URL (HTTPS)</string>
+    <string name="cfg_btn_check_update">업데이트 확인 및 설치</string>
+    <string name="cfg_touch_header">터치 조작 및 쿨다운</string>
+    <string name="cfg_cooldown_label">스위치 쿨다운</string>
+    <string name="cfg_cooldown_hint">주행 중 우발적인 이중 터치를 방지하기 위해 스위치를 탭한 후의 임시 잠금 시간입니다.</string>
+    <string name="cfg_maintenance_header">유지관리</string>
+    <string name="cfg_mqtt_header">Home Assistant로 전송</string>
+    <string name="cfg_mqtt_enable_label">MQTT 텔레메트리 사용</string>
+    <string name="cfg_mqtt_enable_hint">브로커에 연결하여 차량 텔레메트리를 Home Assistant로 전송합니다.</string>
+    <string name="cfg_status_sending">Home Assistant로 전송 중</string>
+    <string name="cfg_status_off">꺼짐</string>
+    <string name="cfg_sending_every">전송 중(%1$d초마다)</string>
+    <string name="cfg_broker_header">MQTT 브로커</string>
+    <string name="cfg_field_hosts">주소(한 줄에 하나씩)</string>
+    <string name="cfg_field_user">사용자 이름</string>
+    <string name="cfg_field_pass">비밀번호</string>
+    <string name="cfg_field_interval">간격(초)</string>
+    <string name="cfg_seconds_suffix">s</string>
+    <string name="cfg_lock_short_label">스위치 잠금</string>
+    <string name="cfg_saved">설정 저장됨</string>
+    <string name="cfg_btn_save_all">모든 설정 저장</string>
+    <string name="cfg_log_title">실시간 로그 및 피드백</string>
+    <string name="cfg_active_status_title">연결 상태</string>
+    <string name="cfg_active_broker">활성 브로커: %1$s</string>
+    <string name="cfg_client_id">클라이언트 ID: %1$s</string>
+    <string name="cfg_last_sent">마지막 전송: %1$s</string>
+
+    <!-- certificates / tls -->
+    <string name="cfg_certs_header">인증서 및 TLS</string>
+    <string name="cfg_client_cert_label">클라이언트 인증서 (mTLS)</string>
+    <string name="cfg_ca_cert_label">CA 인증서 (서버 신뢰)</string>
+    <string name="cfg_cert_status_installed">설치됨: %1$s (~%2$s까지 유효)</string>
+    <string name="cfg_cert_status_none">설치되지 않음 (원격 mTLS에 필요)</string>
+    <string name="cfg_ca_status_default">기본값 (앱에 내장됨)</string>
+    <string name="cfg_ca_status_custom">사용자 지정: %1$s (~%2$s까지 유효)</string>
+    <string name="cfg_btn_import_cert">가져오기</string>
+    <string name="cfg_btn_remove_cert">제거</string>
+    <string name="cfg_btn_reset_default">기본값으로 초기화</string>
+    <string name="cfg_btn_test_tls">TLS 핸드셰이크 테스트</string>
+    <string name="cfg_tls_test_target_label">테스트할 TLS 브로커 주소</string>
+    <string name="cfg_cert_import_title">인증서 가져오기</string>
+    <string name="cfg_cert_import_usb">USB 드라이브</string>
+    <string name="cfg_cert_import_url">URL에서 다운로드</string>
+    <string name="cfg_cert_import_file">파일 선택기</string>
+    <string name="cfg_cert_import_paste">텍스트 붙여넣기 (PEM / Base64)</string>
+    <string name="cfg_cert_usb_not_found">/storage 에서 USB 드라이브를 찾을 수 없습니다</string>
+    <string name="cfg_cert_usb_no_files">USB 드라이브에서 인증서 파일(.p12, .pfx, .crt, .cer, .pem)을 찾을 수 없습니다</string>
+    <string name="cfg_cert_usb_pick_file">USB 드라이브의 인증서 선택</string>
+    <string name="cfg_cert_url_prompt">인증서를 다운로드할 URL을 입력하세요 (.p12, .pfx, .crt, .pem):</string>
+    <string name="cfg_cert_paste_prompt">인증서 내용 붙여넣기 (PEM 또는 Base64):</string>
+    <string name="cfg_cert_password_prompt">인증서 비밀번호 입력:</string>
+    <string name="cfg_cert_password_incorrect">잘못된 인증서 비밀번호입니다.</string>
+    <string name="cfg_cert_import_success">인증서가 성공적으로 설치되었습니다: %1$s</string>
+    <string name="cfg_cert_import_failed">인증서 가져오기 실패: %1$s</string>
+    <string name="cfg_cert_remove_confirm">인증서 %1$s을(를) 제거하시겠습니까?</string>
+    <string name="cfg_cert_testing_tls">TLS 핸드셰이크 테스트 중...</string>
+
+    <string name="cfg_spotify_header">Spotify</string>
+    <string name="cfg_spotify_client_id">Client ID</string>
+    <string name="cfg_spotify_connect">연결</string>
+    <string name="cfg_spotify_disconnect">연결 해제</string>
+    <string name="cfg_spotify_status_on">연결됨</string>
+    <string name="cfg_spotify_status_off">연결 안 됨</string>
+    <string name="cfg_spotify_need_id">먼저 Client ID를 입력하세요</string>
+    <string name="spotify_connected">Spotify 연결됨</string>
+    <string name="spotify_connect_failed">Spotify: 연결할 수 없습니다</string>
+    <string name="cfg_security_header">보안</string>
+    <string name="cfg_commands_label">HA의 명령 수락</string>
+    <string name="cfg_commands_on">HA의 명령을 수락 중</string>
+    <string name="cfg_commands_off">명령 차단됨 — 텔레메트리만</string>
+    <string name="cfg_commands_hint">꺼져 있으면 차량은 Home Assistant에서 오는 충전 및 조명 명령을 무시합니다.</string>
+    <string name="cfg_lock_label">탭 후 스위치 잠금 시간(초)</string>
+    <string name="cfg_adb_label">adb</string>
+    <string name="cfg_adb_off">닫힘. 열려 있는 동안에는 동일한 네트워크의 누구나 이 장치에서 root 셸을 얻을 수 있습니다.</string>
+    <string name="cfg_adb_on">열림 — %1$d분 후 자동으로 닫힙니다.</string>
+    <string name="cfg_adb_no_helper">modehelper가 설치되어 있지 않아, 여기서는 adb를 켜거나 끌 수 없습니다.</string>
+    <string name="cfg_trusted_wifi_label">특권 Wi-Fi (SSID)</string>
+    <string name="cfg_trusted_wifi_hint">이 네트워크에 연결된 동안 ADB가 계속 열려 있으며 WakeLock이 기기의 절전 모드 전환을 방지합니다.</string>
+    <string name="cfg_btn_use_current_wifi">현재 Wi-Fi 사용</string>
+    <string name="cfg_trusted_wifi_saved">특권 Wi-Fi 저장됨</string>
+    <string name="cfg_doors_header">도어</string>
+    <string name="cfg_window_on_door">도어가 열릴 때 창문을 살짝 열기</string>
+    <string name="cfg_window_on_door_hint">해당 도어의 창문을 약 1cm 내려 밀폐된 캐빈과 부딪히지 않고 도어가 닫히게 하고, 도어가 닫히면 다시 원래대로 되돌립니다. 스스로 연 창문만 닫으며, 사용자가 직접 움직인 창문은 건드리지 않습니다.</string>
+    <string name="cfg_actions_header">작업</string>
+    <string name="cfg_btn_on">켜기</string>
+    <string name="cfg_btn_off">끄기</string>
+    <string name="cfg_btn_test">테스트</string>
+    <string name="cfg_btn_discovery">MQTT 검색</string>
+    <string name="cfg_btn_update">업데이트</string>
+    <string name="cfg_btn_save">저장</string>
+    <string name="cfg_testing">테스트 중...</string>
+    <string name="cfg_discovery_sending">MQTT 검색 전송 중…</string>
+    <string name="cfg_discovery_ok">MQTT 검색을 성공적으로 전송했습니다</string>
+    <string name="cfg_discovery_failed">검색 실패: %1$s</string>
+    <string name="cfg_discovery_svc_inactive">텔레메트리 서비스가 실행 중이지 않습니다</string>
+    <string name="cfg_discovery_no_client">MQTT 클라이언트가 초기화되지 않았습니다</string>
+    <string name="cfg_cleanup">정리 및 제거…</string>
+    <string name="cfg_drive_header">주행 모드</string>
+    <string name="cfg_connecting">연결 중…</string>
+    <string name="cfg_mode_eco">Eco</string>
+    <string name="cfg_mode_comfort">Comfort</string>
+    <string name="cfg_mode_sport">Sport</string>
+    <string name="cfg_regen_header">회생 제동</string>
+    <string name="cfg_regen_low">낮음</string>
+    <string name="cfg_regen_mid">중간</string>
+    <string name="cfg_regen_high">높음</string>
+    <string name="turbo_header">터보</string>
+    <string name="turbo_enable_label">터보 카드 표시</string>
+    <string name="turbo_duration_label">지속 시간(초)</string>
+    <string name="cfg_btn_apply">지금 적용</string>
+    <string name="cfg_btn_save_default">기본값으로 저장</string>
+    <string name="cfg_car_connect_fail">차량에 연결할 수 없습니다</string>
+    <string name="cfg_applied">적용됨: %1$s + %2$s</string>
+    <string name="cfg_applied_turbo_active">적용됨: %1$s. 주행 모드 변경 없음 — 터보가 활성화되어 있습니다.</string>
+    <string name="cfg_startup_default">시작 시 기본값: %1$s + %2$s</string>
+    <string name="cfg_mode_unknown">현재 모드를 알 수 없습니다 — 적용할 모드를 선택하세요</string>
+    <string name="cfg_current">현재: %1$s + %2$s</string>
+    <string name="cfg_bar_header">메뉴 바 표시</string>
+    <string name="cfg_bar_outtemp">바에 외부 온도 표시</string>
+    <string name="cfg_bar_wifi">바에 Wi-Fi 표시(설정 열림)</string>
+    <string name="cfg_bar_soc">바에 배터리 % 표시</string>
+    <string name="cfg_appearance_header">모양</string>
+    <string name="cfg_appearance_light">라이트</string>
+    <string name="cfg_appearance_dark">다크</string>
+    <string name="cfg_appearance_auto">자동</string>
+    <string name="cfg_appearance_note">자동은 이 장치 자체의 주간/야간 설정을 따릅니다. Neon과 Noturno는 이 설정과 관계없이 항상 각자의 고정된 단일 색상 구성표를 사용합니다.</string>
+    <string name="cfg_theme_header">테마</string>
+    <string name="cfg_theme_sub">Drive Assist의 모든 화면에 적용됩니다. 축소판은 카드의 색상과 모양을 보여줍니다 — 변경 사항은 즉시 반영됩니다.</string>
+    <string name="cfg_theme_selected">%1$s  ✓</string>
+    <string name="cfg_theme_ambient_on">이 테마는 캐빈의 주변광이 강조 색상을 제어하도록 합니다.</string>
+    <string name="cfg_theme_ambient_off">이 테마는 의도적으로 캐빈 조명을 무시합니다 — 강조색은 앰버로 유지됩니다.</string>
+    <string name="theme_geely_blurb">밤에는 건메탈 그레이, 낮에는 아이보리</string>
+    <string name="theme_noturno_blurb">블랙과 앰버 · 베이퍼웨이브 패널</string>
+    <string name="theme_neon_blurb">빛나는 윤곽선, 시안과 마젠타</string>
+
+    <!-- ruler -->
+    <!-- Two different faults, and telling them apart is not cosmetic: one
+         message covering both named the outside temperature while the real
+         problem was a dead binder, and cost an hour aimed at the wrong half. -->
+    <string name="ruler_no_car">차량에 연결되지 않음</string>
+    <string name="ruler_no_outside_temp">외부 온도 없음</string>
+    <string name="ruler_defrosting">서리 제거 중</string>
+    <string name="ruler_at_limit">%1$s · 한계</string>
+    <string name="ruler_car_refused">차량이 %1$d°를 받아들이지 않았습니다</string>
+    <string name="ruler_committed">쾌적 설정 저장됨</string>
+    <string name="ruler_steady">안정</string>
+    <string name="ruler_level">%1$s · 레벨 %2$d</string>
+    <string name="ruler_src_cold">냉방 중</string>
+    <string name="ruler_src_fresh">외부 공기</string>
+    <string name="ruler_src_hold">내기 순환 중</string>
+    <string name="ruler_src_hot">난방 중</string>
+
+    <!-- cmd -->
+    <!-- second command column + the gate -->
+    <string name="cmd_title">명령</string>
+    <string name="gate_title">게이트</string>
+    <string name="gate_open">게이트 열기</string>
+    <string name="gate_sent">게이트: 요청 전송됨</string>
+    <!-- gate button on the comfort board: short, the card title already says "Gate" -->
+    <string name="gate_button_open">열기</string>
+    <string name="gate_button_close">닫기</string>
+    <string name="gate_button_sent">요청 전송됨</string>
+    <string name="gate_no_link">Home Assistant와 연결되지 않음</string>
+    <string name="gate_close">게이트 닫기</string>
+    <string name="gate_opening">여는 중…</string>
+    <string name="gate_closing">닫는 중…</string>
+
+    <!-- purge: drop every window half way, press again to put them back -->
+    <string name="purge_label">창문 열기</string>
+    <string name="purge_close_label">창문 닫기</string>
+    <string name="purge_opening">창문이 내려가는 중</string>
+    <string name="purge_closing">창문이 다시 올라가는 중</string>
+    <string name="purge_nothing">움직일 것이 없습니다</string>
+    <string name="purge_unreadable">창문 상태를 읽을 수 없습니다 — 차량이 깨어 있나요?</string>
+    <!-- dashcam gallery -->
+    <string name="clips_title">녹화</string>
+    <string name="clips_usage">클립 %1$d개 · %2$s 사용됨 · %3$s 보관됨 · %4$s 여유</string>
+    <string name="clips_none">아직 녹화된 것이 없습니다.</string>
+    <string name="clips_play">재생</string>
+    <string name="clips_hold">보관</string>
+    <string name="clips_release">해제</string>
+    <string name="clips_delete">삭제</string>
+    <string name="clips_delete_q">%1$s을(를) 삭제할까요?</string>
+    <string name="clip_play_failed">이 클립을 재생할 수 없습니다 (%1$d/%2$d)</string>
+    <string name="clips_recording">녹화 중</string>
+    <string name="clips_orphan">종료되지 않음 — 복구 가능</string>
+    <string name="clips_record">녹화</string>
+    <string name="clips_stop">정지</string>
+    <string name="cfg_nav_clips">Dashcam</string>
+    <string name="clips_back">← 뒤로</string>
+    <string name="cam_all">전체</string>
+    <string name="cam_front">전방</string>
+    <string name="cam_rear">후방</string>
+    <string name="cam_left">좌측</string>
+    <string name="cam_right">우측</string>
+    <string name="cam_orbit">회전</string>
+    <!-- charging history -->
+    <string name="cfg_nav_charge">충전</string>
+    <string name="charge_title">충전 기록</string>
+    <string name="charge_summary">충전 %1$d회 · 총 %2$.1f kWh</string>
+    <string name="charge_ltm_title">최근 12개월</string>
+    <string name="charge_period_30d">최근 30일</string>
+    <string name="charge_ltm_count_label">충전 횟수</string>
+    <string name="charge_row_subtitle">SoC %1$d%%→%2$d%% · %3$.1f kWh · %4$.1f kW</string>
+    <string name="charge_none">아직 기록된 충전 세션이 없습니다.</string>
+    <!-- stats -->
+    <string name="cfg_nav_stats">통계</string>
+    <string name="stats_title">주행 통계</string>
+    <string name="stats_driving_header">이번 주</string>
+    <string name="stats_trips_label">주행 횟수</string>
+    <string name="stats_chart_header">일일 km</string>
+    <!-- OBD2 + ABRP -->
+    <string name="cfg_nav_obd">OBD2 / ABRP</string>
+    <string name="obd_title">OBD2 동글 및 ABRP</string>
+    <string name="obd_status_connected">연결됨 — 배터리 실제 전력 판독 중</string>
+    <string name="obd_status_searching">동글 검색 중…</string>
+    <string name="obd_status_off">꺼짐</string>
+    <string name="obd_enable_label">블루투스 OBD2 동글 사용</string>
+    <string name="obd_hint">켜져 있으면 이미 페어링된 ELM327 호환 동글을 찾아 배터리의 실제 전력/전압/전류를 직접 읽습니다. 추정치보다 정확하며 동글이 연결되어 있을 때 우선 사용됩니다.</string>
+    <string name="abrp_header">ABRP (A Better Route Planner)</string>
+    <string name="abrp_enable_label">ABRP에 실시간 데이터 전송</string>
+    <string name="abrp_location_label">GPS 위치 전송</string>
+    <string name="abrp_location_hint">꺼져 있으면 ABRP가 차량 GPS 대신 휴대폰의 위치를 사용합니다.</string>
+    <string name="abrp_field_user_token">ABRP 사용자 토큰</string>
+    <string name="abrp_test_sending">ABRP로 테스트 핑 전송 중…</string>
+    <string name="abrp_test_ok">전송 완료 — 연결되었는지 ABRP 앱/웹사이트에서 확인하세요.</string>
+    <string name="abrp_test_fail">실패: %1$s</string>
+    <string name="abrp_debug_header">실시간 디버그</string>
+    <string name="abrp_debug_sent_header">ABRP로 전송됨</string>
+    <string name="abrp_debug_no_data">아직 데이터 없음</string>
+    <string name="abrp_debug_last_ok">마지막 전송: %1$s — 정상</string>
+    <string name="abrp_debug_last_fail">마지막 시도: %1$s — 실패: %2$s</string>
+    <string name="abrp_debug_log_header">최근 활동</string>
+    <string name="abrp_debug_connected">연결됨: %1$s</string>
+    <string name="abrp_debug_yes">예</string>
+    <string name="abrp_debug_no">아니요</string>
+    <string name="charge_export">USB로 내보내기</string>
+    <string name="charge_export_ok">%1$d개 파일을 USB로 내보냈습니다</string>
+    <string name="charge_export_no_drive">USB 드라이브를 찾을 수 없습니다</string>
+    <string name="charge_export_nothing">내보낼 항목이 없습니다</string>
+    <!-- charge card (ComfortActivity) -->
+    <string name="charge_card_title">배터리</string>
+    <string name="charge_card_soc">%1$d%%</string>
+    <string name="charge_card_elapsed">%1$d분 충전 중</string>
+    <string name="charge_card_remaining">100%%까지 약 %1$d분</string>
+    <string name="charge_card_calculating">추정 중…</string>
+    <string name="charge_card_ready">준비됨</string>
+    <string name="charge_card_unknown">알 수 없음</string>
+
+    <!-- charge stats & cost tracking -->
+    <string name="charge_stats_title">충전 통계</string>
+    <string name="charge_completed_title">충전 완료</string>
+    <string name="charge_cost_label">비용</string>
+    <string name="charge_cost_input_title">충전 비용</string>
+    <string name="charge_cost_input_hint">총 비용 (예: 45.00)</string>
+    <string name="charge_cost_btn_input">비용 입력</string>
+    <string name="charge_cost_btn_edit">수정</string>
+    <string name="charge_cost_btn_save">저장</string>
+    <string name="charge_cost_btn_dismiss">닫기</string>
+    <string name="charge_cost_not_set">비용 설정 안 됨</string>
+    <string name="charge_cost_invalid">잘못된 비용 값</string>
+    <string name="charge_cost_parked_only">주차(P) 상태에서만 비용을 입력할 수 있습니다.</string>
+    <string name="charge_stat_total_cost">총 비용</string>
+    <string name="charge_stat_avg_cost_kwh">비용 / kWh</string>
+    <string name="charge_stat_cost_100km">비용 / 100km</string>
+
+    <!-- software update dialog & prompt -->
+    <string name="update_dialog_title">소프트웨어 업데이트 가능</string>
+    <string name="update_dialog_version_comp">Version: %1$s   ➔   %2$s</string>
+    <string name="update_dialog_current_ver">현재 버전: %1$s</string>
+    <string name="update_dialog_new_ver">새 버전: %1$s</string>
+    <string name="update_dialog_changelog_header">변경 사항:</string>
+    <string name="update_dialog_accept">수락 및 업데이트</string>
+    <string name="update_dialog_decline">나중에</string>
+    <string name="update_checking">업데이트 확인 중…</string>
+    <string name="update_up_to_date">Drive Assist가 최신 버전입니다 (%1$s)</string>
+    <string name="update_check_failed">업데이트를 확인할 수 없음: %1$s</string>
+    <string name="update_downloading">업데이트 다운로드 중 (%1$s) …</string>
+    <string name="update_installing">설치를 위해 ModeHelper로 인계 중…</string>
+    <string name="update_not_parked">주차(P) 상태에서만 업데이트를 확인하고 설치할 수 있습니다.</string>
+</resources>

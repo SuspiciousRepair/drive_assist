@@ -1,0 +1,296 @@
+plugins {
+    id("com.android.application")
+    id("jacoco")
+    id("checkstyle")
+    id("com.github.spotbugs")
+}
+
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+
+// --- versionCode / versionName, same formulas as build.sh ------------------
+// versionCode: minutes since epoch, strictly increasing so `pm install -r`
+// refuses to install an older build over a newer one.
+def vCode = (System.currentTimeMillis() / 1000 / 60) as int
+
+// versionName: date + short git SHA, so the car can report which commit
+// it's actually running. "nogit" mirrors build.sh's own fallback for a
+// checkout with no commits yet.
+def gitSha = "nogit"
+try {
+    def out = new ByteArrayOutputStream()
+    exec {
+        commandLine "git", "rev-parse", "--short", "HEAD"
+        standardOutput = out
+        ignoreExitValue = true
+    }
+    def sha = out.toString().trim()
+    if (sha) gitSha = sha
+} catch (Exception ignored) { }
+def vName = new Date().format("yyyyMMdd-HHmm") + "-" + gitSha
+
+// --- where keystore.properties/local.properties live -----------------------
+// Both are gitignored, so they exist only in the PRIMARY checkout — same
+// problem build.sh already solved for car-stubs.jar/debug.ks/.ota-env. Reuse
+// its own answer: build.sh exports GEELY_TOOLS when it's building from a
+// worktree, so honor that here too instead of assuming rootProject.
+def toolsRoot = System.getenv("GEELY_TOOLS") ? file(System.getenv("GEELY_TOOLS")) : rootProject.projectDir
+
+// --- signing, from keystore.properties (same key as build.sh's debug.ks,
+// so `adb install -r` over a build.sh apk keeps working) -------------------
+def keystoreProps = new Properties()
+def keystoreFile = new File(toolsRoot, "keystore.properties")
+if (keystoreFile.exists()) {
+    keystoreFile.withInputStream { keystoreProps.load(it) }
+}
+
+// --- car-stubs.jar location, from local.properties -------------------------
+def localProps = new Properties()
+def localPropsFile = new File(toolsRoot, "local.properties")
+if (localPropsFile.exists()) {
+    localPropsFile.withInputStream { localProps.load(it) }
+}
+// Checked explicitly, and BEFORE the android{} block below: a bad sdk.dir
+// makes the Android Gradle Plugin fail on its own with a confusing, wrong
+// symptom ("compileSdkVersion is not specified") instead of the real cause
+// -- tested live, 2026-09-08. Catching it here, in plain top-level Groovy
+// that runs before AGP's own project configuration, means our own clear
+// error wins the race instead of AGP's misleading one.
+def sdkDir = localProps.getProperty("sdk.dir") ?: System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT") ?: System.getenv("ANDROID_SDK")
+if (!sdkDir || !file(sdkDir).isDirectory()) {
+    throw new GradleException("Missing or invalid Android SDK directory. Set ANDROID_HOME or sdk.dir in local.properties.")
+}
+
+def carStubsJar = file("${rootProject.projectDir}/car-stubs/car-stubs.jar")
+if (!carStubsJar.exists()) {
+    def carStubsDir = localProps.getProperty("carStubs.dir")
+    if (carStubsDir) {
+        carStubsJar = file("$carStubsDir/car-stubs.jar")
+    }
+}
+if (!carStubsJar.exists()) {
+    throw new GradleException("car-stubs.jar not found at $carStubsJar — see README")
+}
+
+// --- ABRP developer API key, not the per-car user token (that one lives in
+// SharedPreferences, editable from the Config screen) -- this one identifies
+// the app itself to ABRP and is shared across every install, so it belongs
+// in a build-time secret, not user-facing settings. Env var wins so CI/other
+// machines don't need a local.properties edit; local.properties (gitignored,
+// same file car-stubs.dir already lives in) is the everyday path. Empty is a
+// valid fallback -- ABRP upload is opt-in (abrp_enabled defaults false) and
+// simply won't authenticate without a key.
+def abrpApiKey = System.getenv("ABRP_API_KEY") ?: localProps.getProperty("abrp.apiKey", "")
+
+android {
+    namespace "com.geely.drivemem"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.geely.drivemem"
+        minSdkVersion 28
+        targetSdkVersion 28
+        versionCode vCode
+        versionName vName
+        buildConfigField "String", "ABRP_API_KEY", "\"${abrpApiKey}\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    signingConfigs {
+        release {
+            if (file("${rootProject.projectDir}/keystore/debug.ks").exists()) {
+                storeFile file("${rootProject.projectDir}/keystore/debug.ks")
+                storePassword "android"
+                keyAlias "d"
+                keyPassword "android"
+            } else if (keystoreFile.exists()) {
+                storeFile file(keystoreProps.getProperty("storeFile"))
+                storePassword keystoreProps.getProperty("storePassword")
+                keyAlias keystoreProps.getProperty("keyAlias")
+                keyPassword keystoreProps.getProperty("keyPassword")
+            } else if (System.getenv("KEYSTORE_FILE") && file(System.getenv("KEYSTORE_FILE")).exists()) {
+                storeFile file(System.getenv("KEYSTORE_FILE"))
+                storePassword System.getenv("KEYSTORE_PASSWORD") ?: "android"
+                keyAlias System.getenv("KEYSTORE_ALIAS") ?: "d"
+                keyPassword System.getenv("KEYSTORE_KEY_PASSWORD") ?: "android"
+            } else if (System.getenv("KS") && file(System.getenv("KS")).exists()) {
+                storeFile file(System.getenv("KS"))
+                storePassword "android"
+                keyAlias "d"
+                keyPassword "android"
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            enableUnitTestCoverage = true
+        }
+        release {
+            // Unobfuscated, same as build.sh's plain d8 output — Paho loads
+            // classes by name via ServiceLoader, and R8 shrinking without a
+            // keep rule for that would break it silently.
+            minifyEnabled false
+            if (file("${rootProject.projectDir}/keystore/debug.ks").exists() || keystoreFile.exists() || (System.getenv("KEYSTORE_FILE") && file(System.getenv("KEYSTORE_FILE")).exists()) || (System.getenv("KS") && file(System.getenv("KS")).exists())) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+
+    // This ships by sideload to one head unit, never to Play Store — the
+    // Play-policy checks (e.g. ExpiredTargetSdkVersion demanding API 33+)
+    // don't apply and would otherwise fail the build.
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+        xmlReport true
+        htmlReport true
+        textReport true
+        xmlOutput file("${project.buildDir}/reports/lint-results.xml")
+        htmlOutput file("${project.buildDir}/reports/lint-results.html")
+        textOutput file("${project.buildDir}/reports/lint-results.txt")
+
+        // Tuned for Android 9 / API 28 Automotive Head Unit
+        disable 'ExpiredTargetSdkVersion', // Sideloaded automotive system app, not Google Play
+                'MissingTranslation',     // Non-blocking partial translations
+                'MissingPermission',      // API 31 BLUETOOTH_CONNECT false positives on API 28
+                'ObsoleteSdkInt'          // Backwards compatibility legacy guards
+
+        // Elevate critical message formatting bugs to errors
+        error 'StringFormatMatches', 'StringFormatInvalid'
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "drive_assist.apk"
+        }
+    }
+}
+
+dependencies {
+    // Hidden android.car API stubs — compile-only, the real classes are
+    // provided by the OS on the actual head unit. Bundling them would be
+    // wrong, same as build.sh's CARJAR usage today.
+    compileOnly files(carStubsJar)
+
+    // MQTT client (WebSocket included) — ships inside the APK. AGP merges
+    // its .properties/META-INF/services into the final apk as part of
+    // normal packaging, so no manual unzip/rezip step is needed here.
+    implementation files("libs/paho.jar")
+
+    // Real charts for the Stats screen — the hand-drawn Canvas bars couldn't
+    // do more than one flat series. Plain Java API, drops in as a View like
+    // anything else in this codebase; only published via JitPack (see
+    // settings.gradle), not Maven Central.
+    implementation "com.github.PhilJay:MPAndroidChart:v3.1.0"
+
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "org.json:json:20231013"
+}
+
+// --- Checkstyle -------------------------------------------------------------
+configurations.checkstyle {
+    exclude group: 'com.google.collections', module: 'google-collections'
+}
+
+checkstyle {
+    toolVersion = '10.12.7'
+    ignoreFailures = true
+    showViolations = true
+}
+
+tasks.register('checkstyle', Checkstyle) {
+    group = 'verification'
+    description = 'Runs Checkstyle analysis on Java source code.'
+    configFile = file("${rootProject.projectDir}/config/checkstyle/checkstyle.xml")
+    source 'src/main/java'
+    include '**/*.java'
+    exclude '**/gen/**', '**/R.java', '**/BuildConfig.java'
+    classpath = files()
+    reports {
+        xml.required = true
+        xml.outputLocation = file("${project.buildDir}/reports/checkstyle/checkstyle.xml")
+        html.required = true
+        html.outputLocation = file("${project.buildDir}/reports/checkstyle/checkstyle.html")
+    }
+}
+
+// --- SpotBugs ---------------------------------------------------------------
+spotbugs {
+    ignoreFailures.set(true)
+    effort.set(com.github.spotbugs.snom.Effort.MAX)
+    reportLevel.set(com.github.spotbugs.snom.Confidence.valueOf('MEDIUM'))
+    excludeFilter.set(file("${rootProject.projectDir}/config/spotbugs/exclude.xml"))
+}
+
+tasks.withType(com.github.spotbugs.snom.SpotBugsTask).configureEach {
+    reports {
+        html {
+            required.set(true)
+            outputLocation.set(file("${project.buildDir}/reports/spotbugs/spotbugs.html"))
+        }
+        xml {
+            required.set(true)
+            outputLocation.set(file("${project.buildDir}/reports/spotbugs/spotbugs.xml"))
+        }
+    }
+}
+
+tasks.register('spotbugs') {
+    group = 'verification'
+    description = 'Runs SpotBugs static analysis.'
+    dependsOn 'spotbugsDebug'
+}
+
+// --- JaCoCo Coverage Report -------------------------------------------------
+tasks.register('jacocoTestReport', JacocoReport) {
+    group = 'verification'
+    description = 'Generates JaCoCo code coverage reports for debug unit tests.'
+    dependsOn 'testDebugUnitTest'
+
+    reports {
+        xml.required = true
+        xml.outputLocation = file("${project.buildDir}/reports/jacoco/test/jacocoTestReport.xml")
+        html.required = true
+        html.outputLocation = file("${project.buildDir}/reports/jacoco/test/html")
+    }
+
+    def fileFilter = [
+        '**/R.class',
+        '**/R$*.class',
+        '**/BuildConfig.*',
+        '**/Manifest*.*',
+        '**/*Test*.*',
+        'android/**/*.*'
+    ]
+
+    def javaClasses = fileTree(
+        dir: "${project.buildDir}/intermediates/javac/debug/compileDebugJavaWithJavac/classes",
+        excludes: fileFilter
+    )
+
+    sourceDirectories.setFrom(files(["${project.projectDir}/src/main/java"]))
+    classDirectories.setFrom(files([javaClasses]))
+    executionData.setFrom(fileTree(
+        dir: project.buildDir,
+        includes: [
+            'outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec',
+            'jacoco/testDebugUnitTest.exec'
+        ]
+    ))
+}
+

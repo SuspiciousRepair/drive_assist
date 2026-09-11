@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+:root{--cabin:#1E6FFF;--cabin-a:.55}
+html,body{margin:0;padding:0;background:#0d0f13;color:#ECEFF3;font-family:"SF Pro Display",-apple-system,"Helvetica Neue",Helvetica,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1E6FFF;text-decoration:none}a:hover{color:#5b96ff}
+</style>
+</helmet>
+
+<section style="display:flex;flex-direction:column;gap:40px;padding:64px 64px 0 64px">
+  <div style="display:flex;flex-direction:column;gap:14px;max-width:1240px">
+    <div style="font-size:22px;letter-spacing:.16em;text-transform:uppercase;color:#8A93A0">Turno 2 · o mesmo quadro nos outros temas</div>
+    <div style="font-size:56px;font-weight:600;letter-spacing:-.02em">Noturno e Claro</div>
+    <div style="font-size:26px;line-height:1.5;color:#8A93A0;text-wrap:pretty">Mesmos widgets de <a href="#1a">1a</a>, valores de cada tema em <span style="font-family:ui-monospace,Menlo,monospace;font-size:23px">Style.java</span>. <a href="#2a">2a</a> Noturno: âmbar, raio 22, arte vapor (grade, sol, cidade) e véu opaco até 0,34 — a cena é a mesma (só o ponto de fuga foi para 0,62 para sair de baixo dos widgets), a cidade segue a luz de cabine e os controles continuam âmbar (<span style="font-family:ui-monospace,Menlo,monospace;font-size:23px">FOLLOW_AMBIENT=false</span>). <a href="#2b">2b</a> Claro: cartão branco com traço 10% preto, raio 34, cidade puxada 45% para o preto para ler no marfim. Frio/quente de cada tema: #7FA8BF/#FFB74D e #0277BD/#E65100.</div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:56px">
+    <div id="2a" style="display:flex;flex-direction:column;gap:18px;flex:0 0 auto">
+      <div style="display:flex;align-items:center;gap:18px">
+        <div style="font-size:24px;font-weight:700;padding:8px 18px;border-radius:999px;background:#2E333B">2a</div>
+        <div style="font-size:28px;color:#8A93A0">Noturno — âmbar, cena vapor à vista</div>
+      </div>
+      <div style="position:relative;width:1920px;height:1080px;border-radius:18px;overflow:hidden;box-shadow:0 50px 120px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,#0B0B0D 0%,#141018 46%,#000000 100%)"></div>
+        <div style="position:absolute;left:1040px;top:237px;width:300px;height:300px;border-radius:50%;background:linear-gradient(180deg,#FFD08A,#FF6B9A 60%,#B0348A);mask-image:repeating-linear-gradient(180deg,#000 0 26px,rgba(0,0,0,0) 26px 34px);-webkit-mask-image:repeating-linear-gradient(180deg,#000 0 26px,rgba(0,0,0,0) 26px 34px);opacity:.85"></div>
+        <div style="position:absolute;left:0;right:0;top:347px;height:150px;background-repeat:no-repeat;background-position:0 100%,26px 100%,7px 100%,53px 100%,15px 100%,38px 100%;background-size:100% 150px,100% 118px,100% 92px,100% 66px,100% 44px,100% 28px;opacity:.5;background-image:repeating-linear-gradient(90deg,var(--cabin) 0 17px,rgba(0,0,0,0) 17px 151px),repeating-linear-gradient(90deg,var(--cabin) 0 29px,rgba(0,0,0,0) 29px 113px),repeating-linear-gradient(90deg,var(--cabin) 0 23px,rgba(0,0,0,0) 23px 79px),repeating-linear-gradient(90deg,var(--cabin) 0 37px,rgba(0,0,0,0) 37px 101px),repeating-linear-gradient(90deg,var(--cabin) 0 13px,rgba(0,0,0,0) 13px 47px),repeating-linear-gradient(90deg,var(--cabin) 0 9px,rgba(0,0,0,0) 9px 31px)"></div>
+        <div style="position:absolute;left:0;right:0;top:497px;height:2px;background:linear-gradient(90deg,rgba(255,45,149,0),rgba(255,120,190,.5) 45%,rgba(255,45,149,.05))"></div>
+        <div style="position:absolute;left:0;right:0;top:497px;bottom:0;overflow:hidden">
+          <div style="position:absolute;left:0;right:0;top:520.5px;height:2px;background:rgba(0,229,255,0.354)"></div>
+          <div style="position:absolute;left:0;right:0;top:462.7px;height:2px;background:rgba(0,229,255,0.320)"></div>
+          <div style="position:absolute;left:0;right:0;top:410.6px;height:2px;background:rgba(0,229,255,0.289)"></div>
+          <div style="position:absolute;left:0;right:0;top:364.4px;height:2px;background:rgba(0,229,255,0.263)"></div>
+          <div style="position:absolute;left:0;right:0;top:323.9px;height:2px;background:rgba(0,229,255,0.239)"></div>
+          <div style="position:absolute;left:0;right:0;top:285.8px;height:2px;background:rgba(0,229,255,0.217)"></div>
+          <div style="position:absolute;left:0;right:0;top:251.3px;height:2px;background:rgba(0,229,255,0.197)"></div>
+          <div style="position:absolute;left:0;right:0;top:219.2px;height:2px;background:rgba(0,229,255,0.178)"></div>
+          <div style="position:absolute;left:0;right:0;top:189.3px;height:2px;background:rgba(0,229,255,0.160)"></div>
+          <div style="position:absolute;left:0;right:0;top:161.9px;height:2px;background:rgba(0,229,255,0.144)"></div>
+          <div style="position:absolute;left:0;right:0;top:135.6px;height:2px;background:rgba(0,229,255,0.129)"></div>
+          <div style="position:absolute;left:0;right:0;top:112.1px;height:2px;background:rgba(0,229,255,0.115)"></div>
+          <div style="position:absolute;left:0;right:0;top:91.1px;height:2px;background:rgba(0,229,255,0.103)"></div>
+          <div style="position:absolute;left:0;right:0;top:71.1px;height:2px;background:rgba(0,229,255,0.091)"></div>
+          <div style="position:absolute;left:0;right:0;top:54.0px;height:2px;background:rgba(0,229,255,0.081)"></div>
+          <div style="position:absolute;left:0;right:0;top:38.9px;height:2px;background:rgba(0,229,255,0.073)"></div>
+          <div style="position:absolute;left:0;right:0;top:26.5px;height:2px;background:rgba(0,229,255,0.065)"></div>
+          <div style="position:absolute;left:0;right:0;top:16.2px;height:2px;background:rgba(0,229,255,0.059)"></div>
+          <div style="position:absolute;left:0;right:0;top:8.6px;height:2px;background:rgba(0,229,255,0.055)"></div>
+          <div style="position:absolute;left:1190px;top:0px;width:2px;height:583.0px;margin-left:-1px;transform:rotate(0.00deg);transform-origin:top center;background:linear-gradient(180deg,rgba(0,229,255,.04),rgba(0,229,255,.34))"></div>
+          <div style="position:absolute;left:1190px;top:0px;width:2px;height:600.9px;margin-left:-1px;transform:rotate(14.04deg);transform-origin:top center;background:linear-gradient(180deg,rgba(0,229,255,.04),rgba(0,229,255,.34))"></div>
+          <div style="position:absolute;left:1190px;top:0px;width:2px;height:600.9px;margin-left:-1px;transform:rotate(-14.04deg);transform-origin:top center;background:linear-gradient(180deg,rgba(0,229,255,.04),rgba(0,229,255,.34))"></div>
+          <div style="position:absolute;left:1190px;top:0px;width:2px;height:651.8px;margin-left:-1px;transform:rotate(26.57deg);transform-origin:top center;background:linear-gradient(180deg,rgba(0,229,255,.04),rgba(0,229,255,.34))"></div>
+          <div style="position:absolute;left:1190px;top:0px;width:2px;height:651.8px;margin-left:-1px;transform:rotate(-26.57deg);transform-origin:top center;background:linear-gradient(180deg,rgba(0,229,255,.04),rgba(0,229,255,.34))"></div>
+          <div style="position:absolute;left:1190px;top:0px;width:2px;height:728.8px;margin-left:-1px;transform:rotate(36.87deg);transform-origin:top center;background:linear-gradient(180deg,rgba(0,229,255,.04),rgba(0,229,255,.34))"></div>
+          <div style="position:absolute;left:1190px;top:0px;width:2px;height:728.8px;margin-left:-1px;transform:rotate(-36.87deg);transform-origin:top center;background:linear-gradient(180deg,rgba(0,229,255,.04),rgba(0,229,255,.34))"></div>
+          <div style="position:absolute;left:1190px;top:0px;width:2px;height:824.5px;margin-left:-1px;transform:rotate(45.00deg);transform-origin:top center;background:linear-gradient(180deg,rgba(0,229,255,.04),rgba(0,229,255,.34))"></div>
+          <div style="position:absolute;left:1190px;top:0px;width:2px;height:824.5px;margin-left:-1px;transform:rotate(-45.00deg);transform-origin:top center;background:linear-gradient(180deg,rgba(0,229,255,.04),rgba(0,229,255,.34))"></div>
+          <div style="position:absolute;left:1190px;top:0px;width:2px;height:979.5px;margin-left:-1px;transform:rotate(53.47deg);transform-origin:top center;background:linear-gradient(180deg,rgba(0,229,255,.04),rgba(0,229,255,.34))"></div>
+          <div style="position:absolute;left:1190px;top:0px;width:2px;height:979.5px;margin-left:-1px;transform:rotate(-53.47deg);transform-origin:top center;background:linear-gradient(180deg,rgba(0,229,255,.04),rgba(0,229,255,.34))"></div>
+          <div style="position:absolute;left:1190px;top:0px;width:2px;height:1200.5px;margin-left:-1px;transform:rotate(60.95deg);transform-origin:top center;background:linear-gradient(180deg,rgba(0,229,255,.04),rgba(0,229,255,.34))"></div>
+          <div style="position:absolute;left:1190px;top:0px;width:2px;height:1200.5px;margin-left:-1px;transform:rotate(-60.95deg);transform-origin:top center;background:linear-gradient(180deg,rgba(0,229,255,.04),rgba(0,229,255,.34))"></div>
+          <div style="position:absolute;left:1190px;top:0px;width:2px;height:1515.8px;margin-left:-1px;transform:rotate(67.38deg);transform-origin:top center;background:linear-gradient(180deg,rgba(0,229,255,.04),rgba(0,229,255,.34))"></div>
+          <div style="position:absolute;left:1190px;top:0px;width:2px;height:1515.8px;margin-left:-1px;transform:rotate(-67.38deg);transform-origin:top center;background:linear-gradient(180deg,rgba(0,229,255,.04),rgba(0,229,255,.34))"></div>
+          <div style="position:absolute;left:1190px;top:0px;width:2px;height:1954.6px;margin-left:-1px;transform:rotate(72.65deg);transform-origin:top center;background:linear-gradient(180deg,rgba(0,229,255,.04),rgba(0,229,255,.34))"></div>
+          <div style="position:absolute;left:1190px;top:0px;width:2px;height:1954.6px;margin-left:-1px;transform:rotate(-72.65deg);transform-origin:top center;background:linear-gradient(180deg,rgba(0,229,255,.04),rgba(0,229,255,.34))"></div>
+        </div>
+        <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.92) 0%,rgba(0,0,0,.88) 34%,rgba(0,0,0,0) 72%)"></div>
+        <div style="position:absolute;inset:72px 0 105px 0;display:flex;align-items:flex-start;gap:24px;padding:32px 36px">
+          <div style="flex:0 0 600px;display:flex;flex-direction:column;gap:24px">
+            <div style="display:flex;flex-direction:column;gap:26px;padding:38px;box-sizing:border-box;border-radius:22px;background:rgba(20,20,22,.72);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);">
+              <div style="font-size:28px;font-weight:600;color:#E4DCCB">Clima</div>
+              <div style="display:flex;align-items:baseline;gap:16px">
+                <div style="font-size:112px;font-weight:300;letter-spacing:-.04em;line-height:.9;color:#E4DCCB">28.0°</div>
+                <div style="font-size:26px;color:#7E7568">fora</div>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <sc-for list="{{ segsNoturno }}" as="seg" hint-placeholder-count="11">
+                  <div style="{{ seg.style }}"></div>
+                </sc-for>
+              </div>
+              <div style="display:flex;gap:14px">
+                <div style="flex:1;height:104px;border-radius:14px;background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(255,255,255,.10);display:flex;align-items:center;justify-content:center;font-size:34px;line-height:1;color:#7FA8BF">❄</div>
+                <div style="flex:1;height:104px;border-radius:14px;background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(255,255,255,.10);display:flex;align-items:center;justify-content:center;font-size:34px;line-height:1;color:#FFB74D">☀</div>
+              </div>
+              <div style="display:flex;gap:14px">
+                <div style="flex:1;height:96px;border-radius:14px;background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(255,255,255,.10);display:flex;align-items:center;justify-content:center;text-align:center;padding:0 14px">
+                  <div style="font-size:25px;font-weight:600;color:#E4DCCB">Recircular ar</div>
+                </div>
+                <div style="flex:1;height:96px;border-radius:14px;background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(255,255,255,.10);display:flex;align-items:center;justify-content:center;text-align:center;padding:0 14px">
+                  <div style="font-size:25px;font-weight:600;color:#E4DCCB">Fechar vidros</div>
+                </div>
+              </div>
+              <div style="display:flex">
+                <div style="position:relative;width:38px;height:38px">
+                  <div style="position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(from 0deg,#7E7568 0 11deg,rgba(0,0,0,0) 11deg 45deg);mask-image:radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 57%,#000 58%);-webkit-mask-image:radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 57%,#000 58%)"></div>
+                  <div style="position:absolute;inset:6px;border-radius:50%;border:2px solid #7E7568"></div>
+                  <div style="position:absolute;inset:14px;border-radius:50%;border:2px solid #7E7568"></div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:22px;padding:38px;box-sizing:border-box;border-radius:22px;background:rgba(20,20,22,.72);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);">
+              <div style="width:14px;height:14px;border-radius:50%;background:#FFA726;box-shadow:0 0 16px 4px rgba(255,167,38,.45)"></div>
+              <div style="flex:1;font-size:28px;font-weight:600;color:#E4DCCB">Portão</div>
+              <div style="width:180px;height:88px;border-radius:14px;background:#7A4A08;display:flex;align-items:center;justify-content:center">
+                <div style="font-size:26px;font-weight:600;color:#FFF3DF">Abrir</div>
+              </div>
+            </div>
+          </div>
+          <div style="flex:1"></div>
+        </div>
+
+        <div style="position:absolute;left:0;right:0;top:0;height:72px;background:#000;display:flex;align-items:center;justify-content:space-between;padding:0 28px;color:#ECEFF3">
+          <div style="display:flex;align-items:center;gap:26px">
+            <div style="font-size:34px;font-weight:700">29<span style="font-size:20px">°C</span></div>
+            <div style="width:22px;height:26px;border-radius:7px;border:2px solid rgba(255,255,255,.45)"></div>
+            <div style="width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.45)"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:24px">
+            <div style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(255,255,255,.35)"></div>
+            <div style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(255,255,255,.35)"></div>
+            <div style="font-size:34px">21:14</div>
+          </div>
+        </div>
+
+        <div style="position:absolute;left:0;right:0;bottom:0;height:105px;display:flex;background:#F1F1F4;color:#1c1c1e">
+          <div style="flex:0 0 590px;display:flex;align-items:center;gap:26px;padding:0 24px;background:#E9E9ED">
+            <div style="width:46px;height:46px;border-radius:50%;border:5px solid #2b2b2f"></div>
+            <div style="flex:1;font-size:30px">Voltar Para Início</div>
+            <div style="width:74px;height:74px;border-radius:14px;background:#7EA6E0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:34px">♪</div>
+          </div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:space-around;padding:0 44px;font-size:34px;font-weight:600;color:#2b2b2f">
+            <div style="display:grid;grid-template-columns:repeat(2,15px);gap:7px">
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+            </div>
+            <div style="width:52px;height:28px;border:4px solid #2b2b2f;border-radius:12px 12px 7px 7px"></div>
+            <div style="display:flex;align-items:center;gap:22px"><div style="opacity:.45">‹</div><div>OFF</div><div style="opacity:.45">›</div></div>
+            <div style="display:flex;align-items:center;gap:22px"><div style="opacity:.3">‹</div><div>✻ 0</div><div style="opacity:.45">›</div></div>
+            <div>⌁</div>
+            <div>360</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="2b" style="display:flex;flex-direction:column;gap:18px;flex:0 0 auto">
+      <div style="display:flex;align-items:center;gap:18px">
+        <div style="font-size:24px;font-weight:700;padding:8px 18px;border-radius:999px;background:#2E333B">2b</div>
+        <div style="font-size:28px;color:#8A93A0">Claro — marfim, cartão branco</div>
+      </div>
+      <div style="position:relative;width:1920px;height:1080px;border-radius:18px;overflow:hidden;box-shadow:0 50px 120px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,#F8F6F1 0%,#E6E2D9 100%)"></div>
+        <div style="position:absolute;left:0;right:0;top:633px;height:170px;background:linear-gradient(180deg,rgba(0,0,0,0),#4A5A72,rgba(0,0,0,0));opacity:.10;filter:blur(32px)"></div>
+        <div style="position:absolute;left:0;right:0;top:563px;height:150px;background-repeat:no-repeat;background-position:0 100%,26px 100%,7px 100%,53px 100%,15px 100%,38px 100%;background-size:100% 150px,100% 118px,100% 92px,100% 66px,100% 44px,100% 28px;opacity:.42;background-image:repeating-linear-gradient(90deg,#4A5A72 0 17px,rgba(0,0,0,0) 17px 151px),repeating-linear-gradient(90deg,#4A5A72 0 29px,rgba(0,0,0,0) 29px 113px),repeating-linear-gradient(90deg,#4A5A72 0 23px,rgba(0,0,0,0) 23px 79px),repeating-linear-gradient(90deg,#4A5A72 0 37px,rgba(0,0,0,0) 37px 101px),repeating-linear-gradient(90deg,#4A5A72 0 13px,rgba(0,0,0,0) 13px 47px),repeating-linear-gradient(90deg,#4A5A72 0 9px,rgba(0,0,0,0) 9px 31px)"></div>
+        <div style="position:absolute;left:0;right:0;top:713px;height:2px;background:linear-gradient(90deg,rgba(27,31,36,0),rgba(27,31,36,.16) 45%,rgba(27,31,36,.04))"></div>
+        <div style="position:absolute;left:0;right:0;top:717px;height:150px;mask-image:linear-gradient(180deg,#000,rgba(0,0,0,0) 72%);-webkit-mask-image:linear-gradient(180deg,#000,rgba(0,0,0,0) 72%)">
+          <div style="position:absolute;inset:0;transform:scaleY(-1);background-repeat:no-repeat;background-position:0 100%,26px 100%,7px 100%,53px 100%,15px 100%,38px 100%;background-size:100% 150px,100% 118px,100% 92px,100% 66px,100% 44px,100% 28px;opacity:.14;background-image:repeating-linear-gradient(90deg,#4A5A72 0 17px,rgba(0,0,0,0) 17px 151px),repeating-linear-gradient(90deg,#4A5A72 0 29px,rgba(0,0,0,0) 29px 113px),repeating-linear-gradient(90deg,#4A5A72 0 23px,rgba(0,0,0,0) 23px 79px),repeating-linear-gradient(90deg,#4A5A72 0 37px,rgba(0,0,0,0) 37px 101px),repeating-linear-gradient(90deg,#4A5A72 0 13px,rgba(0,0,0,0) 13px 47px),repeating-linear-gradient(90deg,#4A5A72 0 9px,rgba(0,0,0,0) 9px 31px)"></div>
+        </div>
+        <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(230,226,217,.9) 0%,rgba(230,226,217,.55) 45%,rgba(230,226,217,0) 78%)"></div>
+        <div style="position:absolute;inset:72px 0 105px 0;display:flex;align-items:flex-start;gap:24px;padding:32px 36px">
+          <div style="flex:0 0 600px;display:flex;flex-direction:column;gap:24px">
+            <div style="display:flex;flex-direction:column;gap:26px;padding:38px;box-sizing:border-box;border-radius:34px;background:rgba(255,255,255,.82);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);box-shadow:inset 0 0 0 1px rgba(0,0,0,.10);">
+              <div style="font-size:28px;font-weight:600;color:#1B1F24">Clima</div>
+              <div style="display:flex;align-items:baseline;gap:16px">
+                <div style="font-size:112px;font-weight:300;letter-spacing:-.04em;line-height:.9;color:#1B1F24">28.0°</div>
+                <div style="font-size:26px;color:#62697A">fora</div>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <sc-for list="{{ segsClaro }}" as="seg" hint-placeholder-count="11">
+                  <div style="{{ seg.style }}"></div>
+                </sc-for>
+              </div>
+              <div style="display:flex;gap:14px">
+                <div style="flex:1;height:104px;border-radius:26px;background:rgba(0,0,0,.045);box-shadow:inset 0 0 0 1px rgba(0,0,0,.10);display:flex;align-items:center;justify-content:center;font-size:34px;line-height:1;color:#0277BD">❄</div>
+                <div style="flex:1;height:104px;border-radius:26px;background:rgba(0,0,0,.045);box-shadow:inset 0 0 0 1px rgba(0,0,0,.10);display:flex;align-items:center;justify-content:center;font-size:34px;line-height:1;color:#E65100">☀</div>
+              </div>
+              <div style="display:flex;gap:14px">
+                <div style="flex:1;height:96px;border-radius:26px;background:rgba(0,0,0,.045);box-shadow:inset 0 0 0 1px rgba(0,0,0,.10);display:flex;align-items:center;justify-content:center;text-align:center;padding:0 14px">
+                  <div style="font-size:25px;font-weight:600;color:#1B1F24">Recircular ar</div>
+                </div>
+                <div style="flex:1;height:96px;border-radius:26px;background:rgba(0,0,0,.045);box-shadow:inset 0 0 0 1px rgba(0,0,0,.10);display:flex;align-items:center;justify-content:center;text-align:center;padding:0 14px">
+                  <div style="font-size:25px;font-weight:600;color:#1B1F24">Fechar vidros</div>
+                </div>
+              </div>
+              <div style="display:flex">
+                <div style="position:relative;width:38px;height:38px">
+                  <div style="position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(from 0deg,#62697A 0 11deg,rgba(0,0,0,0) 11deg 45deg);mask-image:radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 57%,#000 58%);-webkit-mask-image:radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 57%,#000 58%)"></div>
+                  <div style="position:absolute;inset:6px;border-radius:50%;border:2px solid #62697A"></div>
+                  <div style="position:absolute;inset:14px;border-radius:50%;border:2px solid #62697A"></div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:22px;padding:38px;box-sizing:border-box;border-radius:34px;background:rgba(255,255,255,.82);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);box-shadow:inset 0 0 0 1px rgba(0,0,0,.10);">
+              <div style="width:14px;height:14px;border-radius:50%;background:#1668E3;box-shadow:0 0 16px 4px rgba(22,104,227,.35)"></div>
+              <div style="flex:1;font-size:28px;font-weight:600;color:#1B1F24">Portão</div>
+              <div style="width:180px;height:88px;border-radius:26px;background:#1668E3;display:flex;align-items:center;justify-content:center">
+                <div style="font-size:26px;font-weight:600;color:#FFFFFF">Abrir</div>
+              </div>
+            </div>
+          </div>
+          <div style="flex:1"></div>
+        </div>
+
+        <div style="position:absolute;left:0;right:0;top:0;height:72px;background:#000;display:flex;align-items:center;justify-content:space-between;padding:0 28px;color:#ECEFF3">
+          <div style="display:flex;align-items:center;gap:26px">
+            <div style="font-size:34px;font-weight:700">29<span style="font-size:20px">°C</span></div>
+            <div style="width:22px;height:26px;border-radius:7px;border:2px solid rgba(255,255,255,.45)"></div>
+            <div style="width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.45)"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:24px">
+            <div style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(255,255,255,.35)"></div>
+            <div style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(255,255,255,.35)"></div>
+            <div style="font-size:34px">13:02</div>
+          </div>
+        </div>
+
+        <div style="position:absolute;left:0;right:0;bottom:0;height:105px;display:flex;background:#F1F1F4;color:#1c1c1e">
+          <div style="flex:0 0 590px;display:flex;align-items:center;gap:26px;padding:0 24px;background:#E9E9ED">
+            <div style="width:46px;height:46px;border-radius:50%;border:5px solid #2b2b2f"></div>
+            <div style="flex:1;font-size:30px">Voltar Para Início</div>
+            <div style="width:74px;height:74px;border-radius:14px;background:#7EA6E0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:34px">♪</div>
+          </div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:space-around;padding:0 44px;font-size:34px;font-weight:600;color:#2b2b2f">
+            <div style="display:grid;grid-template-columns:repeat(2,15px);gap:7px">
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+            </div>
+            <div style="width:52px;height:28px;border:4px solid #2b2b2f;border-radius:12px 12px 7px 7px"></div>
+            <div style="display:flex;align-items:center;gap:22px"><div style="opacity:.45">‹</div><div>OFF</div><div style="opacity:.45">›</div></div>
+            <div style="display:flex;align-items:center;gap:22px"><div style="opacity:.3">‹</div><div>✻ 0</div><div style="opacity:.45">›</div></div>
+            <div>⌁</div>
+            <div>360</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:40px;padding:64px">
+  <div style="display:flex;flex-direction:column;gap:14px;max-width:1240px">
+    <div style="font-size:22px;letter-spacing:.16em;text-transform:uppercase;color:#8A93A0">Turno 1 · Drive Assist no estilo CarPlay</div>
+    <div style="font-size:56px;font-weight:600;letter-spacing:-.02em">Conforto e config</div>
+    <div style="font-size:26px;line-height:1.5;color:#8A93A0;text-wrap:pretty">Home em duas variações (<a href="#1a">1a</a> três widgets, <a href="#1b">1b</a> widget largo + faixa), config em <a href="#1c">1c</a>, janela de notificação em <a href="#1d">1d</a>. Paleta e formas vêm do tema Geely em <span style="font-family:ui-monospace,Menlo,monospace;font-size:23px">Style.java</span>; a régua é a escala absoluta C5…0…W5 do <span style="font-family:ui-monospace,Menlo,monospace;font-size:23px">EffortTable</span> — zero é a climatização desligada, não um neutro. A arte sangra a tela inteira — horizonte em 0,66, cidade espelhada abaixo — sob um véu suave, e os widgets flutuam sobre ela. O portão é card próprio: é outra categoria, não um comando de clima.</div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:56px">
+
+    <!-- 1a -->
+    <div id="1a" style="display:flex;flex-direction:column;gap:18px;flex:0 0 auto">
+      <div style="display:flex;align-items:center;gap:18px">
+        <div style="font-size:24px;font-weight:700;padding:8px 18px;border-radius:999px;background:#2E333B">1a</div>
+        <div style="font-size:28px;color:#8A93A0">Home — clima e portão à esquerda, arte livre à direita</div>
+      </div>
+      <div style="position:relative;width:1920px;height:1080px;border-radius:18px;overflow:hidden;background:#171B21;box-shadow:0 50px 120px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,#303640 0%,#171B21 100%)"></div>
+        <div style="position:absolute;left:0;right:0;top:633px;height:170px;background:linear-gradient(180deg,rgba(0,0,0,0),var(--cabin),rgba(0,0,0,0));opacity:.16;filter:blur(32px)"></div>
+        <div style="position:absolute;left:0;right:0;top:563px;height:150px;opacity:var(--cabin-a)">
+          <div style="position:absolute;inset:0;opacity:.46;background-repeat:no-repeat;background-position:0 100%,26px 100%,7px 100%,53px 100%,15px 100%,38px 100%;background-size:100% 150px,100% 118px,100% 92px,100% 66px,100% 44px,100% 28px;background-image:repeating-linear-gradient(90deg,var(--cabin) 0 17px,rgba(0,0,0,0) 17px 151px),repeating-linear-gradient(90deg,var(--cabin) 0 29px,rgba(0,0,0,0) 29px 113px),repeating-linear-gradient(90deg,var(--cabin) 0 23px,rgba(0,0,0,0) 23px 79px),repeating-linear-gradient(90deg,var(--cabin) 0 37px,rgba(0,0,0,0) 37px 101px),repeating-linear-gradient(90deg,var(--cabin) 0 13px,rgba(0,0,0,0) 13px 47px),repeating-linear-gradient(90deg,var(--cabin) 0 9px,rgba(0,0,0,0) 9px 31px)"></div>
+        </div>
+        <div style="position:absolute;left:0;right:0;top:713px;height:2px;background:linear-gradient(90deg,rgba(236,239,243,0),rgba(236,239,243,.15) 45%,rgba(236,239,243,.04))"></div>
+        <div style="position:absolute;left:0;right:0;top:717px;height:150px;opacity:var(--cabin-a);mask-image:linear-gradient(180deg,#000,rgba(0,0,0,0) 72%);-webkit-mask-image:linear-gradient(180deg,#000,rgba(0,0,0,0) 72%)">
+          <div style="position:absolute;inset:0;transform:scaleY(-1);opacity:.16;background-repeat:no-repeat;background-position:0 100%,26px 100%,7px 100%,53px 100%,15px 100%,38px 100%;background-size:100% 150px,100% 118px,100% 92px,100% 66px,100% 44px,100% 28px;background-image:repeating-linear-gradient(90deg,var(--cabin) 0 17px,rgba(0,0,0,0) 17px 151px),repeating-linear-gradient(90deg,var(--cabin) 0 29px,rgba(0,0,0,0) 29px 113px),repeating-linear-gradient(90deg,var(--cabin) 0 23px,rgba(0,0,0,0) 23px 79px),repeating-linear-gradient(90deg,var(--cabin) 0 37px,rgba(0,0,0,0) 37px 101px),repeating-linear-gradient(90deg,var(--cabin) 0 13px,rgba(0,0,0,0) 13px 47px),repeating-linear-gradient(90deg,var(--cabin) 0 9px,rgba(0,0,0,0) 9px 31px)"></div>
+        </div>
+        <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(23,27,33,.82) 0%,rgba(23,27,33,.5) 45%,rgba(23,27,33,.1) 78%)"></div>
+
+        <div style="position:absolute;inset:72px 0 105px 0;display:flex;align-items:flex-start;gap:24px;padding:32px 36px">
+          <div style="flex:0 0 600px;display:flex;flex-direction:column;gap:24px">
+            <div style="display:flex;flex-direction:column;gap:26px;padding:38px;box-sizing:border-box;border-radius:30px;background:rgba(24,27,32,.58);backdrop-filter:blur(36px) saturate(140%);-webkit-backdrop-filter:blur(36px) saturate(140%);">
+              <div style="font-size:28px;font-weight:600;color:#ECEFF3">Clima</div>
+              <div style="display:flex;align-items:baseline;gap:16px">
+                <div style="font-size:112px;font-weight:300;letter-spacing:-.04em;line-height:.9;color:#ECEFF3">28.0°</div>
+                <div style="font-size:26px;color:#8A93A0">fora</div>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <sc-for list="{{ segments }}" as="seg" hint-placeholder-count="11">
+                  <div style="{{ seg.style }}"></div>
+                </sc-for>
+              </div>
+              <div style="display:flex;gap:14px">
+                <div style="flex:1;height:104px;border-radius:22px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;font-size:34px;line-height:1;color:#2196F3">❄</div>
+                <div style="flex:1;height:104px;border-radius:22px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;font-size:34px;line-height:1;color:#FF9800">☀</div>
+              </div>
+              <div style="display:flex;gap:14px">
+                <div style="flex:1;height:96px;border-radius:22px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;text-align:center;padding:0 14px">
+                  <div style="font-size:25px;font-weight:600;color:#ECEFF3">Recircular ar</div>
+                </div>
+                <div style="flex:1;height:96px;border-radius:22px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;text-align:center;padding:0 14px">
+                  <div style="font-size:25px;font-weight:600;color:#ECEFF3">Fechar vidros</div>
+                </div>
+              </div>
+              <div style="display:flex">
+                <div style="position:relative;width:38px;height:38px">
+                  <div style="position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(from 0deg,#8A93A0 0 11deg,rgba(0,0,0,0) 11deg 45deg);mask-image:radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 57%,#000 58%);-webkit-mask-image:radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 57%,#000 58%)"></div>
+                  <div style="position:absolute;inset:6px;border-radius:50%;border:2px solid #8A93A0"></div>
+                  <div style="position:absolute;inset:14px;border-radius:50%;border:2px solid #8A93A0"></div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:22px;padding:38px;box-sizing:border-box;border-radius:30px;background:rgba(24,27,32,.58);backdrop-filter:blur(36px) saturate(140%);-webkit-backdrop-filter:blur(36px) saturate(140%);">
+              <div style="width:14px;height:14px;border-radius:50%;background:#1E6FFF;box-shadow:0 0 16px 4px rgba(30,111,255,.5)"></div>
+              <div style="flex:1;font-size:28px;font-weight:600;color:#ECEFF3">Portão</div>
+              <div style="width:180px;height:88px;border-radius:22px;background:#1E6FFF;display:flex;align-items:center;justify-content:center">
+                <div style="font-size:26px;font-weight:600;color:#ECEFF3">Abrir</div>
+              </div>
+            </div>
+          </div>
+          <div style="flex:1"></div>
+        </div>
+
+        <div style="position:absolute;left:0;right:0;top:0;height:72px;background:#000;display:flex;align-items:center;justify-content:space-between;padding:0 28px">
+          <div style="display:flex;align-items:center;gap:26px">
+            <div style="font-size:34px;font-weight:700">29<span style="font-size:20px">°C</span></div>
+            <div style="width:22px;height:26px;border-radius:7px;border:2px solid rgba(255,255,255,.45)"></div>
+            <div style="width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.45)"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:24px">
+            <div style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(255,255,255,.35)"></div>
+            <div style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(255,255,255,.35)"></div>
+            <div style="font-size:34px">10:41</div>
+          </div>
+        </div>
+
+        <div style="position:absolute;left:0;right:0;bottom:0;height:105px;display:flex;background:#F1F1F4;color:#1c1c1e">
+          <div style="flex:0 0 590px;display:flex;align-items:center;gap:26px;padding:0 24px;background:#E9E9ED">
+            <div style="width:46px;height:46px;border-radius:50%;border:5px solid #2b2b2f"></div>
+            <div style="flex:1;font-size:30px">Voltar Para Início</div>
+            <div style="width:74px;height:74px;border-radius:14px;background:#7EA6E0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:34px">♪</div>
+          </div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:space-around;padding:0 44px;font-size:34px;font-weight:600;color:#2b2b2f">
+            <div style="display:grid;grid-template-columns:repeat(2,15px);gap:7px">
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+            </div>
+            <div style="width:52px;height:28px;border:4px solid #2b2b2f;border-radius:12px 12px 7px 7px"></div>
+            <div style="display:flex;align-items:center;gap:22px"><div style="opacity:.45">‹</div><div>OFF</div><div style="opacity:.45">›</div></div>
+            <div style="display:flex;align-items:center;gap:22px"><div style="opacity:.3">‹</div><div>✻ 0</div><div style="opacity:.45">›</div></div>
+            <div>⌁</div>
+            <div>360</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1b -->
+    <div id="1b" style="display:flex;flex-direction:column;gap:18px;flex:0 0 auto">
+      <div style="display:flex;align-items:center;gap:18px">
+        <div style="font-size:24px;font-weight:700;padding:8px 18px;border-radius:999px;background:#2E333B">1b</div>
+        <div style="font-size:28px;color:#8A93A0">Home — clima em widget largo, interruptores em faixa inteira</div>
+      </div>
+      <div style="position:relative;width:1920px;height:1080px;border-radius:18px;overflow:hidden;background:#171B21;box-shadow:0 50px 120px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,#303640 0%,#171B21 100%)"></div>
+        <div style="position:absolute;left:0;right:0;top:470px;height:170px;background:linear-gradient(180deg,rgba(0,0,0,0),var(--cabin),rgba(0,0,0,0));opacity:.16;filter:blur(32px)"></div>
+        <div style="position:absolute;left:0;right:0;top:400px;height:150px;opacity:var(--cabin-a)">
+          <div style="position:absolute;inset:0;opacity:.46;background-repeat:no-repeat;background-position:0 100%,26px 100%,7px 100%,53px 100%,15px 100%,38px 100%;background-size:100% 150px,100% 118px,100% 92px,100% 66px,100% 44px,100% 28px;background-image:repeating-linear-gradient(90deg,var(--cabin) 0 17px,rgba(0,0,0,0) 17px 151px),repeating-linear-gradient(90deg,var(--cabin) 0 29px,rgba(0,0,0,0) 29px 113px),repeating-linear-gradient(90deg,var(--cabin) 0 23px,rgba(0,0,0,0) 23px 79px),repeating-linear-gradient(90deg,var(--cabin) 0 37px,rgba(0,0,0,0) 37px 101px),repeating-linear-gradient(90deg,var(--cabin) 0 13px,rgba(0,0,0,0) 13px 47px),repeating-linear-gradient(90deg,var(--cabin) 0 9px,rgba(0,0,0,0) 9px 31px)"></div>
+        </div>
+        <div style="position:absolute;left:0;right:0;top:550px;height:2px;background:linear-gradient(90deg,rgba(236,239,243,0),rgba(236,239,243,.15) 45%,rgba(236,239,243,.04))"></div>
+        <div style="position:absolute;left:0;right:0;top:554px;height:150px;opacity:var(--cabin-a);mask-image:linear-gradient(180deg,#000,rgba(0,0,0,0) 72%);-webkit-mask-image:linear-gradient(180deg,#000,rgba(0,0,0,0) 72%)">
+          <div style="position:absolute;inset:0;transform:scaleY(-1);opacity:.16;background-repeat:no-repeat;background-position:0 100%,26px 100%,7px 100%,53px 100%,15px 100%,38px 100%;background-size:100% 150px,100% 118px,100% 92px,100% 66px,100% 44px,100% 28px;background-image:repeating-linear-gradient(90deg,var(--cabin) 0 17px,rgba(0,0,0,0) 17px 151px),repeating-linear-gradient(90deg,var(--cabin) 0 29px,rgba(0,0,0,0) 29px 113px),repeating-linear-gradient(90deg,var(--cabin) 0 23px,rgba(0,0,0,0) 23px 79px),repeating-linear-gradient(90deg,var(--cabin) 0 37px,rgba(0,0,0,0) 37px 101px),repeating-linear-gradient(90deg,var(--cabin) 0 13px,rgba(0,0,0,0) 13px 47px),repeating-linear-gradient(90deg,var(--cabin) 0 9px,rgba(0,0,0,0) 9px 31px)"></div>
+        </div>
+        <div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(23,27,33,.82) 0%,rgba(23,27,33,.5) 38%,rgba(23,27,33,.1) 74%)"></div>
+
+        <div style="position:absolute;inset:72px 0 105px 0;display:flex;flex-direction:column;gap:24px;padding:32px 36px">
+          <div style="flex:1;display:flex;align-items:flex-start;gap:24px">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:30px;padding:38px;border-radius:30px;box-sizing:border-box;background:rgba(24,27,32,.58);backdrop-filter:blur(36px) saturate(140%);-webkit-backdrop-filter:blur(36px) saturate(140%)">
+              <div style="font-size:28px;font-weight:600">Clima</div>
+              <div style="display:flex;align-items:baseline;gap:16px">
+                <div style="font-size:112px;font-weight:300;letter-spacing:-.04em;line-height:.9">28.0°</div>
+                
+              </div>
+              <div style="margin-top:auto;display:flex;align-items:center;gap:34px">
+                <div style="flex:1"><div style="display:flex;gap:8px;align-items:center">
+              <sc-for list="{{ segments }}" as="seg" hint-placeholder-count="11">
+                <div style="{{ seg.style }}"></div>
+              </sc-for>
+            </div></div>
+                <div style="flex:0 0 320px"><div style="display:flex;gap:14px">
+              <div style="flex:1;height:104px;border-radius:22px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;font-size:34px;line-height:1;color:#2196F3">❄</div>
+              <div style="flex:1;height:104px;border-radius:22px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;font-size:34px;line-height:1;color:#FF9800">☀</div>
+            </div></div>
+              </div>
+            </div>
+            <div style="flex:0 0 600px;display:flex;flex-direction:column;gap:24px">
+              <div style="display:flex;flex-direction:column;gap:24px;padding:34px 38px;border-radius:30px;box-sizing:border-box;background:rgba(24,27,32,.58);backdrop-filter:blur(36px) saturate(140%);-webkit-backdrop-filter:blur(36px) saturate(140%)">
+              <div style="display:flex;align-items:center;gap:16px">
+                <div style="width:14px;height:14px;border-radius:50%;background:#1E6FFF;box-shadow:0 0 16px 4px rgba(30,111,255,.5)"></div>
+                <div style="font-size:28px;font-weight:600">Portão</div>
+              </div>
+              <div style="height:104px;border-radius:22px;background:#1E6FFF;display:flex;align-items:center;justify-content:center">
+                <div style="font-size:28px;font-weight:600;color:#ECEFF3">Abrir</div>
+              </div>
+            </div>
+              <div style="flex:1"></div>
+            </div>
+          </div>
+          <div style="flex:0 0 200px;display:flex;align-items:center;gap:24px;padding:0 38px;border-radius:30px;box-sizing:border-box;background:rgba(24,27,32,.58);backdrop-filter:blur(36px) saturate(140%);-webkit-backdrop-filter:blur(36px) saturate(140%)">
+            <div style="flex:1;height:118px;border-radius:22px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center">
+              <div style="font-size:28px;font-weight:600">Recircular ar</div>
+            </div>
+            <div style="flex:1;height:118px;border-radius:22px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center">
+              <div style="font-size:28px;font-weight:600">Fechar vidros</div>
+            </div>
+            <div style="position:relative;width:38px;height:38px">
+              <div style="position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(from 0deg,#8A93A0 0 11deg,rgba(0,0,0,0) 11deg 45deg);mask-image:radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 57%,#000 58%);-webkit-mask-image:radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 57%,#000 58%)"></div>
+              <div style="position:absolute;inset:6px;border-radius:50%;border:2px solid #8A93A0"></div>
+              <div style="position:absolute;inset:14px;border-radius:50%;border:2px solid #8A93A0"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="position:absolute;left:0;right:0;top:0;height:72px;background:#000;display:flex;align-items:center;justify-content:space-between;padding:0 28px">
+          <div style="display:flex;align-items:center;gap:26px">
+            <div style="font-size:34px;font-weight:700">29<span style="font-size:20px">°C</span></div>
+            <div style="width:22px;height:26px;border-radius:7px;border:2px solid rgba(255,255,255,.45)"></div>
+            <div style="width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.45)"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:24px">
+            <div style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(255,255,255,.35)"></div>
+            <div style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(255,255,255,.35)"></div>
+            <div style="font-size:34px">10:36</div>
+          </div>
+        </div>
+
+        <div style="position:absolute;left:0;right:0;bottom:0;height:105px;display:flex;background:#F1F1F4;color:#1c1c1e">
+          <div style="flex:0 0 590px;display:flex;align-items:center;gap:26px;padding:0 24px;background:#E9E9ED">
+            <div style="width:46px;height:46px;border-radius:50%;border:5px solid #2b2b2f"></div>
+            <div style="flex:1;font-size:30px">Voltar Para Início</div>
+            <div style="width:74px;height:74px;border-radius:14px;background:#7EA6E0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:34px">♪</div>
+          </div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:space-around;padding:0 44px;font-size:34px;font-weight:600;color:#2b2b2f">
+            <div style="display:grid;grid-template-columns:repeat(2,15px);gap:7px">
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+            </div>
+            <div style="width:52px;height:28px;border:4px solid #2b2b2f;border-radius:12px 12px 7px 7px"></div>
+            <div style="display:flex;align-items:center;gap:22px"><div style="opacity:.45">‹</div><div>OFF</div><div style="opacity:.45">›</div></div>
+            <div style="display:flex;align-items:center;gap:22px"><div style="opacity:.3">‹</div><div>✻ 0</div><div style="opacity:.45">›</div></div>
+            <div>⌁</div>
+            <div>360</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1c -->
+    <div id="1c" style="display:flex;flex-direction:column;gap:18px;flex:0 0 auto">
+      <div style="display:flex;align-items:center;gap:18px">
+        <div style="font-size:24px;font-weight:700;padding:8px 18px;border-radius:999px;background:#2E333B">1c</div>
+        <div style="font-size:28px;color:#8A93A0">Config — sem arte, só o gradiente do tema</div>
+      </div>
+      <div style="position:relative;width:1920px;height:1080px;border-radius:18px;overflow:hidden;background:#171B21;box-shadow:0 50px 120px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,#303640 0%,#171B21 100%)"></div>
+
+        <div style="position:absolute;inset:72px 0 105px 0;display:flex;gap:44px;padding:40px 48px">
+          <div style="flex:0 0 360px;display:flex;flex-direction:column;gap:24px">
+            <div style="display:flex;align-items:center;gap:22px">
+              <div style="width:58px;height:58px;border-radius:18px;background:#2E333B;box-shadow:inset 0 0 0 1px rgba(255,255,255,.13);display:flex;align-items:center;justify-content:center;font-size:34px;color:#ECEFF3">‹</div>
+              <div style="font-size:32px;font-weight:600">Config</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div style="height:70px;display:flex;align-items:center;padding:0 24px;border-radius:18px;background:#1E6FFF">
+                <div style="font-size:25px;font-weight:600;color:#ECEFF3">Modo de Condução</div>
+              </div>
+              <div style="height:70px;display:flex;align-items:center;padding:0 24px;border-radius:18px;font-size:25px;color:#8A93A0">Barra de menu</div>
+              <div style="height:70px;display:flex;align-items:center;padding:0 24px;border-radius:18px;font-size:25px;color:#8A93A0">Aparência</div>
+              <div style="height:70px;display:flex;align-items:center;padding:0 24px;border-radius:18px;font-size:25px;color:#8A93A0">Portas</div>
+              <div style="height:70px;display:flex;align-items:center;padding:0 24px;border-radius:18px;font-size:25px;color:#8A93A0">MQTT</div>
+              <div style="height:70px;display:flex;align-items:center;padding:0 24px;border-radius:18px;font-size:25px;color:#8A93A0">Dashcam</div>
+            </div>
+          </div>
+
+          <div style="flex:0 1 auto;max-width:700px;display:flex;flex-direction:column;gap:34px">
+            <div style="display:flex;flex-direction:column;gap:20px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <div style="font-size:21px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#B0B7C0">Modo de condução</div>
+                <div style="font-size:21px;color:#8A93A0">Reaplicado a cada partida</div>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(3,192px);gap:14px">
+                <div style="height:88px;border-radius:18px;background:#1E6FFF;display:flex;align-items:center;justify-content:center">
+                  <div style="font-size:27px;font-weight:600;color:#ECEFF3">Eco</div>
+                </div>
+                <div style="height:88px;border-radius:18px;background:#2E333B;box-shadow:inset 0 0 0 1px rgba(255,255,255,.13);display:flex;align-items:center;justify-content:center">
+                  <div style="font-size:27px;font-weight:600">Comfort</div>
+                </div>
+                <div style="height:88px;border-radius:18px;background:#2E333B;box-shadow:inset 0 0 0 1px rgba(255,255,255,.13);display:flex;align-items:center;justify-content:center">
+                  <div style="font-size:27px;font-weight:600">Sport</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:20px">
+              <div style="font-size:21px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#B0B7C0">Regeneração</div>
+              <div style="display:grid;grid-template-columns:repeat(3,192px);gap:14px">
+                <div style="height:88px;border-radius:18px;background:#2E333B;box-shadow:inset 0 0 0 1px rgba(255,255,255,.13);display:flex;align-items:center;justify-content:center">
+                  <div style="font-size:27px;font-weight:600">Fraca</div>
+                </div>
+                <div style="height:88px;border-radius:18px;background:#1E6FFF;display:flex;align-items:center;justify-content:center">
+                  <div style="font-size:27px;font-weight:600;color:#ECEFF3">Média</div>
+                </div>
+                <div style="height:88px;border-radius:18px;background:#2E333B;box-shadow:inset 0 0 0 1px rgba(255,255,255,.13);display:flex;align-items:center;justify-content:center">
+                  <div style="font-size:27px;font-weight:600">Forte</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top:auto;display:flex;gap:16px">
+              <div style="width:290px;height:76px;border-radius:18px;background:#1E6FFF;display:flex;align-items:center;justify-content:center">
+                <div style="font-size:25px;font-weight:600;color:#ECEFF3">Aplicar agora</div>
+              </div>
+              <div style="width:290px;height:76px;border-radius:18px;background:#2E333B;box-shadow:inset 0 0 0 1px rgba(255,255,255,.13);display:flex;align-items:center;justify-content:center">
+                <div style="font-size:25px;font-weight:600;color:#ECEFF3">Salvar padrão</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="position:absolute;left:0;right:0;top:0;height:72px;background:#000;display:flex;align-items:center;justify-content:space-between;padding:0 28px">
+          <div style="display:flex;align-items:center;gap:26px">
+            <div style="font-size:34px;font-weight:700">29<span style="font-size:20px">°C</span></div>
+            <div style="width:22px;height:26px;border-radius:7px;border:2px solid rgba(255,255,255,.45)"></div>
+            <div style="width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.45)"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:24px">
+            <div style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(255,255,255,.35)"></div>
+            <div style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(255,255,255,.35)"></div>
+            <div style="font-size:34px">10:41</div>
+          </div>
+        </div>
+
+        <div style="position:absolute;left:0;right:0;bottom:0;height:105px;display:flex;background:#F1F1F4;color:#1c1c1e">
+          <div style="flex:0 0 590px;display:flex;align-items:center;gap:26px;padding:0 24px;background:#E9E9ED">
+            <div style="width:46px;height:46px;border-radius:50%;border:5px solid #2b2b2f"></div>
+            <div style="flex:1;font-size:30px">Voltar Para Início</div>
+            <div style="width:74px;height:74px;border-radius:14px;background:#7EA6E0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:34px">♪</div>
+          </div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:space-around;padding:0 44px;font-size:34px;font-weight:600;color:#2b2b2f">
+            <div style="display:grid;grid-template-columns:repeat(2,15px);gap:7px">
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+            </div>
+            <div style="width:52px;height:28px;border:4px solid #2b2b2f;border-radius:12px 12px 7px 7px"></div>
+            <div style="display:flex;align-items:center;gap:22px"><div style="opacity:.45">‹</div><div>OFF</div><div style="opacity:.45">›</div></div>
+            <div style="display:flex;align-items:center;gap:22px"><div style="opacity:.3">‹</div><div>✻ 0</div><div style="opacity:.45">›</div></div>
+            <div>⌁</div>
+            <div>360</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1d -->
+    <div id="1d" style="display:flex;flex-direction:column;gap:18px;flex:0 0 auto">
+      <div style="display:flex;align-items:center;gap:18px">
+        <div style="font-size:24px;font-weight:700;padding:8px 18px;border-radius:999px;background:#2E333B">1d</div>
+        <div style="font-size:28px;color:#8A93A0">Notificação — balsa à direita, arte no meio</div>
+      </div>
+      <div style="position:relative;width:1920px;height:1080px;border-radius:18px;overflow:hidden;background:#171B21;box-shadow:0 50px 120px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,#303640 0%,#171B21 100%)"></div>
+        <div style="position:absolute;left:0;right:0;top:633px;height:170px;background:linear-gradient(180deg,rgba(0,0,0,0),var(--cabin),rgba(0,0,0,0));opacity:.16;filter:blur(32px)"></div>
+        <div style="position:absolute;left:0;right:0;top:563px;height:150px;opacity:var(--cabin-a)">
+          <div style="position:absolute;inset:0;opacity:.46;background-repeat:no-repeat;background-position:0 100%,26px 100%,7px 100%,53px 100%,15px 100%,38px 100%;background-size:100% 150px,100% 118px,100% 92px,100% 66px,100% 44px,100% 28px;background-image:repeating-linear-gradient(90deg,var(--cabin) 0 17px,rgba(0,0,0,0) 17px 151px),repeating-linear-gradient(90deg,var(--cabin) 0 29px,rgba(0,0,0,0) 29px 113px),repeating-linear-gradient(90deg,var(--cabin) 0 23px,rgba(0,0,0,0) 23px 79px),repeating-linear-gradient(90deg,var(--cabin) 0 37px,rgba(0,0,0,0) 37px 101px),repeating-linear-gradient(90deg,var(--cabin) 0 13px,rgba(0,0,0,0) 13px 47px),repeating-linear-gradient(90deg,var(--cabin) 0 9px,rgba(0,0,0,0) 9px 31px)"></div>
+        </div>
+        <div style="position:absolute;left:0;right:0;top:713px;height:2px;background:linear-gradient(90deg,rgba(236,239,243,0),rgba(236,239,243,.15) 45%,rgba(236,239,243,.04))"></div>
+        <div style="position:absolute;left:0;right:0;top:717px;height:150px;opacity:var(--cabin-a);mask-image:linear-gradient(180deg,#000,rgba(0,0,0,0) 72%);-webkit-mask-image:linear-gradient(180deg,#000,rgba(0,0,0,0) 72%)">
+          <div style="position:absolute;inset:0;transform:scaleY(-1);opacity:.16;background-repeat:no-repeat;background-position:0 100%,26px 100%,7px 100%,53px 100%,15px 100%,38px 100%;background-size:100% 150px,100% 118px,100% 92px,100% 66px,100% 44px,100% 28px;background-image:repeating-linear-gradient(90deg,var(--cabin) 0 17px,rgba(0,0,0,0) 17px 151px),repeating-linear-gradient(90deg,var(--cabin) 0 29px,rgba(0,0,0,0) 29px 113px),repeating-linear-gradient(90deg,var(--cabin) 0 23px,rgba(0,0,0,0) 23px 79px),repeating-linear-gradient(90deg,var(--cabin) 0 37px,rgba(0,0,0,0) 37px 101px),repeating-linear-gradient(90deg,var(--cabin) 0 13px,rgba(0,0,0,0) 13px 47px),repeating-linear-gradient(90deg,var(--cabin) 0 9px,rgba(0,0,0,0) 9px 31px)"></div>
+        </div>
+        <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(23,27,33,.82) 0%,rgba(23,27,33,.5) 45%,rgba(23,27,33,.1) 78%)"></div>
+
+        <div style="position:absolute;inset:72px 0 105px 0;display:flex;align-items:flex-start;gap:24px;padding:32px 36px">
+          <div style="flex:0 0 600px;display:flex;flex-direction:column;gap:24px">
+            <div style="display:flex;flex-direction:column;gap:26px;padding:38px;box-sizing:border-box;border-radius:30px;background:rgba(24,27,32,.58);backdrop-filter:blur(36px) saturate(140%);-webkit-backdrop-filter:blur(36px) saturate(140%);">
+              <div style="font-size:28px;font-weight:600;color:#ECEFF3">Clima</div>
+              <div style="display:flex;align-items:baseline;gap:16px">
+                <div style="font-size:112px;font-weight:300;letter-spacing:-.04em;line-height:.9;color:#ECEFF3">28.5°</div>
+                <div style="font-size:26px;color:#8A93A0">fora</div>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <sc-for list="{{ segments }}" as="seg" hint-placeholder-count="11">
+                  <div style="{{ seg.style }}"></div>
+                </sc-for>
+              </div>
+              <div style="display:flex;gap:14px">
+                <div style="flex:1;height:104px;border-radius:22px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;font-size:34px;line-height:1;color:#2196F3">❄</div>
+                <div style="flex:1;height:104px;border-radius:22px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;font-size:34px;line-height:1;color:#FF9800">☀</div>
+              </div>
+              <div style="display:flex;gap:14px">
+                <div style="flex:1;height:96px;border-radius:22px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;text-align:center;padding:0 14px">
+                  <div style="font-size:25px;font-weight:600;color:#ECEFF3">Recircular ar</div>
+                </div>
+                <div style="flex:1;height:96px;border-radius:22px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;text-align:center;padding:0 14px">
+                  <div style="font-size:25px;font-weight:600;color:#ECEFF3">Fechar vidros</div>
+                </div>
+              </div>
+              <div style="display:flex">
+                <div style="position:relative;width:38px;height:38px">
+                  <div style="position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(from 0deg,#8A93A0 0 11deg,rgba(0,0,0,0) 11deg 45deg);mask-image:radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 57%,#000 58%);-webkit-mask-image:radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 57%,#000 58%)"></div>
+                  <div style="position:absolute;inset:6px;border-radius:50%;border:2px solid #8A93A0"></div>
+                  <div style="position:absolute;inset:14px;border-radius:50%;border:2px solid #8A93A0"></div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:22px;padding:38px;box-sizing:border-box;border-radius:30px;background:rgba(24,27,32,.58);backdrop-filter:blur(36px) saturate(140%);-webkit-backdrop-filter:blur(36px) saturate(140%);">
+              <div style="width:14px;height:14px;border-radius:50%;background:#1E6FFF;box-shadow:0 0 16px 4px rgba(30,111,255,.5)"></div>
+              <div style="flex:1;font-size:28px;font-weight:600;color:#ECEFF3">Portão</div>
+              <div style="width:180px;height:88px;border-radius:22px;background:#1E6FFF;display:flex;align-items:center;justify-content:center">
+                <div style="font-size:26px;font-weight:600;color:#ECEFF3">Abrir</div>
+              </div>
+            </div>
+          </div>
+          <div style="flex:1"></div>
+          <sc-if value="{{ alertVisible }}" hint-placeholder-val="{{ true }}">
+          <div style="position:relative;flex:0 0 600px;border-radius:26px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.13),0 0 60px rgba(30,111,255,.18)">
+            <div style="position:absolute;left:-1px;top:-1px;width:34px;height:34px;border-top:2px solid var(--cabin);border-left:2px solid var(--cabin);border-radius:26px 0 0 0"></div>
+            <div style="position:absolute;right:-1px;bottom:-1px;width:34px;height:34px;border-bottom:2px solid var(--cabin);border-right:2px solid var(--cabin);border-radius:0 0 26px 0"></div>
+            <div style="display:flex;flex-direction:column;gap:18px;padding:30px">
+              <div style="display:flex;align-items:flex-start;gap:20px">
+                <div style="flex:1;font-size:32px;font-weight:600;letter-spacing:-.01em">Balsa em São Sebastião</div>
+                <div style="width:54px;height:54px;border-radius:18px;background:#2E333B;box-shadow:inset 0 0 0 1px rgba(255,255,255,.13);display:flex;align-items:center;justify-content:center;font-size:25px;color:#ECEFF3">✕</div>
+              </div>
+              <div style="display:flex;align-items:baseline;gap:14px">
+                <div style="font-size:64px;font-weight:600;line-height:.9;color:#1E6FFF">30</div>
+                <div style="font-size:25px;color:#ECEFF3">min de espera</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px">
+                <div style="width:14px;height:14px;border-radius:50%;background:#2196F3"></div>
+                <div style="font-size:25px;color:#ECEFF3">Embarque ativo</div>
+              </div>
+              <div style="height:230px;border-radius:18px;overflow:hidden;background:repeating-linear-gradient(135deg,rgba(255,255,255,.06) 0 10px,rgba(255,255,255,.02) 10px 20px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.13);display:flex;align-items:center;justify-content:center">
+                <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:20px;color:#8A93A0">câmera ao vivo · balsa</div>
+              </div>
+              <div style="font-size:21px;line-height:1.45;color:#8A93A0;text-wrap:pretty">Travessia com maré baixa, impossibilitando o transporte de veículos pesados.</div>
+            </div>
+          </div>
+          </sc-if>
+        </div>
+
+        <div style="position:absolute;left:0;right:0;top:0;height:72px;background:#000;display:flex;align-items:center;justify-content:space-between;padding:0 28px">
+          <div style="display:flex;align-items:center;gap:26px">
+            <div style="font-size:34px;font-weight:700">29<span style="font-size:20px">°C</span></div>
+            <div style="width:22px;height:26px;border-radius:7px;border:2px solid rgba(255,255,255,.45)"></div>
+            <div style="width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.45)"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:24px">
+            <div style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(255,255,255,.35)"></div>
+            <div style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(255,255,255,.35)"></div>
+            <div style="font-size:34px">10:37</div>
+          </div>
+        </div>
+
+        <div style="position:absolute;left:0;right:0;bottom:0;height:105px;display:flex;background:#F1F1F4;color:#1c1c1e">
+          <div style="flex:0 0 590px;display:flex;align-items:center;gap:26px;padding:0 24px;background:#E9E9ED">
+            <div style="width:46px;height:46px;border-radius:50%;border:5px solid #2b2b2f"></div>
+            <div style="flex:1;font-size:30px">Voltar Para Início</div>
+            <div style="width:74px;height:74px;border-radius:14px;background:#7EA6E0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:34px">♪</div>
+          </div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:space-around;padding:0 44px;font-size:34px;font-weight:600;color:#2b2b2f">
+            <div style="display:grid;grid-template-columns:repeat(2,15px);gap:7px">
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+              <div style="width:15px;height:15px;border-radius:4px;background:#2b2b2f"></div>
+            </div>
+            <div style="width:52px;height:28px;border:4px solid #2b2b2f;border-radius:12px 12px 7px 7px"></div>
+            <div style="display:flex;align-items:center;gap:22px"><div style="opacity:.45">‹</div><div>OFF</div><div style="opacity:.45">›</div></div>
+            <div style="display:flex;align-items:center;gap:22px"><div style="opacity:.3">‹</div><div>✻ 0</div><div style="opacity:.45">›</div></div>
+            <div>⌁</div>
+            <div>360</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;level&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;min&quot;:-5,&quot;max&quot;:5,&quot;step&quot;:1,&quot;default&quot;:3,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Régua de esforço&quot;,&quot;label&quot;:&quot;Coluna (+ frio / − quente)&quot;},&quot;approx&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Régua de esforço&quot;,&quot;label&quot;:&quot;Aproximado (C4ish)&quot;},&quot;cabinColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;options&quot;:[&quot;#1E6FFF&quot;,&quot;#A855F7&quot;,&quot;#14B8A6&quot;,&quot;#FFA726&quot;],&quot;default&quot;:&quot;#1E6FFF&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Luz de cabine&quot;},&quot;cabinBrightness&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;min&quot;:0,&quot;max&quot;:20,&quot;step&quot;:1,&quot;default&quot;:11,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Luz de cabine&quot;},&quot;alertVisible&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Notificação&quot;}}">
+// Style.java (theme "geely") + EffortTable/ComfortRuler semantics.
+const COOL = '#2196F3', HEAT = '#FF9800', CARD_HI = '#3A4048', TEXT = '#ECEFF3';
+
+class Component extends DCLogic {
+  componentDidMount() { this.applyCabin(); }
+  componentDidUpdate() { this.applyCabin(); }
+  applyCabin() {
+    // ArtView.setAmbientBrightness: raw 0..20, alpha floor 20/255 (~8%) — dim and gone are
+    // different statements. Light off (or brightness 0) falls back to Style.ACCENT.
+    const raw = this.props.cabinBrightness ?? 11;
+    const col = raw <= 0 ? '#1E6FFF' : (this.props.cabinColor || '#1E6FFF');
+    const a = Math.max(0.08, Math.min(1, raw / 20));
+    const root = document.documentElement;
+    root.style.setProperty('--cabin', col);
+    root.style.setProperty('--cabin-a', String(a));
+  }
+  renderVals() {
+    // level: +5 = C5 (all-out cooling) ... 0 = HVAC off ... -5 = W5 (all-out heat).
+    // Eleven columns, always: the scale never shrinks (COMFORT-TABLE.md).
+    const L = Math.max(-5, Math.min(5, Math.round(this.props.level ?? 3)));
+    const approx = !!this.props.approx;
+    const side = L > 0 ? COOL : L < 0 ? HEAT : TEXT;
+    // "C4ish": fitted but a lever is still out of line, so one more press has somewhere to go.
+    const nextOut = L > 0 ? 5 - L - 1 : L < 0 ? 6 + (-L) : -1;
+
+    // one scale, per-theme colours (Style.COOL / HEAT / CARD_HI / TEXT)
+    const build = (cool, heat, unlit, zero) => {
+      const lightSide = L > 0 ? cool : L < 0 ? heat : zero;
+      const out = [];
+      for (let i = 0; i < 11; i++) {
+        const s = { flex: 1, height: '15px', borderRadius: '8px', background: unlit };
+        if (i === 5) {
+          // zero is the HVAC switched off — nothing at all, not a neutral
+          if (L === 0) { s.background = zero; }
+          else { s.background = 'transparent'; s.boxShadow = 'inset 0 0 0 2px ' + unlit; s.flex = '0 0 15px'; }
+        } else {
+          const lit = L > 0 ? (i >= 5 - L && i <= 4) : L < 0 ? (i >= 6 && i <= 5 + (-L)) : false;
+          if (lit) s.background = lightSide;
+          else if (approx && i === nextOut) { s.background = 'transparent'; s.boxShadow = 'inset 0 0 0 2px ' + lightSide; }
+        }
+        out.push({ style: s });
+      }
+      return out;
+    };
+    const segments = build(COOL, HEAT, CARD_HI, TEXT);
+
+    const name = L > 0 ? 'C' + L : L < 0 ? 'W' + (-L) : 'Desligado';
+    return {
+      segments,
+      segsNoturno: build('#7FA8BF', '#FFB74D', '#25252A', '#E4DCCB'),
+      segsClaro: build('#0277BD', '#E65100', '#EDEAE3', '#1B1F24'),
+      levelColor: side,
+      levelLabel: L === 0 ? name : name + (approx ? 'ish' : '')
+    };
+  }
+}
+
+</script>
+</body>
+</html>

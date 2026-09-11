@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Translation of values/strings.xml (Khmer / km). See that file for authoring notes. -->
+<resources>
+    <string name="app_name">Drive Assist</string>
+    <string name="ac_title">ម៉ាស៊ីនត្រជាក់</string>
+
+    <!-- comfort -->
+    <!-- ComfortActivity: tela do ar-condicionado. ac_title ja existe, nao repetir. -->
+    <string name="ac_outside_label">ខាងក្រៅ</string>
+    <string name="ac_reading">កំពុងអាន...</string>
+    <string name="ac_adjust_header">តើត្រូវលៃតម្រូវអ្វី?</string>
+    <string name="ac_cooler">ត្រជាក់ជាង</string>
+    <string name="ac_warmer">ក្ដៅជាង</string>
+    <string name="ac_recirc_label">ការបង្វិលខ្យល់ឡើងវិញ</string>
+    <string name="ac_recirc_on_label">ខ្យល់ខាងក្រៅ</string>
+    <string name="ac_recirc_refused">ការបង្វិលខ្យល់ឡើងវិញ៖ រថយន្តបានបដិសេធ</string>
+    <string name="ac_recirc_on">កំពុងបង្វិលខ្យល់ឡើងវិញ — ច្រកចូលខ្យល់ខាងក្រៅត្រូវបានបិទ</string>
+    <string name="ac_recirc_off">ច្រកចូលខ្យល់ខាងក្រៅត្រូវបានបើក</string>
+    <string name="ac_connect_failed">មិនអាចភ្ជាប់ជាមួយរថយន្តបានទេ</string>
+    <string name="clima_title">អាកាសធាតុ</string>
+    <!-- Turbo card: 30s Sport-mode boost, then back to whatever mode was running before -->
+    <string name="turbo_title">Turbo</string>
+    <string name="regen_boost_title">ការបង្កើតឡើងវិញ</string>
+    <!-- Linha de verdade dos atuadores. %1$s = setpoint, %2$s = ventoinha.
+    As aspas preservam os espacos multiplos (o aapt colapsaria). -->
+    <string name="ac_readout">"ខ្យល់ %1$s °C   ·   កង្ហារ %2$s"</string>
+    <!-- %1$s = a linha ate aqui; a clausula inteira volta traduzida -->
+    <string name="ac_readout_recirc">"%1$s   ·   កំពុងបង្វិលឡើងវិញ"</string>
+    <!-- %1$s = a linha ate aqui, %2$s = status da regua de conforto -->
+    <string name="ac_readout_status">"%1$s   —   %2$s"</string>
+
+    <!-- misc -->
+    <string name="cleanup_title">ការសម្អាត</string>
+    <string name="cleanup_subtitle">លុបអ្វីៗគ្រប់យ៉ាងដែលបានបន្ថែមបន្ទាប់ពីរូបភាពរោងចក្រ។ មិនត្រឡប់ ADB វិញទេ (វាមកពី recovery) និងមិនប៉ះពាល់កម្មវិធីប្រព័ន្ធទេ។</string>
+    <string name="cleanup_step1_header">ជំហានទី 1 — កម្ទេចដែលនៅសល់</string>
+    <string name="cleanup_step2_header">ជំហានទី 2 — លុបកម្មវិធី</string>
+    <string name="cleanup_action_stop_wipe">បញ្ឈប់សេវាកម្ម និងលុបទិន្នន័យរបស់ Drive Assist</string>
+    <string name="cleanup_action_uninstall_apps">លុបកម្មវិធីផ្ទាល់ខ្លួន</string>
+    <string name="cleanup_action_uninstall_self">លុប Drive Assist ដោយខ្លួនឯង</string>
+    <string name="cleanup_log_idle">មិនទាន់មានអ្វីត្រូវបានធ្វើនៅឡើយទេ។\nប៊ូតុងនីមួយៗសុំការបញ្ជាក់ (ចុចពីរដង)។</string>
+    <string name="cleanup_confirm_prompt">ចុច \"%1$s\" ម្តងទៀតដើម្បីបញ្ជាក់។</string>
+    <string name="cleanup_stopping">កំពុងបញ្ឈប់សេវាកម្ម...</string>
+    <string name="cleanup_wiped">សេវាកម្មបានបញ្ឈប់ រូបតំណាងបានលុប ម៉ោងរោទ៍បានលុបចោល និងទិន្នន័យបានលុប។\nDrive Assist នៅតែបានដំឡើង ប៉ុន្តែមិនសកម្ម។</string>
+    <string name="cleanup_uninstall_header">កំពុងស្នើសុំលុប៖</string>
+    <string name="cleanup_uninstall_item_failed">បរាជ័យ៖ %1$s</string>
+    <string name="cleanup_uninstall_footer">បញ្ជាក់ប្រអប់សន្ទនាប្រព័ន្ធនីមួយៗ។ ម្តងមួយៗ។</string>
+    <string name="cleanup_none_found">រកមិនឃើញកម្មវិធីផ្ទាល់ខ្លួនទេ។</string>
+    <string name="cleanup_removing_self">កំពុងស្នើសុំលុប Drive Assist...</string>
+    <string name="cleanup_failed">បរាជ័យ៖ %1$s</string>
+    <string name="notif_tele_channel">Telemetry</string>
+    <string name="notif_tele_title">Drive Assist — telemetry</string>
+    <string name="notif_tele_text">កំពុងផ្ញើទិន្នន័យទៅ Home Assistant</string>
+    <string name="notif_outtemp_channel">សីតុណ្ហភាពខាងក្រៅ</string>
+    <string name="notif_outtemp_fg_text">សីតុណ្ហភាពខាងក្រៅ</string>
+    <string name="notif_outtemp_title">សីតុណ្ហភាពខាងក្រៅ</string>
+    <string name="notif_outtemp_unavailable">មិនអាចប្រើបានទេ</string>
+    <string name="notif_outtemp_value">%1$s °C</string>
+    <string name="notif_wifi_channel">Wi-Fi</string>
+    <string name="notif_wifi_fg_text">wi-fi</string>
+    <string name="notif_wifi_title">Wi-Fi</string>
+    <string name="notif_wifi_disconnected">បានផ្ដាច់</string>
+    <string name="notif_wifi_no_network">គ្មានបណ្តាញ</string>
+    <string name="notif_soc_channel">ថ្ម %</string>
+    <string name="notif_soc_fg_text">ថ្ម %</string>
+    <string name="notif_soc_title">ថ្ម</string>
+    <string name="notif_soc_unavailable">មិនអាចប្រើបានទេ</string>
+    <string name="notif_soc_value">%1$s%%</string>
+
+    <!-- config -->
+    <string name="cfg_title">ការកំណត់</string>
+    <string name="cfg_nav_doors">ទ្វារ</string>
+    <string name="cfg_nav_mqtt">MQTT</string>
+    <string name="cfg_nav_drive">របៀបបើកបរ</string>
+    <string name="cfg_nav_bar">របារម៉ឺនុយ</string>
+    <string name="cfg_nav_look">រូបរាង</string>
+    <string name="cfg_nav_spotify">Spotify</string>
+    <string name="cfg_nav_system">ប្រព័ន្ធ</string>
+    <!-- sidebar group captions -->
+    <string name="cfg_group_car">រថយន្ត</string>
+    <string name="cfg_group_display">អេក្រង់</string>
+    <string name="cfg_group_integrations">ការរួមបញ្ចូល</string>
+    <string name="cfg_group_system">ប្រព័ន្ធ</string>
+    <string name="cfg_system_header">ប្រព័ន្ធ</string>
+    <string name="cfg_app_info_header">ព័ត៌មានកម្មវិធី</string>
+    <string name="cfg_version_label">កំណែ៖ %1$s (បណ្តុំ %2$d)</string>
+    <string name="cfg_sha_label">APK SHA-256</string>
+    <string name="cfg_update_header">បច្ចុប្បន្នភាពកម្មវិធី</string>
+    <string name="cfg_update_url_label">URL បច្ចុប្បន្នភាព (HTTPS)</string>
+    <string name="cfg_btn_check_update">ពិនិត្យ និងដំឡើងបច្ចុប្បន្នភាព</string>
+    <string name="cfg_touch_header">ការគ្រប់គ្រងការប៉ះ និងភាពត្រជាក់</string>
+    <string name="cfg_cooldown_label">ពេលបន្ថយកម្តៅកុងតាក់</string>
+    <string name="cfg_cooldown_hint">រយៈពេលចាក់សោបណ្តោះអាសន្នបន្ទាប់ពីចុចកុងតាក់ណាមួយ ដើម្បីការពារកុំឱ្យមានការចុចពីរដងដោយអចេតនានៅពេលបើកបរ។</string>
+    <string name="cfg_maintenance_header">ការថែទាំ</string>
+    <string name="cfg_mqtt_header">ការផ្ញើទៅ Home Assistant</string>
+    <string name="cfg_mqtt_enable_label">បើកដំណើរការទូរលេខ MQTT</string>
+    <string name="cfg_mqtt_enable_hint">ភ្ជាប់ទៅឈ្មួញកណ្តាល និងផ្ញើទិន្នន័យទូរលេខរថយន្តទៅកាន់ Home Assistant។</string>
+    <string name="cfg_status_sending">កំពុងផ្ញើទៅ Home Assistant</string>
+    <string name="cfg_status_off">បិទ</string>
+    <string name="cfg_sending_every">កំពុងផ្ញើ (រៀងរាល់ %1$d វិនាទី)</string>
+    <string name="cfg_broker_header">MQTT broker</string>
+    <string name="cfg_field_hosts">អាសយដ្ឋាន (មួយក្នុងមួយបន្ទាត់)</string>
+    <string name="cfg_field_user">ឈ្មោះអ្នកប្រើ</string>
+    <string name="cfg_field_pass">ពាក្យសម្ងាត់</string>
+    <string name="cfg_field_interval">ចន្លោះពេល (វិ)</string>
+    <string name="cfg_seconds_suffix">វិនាទី</string>
+    <string name="cfg_lock_short_label">សោកុងតាក់</string>
+    <string name="cfg_saved">បានរក្សាទុកការកំណត់</string>
+    <string name="cfg_btn_save_all">រក្សាទុកការកំណត់ទាំងអស់</string>
+    <string name="cfg_log_title">កំណត់ហេតុ និងមតិកែលម្អពេលវេលាជាក់ស្តែង</string>
+    <string name="cfg_active_status_title">ស្ថានភាពនៃការតភ្ជាប់</string>
+    <string name="cfg_active_broker">ឈ្មួញកណ្តាលសកម្ម៖ %1$s</string>
+    <string name="cfg_client_id">លេខសម្គាល់ម៉ាស៊ីនភ្ញៀវ៖ %1$s</string>
+    <string name="cfg_last_sent">បានផ្ញើចុងក្រោយ៖ %1$s</string>
+
+    <!-- certificates / tls -->
+    <string name="cfg_certs_header">វិញ្ញាបនបត្រ និង TLS</string>
+    <string name="cfg_client_cert_label">វិញ្ញាបនបត្រម៉ាស៊ីនភ្ញៀវ (mTLS)</string>
+    <string name="cfg_ca_cert_label">វិញ្ញាបនបត្រ CA (ការជឿទុកចិត្តលើម៉ាស៊ីនបម្រើ)</string>
+    <string name="cfg_cert_status_installed">បានដំឡើង៖ %1$s (មានសុពលភាពរហូតដល់ %2$s)</string>
+    <string name="cfg_cert_status_none">មិនទាន់បានដំឡើង (ទាមទារសម្រាប់ mTLS ពីចម្ងាយ)</string>
+    <string name="cfg_ca_status_default">លំនាំដើម (រួមបញ្ចូលក្នុងកម្មវិធី)</string>
+    <string name="cfg_ca_status_custom">ផ្ទាល់ខ្លួន៖ %1$s (មានសុពលភាពរហូតដល់ %2$s)</string>
+    <string name="cfg_btn_import_cert">នាំចូល</string>
+    <string name="cfg_btn_remove_cert">យកចេញ</string>
+    <string name="cfg_btn_reset_default">កំណត់ឡើងវិញទៅលំនាំដើម</string>
+    <string name="cfg_btn_test_tls">សាកល្បងការចាប់ដៃ TLS</string>
+    <string name="cfg_tls_test_target_label">អាសយដ្ឋានឈ្មួញកណ្តាល TLS ដែលត្រូវសាកល្បង</string>
+    <string name="cfg_cert_import_title">នាំចូលវិញ្ញាបនបត្រ</string>
+    <string name="cfg_cert_import_usb">យូអេសប៊ី (USB)</string>
+    <string name="cfg_cert_import_url">ទាញយកពី URL</string>
+    <string name="cfg_cert_import_file">ឧបករណ៍ជ្រើសរើសឯកសារ</string>
+    <string name="cfg_cert_import_paste">បិទភ្ជាប់អត្ថបទ (PEM / Base64)</string>
+    <string name="cfg_cert_usb_not_found">រកមិនឃើញ USB ក្រោម /storage ទេ</string>
+    <string name="cfg_cert_usb_no_files">រកមិនឃើញឯកសារវិញ្ញាបនបត្រ (.p12, .pfx, .crt, .cer, .pem) នៅលើ USB ទេ</string>
+    <string name="cfg_cert_usb_pick_file">ជ្រើសរើសវិញ្ញាបនបត្រនៅលើ USB</string>
+    <string name="cfg_cert_url_prompt">បញ្ចូល URL ដើម្បីទាញយកវិញ្ញាបនបត្រ (.p12, .pfx, .crt, .pem)៖</string>
+    <string name="cfg_cert_paste_prompt">បិទភ្ជាប់ខ្លឹមសារវិញ្ញាបនបត្រ (PEM ឬ Base64)៖</string>
+    <string name="cfg_cert_password_prompt">បញ្ចូលពាក្យសម្ងាត់វិញ្ញាបនបត្រ៖</string>
+    <string name="cfg_cert_password_incorrect">ពាក្យសម្ងាត់វិញ្ញាបនបត្រមិនត្រឹមត្រូវ។</string>
+    <string name="cfg_cert_import_success">បានដំឡើងវិញ្ញាបនបត្រដោយជោគជ័យ៖ %1$s</string>
+    <string name="cfg_cert_import_failed">ការនាំចូលវិញ្ញាបនបត្របានបរាជ័យ៖ %1$s</string>
+    <string name="cfg_cert_remove_confirm">តើអ្នកចង់យកវិញ្ញាបនបត្រ %1$s ចេញឬ?</string>
+    <string name="cfg_cert_testing_tls">កំពុងសាកល្បងការចាប់ដៃ TLS…</string>
+
+    <string name="cfg_spotify_header">Spotify</string>
+    <string name="cfg_spotify_client_id">Client ID</string>
+    <string name="cfg_spotify_connect">ភ្ជាប់</string>
+    <string name="cfg_spotify_disconnect">ផ្ដាច់</string>
+    <string name="cfg_spotify_status_on">បានភ្ជាប់</string>
+    <string name="cfg_spotify_status_off">មិនបានភ្ជាប់</string>
+    <string name="cfg_spotify_need_id">សូមបញ្ចូល Client ID ជាមុនសិន</string>
+    <string name="spotify_connected">Spotify បានភ្ជាប់</string>
+    <string name="spotify_connect_failed">Spotify៖ មិនអាចភ្ជាប់បានទេ</string>
+    <string name="cfg_security_header">សុវត្ថិភាព</string>
+    <string name="cfg_commands_label">ទទួលយកបញ្ជាពី HA</string>
+    <string name="cfg_commands_on">កំពុងទទួលយកបញ្ជាពី HA</string>
+    <string name="cfg_commands_off">បញ្ជាត្រូវបានទប់ស្កាត់ — telemetry ប៉ុណ្ណោះ</string>
+    <string name="cfg_commands_hint">ពេលបិទ រថយន្តមិនអើពើនឹងបញ្ជាបញ្ចូលថាមពល និងភ្លើងដែលមកពី Home Assistant ទេ។</string>
+    <string name="cfg_lock_label">រយៈពេលចាក់សោកុងតាក់ (វិនាទី) បន្ទាប់ពីការប៉ះនីមួយៗ</string>
+    <string name="cfg_adb_label">adb</string>
+    <string name="cfg_adb_off">បិទ។ ក្នុងពេលដែលវាបើក អ្នកណាម្នាក់នៅលើបណ្តាញដូចគ្នាអាចទទួលបាន root shell លើឧបករណ៍នេះ។</string>
+    <string name="cfg_adb_on">បើក — នឹងបិទដោយខ្លួនឯងក្នុងរយៈពេល %1$d នាទី។</string>
+    <string name="cfg_adb_no_helper">modehelper មិនត្រូវបានដំឡើងទេ ដូច្នេះគ្មានអ្វីនៅទីនេះអាចបើក ឬបិទ adb បានទេ។</string>
+    <string name="cfg_trusted_wifi_label">Wi-Fi ឯកសិទ្ធិ (SSID)</string>
+    <string name="cfg_trusted_wifi_hint">ខណៈពេលកំពុងភ្ជាប់ទៅបណ្តាញនេះ ADB នឹងបើកជានិច្ច ហើយ WakeLock រារាំងឧបករណ៍មិនឱ្យផ្អាក។</string>
+    <string name="cfg_btn_use_current_wifi">ប្រើប្រាស់ Wi-Fi បច្ចុប្បន្ន</string>
+    <string name="cfg_trusted_wifi_saved">បានរក្សាទុក Wi-Fi ឯកសិទ្ធិ</string>
+    <string name="cfg_doors_header">ទ្វារ</string>
+    <string name="cfg_window_on_door">បើកបង្អួចបន្តិចនៅពេលទ្វារបើក</string>
+    <string name="cfg_window_on_door_hint">បន្ថយបង្អួចទ្វារនោះចុះប្រហែល ១ សង់ទីម៉ែត្រ ដើម្បីឱ្យទ្វារបិទដោយមិនប៉ះទង្គិចនឹងបន្ទប់ខ្យល់ដែលបិទជិត ហើយប្រគល់វាមកវិញនៅពេលទ្វារបិទ។ វាបិទតែបង្អួចដែលវាបានបើកដោយខ្លួនឯងប៉ុណ្ណោះ ហើយមិនប៉ះពាល់បង្អួចណាមួយដែលអ្នកបានផ្លាស់ទីដោយខ្លួនឯងទេ។</string>
+    <string name="cfg_actions_header">សកម្មភាព</string>
+    <string name="cfg_btn_on">បើក</string>
+    <string name="cfg_btn_off">បិទ</string>
+    <string name="cfg_btn_test">សាកល្បង</string>
+    <string name="cfg_btn_discovery">ការរកឃើញ MQTT</string>
+    <string name="cfg_btn_update">ធ្វើបច្ចុប្បន្នភាព</string>
+    <string name="cfg_btn_save">រក្សាទុក</string>
+    <string name="cfg_testing">កំពុងសាកល្បង...</string>
+    <string name="cfg_discovery_sending">កំពុងផ្ញើការរកឃើញ MQTT…</string>
+    <string name="cfg_discovery_ok">ការរកឃើញ MQTT ត្រូវបានផ្ញើដោយជោគជ័យ</string>
+    <string name="cfg_discovery_failed">ការរកឃើញបានបរាជ័យ៖ %1$s</string>
+    <string name="cfg_discovery_svc_inactive">សេវាទូរលេខមិនដំណើរការទេ</string>
+    <string name="cfg_discovery_no_client">ម៉ាស៊ីនភ្ញៀវ MQTT មិនទាន់ត្រូវបានចាប់ផ្តើមទេ</string>
+    <string name="cfg_cleanup">ការសម្អាត និងការដកចេញ…</string>
+    <string name="cfg_drive_header">របៀបបើកបរ</string>
+    <string name="cfg_connecting">កំពុងភ្ជាប់…</string>
+    <string name="cfg_mode_eco">Eco</string>
+    <string name="cfg_mode_comfort">Comfort</string>
+    <string name="cfg_mode_sport">Sport</string>
+    <string name="cfg_regen_header">ការបង្កើតឡើងវិញ</string>
+    <string name="cfg_regen_low">ទាប</string>
+    <string name="cfg_regen_mid">មធ្យម</string>
+    <string name="cfg_regen_high">ខ្ពស់</string>
+    <string name="turbo_header">Turbo</string>
+    <string name="turbo_enable_label">បង្ហាញកាតទ Turbo</string>
+    <string name="turbo_duration_label">រយៈពេល (វិ)</string>
+    <string name="cfg_btn_apply">អនុវត្តឥឡូវនេះ</string>
+    <string name="cfg_btn_save_default">រក្សាទុកជាលំនាំដើម</string>
+    <string name="cfg_car_connect_fail">មិនអាចភ្ជាប់ជាមួយរថយន្តបានទេ</string>
+    <string name="cfg_applied">បានអនុវត្ត៖ %1$s + %2$s</string>
+    <string name="cfg_applied_turbo_active">បានអនុវត្ត៖ %1$s។ របៀបបើកបរមិនផ្លាស់ប្តូរទេ — Turbo កំពុងសកម្ម។</string>
+    <string name="cfg_startup_default">លំនាំដើមពេលចាប់ផ្ដើម៖ %1$s + %2$s</string>
+    <string name="cfg_mode_unknown">មិនស្គាល់របៀបបច្ចុប្បន្នទេ — ជ្រើសរើសមួយដើម្បីអនុវត្ត</string>
+    <string name="cfg_current">បច្ចុប្បន្ន៖ %1$s + %2$s</string>
+    <string name="cfg_bar_header">ការបង្ហាញនៅលើរបារម៉ឺនុយ</string>
+    <string name="cfg_bar_outtemp">សីតុណ្ហភាពខាងក្រៅនៅលើរបារ</string>
+    <string name="cfg_bar_wifi">Wi-Fi នៅលើរបារ (បើកការកំណត់)</string>
+    <string name="cfg_bar_soc">ថ្ម % នៅលើរបារ</string>
+    <string name="cfg_appearance_header">រូបរាង</string>
+    <string name="cfg_appearance_light">ភ្លឺ</string>
+    <string name="cfg_appearance_dark">ងងឹត</string>
+    <string name="cfg_appearance_auto">ស្វ័យប្រវត្តិ</string>
+    <string name="cfg_appearance_note">ស្វ័យប្រវត្តិធ្វើតាមការកំណត់ថ្ងៃ/យប់ផ្ទាល់ខ្លួនរបស់ឧបករណ៍នេះ។ Neon និង Noturno តែងតែប្រើពណ៌ថេររបស់វាតែមួយ ទោះបីជាការកំណត់នេះជាអ្វីក៏ដោយ។</string>
+    <string name="cfg_theme_header">ស្បែក</string>
+    <string name="cfg_theme_sub">អនុវត្តចំពោះអេក្រង់ Drive Assist រាល់អេក្រង់។ រូបភាពតូចបង្ហាញពណ៌ និងរាងកាត — ការផ្លាស់ប្តូរកើតឡើងភ្លាមៗ។</string>
+    <string name="cfg_theme_selected">%1$s  ✓</string>
+    <string name="cfg_theme_ambient_on">ស្បែកនេះអនុញ្ញាតឱ្យពន្លឺជុំវិញនៃបន្ទប់ខ្យល់ត្រួតត្រាពណ៌សង្កត់ធ្ងន់។</string>
+    <string name="cfg_theme_ambient_off">ស្បែកនេះមិនអើពើនឹងពន្លឺបន្ទប់ខ្យល់ដោយចេតនា — ពណ៌សង្កត់ធ្ងន់នៅតែជាពណ៌អំបារ។</string>
+    <string name="theme_geely_blurb">ប្រផេះលោហៈធាតុនៅពេលយប់ ពណ៌ដំបងដំរីនៅពេលថ្ងៃ</string>
+    <string name="theme_noturno_blurb">ខ្មៅ និងអំបារ · ផ្ទាំង vaporwave</string>
+    <string name="theme_neon_blurb">បន្ទាត់ព្រំដែនភ្លឺ ពណ៌ cyan និង magenta</string>
+
+    <!-- ruler -->
+    <!-- Two different faults, and telling them apart is not cosmetic: one
+         message covering both named the outside temperature while the real
+         problem was a dead binder, and cost an hour aimed at the wrong half. -->
+    <string name="ruler_no_car">មិនបានភ្ជាប់ជាមួយរថយន្តទេ</string>
+    <string name="ruler_no_outside_temp">គ្មានសីតុណ្ហភាពខាងក្រៅទេ</string>
+    <string name="ruler_defrosting">កំពុងរំលាយទឹកកក</string>
+    <string name="ruler_at_limit">%1$s · ដល់កម្រិត</string>
+    <string name="ruler_car_refused">រថយន្តមិនទទួលយក %1$d° ទេ</string>
+    <string name="ruler_committed">បានរក្សាទុកភាពស្រួល</string>
+    <string name="ruler_steady">ស្ថិរភាព</string>
+    <string name="ruler_level">%1$s · កម្រិត %2$d</string>
+    <string name="ruler_src_cold">កំពុងធ្វើឱ្យត្រជាក់</string>
+    <string name="ruler_src_fresh">ខ្យល់ខាងក្រៅ</string>
+    <string name="ruler_src_hold">កំពុងបង្វិលឡើងវិញ</string>
+    <string name="ruler_src_hot">កំពុងកម្តៅ</string>
+
+    <!-- cmd -->
+    <!-- second command column + the gate -->
+    <string name="cmd_title">បញ្ជា</string>
+    <string name="gate_title">ទ្វារ (ច្រកចេញចូល)</string>
+    <string name="gate_open">បើកទ្វារច្រកចេញចូល</string>
+    <string name="gate_sent">ទ្វារច្រកចេញចូល៖ បានផ្ញើសំណើ</string>
+    <!-- gate button on the comfort board: short, the card title already says "Gate" -->
+    <string name="gate_button_open">បើក</string>
+    <string name="gate_button_close">បិទ</string>
+    <string name="gate_button_sent">បានផ្ញើសំណើ</string>
+    <string name="gate_no_link">គ្មានការភ្ជាប់ជាមួយ Home Assistant ទេ</string>
+    <string name="gate_close">បិទទ្វារច្រកចេញចូល</string>
+    <string name="gate_opening">កំពុងបើក…</string>
+    <string name="gate_closing">កំពុងបិទ…</string>
+
+    <!-- purge: drop every window half way, press again to put them back -->
+    <string name="purge_label">បើកបង្អួច</string>
+    <string name="purge_close_label">បិទបង្អួច</string>
+    <string name="purge_opening">បង្អួចកំពុងចុះ</string>
+    <string name="purge_closing">បង្អួចកំពុងឡើងវិញ</string>
+    <string name="purge_nothing">គ្មានអ្វីត្រូវផ្លាស់ទីទេ</string>
+    <string name="purge_unreadable">មិនអាចអានស្ថានភាពបង្អួចបានទេ — តើរថយន្តភ្ញាក់ដែរឬទេ?</string>
+    <!-- dashcam gallery -->
+    <string name="clips_title">ការថតវីដេអូ</string>
+    <string name="clips_usage">%1$d កម្ទេច · %2$s បានប្រើ · %3$s បានរក្សាទុក · %4$s នៅទំនេរ</string>
+    <string name="clips_none">មិនទាន់មានអ្វីត្រូវបានថតនៅឡើយទេ។</string>
+    <string name="clips_play">ចាក់</string>
+    <string name="clips_hold">រក្សាទុក</string>
+    <string name="clips_release">ដោះលែង</string>
+    <string name="clips_delete">លុប</string>
+    <string name="clips_delete_q">លុប %1$s ឬ?</string>
+    <string name="clip_play_failed">មិនអាចចាក់កម្ទេចនេះបានទេ (%1$d/%2$d)</string>
+    <string name="clips_recording">កំពុងថត</string>
+    <string name="clips_orphan">មិនទាន់បិទទេ — អាចសង្គ្រោះបាន</string>
+    <string name="clips_record">ថត</string>
+    <string name="clips_stop">ឈប់</string>
+    <string name="cfg_nav_clips">Dashcam</string>
+    <string name="clips_back">← ត្រឡប់</string>
+    <string name="cam_all">ទាំងអស់</string>
+    <string name="cam_front">ខាងមុខ</string>
+    <string name="cam_rear">ខាងក្រោយ</string>
+    <string name="cam_left">ខាងឆ្វេង</string>
+    <string name="cam_right">ខាងស្ដាំ</string>
+    <string name="cam_orbit">បង្វិលជុំវិញ</string>
+    <!-- charging history -->
+    <string name="cfg_nav_charge">ការសាកថ្ម</string>
+    <string name="charge_title">ប្រវត្តិការសាកថ្ម</string>
+    <string name="charge_summary">សាកថ្ម %1$d ដង · សរុប %2$.1f kWh</string>
+    <string name="charge_ltm_title">12 ខែចុងក្រោយ</string>
+    <string name="charge_period_30d">30 ថ្ងៃចុងក្រោយ</string>
+    <string name="charge_ltm_count_label">ដង</string>
+    <string name="charge_row_subtitle">SoC %1$d%%→%2$d%% · %3$.1f kWh · %4$.1f kW</string>
+    <string name="charge_none">មិនទាន់មានវគ្គសាកថ្មណាមួយត្រូវបានកត់ត្រានៅឡើយទេ។</string>
+    <!-- stats -->
+    <string name="cfg_nav_stats">ស្ថិតិ</string>
+    <string name="stats_title">ស្ថិតិការបើកបរ</string>
+    <string name="stats_driving_header">សប្តាហ៍នេះ</string>
+    <string name="stats_trips_label">ដំណើរ</string>
+    <string name="stats_chart_header">គីឡូម៉ែត្រក្នុងមួយថ្ងៃ</string>
+    <!-- OBD2 + ABRP -->
+    <string name="cfg_nav_obd">OBD2 / ABRP</string>
+    <string name="obd_title">ឧបករណ៍ OBD2 និង ABRP</string>
+    <string name="obd_status_connected">បានភ្ជាប់ — កំពុងអានថាមពលពិតពីថ្ម</string>
+    <string name="obd_status_searching">កំពុងស្វែងរកឧបករណ៍…</string>
+    <string name="obd_status_off">បិទ</string>
+    <string name="obd_enable_label">ប្រើឧបករណ៍ Bluetooth OBD2</string>
+    <string name="obd_hint">នៅពេលបើក វានឹងស្វែងរកឧបករណ៍ប្រភេទ ELM327 ដែលបានផ្គូផ្គងរួច ហើយអានថាមពល/តង់ស្យុង/ចរន្តពិតរបស់ថ្មដោយផ្ទាល់ — មានភាពត្រឹមត្រូវជាងការប៉ាន់ស្មាន ហើយត្រូវបានប្រើជំនួសវិញនៅពេលណាដែលឧបករណ៍ត្រូវបានភ្ជាប់។</string>
+    <string name="abrp_header">ABRP (A Better Route Planner)</string>
+    <string name="abrp_enable_label">ផ្ញើទិន្នន័យផ្ទាល់ទៅកាន់ ABRP</string>
+    <string name="abrp_location_label">ផ្ញើទីតាំង GPS</string>
+    <string name="abrp_location_hint">នៅពេលបិទ ABRP ប្រើប្រាស់ទីតាំងទូរស័ព្ទរបស់អ្នកជំនួសឱ្យ GPS រថយន្ត។</string>
+    <string name="abrp_field_user_token">ថូខឹនអ្នកប្រើប្រាស់ ABRP</string>
+    <string name="abrp_test_sending">កំពុងផ្ញើការសាកល្បង ping ទៅកាន់ ABRP…</string>
+    <string name="abrp_test_ok">បានផ្ញើ — ពិនិត្យមើលកម្មវិធី/គេហទំព័ររបស់ ABRP ដើម្បីបញ្ជាក់ថាវាបានភ្ជាប់។</string>
+    <string name="abrp_test_fail">បរាជ័យ៖ %1$s</string>
+    <string name="abrp_debug_header">ការបំបាត់កំហុសផ្ទាល់</string>
+    <string name="abrp_debug_sent_header">បានផ្ញើទៅកាន់ ABRP</string>
+    <string name="abrp_debug_no_data">មិនទាន់មានទិន្នន័យនៅឡើយទេ</string>
+    <string name="abrp_debug_last_ok">បានផ្ញើចុងក្រោយ៖ %1$s — យល់ព្រម</string>
+    <string name="abrp_debug_last_fail">ការប៉ុនប៉ងចុងក្រោយ៖ %1$s — បរាជ័យ៖ %2$s</string>
+    <string name="abrp_debug_log_header">សកម្មភាពថ្មីៗ</string>
+    <string name="abrp_debug_connected">បានភ្ជាប់៖ %1$s</string>
+    <string name="abrp_debug_yes">បាទ/ចាស</string>
+    <string name="abrp_debug_no">ទេ</string>
+    <string name="charge_export">នាំចេញទៅ USB</string>
+    <string name="charge_export_ok">បាននាំចេញឯកសារ %1$d ទៅ USB</string>
+    <string name="charge_export_no_drive">រកមិនឃើញដ្រាយ USB ទេ</string>
+    <string name="charge_export_nothing">គ្មានអ្វីត្រូវនាំចេញទេ</string>
+    <!-- charge card (ComfortActivity) -->
+    <string name="charge_card_title">ថ្ម</string>
+    <string name="charge_card_soc">%1$d%%</string>
+    <string name="charge_card_elapsed">%1$d នាទីនៃការសាកថ្ម</string>
+    <string name="charge_card_remaining">~%1$d នាទីទៅ 100%%</string>
+    <string name="charge_card_calculating">កំពុងប៉ាន់ស្មាន…</string>
+    <string name="charge_card_ready">រួចរាល់</string>
+    <string name="charge_card_unknown">មិនស្គាល់</string>
+
+    <!-- charge stats & cost tracking -->
+    <string name="charge_stats_title">ស្ថិតិនៃការសាកថ្ម</string>
+    <string name="charge_completed_title">ការសាកថ្មបានបញ្ចប់</string>
+    <string name="charge_cost_label">តម្លៃ</string>
+    <string name="charge_cost_input_title">តម្លៃសាកថ្ម</string>
+    <string name="charge_cost_input_hint">តម្លៃសរុប (ឧ. 45.00)</string>
+    <string name="charge_cost_btn_input">បញ្ចូលតម្លៃ</string>
+    <string name="charge_cost_btn_edit">កែសម្រួល</string>
+    <string name="charge_cost_btn_save">រក្សាទុក</string>
+    <string name="charge_cost_btn_dismiss">បិទចោល</string>
+    <string name="charge_cost_not_set">មិនទាន់កំណត់តម្លៃទេ</string>
+    <string name="charge_cost_invalid">តម្លៃមិនត្រឹមត្រូវ</string>
+    <string name="charge_cost_parked_only">តម្លៃអាចបញ្ចូលបានតែនៅពេលចតរថយន្តប៉ុណ្ណោះ។</string>
+    <string name="charge_stat_total_cost">តម្លៃសរុប</string>
+    <string name="charge_stat_avg_cost_kwh">តម្លៃ / kWh</string>
+    <string name="charge_stat_cost_100km">តម្លៃ / 100km</string>
+
+    <!-- software update dialog & prompt -->
+    <string name="update_dialog_title">មានបច្ចុប្បន្នភាពកម្មវិធី</string>
+    <string name="update_dialog_version_comp">Version: %1$s   ➔   %2$s</string>
+    <string name="update_dialog_current_ver">កំណែបច្ចុប្បន្ន៖ %1$s</string>
+    <string name="update_dialog_new_ver">កំណែថ្មី៖ %1$s</string>
+    <string name="update_dialog_changelog_header">អ្វីដែលថ្មី៖</string>
+    <string name="update_dialog_accept">យល់ព្រម និងធ្វើបច្ចុប្បន្នភាព</string>
+    <string name="update_dialog_decline">ពេលក្រោយ</string>
+    <string name="update_checking">កំពុងពិនិត្យមើលបច្ចុប្បន្នភាព…</string>
+    <string name="update_up_to_date">Drive Assist គឺទាន់សម័យហើយ (%1$s)</string>
+    <string name="update_check_failed">មិនអាចពិនិត្យមើលបច្ចុប្បន្នភាពបានទេ៖ %1$s</string>
+    <string name="update_downloading">កំពុងទាញយកបច្ចុប្បន្នភាព (%1$s) …</string>
+    <string name="update_installing">កំពុងប្រគល់ទៅឱ្យ ModeHelper សម្រាប់ការដំឡើង…</string>
+    <string name="update_not_parked">បច្ចុប្បន្នភាពអាចត្រូវបានពិនិត្យ និងដំឡើងបានតែនៅពេលចតរថយន្តប៉ុណ្ណោះ។</string>
+</resources>

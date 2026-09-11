@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Drive Assist Standalone Installer: A temporary setup wizard signed with
+     the platform key and sharing android.uid.system.
+     It bundles both modehelper.apk (headless system helper) and drive_assist.apk
+     (main UI), silently installs both via PackageInstaller, starts the background
+     service, launches Drive Assist, and uninstalls itself.
+     NO WEBVIEW IS USED: System UID apps crash fatally if WebView is loaded. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.geely.installer"
+    android:sharedUserId="android.uid.system"
+    android:versionCode="1"
+    android:versionName="1.0">
+
+    <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="28" />
+
+    <!-- Privileges required for silent package installation and self-removal -->
+    <uses-permission android:name="android.permission.INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.DELETE_PACKAGES" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:label="Drive Assist Setup"
+        android:allowBackup="false"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+
+        <activity
+            android:name=".InstallerActivity"
+            android:label="Drive Assist Setup"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Receives PackageInstaller callbacks for committed sessions -->
+        <receiver
+            android:name=".InstallCallbackReceiver"
+            android:exported="false" />
+
+        <!-- Allows headless command-line invocation via ADB broadcast if needed -->
+        <receiver
+            android:name=".InstallerReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.geely.installer.INSTALL" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

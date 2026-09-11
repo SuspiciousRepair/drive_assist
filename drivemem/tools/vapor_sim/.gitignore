@@ -1,0 +1,5 @@
+# renders are cheap to regenerate; reference art is third-party and not ours to commit
+*.png
+*.jpg
+refs/
+__pycache__/

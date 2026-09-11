@@ -1,0 +1,21 @@
+# artefatos de build
+obj/
+compiled_res/
+*.dex
+base.apk
+unsigned.apk
+aligned.apk
+# toolchain / chaves (nao versionar)
+android-sdk/
+*.ks
+android.car-classes.jar
+android.car.jar
+pahores/
+
+# Certificado do cliente MQTT: identidade deste carro, nao vai para o git
+res/raw/mqtt_client.p12
+
+# Chave de plataforma — NUNCA versionar
+platkey/
+# Artefato do apksigner
+*.idsig

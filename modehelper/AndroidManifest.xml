@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Drive-mode memory helper: a SYSTEM app with NO UI.
+     WHY IT IS A SEPARATE APP. Drive Assist (drivemem) cannot be this: an app running as
+     uid system with a WebView crashes the privileged process, and Drive Assist's whole
+     right-hand panel is a WebView. So the split is not organisational — the two
+     requirements are mutually exclusive in one package. Everything that needs
+     privilege lives here, headless.
+     What it does with that privilege: read drive/regen BACK (as a normal app the
+     read returned null, so "only write when it differs" was impossible) and
+     reapply the saved default when the car diverges. Drive Assist, the normal app that
+     owns the UI, tells it the preferred default over a broadcast. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.geely.modehelper"
+    android:sharedUserId="android.uid.system"
+    android:versionCode="1"
+    android:versionName="1.0">
+
+    <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="28" />
+
+    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+    <uses-permission android:name="android.car.permission.CAR_ENERGY" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- The dashcam writes clips to /sdcard/dashcam. Not the app's private dir
+         the helper saves files to /sdcard/Movies/dashcam directly and
+         serves them over the LAN later (docs/DASHCAM.md). -->
+    <!-- Heading for the dashcam subtitle track. GPS bearing, because there is no
+         car property for it and the sensor stack has no compass we can reach.
+         Granted by virtue of android.uid.system rather than by asking. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <!-- WifiGuardReceiver holds a partial wakelock while on the trusted home
+         network, so the head unit doesn't suspend and take adb/MQTT down
+         with it. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- The whole point of routing the update through here. INSTALL_PACKAGES is
+         signature|privileged: granted because this apk is signed with the
+         platform key and shares uid system, and it is what lets PackageInstaller
+         install SILENTLY. Drive Assist cannot get it directly — it would need root
+         or platform privileges. -->
+    <uses-permission android:name="android.permission.INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.DELETE_PACKAGES" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Lets AdbControl write Settings.Global.ADB_ENABLED. Also
+         signature|privileged, granted on the same grounds as INSTALL_PACKAGES.
+         It is the ONLY lever a non-root process has over adb here: the property
+         that actually opens :5555, persist.adb.tcp.port, is default_prop and
+         ctl.restart is ctl_default_prop, and system_app may write neither. -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
+
+    <!-- Command-line Bluetooth pairing (BtPairReceiver), bypassing the car's own
+         Bluetooth screen: BLUETOOTH_ADMIN for createBond(), BLUETOOTH_PRIVILEGED
+         for setPairingConfirmation()/setPin() so a pairing prompt can be answered
+         programmatically instead of needing a tap on-screen. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_PRIVILEGED" />
+
+    <application android:label="ModeHelper" android:allowBackup="false">
+        <service android:name=".ModeHelperService" android:exported="false" />
+        <receiver android:name=".BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.ACTION_BOOT_HU" />
+            </intent-filter>
+        </receiver>
+        <!-- Exported because Drive Assist, a different app with a different signer, has
+             to reach it. It is safe not because of who calls it but because
+             Installer verifies the PAYLOAD after downloading: https only, the apk
+             must declare com.geely.drivemem, and it must carry the same signature
+             as the copy already installed. -->
+        <receiver android:name=".InstallReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.geely.modehelper.INSTALL_APK" />
+            </intent-filter>
+        </receiver>
+        <receiver android:name=".InstallResultReceiver" android:exported="false" />
+        <receiver android:name=".ProbeReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.geely.modehelper.READPROP" />
+            </intent-filter>
+        </receiver>
+        <receiver android:name=".DashReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.geely.modehelper.DASHCAM" />
+            </intent-filter>
+        </receiver>
+        <!-- Exported for the same reason as InstallReceiver: Drive Assist is a
+             different signer and has to reach it. See AdbReceiver for why the
+             auto-off window, not the caller, is what makes that acceptable. -->
+        <receiver android:name=".AdbReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.geely.modehelper.SET_ADB" />
+            </intent-filter>
+        </receiver>
+        <!-- Exported to receive SET_TRUSTED_WIFI from Drive Assist (drivemem) or ADB.
+             Also receives its own self-rescheduled alarm for periodic checks.
+             Keeps adb/wakelock indefinite while on the configured trusted SSID. -->
+        <receiver android:name=".WifiGuardReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.geely.modehelper.WIFI_GUARD_CHECK" />
+                <action android:name="com.geely.modehelper.SET_TRUSTED_WIFI" />
+            </intent-filter>
+        </receiver>
+        <!-- Not exported: only its own self-rescheduled alarm sends this. See
+             WifiKeepOnReceiver's own header — keeps WiFi enabled. -->
+        <receiver android:name=".WifiKeepOnReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="com.geely.modehelper.WIFI_KEEPON_CHECK" />
+            </intent-filter>
+        </receiver>
+        <!-- Command-line pairing, driven by adb: pass addr (and optionally pin)
+             as string extras. Bypasses the car's own Bluetooth screen entirely,
+             which the vLinker investigation found silently hides a device the
+             radio itself already discovered (docs/field-catalog.md / OBD2 section). -->
+        <receiver android:name=".BtPairReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.geely.modehelper.BT_PAIR" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

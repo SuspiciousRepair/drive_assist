@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Translation of values/strings.xml (Burmese / my). See that file for authoring notes. -->
+<resources>
+    <string name="app_name">Drive Assist</string>
+    <string name="ac_title">လေအေးပေးစနစ်</string>
+
+    <!-- comfort -->
+    <!-- ComfortActivity: tela do ar-condicionado. ac_title ja existe, nao repetir. -->
+    <string name="ac_outside_label">အပြင်</string>
+    <string name="ac_reading">ဖတ်နေသည်...</string>
+    <string name="ac_adjust_header">ဘာကို ချိန်ညှိမလဲ?</string>
+    <string name="ac_cooler">ပိုအေးအောင်</string>
+    <string name="ac_warmer">ပိုနွေးအောင်</string>
+    <string name="ac_recirc_label">လေပြန်လည်လှည့်ပတ်ခြင်း</string>
+    <string name="ac_recirc_on_label">အပြင်လေ</string>
+    <string name="ac_recirc_refused">လေပြန်လည်လှည့်ပတ်ခြင်း: ကားက ငြင်းဆန်ခဲ့သည်</string>
+    <string name="ac_recirc_on">ပြန်လည်လှည့်ပတ်နေသည် — အပြင်လေဝင်ပေါက် ပိတ်ထားသည်</string>
+    <string name="ac_recirc_off">အပြင်လေဝင်ပေါက် ဖွင့်ထားသည်</string>
+    <string name="ac_connect_failed">ကားနှင့် ချိတ်ဆက်၍ မရပါ</string>
+    <string name="clima_title">ရာသီဥတု</string>
+    <!-- Turbo card: 30s Sport-mode boost, then back to whatever mode was running before -->
+    <string name="turbo_title">Turbo</string>
+    <string name="regen_boost_title">စွမ်းအင်ပြန်လည်ရယူခြင်း</string>
+    <!-- Linha de verdade dos atuadores. %1$s = setpoint, %2$s = ventoinha.
+    As aspas preservam os espacos multiplos (o aapt colapsaria). -->
+    <string name="ac_readout">"လေ %1$s °C   ·   ပန်ကာ %2$s"</string>
+    <!-- %1$s = a linha ate aqui; a clausula inteira volta traduzida -->
+    <string name="ac_readout_recirc">"%1$s   ·   ပြန်လည်လှည့်ပတ်နေသည်"</string>
+    <!-- %1$s = a linha ate aqui, %2$s = status da regua de conforto -->
+    <string name="ac_readout_status">"%1$s   —   %2$s"</string>
+
+    <!-- misc -->
+    <string name="cleanup_title">ရှင်းလင်းခြင်း</string>
+    <string name="cleanup_subtitle">စက်ရုံပုံရိပ်ပြီးနောက် ထည့်သွင်းခဲ့သမျှကို ဖယ်ရှားပါသည်။ ADB ကို ပြန်ဖျက်ခြင်း မရှိပါ (၎င်းသည် recovery မှ လာသည်) ပြီး system app များကို မထိပါ။</string>
+    <string name="cleanup_step1_header">အဆင့် ၁ — ကျန်ရှိသော အကြွင်းအကျန်များ</string>
+    <string name="cleanup_step2_header">အဆင့် ၂ — app များ ဖယ်ရှားခြင်း</string>
+    <string name="cleanup_action_stop_wipe">ဝန်ဆောင်မှုများကို ရပ်ပြီး Drive Assist ၏ ဒေတာကို ဖျက်ပါ</string>
+    <string name="cleanup_action_uninstall_apps">စိတ်ကြိုက် app များကို ဖြုတ်ပါ</string>
+    <string name="cleanup_action_uninstall_self">Drive Assist ကိုယ်တိုင်ကို ဖြုတ်ပါ</string>
+    <string name="cleanup_log_idle">ဘာမှ မလုပ်ရသေးပါ။\nခလုတ်တိုင်းက အတည်ပြုချက် တောင်းသည် (နှစ်ချက် တို့ပါ)။</string>
+    <string name="cleanup_confirm_prompt">အတည်ပြုရန် \"%1$s\" ကို နောက်တစ်ကြိမ် တို့ပါ။</string>
+    <string name="cleanup_stopping">ဝန်ဆောင်မှုများကို ရပ်နေသည်...</string>
+    <string name="cleanup_wiped">ဝန်ဆောင်မှုများ ရပ်ပြီး၊ အိုင်ကွန်များ ဖယ်ရှားပြီး၊ နှိုးစက် ပယ်ဖျက်ပြီး ဒေတာ ဖျက်ပြီးပါပြီ။\nDrive Assist ကို ထည့်သွင်းထားဆဲပင် ဖြစ်သော်လည်း လှုပ်ရှားမှု မရှိတော့ပါ။</string>
+    <string name="cleanup_uninstall_header">ဖြုတ်ရန် တောင်းဆိုနေသည်:</string>
+    <string name="cleanup_uninstall_item_failed">မအောင်မြင်ပါ: %1$s</string>
+    <string name="cleanup_uninstall_footer">system dialog တစ်ခုစီကို အတည်ပြုပါ။ တစ်ခုချင်းစီ။</string>
+    <string name="cleanup_none_found">စိတ်ကြိုက် app မတွေ့ပါ။</string>
+    <string name="cleanup_removing_self">Drive Assist ကို ဖယ်ရှားရန် တောင်းဆိုနေသည်...</string>
+    <string name="cleanup_failed">မအောင်မြင်ပါ: %1$s</string>
+    <string name="notif_tele_channel">Telemetry</string>
+    <string name="notif_tele_title">Drive Assist — telemetry</string>
+    <string name="notif_tele_text">Home Assistant သို့ ဒေတာပို့နေသည်</string>
+    <string name="notif_outtemp_channel">အပြင်အပူချိန်</string>
+    <string name="notif_outtemp_fg_text">အပြင်အပူချိန်</string>
+    <string name="notif_outtemp_title">အပြင်ဘက် အပူချိန်</string>
+    <string name="notif_outtemp_unavailable">မရရှိနိုင်ပါ</string>
+    <string name="notif_outtemp_value">%1$s °C</string>
+    <string name="notif_wifi_channel">Wi-Fi</string>
+    <string name="notif_wifi_fg_text">wi-fi</string>
+    <string name="notif_wifi_title">Wi-Fi</string>
+    <string name="notif_wifi_disconnected">ချိတ်ဆက်မှု ပြတ်တောက်</string>
+    <string name="notif_wifi_no_network">ကွန်ရက် မရှိပါ</string>
+    <string name="notif_soc_channel">ဘက်ထရီ %</string>
+    <string name="notif_soc_fg_text">ဘက်ထရီ %</string>
+    <string name="notif_soc_title">ဘက်ထရီ</string>
+    <string name="notif_soc_unavailable">မရရှိနိုင်ပါ</string>
+    <string name="notif_soc_value">%1$s%%</string>
+
+    <!-- config -->
+    <string name="cfg_title">ဆက်တင်များ</string>
+    <string name="cfg_nav_doors">တံခါးများ</string>
+    <string name="cfg_nav_mqtt">MQTT</string>
+    <string name="cfg_nav_drive">မောင်းနှင်မှု မုဒ်</string>
+    <string name="cfg_nav_bar">မီနူးဘား</string>
+    <string name="cfg_nav_look">အသွင်အပြင်</string>
+    <string name="cfg_nav_spotify">Spotify</string>
+    <string name="cfg_nav_system">စနစ်</string>
+    <!-- sidebar group captions -->
+    <string name="cfg_group_car">ကား</string>
+    <string name="cfg_group_display">မျက်နှာပြင်</string>
+    <string name="cfg_group_integrations">ချိတ်ဆက်မှုများ</string>
+    <string name="cfg_group_system">စနစ်</string>
+    <string name="cfg_system_header">စနစ်</string>
+    <string name="cfg_app_info_header">အက်ပ် အချက်အလက်</string>
+    <string name="cfg_version_label">ဗားရှင်း: %1$s (build %2$d)</string>
+    <string name="cfg_sha_label">APK SHA-256</string>
+    <string name="cfg_update_header">ဆော့ဖ်ဝဲ အပ်ဒိတ်</string>
+    <string name="cfg_update_url_label">အပ်ဒိတ် URL (HTTPS)</string>
+    <string name="cfg_btn_check_update">အပ်ဒိတ် စစ်ဆေးပြီး ထည့်သွင်းပါ</string>
+    <string name="cfg_touch_header">ထိန်းချုပ်မှုနှင့် အအေးခံချိန်</string>
+    <string name="cfg_cooldown_label">ခလုတ် အအေးခံချိန်</string>
+    <string name="cfg_cooldown_hint">ကားမောင်းနေစဉ် မတော်တဆ နှစ်ချက်ထိမိခြင်းမှ ကာကွယ်ရန် မည်သည့်ခလုတ်ကိုမဆို နှိပ်ပြီးနောက် ခေတ္တလော့ခ်ချထားမည့်ကြာချိန်။</string>
+    <string name="cfg_maintenance_header">ထိန်းသိမ်းပြုပြင်ခြင်း</string>
+    <string name="cfg_mqtt_header">Home Assistant သို့ ပို့ခြင်း</string>
+    <string name="cfg_mqtt_enable_label">MQTT telemetry ဖွင့်ပါ</string>
+    <string name="cfg_mqtt_enable_hint">Broker နှင့် ချိတ်ဆက်ပြီး ကား၏ အချက်အလက်များကို Home Assistant သို့ ပို့ပေးသည်။</string>
+    <string name="cfg_status_sending">Home Assistant သို့ ပို့နေသည်</string>
+    <string name="cfg_status_off">ပိတ်ထားသည်</string>
+    <string name="cfg_sending_every">ပို့နေသည် (%1$d စက္ကန့်တိုင်း)</string>
+    <string name="cfg_broker_header">MQTT broker</string>
+    <string name="cfg_field_hosts">လိပ်စာများ (တစ်ကြောင်းလျှင် တစ်ခု)</string>
+    <string name="cfg_field_user">အသုံးပြုသူအမည်</string>
+    <string name="cfg_field_pass">စကားဝှက်</string>
+    <string name="cfg_field_interval">ကြားကာလ (စက္ကန့်)</string>
+    <string name="cfg_seconds_suffix">စက္ကန့်</string>
+    <string name="cfg_lock_short_label">ခလုတ်လော့ခ်</string>
+    <string name="cfg_saved">ဆက်တင်များကို သိမ်းဆည်းပြီးပါပြီ</string>
+    <string name="cfg_btn_save_all">ဆက်တင်အားလုံးကို သိမ်းပါ</string>
+    <string name="cfg_log_title">အချိန်နှင့်တပြေးညီ မှတ်တမ်းနှင့် အကြံပြုချက်</string>
+    <string name="cfg_active_status_title">ချိတ်ဆက်မှု အခြေအနေ</string>
+    <string name="cfg_active_broker">လက်ရှိ broker: %1$s</string>
+    <string name="cfg_client_id">Client ID: %1$s</string>
+    <string name="cfg_last_sent">နောက်ဆုံး ပို့ခဲ့သည့်အချိန်: %1$s</string>
+
+    <!-- certificates / tls -->
+    <string name="cfg_certs_header">လက်မှတ်များနှင့် TLS</string>
+    <string name="cfg_client_cert_label">Client လက်မှတ် (mTLS)</string>
+    <string name="cfg_ca_cert_label">CA လက်မှတ် (ဆာဗာ ယုံကြည်စိတ်ချရမှု)</string>
+    <string name="cfg_cert_status_installed">ထည့်သွင်းပြီး: %1$s (သက်တမ်းကုန်ဆုံးရက် %2$s အထိ)</string>
+    <string name="cfg_cert_status_none">မထည့်သွင်းရသေးပါ (အဝေးထိန်း mTLS အတွက် လိုအပ်သည်)</string>
+    <string name="cfg_ca_status_default">မူလသတ်မှတ်ချက် (အက်ပ်တွင် ပါရှိပြီး)</string>
+    <string name="cfg_ca_status_custom">စိတ်ကြိုက်: %1$s (သက်တမ်းကုန်ဆုံးရက် %2$s အထိ)</string>
+    <string name="cfg_btn_import_cert">ထည့်သွင်းပါ</string>
+    <string name="cfg_btn_remove_cert">ဖယ်ရှားပါ</string>
+    <string name="cfg_btn_reset_default">မူလအတိုင်း ပြန်ထားပါ</string>
+    <string name="cfg_btn_test_tls">TLS ချိတ်ဆက်မှုကို စမ်းသပ်ပါ</string>
+    <string name="cfg_tls_test_target_label">စမ်းသပ်မည့် TLS broker လိပ်စာ</string>
+    <string name="cfg_cert_import_title">လက်မှတ် ထည့်သွင်းပါ</string>
+    <string name="cfg_cert_import_usb">USB Drive</string>
+    <string name="cfg_cert_import_url">URL မှ ဒေါင်းလုဒ်လုပ်ပါ</string>
+    <string name="cfg_cert_import_file">ဖိုင်ရွေးချယ်မှု</string>
+    <string name="cfg_cert_import_paste">စာသား ကူးထည့်ပါ (PEM / Base64)</string>
+    <string name="cfg_cert_usb_not_found">/storage အောက်တွင် USB drive မတွေ့ပါ</string>
+    <string name="cfg_cert_usb_no_files">USB drive တွင် လက်မှတ်ဖိုင်များ (.p12, .pfx, .crt, .cer, .pem) မတွေ့ပါ</string>
+    <string name="cfg_cert_usb_pick_file">USB drive ပေါ်ရှိ လက်မှတ်ကို ရွေးပါ</string>
+    <string name="cfg_cert_url_prompt">လက်မှတ် ဒေါင်းလုဒ်လုပ်ရန် URL ရိုက်ထည့်ပါ (.p12, .pfx, .crt, .pem):</string>
+    <string name="cfg_cert_paste_prompt">လက်မှတ် အကြောင်းအရာကို ကူးထည့်ပါ (PEM သို့မဟုတ် Base64):</string>
+    <string name="cfg_cert_password_prompt">လက်မှတ် စကားဝှက် ရိုက်ထည့်ပါ:</string>
+    <string name="cfg_cert_password_incorrect">လက်မှတ် စကားဝှက် မှားယွင်းနေသည်။</string>
+    <string name="cfg_cert_import_success">လက်မှတ် အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ: %1$s</string>
+    <string name="cfg_cert_import_failed">လက်မှတ် ထည့်သွင်းမှု မအောင်မြင်ပါ: %1$s</string>
+    <string name="cfg_cert_remove_confirm">လက်မှတ် %1$s ကို ဖယ်ရှားမလား?</string>
+    <string name="cfg_cert_testing_tls">TLS ချိတ်ဆက်မှုကို စမ်းသပ်နေသည်…</string>
+
+    <string name="cfg_spotify_header">Spotify</string>
+    <string name="cfg_spotify_client_id">Client ID</string>
+    <string name="cfg_spotify_connect">ချိတ်ဆက်ရန်</string>
+    <string name="cfg_spotify_disconnect">ချိတ်ဆက်မှု ဖြတ်ရန်</string>
+    <string name="cfg_spotify_status_on">ချိတ်ဆက်ထားသည်</string>
+    <string name="cfg_spotify_status_off">ချိတ်ဆက်မထားပါ</string>
+    <string name="cfg_spotify_need_id">Client ID ကို ဦးစွာ ထည့်ပါ</string>
+    <string name="spotify_connected">Spotify ချိတ်ဆက်ပြီးပါပြီ</string>
+    <string name="spotify_connect_failed">Spotify: ချိတ်ဆက်၍ မရပါ</string>
+    <string name="cfg_security_header">လုံခြုံရေး</string>
+    <string name="cfg_commands_label">HA မှ ညွှန်ကြားချက်များကို လက်ခံရန်</string>
+    <string name="cfg_commands_on">HA မှ ညွှန်ကြားချက်များကို လက်ခံနေသည်</string>
+    <string name="cfg_commands_off">ညွှန်ကြားချက်များ ပိတ်ထားသည် — telemetry သာ</string>
+    <string name="cfg_commands_hint">ပိတ်ထားသောအခါ Home Assistant မှ လာသော အားသွင်းခြင်းနှင့် မီးဆိုင်ရာ ညွှန်ကြားချက်များကို ကားက လျစ်လျူရှုသည်။</string>
+    <string name="cfg_lock_label">ခလုတ်နှိပ်ပြီးနောက် လော့ခ်ချထားမည့် ကြာချိန် (စက္ကန့်)</string>
+    <string name="cfg_adb_label">adb</string>
+    <string name="cfg_adb_off">ပိတ်ထားသည်။ ဖွင့်ထားစဉ်တွင် ကွန်ရက်တူတွင်ရှိသူ မည်သူမဆို ဤယူနစ်၌ root shell ကို ရရှိနိုင်သည်။</string>
+    <string name="cfg_adb_on">ဖွင့်ထားသည် — %1$d မိနစ်အတွင်း အလိုအလျောက် ပိတ်သွားမည်။</string>
+    <string name="cfg_adb_no_helper">modehelper ကို ထည့်သွင်းမထားပါ၊ ထို့ကြောင့် ဤနေရာတွင် adb ကို ဖွင့်/ပိတ် လုပ်နိုင်စွမ်း မရှိပါ။</string>
+    <string name="cfg_trusted_wifi_label">အထူးခွင့်ပြုထားသော Wi-Fi (SSID)</string>
+    <string name="cfg_trusted_wifi_hint">ဤကွန်ရက်သို့ ချိတ်ဆက်ထားစဉ် ADB သည် အမြဲပွင့်နေပြီး WakeLock သည် စက်ကို အိပ်စက်ခြင်းမှ တားဆီးပေးသည်။</string>
+    <string name="cfg_btn_use_current_wifi">လက်ရှိ Wi-Fi ကို သုံးပါ</string>
+    <string name="cfg_trusted_wifi_saved">အထူးခွင့်ပြုထားသော Wi-Fi ကို သိမ်းဆည်းပြီးပါပြီ</string>
+    <string name="cfg_doors_header">တံခါးများ</string>
+    <string name="cfg_window_on_door">တံခါးဖွင့်လိုက်သောအခါ ပြတင်းပေါက်ကို အနည်းငယ် ဖွင့်ပါ</string>
+    <string name="cfg_window_on_door_hint">ထိုတံခါး၏ ပြတင်းပေါက်ကို ~၁ စင်တီမီတာ ချလိုက်သည်၊ ထို့ကြောင့် တံခါးသည် ဆီးလ်ပိတ်ထားသော ခန်းတွင်းနှင့် မတိုက်ခိုက်ဘဲ ပိတ်နိုင်ပြီး၊ တံခါးပိတ်လိုက်သောအခါ ၎င်းကို ပြန်ပြင်ပေးသည်။ ၎င်းက မိမိကိုယ်တိုင် ဖွင့်ခဲ့သော ပြတင်းပေါက်ကိုသာ ပိတ်ပြီး၊ သင်ကိုယ်တိုင် ရွှေ့ထားသော ပြတင်းပေါက်ကို မထိပါ။</string>
+    <string name="cfg_actions_header">လုပ်ဆောင်ချက်များ</string>
+    <string name="cfg_btn_on">ဖွင့်ရန်</string>
+    <string name="cfg_btn_off">ပိတ်ရန်</string>
+    <string name="cfg_btn_test">စမ်းသပ်ရန်</string>
+    <string name="cfg_btn_discovery">MQTT ရှာဖွေတွေ့ရှိမှု</string>
+    <string name="cfg_btn_update">အပ်ဒိတ်လုပ်ရန်</string>
+    <string name="cfg_btn_save">သိမ်းပါ</string>
+    <string name="cfg_testing">စမ်းသပ်နေသည်...</string>
+    <string name="cfg_discovery_sending">MQTT ရှာဖွေတွေ့ရှိမှု ပို့နေသည်…</string>
+    <string name="cfg_discovery_ok">MQTT ရှာဖွေတွေ့ရှိမှု အောင်မြင်စွာ ပို့ပြီးပါပြီ</string>
+    <string name="cfg_discovery_failed">ရှာဖွေတွေ့ရှိမှု မအောင်မြင်ပါ: %1$s</string>
+    <string name="cfg_discovery_svc_inactive">Telemetry ဝန်ဆောင်မှု အလုပ်မလုပ်ပါ</string>
+    <string name="cfg_discovery_no_client">MQTT client မစတင်ရသေးပါ</string>
+    <string name="cfg_cleanup">ရှင်းလင်းခြင်းနှင့် ဖယ်ရှားခြင်း…</string>
+    <string name="cfg_drive_header">မောင်းနှင်မှု မုဒ်</string>
+    <string name="cfg_connecting">ချိတ်ဆက်နေသည်…</string>
+    <string name="cfg_mode_eco">Eco</string>
+    <string name="cfg_mode_comfort">Comfort</string>
+    <string name="cfg_mode_sport">Sport</string>
+    <string name="cfg_regen_header">Regeneration</string>
+    <string name="cfg_regen_low">နိမ့်</string>
+    <string name="cfg_regen_mid">အလယ်အလတ်</string>
+    <string name="cfg_regen_high">မြင့်</string>
+    <string name="turbo_header">Turbo</string>
+    <string name="turbo_enable_label">Turbo ကတ်ကို ပြပါ</string>
+    <string name="turbo_duration_label">ကြာချိန် (စက္ကန့်)</string>
+    <string name="cfg_btn_apply">ယခု အသုံးချရန်</string>
+    <string name="cfg_btn_save_default">မူရင်းအဖြစ် သိမ်းရန်</string>
+    <string name="cfg_car_connect_fail">ကားနှင့် ချိတ်ဆက်၍ မရပါ</string>
+    <string name="cfg_applied">အသုံးချပြီးပါပြီ: %1$s + %2$s</string>
+    <string name="cfg_applied_turbo_active">အသုံးချပြီးပါပြီ: %1$s။ မောင်းနှင်မှု မုဒ် မပြောင်းလဲပါ — Turbo အလုပ်လုပ်နေသည်။</string>
+    <string name="cfg_startup_default">စတင်သည့်အခါ မူရင်း: %1$s + %2$s</string>
+    <string name="cfg_mode_unknown">လက်ရှိမုဒ် မသိရသေးပါ — အသုံးချရန် တစ်ခု ရွေးပါ</string>
+    <string name="cfg_current">လက်ရှိ: %1$s + %2$s</string>
+    <string name="cfg_bar_header">မီနူးဘား၌ ပြသချက်များ</string>
+    <string name="cfg_bar_outtemp">ဘား၌ အပြင်ဘက် အပူချိန်</string>
+    <string name="cfg_bar_wifi">ဘား၌ Wi-Fi (ဆက်တင်များကို ဖွင့်သည်)</string>
+    <string name="cfg_bar_soc">ဘား၌ ဘက်ထရီ %</string>
+    <string name="cfg_appearance_header">အသွင်အပြင်</string>
+    <string name="cfg_appearance_light">အလင်း</string>
+    <string name="cfg_appearance_dark">အမှောင်</string>
+    <string name="cfg_appearance_auto">အလိုအလျောက်</string>
+    <string name="cfg_appearance_note">အလိုအလျောက်သည် ဤယူနစ်ကိုယ်ပိုင် နေ့/ညဆက်တင်ကို လိုက်နာသည်။ Neon နှင့် Noturno သည် ဤဆက်တင် မည်သို့ပင်ရှိစေ ၎င်းတို့၏ ပုံသေရောင်စဉ်တစ်ခုတည်းကိုသာ အမြဲအသုံးပြုသည်။</string>
+    <string name="cfg_theme_header">အကြောင်းအရာ</string>
+    <string name="cfg_theme_sub">Drive Assist ၏ ဖန်သားပြင်တိုင်းတွင် အသုံးဝင်သည်။ ပုံသေးက ကတ်များ၏ အရောင်နှင့် ပုံသဏ္ဌာန်ကို ပြသသည် — ပြောင်းလဲမှုသည် ချက်ချင်း ဖြစ်ပေါ်သည်။</string>
+    <string name="cfg_theme_selected">%1$s  ✓</string>
+    <string name="cfg_theme_ambient_on">ဤအကြောင်းအရာသည် ခန်းတွင်း ပတ်ဝန်းကျင်အလင်းရောင်ကို ပေါက်လွင်ရောင်ကို ထိန်းချုပ်ခွင့်ပြုသည်။</string>
+    <string name="cfg_theme_ambient_off">ဤအကြောင်းအရာသည် ခန်းတွင်း အလင်းရောင်ကို တမင်လျစ်လျူရှုသည် — ပေါက်လွင်ရောင်သည် အမ်ဘာရောင်ဖြင့် ကျန်ရှိနေမည်။</string>
+    <string name="theme_geely_blurb">ညအချိန် သံမီးဖုတ်မီးခိုးရောင်၊ နေ့အချိန် ဆင်စွယ်ရောင်</string>
+    <string name="theme_noturno_blurb">အနက်ရောင်နှင့် အမ်ဘာရောင် · vaporwave ပန်နယ်</string>
+    <string name="theme_neon_blurb">တောက်ပသော အနားသတ်၊ cyan နှင့် magenta</string>
+
+    <!-- ruler -->
+    <!-- Two different faults, and telling them apart is not cosmetic: one
+         message covering both named the outside temperature while the real
+         problem was a dead binder, and cost an hour aimed at the wrong half. -->
+    <string name="ruler_no_car">ကားနှင့် ချိတ်ဆက်မထားပါ</string>
+    <string name="ruler_no_outside_temp">အပြင်ဘက် အပူချိန် မရှိပါ</string>
+    <string name="ruler_defrosting">ရေခဲဖျော်နေသည်</string>
+    <string name="ruler_at_limit">%1$s · ကန့်သတ်ချက်တွင်</string>
+    <string name="ruler_car_refused">ကားက %1$d° ကို လက်မခံပါ</string>
+    <string name="ruler_committed">သက်တောင့်သက်သာ သိမ်းဆည်းပြီးပါပြီ</string>
+    <string name="ruler_steady">တည်ငြိမ်</string>
+    <string name="ruler_level">%1$s · အဆင့် %2$d</string>
+    <string name="ruler_src_cold">အေးနေသည်</string>
+    <string name="ruler_src_fresh">အပြင်လေ</string>
+    <string name="ruler_src_hold">ပြန်လည်လှည့်ပတ်နေသည်</string>
+    <string name="ruler_src_hot">နွေးနေသည်</string>
+
+    <!-- cmd -->
+    <!-- second command column + the gate -->
+    <string name="cmd_title">ညွှန်ကြားချက်များ</string>
+    <string name="gate_title">ဂိတ်</string>
+    <string name="gate_open">ဂိတ်ကို ဖွင့်ပါ</string>
+    <string name="gate_sent">ဂိတ်: တောင်းဆိုချက် ပို့ပြီးပါပြီ</string>
+    <!-- gate button on the comfort board: short, the card title already says "Gate" -->
+    <string name="gate_button_open">ဖွင့်ရန်</string>
+    <string name="gate_button_close">ပိတ်ရန်</string>
+    <string name="gate_button_sent">တောင်းဆိုချက် ပို့ပြီးပါပြီ</string>
+    <string name="gate_no_link">Home Assistant နှင့် ချိတ်ဆက်မှု မရှိပါ</string>
+    <string name="gate_close">ဂိတ်ကို ပိတ်ပါ</string>
+    <string name="gate_opening">ဖွင့်နေသည်…</string>
+    <string name="gate_closing">ပိတ်နေသည်…</string>
+
+    <!-- purge: drop every window half way, press again to put them back -->
+    <string name="purge_label">ပြတင်းပေါက်များကို ဖွင့်ပါ</string>
+    <string name="purge_close_label">ပြတင်းပေါက်များကို ပိတ်ပါ</string>
+    <string name="purge_opening">ပြတင်းပေါက်များ ဆင်းနေသည်</string>
+    <string name="purge_closing">ပြတင်းပေါက်များ ပြန်တက်နေသည်</string>
+    <string name="purge_nothing">ရွှေ့ရန် ဘာမှ မရှိပါ</string>
+    <string name="purge_unreadable">ပြတင်းပေါက်များကို ဖတ်၍ မရပါ — ကား နိုးနေပါသလား?</string>
+    <!-- dashcam gallery -->
+    <string name="clips_title">ဖမ်းယူချက်များ</string>
+    <string name="clips_usage">clip %1$d ခု · %2$s အသုံးပြုပြီး · %3$s ထားရှိထားသည် · %4$s လွတ်နေသည်</string>
+    <string name="clips_none">ဘာမှ မှတ်တမ်းတင်ထားခြင်း မရှိသေးပါ။</string>
+    <string name="clips_play">ဖွင့်ကြည့်ရန်</string>
+    <string name="clips_hold">ထားရှိရန်</string>
+    <string name="clips_release">လွှတ်ရန်</string>
+    <string name="clips_delete">ဖျက်ရန်</string>
+    <string name="clips_delete_q">%1$s ကို ဖျက်မလား?</string>
+    <string name="clip_play_failed">ဤ clip ကို ဖွင့်၍ မရပါ (%1$d/%2$d)</string>
+    <string name="clips_recording">မှတ်တမ်းတင်နေသည်</string>
+    <string name="clips_orphan">ပိတ်မထားပါ — ပြန်ရရှိနိုင်သည်</string>
+    <string name="clips_record">မှတ်တမ်းတင်ရန်</string>
+    <string name="clips_stop">ရပ်ရန်</string>
+    <string name="cfg_nav_clips">Dashcam</string>
+    <string name="clips_back">← နောက်သို့</string>
+    <string name="cam_all">အားလုံး</string>
+    <string name="cam_front">ရှေ့</string>
+    <string name="cam_rear">နောက်</string>
+    <string name="cam_left">ဘယ်</string>
+    <string name="cam_right">ညာ</string>
+    <string name="cam_orbit">ပတ်ပတ်လည်</string>
+    <!-- charging history -->
+    <string name="cfg_nav_charge">အားသွင်းခြင်း</string>
+    <string name="charge_title">အားသွင်းမှတ်တမ်း</string>
+    <string name="charge_summary">%1$d ကြိမ် အားသွင်း · စုစုပေါင်း %2$.1f kWh</string>
+    <string name="charge_ltm_title">လွန်ခဲ့သော ၁၂ လ</string>
+    <string name="charge_period_30d">လွန်ခဲ့သော ၃၀ ရက်</string>
+    <string name="charge_ltm_count_label">ကြိမ်</string>
+    <string name="charge_row_subtitle">SoC %1$d%%→%2$d%% · %3$.1f kWh · %4$.1f kW</string>
+    <string name="charge_none">အားသွင်း session မှတ်တမ်း မရှိသေးပါ။</string>
+    <!-- stats -->
+    <string name="cfg_nav_stats">စာရင်းအင်းများ</string>
+    <string name="stats_title">မောင်းနှင်မှု စာရင်းအင်း</string>
+    <string name="stats_driving_header">ဒီအပတ်</string>
+    <string name="stats_trips_label">ခရီးစဉ်များ</string>
+    <string name="stats_chart_header">တစ်နေ့လျှင် ကီလိုမီတာ</string>
+    <!-- OBD2 + ABRP -->
+    <string name="cfg_nav_obd">OBD2 / ABRP</string>
+    <string name="obd_title">OBD2 dongle နှင့် ABRP</string>
+    <string name="obd_status_connected">ချိတ်ဆက်ထားသည် — ဘက်ထရီမှ အမှန်တကယ် ပါဝါကို ဖတ်နေသည်</string>
+    <string name="obd_status_searching">Dongle ကို ရှာနေသည်…</string>
+    <string name="obd_status_off">ပိတ်ထားသည်</string>
+    <string name="obd_enable_label">Bluetooth OBD2 dongle ကို သုံးပါ</string>
+    <string name="obd_hint">ဖွင့်ထားပါက ချိတ်ဆက်ထားပြီးသော ELM327 ပုံစံ dongle ကို ရှာဖွေပြီး ဘက်ထရီ၏ အမှန်တကယ် ပါဝါ/ဗို့အား/လျှပ်စီးကြောင်းကို တိုက်ရိုက်ဖတ်ပေးသည် — ခန့်မှန်းချက်ထက် ပိုမိုတိကျပြီး dongle ချိတ်ဆက်ထားချိန်တိုင်း ၎င်းကို အသုံးပြုသည်။</string>
+    <string name="abrp_header">ABRP (A Better Route Planner)</string>
+    <string name="abrp_enable_label">တိုက်ရိုက်ဒေတာကို ABRP သို့ ပို့ပါ</string>
+    <string name="abrp_location_label">GPS တည်နေရာကို ပို့ပါ</string>
+    <string name="abrp_location_hint">ပိတ်ထားပါက ABRP သည် ကား၏ GPS အစား သင့်ဖုန်း၏ တည်နေရာကို အသုံးပြုသည်။</string>
+    <string name="abrp_field_user_token">ABRP အသုံးပြုသူ တိုကင်</string>
+    <string name="abrp_test_sending">ABRP သို့ စမ်းသပ် ping ပို့နေသည်…</string>
+    <string name="abrp_test_ok">ပို့ပြီးပါပြီ — ချိတ်ဆက်မှု သေချာစေရန် ABRP အက်ပ်/ဆိုက်တွင် စစ်ဆေးပါ။</string>
+    <string name="abrp_test_fail">မအောင်မြင်ပါ: %1$s</string>
+    <string name="abrp_debug_header">တိုက်ရိုက် အမှားရှာဖွေမှု</string>
+    <string name="abrp_debug_sent_header">ABRP သို့ ပို့ခဲ့သည်</string>
+    <string name="abrp_debug_no_data">ဒေတာ မရှိသေးပါ</string>
+    <string name="abrp_debug_last_ok">နောက်ဆုံး ပို့ခဲ့သည့်အချိန်: %1$s — ကောင်းမွန်ပါသည်</string>
+    <string name="abrp_debug_last_fail">နောက်ဆုံး ကြိုးပမ်းမှု: %1$s — မအောင်မြင်ပါ: %2$s</string>
+    <string name="abrp_debug_log_header">လတ်တလော လှုပ်ရှားမှု</string>
+    <string name="abrp_debug_connected">ချိတ်ဆက်ထားသည်: %1$s</string>
+    <string name="abrp_debug_yes">ဟုတ်သည်</string>
+    <string name="abrp_debug_no">မဟုတ်ပါ</string>
+    <string name="charge_export">USB သို့ ထုတ်ယူရန်</string>
+    <string name="charge_export_ok">ဖိုင် %1$d ခုကို USB သို့ ထုတ်ယူပြီးပါပြီ</string>
+    <string name="charge_export_no_drive">USB drive မတွေ့ပါ</string>
+    <string name="charge_export_nothing">ထုတ်ယူစရာ ဘာမှ မရှိပါ</string>
+    <!-- charge card (ComfortActivity) -->
+    <string name="charge_card_title">ဘက်ထရီ</string>
+    <string name="charge_card_soc">%1$d%%</string>
+    <string name="charge_card_elapsed">%1$d မိနစ် အားသွင်းနေသည်</string>
+    <string name="charge_card_remaining">100%% အထိ ~%1$d မိနစ်</string>
+    <string name="charge_card_calculating">တွက်ချက်နေသည်…</string>
+    <string name="charge_card_ready">အသင့်ဖြစ်ပါပြီ</string>
+    <string name="charge_card_unknown">မသိရပါ</string>
+
+    <!-- charge stats & cost tracking -->
+    <string name="charge_stats_title">အားသွင်း စာရင်းအင်းများ</string>
+    <string name="charge_completed_title">အားသွင်းပြီးပါပြီ</string>
+    <string name="charge_cost_label">ကုန်ကျစရိတ်</string>
+    <string name="charge_cost_input_title">အားသွင်း ကုန်ကျစရိတ်</string>
+    <string name="charge_cost_input_hint">စုစုပေါင်း ကုန်ကျစရိတ် (ဥပမာ 45.00)</string>
+    <string name="charge_cost_btn_input">ကုန်ကျစရိတ် ထည့်ပါ</string>
+    <string name="charge_cost_btn_edit">ပြင်ဆင်ပါ</string>
+    <string name="charge_cost_btn_save">သိမ်းပါ</string>
+    <string name="charge_cost_btn_dismiss">ပိတ်ပါ</string>
+    <string name="charge_cost_not_set">ကုန်ကျစရိတ် မသတ်မှတ်ရသေးပါ</string>
+    <string name="charge_cost_invalid">မမှန်ကန်သော ကုန်ကျစရိတ် တန်ဖိုး</string>
+    <string name="charge_cost_parked_only">ကားရပ်ထားစဉ်သာ ကုန်ကျစရိတ် ထည့်သွင်းနိုင်သည်။</string>
+    <string name="charge_stat_total_cost">စုစုပေါင်း ကုန်ကျစရိတ်</string>
+    <string name="charge_stat_avg_cost_kwh">ကုန်ကျစရိတ် / kWh</string>
+    <string name="charge_stat_cost_100km">ကုန်ကျစရိတ် / 100km</string>
+
+    <!-- software update dialog & prompt -->
+    <string name="update_dialog_title">ဆော့ဖ်ဝဲ အပ်ဒိတ် ရနိုင်ပါပြီ</string>
+    <string name="update_dialog_version_comp">Version: %1$s   ➔   %2$s</string>
+    <string name="update_dialog_current_ver">လက်ရှိ ဗားရှင်း: %1$s</string>
+    <string name="update_dialog_new_ver">ဗားရှင်းအသစ်: %1$s</string>
+    <string name="update_dialog_changelog_header">အသစ်ပါဝင်မှုများ:</string>
+    <string name="update_dialog_accept">လက်ခံပြီး အပ်ဒိတ်လုပ်ပါ</string>
+    <string name="update_dialog_decline">နောက်မှ</string>
+    <string name="update_checking">အပ်ဒိတ်များကို စစ်ဆေးနေသည်…</string>
+    <string name="update_up_to_date">Drive Assist သည် နောက်ဆုံးပေါ် ဗားရှင်းဖြစ်သည် (%1$s)</string>
+    <string name="update_check_failed">အပ်ဒိတ်များကို စစ်ဆေး၍မရပါ: %1$s</string>
+    <string name="update_downloading">အပ်ဒိတ်ကို ဒေါင်းလုဒ်လုပ်နေသည် (%1$s) …</string>
+    <string name="update_installing">ထည့်သွင်းရန်အတွက် ModeHelper သို့ လွှဲပြောင်းပေးနေသည်…</string>
+    <string name="update_not_parked">ကားရပ်ထားစဉ်သာ အပ်ဒိတ်များကို ကြည့်ရှုပြီး ထည့်သွင်းနိုင်သည်။</string>
+</resources>

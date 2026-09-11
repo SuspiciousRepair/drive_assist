@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Translation of values/strings.xml (Chinese, Simplified / zh-CN). See that file for authoring notes. -->
+<resources>
+    <string name="app_name">Drive Assist</string>
+    <string name="ac_title">空调</string>
+
+    <!-- comfort -->
+    <!-- ComfortActivity: tela do ar-condicionado. ac_title ja existe, nao repetir. -->
+    <string name="ac_outside_label">车外</string>
+    <string name="ac_reading">读取中...</string>
+    <string name="ac_adjust_header">要调整什么?</string>
+    <string name="ac_cooler">更凉快</string>
+    <string name="ac_warmer">更暖和</string>
+    <string name="ac_recirc_label">内循环</string>
+    <string name="ac_recirc_on_label">外部空气</string>
+    <string name="ac_recirc_refused">内循环:车辆拒绝了</string>
+    <string name="ac_recirc_on">正在内循环 — 外部进气口已关闭</string>
+    <string name="ac_recirc_off">外部进气口已打开</string>
+    <string name="ac_connect_failed">无法连接到车辆</string>
+    <string name="clima_title">气候</string>
+    <!-- Turbo card: 30s Sport-mode boost, then back to whatever mode was running before -->
+    <string name="turbo_title">Turbo</string>
+    <string name="regen_boost_title">能量回收</string>
+    <!-- Linha de verdade dos atuadores. %1$s = setpoint, %2$s = ventoinha.
+    As aspas preservam os espacos multiplos (o aapt colapsaria). -->
+    <string name="ac_readout">"空气 %1$s °C   ·   风扇 %2$s"</string>
+    <!-- %1$s = a linha ate aqui; a clausula inteira volta traduzida -->
+    <string name="ac_readout_recirc">"%1$s   ·   内循环中"</string>
+    <!-- %1$s = a linha ate aqui, %2$s = status da regua de conforto -->
+    <string name="ac_readout_status">"%1$s   —   %2$s"</string>
+
+    <!-- misc -->
+    <string name="cleanup_title">清理</string>
+    <string name="cleanup_subtitle">移除出厂镜像之后添加的所有内容。不会撤销 ADB(那是从 recovery 来的),也不会触碰系统应用。</string>
+    <string name="cleanup_step1_header">第 1 步 — 残留文件</string>
+    <string name="cleanup_step2_header">第 2 步 — 移除应用</string>
+    <string name="cleanup_action_stop_wipe">停止服务并清除 Drive Assist 的数据</string>
+    <string name="cleanup_action_uninstall_apps">卸载自定义应用</string>
+    <string name="cleanup_action_uninstall_self">卸载 Drive Assist 本身</string>
+    <string name="cleanup_log_idle">尚未执行任何操作。\n每个按钮都会要求确认(点按两次)。</string>
+    <string name="cleanup_confirm_prompt">再次点按“%1$s”以确认。</string>
+    <string name="cleanup_stopping">正在停止服务...</string>
+    <string name="cleanup_wiped">服务已停止,图标已移除,闹钟已取消,数据已清除。\nDrive Assist 仍处于已安装状态,但不再运行。</string>
+    <string name="cleanup_uninstall_header">正在请求卸载:</string>
+    <string name="cleanup_uninstall_item_failed">失败:%1$s</string>
+    <string name="cleanup_uninstall_footer">请逐一确认每个系统对话框。</string>
+    <string name="cleanup_none_found">未发现任何自定义应用。</string>
+    <string name="cleanup_removing_self">正在请求移除 Drive Assist...</string>
+    <string name="cleanup_failed">失败:%1$s</string>
+    <string name="notif_tele_channel">遥测</string>
+    <string name="notif_tele_title">Drive Assist — 遥测</string>
+    <string name="notif_tele_text">正在向 Home Assistant 发送数据</string>
+    <string name="notif_outtemp_channel">车外温度</string>
+    <string name="notif_outtemp_fg_text">车外温度</string>
+    <string name="notif_outtemp_title">车外温度</string>
+    <string name="notif_outtemp_unavailable">不可用</string>
+    <string name="notif_outtemp_value">%1$s °C</string>
+    <string name="notif_wifi_channel">Wi-Fi</string>
+    <string name="notif_wifi_fg_text">wi-fi</string>
+    <string name="notif_wifi_title">Wi-Fi</string>
+    <string name="notif_wifi_disconnected">已断开</string>
+    <string name="notif_wifi_no_network">无网络</string>
+    <string name="notif_soc_channel">电池 %</string>
+    <string name="notif_soc_fg_text">电池 %</string>
+    <string name="notif_soc_title">电池</string>
+    <string name="notif_soc_unavailable">不可用</string>
+    <string name="notif_soc_value">%1$s%%</string>
+
+    <!-- config -->
+    <string name="cfg_title">设置</string>
+    <string name="cfg_nav_doors">车门</string>
+    <string name="cfg_nav_mqtt">MQTT</string>
+    <string name="cfg_nav_drive">驾驶模式</string>
+    <string name="cfg_nav_bar">菜单栏</string>
+    <string name="cfg_nav_look">外观</string>
+    <string name="cfg_nav_spotify">Spotify</string>
+    <string name="cfg_nav_system">系统</string>
+    <!-- sidebar group captions -->
+    <string name="cfg_group_car">车辆</string>
+    <string name="cfg_group_display">显示</string>
+    <string name="cfg_group_integrations">集成</string>
+    <string name="cfg_group_system">系统</string>
+    <string name="cfg_system_header">系统</string>
+    <string name="cfg_app_info_header">应用信息</string>
+    <string name="cfg_version_label">版本：%1$s（版本号 %2$d）</string>
+    <string name="cfg_sha_label">APK SHA-256</string>
+    <string name="cfg_update_header">软件更新</string>
+    <string name="cfg_update_url_label">更新 URL (HTTPS)</string>
+    <string name="cfg_btn_check_update">检查并安装更新</string>
+    <string name="cfg_touch_header">触控操作与冷却</string>
+    <string name="cfg_cooldown_label">开关冷却</string>
+    <string name="cfg_cooldown_hint">点击任何开关后的临时锁定时间，以防止驾驶时意外双击。</string>
+    <string name="cfg_maintenance_header">维护</string>
+    <string name="cfg_mqtt_header">发送到 Home Assistant</string>
+    <string name="cfg_mqtt_enable_label">启用 MQTT 遥测</string>
+    <string name="cfg_mqtt_enable_hint">连接至代理服务器并将车辆遥测数据发送到 Home Assistant。</string>
+    <string name="cfg_status_sending">正在发送到 Home Assistant</string>
+    <string name="cfg_status_off">关闭</string>
+    <string name="cfg_sending_every">发送中(每 %1$d 秒)</string>
+    <string name="cfg_broker_header">MQTT 代理</string>
+    <string name="cfg_field_hosts">地址(每行一个)</string>
+    <string name="cfg_field_user">用户名</string>
+    <string name="cfg_field_pass">密码</string>
+    <string name="cfg_field_interval">间隔(秒)</string>
+    <string name="cfg_seconds_suffix">s</string>
+    <string name="cfg_lock_short_label">开关锁定</string>
+    <string name="cfg_saved">设置已保存</string>
+    <string name="cfg_btn_save_all">保存所有设置</string>
+    <string name="cfg_log_title">实时日志与反馈</string>
+    <string name="cfg_active_status_title">连接状态</string>
+    <string name="cfg_active_broker">当前代理：%1$s</string>
+    <string name="cfg_client_id">客户端 ID：%1$s</string>
+    <string name="cfg_last_sent">上次发送：%1$s</string>
+
+    <!-- certificates / tls -->
+    <string name="cfg_certs_header">证书与 TLS</string>
+    <string name="cfg_client_cert_label">客户端证书 (mTLS)</string>
+    <string name="cfg_ca_cert_label">CA 证书 (服务器信任)</string>
+    <string name="cfg_cert_status_installed">已安装：%1$s（有效期至 %2$s）</string>
+    <string name="cfg_cert_status_none">未安装（远程 mTLS 所需）</string>
+    <string name="cfg_ca_status_default">默认（应用内置）</string>
+    <string name="cfg_ca_status_custom">自定义：%1$s（有效期至 %2$s）</string>
+    <string name="cfg_btn_import_cert">导入</string>
+    <string name="cfg_btn_remove_cert">移除</string>
+    <string name="cfg_btn_reset_default">恢复默认</string>
+    <string name="cfg_btn_test_tls">测试 TLS 握手</string>
+    <string name="cfg_tls_test_target_label">要测试的 TLS 代理地址</string>
+    <string name="cfg_cert_import_title">导入证书</string>
+    <string name="cfg_cert_import_usb">USB 驱动器</string>
+    <string name="cfg_cert_import_url">从 URL 下载</string>
+    <string name="cfg_cert_import_file">存储文件选择器</string>
+    <string name="cfg_cert_import_paste">粘贴文本 (PEM / Base64)</string>
+    <string name="cfg_cert_usb_not_found">/storage 下未找到 USB 驱动器</string>
+    <string name="cfg_cert_usb_no_files">USB 驱动器上未找到证书文件 (.p12, .pfx, .crt, .cer, .pem)</string>
+    <string name="cfg_cert_usb_pick_file">选择 USB 驱动器上的证书</string>
+    <string name="cfg_cert_url_prompt">输入下载证书的 URL (.p12, .pfx, .crt, .pem)：</string>
+    <string name="cfg_cert_paste_prompt">粘贴证书内容 (PEM 或 Base64)：</string>
+    <string name="cfg_cert_password_prompt">输入证书密码：</string>
+    <string name="cfg_cert_password_incorrect">证书密码错误。</string>
+    <string name="cfg_cert_import_success">证书安装成功：%1$s</string>
+    <string name="cfg_cert_import_failed">导入证书失败：%1$s</string>
+    <string name="cfg_cert_remove_confirm">是否移除证书 %1$s？</string>
+    <string name="cfg_cert_testing_tls">正在测试 TLS 握手…</string>
+
+    <string name="cfg_spotify_header">Spotify</string>
+    <string name="cfg_spotify_client_id">Client ID</string>
+    <string name="cfg_spotify_connect">连接</string>
+    <string name="cfg_spotify_disconnect">断开连接</string>
+    <string name="cfg_spotify_status_on">已连接</string>
+    <string name="cfg_spotify_status_off">未连接</string>
+    <string name="cfg_spotify_need_id">请先输入 Client ID</string>
+    <string name="spotify_connected">Spotify 已连接</string>
+    <string name="spotify_connect_failed">Spotify:无法连接</string>
+    <string name="cfg_security_header">安全</string>
+    <string name="cfg_commands_label">接受来自 HA 的指令</string>
+    <string name="cfg_commands_on">正在接受来自 HA 的指令</string>
+    <string name="cfg_commands_off">指令已阻止 — 仅遥测</string>
+    <string name="cfg_commands_hint">关闭时,车辆会忽略来自 Home Assistant 的充电和灯光指令。</string>
+    <string name="cfg_lock_label">每次点击后的开关锁定时间（秒）</string>
+    <string name="cfg_adb_label">adb</string>
+    <string name="cfg_adb_off">已关闭。开启期间,同一网络中的任何人都可以在此设备上获得 root shell。</string>
+    <string name="cfg_adb_on">已开启 — 将在 %1$d 分钟后自动关闭。</string>
+    <string name="cfg_adb_no_helper">未安装 modehelper,因此这里无法开启或关闭 adb。</string>
+    <string name="cfg_trusted_wifi_label">特权 Wi-Fi (SSID)</string>
+    <string name="cfg_trusted_wifi_hint">连接至此网络时，ADB 将保持开启，WakeLock 会阻止车机休眠。</string>
+    <string name="cfg_btn_use_current_wifi">使用当前 Wi-Fi</string>
+    <string name="cfg_trusted_wifi_saved">特权 Wi-Fi 已保存</string>
+    <string name="cfg_doors_header">车门</string>
+    <string name="cfg_window_on_door">开门时稍微降下车窗</string>
+    <string name="cfg_window_on_door_hint">将该车门的车窗降低约 1 厘米,使车门能够关闭而不与密封车厢对抗,并在车门关闭时将其恢复。它只关闭自己打开过的车窗,绝不触碰您自己移动过的车窗。</string>
+    <string name="cfg_actions_header">操作</string>
+    <string name="cfg_btn_on">开启</string>
+    <string name="cfg_btn_off">关闭</string>
+    <string name="cfg_btn_test">测试</string>
+    <string name="cfg_btn_discovery">MQTT 发现</string>
+    <string name="cfg_btn_update">更新</string>
+    <string name="cfg_btn_save">保存</string>
+    <string name="cfg_testing">测试中...</string>
+    <string name="cfg_discovery_sending">正在发送 MQTT 发现信息…</string>
+    <string name="cfg_discovery_ok">MQTT 发现信息发送成功</string>
+    <string name="cfg_discovery_failed">发现失败：%1$s</string>
+    <string name="cfg_discovery_svc_inactive">遥测服务未运行</string>
+    <string name="cfg_discovery_no_client">MQTT 客户端未初始化</string>
+    <string name="cfg_cleanup">清理与移除…</string>
+    <string name="cfg_drive_header">驾驶模式</string>
+    <string name="cfg_connecting">正在连接…</string>
+    <string name="cfg_mode_eco">Eco</string>
+    <string name="cfg_mode_comfort">Comfort</string>
+    <string name="cfg_mode_sport">Sport</string>
+    <string name="cfg_regen_header">能量回收</string>
+    <string name="cfg_regen_low">低</string>
+    <string name="cfg_regen_mid">中</string>
+    <string name="cfg_regen_high">高</string>
+    <string name="turbo_header">Turbo</string>
+    <string name="turbo_enable_label">显示 Turbo 卡片</string>
+    <string name="turbo_duration_label">持续时间(秒)</string>
+    <string name="cfg_btn_apply">立即应用</string>
+    <string name="cfg_btn_save_default">保存为默认值</string>
+    <string name="cfg_car_connect_fail">无法连接到车辆</string>
+    <string name="cfg_applied">已应用:%1$s + %2$s</string>
+    <string name="cfg_applied_turbo_active">已应用:%1$s。驾驶模式保持不变 — Turbo 已激活。</string>
+    <string name="cfg_startup_default">启动时的默认值:%1$s + %2$s</string>
+    <string name="cfg_mode_unknown">当前模式未知 — 请选择一个模式来应用</string>
+    <string name="cfg_current">当前:%1$s + %2$s</string>
+    <string name="cfg_bar_header">菜单栏中的显示项</string>
+    <string name="cfg_bar_outtemp">在栏中显示车外温度</string>
+    <string name="cfg_bar_wifi">在栏中显示 Wi-Fi(点击打开设置)</string>
+    <string name="cfg_bar_soc">在栏中显示电池百分比</string>
+    <string name="cfg_appearance_header">外观</string>
+    <string name="cfg_appearance_light">浅色</string>
+    <string name="cfg_appearance_dark">深色</string>
+    <string name="cfg_appearance_auto">自动</string>
+    <string name="cfg_appearance_note">“自动”会跟随本设备自身的日夜设置。无论此设置如何,Neon 和 Noturno 都始终使用各自唯一固定的配色方案。</string>
+    <string name="cfg_theme_header">主题</string>
+    <string name="cfg_theme_sub">适用于 Drive Assist 的每个屏幕。缩略图会显示卡片的颜色和形状 — 更改立即生效。</string>
+    <string name="cfg_theme_selected">%1$s  ✓</string>
+    <string name="cfg_theme_ambient_on">此主题允许车厢环境灯光控制强调色。</string>
+    <string name="cfg_theme_ambient_off">此主题有意忽略车厢灯光 — 强调色始终保持琥珀色。</string>
+    <string name="theme_geely_blurb">夜间为炮铜灰,白天为象牙白</string>
+    <string name="theme_noturno_blurb">黑色与琥珀色 · 蒸汽波风格面板</string>
+    <string name="theme_neon_blurb">发光轮廓,青色与洋红色</string>
+
+    <!-- ruler -->
+    <!-- Two different faults, and telling them apart is not cosmetic: one
+         message covering both named the outside temperature while the real
+         problem was a dead binder, and cost an hour aimed at the wrong half. -->
+    <string name="ruler_no_car">未连接到车辆</string>
+    <string name="ruler_no_outside_temp">无车外温度</string>
+    <string name="ruler_defrosting">除霜中</string>
+    <string name="ruler_at_limit">%1$s · 已达上限</string>
+    <string name="ruler_car_refused">车辆未接受 %1$d°</string>
+    <string name="ruler_committed">舒适度设置已保存</string>
+    <string name="ruler_steady">稳定</string>
+    <string name="ruler_level">%1$s · 级别 %2$d</string>
+    <string name="ruler_src_cold">制冷中</string>
+    <string name="ruler_src_fresh">外部空气</string>
+    <string name="ruler_src_hold">内循环中</string>
+    <string name="ruler_src_hot">制热中</string>
+
+    <!-- cmd -->
+    <!-- second command column + the gate -->
+    <string name="cmd_title">指令</string>
+    <string name="gate_title">大门</string>
+    <string name="gate_open">打开大门</string>
+    <string name="gate_sent">大门:请求已发送</string>
+    <!-- gate button on the comfort board: short, the card title already says "Gate" -->
+    <string name="gate_button_open">打开</string>
+    <string name="gate_button_close">关闭</string>
+    <string name="gate_button_sent">请求已发送</string>
+    <string name="gate_no_link">与 Home Assistant 无连接</string>
+    <string name="gate_close">关闭大门</string>
+    <string name="gate_opening">正在打开…</string>
+    <string name="gate_closing">正在关闭…</string>
+
+    <!-- purge: drop every window half way, press again to put them back -->
+    <string name="purge_label">打开车窗</string>
+    <string name="purge_close_label">关闭车窗</string>
+    <string name="purge_opening">车窗正在下降</string>
+    <string name="purge_closing">车窗正在重新升起</string>
+    <string name="purge_nothing">没有可移动的车窗</string>
+    <string name="purge_unreadable">无法读取车窗状态 — 车辆是否已唤醒?</string>
+    <!-- dashcam gallery -->
+    <string name="clips_title">录像</string>
+    <string name="clips_usage">%1$d 段片段 · 已用 %2$s · 已保留 %3$s · 剩余 %4$s</string>
+    <string name="clips_none">尚未录制任何内容。</string>
+    <string name="clips_play">播放</string>
+    <string name="clips_hold">保留</string>
+    <string name="clips_release">释放</string>
+    <string name="clips_delete">删除</string>
+    <string name="clips_delete_q">删除 %1$s?</string>
+    <string name="clip_play_failed">无法播放此片段 (%1$d/%2$d)</string>
+    <string name="clips_recording">录制中</string>
+    <string name="clips_orphan">未正常结束 — 可恢复</string>
+    <string name="clips_record">录制</string>
+    <string name="clips_stop">停止</string>
+    <string name="cfg_nav_clips">行车记录仪</string>
+    <string name="clips_back">← 返回</string>
+    <string name="cam_all">全部</string>
+    <string name="cam_front">前方</string>
+    <string name="cam_rear">后方</string>
+    <string name="cam_left">左侧</string>
+    <string name="cam_right">右侧</string>
+    <string name="cam_orbit">环绕</string>
+    <!-- charging history -->
+    <string name="cfg_nav_charge">充电</string>
+    <string name="charge_title">充电历史</string>
+    <string name="charge_summary">充电 %1$d 次 · 共 %2$.1f kWh</string>
+    <string name="charge_ltm_title">最近 12 个月</string>
+    <string name="charge_period_30d">最近 30 天</string>
+    <string name="charge_ltm_count_label">次充电</string>
+    <string name="charge_row_subtitle">SoC %1$d%%→%2$d%% · %3$.1f kWh · %4$.1f kW</string>
+    <string name="charge_none">尚未记录任何充电会话。</string>
+    <!-- stats -->
+    <string name="cfg_nav_stats">统计</string>
+    <string name="stats_title">驾驶统计</string>
+    <string name="stats_driving_header">本周</string>
+    <string name="stats_trips_label">行程</string>
+    <string name="stats_chart_header">每日公里数</string>
+    <!-- OBD2 + ABRP -->
+    <string name="cfg_nav_obd">OBD2 / ABRP</string>
+    <string name="obd_title">OBD2 适配器与 ABRP</string>
+    <string name="obd_status_connected">已连接 — 正在读取电池实际功率</string>
+    <string name="obd_status_searching">正在搜索适配器…</string>
+    <string name="obd_status_off">已关闭</string>
+    <string name="obd_enable_label">使用蓝牙 OBD2 适配器</string>
+    <string name="obd_hint">开启后，将查找已配对的 ELM327 适配器并直接读取电池实际功率/电压/电流 — 比估算值更准确，连接时将优先使用。</string>
+    <string name="abrp_header">ABRP (A Better Route Planner)</string>
+    <string name="abrp_enable_label">发送实时数据至 ABRP</string>
+    <string name="abrp_location_label">发送 GPS 位置</string>
+    <string name="abrp_location_hint">关闭时，ABRP 将使用手机位置而非车辆 GPS。</string>
+    <string name="abrp_field_user_token">ABRP 用户令牌</string>
+    <string name="abrp_test_sending">正在向 ABRP 发送测试请求…</string>
+    <string name="abrp_test_ok">已发送 — 请查看 ABRP 应用/网站以确认是否已连接。</string>
+    <string name="abrp_test_fail">失败：%1$s</string>
+    <string name="abrp_debug_header">实时调试</string>
+    <string name="abrp_debug_sent_header">发送至 ABRP</string>
+    <string name="abrp_debug_no_data">暂无数据</string>
+    <string name="abrp_debug_last_ok">上次发送：%1$s — 正常</string>
+    <string name="abrp_debug_last_fail">上次尝试：%1$s — 失败：%2$s</string>
+    <string name="abrp_debug_log_header">最近活动</string>
+    <string name="abrp_debug_connected">已连接：%1$s</string>
+    <string name="abrp_debug_yes">是</string>
+    <string name="abrp_debug_no">否</string>
+    <string name="charge_export">导出到 USB</string>
+    <string name="charge_export_ok">已将 %1$d 个文件导出到 USB</string>
+    <string name="charge_export_no_drive">未找到 USB 驱动器</string>
+    <string name="charge_export_nothing">没有可导出的内容</string>
+    <!-- charge card (ComfortActivity) -->
+    <string name="charge_card_title">电池</string>
+    <string name="charge_card_soc">%1$d%%</string>
+    <string name="charge_card_elapsed">已充电 %1$d 分钟</string>
+    <string name="charge_card_remaining">还需约 %1$d 分钟至 100%%</string>
+    <string name="charge_card_calculating">正在估算…</string>
+    <string name="charge_card_ready">已就绪</string>
+    <string name="charge_card_unknown">未知</string>
+
+    <!-- charge stats & cost tracking -->
+    <string name="charge_stats_title">充电统计</string>
+    <string name="charge_completed_title">充电完成</string>
+    <string name="charge_cost_label">费用</string>
+    <string name="charge_cost_input_title">充电费用</string>
+    <string name="charge_cost_input_hint">总费用 (例如 45.00)</string>
+    <string name="charge_cost_btn_input">输入费用</string>
+    <string name="charge_cost_btn_edit">编辑</string>
+    <string name="charge_cost_btn_save">保存</string>
+    <string name="charge_cost_btn_dismiss">关闭</string>
+    <string name="charge_cost_not_set">未设置费用</string>
+    <string name="charge_cost_invalid">无效的费用数值</string>
+    <string name="charge_cost_parked_only">仅在驻车状态下可输入费用。</string>
+    <string name="charge_stat_total_cost">总费用</string>
+    <string name="charge_stat_avg_cost_kwh">费用 / kWh</string>
+    <string name="charge_stat_cost_100km">费用 / 100km</string>
+
+    <!-- software update dialog & prompt -->
+    <string name="update_dialog_title">有可用软件更新</string>
+    <string name="update_dialog_version_comp">Version: %1$s   ➔   %2$s</string>
+    <string name="update_dialog_current_ver">当前版本：%1$s</string>
+    <string name="update_dialog_new_ver">新版本：%1$s</string>
+    <string name="update_dialog_changelog_header">更新内容：</string>
+    <string name="update_dialog_accept">接受并更新</string>
+    <string name="update_dialog_decline">稍后</string>
+    <string name="update_checking">正在检查更新…</string>
+    <string name="update_up_to_date">Drive Assist 已是最新版本 (%1$s)</string>
+    <string name="update_check_failed">无法检查更新：%1$s</string>
+    <string name="update_downloading">正在下载更新 (%1$s) …</string>
+    <string name="update_installing">正在移交给 ModeHelper 进行安装…</string>
+    <string name="update_not_parked">仅在驻车状态下可查看并安装更新。</string>
+</resources>

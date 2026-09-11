@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Translation of values/strings.xml (Tagalog / tl). See that file for authoring notes. -->
+<resources>
+    <string name="app_name">Drive Assist</string>
+    <string name="ac_title">Air conditioning</string>
+
+    <!-- comfort -->
+    <!-- ComfortActivity: tela do ar-condicionado. ac_title ja existe, nao repetir. -->
+    <string name="ac_outside_label">sa labas</string>
+    <string name="ac_reading">Binabasa...</string>
+    <string name="ac_adjust_header">Ano ang isasaayos?</string>
+    <string name="ac_cooler">Mas malamig</string>
+    <string name="ac_warmer">Mas mainit</string>
+    <string name="ac_recirc_label">Recirculation</string>
+    <string name="ac_recirc_on_label">Hangin sa labas</string>
+    <string name="ac_recirc_refused">Recirculation: tumanggi ang kotse</string>
+    <string name="ac_recirc_on">Nagri-recirculate — sarado ang daluyan ng hangin sa labas</string>
+    <string name="ac_recirc_off">Bukas ang daluyan ng hangin sa labas</string>
+    <string name="ac_connect_failed">Hindi makakonekta sa kotse</string>
+    <string name="clima_title">Klima</string>
+    <!-- Turbo card: 30s Sport-mode boost, then back to whatever mode was running before -->
+    <string name="turbo_title">Turbo</string>
+    <string name="regen_boost_title">Regen</string>
+    <!-- Linha de verdade dos atuadores. %1$s = setpoint, %2$s = ventoinha.
+    As aspas preservam os espacos multiplos (o aapt colapsaria). -->
+    <string name="ac_readout">"Hangin %1$s °C   ·   bentilador %2$s"</string>
+    <!-- %1$s = a linha ate aqui; a clausula inteira volta traduzida -->
+    <string name="ac_readout_recirc">"%1$s   ·   nagri-recirculate"</string>
+    <!-- %1$s = a linha ate aqui, %2$s = status da regua de conforto -->
+    <string name="ac_readout_status">"%1$s   —   %2$s"</string>
+
+    <!-- misc -->
+    <string name="cleanup_title">Paglilinis</string>
+    <string name="cleanup_subtitle">Inaalis ang lahat ng idinagdag pagkatapos ng factory image. Hindi babalik ang ADB (galing iyon sa recovery) at hindi hinahawakan ang mga system app.</string>
+    <string name="cleanup_step1_header">Hakbang 1 — mga labi</string>
+    <string name="cleanup_step2_header">Hakbang 2 — alisin ang mga app</string>
+    <string name="cleanup_action_stop_wipe">Ihinto ang mga serbisyo at burahin ang data ni Drive Assist</string>
+    <string name="cleanup_action_uninstall_apps">I-uninstall ang mga custom na app</string>
+    <string name="cleanup_action_uninstall_self">I-uninstall si Drive Assist mismo</string>
+    <string name="cleanup_log_idle">Wala pang nagagawa.\nHinihingi ng bawat button ang kumpirmasyon (i-tap nang dalawang beses).</string>
+    <string name="cleanup_confirm_prompt">I-tap muli ang \"%1$s\" para kumpirmahin.</string>
+    <string name="cleanup_stopping">Hinihinto ang mga serbisyo...</string>
+    <string name="cleanup_wiped">Naihinto ang mga serbisyo, naalis ang mga icon, nakansela ang alarm, at nabura ang data.\nNakainstall pa rin si Drive Assist, pero hindi aktibo.</string>
+    <string name="cleanup_uninstall_header">Hinihiling ang pag-uninstall ng:</string>
+    <string name="cleanup_uninstall_item_failed">nabigo: %1$s</string>
+    <string name="cleanup_uninstall_footer">Kumpirmahin ang bawat system dialog. Isa-isa.</string>
+    <string name="cleanup_none_found">Walang nahanap na custom na app.</string>
+    <string name="cleanup_removing_self">Hinihiling ang pag-alis kay Drive Assist...</string>
+    <string name="cleanup_failed">Nabigo: %1$s</string>
+    <string name="notif_tele_channel">Telemetry</string>
+    <string name="notif_tele_title">Drive Assist — telemetry</string>
+    <string name="notif_tele_text">Nagpapadala ng data sa Home Assistant</string>
+    <string name="notif_outtemp_channel">Temp. sa labas</string>
+    <string name="notif_outtemp_fg_text">temp. sa labas</string>
+    <string name="notif_outtemp_title">Temperatura sa labas</string>
+    <string name="notif_outtemp_unavailable">hindi available</string>
+    <string name="notif_outtemp_value">%1$s °C</string>
+    <string name="notif_wifi_channel">Wi-Fi</string>
+    <string name="notif_wifi_fg_text">wi-fi</string>
+    <string name="notif_wifi_title">Wi-Fi</string>
+    <string name="notif_wifi_disconnected">nadiskonekta</string>
+    <string name="notif_wifi_no_network">walang network</string>
+    <string name="notif_soc_channel">Baterya %</string>
+    <string name="notif_soc_fg_text">baterya %</string>
+    <string name="notif_soc_title">Baterya</string>
+    <string name="notif_soc_unavailable">hindi available</string>
+    <string name="notif_soc_value">%1$s%%</string>
+
+    <!-- config -->
+    <string name="cfg_title">Mga setting</string>
+    <string name="cfg_nav_doors">Mga pinto</string>
+    <string name="cfg_nav_mqtt">MQTT</string>
+    <string name="cfg_nav_drive">Driving mode</string>
+    <string name="cfg_nav_bar">Menu bar</string>
+    <string name="cfg_nav_look">Itsura</string>
+    <string name="cfg_nav_spotify">Spotify</string>
+    <string name="cfg_nav_system">Sistema</string>
+    <!-- sidebar group captions -->
+    <string name="cfg_group_car">Kotse</string>
+    <string name="cfg_group_display">Display</string>
+    <string name="cfg_group_integrations">Mga Integrasyon</string>
+    <string name="cfg_group_system">Sistema</string>
+    <string name="cfg_system_header">Sistema</string>
+    <string name="cfg_app_info_header">Impormasyon ng application</string>
+    <string name="cfg_version_label">Bersyon: %1$s (build %2$d)</string>
+    <string name="cfg_sha_label">APK SHA-256</string>
+    <string name="cfg_update_header">Update ng software</string>
+    <string name="cfg_update_url_label">Update URL (HTTPS)</string>
+    <string name="cfg_btn_check_update">Suriin at I-install ang Update</string>
+    <string name="cfg_touch_header">Mga kontrol sa pagpindot at cooldown</string>
+    <string name="cfg_cooldown_label">Cooldown ng switch</string>
+    <string name="cfg_cooldown_hint">Pansamantalang tagal ng lock pagkatapos i-tap ang anumang switch upang maiwasan ang aksidenteng dobleng pagpindot habang nagmamaneho.</string>
+    <string name="cfg_maintenance_header">Pagpapanatili</string>
+    <string name="cfg_mqtt_header">Pagpapadala sa Home Assistant</string>
+    <string name="cfg_mqtt_enable_label">Paganahin ang MQTT telemetry</string>
+    <string name="cfg_mqtt_enable_hint">Kumokonekta sa broker at nagpapadala ng telemetry ng sasakyan sa Home Assistant.</string>
+    <string name="cfg_status_sending">Nagpapadala sa Home Assistant</string>
+    <string name="cfg_status_off">Naka-off</string>
+    <string name="cfg_sending_every">Nagpapadala (bawat %1$ds)</string>
+    <string name="cfg_broker_header">MQTT broker</string>
+    <string name="cfg_field_hosts">Mga address (isa bawat linya)</string>
+    <string name="cfg_field_user">Username</string>
+    <string name="cfg_field_pass">Password</string>
+    <string name="cfg_field_interval">Interval (s)</string>
+    <string name="cfg_seconds_suffix">s</string>
+    <string name="cfg_lock_short_label">Lock ng switch</string>
+    <string name="cfg_saved">Nai-save ang mga setting</string>
+    <string name="cfg_btn_save_all">I-save ang lahat ng setting</string>
+    <string name="cfg_log_title">Real-time na log at feedback</string>
+    <string name="cfg_active_status_title">Katayuan ng koneksyon</string>
+    <string name="cfg_active_broker">Aktibong broker: %1$s</string>
+    <string name="cfg_client_id">Client ID: %1$s</string>
+    <string name="cfg_last_sent">Huling naipadala: %1$s</string>
+
+    <!-- certificates / tls -->
+    <string name="cfg_certs_header">Mga Sertipiko at TLS</string>
+    <string name="cfg_client_cert_label">Sertipiko ng kliyente (mTLS)</string>
+    <string name="cfg_ca_cert_label">Sertipiko ng CA (tiwala sa server)</string>
+    <string name="cfg_cert_status_installed">Naka-install: %1$s (wasto hanggang %2$s)</string>
+    <string name="cfg_cert_status_none">Walang naka-install (kinakailangan para sa malayuang mTLS)</string>
+    <string name="cfg_ca_status_default">Default (kasama sa app)</string>
+    <string name="cfg_ca_status_custom">Custom: %1$s (wasto hanggang %2$s)</string>
+    <string name="cfg_btn_import_cert">I-import</string>
+    <string name="cfg_btn_remove_cert">Alisin</string>
+    <string name="cfg_btn_reset_default">I-reset sa default</string>
+    <string name="cfg_btn_test_tls">Subukan ang TLS handshake</string>
+    <string name="cfg_tls_test_target_label">Address ng TLS broker na susubukan</string>
+    <string name="cfg_cert_import_title">I-import ang sertipiko</string>
+    <string name="cfg_cert_import_usb">USB Drive</string>
+    <string name="cfg_cert_import_url">I-download mula sa URL</string>
+    <string name="cfg_cert_import_file">Tagapili ng file ng storage</string>
+    <string name="cfg_cert_import_paste">I-paste ang teksto (PEM / Base64)</string>
+    <string name="cfg_cert_usb_not_found">Walang nakitang USB drive sa ilalim ng /storage</string>
+    <string name="cfg_cert_usb_no_files">Walang nakitang mga file ng sertipiko (.p12, .pfx, .crt, .cer, .pem) sa USB drive</string>
+    <string name="cfg_cert_usb_pick_file">Pumili ng sertipiko sa USB drive</string>
+    <string name="cfg_cert_url_prompt">Ilagay ang URL para i-download ang sertipiko (.p12, .pfx, .crt, .pem):</string>
+    <string name="cfg_cert_paste_prompt">I-paste ang nilalaman ng sertipiko (PEM o Base64):</string>
+    <string name="cfg_cert_password_prompt">Ilagay ang password ng sertipiko:</string>
+    <string name="cfg_cert_password_incorrect">Maling password ng sertipiko.</string>
+    <string name="cfg_cert_import_success">Matagumpay na na-install ang sertipiko: %1$s</string>
+    <string name="cfg_cert_import_failed">Nabigong i-import ang sertipiko: %1$s</string>
+    <string name="cfg_cert_remove_confirm">Alisin ang sertipikong %1$s?</string>
+    <string name="cfg_cert_testing_tls">Sinusubukan ang TLS handshake…</string>
+
+    <string name="cfg_spotify_header">Spotify</string>
+    <string name="cfg_spotify_client_id">Client ID</string>
+    <string name="cfg_spotify_connect">Kumonekta</string>
+    <string name="cfg_spotify_disconnect">Idiskonekta</string>
+    <string name="cfg_spotify_status_on">Nakakonekta</string>
+    <string name="cfg_spotify_status_off">Hindi nakakonekta</string>
+    <string name="cfg_spotify_need_id">Ilagay muna ang Client ID</string>
+    <string name="spotify_connected">Nakakonekta ang Spotify</string>
+    <string name="spotify_connect_failed">Spotify: hindi nakakonekta</string>
+    <string name="cfg_security_header">Seguridad</string>
+    <string name="cfg_commands_label">Tanggapin ang mga command mula sa HA</string>
+    <string name="cfg_commands_on">Tinatanggap ang mga command mula sa HA</string>
+    <string name="cfg_commands_off">Naka-BLOCK ang mga command — telemetry lang</string>
+    <string name="cfg_commands_hint">Kapag naka-off, hindi pinapansin ng kotse ang mga command sa pag-charge at ilaw na nagmumula sa Home Assistant.</string>
+    <string name="cfg_lock_label">Tagal ng lock ng switch (s), pagkatapos ng bawat tap</string>
+    <string name="cfg_adb_label">adb</string>
+    <string name="cfg_adb_off">Sarado. Habang bukas ito, kahit sino sa parehong network ay makakakuha ng root shell sa unit na ito.</string>
+    <string name="cfg_adb_on">Bukas — sasarado na mismo sa loob ng %1$d min.</string>
+    <string name="cfg_adb_no_helper">Hindi naka-install ang modehelper, kaya walang makakabukas o makakasara ng adb dito.</string>
+    <string name="cfg_trusted_wifi_label">May Pribilehiyong Wi-Fi (SSID)</string>
+    <string name="cfg_trusted_wifi_hint">Habang nakakonekta sa network na ito, mananatiling bukas ang ADB nang walang katiyakan at pinipigilan ng WakeLock ang unit na mag-suspend.</string>
+    <string name="cfg_btn_use_current_wifi">Gamitin ang Kasalukuyang Wi-Fi</string>
+    <string name="cfg_trusted_wifi_saved">Nai-save ang may pribilehiyong Wi-Fi</string>
+    <string name="cfg_doors_header">Mga pinto</string>
+    <string name="cfg_window_on_door">Bahagyang buksan ang bintana kapag bumukas ang pinto</string>
+    <string name="cfg_window_on_door_hint">Ibinababa ang bintana ng pintong iyon ng ~1 cm para makasara ang pinto nang hindi nakikipagbuno sa naka-seal na cabin, at ibinabalik ito kapag nagsara ang pinto. Isasara lang nito ang bintanang binuksan mismo nito, at hindi hinahawakan ang anumang bintanang inilipat mo mismo.</string>
+    <string name="cfg_actions_header">Mga aksyon</string>
+    <string name="cfg_btn_on">I-on</string>
+    <string name="cfg_btn_off">I-off</string>
+    <string name="cfg_btn_test">Subukan</string>
+    <string name="cfg_btn_discovery">Pagtuklas ng MQTT</string>
+    <string name="cfg_btn_update">I-update</string>
+    <string name="cfg_btn_save">I-save</string>
+    <string name="cfg_testing">Sinusubukan...</string>
+    <string name="cfg_discovery_sending">Ipinapadala ang pagtuklas ng MQTT…</string>
+    <string name="cfg_discovery_ok">Matagumpay na naipadala ang pagtuklas ng MQTT</string>
+    <string name="cfg_discovery_failed">Nabigo ang pagtuklas: %1$s</string>
+    <string name="cfg_discovery_svc_inactive">Hindi tumatakbo ang serbisyo ng telemetry</string>
+    <string name="cfg_discovery_no_client">Hindi pa nasisimulan ang kliyente ng MQTT</string>
+    <string name="cfg_cleanup">Paglilinis at pag-alis…</string>
+    <string name="cfg_drive_header">Driving mode</string>
+    <string name="cfg_connecting">Kumokonekta…</string>
+    <string name="cfg_mode_eco">Eco</string>
+    <string name="cfg_mode_comfort">Comfort</string>
+    <string name="cfg_mode_sport">Sport</string>
+    <string name="cfg_regen_header">Regeneration</string>
+    <string name="cfg_regen_low">Mababa</string>
+    <string name="cfg_regen_mid">Katamtaman</string>
+    <string name="cfg_regen_high">Mataas</string>
+    <string name="turbo_header">Turbo</string>
+    <string name="turbo_enable_label">Ipakita ang Turbo card</string>
+    <string name="turbo_duration_label">Tagal (s)</string>
+    <string name="cfg_btn_apply">I-apply ngayon</string>
+    <string name="cfg_btn_save_default">I-save bilang default</string>
+    <string name="cfg_car_connect_fail">Hindi makakonekta sa kotse</string>
+    <string name="cfg_applied">Na-apply: %1$s + %2$s</string>
+    <string name="cfg_applied_turbo_active">Na-apply: %1$s. Hindi nagbago ang driving mode — aktibo ang Turbo.</string>
+    <string name="cfg_startup_default">Default sa startup: %1$s + %2$s</string>
+    <string name="cfg_mode_unknown">Hindi alam ang kasalukuyang mode — pumili ng isa para i-apply</string>
+    <string name="cfg_current">Kasalukuyan: %1$s + %2$s</string>
+    <string name="cfg_bar_header">Mga display sa menu bar</string>
+    <string name="cfg_bar_outtemp">Temperatura sa labas sa bar</string>
+    <string name="cfg_bar_wifi">Wi-Fi sa bar (nagbubukas ng settings)</string>
+    <string name="cfg_bar_soc">Baterya % sa bar</string>
+    <string name="cfg_appearance_header">Itsura</string>
+    <string name="cfg_appearance_light">Maliwanag</string>
+    <string name="cfg_appearance_dark">Madilim</string>
+    <string name="cfg_appearance_auto">Auto</string>
+    <string name="cfg_appearance_note">Sinusunod ng Auto ang sariling setting ng araw/gabi ng unit na ito. Palaging gumagamit ang Neon at Noturno ng kanilang sariling nakapirming color scheme, anuman ang setting na ito.</string>
+    <string name="cfg_theme_header">Tema</string>
+    <string name="cfg_theme_sub">Naaangkop sa bawat screen ni Drive Assist. Ipinapakita ng thumbnail ang kulay at hugis ng mga card — agad ang pagbabago.</string>
+    <string name="cfg_theme_selected">%1$s  ✓</string>
+    <string name="cfg_theme_ambient_on">Hinahayaan ng temang ito na ang ambient light ng cabin ang magpasya sa accent color.</string>
+    <string name="cfg_theme_ambient_off">Sinasadyang hindi pinapansin ng temang ito ang ilaw ng cabin — mananatiling amber ang accent.</string>
+    <string name="theme_geely_blurb">Gunmetal gray sa gabi, ivory sa araw</string>
+    <string name="theme_noturno_blurb">Itim at amber · vaporwave panel</string>
+    <string name="theme_neon_blurb">Maliwanag na outline, cyan at magenta</string>
+
+    <!-- ruler -->
+    <!-- Two different faults, and telling them apart is not cosmetic: one
+         message covering both named the outside temperature while the real
+         problem was a dead binder, and cost an hour aimed at the wrong half. -->
+    <string name="ruler_no_car">hindi nakakonekta sa kotse</string>
+    <string name="ruler_no_outside_temp">walang temperatura sa labas</string>
+    <string name="ruler_defrosting">nagde-defrost</string>
+    <string name="ruler_at_limit">%1$s · nasa limitasyon</string>
+    <string name="ruler_car_refused">hindi tinanggap ng kotse ang %1$d°</string>
+    <string name="ruler_committed">na-save ang comfort</string>
+    <string name="ruler_steady">matatag</string>
+    <string name="ruler_level">%1$s · antas %2$d</string>
+    <string name="ruler_src_cold">nagpapalamig</string>
+    <string name="ruler_src_fresh">hangin sa labas</string>
+    <string name="ruler_src_hold">nagri-recirculate</string>
+    <string name="ruler_src_hot">nagpapainit</string>
+
+    <!-- cmd -->
+    <!-- second command column + the gate -->
+    <string name="cmd_title">Mga command</string>
+    <string name="gate_title">Gate</string>
+    <string name="gate_open">Buksan ang gate</string>
+    <string name="gate_sent">Gate: naipadala ang kahilingan</string>
+    <!-- gate button on the comfort board: short, the card title already says "Gate" -->
+    <string name="gate_button_open">Buksan</string>
+    <string name="gate_button_close">Isara</string>
+    <string name="gate_button_sent">Naipadala ang kahilingan</string>
+    <string name="gate_no_link">Walang link sa Home Assistant</string>
+    <string name="gate_close">Isara ang gate</string>
+    <string name="gate_opening">Bumubukas…</string>
+    <string name="gate_closing">Nagsasara…</string>
+
+    <!-- purge: drop every window half way, press again to put them back -->
+    <string name="purge_label">Buksan ang mga bintana</string>
+    <string name="purge_close_label">Isara ang mga bintana</string>
+    <string name="purge_opening">Bumababa ang mga bintana</string>
+    <string name="purge_closing">Umaakyat pabalik ang mga bintana</string>
+    <string name="purge_nothing">Walang igagalaw</string>
+    <string name="purge_unreadable">Hindi mabasa ang mga bintana — gising ba ang kotse?</string>
+    <!-- dashcam gallery -->
+    <string name="clips_title">Mga recording</string>
+    <string name="clips_usage">%1$d clips · %2$s ginamit · %3$s hawak · %4$s libre</string>
+    <string name="clips_none">Wala pang na-record.</string>
+    <string name="clips_play">I-play</string>
+    <string name="clips_hold">Hawakan</string>
+    <string name="clips_release">Palayain</string>
+    <string name="clips_delete">Burahin</string>
+    <string name="clips_delete_q">Buburahin ang %1$s?</string>
+    <string name="clip_play_failed">Hindi ma-play ang clip na ito (%1$d/%2$d)</string>
+    <string name="clips_recording">nagre-record</string>
+    <string name="clips_orphan">hindi nasarhan — maaaring ibalik</string>
+    <string name="clips_record">I-record</string>
+    <string name="clips_stop">Itigil</string>
+    <string name="cfg_nav_clips">Dashcam</string>
+    <string name="clips_back">← Bumalik</string>
+    <string name="cam_all">Lahat</string>
+    <string name="cam_front">Harap</string>
+    <string name="cam_rear">Likod</string>
+    <string name="cam_left">Kaliwa</string>
+    <string name="cam_right">Kanan</string>
+    <string name="cam_orbit">Umikot</string>
+    <!-- charging history -->
+    <string name="cfg_nav_charge">Pag-charge</string>
+    <string name="charge_title">Kasaysayan ng pag-charge</string>
+    <string name="charge_summary">%1$d beses na-charge · kabuuang %2$.1f kWh</string>
+    <string name="charge_ltm_title">Nakaraang 12 buwan</string>
+    <string name="charge_period_30d">Nakaraang 30 araw</string>
+    <string name="charge_ltm_count_label">beses na-charge</string>
+    <string name="charge_row_subtitle">SoC %1$d%%→%2$d%% · %3$.1f kWh · %4$.1f kW</string>
+    <string name="charge_none">Wala pang naitalang charging session.</string>
+    <!-- stats -->
+    <string name="cfg_nav_stats">Mga istatistika</string>
+    <string name="stats_title">Mga istatistika sa pagmamaneho</string>
+    <string name="stats_driving_header">Ngayong linggo</string>
+    <string name="stats_trips_label">mga biyahe</string>
+    <string name="stats_chart_header">km bawat araw</string>
+    <!-- OBD2 + ABRP -->
+    <string name="cfg_nav_obd">OBD2 / ABRP</string>
+    <string name="obd_title">OBD2 dongle at ABRP</string>
+    <string name="obd_status_connected">Konektado — nagbabasa ng totoong lakas mula sa baterya</string>
+    <string name="obd_status_searching">Hinahanap ang dongle…</string>
+    <string name="obd_status_off">Naka-off</string>
+    <string name="obd_enable_label">Gamitin ang Bluetooth OBD2 dongle</string>
+    <string name="obd_hint">Kapag naka-on, naghahanap ng nakapares nang ELM327-style dongle at direktang nagbabasa ng totoong lakas/boltahe/kuryente ng baterya mula rito — mas tumpak kaysa sa pagtatantya, at ginagamit kapalit nito tuwing nakakonekta ang dongle.</string>
+    <string name="abrp_header">ABRP (A Better Route Planner)</string>
+    <string name="abrp_enable_label">Magpadala ng live na data sa ABRP</string>
+    <string name="abrp_location_label">Ipadala ang lokasyon ng GPS</string>
+    <string name="abrp_location_hint">Kapag naka-off, ginagamit ng ABRP ang lokasyon ng iyong telepono sa halip na GPS ng sasakyan.</string>
+    <string name="abrp_field_user_token">Token ng user ng ABRP</string>
+    <string name="abrp_test_sending">Nagpapadala ng pagsubok na ping sa ABRP…</string>
+    <string name="abrp_test_ok">Naipadala na — tingnan ang app/site ng ABRP upang kumpirmahing nakakonekta ito.</string>
+    <string name="abrp_test_fail">Nabigo: %1$s</string>
+    <string name="abrp_debug_header">Live debug</string>
+    <string name="abrp_debug_sent_header">Naipadala sa ABRP</string>
+    <string name="abrp_debug_no_data">Wala pang data</string>
+    <string name="abrp_debug_last_ok">Huling naipadala: %1$s — OK</string>
+    <string name="abrp_debug_last_fail">Huling pagtatangka: %1$s — Nabigo: %2$s</string>
+    <string name="abrp_debug_log_header">Kamakailang aktibidad</string>
+    <string name="abrp_debug_connected">Konektado: %1$s</string>
+    <string name="abrp_debug_yes">oo</string>
+    <string name="abrp_debug_no">hindi</string>
+    <string name="charge_export">I-export sa USB</string>
+    <string name="charge_export_ok">%1$d file ang na-export sa USB</string>
+    <string name="charge_export_no_drive">Walang nakitang USB drive</string>
+    <string name="charge_export_nothing">Walang i-eexport</string>
+    <!-- charge card (ComfortActivity) -->
+    <string name="charge_card_title">Baterya</string>
+    <string name="charge_card_soc">%1$d%%</string>
+    <string name="charge_card_elapsed">%1$d min nagcha-charge</string>
+    <string name="charge_card_remaining">~%1$d min hanggang 100%%</string>
+    <string name="charge_card_calculating">Tinatantya…</string>
+    <string name="charge_card_ready">Handa na</string>
+    <string name="charge_card_unknown">Hindi alam</string>
+
+    <!-- charge stats & cost tracking -->
+    <string name="charge_stats_title">Mga istatistika ng pag-charge</string>
+    <string name="charge_completed_title">Kumpleto na ang pag-charge</string>
+    <string name="charge_cost_label">Gastos</string>
+    <string name="charge_cost_input_title">Gastos sa Pag-charge</string>
+    <string name="charge_cost_input_hint">Kabuuang gastos (hal. 45.00)</string>
+    <string name="charge_cost_btn_input">Ilagay ang Gastos</string>
+    <string name="charge_cost_btn_edit">I-edit</string>
+    <string name="charge_cost_btn_save">I-save</string>
+    <string name="charge_cost_btn_dismiss">I-dismiss</string>
+    <string name="charge_cost_not_set">Hindi nakatakda ang gastos</string>
+    <string name="charge_cost_invalid">Di-wastong halaga ng gastos</string>
+    <string name="charge_cost_parked_only">Maaari lamang ilagay ang gastos habang nakaparada.</string>
+    <string name="charge_stat_total_cost">Kabuuang gastos</string>
+    <string name="charge_stat_avg_cost_kwh">Gastos / kWh</string>
+    <string name="charge_stat_cost_100km">Gastos / 100km</string>
+
+    <!-- software update dialog & prompt -->
+    <string name="update_dialog_title">May Magagamit na Update ng Software</string>
+    <string name="update_dialog_version_comp">Version: %1$s   ➔   %2$s</string>
+    <string name="update_dialog_current_ver">Kasalukuyang bersyon: %1$s</string>
+    <string name="update_dialog_new_ver">Bagong bersyon: %1$s</string>
+    <string name="update_dialog_changelog_header">Ano ang bago:</string>
+    <string name="update_dialog_accept">Tanggapin at I-update</string>
+    <string name="update_dialog_decline">Mamaya</string>
+    <string name="update_checking">Sinusuri ang mga update…</string>
+    <string name="update_up_to_date">Napapanahon na ang Drive Assist (%1$s)</string>
+    <string name="update_check_failed">Hindi masuri ang mga update: %1$s</string>
+    <string name="update_downloading">Dina-download ang update (%1$s) …</string>
+    <string name="update_installing">Ipinapasa sa ModeHelper para sa pag-install…</string>
+    <string name="update_not_parked">Maaari lamang suriin at i-install ang mga update habang nakaparada.</string>
+</resources>
