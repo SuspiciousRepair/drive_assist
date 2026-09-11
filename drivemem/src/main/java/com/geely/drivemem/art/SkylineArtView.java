@@ -60,7 +60,20 @@ public class SkylineArtView extends ArtView {
     private int ambient = Style.ACCENT;
     private int alpha = 255;              // driven by the cabin light brightness
 
-    public SkylineArtView(Context c) { super(c); }
+    public SkylineArtView(Context c) {
+        super(c);
+        android.content.SharedPreferences prefs = c.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
+        skyline.setSeed(prefs.getLong("skyline_seed", Skyline.DEFAULT_SEED));
+    }
+
+    // Live in-place regeneration -- used when "random every drive" rolls a
+    // new seed on a P->D edge while this view is already on screen. No
+    // recreate(), no flash: same view, new plate.
+    public void reroll(long seed) {
+        skyline.setSeed(seed);
+        if (w > 0 && h > 0) skyline.layout(w, h * (1f - CITY_UNIT_Y));
+        invalidate();
+    }
 
     // The art is the whole screen, so blanking the art would blank everything.
     @Override public boolean fullBleed() { return true; }

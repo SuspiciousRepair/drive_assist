@@ -297,10 +297,15 @@ public class Style {
         return g;
     }
 
-    /** Returns the fill color for large translucent cards with art showing through. */
+    /** Returns the fill color for cards sitting over the art. */
     public static int cardFillColor() {
-        int alpha = LIGHT ? 0xD1 : 0x94;
-        return (CARD & 0x00FFFFFF) | (alpha << 24);
+        // Was translucent by design (0x94 dark / 0xD1 light) so the art
+        // showed through. On the real panel, in real light, that read as
+        // washed out the moment a card carried real content (a photo of
+        // the Altitude card confirmed it -- the skyline bled through
+        // enough to fight the numbers). Fully opaque now, one value for
+        // every card in the app, both themes.
+        return CARD | 0xFF000000;
     }
 
     /** Returns the fill color for tile elements inside cards. */

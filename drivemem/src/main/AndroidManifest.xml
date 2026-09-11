@@ -54,7 +54,16 @@
         <activity android:name=".ui.HvacProbe" android:exported="false" />
         <activity android:name=".ui.HvacSet" android:exported="false" />
 
-        <receiver android:name=".util.BootReceiver" android:exported="true">
+        <!-- exported=false, not a signature permission: this build's own signing
+             key (keystore/debug.ks) is checked into the public repo on purpose,
+             so a signature check here would verify nothing. exported=false
+             instead blocks every non-system, non-same-app sender outright,
+             with no certificate trust involved. BOOT_COMPLETED / LOCKED_BOOT_COMPLETED
+             / MY_PACKAGE_REPLACED still arrive fine (the OS delivers its own
+             protected broadcasts regardless of exported), and WATCHDOG's only
+             sender (CleanupActivity) already uses an explicit same-app Intent,
+             which exported=false never blocks either. -->
+        <receiver android:name=".util.BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />

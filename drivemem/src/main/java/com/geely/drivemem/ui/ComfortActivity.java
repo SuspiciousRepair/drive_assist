@@ -110,6 +110,8 @@ public class ComfortActivity extends Activity {
     private android.widget.ImageView turboBarView;
     private LinearLayout turboCardView;   // visibility gated on CarState — driving only, see the listener below
     private boolean turboEnabledAtBuild;   // so onResume can notice a Config change and recreate()
+    private boolean skylineEnabledAtBuild; // same idea, for "Show skyline art"
+    private long skylineSeedAtBuild;       // and for the fixed/chosen seed
     private TextView regenGlyphView;      // right half's glyph, retinted to reflect real car state
 
     // Music card: spot #4, art + title/artist + skip/play-pause. Visible only
@@ -157,6 +159,8 @@ public class ComfortActivity extends Activity {
         themeLight = Style.LIGHT;
         prefs = getSharedPreferences("drivemem", MODE_PRIVATE);
         turboEnabledAtBuild = prefs.getBoolean("turbo_enabled", true);
+        skylineEnabledAtBuild = prefs.getBoolean("skyline_enabled", true);
+        skylineSeedAtBuild = prefs.getLong("skyline_seed", com.geely.drivemem.art.Skyline.DEFAULT_SEED);
         dismissedHash = prefs.getInt("panel_dismissed", 0);   // the dismissal survives a restart
         // BORROWED, not owned: the ruler belongs to the process now, so an MQTT
         // tap works with this screen closed. See ComfortHub.
@@ -167,8 +171,14 @@ public class ComfortActivity extends Activity {
         // the left back to the theme's background (a horizontal veil), so the
         // scene passes underneath the controls and vanishes, with no hard edge
         // in the middle of the screen. This is the ONLY place theme and art meet.
-        art = (Style.ART == Style.ART_VAPOR) ? new VaporArtView(this) : new SkylineArtView(this);
-        fullBleed = art.fullBleed();
+        //
+        // The skyline can be turned off in Settings; Noturno's own scene
+        // (VaporArtView) is a different art path and always shows regardless
+        // -- the toggle only ever hides the skyline other themes use.
+        boolean noturno = Style.ART == Style.ART_VAPOR;
+        boolean showSkyline = noturno || prefs.getBoolean("skyline_enabled", true);
+        art = noturno ? new VaporArtView(this) : (showSkyline ? new SkylineArtView(this) : null);
+        fullBleed = art != null && art.fullBleed();
 
         Style.edgeToEdge(this);
         FrameLayout screen = new FrameLayout(this);
@@ -1364,6 +1374,17 @@ public class ComfortActivity extends Activity {
         }
 
         if (!parked) {
+            // "Random every drive": a fresh seed on every P->D edge, applied
+            // live to the already-running SkylineArtView -- no recreate(),
+            // no flash. Persisted too, so the next cold launch (or a resume
+            // after this one) starts from the same city until the next P->D.
+            if (art instanceof com.geely.drivemem.art.SkylineArtView
+                    && prefs.getBoolean("skyline_random_per_drive", false)) {
+                long newSeed = new java.util.Random().nextLong() & Long.MAX_VALUE;
+                prefs.edit().putLong("skyline_seed", newSeed).apply();
+                skylineSeedAtBuild = newSeed;   // this IS the change; onResume must not re-recreate for it
+                ((com.geely.drivemem.art.SkylineArtView) art).reroll(newSeed);
+            }
             // DRIVING SAFETY: immediately dismiss any active dialogs if vehicle leaves Park!
             if (activeUpdateDialog != null && activeUpdateDialog.isShowing()) {
                 try { activeUpdateDialog.dismiss(); } catch (Throwable ignored) {}
@@ -1694,6 +1715,16 @@ public class ComfortActivity extends Activity {
         // same idea: the Turbo toggle in Config only takes effect on the next
         // build of this screen, same as a theme change
         if (prefs.getBoolean("turbo_enabled", true) != turboEnabledAtBuild) { recreate(); return; }
+        // Same again for the skyline settings. This was previously missing
+        // the "skyline_enabled" half entirely -- the toggle saved fine but
+        // nothing ever told this already-running screen to rebuild art, so
+        // the skyline just kept showing.
+        boolean curSkylineEnabled = prefs.getBoolean("skyline_enabled", true);
+        long curSkylineSeed = prefs.getLong("skyline_seed", com.geely.drivemem.art.Skyline.DEFAULT_SEED);
+        if (curSkylineEnabled != skylineEnabledAtBuild || curSkylineSeed != skylineSeedAtBuild) {
+            recreate();
+            return;
+        }
         // Opening the screen re-arms the watchdog. Alarms are canceled on
         // install and force-stop; only opening the screen always arrives,
         // making it the fallback to restore the monitoring chain. ensureAll

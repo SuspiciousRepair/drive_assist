@@ -220,6 +220,12 @@
     <string name="cfg_appearance_dark">Escura</string>
     <string name="cfg_appearance_auto">Automática</string>
     <string name="cfg_appearance_note">Automática segue o ajuste de dia/noite do próprio painel do carro. Neon e Noturno sempre usam seu esquema de cor único, seja qual for este ajuste.</string>
+    <string name="cfg_skyline_label">Mostrar arte do horizonte</string>
+    <string name="cfg_skyline_seed_header">Semente do Horizonte</string>
+    <string name="cfg_skyline_seed_label">Semente</string>
+    <string name="cfg_skyline_seed_save">Salvar</string>
+    <string name="cfg_skyline_cycle">Sortear</string>
+    <string name="cfg_skyline_random_per_drive_label">Aleatório a cada viagem</string>
     <string name="cfg_theme_header">Tema</string>
     <string name="cfg_theme_sub">Vale para todas as telas do Drive Assist. A miniatura mostra a cor e o formato dos cartões — a troca é imediata.</string>
     <string name="cfg_theme_selected">%1$s  ✓</string>
@@ -356,6 +362,12 @@
     <string name="charge_stat_total_cost">Custo total</string>
     <string name="charge_stat_avg_cost_kwh">Custo / kWh</string>
     <string name="charge_stat_cost_100km">Custo / 100km</string>
+
+    <!-- energy balance chart (ChargeStatsView) -->
+    <string name="charge_balance_title">Balanço de Energia</string>
+    <string name="charge_balance_hint">Toque numa barra para detalhes</string>
+    <string name="charge_balance_spent">Gasto</string>
+    <string name="charge_balance_regen">Regen</string>
 
     <!-- software update dialog & prompt -->
     <string name="update_dialog_title">Atualização de Software Disponível</string>

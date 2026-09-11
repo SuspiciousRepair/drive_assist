@@ -8,6 +8,7 @@ import android.database.sqlite.SQLiteDatabase;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -142,6 +143,12 @@ public final class DailyStatsProvider {
         public final int chargeCount;
         public final double chargeKwh;
         public final List<DaySession> sessions;
+        // Trivial point lookups against telemetry_sample, same as max_speed_kmh
+        // (see CarDb's comment on why that one isn't a precomputed column
+        // either) -- filled in by getDayOverview() after construction rather
+        // than threaded through both constructors below, so neither existing
+        // caller has to change.
+        public double maxAltitudeM;
 
         public DayOverview(String date, String displayDate, double distanceKm, double dischargeKwh,
                            double regenKwh, double netKwh,
@@ -183,6 +190,152 @@ public final class DailyStatsProvider {
                  firstBatteryPct, lastBatteryPct, minBatteryPct, maxBatteryPct,
                  drivingMinutes, avgSpeedKmh, avgTempC, chargeCount, chargeKwh, sessions);
         }
+    }
+
+    /** Average efficiency (kWh/100km) grouped by driving speed for a day. */
+    public static final class SpeedBucket {
+        public final double kwh100km;   // 0 when there's no qualifying distance in this bucket
+        public final double distanceKm;
+        SpeedBucket(double kwh100km, double distanceKm) { this.kwh100km = kwh100km; this.distanceKm = distanceKm; }
+    }
+
+    // Upper bound of each bucket in km/h; the last one is open-ended (120+).
+    private static final double[] SPEED_BUCKET_MAX = {40, 80, 120, Double.MAX_VALUE};
+
+    private static int speedBucketFor(double speedKmh) {
+        for (int i = 0; i < SPEED_BUCKET_MAX.length; i++) {
+            if (speedKmh < SPEED_BUCKET_MAX[i]) return i;
+        }
+        return SPEED_BUCKET_MAX.length - 1;
+    }
+
+    /** Distance per hour, split into the same four speed buckets used by efficiency. */
+    public static final class HourlySpeedData {
+        public final double[][] km = new double[24][SPEED_BUCKET_MAX.length];
+        public double maxHourlyTotalKm;
+    }
+
+    public static HourlySpeedData getHourlySpeedData(Context ctx, String dateStr) {
+        HourlySpeedData out = new HourlySpeedData();
+        Cursor c = CarDb.get(ctx).db().rawQuery(
+                "SELECT odo_km, speed_kmh, ts_ms FROM telemetry_sample "
+              + "WHERE date(ts_ms/1000,'unixepoch','localtime') = ? "
+              + "AND (is_charging IS NULL OR is_charging = 0) ORDER BY id ASC",
+                new String[]{dateStr});
+        try {
+            double previousOdo = -1;
+            Calendar calendar = Calendar.getInstance();
+            while (c.moveToNext()) {
+                if (c.isNull(0) || c.isNull(1)) continue;
+                double odo = c.getDouble(0);
+                double speed = c.getDouble(1);
+                if (odo <= 0 || speed < 0) continue;
+                if (previousOdo >= 0 && odo >= previousOdo && odo - previousOdo < 50) {
+                    calendar.setTimeInMillis(c.getLong(2));
+                    int hour = calendar.get(Calendar.HOUR_OF_DAY);
+                    int bucket = speedBucketFor(speed);
+                    out.km[hour][bucket] += odo - previousOdo;
+                }
+                previousOdo = odo;
+            }
+        } finally { c.close(); }
+        for (int h = 0; h < 24; h++) {
+            double total = 0;
+            for (double value : out.km[h]) total += value;
+            if (total > out.maxHourlyTotalKm) out.maxHourlyTotalKm = total;
+        }
+        return out;
+    }
+
+    /**
+     * Buckets telemetry_sample by each row's own speed_kmh (0-40 / 40-80 /
+     * 80-120 / 120+), same as the day's overall efficiency: energy_spent_kwh/
+     * energy_regen_kwh are already per-sample increments (see the day-total
+     * energy query below), so they sum directly per bucket with no diffing.
+     * Distance is NOT a per-sample increment (odo_km is cumulative), so each
+     * bucket's distance is the odometer delta since the previous sample,
+     * attributed to whichever bucket the CURRENT sample's speed falls into --
+     * SQLite here has no window functions (see TelemetryRollup's note on
+     * LAG()), so this is a sequential Java-side pass, same idea as the
+     * legacy-sample piecewise integration in getDayOverview() below.
+     *
+     * energy_spent_kwh/energy_regen_kwh can be NULL for a stretch after the
+     * telemetry service restarts (observed ~53 minutes on 2026-09-10, id
+     * 2067-2269) even though odo_km/speed_kmh are already reporting fine --
+     * instant_power_kw_est is populated during that stretch, though, so it is
+     * integrated the same way getDayOverview() does for legacy rows. Treating
+     * a NULL energy pair as zero (instead of falling back) would keep
+     * crediting that distance to a bucket while starving it of energy,
+     * understating that bucket's kWh/100km.
+     */
+    public static SpeedBucket[] getSpeedBucketEfficiency(Context ctx, String dateStr) {
+        SQLiteDatabase db = CarDb.get(ctx).db();
+        double[] spent = new double[SPEED_BUCKET_MAX.length];
+        double[] regen = new double[SPEED_BUCKET_MAX.length];
+        double[] dist = new double[SPEED_BUCKET_MAX.length];
+
+        Cursor c = db.rawQuery(
+            "SELECT odo_km, speed_kmh, energy_spent_kwh, energy_regen_kwh, ts_ms, instant_power_kw_est "
+          + "FROM telemetry_sample "
+          + "WHERE date(ts_ms/1000,'unixepoch','localtime') = ? "
+          + "  AND (is_charging IS NULL OR is_charging = 0) "
+          + "  AND (gear IS NULL OR gear != 4) "
+          + "  AND (gear IN (1, 2, 8) OR speed_kmh > 0) "
+          + "ORDER BY id ASC", new String[]{dateStr});
+        try {
+            double prevOdo = -1;
+            long prevLegacyTs = -1;
+            while (c.moveToNext()) {
+                boolean hasOdo = !c.isNull(0);
+                double odo = hasOdo ? c.getDouble(0) : -1;
+                // A mid-sequence 0.0 does happen -- looks like the first VHAL
+                // read after the telemetry service (re)starts, before the
+                // binder connection is warmed up, comes back zero. Treat a
+                // non-positive reading as untrustworthy, same as a missing
+                // one: it must not become the new prevOdo, or the NEXT real
+                // reading computes its delta against 0 and reports a
+                // multi-thousand-km "drive" in one sample.
+                if (hasOdo && odo <= 0) hasOdo = false;
+                boolean hasSpeed = !c.isNull(1);
+                double speed = hasSpeed ? c.getDouble(1) : -1;
+                boolean hasEnergy = !c.isNull(2) && !c.isNull(3);
+                double spentKwh = hasEnergy ? c.getDouble(2) : 0;
+                double regenKwh = hasEnergy ? c.getDouble(3) : 0;
+                boolean isLegacy = !hasEnergy && !c.isNull(5);
+                long ts = c.getLong(4);
+                double instantKw = isLegacy ? c.getDouble(5) : 0;
+
+                if (isLegacy) {
+                    if (prevLegacyTs != -1) {
+                        double hours = (ts - prevLegacyTs) / 3_600_000.0;
+                        if (hours > 0 && hours <= (60.0 / 3600.0)) {
+                            if (instantKw >= 0) spentKwh = instantKw * hours;
+                            else regenKwh = -instantKw * hours;
+                            hasEnergy = true;
+                        }
+                    }
+                    prevLegacyTs = ts;
+                }
+
+                if (hasSpeed && speed >= 0 && hasEnergy) {
+                    int b = speedBucketFor(speed);
+                    if (hasOdo && prevOdo >= 0 && odo >= prevOdo) {
+                        dist[b] += (odo - prevOdo);
+                    }
+                    spent[b] += spentKwh;
+                    regen[b] += regenKwh;
+                }
+                if (hasOdo) prevOdo = odo;
+            }
+        } finally { c.close(); }
+
+        SpeedBucket[] out = new SpeedBucket[SPEED_BUCKET_MAX.length];
+        for (int i = 0; i < SPEED_BUCKET_MAX.length; i++) {
+            double net = spent[i] - regen[i];
+            double kwh100 = (dist[i] > 0.2 && net > 0) ? (net / dist[i]) * 100.0 : 0;
+            out[i] = new SpeedBucket(kwh100, dist[i]);
+        }
+        return out;
     }
 
     public static String todayDateStr() {
@@ -338,15 +491,14 @@ public final class DailyStatsProvider {
             }
 
             Cursor minMaxC = db.rawQuery(
-                "SELECT MIN(battery_pct), MAX(battery_pct), AVG(speed_kmh), AVG(outside_temp_c) "
+                "SELECT MIN(battery_pct), MAX(battery_pct), AVG(outside_temp_c) "
               + "FROM telemetry_sample WHERE date(ts_ms/1000,'unixepoch','localtime') = ?",
                 new String[]{dateStr});
             try {
                 if (minMaxC.moveToFirst()) {
                     minBatt = minMaxC.isNull(0) ? -1 : minMaxC.getInt(0);
                     maxBatt = minMaxC.isNull(1) ? -1 : minMaxC.getInt(1);
-                    avgSpeed = minMaxC.isNull(2) ? 0 : minMaxC.getDouble(2);
-                    avgTemp = minMaxC.isNull(3) ? 0 : minMaxC.getDouble(3);
+                    avgTemp = minMaxC.isNull(2) ? 0 : minMaxC.getDouble(2);
                 }
             } finally { minMaxC.close(); }
 
@@ -384,6 +536,10 @@ public final class DailyStatsProvider {
                 }
             }
 
+            // Avg speed = distance over driving duration, not a per-sample
+            // average -- sampling gaps and idle jitter don't skew it.
+            avgSpeed = drivingMin > 0 ? distKm / (drivingMin / 60.0) : 0;
+
             long activeId = com.geely.drivemem.state.ChargeSession.activeRowId();
             boolean excludeActive = activeId > 0 && com.geely.drivemem.state.ChargeSession.isCharging();
             String activeFilter = excludeActive ? " AND id != ?" : "";
@@ -413,7 +569,9 @@ public final class DailyStatsProvider {
               + "       COUNT(CASE WHEN energy_spent_kwh IS NULL AND instant_power_kw_est IS NOT NULL THEN 1 END) "
               + "FROM telemetry_sample "
               + "WHERE date(ts_ms/1000,'unixepoch','localtime') = ? "
-              + "  AND (is_charging IS NULL OR is_charging = 0)", new String[]{dateStr});
+              + "  AND (is_charging IS NULL OR is_charging = 0)"
+              + "  AND (gear IS NULL OR gear != 4)"
+              + "  AND (gear IN (1, 2, 8) OR speed_kmh > 0)", new String[]{dateStr});
             try {
                 if (pC.moveToFirst()) {
                     int newCount = pC.getInt(2);
@@ -429,6 +587,8 @@ public final class DailyStatsProvider {
                           + "WHERE date(ts_ms/1000,'unixepoch','localtime') = ? "
                           + "  AND energy_spent_kwh IS NULL AND instant_power_kw_est IS NOT NULL "
                           + "  AND (is_charging IS NULL OR is_charging = 0) "
+                          + "  AND (gear IS NULL OR gear != 4) "
+                          + "  AND (gear IN (1, 2, 8) OR speed_kmh > 0) "
                           + "ORDER BY ts_ms ASC", new String[]{dateStr});
                         try {
                             long prevTs = -1;
@@ -459,9 +619,22 @@ public final class DailyStatsProvider {
         // Fetch ABRP-style sessions (trips & charges)
         List<DaySession> sessions = queryDaySessions(ctx, db, dateStr);
 
-        return new DayOverview(dateStr, displayDate, distKm, dischargeKwh, regenKwh, netKwh,
+        DayOverview ov = new DayOverview(dateStr, displayDate, distKm, dischargeKwh, regenKwh, netKwh,
                 efficiencyKwh100km, ascentDPlus, descentDMinus, netElevation, firstBatt, lastBatt,
                 minBatt, maxBatt, drivingMin, avgSpeed, avgTemp, chargeCount, chargeKwh, sessions);
+
+        // Trivial point lookup against raw telemetry_sample -- works for both
+        // today and already-frozen days, since freezing only summarizes into
+        // daily_stat, it never deletes the raw rows (pruning is 90 days out,
+        // see TelemetryRollup, far past the 14-day window this screen shows).
+        Cursor altC = db.rawQuery(
+            "SELECT MAX(altitude_m) FROM telemetry_sample WHERE date(ts_ms/1000,'unixepoch','localtime') = ?",
+            new String[]{dateStr});
+        try {
+            if (altC.moveToFirst() && !altC.isNull(0)) ov.maxAltitudeM = altC.getDouble(0);
+        } finally { altC.close(); }
+
+        return ov;
     }
 
     private static List<DaySession> queryDaySessions(Context ctx, SQLiteDatabase db, String dateStr) {

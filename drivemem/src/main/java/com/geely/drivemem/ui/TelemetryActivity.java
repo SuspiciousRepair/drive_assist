@@ -114,6 +114,7 @@ public class TelemetryActivity extends Activity {
     private LinearLayout mqttConfigContainer;
     private EditText fSpotifyClientId;
     private EditText fTurbo;
+    private EditText fSkylineSeed;
     private EditText fLockSec;
     private TextView spotifyStatus;
     // Drive mode. Two separate ideas, kept in separate fields on purpose —
@@ -1931,8 +1932,17 @@ public class TelemetryActivity extends Activity {
         content.addView(status);
 
         // the glyphs "🍃 ☁ ⚡ ◦ ◉ ●" are icons, not text: they do not get translated
+        //
+        // Capped width, not MATCH_PARENT: content is the whole right-hand
+        // panel (screen width minus the 240dp sidebar), and small tiles/
+        // fields/rows stretched across all of it turn into oversized slabs.
+        // Half the screen keeps everything on this page a sane, consistent
+        // size regardless of how wide the panel is -- applied to every row
+        // below (drive, regen, turbo, actions), not just the mode cards.
+        int pageWidth = Style.dp(this, 960);
         LinearLayout driveRow = new LinearLayout(this);
         driveRow.setOrientation(LinearLayout.HORIZONTAL);
+        driveRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
         driveRow.addView(modeCard("🍃", getString(R.string.cfg_mode_eco), Modes.DRIVE_ECO, driveCards, () -> setDrive(Modes.DRIVE_ECO)));
         driveRow.addView(modeCard("☁", getString(R.string.cfg_mode_comfort), Modes.DRIVE_COMFORT, driveCards, () -> setDrive(Modes.DRIVE_COMFORT)));
         driveRow.addView(modeCard("⚡", getString(R.string.cfg_mode_sport), Modes.DRIVE_SPORT, driveCards, () -> setDrive(Modes.DRIVE_SPORT)));
@@ -1941,18 +1951,22 @@ public class TelemetryActivity extends Activity {
         content.addView(Style.header(this, getString(R.string.cfg_regen_header)));
         LinearLayout regenRow = new LinearLayout(this);
         regenRow.setOrientation(LinearLayout.HORIZONTAL);
+        regenRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
         regenRow.addView(modeCard("◦", getString(R.string.cfg_regen_low), Modes.REGEN_LOW, regenCards, () -> setRegen(Modes.REGEN_LOW)));
         regenRow.addView(modeCard("◉", getString(R.string.cfg_regen_mid), Modes.REGEN_MID, regenCards, () -> setRegen(Modes.REGEN_MID)));
         regenRow.addView(modeCard("●", getString(R.string.cfg_regen_high), Modes.REGEN_HIGH, regenCards, () -> setRegen(Modes.REGEN_HIGH)));
         content.addView(regenRow);
 
         content.addView(Style.header(this, getString(R.string.turbo_header)));
-        content.addView(toggleRow(getString(R.string.turbo_enable_label),
+        LinearLayout turboToggle = toggleRow(getString(R.string.turbo_enable_label),
             prefs.getBoolean("turbo_enabled", true),
-            on -> prefs.edit().putBoolean("turbo_enabled", on).apply()));
+            on -> prefs.edit().putBoolean("turbo_enabled", on).apply());
+        turboToggle.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
+        content.addView(turboToggle);
         fTurbo = field(content, getString(R.string.turbo_duration_label),
             String.valueOf(prefs.getInt("turbo_duration_s", TurboMode.DEFAULT_DURATION_S)),
             InputType.TYPE_CLASS_NUMBER);
+        fTurbo.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
         // Saved by "Salvar padrão" below, not on blur or every keystroke —
         // blur never reliably fired here (dismissing the on-screen number pad
         // hides the IME but does not necessarily move focus off the
@@ -1967,6 +1981,7 @@ public class TelemetryActivity extends Activity {
         content.addView(Style.header(this, getString(R.string.cfg_actions_header)));
         LinearLayout actionRow = new LinearLayout(this);
         actionRow.setOrientation(LinearLayout.HORIZONTAL);
+        actionRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
         actionRow.addView(action(getString(R.string.cfg_btn_apply), Style.ACCENT, this::applyNow));
         actionRow.addView(action(getString(R.string.cfg_btn_save_default), 0xFF6A4CFF, this::saveDefault));
         content.addView(actionRow);
@@ -2149,9 +2164,12 @@ public class TelemetryActivity extends Activity {
     // Appearance panel — theme picker
     // =====================================================================
     private void buildLook() {
+        int pageWidth = Style.dp(this, 960);   // same half-screen cap as the drive/regen/turbo page
+
         content.addView(Style.header(this, getString(R.string.cfg_appearance_header)));
         LinearLayout appRow = new LinearLayout(this);
         appRow.setOrientation(LinearLayout.HORIZONTAL);
+        appRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
         appRow.addView(appearanceTile(Style.APPEARANCE_LIGHT, getString(R.string.cfg_appearance_light)));
         appRow.addView(appearanceTile(Style.APPEARANCE_DARK,  getString(R.string.cfg_appearance_dark)));
         appRow.addView(appearanceTile(Style.APPEARANCE_AUTO,  getString(R.string.cfg_appearance_auto)));
@@ -2161,6 +2179,72 @@ public class TelemetryActivity extends Activity {
         appNote.setPadding(0, Style.dp(this, 8), 0, 0);
         appNote.setText(getString(R.string.cfg_appearance_note));
         content.addView(appNote);
+
+        // Noturno's own scene (VaporArtView) is a different art path entirely
+        // from the skyline (SkylineArtView) every other theme uses -- this
+        // toggle only ever affects the skyline, so Noturno always shows its
+        // own art regardless of it. See ComfortActivity's art selection.
+        //
+        // Flipping this recreates the screen (not just saves the pref):
+        // the seed config below must appear/disappear with it, not just sit
+        // there disabled -- "the config for it" goes away along with the
+        // skyline itself, not just the art.
+        boolean skylineEnabled = prefs.getBoolean("skyline_enabled", true);
+        LinearLayout skylineToggle = toggleRow(getString(R.string.cfg_skyline_label),
+            skylineEnabled,
+            on -> {
+                prefs.edit().putBoolean("skyline_enabled", on).apply();
+                getIntent().putExtra("section", SEC_LOOK);
+                recreate();
+            });
+        skylineToggle.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
+        content.addView(skylineToggle);
+
+        if (skylineEnabled) {
+            content.addView(Style.header(this, getString(R.string.cfg_skyline_seed_header)));
+
+            boolean randomPerDrive = prefs.getBoolean("skyline_random_per_drive", false);
+
+            fSkylineSeed = field(content, getString(R.string.cfg_skyline_seed_label),
+                String.valueOf(prefs.getLong("skyline_seed", com.geely.drivemem.art.Skyline.DEFAULT_SEED)),
+                InputType.TYPE_CLASS_NUMBER);
+            fSkylineSeed.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
+            // Locked while "random every drive" is on: that toggle is the one
+            // writing skyline_seed now, on every P->D, so a value typed here
+            // would just be overwritten by the next drive anyway.
+            fSkylineSeed.setEnabled(!randomPerDrive);
+
+            LinearLayout skylineBtnRow = new LinearLayout(this);
+            skylineBtnRow.setOrientation(LinearLayout.HORIZONTAL);
+            skylineBtnRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
+            skylineBtnRow.addView(action(getString(R.string.cfg_skyline_seed_save), Style.ACCENT, () -> {
+                if (!fSkylineSeed.isEnabled()) return;   // random-per-drive owns the seed right now
+                long seed;
+                try { seed = Long.parseLong(fSkylineSeed.getText().toString().trim()); }
+                catch (NumberFormatException e) { seed = com.geely.drivemem.art.Skyline.DEFAULT_SEED; }
+                prefs.edit().putLong("skyline_seed", seed).apply();
+                fSkylineSeed.setText(String.valueOf(seed));
+                Toast.makeText(this, getString(R.string.cfg_saved), Toast.LENGTH_SHORT).show();
+            }));
+            skylineBtnRow.addView(action(getString(R.string.cfg_skyline_cycle), 0xFF6A4CFF, () -> {
+                if (fSkylineSeed != null && !fSkylineSeed.isEnabled()) return;
+                long seed = new java.util.Random().nextLong() & Long.MAX_VALUE;
+                prefs.edit().putLong("skyline_seed", seed).apply();
+                if (fSkylineSeed != null) fSkylineSeed.setText(String.valueOf(seed));
+                Toast.makeText(this, getString(R.string.cfg_saved), Toast.LENGTH_SHORT).show();
+            }));
+            content.addView(skylineBtnRow);
+
+            LinearLayout randomToggle = toggleRow(getString(R.string.cfg_skyline_random_per_drive_label),
+                randomPerDrive,
+                on -> {
+                    prefs.edit().putBoolean("skyline_random_per_drive", on).apply();
+                    getIntent().putExtra("section", SEC_LOOK);
+                    recreate();
+                });
+            randomToggle.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
+            content.addView(randomToggle);
+        }
 
         content.addView(Style.header(this, getString(R.string.cfg_theme_header)));
         TextView sub = new TextView(this);

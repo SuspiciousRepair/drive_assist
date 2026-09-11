@@ -98,9 +98,11 @@ public final class TelemetryRollup {
         } finally { c.close(); }
         if (days.isEmpty()) return;
 
+        // MAX(speed_kmh) only -- avg_speed_kmh below is distance/duration,
+        // not a per-sample average.
         Map<String, double[]> speed = groupedByDay(db,
-            "SELECT date(ts_ms/1000,'unixepoch','localtime') AS day, AVG(speed_kmh), MAX(speed_kmh) "
-          + "FROM telemetry_sample WHERE speed_kmh > 0 GROUP BY day", 2);
+            "SELECT date(ts_ms/1000,'unixepoch','localtime') AS day, MAX(speed_kmh) "
+          + "FROM telemetry_sample WHERE speed_kmh > 0 GROUP BY day", 1);
         Map<String, double[]> temp = groupedByDay(db,
             "SELECT date(ts_ms/1000,'unixepoch','localtime') AS day, "
           + "MIN(outside_temp_c), AVG(outside_temp_c), MAX(outside_temp_c) "
@@ -132,12 +134,17 @@ public final class TelemetryRollup {
             if (!Double.isNaN(ob[2])) v.put("first_battery_pct", (int) ob[2]);
             if (!Double.isNaN(ob[3])) v.put("last_battery_pct", (int) ob[3]);
             if (mb != null) { v.put("min_battery_pct", (int) mb[0]); v.put("max_battery_pct", (int) mb[1]); }
-            if (sp != null) { v.put("avg_speed_kmh", sp[0]); v.put("max_speed_kmh", sp[1]); }
+            if (sp != null) v.put("max_speed_kmh", sp[0]);
             if (tp != null) { v.put("min_temp_c", tp[0]); v.put("avg_temp_c", tp[1]); v.put("max_temp_c", tp[2]); }
             v.put("ascent_m", tr != null ? tr[0] : 0);
             v.put("descent_m", tr != null ? tr[1] : 0);
             v.put("trip_count", tr != null ? (int) tr[2] : 0);
-            v.put("driving_minutes", tr != null ? tr[3] / 60000.0 : 0);
+            double drivingMinutes = tr != null ? tr[3] / 60000.0 : 0;
+            v.put("driving_minutes", drivingMinutes);
+            // Avg speed = distance over driving duration, not a per-sample
+            // average -- sampling gaps and idle jitter don't skew it.
+            double dayDistKm = ob[1] - ob[0];
+            v.put("avg_speed_kmh", drivingMinutes > 0 ? dayDistKm / (drivingMinutes / 60.0) : 0);
             v.put("charge_count", ch != null ? (int) ch[0] : 0);
             v.put("charge_kwh", ch != null ? ch[1] : 0);
             v.put("charge_cost", ch != null ? ch[2] : 0.0);

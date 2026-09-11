@@ -16,6 +16,7 @@
 #   HA_HOST        Override Home Assistant host address
 #   CAR            Override vehicle ADB target address (host:port)
 #   OTA_TOPIC      Override OTA MQTT topic (defaults to drivemem/geely/update/set)
+#   OTA_VIN_TOPIC  Additional per-VIN topic (e.g. drivemem/<vin>/update/set); set in .ota-env, never committed
 #
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -269,7 +270,8 @@ if [ -z "$OTA_URL" ]; then
 fi
 
 if [ -n "${MQTT_USER:-}" ] && [ -n "${MQTT_PASS:-}" ]; then
-  OTA_TOPICS=("${OTA_TOPIC:-drivemem/geely/update/set}" "drivemem/123456/update/set" "drivemem/ihu/update/set")
+  OTA_TOPICS=("${OTA_TOPIC:-drivemem/geely/update/set}" "drivemem/ihu/update/set")
+  [ -n "${OTA_VIN_TOPIC:-}" ] && OTA_TOPICS+=("$OTA_VIN_TOPIC")
   for top in "${OTA_TOPICS[@]}"; do
     ssh "${SSH_OPTS[@]}" "$HA_USER@$ha_ok" \
          "mosquitto_pub -h '$MQTT_HOST' -p 1883 -u '$MQTT_USER' -P '$MQTT_PASS' \

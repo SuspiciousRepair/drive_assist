@@ -232,6 +232,12 @@
     <string name="cfg_appearance_dark">Dark</string>
     <string name="cfg_appearance_auto">Auto</string>
     <string name="cfg_appearance_note">Auto follows this head unit\'s own day/night setting. Neon and Noturno always use their one fixed colour scheme, whatever this is set to.</string>
+    <string name="cfg_skyline_label">Show skyline art</string>
+    <string name="cfg_skyline_seed_header">Skyline Seed</string>
+    <string name="cfg_skyline_seed_label">Seed</string>
+    <string name="cfg_skyline_seed_save">Save</string>
+    <string name="cfg_skyline_cycle">Cycle</string>
+    <string name="cfg_skyline_random_per_drive_label">Random every drive</string>
     <string name="cfg_theme_header">Theme</string>
     <string name="cfg_theme_sub">Applies to every Drive Assist screen. The thumbnail shows the colour and the shape of the cards — the change is immediate.</string>
     <string name="cfg_theme_selected">%1$s  ✓</string>
@@ -371,6 +377,12 @@
     <string name="charge_stat_total_cost">Total cost</string>
     <string name="charge_stat_avg_cost_kwh">Cost / kWh</string>
     <string name="charge_stat_cost_100km">Cost / 100km</string>
+
+    <!-- energy balance chart (ChargeStatsView) -->
+    <string name="charge_balance_title">Energy Balance</string>
+    <string name="charge_balance_hint">Tap a bar for details</string>
+    <string name="charge_balance_spent">Spent</string>
+    <string name="charge_balance_regen">Regen</string>
 
     <!-- software update dialog & prompt -->
     <string name="update_dialog_title">Software Update Available</string>

@@ -92,6 +92,17 @@ public class Skyline {
         platePaint.setColorFilter(new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN));
     }
 
+    // The one city everybody sees by default. Also the fallback whenever a
+    // "chosen" seed was never actually set.
+    public static final long DEFAULT_SEED = 99172026L;
+
+    private long seed = DEFAULT_SEED;
+
+    // Must be called before layout(), which is where the seed is actually
+    // consumed. Changing it after the plate is already built does nothing
+    // until the next layout() pass.
+    public void setSeed(long seed) { this.seed = seed; }
+
     // Rebuilds the plate. `unit` is the scene's vertical unit (groundH in vaporwave).
     // The name abstracts this so other arts can reuse Skyline with different horizons.
     public void layout(int width, float vertUnit) {
@@ -108,7 +119,7 @@ public class Skyline {
 
         Paint cp = new Paint(Paint.ANTI_ALIAS_FLAG);
         cp.setColor(0xFFFFFFFF);   // rasterised WHITE; SRC_IN paints the real colour
-        Random rnd = new Random(99172026L);   // fixed seed: the same city every time
+        Random rnd = new Random(seed);
 
         // Sweeps the X axis end to end and lines up buildings from different
         // planes, side by side. Since each one occupies its own strip there is no

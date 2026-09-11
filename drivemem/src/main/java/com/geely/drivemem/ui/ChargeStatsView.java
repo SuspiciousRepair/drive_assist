@@ -6,6 +6,7 @@ import android.graphics.Typeface;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.database.Cursor;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -15,15 +16,21 @@ import android.widget.Toast;
 import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarDb;
 import com.geely.drivemem.car.EntityBus;
+import com.geely.drivemem.sensors.DailyStatsProvider;
 import com.geely.drivemem.sensors.OdoStats;
 import com.geely.drivemem.state.ChargeSession;
 import com.geely.drivemem.util.Style;
 import com.geely.drivemem.util.UsbExport;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
+import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /** Comprehensive charging history & statistics screen with cost tracking and period rollups. */
 public class ChargeStatsView extends LinearLayout {
@@ -33,6 +40,7 @@ public class ChargeStatsView extends LinearLayout {
 
     private LinearLayout headerContainer;
     private LinearLayout kpiContainer;
+    private EnergyBalanceChart energyBalanceChart;
     private LinearLayout listContainer;
 
     private final EntityBus.Listener chargeListener = (key, reading) -> {
@@ -104,7 +112,15 @@ public class ChargeStatsView extends LinearLayout {
             }), CarDb.file(c))));
         addView(actRow);
 
-        // 4. Session History List Container
+        // 4. Energy Balance Chart (spent vs regen/AC/DC per day)
+        energyBalanceChart = new EnergyBalanceChart(c);
+        LinearLayout.LayoutParams chartLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        chartLp.topMargin = Style.dp(c, 8);
+        energyBalanceChart.setLayoutParams(chartLp);
+        addView(energyBalanceChart);
+
+        // 5. Session History List Container
         listContainer = new LinearLayout(c);
         listContainer.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams listLp = new LinearLayout.LayoutParams(
@@ -113,6 +129,13 @@ public class ChargeStatsView extends LinearLayout {
         listContainer.setLayoutParams(listLp);
         addView(listContainer);
     }
+
+    private static final SimpleDateFormat DAY_FMT =
+            new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+    private static final SimpleDateFormat SHORT_DAY_FMT =
+            new SimpleDateFormat("d/M", Locale.US);
+    /** Existing session classification: 22 kW and above is DC fast. */
+    private static final double DCFC_W_THRESHOLD = 22_000;
 
     public void refresh() {
         Context c = getContext();
@@ -178,6 +201,15 @@ public class ChargeStatsView extends LinearLayout {
 
         kpiContainer.addView(ltmCard);
 
+        // Always render the complete rolling calendar, including days with
+        // driving energy but no recharge. Overnight sessions are apportioned
+        // by their overlap with each calendar day.
+        final int chartPeriodDays = 30;
+        long chartCutoff = System.currentTimeMillis() - chartPeriodDays * 24L * 3600 * 1000;
+        List<EnergyBalanceChart.Day> chartDays = buildBalanceDays(c, allSessions, chartCutoff, chartPeriodDays);
+        energyBalanceChart.setDays(chartDays);
+        energyBalanceChart.setVisibility(VISIBLE);
+
         // Rebuild Session History List (Newest first)
         listContainer.removeAllViews();
         if (allSessions.isEmpty()) {
@@ -190,6 +222,45 @@ public class ChargeStatsView extends LinearLayout {
         for (ChargeSession.Summary s : rev) {
             listContainer.addView(chargeRow(s));
         }
+    }
+
+    private List<EnergyBalanceChart.Day> buildBalanceDays(Context c,
+            List<ChargeSession.Summary> sessions, long cutoff, int days) {
+        List<EnergyBalanceChart.Day> out = new ArrayList<>();
+        Calendar day = Calendar.getInstance();
+        day.setTimeInMillis(cutoff);
+        day.set(Calendar.HOUR_OF_DAY, 0); day.set(Calendar.MINUTE, 0);
+        day.set(Calendar.SECOND, 0); day.set(Calendar.MILLISECOND, 0);
+        for (int i = 0; i < days; i++) {
+            long start = day.getTimeInMillis();
+            long end = start + 24L * 3600_000L;
+            String key = DAY_FMT.format(new Date(start));
+            EnergyBalanceChart.Day item = new EnergyBalanceChart.Day(SHORT_DAY_FMT.format(new Date(start)));
+            double[] energy = rawEnergyForDay(c, key);
+            item.spent = energy[0]; item.regen = energy[1];
+            for (ChargeSession.Summary s : sessions) {
+                long overlapStart = Math.max(start, s.startWallMs);
+                long overlapEnd = Math.min(end, s.endWallMs);
+                if (overlapEnd <= overlapStart || s.endWallMs <= s.startWallMs) continue;
+                double share = (overlapEnd - overlapStart) / (double) (s.endWallMs - s.startWallMs);
+                if (s.avgPowerW > DCFC_W_THRESHOLD) item.dc += s.kwh * share;
+                else item.ac += s.kwh * share;
+            }
+            out.add(item);
+            day.add(Calendar.DATE, 1);
+        }
+        return out;
+    }
+
+    /** Chart deliberately includes parked HVAC use; this is separate from driving efficiency. */
+    private double[] rawEnergyForDay(Context c, String date) {
+        Cursor cursor = CarDb.get(c).db().rawQuery(
+                "SELECT COALESCE(SUM(energy_spent_kwh),0), COALESCE(SUM(energy_regen_kwh),0) "
+              + "FROM telemetry_sample WHERE date(ts_ms/1000,'unixepoch','localtime') = ? "
+              + "AND (is_charging IS NULL OR is_charging = 0)", new String[]{date});
+        try {
+            return cursor.moveToFirst() ? new double[]{cursor.getDouble(0), cursor.getDouble(1)} : new double[]{0, 0};
+        } finally { cursor.close(); }
     }
 
     private View periodTile(int days, String label) {

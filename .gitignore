@@ -67,6 +67,9 @@ sysprobe/sysprobe.apk
 .agents/
 ORIGINAL_REQUEST.md
 
+# Local planning notes and coverage drafts
+/plan/
+
 # IDE and Editor files
 .idea/
 *.iml
