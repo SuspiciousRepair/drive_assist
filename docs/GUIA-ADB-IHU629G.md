@@ -186,14 +186,14 @@ Depois de conectado, pegue o IP em qualquer um destes:
 
 ```bash
 brew install android-platform-tools
-adb connect 192.168.0.150:5555     # troque pelo IP do carro
+adb connect <IP_DO_CARRO>:5555
 adb devices -l
 ```
 
 Esperado:
 
 ```
-192.168.0.150:5555  device product:IHU629G model:IHU629G device:IHU629G
+<IP_DO_CARRO>:5555  device product:IHU629G model:IHU629G device:IHU629G
 ```
 
 Pronto. Daqui pra frente não desligue o carro nem tire o Mac da rede — a conexão
@@ -287,8 +287,8 @@ APKs grandes por Wi-Fi). Reconecte e **confira antes de reinstalar**, porque o
 pacote pode ter entrado assim mesmo:
 
 ```bash
-adb disconnect 192.168.0.150:5555
-adb connect 192.168.0.150:5555
+adb disconnect <IP_DO_CARRO>:5555
+adb connect <IP_DO_CARRO>:5555
 adb shell pm list packages -3
 ```
 

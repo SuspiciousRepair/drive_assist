@@ -1,15 +1,26 @@
 # Drive Assist
 
+**English** · [Português (Brasil)](README.pt-BR.md)
+
 [![CI Build](https://img.shields.io/badge/build-passing-brightgreen.svg)](#building)
 [![JaCoCo Coverage](https://img.shields.io/badge/coverage-5.55%25%20%28131%20tests%29-blue.svg)](docs/CODE-QUALITY-REPORT.md)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Geely%20IHU629G%20%7C%20Android%209-orange.svg)](docs/ARCHITECTURE-SAFETY-AUDIT.md)
 
-**A free, open-source, and secure app for Geely EX2 in your electric car.**
+**A better everyday dashboard for the Geely EX2 / Geometry E.**
 
 Drive Assist is an app for the Geely EX2 / Geometry E. It installs on the car's
 own screen and gives you the things the factory software leaves out: controls
-that stay the way you set them, a record of your driving, and your car's data the way you need it.
+that stay the way you set them, a clear record of driving and charging, and
+useful vehicle data on the car screen and in services you already use.
+
+If you want to see the app before reading about installation or engineering,
+start with the illustrated [Guide for Drivers](docs/DRIVER-GUIDE.md).
+
+> [!WARNING]
+> Root ADB gives administrator access to the head unit and can expose location,
+> credentials, cameras, vehicle data, and your home network. Read the
+> [plain-language root ADB safety notice](docs/ADB-ROOT-SAFETY.md) before enabling it.
 
 ### What it fixes
 
@@ -20,30 +31,36 @@ that stay the way you set them, a record of your driving, and your car's data th
   and the A/C button, there is a single slider that runs from cold to warm. Slide
   one way if you feel too hot, the other way if you feel too cold. The app works
   out the rest.
-- **Your car's data is locked away.** Battery level, range, charging, where the car
-  is parked — Drive Assist sends all of it straight to your own
-  [Home Assistant](https://www.home-assistant.io/) at home. Nothing goes to the
-  carmaker, to Google, to any analytics company, or anyone at all.
+- **Your car's data is locked away.** Battery level, range, charging, and location
+  can be sent to your own [Home Assistant](https://www.home-assistant.io/). Drive
+  Assist sends data only to the services you configure, including Home Assistant
+  and, when enabled, A Better Routeplanner.
+- **Charging costs disappear into memory.** Every recharge becomes part of a
+  history with energy, duration, battery change, and price. Earlier prices can be
+  corrected later, and free charging is recorded properly.
+- **Daily driving deserves more than one number.** See trips, parking intervals,
+  recharges, energy use, regeneration, elevation change, and efficiency by speed
+  range. Parked climate use does not distort driving efficiency.
 - **Long trips are a guessing game.** Live battery and elevation data can be fed
   to [A Better Routeplanner](https://abetterrouteplanner.com/), so its charging
   stops are based on how your car is actually doing right now.
-- **OBD2 Ready.** You can connect the Head Unit directly to your ODB2 dongle and
-get fresh data about your car.
+- **OBD2 ready.** You can connect the head unit directly to an OBD2 dongle for
+  fresh battery-management data.
 
 ### What you see on the screen
 
-The main screen is split into three: the climate slider with the outside
-temperature, a few big buttons to control cabine climate.
+The main screen gives you a simple cooler-to-warmer comfort control, outdoor
+temperature, and large climate shortcuts that work at a glance.
 
-A second screen keeps a diary of your driving: how far you went each day, how
-much you climbed and descended, how much battery each trip used, and every
-charging session with its cost. There is also an optional dashcam that records
-with your speed and position stamped into the video, and can copy clips to a USB
-stick.
+The statistics screens keep a diary of your driving and charging: how far you
+went, where energy was spent or recovered, how much you climbed and descended,
+what every recharge delivered, and what it cost. There is also an optional
+dashcam that records with telemetry subtitles and can copy clips to a USB stick.
 
 A connection to Home Assistant opens up a whole new world of automations.
-You can open or close your gate, send fresh information from Home Assistant your panel.
-Someone ring your doorbell? You can show a picture of the smart doorbell feed.
+You can open your gate and send timely information from Home Assistant to the
+car. If someone rings your doorbell, for example, the dashboard can show the
+doorbell image.
 
 ### What it will not do
 
@@ -72,11 +89,11 @@ Captured directly from the physical vehicle head unit display via ADB (`1920x108
 
 | Comfort View & Thermal Effort Ruler | Daily Statistics & Altimetry Feed |
 | :---: | :---: |
-| [![Comfort View](docs/screenshots/comfort-view.png)](docs/screenshots/comfort-view.png) | [![Daily Statistics](docs/screenshots/daily-stats.png)](docs/screenshots/daily-stats.png) |
+| [![Comfort View](docs/screenshots/comfort-dashboard-live.png)](docs/screenshots/comfort-dashboard-live.png) | [![Daily Statistics](docs/screenshots/daily-statistics-live.png)](docs/screenshots/daily-statistics-live.png) |
 
-| Vehicle Telemetry & Integration Settings |
-| :---: |
-| [![Telemetry & Settings](docs/screenshots/telemetry-settings.png)](docs/screenshots/telemetry-settings.png) |
+| Charging history & energy balance | Drive mode and regeneration |
+| :---: | :---: |
+| [![Charging Statistics](docs/screenshots/charging-statistics-live.png)](docs/screenshots/charging-statistics-live.png) | [![Drive Mode Settings](docs/screenshots/settings-overview-live.png)](docs/screenshots/settings-overview-live.png) |
 
 ---
 
@@ -109,10 +126,14 @@ For detailed step-by-step instructions and troubleshooting, see the [Post-Unlock
 Full architectural documentation and reverse-engineering guides are located in the [docs/](docs/README.md) directory:
 
 ### User & Operation Guides
+- [Guide for Drivers](docs/DRIVER-GUIDE.md) — An illustrated explanation of the app
 - [Welcome & Transparency Guide](docs/WELCOME.md) — What the app sees, does, controls, risks, and privacy safeguards
-- [Post-Unlock Installation Guide](docs/INSTALL-GUIDE.md) — Fast setup for cars with ADB enabled, automated one-shot script, and USB install
-- [MQTT & Home Assistant Guide](docs/MQTT-GUIDE.md) — Broker setup, mTLS security, topics, and automations
-- [ABRP & OBD2 Telemetry Guide](docs/ABRP-GUIDE.md) — A Better Routeplanner setup, generic tokens, and Bluetooth BMS
+- [Short Installation Guide](docs/QUICK-INSTALL.md) — The one-file USB method for owners
+- [Technical Installation Guide](docs/INSTALL-GUIDE.md) — ADB setup, scripts, verification, and troubleshooting
+- [Home Assistant Guide](docs/HOME-ASSISTANT.md) — Connection, permissions, verification, and privacy
+- [A Better Routeplanner Guide](docs/ABRP.md) — Live-data connection, location choice, and optional OBD2
+- [MQTT Technical Reference](docs/MQTT-GUIDE.md) — Broker setup, mTLS security, topics, and automations
+- [ABRP & OBD2 Technical Reference](docs/ABRP-GUIDE.md) — Payloads, generic tokens, and Bluetooth BMS
 - [Vehicle Security & Sideloading Guide](docs/SECURITY-SAFETY.md) — Sideloading risks, platform test keys, APK repackaging, and data exposure
 
 ### Audits, Quality & Governance
@@ -254,7 +275,7 @@ To run Gradle directly or run unit tests, execute from the repository root:
 ### Installation
 
 ```bash
-adb connect 192.168.0.150:5555
+adb connect <CAR_IP>:5555
 adb install -r drive_assist.apk
 ```
 

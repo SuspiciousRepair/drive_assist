@@ -1,14 +1,28 @@
-# Complete Installation & Operator Guide: Drive Assist
+# Install Drive Assist
 
-> **Comprehensive deployment, verification, daily operation, and troubleshooting manual for the Geely EX2 / Geometry E (IHU629G Head Unit).**
+This guide is for a Geely EX2 / Geometry E whose centre screen has already been
+unlocked to install third-party apps. If your car still has its original locked
+software, follow a trusted IHU629G unlocking guide first.
 
-If you recently unlocked ADB on your Geely EX2 (via USB firmware update, [xethongminh.net](https://xethongminh.net/threads/huong-dan-mo-khoa-va-cai-dat-phan-mem-cho-man-hinh-xe-geely-ex2.5527/), or Jean na Estrada's tutorials), your infotainment unit has ADB debugging enabled on port `5555` over Wi-Fi, or you have a file manager such as Cx File Explorer installed on your dashboard.
+## Choose the easiest method for you
 
-This guide details all four installation methods, companion app architecture, verification procedures, comprehensive troubleshooting, and daily operational customization.
+| What you have | Use this method |
+| --- | --- |
+| A USB drive and a file manager on the car | [One-file USB installer](#method-1-the-1-file-usb-drive-method-no-computer-needed--recommended) |
+| A computer already connected to the car through ADB | [Automatic Wi-Fi script](#method-2-the-one-shot-wi-fi-script-installsh--fastest-via-terminal) |
+| ADB AppControl on Windows | [Windows graphical method](#method-4-using-adb-appcontrol-windows-gui-alternative) |
+| You develop or troubleshoot Android software | [Manual ADB commands](#method-3-direct-manual-adb-commands-step-by-step-reference) |
+
+Most owners should use the first method. It uses one APK, installs both parts of
+Drive Assist, opens the dashboard, and removes the temporary installer afterward.
+The other sections are reference material; you do not need to read them first.
+
+Before beginning, park the car, keep the head unit powered, and download APKs only
+from the project's official release page.
 
 ---
 
-## 📦 Architecture: Dual-App Separation & The Disposable Installer
+## Technical background: why the installer adds two apps
 
 Drive Assist employs a dual-package architecture to comply with Android 9 automotive security constraints:
 
@@ -38,8 +52,8 @@ Drive Assist employs a dual-package architecture to comply with Android 9 automo
 └──────────────────────────────────────────────────────────┘
 ```
 
-> [!IMPORTANT]
-> **Why Are There Two Separate Packages?**
+> [!NOTE]
+> **Why are there two separate packages?**
 > Android strictly forbids instantiating an Android `WebView` inside any process that shares `android.uid.system`. Attempting to load a WebView inside a system process triggers a fatal crash (`android.util.AndroidRuntimeException: Using WebView from more than one process at once with the same data directory is not supported`).
 > 
 > Because Drive Assist embeds an interactive Home Assistant WebView card (`PanelCardView`), UI rendering must run in a standard user UID (`com.geely.drivemem`). Conversely, privileged capabilities like silent package installation, secure settings manipulation, and reading VHAL properties require `android.uid.system` (`com.geely.modehelper`).
@@ -91,9 +105,9 @@ If your laptop (macOS, Linux, or Windows with Git Bash) is on the same local Wi-
    ```
 2. Run the automated installer with your car's IP address:
    ```bash
-   ./install.sh 192.168.0.150
+   ./install.sh <CAR_IP>
    ```
-   *(Replace `192.168.0.150` with your car's actual IP address shown in Wi-Fi settings).*
+   *(Replace `<CAR_IP>` with the address shown in the car's Wi-Fi settings.)*
 
 #### What the Script Executes Automatically
 1. **ADB Connectivity**: Establishes connection to `<CAR_IP>:5555` and verifies target device model (`IHU629G`).
@@ -111,7 +125,7 @@ For complete control over each command line operation:
 #### 1. Connect and Verify Target Hardware
 ```bash
 # Connect over Wi-Fi
-adb connect 192.168.0.150:5555
+adb connect <CAR_IP>:5555
 
 # Verify device model and display geometry
 adb shell getprop ro.product.model       # Expected: IHU629G
@@ -170,7 +184,7 @@ adb shell am broadcast -a com.geely.modehelper.SET_ADB --ez enable true --ei min
 
 Drivers utilizing the Vietnamese community tool **ADB AppControl** on Windows:
 
-1. Connect ADB AppControl to your vehicle IP (`192.168.0.150:5555`).
+1. Connect ADB AppControl to your vehicle address (`<CAR_IP>:5555`).
 2. Select the **Install** tab.
 3. Drag and drop `drive_assist_installer.apk` into the file queue.
 4. Click **Install**.
@@ -239,7 +253,7 @@ In `/system/etc/bluetooth/btDefSetting.json`, the factory firmware hardcodes `"p
 
 #### Solution A — Automated Script
 ```bash
-./bt-pin-fix/apply-pin-1234.sh 192.168.0.150
+./bt-pin-fix/apply-pin-1234.sh <CAR_IP>
 ```
 
 #### Solution B — Manual Patch via ADB
@@ -261,7 +275,7 @@ adb shell am broadcast -a com.geely.modehelper.BT_PAIR \
 
 #### Reverting to Factory Settings (For Dealership Visits)
 ```bash
-./bt-pin-fix/revert-pin-0000.sh 192.168.0.150
+./bt-pin-fix/revert-pin-0000.sh <CAR_IP>
 ```
 
 ---
@@ -378,7 +392,7 @@ Typing long passwords, MQTT URLs, and private tokens on a vehicle touchscreen is
 
 ```bash
 # Run interactive setup wizard over Wi-Fi
-./tools/configure-car.sh 192.168.0.150
+./tools/configure-car.sh <CAR_IP>
 ```
 
 ### Supported Remote Configuration Levers
@@ -389,7 +403,7 @@ Typing long passwords, MQTT URLs, and private tokens on a vehicle touchscreen is
 * **Spotify Connect**: Configures OAuth client credentials for media card synchronization.
 * **Inspect Live Settings**: Inspect current head unit configuration anytime without making changes:
   ```bash
-  ./tools/configure-car.sh --show 192.168.0.150
+  ./tools/configure-car.sh --show <CAR_IP>
   ```
 
 ---

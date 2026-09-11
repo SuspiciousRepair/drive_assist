@@ -1,107 +1,99 @@
-# Drive Assist Documentation Index
+# Drive Assist guides
 
-Comprehensive engineering reference, hardware reverse-engineering logs, and subsystem documentation for the Geely IHU629G (Geely EX2 / Geometry E) head unit platform.
+**English** · [Português (Brasil)](README.pt-BR.md)
 
----
+Drive Assist runs on the Geely EX2 / Geometry E centre screen. It remembers
+preferences the factory software forgets, makes climate controls easier to use,
+records driving and charging history, and can connect the car to services you
+already control.
 
-## 📖 User Guides & Transparency
+![Drive Assist dashboard](screenshots/comfort-dashboard-live.png)
 
-- **[WELCOME.md](WELCOME.md)**  
-  Welcome and transparency disclosure: what data the app sees (battery, speed, location, cameras, body), what it does, what actuators it controls, safety boundaries (what it cannot touch), and built-in security guardrails.
+## Start here
 
-- **[INSTALL-GUIDE.md](INSTALL-GUIDE.md)**  
-  Post-unlock installation guide: fast setup instructions for drivers who enabled ADB, including the 30-second automated one-shot script, ADB AppControl instructions, and standalone USB install.
+You only need four guides for normal use:
 
-- **[MQTT-GUIDE.md](MQTT-GUIDE.md)**  
-  Comprehensive guide for Home Assistant integration: broker setup, fallback hosts, Mutual TLS (mTLS) client certificates, full auto-discovery entity list, topic architecture (`drivemem/<vin>/...`), and smart garage automations.
+1. **[See what Drive Assist does](DRIVER-GUIDE.md)** — dashboard, climate,
+   statistics, charging costs, Home Assistant, ABRP, and dashcam.
+2. **[Install it](QUICK-INSTALL.md)** — use the one-file USB method. ADB
+   instructions remain available for experienced users.
+3. **[Understand root ADB security](ADB-ROOT-SAFETY.md)** — why this access is
+   powerful and how to protect the car and your home network.
+4. **[Understand app safety and privacy](WELCOME.md)** — what Drive Assist reads,
+   what it can control, and the things it cannot do.
+5. **[Connect another service](#optional-connections)** — only if you want Home
+   Assistant or ABRP.
 
-- **[ABRP-GUIDE.md](ABRP-GUIDE.md)**  
-  Guide for live telemetry with A Better Routeplanner: generic user tokens, GPS toggles, offline queueing, and pairing Bluetooth OBD2 dongles for precision BMS readings.
+## What drivers get
 
-- **[TRIP-STATISTICS.md](TRIP-STATISTICS.md)**  
-  Trip statistics, daily bar charts, trail-running altimetry (D+/D-), ABRP-style session logs, and roadmap for continuous segments and trip assistant.
+- A large, glanceable climate dashboard and a simple cooler-to-warmer comfort
+  control.
+- Drive mode and regeneration preferences that can return automatically after
+  startup.
+- Daily distance, energy, efficiency, altitude, drive, parking, and recharge
+  history.
+- Recharge cost tracking, including editing earlier sessions and recording free
+  charging correctly.
+- Optional vehicle data in Home Assistant, a location-aware garage button, and
+  information cards sent from your home server to the car.
+- Optional live data for A Better Routeplanner and an integrated dashcam.
 
-- **[SECURITY-SAFETY.md](SECURITY-SAFETY.md)**  
-  Vehicle software security and sideloading guide: depth of data exposed in the vehicle (GPS, battery, cameras, home Wi-Fi), platform test key vulnerability, APK repackaging/trojanization risks, and defense-in-depth best practices.
+The [driver guide](DRIVER-GUIDE.md) explains each feature with real screenshots
+from the car.
 
----
+## Optional connections
 
-## 🚗 Vehicle Data & Hardware Probing
+- **[Home Assistant](HOME-ASSISTANT.md)** brings battery, range, position, charging,
+  and other readings into your own server. It can also send contextual cards and
+  a garage command to the car.
+- **[A Better Routeplanner](ABRP.md)** receives live battery and location
+  information for more useful long-trip planning. OBD2 support is optional.
+- **[Dashcam](DASHCAM.md)** explains recording, storage, telemetry subtitles, and
+  USB export.
 
-- **[DATA-CATALOG.md](DATA-CATALOG.md)**  
-  Consolidated reference of verified vehicle properties and Geely adaptation layer function IDs (`VehicleModules.getAdaptValue`). Grouped cleanly by automotive domain (Powertrain & Energy, Odometer & Speed, HVAC & Climate, Lights & Controls, Body & Doors, Tires & Sensors).
+## Help and troubleshooting
 
-- **[field-catalog.md](field-catalog.md)**  
-  Exhaustive catalog of hardware signals, VHAL property IDs, probe results, and adaptation mechanics discovered across vehicle probing sessions. Includes exact function IDs, raw ranges, and safety boundaries.
+- [Installation and update problems](INSTALL-GUIDE.md#troubleshooting)
+- [In-app diagnostics](DIAGNOSTICS.md)
+- [ADB access to the head unit](GUIA-ADB-IHU629G.md)
+- [Security when installing third-party car software](SECURITY-SAFETY.md)
+- [Plain-language root ADB safety notice](ADB-ROOT-SAFETY.md)
 
-- **[field-history.md](field-history.md)**  
-  Chronological narrative of the hardware reverse-engineering journey: how each finding in the field catalog was uncovered, dead ends encountered, and breakthrough logs.
+## Technical library
 
-- **[OEM-MODULES.md](OEM-MODULES.md)**  
-  Analysis of decompiled OEM head unit packages (ECARX, NJDA, Settings, SystemUI). Documents internal binder services, hidden intents, and system-level permissions.
+The documents below explain how the app and vehicle work. They retain the
+technical detail needed to verify and reproduce each discovery.
 
-- **[STATUS-ICONS.md](STATUS-ICONS.md)**  
-  Documentation of the IHU629G status bar icon injection mechanism, priority ranking, and notification slot allocation.
+### Vehicle signals and reverse engineering
 
----
+- [Verified vehicle data catalog](DATA-CATALOG.md)
+- [Full field catalog](field-catalog.md)
+- [Discovery history and experiments](field-history.md)
+- [OEM module analysis](OEM-MODULES.md)
+- [Status-bar icon mechanism](STATUS-ICONS.md)
 
-## ❄️ Climate & Comfort
+### Climate, cameras, and interface
 
-- **[COMFORT-TABLE.md](COMFORT-TABLE.md)**  
-  The complete architecture and design rationale behind the **Comfort Ruler** and absolute thermal effort scale (`C5..0..W5`). Explains the neutral-zero boundary step and actuator compensation.
+- [Comfort scale and HVAC state machine](COMFORT-TABLE.md)
+- [Verified climate behaviour](CLIMATE-FACTS.md)
+- [Daily statistics calculations](TRIP-STATISTICS.md)
+- [Camera and EVS interface](EVS-CAMERA.md)
+- [Dashcam architecture](DASHCAM.md)
+- [Dashboard artwork](ARTE.md)
 
-- **[CLIMATE-FACTS.md](CLIMATE-FACTS.md)**  
-  Verified physical characteristics, limitations, and operational rules of the vehicle's HVAC system and actuators.
+### Engineering and project quality
 
-- **[historical/COMFORT.md](historical/COMFORT.md)**  
-  Historical design log and early prototypes for climate control before the unified `EffortTable` was finalized.
+- [Software architecture and safety audit](ARCHITECTURE-SAFETY-AUDIT.md)
+- [MQTT and Home Assistant protocol reference](MQTT-GUIDE.md)
+- [ABRP and OBD2 protocol reference](ABRP-GUIDE.md)
+- [Code quality and test report](CODE-QUALITY-REPORT.md)
+- [Release readiness](RELEASE-READINESS-MATRIX.md)
+- [ModeHelper companion](../modehelper/README.md)
+- [Camera calibration tools](../helpers/calib/README.md)
 
-- **[historical/hvac-auto-test.md](historical/hvac-auto-test.md)**  
-  Empirical test run logs evaluating factory AUTO HVAC behavior over time.
+## Community foundations
 
----
-
-## 📷 Cameras & Dashcam
-
-- **[EVS-CAMERA.md](EVS-CAMERA.md)**  
-  Deep dive into the vehicle's Extended View System (EVS): camera topology, hardware HAL, native binder interface (`android.hardware.automotive.evs@1.0`), and frame capture pipeline.
-
-- **[DASHCAM.md](DASHCAM.md)**  
-  Architecture for continuous dashcam recording: MediaCodec encoding, hardware-accelerated transformation, dynamic WebVTT telemetry subtitle generation, and local HTTP serving.
-
----
-
-## 🎨 UI & Visualization
-
-- **[ARTE.md](ARTE.md)**  
-  Design and implementation details of the full-bleed vector art background (`SkylineArtView`), perspective framing, and integration with the embedded Home Assistant card.
-
----
-
-## 🔧 Diagnostics & System Setup
-
-- **[GUIA-ADB-IHU629G.md](GUIA-ADB-IHU629G.md)**  
-  Step-by-step setup guide for ADB access over Wi-Fi/Ethernet, root environment verification, and package management on the IHU629G unit.
-
-- **[DIAGNOSTICS.md](DIAGNOSTICS.md)**  
-  Guide to internal diagnostic probes (`HvacProbe`, `HvacSet`), property sweeps, remote triggering via Home Assistant, and log extraction.
-
----
-
-## 🛠️ Related Subsystems & Tooling
-
-- **[modehelper/README.md](../modehelper/README.md)**: Privileged companion app (`android.uid.system`) handling drive mode memory, silent OTA package installation, hardware dashcam recording, and network ADB security guards.
-- **[helpers/calib/README.md](../helpers/calib/README.md)**: Fisheye camera calibration tooling, checkerboard target generation, and intrinsic parameter solving.
-
----
-
-## 🤝 References & Community Credits
-
-Drive Assist builds upon foundational research and access techniques developed by the automotive and reverse-engineering community. We gratefully acknowledge the following sources:
-
-- **Jean na Estrada**: Brazilian community tutorials ([YouTube Video](https://youtu.be/T-77g9hn5LU)) and repository providing verified OTA unlock packages (`1111` and `1114` firmware patches).
-- **4PDA Community**: Forum thread *«Автомобильное ГУ Geely EX2 IHU629G - Обсуждение»* for hardware analysis, partition layouts, recovery logs, and Flyme Auto exploration.
-- **XDA Developers Community**: Documentation of the dynamic engineering mode password calculation algorithm.
-- **XeThongMinh.net**: Vietnamese community tutorials detailing IHU629G screen unlock procedures and ADB AppControl workflows.
-
-*Note: The community resources above document head unit unlock and ADB activation. Drive Assist and ModeHelper are independent open-source software applications developed for telemetry, HVAC automation, dashcam recording, and Home Assistant integration.*
+Drive Assist builds on head-unit access and research shared by Jean na Estrada,
+the 4PDA community, XDA Developers, and XeThongMinh.net. Those communities explain
+how owners gained access to the IHU629G. Drive Assist and ModeHelper are independent
+open-source applications built on top of that work.
