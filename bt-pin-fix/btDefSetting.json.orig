@@ -1,0 +1,22 @@
+{
+	"serial_port": "/dev/stpbt",
+	"serial_bandrate": 1500000,
+	"virtual_serial_port": "/dev/goc_serial",
+	"answerType": 1,
+	"autoAnswerEnable": false,
+	"autoConnMode": 0,
+	"autoConnEnable": true,
+	"autoConnTime": 1200,
+	"autoConnNum": 20,
+	"btDiscoverableEnable": true,
+	"btEnable": true,
+	"maxPairDevSize": 8,
+	"pairingCode": "0000",
+	"simplePair": true,
+	"pairIoCap": 1,
+	"defaultLocalname": "吉利缤越",
+	"dualDeviceEnable": false,
+	"autoPairReqEnable": false,
+	"threePartyCallEnable": true
+}
+

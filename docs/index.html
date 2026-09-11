@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Drive Assist Documentation - Geely EX2 (IHU629G)</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+  <meta name="description" content="Engineering documentation, telemetry guides, and installation manual for Drive Assist on Geely EX2 (IHU629G).">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+  
+  <!-- Docsify Theme -->
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify-darklight-theme@latest/dist/style.min.css">
+  
+  <style>
+    :root {
+      --theme-color: #0284c7;
+      --accent-color: #0ea5e9;
+    }
+    .markdown-section {
+      max-width: 920px;
+      padding: 30px 40px;
+    }
+    .markdown-section h1 {
+      font-weight: 700;
+      color: var(--theme-color);
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 12px;
+    }
+    .markdown-section h2 {
+      font-weight: 600;
+      margin-top: 32px;
+    }
+    .sidebar {
+      font-size: 15px;
+    }
+    .sidebar-nav > ul > li > a {
+      font-weight: 600;
+    }
+    .app-name-link {
+      font-weight: 700;
+      font-size: 18px;
+    }
+    /* GitHub-style blockquote alerts */
+    blockquote {
+      border-left: 4px solid var(--theme-color);
+      background: rgba(2, 132, 199, 0.05);
+      padding: 12px 18px;
+      border-radius: 0 8px 8px 0;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 20px 0;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 10px 14px;
+      text-align: left;
+    }
+    th {
+      background-color: #f1f5f9;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">Loading Drive Assist Documentation...</div>
+  <script>
+    window.$docsify = {
+      name: '🚗 Drive Assist',
+      repo: 'https://github.com/SuspiciousRepair/drive_assist',
+      loadSidebar: true,
+      subMaxLevel: 3,
+      auto2top: true,
+      homepage: 'README.md',
+      search: {
+        maxAge: 86400000,
+        paths: 'auto',
+        placeholder: 'Search documentation...',
+        noData: 'No results found',
+        depth: 4
+      },
+      copyCode: {
+        buttonText: 'Copy',
+        errorText: 'Error',
+        successText: 'Copied'
+      }
+    };
+  </script>
+  <!-- Docsify v4 Core -->
+  <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
+  <!-- Search Plugin -->
+  <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
+  <!-- Copy Code Plugin -->
+  <script src="//cdn.jsdelivr.net/npm/docsify-copy-code/dist/docsify-copy-code.min.js"></script>
+  <!-- Syntax Highlighting -->
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-java.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-json.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-yaml.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-python.min.js"></script>
+  <!-- Dark / Light Theme -->
+  <script src="//cdn.jsdelivr.net/npm/docsify-darklight-theme@latest/dist/index.min.js"></script>
+  <!-- Mermaid Diagrams -->
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: true });
+    window.mermaid = mermaid;
+  </script>
+  <script src="//cdn.jsdelivr.net/npm/docsify-mermaid@2.0.1/dist/docsify-mermaid.js"></script>
+</body>
+</html>

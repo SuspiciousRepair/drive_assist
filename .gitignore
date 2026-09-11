@@ -1,0 +1,88 @@
+# Toolchain and signing key live ONE LEVEL UP, in ~/dev/geely — see CLAUDE.md.
+# Not duplicated here, but still ignored below in case anything ever lands
+# locally at these paths by accident.
+sdk/
+*.ks
+!keystore/debug.ks
+*.ks.wsl-bak-*
+android.car-full.jar
+android.car.jar
+car-stubs/out/
+
+# MQTT TLS material: excluded from this repo entirely (2026-09-07) pending
+# the download-and-install redesign. If any cert/key files land here before
+# that ships, never track them.
+mqtt-certs/
+*.p12
+*.crt
+*.pem
+
+# Credenciais do MQTT para o anuncio de OTA (nao versionar)
+.ota-env
+
+# R.java gerado pelo aapt2 a cada build (ver build.sh, flag --java)
+drivemem/gen/
+
+# ModeHelper build artefacts. platkey/ is NOT tracked on purpose: the AOSP
+# public platform test-key is downloaded by build-modehelper.sh and its SHA-256
+# is verified against the car's before signing, so committing a file named
+# platform.pk8 would only invite being misread as a private signing key.
+# Build artefacts (APKs are published to GitHub Releases, not tracked in git)
+*.apk
+modehelper/obj/
+modehelper/classes.dex
+modehelper/platkey/
+modehelper/*.idsig
+
+# Installer build artefacts
+installer/obj/
+installer/classes.dex
+installer/assets/
+installer/platkey/
+installer/*.idsig
+
+# Windows/WSL marks every file it downloaded with one of these; never content
+*:Zone.Identifier
+
+# Gradle (drivemem's build entry point) — local.properties/keystore.properties
+# repeat the same machine-local paths/keys build.sh already used from
+# gitignored spots (sdk/, *.ks); no need to version them a second time.
+.gradle/
+build/
+drivemem/build/
+local.properties
+keystore.properties
+
+# SysProbe build artefacts — same reasoning as modehelper's platkey/ above.
+sysprobe/obj/
+sysprobe/classes.dex
+sysprobe/platkey/
+sysprobe/*.idsig
+sysprobe/sysprobe.apk
+
+# Claude Code's own local session config — machine-local, not project source.
+.claude/
+
+# Agent metadata and task descriptions
+.agents/
+ORIGINAL_REQUEST.md
+
+# IDE and Editor files
+.idea/
+*.iml
+.vscode/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+*.venv/
+
+# Diagnostic capture artifacts and logs
+window-*/
+*.log

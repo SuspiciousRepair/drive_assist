@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!-- Exclude generated Android classes -->
+    <Match>
+        <Class name="~com\.geely\.drivemem\.R(\$.*)?" />
+    </Match>
+    <Match>
+        <Class name="com.geely.drivemem.BuildConfig" />
+    </Match>
+    <Match>
+        <Class name="~.*\.Manifest(\$.*)?" />
+    </Match>
+
+    <!-- Exclude intentional singleton / context caches in Android automotive apps -->
+    <Match>
+        <Bug pattern="ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD" />
+    </Match>
+
+    <!-- Exclude representation exposure warnings for standard Android data models and caches -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2" />
+    </Match>
+</FindBugsFilter>

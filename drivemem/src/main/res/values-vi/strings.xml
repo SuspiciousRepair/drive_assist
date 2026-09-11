@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Translation of values/strings.xml (Vietnamese / vi). See that file for authoring notes. -->
+<resources>
+    <string name="app_name">Drive Assist</string>
+    <string name="ac_title">Điều hòa không khí</string>
+
+    <!-- comfort -->
+    <!-- ComfortActivity: tela do ar-condicionado. ac_title ja existe, nao repetir. -->
+    <string name="ac_outside_label">bên ngoài</string>
+    <string name="ac_reading">Đang đọc...</string>
+    <string name="ac_adjust_header">Điều chỉnh gì?</string>
+    <string name="ac_cooler">Mát hơn</string>
+    <string name="ac_warmer">Ấm hơn</string>
+    <string name="ac_recirc_label">Tuần hoàn khí</string>
+    <string name="ac_recirc_on_label">Không khí bên ngoài</string>
+    <string name="ac_recirc_refused">Tuần hoàn khí: xe đã từ chối</string>
+    <string name="ac_recirc_on">Đang tuần hoàn — cửa hút khí ngoài đã đóng</string>
+    <string name="ac_recirc_off">Cửa hút khí ngoài đang mở</string>
+    <string name="ac_connect_failed">Không thể kết nối với xe</string>
+    <string name="clima_title">Khí hậu</string>
+    <!-- Turbo card: 30s Sport-mode boost, then back to whatever mode was running before -->
+    <string name="turbo_title">Turbo</string>
+    <string name="regen_boost_title">Tái tạo năng lượng</string>
+    <!-- Linha de verdade dos atuadores. %1$s = setpoint, %2$s = ventoinha.
+    As aspas preservam os espacos multiplos (o aapt colapsaria). -->
+    <string name="ac_readout">"Khí %1$s °C   ·   quạt %2$s"</string>
+    <!-- %1$s = a linha ate aqui; a clausula inteira volta traduzida -->
+    <string name="ac_readout_recirc">"%1$s   ·   đang tuần hoàn"</string>
+    <!-- %1$s = a linha ate aqui, %2$s = status da regua de conforto -->
+    <string name="ac_readout_status">"%1$s   —   %2$s"</string>
+
+    <!-- misc -->
+    <string name="cleanup_title">Dọn dẹp</string>
+    <string name="cleanup_subtitle">Xóa mọi thứ đã được thêm sau bản dựng gốc từ nhà máy. Không hoàn tác ADB (cái đó đến từ recovery) và không đụng đến các ứng dụng hệ thống.</string>
+    <string name="cleanup_step1_header">Bước 1 — phần còn sót lại</string>
+    <string name="cleanup_step2_header">Bước 2 — gỡ ứng dụng</string>
+    <string name="cleanup_action_stop_wipe">Dừng dịch vụ và xóa dữ liệu của Drive Assist</string>
+    <string name="cleanup_action_uninstall_apps">Gỡ cài đặt các ứng dụng tùy chỉnh</string>
+    <string name="cleanup_action_uninstall_self">Gỡ cài đặt chính Drive Assist</string>
+    <string name="cleanup_log_idle">Chưa làm gì cả.\nMỗi nút đều yêu cầu xác nhận (chạm hai lần).</string>
+    <string name="cleanup_confirm_prompt">Chạm lại vào \"%1$s\" để xác nhận.</string>
+    <string name="cleanup_stopping">Đang dừng dịch vụ...</string>
+    <string name="cleanup_wiped">Dịch vụ đã dừng, biểu tượng đã bị xóa, báo thức đã hủy và dữ liệu đã bị xóa.\nDrive Assist vẫn được cài đặt, nhưng không hoạt động.</string>
+    <string name="cleanup_uninstall_header">Đang yêu cầu gỡ cài đặt:</string>
+    <string name="cleanup_uninstall_item_failed">thất bại: %1$s</string>
+    <string name="cleanup_uninstall_footer">Xác nhận từng hộp thoại hệ thống. Từng cái một.</string>
+    <string name="cleanup_none_found">Không tìm thấy ứng dụng tùy chỉnh nào.</string>
+    <string name="cleanup_removing_self">Đang yêu cầu gỡ bỏ Drive Assist...</string>
+    <string name="cleanup_failed">Thất bại: %1$s</string>
+    <string name="notif_tele_channel">Đo từ xa</string>
+    <string name="notif_tele_title">Drive Assist — đo từ xa</string>
+    <string name="notif_tele_text">Đang gửi dữ liệu đến Home Assistant</string>
+    <string name="notif_outtemp_channel">Nhiệt độ ngoài</string>
+    <string name="notif_outtemp_fg_text">nhiệt độ ngoài</string>
+    <string name="notif_outtemp_title">Nhiệt độ bên ngoài</string>
+    <string name="notif_outtemp_unavailable">không có sẵn</string>
+    <string name="notif_outtemp_value">%1$s °C</string>
+    <string name="notif_wifi_channel">Wi-Fi</string>
+    <string name="notif_wifi_fg_text">wi-fi</string>
+    <string name="notif_wifi_title">Wi-Fi</string>
+    <string name="notif_wifi_disconnected">đã ngắt kết nối</string>
+    <string name="notif_wifi_no_network">không có mạng</string>
+    <string name="notif_soc_channel">Pin %</string>
+    <string name="notif_soc_fg_text">pin %</string>
+    <string name="notif_soc_title">Pin</string>
+    <string name="notif_soc_unavailable">không có sẵn</string>
+    <string name="notif_soc_value">%1$s%%</string>
+
+    <!-- config -->
+    <string name="cfg_title">Cài đặt</string>
+    <string name="cfg_nav_doors">Cửa</string>
+    <string name="cfg_nav_mqtt">MQTT</string>
+    <string name="cfg_nav_drive">Chế độ lái</string>
+    <string name="cfg_nav_bar">Thanh menu</string>
+    <string name="cfg_nav_look">Giao diện</string>
+    <string name="cfg_nav_spotify">Spotify</string>
+    <string name="cfg_nav_system">Hệ thống</string>
+    <!-- sidebar group captions -->
+    <string name="cfg_group_car">Xe</string>
+    <string name="cfg_group_display">Màn hình</string>
+    <string name="cfg_group_integrations">Tích hợp</string>
+    <string name="cfg_group_system">Hệ thống</string>
+    <string name="cfg_system_header">Hệ thống</string>
+    <string name="cfg_app_info_header">Thông tin ứng dụng</string>
+    <string name="cfg_version_label">Phiên bản: %1$s (bản dựng %2$d)</string>
+    <string name="cfg_sha_label">APK SHA-256</string>
+    <string name="cfg_update_header">Cập nhật phần mềm</string>
+    <string name="cfg_update_url_label">URL cập nhật (HTTPS)</string>
+    <string name="cfg_btn_check_update">Kiểm tra &amp; Cài đặt cập nhật</string>
+    <string name="cfg_touch_header">Điều khiển cảm ứng &amp; thời gian chờ</string>
+    <string name="cfg_cooldown_label">Thời gian chờ công tắc</string>
+    <string name="cfg_cooldown_hint">Thời gian khóa tạm thời sau khi chạm vào bất kỳ công tắc nào để tránh chạm đúp vô tình khi lái xe.</string>
+    <string name="cfg_maintenance_header">Bảo trì</string>
+    <string name="cfg_mqtt_header">Gửi đến Home Assistant</string>
+    <string name="cfg_mqtt_enable_label">Bật đo từ xa MQTT</string>
+    <string name="cfg_mqtt_enable_hint">Kết nối với broker và gửi dữ liệu đo từ xa của xe tới Home Assistant.</string>
+    <string name="cfg_status_sending">Đang gửi đến Home Assistant</string>
+    <string name="cfg_status_off">Tắt</string>
+    <string name="cfg_sending_every">Đang gửi (mỗi %1$d giây)</string>
+    <string name="cfg_broker_header">Broker MQTT</string>
+    <string name="cfg_field_hosts">Địa chỉ (mỗi dòng một địa chỉ)</string>
+    <string name="cfg_field_user">Tên người dùng</string>
+    <string name="cfg_field_pass">Mật khẩu</string>
+    <string name="cfg_field_interval">Khoảng thời gian (giây)</string>
+    <string name="cfg_seconds_suffix">giây</string>
+    <string name="cfg_lock_short_label">Khóa công tắc</string>
+    <string name="cfg_saved">Đã lưu cài đặt</string>
+    <string name="cfg_btn_save_all">Lưu tất cả cài đặt</string>
+    <string name="cfg_log_title">Nhật ký thời gian thực &amp; phản hồi</string>
+    <string name="cfg_active_status_title">Trạng thái kết nối</string>
+    <string name="cfg_active_broker">Broker đang hoạt động: %1$s</string>
+    <string name="cfg_client_id">ID máy khách: %1$s</string>
+    <string name="cfg_last_sent">Gửi lần cuối: %1$s</string>
+
+    <!-- certificates / tls -->
+    <string name="cfg_certs_header">Chứng chỉ &amp; TLS</string>
+    <string name="cfg_client_cert_label">Chứng chỉ máy khách (mTLS)</string>
+    <string name="cfg_ca_cert_label">Chứng chỉ CA (tin cậy máy chủ)</string>
+    <string name="cfg_cert_status_installed">Đã cài đặt: %1$s (có hiệu lực đến %2$s)</string>
+    <string name="cfg_cert_status_none">Chưa cài đặt (bắt buộc cho mTLS từ xa)</string>
+    <string name="cfg_ca_status_default">Mặc định (tích hợp trong ứng dụng)</string>
+    <string name="cfg_ca_status_custom">Tùy chỉnh: %1$s (có hiệu lực đến %2$s)</string>
+    <string name="cfg_btn_import_cert">Nhập</string>
+    <string name="cfg_btn_remove_cert">Xóa</string>
+    <string name="cfg_btn_reset_default">Đặt lại về mặc định</string>
+    <string name="cfg_btn_test_tls">Kiểm tra bắt tay TLS</string>
+    <string name="cfg_tls_test_target_label">Địa chỉ broker TLS cần kiểm tra</string>
+    <string name="cfg_cert_import_title">Nhập chứng chỉ</string>
+    <string name="cfg_cert_import_usb">Ổ USB</string>
+    <string name="cfg_cert_import_url">Tải xuống từ URL</string>
+    <string name="cfg_cert_import_file">Trình chọn tệp bộ nhớ</string>
+    <string name="cfg_cert_import_paste">Dán văn bản (PEM / Base64)</string>
+    <string name="cfg_cert_usb_not_found">Không tìm thấy ổ USB trong /storage</string>
+    <string name="cfg_cert_usb_no_files">Không tìm thấy tệp chứng chỉ (.p12, .pfx, .crt, .cer, .pem) trên ổ USB</string>
+    <string name="cfg_cert_usb_pick_file">Chọn chứng chỉ trên ổ USB</string>
+    <string name="cfg_cert_url_prompt">Nhập URL để tải chứng chỉ (.p12, .pfx, .crt, .pem):</string>
+    <string name="cfg_cert_paste_prompt">Dán nội dung chứng chỉ (PEM hoặc Base64):</string>
+    <string name="cfg_cert_password_prompt">Nhập mật khẩu chứng chỉ:</string>
+    <string name="cfg_cert_password_incorrect">Mật khẩu chứng chỉ không đúng.</string>
+    <string name="cfg_cert_import_success">Đã cài đặt chứng chỉ thành công: %1$s</string>
+    <string name="cfg_cert_import_failed">Không thể nhập chứng chỉ: %1$s</string>
+    <string name="cfg_cert_remove_confirm">Xóa chứng chỉ %1$s?</string>
+    <string name="cfg_cert_testing_tls">Đang kiểm tra bắt tay TLS…</string>
+
+    <string name="cfg_spotify_header">Spotify</string>
+    <string name="cfg_spotify_client_id">Client ID</string>
+    <string name="cfg_spotify_connect">Kết nối</string>
+    <string name="cfg_spotify_disconnect">Ngắt kết nối</string>
+    <string name="cfg_spotify_status_on">Đã kết nối</string>
+    <string name="cfg_spotify_status_off">Chưa kết nối</string>
+    <string name="cfg_spotify_need_id">Nhập Client ID trước</string>
+    <string name="spotify_connected">Spotify đã kết nối</string>
+    <string name="spotify_connect_failed">Spotify: không thể kết nối</string>
+    <string name="cfg_security_header">Bảo mật</string>
+    <string name="cfg_commands_label">Chấp nhận lệnh từ HA</string>
+    <string name="cfg_commands_on">Đang chấp nhận lệnh từ HA</string>
+    <string name="cfg_commands_off">Lệnh ĐÃ BỊ CHẶN — chỉ đo từ xa</string>
+    <string name="cfg_commands_hint">Khi tắt, xe bỏ qua các lệnh sạc và đèn đến từ Home Assistant.</string>
+    <string name="cfg_lock_label">Thời gian khóa công tắc (giây), sau mỗi lần chạm</string>
+    <string name="cfg_adb_label">adb</string>
+    <string name="cfg_adb_off">Đã đóng. Khi đang mở, bất kỳ ai trên cùng mạng đều có thể lấy được shell root trên đơn vị này.</string>
+    <string name="cfg_adb_on">Đang mở — sẽ tự đóng sau %1$d phút.</string>
+    <string name="cfg_adb_no_helper">modehelper chưa được cài đặt, vì vậy không có gì ở đây có thể bật hoặc tắt adb.</string>
+    <string name="cfg_trusted_wifi_label">Wi-Fi đặc quyền (SSID)</string>
+    <string name="cfg_trusted_wifi_hint">Khi kết nối với mạng này, ADB luôn mở và WakeLock ngăn thiết bị chuyển sang chế độ ngủ.</string>
+    <string name="cfg_btn_use_current_wifi">Dùng Wi-Fi hiện tại</string>
+    <string name="cfg_trusted_wifi_saved">Đã lưu Wi-Fi đặc quyền</string>
+    <string name="cfg_doors_header">Cửa</string>
+    <string name="cfg_window_on_door">Hé mở cửa kính khi cửa mở</string>
+    <string name="cfg_window_on_door_hint">Hạ cửa kính của cửa đó xuống khoảng 1 cm để cửa đóng lại mà không phải chống lại khoang kín, và trả lại khi cửa đóng. Nó chỉ đóng cửa kính mà chính nó đã mở, và không đụng đến bất kỳ cửa kính nào bạn tự di chuyển.</string>
+    <string name="cfg_actions_header">Hành động</string>
+    <string name="cfg_btn_on">Bật</string>
+    <string name="cfg_btn_off">Tắt</string>
+    <string name="cfg_btn_test">Kiểm tra</string>
+    <string name="cfg_btn_discovery">Khám phá MQTT</string>
+    <string name="cfg_btn_update">Cập nhật</string>
+    <string name="cfg_btn_save">Lưu</string>
+    <string name="cfg_testing">Đang kiểm tra...</string>
+    <string name="cfg_discovery_sending">Đang gửi khám phá MQTT…</string>
+    <string name="cfg_discovery_ok">Đã gửi khám phá MQTT thành công</string>
+    <string name="cfg_discovery_failed">Khám phá thất bại: %1$s</string>
+    <string name="cfg_discovery_svc_inactive">Dịch vụ đo từ xa không chạy</string>
+    <string name="cfg_discovery_no_client">Máy khách MQTT chưa khởi tạo</string>
+    <string name="cfg_cleanup">Dọn dẹp và gỡ bỏ…</string>
+    <string name="cfg_drive_header">Chế độ lái</string>
+    <string name="cfg_connecting">Đang kết nối…</string>
+    <string name="cfg_mode_eco">Eco</string>
+    <string name="cfg_mode_comfort">Comfort</string>
+    <string name="cfg_mode_sport">Sport</string>
+    <string name="cfg_regen_header">Tái tạo năng lượng</string>
+    <string name="cfg_regen_low">Thấp</string>
+    <string name="cfg_regen_mid">Trung bình</string>
+    <string name="cfg_regen_high">Cao</string>
+    <string name="turbo_header">Turbo</string>
+    <string name="turbo_enable_label">Hiện thẻ Turbo</string>
+    <string name="turbo_duration_label">Thời lượng (giây)</string>
+    <string name="cfg_btn_apply">Áp dụng ngay</string>
+    <string name="cfg_btn_save_default">Lưu làm mặc định</string>
+    <string name="cfg_car_connect_fail">Không thể kết nối với xe</string>
+    <string name="cfg_applied">Đã áp dụng: %1$s + %2$s</string>
+    <string name="cfg_applied_turbo_active">Đã áp dụng: %1$s. Chế độ lái không đổi — Turbo đang hoạt động.</string>
+    <string name="cfg_startup_default">Mặc định khi khởi động: %1$s + %2$s</string>
+    <string name="cfg_mode_unknown">Chế độ hiện tại chưa xác định — chọn một chế độ để áp dụng</string>
+    <string name="cfg_current">Hiện tại: %1$s + %2$s</string>
+    <string name="cfg_bar_header">Hiển thị trên thanh menu</string>
+    <string name="cfg_bar_outtemp">Nhiệt độ ngoài trên thanh</string>
+    <string name="cfg_bar_wifi">Wi-Fi trên thanh (mở cài đặt)</string>
+    <string name="cfg_bar_soc">Pin % trên thanh</string>
+    <string name="cfg_appearance_header">Giao diện</string>
+    <string name="cfg_appearance_light">Sáng</string>
+    <string name="cfg_appearance_dark">Tối</string>
+    <string name="cfg_appearance_auto">Tự động</string>
+    <string name="cfg_appearance_note">Tự động tuân theo cài đặt ngày/đêm riêng của đơn vị này. Neon và Noturno luôn dùng bảng màu cố định duy nhất của chúng, bất kể cài đặt này là gì.</string>
+    <string name="cfg_theme_header">Chủ đề</string>
+    <string name="cfg_theme_sub">Áp dụng cho mọi màn hình của Drive Assist. Hình thu nhỏ hiển thị màu sắc và hình dạng của thẻ — thay đổi có hiệu lực ngay lập tức.</string>
+    <string name="cfg_theme_selected">%1$s  ✓</string>
+    <string name="cfg_theme_ambient_on">Chủ đề này để ánh sáng xung quanh khoang xe điều khiển màu nhấn.</string>
+    <string name="cfg_theme_ambient_off">Chủ đề này cố tình bỏ qua ánh sáng khoang xe — màu nhấn vẫn giữ màu hổ phách.</string>
+    <string name="theme_geely_blurb">Xám kim loại súng vào ban đêm, ngà voi vào ban ngày</string>
+    <string name="theme_noturno_blurb">Đen và hổ phách · bảng điều khiển vaporwave</string>
+    <string name="theme_neon_blurb">Viền phát sáng, xanh lơ và hồng cánh sen</string>
+
+    <!-- ruler -->
+    <!-- Two different faults, and telling them apart is not cosmetic: one
+         message covering both named the outside temperature while the real
+         problem was a dead binder, and cost an hour aimed at the wrong half. -->
+    <string name="ruler_no_car">không kết nối với xe</string>
+    <string name="ruler_no_outside_temp">không có nhiệt độ ngoài</string>
+    <string name="ruler_defrosting">đang sấy kính</string>
+    <string name="ruler_at_limit">%1$s · ở giới hạn</string>
+    <string name="ruler_car_refused">xe không chấp nhận %1$d°</string>
+    <string name="ruler_committed">đã lưu mức thoải mái</string>
+    <string name="ruler_steady">ổn định</string>
+    <string name="ruler_level">%1$s · mức %2$d</string>
+    <string name="ruler_src_cold">đang làm mát</string>
+    <string name="ruler_src_fresh">không khí bên ngoài</string>
+    <string name="ruler_src_hold">đang tuần hoàn</string>
+    <string name="ruler_src_hot">đang làm ấm</string>
+
+    <!-- cmd -->
+    <!-- second command column + the gate -->
+    <string name="cmd_title">Lệnh</string>
+    <string name="gate_title">Cổng</string>
+    <string name="gate_open">Mở cổng</string>
+    <string name="gate_sent">Cổng: đã gửi yêu cầu</string>
+    <!-- gate button on the comfort board: short, the card title already says "Gate" -->
+    <string name="gate_button_open">Mở</string>
+    <string name="gate_button_close">Đóng</string>
+    <string name="gate_button_sent">Đã gửi yêu cầu</string>
+    <string name="gate_no_link">Không có kết nối với Home Assistant</string>
+    <string name="gate_close">Đóng cổng</string>
+    <string name="gate_opening">Đang mở…</string>
+    <string name="gate_closing">Đang đóng…</string>
+
+    <!-- purge: drop every window half way, press again to put them back -->
+    <string name="purge_label">Mở cửa kính</string>
+    <string name="purge_close_label">Đóng cửa kính</string>
+    <string name="purge_opening">Cửa kính đang hạ xuống</string>
+    <string name="purge_closing">Cửa kính đang nâng lên lại</string>
+    <string name="purge_nothing">Không có gì để di chuyển</string>
+    <string name="purge_unreadable">Không thể đọc cửa kính — xe có đang thức không?</string>
+    <!-- dashcam gallery -->
+    <string name="clips_title">Bản ghi</string>
+    <string name="clips_usage">%1$d đoạn · %2$s đã dùng · %3$s được giữ · %4$s trống</string>
+    <string name="clips_none">Chưa có gì được ghi lại.</string>
+    <string name="clips_play">Phát</string>
+    <string name="clips_hold">Giữ lại</string>
+    <string name="clips_release">Giải phóng</string>
+    <string name="clips_delete">Xóa</string>
+    <string name="clips_delete_q">Xóa %1$s?</string>
+    <string name="clip_play_failed">Không thể phát đoạn này (%1$d/%2$d)</string>
+    <string name="clips_recording">đang ghi</string>
+    <string name="clips_orphan">chưa đóng — có thể khôi phục</string>
+    <string name="clips_record">Ghi hình</string>
+    <string name="clips_stop">Dừng</string>
+    <string name="cfg_nav_clips">Dashcam</string>
+    <string name="clips_back">← Quay lại</string>
+    <string name="cam_all">Tất cả</string>
+    <string name="cam_front">Trước</string>
+    <string name="cam_rear">Sau</string>
+    <string name="cam_left">Trái</string>
+    <string name="cam_right">Phải</string>
+    <string name="cam_orbit">Xoay vòng</string>
+    <!-- charging history -->
+    <string name="cfg_nav_charge">Sạc</string>
+    <string name="charge_title">Lịch sử sạc</string>
+    <string name="charge_summary">%1$d lần sạc · tổng %2$.1f kWh</string>
+    <string name="charge_ltm_title">12 tháng gần đây</string>
+    <string name="charge_period_30d">30 ngày gần đây</string>
+    <string name="charge_ltm_count_label">lần sạc</string>
+    <string name="charge_row_subtitle">SoC %1$d%%→%2$d%% · %3$.1f kWh · %4$.1f kW</string>
+    <string name="charge_none">Chưa có phiên sạc nào được ghi lại.</string>
+    <!-- stats -->
+    <string name="cfg_nav_stats">Thống kê</string>
+    <string name="stats_title">Thống kê lái xe</string>
+    <string name="stats_driving_header">Tuần này</string>
+    <string name="stats_trips_label">chuyến đi</string>
+    <string name="stats_chart_header">km mỗi ngày</string>
+    <!-- OBD2 + ABRP -->
+    <string name="cfg_nav_obd">OBD2 / ABRP</string>
+    <string name="obd_title">Dongle OBD2 và ABRP</string>
+    <string name="obd_status_connected">Đã kết nối — đang đọc công suất thực từ pin</string>
+    <string name="obd_status_searching">Đang tìm kiếm dongle…</string>
+    <string name="obd_status_off">Tắt</string>
+    <string name="obd_enable_label">Sử dụng dongle OBD2 Bluetooth</string>
+    <string name="obd_hint">Khi bật, sẽ tìm kiếm dongle kiểu ELM327 đã ghép nối và đọc trực tiếp công suất/điện áp/dòng điện pin thực tế — chính xác hơn giá trị ước tính và được ưu tiên sử dụng khi dongle được kết nối.</string>
+    <string name="abrp_header">ABRP (A Better Route Planner)</string>
+    <string name="abrp_enable_label">Gửi dữ liệu trực tiếp tới ABRP</string>
+    <string name="abrp_location_label">Gửi vị trí GPS</string>
+    <string name="abrp_location_hint">Khi tắt, ABRP sẽ sử dụng vị trí của điện thoại thay vì GPS của xe.</string>
+    <string name="abrp_field_user_token">Mã thông báo người dùng ABRP</string>
+    <string name="abrp_test_sending">Đang gửi ping kiểm tra tới ABRP…</string>
+    <string name="abrp_test_ok">Đã gửi — kiểm tra ứng dụng/trang web của ABRP để xác nhận kết nối.</string>
+    <string name="abrp_test_fail">Thất bại: %1$s</string>
+    <string name="abrp_debug_header">Gỡ lỗi trực tiếp</string>
+    <string name="abrp_debug_sent_header">Đã gửi tới ABRP</string>
+    <string name="abrp_debug_no_data">Chưa có dữ liệu</string>
+    <string name="abrp_debug_last_ok">Gửi lần cuối: %1$s — OK</string>
+    <string name="abrp_debug_last_fail">Lần thử cuối: %1$s — Thất bại: %2$s</string>
+    <string name="abrp_debug_log_header">Hoạt động gần đây</string>
+    <string name="abrp_debug_connected">Đã kết nối: %1$s</string>
+    <string name="abrp_debug_yes">có</string>
+    <string name="abrp_debug_no">không</string>
+    <string name="charge_export">Xuất ra USB</string>
+    <string name="charge_export_ok">Đã xuất %1$d tệp ra USB</string>
+    <string name="charge_export_no_drive">Không tìm thấy ổ USB nào</string>
+    <string name="charge_export_nothing">Không có gì để xuất</string>
+    <!-- charge card (ComfortActivity) -->
+    <string name="charge_card_title">Pin</string>
+    <string name="charge_card_soc">%1$d%%</string>
+    <string name="charge_card_elapsed">%1$d phút sạc</string>
+    <string name="charge_card_remaining">~%1$d phút đến 100%%</string>
+    <string name="charge_card_calculating">Đang ước tính…</string>
+    <string name="charge_card_ready">Sẵn sàng</string>
+    <string name="charge_card_unknown">Không xác định</string>
+
+    <!-- charge stats & cost tracking -->
+    <string name="charge_stats_title">Thống kê sạc</string>
+    <string name="charge_completed_title">Sạc hoàn tất</string>
+    <string name="charge_cost_label">Chi phí</string>
+    <string name="charge_cost_input_title">Chi phí sạc</string>
+    <string name="charge_cost_input_hint">Tổng chi phí (ví dụ 45.00)</string>
+    <string name="charge_cost_btn_input">Nhập chi phí</string>
+    <string name="charge_cost_btn_edit">Sửa</string>
+    <string name="charge_cost_btn_save">Lưu</string>
+    <string name="charge_cost_btn_dismiss">Đóng</string>
+    <string name="charge_cost_not_set">Chưa đặt chi phí</string>
+    <string name="charge_cost_invalid">Giá trị chi phí không hợp lệ</string>
+    <string name="charge_cost_parked_only">Chỉ có thể nhập chi phí khi xe đã đỗ (P).</string>
+    <string name="charge_stat_total_cost">Tổng chi phí</string>
+    <string name="charge_stat_avg_cost_kwh">Chi phí / kWh</string>
+    <string name="charge_stat_cost_100km">Chi phí / 100km</string>
+
+    <!-- software update dialog & prompt -->
+    <string name="update_dialog_title">Có bản cập nhật phần mềm</string>
+    <string name="update_dialog_version_comp">Version: %1$s   ➔   %2$s</string>
+    <string name="update_dialog_current_ver">Phiên bản hiện tại: %1$s</string>
+    <string name="update_dialog_new_ver">Phiên bản mới: %1$s</string>
+    <string name="update_dialog_changelog_header">Có gì mới:</string>
+    <string name="update_dialog_accept">Chấp nhận &amp; Cập nhật</string>
+    <string name="update_dialog_decline">Để sau</string>
+    <string name="update_checking">Đang kiểm tra cập nhật…</string>
+    <string name="update_up_to_date">Drive Assist đã là bản mới nhất (%1$s)</string>
+    <string name="update_check_failed">Không thể kiểm tra cập nhật: %1$s</string>
+    <string name="update_downloading">Đang tải bản cập nhật (%1$s) …</string>
+    <string name="update_installing">Đang chuyển cho ModeHelper cài đặt…</string>
+    <string name="update_not_parked">Chỉ có thể xem và cài đặt cập nhật khi xe đã đỗ (P).</string>
+</resources>

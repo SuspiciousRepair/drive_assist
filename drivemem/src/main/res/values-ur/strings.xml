@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Translation of values/strings.xml (Urdu / ur). See that file for authoring notes. -->
+<resources>
+    <string name="app_name">Drive Assist</string>
+    <string name="ac_title">ایئر کنڈیشننگ</string>
+
+    <!-- comfort -->
+    <!-- ComfortActivity: tela do ar-condicionado. ac_title ja existe, nao repetir. -->
+    <string name="ac_outside_label">باہر</string>
+    <string name="ac_reading">پڑھا جا رہا ہے...</string>
+    <string name="ac_adjust_header">کیا ایڈجسٹ کریں؟</string>
+    <string name="ac_cooler">مزید ٹھنڈا</string>
+    <string name="ac_warmer">مزید گرم</string>
+    <string name="ac_recirc_label">ری سرکولیشن</string>
+    <string name="ac_recirc_on_label">باہر کی ہوا</string>
+    <string name="ac_recirc_refused">ری سرکولیشن: گاڑی نے انکار کیا</string>
+    <string name="ac_recirc_on">ری سرکولیٹ ہو رہا ہے — باہر کی ہوا کا داخلہ بند ہے</string>
+    <string name="ac_recirc_off">باہر کی ہوا کا داخلہ کھلا ہے</string>
+    <string name="ac_connect_failed">گاڑی سے رابطہ نہیں ہو سکا</string>
+    <string name="clima_title">موسمیات</string>
+    <!-- Turbo card: 30s Sport-mode boost, then back to whatever mode was running before -->
+    <string name="turbo_title">ٹربو</string>
+    <string name="regen_boost_title">ری جنریشن</string>
+    <!-- Linha de verdade dos atuadores. %1$s = setpoint, %2$s = ventoinha.
+    As aspas preservam os espacos multiplos (o aapt colapsaria). -->
+    <string name="ac_readout">"ہوا %1$s °C   ·   پنکھا %2$s"</string>
+    <!-- %1$s = a linha ate aqui; a clausula inteira volta traduzida -->
+    <string name="ac_readout_recirc">"%1$s   ·   ری سرکولیٹ ہو رہا ہے"</string>
+    <!-- %1$s = a linha ate aqui, %2$s = status da regua de conforto -->
+    <string name="ac_readout_status">"%1$s   —   %2$s"</string>
+
+    <!-- misc -->
+    <string name="cleanup_title">صفائی</string>
+    <string name="cleanup_subtitle">فیکٹری امیج کے بعد شامل کی گئی ہر چیز کو ہٹاتا ہے۔ ADB کو واپس نہیں کرتا (وہ recovery سے آیا تھا) اور سسٹم ایپس کو نہیں چھیڑتا۔</string>
+    <string name="cleanup_step1_header">مرحلہ 1 — باقیات</string>
+    <string name="cleanup_step2_header">مرحلہ 2 — ایپس ہٹائیں</string>
+    <string name="cleanup_action_stop_wipe">سروسز روکیں اور Drive Assist کا ڈیٹا مٹائیں</string>
+    <string name="cleanup_action_uninstall_apps">کسٹم ایپس ان انسٹال کریں</string>
+    <string name="cleanup_action_uninstall_self">خود Drive Assist کو ان انسٹال کریں</string>
+    <string name="cleanup_log_idle">ابھی کچھ نہیں کیا گیا۔\nہر بٹن تصدیق مانگتا ہے (دو بار تھپتھپائیں)۔</string>
+    <string name="cleanup_confirm_prompt">تصدیق کے لیے دوبارہ \"%1$s\" پر تھپتھپائیں۔</string>
+    <string name="cleanup_stopping">سروسز روکی جا رہی ہیں...</string>
+    <string name="cleanup_wiped">سروسز روک دی گئیں، آئیکنز ہٹا دیے گئے، الارم منسوخ کر دیا گیا اور ڈیٹا مٹا دیا گیا۔\nDrive Assist اب بھی انسٹال ہے، لیکن غیر فعال ہے۔</string>
+    <string name="cleanup_uninstall_header">ان انسٹال کرنے کی درخواست:</string>
+    <string name="cleanup_uninstall_item_failed">ناکام: %1$s</string>
+    <string name="cleanup_uninstall_footer">ہر سسٹم ڈائیلاگ کی تصدیق کریں۔ ایک ایک کر کے۔</string>
+    <string name="cleanup_none_found">کوئی کسٹم ایپ نہیں ملی۔</string>
+    <string name="cleanup_removing_self">Drive Assist کو ہٹانے کی درخواست...</string>
+    <string name="cleanup_failed">ناکام: %1$s</string>
+    <string name="notif_tele_channel">ٹیلی میٹری</string>
+    <string name="notif_tele_title">Drive Assist — ٹیلی میٹری</string>
+    <string name="notif_tele_text">Home Assistant کو ڈیٹا بھیجا جا رہا ہے</string>
+    <string name="notif_outtemp_channel">بیرونی درجہ حرارت</string>
+    <string name="notif_outtemp_fg_text">بیرونی درجہ حرارت</string>
+    <string name="notif_outtemp_title">بیرونی درجہ حرارت</string>
+    <string name="notif_outtemp_unavailable">دستیاب نہیں</string>
+    <string name="notif_outtemp_value">%1$s °C</string>
+    <string name="notif_wifi_channel">Wi-Fi</string>
+    <string name="notif_wifi_fg_text">وائی فائی</string>
+    <string name="notif_wifi_title">Wi-Fi</string>
+    <string name="notif_wifi_disconnected">منقطع</string>
+    <string name="notif_wifi_no_network">کوئی نیٹ ورک نہیں</string>
+    <string name="notif_soc_channel">بیٹری %</string>
+    <string name="notif_soc_fg_text">بیٹری %</string>
+    <string name="notif_soc_title">بیٹری</string>
+    <string name="notif_soc_unavailable">دستیاب نہیں</string>
+    <string name="notif_soc_value">%1$s%%</string>
+
+    <!-- config -->
+    <string name="cfg_title">ترتیبات</string>
+    <string name="cfg_nav_doors">دروازے</string>
+    <string name="cfg_nav_mqtt">MQTT</string>
+    <string name="cfg_nav_drive">ڈرائیونگ موڈ</string>
+    <string name="cfg_nav_bar">مینو بار</string>
+    <string name="cfg_nav_look">ظاہری شکل</string>
+    <string name="cfg_nav_spotify">Spotify</string>
+    <string name="cfg_nav_system">سسٹم</string>
+    <!-- sidebar group captions -->
+    <string name="cfg_group_car">گاڑی</string>
+    <string name="cfg_group_display">ڈسپلے</string>
+    <string name="cfg_group_integrations">انضمام</string>
+    <string name="cfg_group_system">سسٹم</string>
+    <string name="cfg_system_header">سسٹم</string>
+    <string name="cfg_app_info_header">ایپلیکیشن کی معلومات</string>
+    <string name="cfg_version_label">ورژن: %1$s (بلڈ %2$d)</string>
+    <string name="cfg_sha_label">APK SHA-256</string>
+    <string name="cfg_update_header">سافٹ ویئر اپ ڈیٹ</string>
+    <string name="cfg_update_url_label">اپ ڈیٹ URL (HTTPS)</string>
+    <string name="cfg_btn_check_update">اپ ڈیٹ چیک کریں اور انسٹال کریں</string>
+    <string name="cfg_touch_header">ٹچ کنٹرولز اور کول ڈاؤن</string>
+    <string name="cfg_cooldown_label">سوئچ کول ڈاؤن</string>
+    <string name="cfg_cooldown_hint">ڈرائیونگ کے دوران حادثاتی طور پر ڈبل ٹیپ کو روکنے کے لیے کسی بھی سوئچ کو دبانے کے بعد عارضی لاک کا دورانیہ۔</string>
+    <string name="cfg_maintenance_header">دیکھ بھال</string>
+    <string name="cfg_mqtt_header">Home Assistant کو بھیجا جا رہا ہے</string>
+    <string name="cfg_mqtt_enable_label">MQTT ٹیلی میٹری فعال کریں</string>
+    <string name="cfg_mqtt_enable_hint">بروکر سے منسلک ہوتا ہے اور گاڑی کی ٹیلی میٹری Home Assistant کو بھیجتا ہے۔</string>
+    <string name="cfg_status_sending">Home Assistant کو بھیجا جا رہا ہے</string>
+    <string name="cfg_status_off">بند</string>
+    <string name="cfg_sending_every">بھیجا جا رہا ہے (ہر %1$d سیکنڈ)</string>
+    <string name="cfg_broker_header">MQTT بروکر</string>
+    <string name="cfg_field_hosts">پتے (ایک فی سطر)</string>
+    <string name="cfg_field_user">صارف نام</string>
+    <string name="cfg_field_pass">پاس ورڈ</string>
+    <string name="cfg_field_interval">وقفہ (سیکنڈ)</string>
+    <string name="cfg_seconds_suffix">سیکنڈ</string>
+    <string name="cfg_lock_short_label">سوئچ لاک</string>
+    <string name="cfg_saved">ترتیبات محفوظ ہوگئیں</string>
+    <string name="cfg_btn_save_all">تمام ترتیبات محفوظ کریں</string>
+    <string name="cfg_log_title">ریئل ٹائم لاگ اور تاثرات</string>
+    <string name="cfg_active_status_title">کنکشن کی حیثیت</string>
+    <string name="cfg_active_broker">فعال بروکر: %1$s</string>
+    <string name="cfg_client_id">کلائنٹ ID: %1$s</string>
+    <string name="cfg_last_sent">آخری بار بھیجا گیا: %1$s</string>
+
+    <!-- certificates / tls -->
+    <string name="cfg_certs_header">سرٹیفکیٹس اور TLS</string>
+    <string name="cfg_client_cert_label">کلائنٹ سرٹیفکیٹ (mTLS)</string>
+    <string name="cfg_ca_cert_label">CA سرٹیفکیٹ (سرور کا اعتماد)</string>
+    <string name="cfg_cert_status_installed">انسٹال شدہ: %1$s (%2$s تک درست)</string>
+    <string name="cfg_cert_status_none">کوئی انسٹال نہیں ہے (ریموٹ mTLS کے لیے درکار ہے)</string>
+    <string name="cfg_ca_status_default">ڈیفالٹ (ایپ میں شامل ہے)</string>
+    <string name="cfg_ca_status_custom">حسب ضرورت: %1$s (%2$s تک درست)</string>
+    <string name="cfg_btn_import_cert">درآمد کریں</string>
+    <string name="cfg_btn_remove_cert">ہٹائیں</string>
+    <string name="cfg_btn_reset_default">ڈیفالٹ پر دوبارہ ترتیب دیں</string>
+    <string name="cfg_btn_test_tls">TLS ہینڈ شیک ٹیسٹ کریں</string>
+    <string name="cfg_tls_test_target_label">ٹیسٹ کرنے کے لیے TLS بروکر کا پتہ</string>
+    <string name="cfg_cert_import_title">سرٹیفکیٹ درآمد کریں</string>
+    <string name="cfg_cert_import_usb">USB ڈرائیو</string>
+    <string name="cfg_cert_import_url">URL سے ڈاؤن لوڈ کریں</string>
+    <string name="cfg_cert_import_file">اسٹوریج فائل چنندہ</string>
+    <string name="cfg_cert_import_paste">متن چسپاں کریں (PEM / Base64)</string>
+    <string name="cfg_cert_usb_not_found">/storage کے تحت کوئی USB ڈرائیو نہیں ملی</string>
+    <string name="cfg_cert_usb_no_files">USB ڈرائیو پر کوئی سرٹیفکیٹ فائلیں (.p12, .pfx, .crt, .cer, .pem) نہیں ملیں</string>
+    <string name="cfg_cert_usb_pick_file">USB ڈرائیو پر سرٹیفکیٹ منتخب کریں</string>
+    <string name="cfg_cert_url_prompt">سرٹیفکیٹ ڈاؤن لوڈ کرنے کے لیے URL درج کریں (.p12, .pfx, .crt, .pem):</string>
+    <string name="cfg_cert_paste_prompt">سرٹیفکیٹ کا مواد چسپاں کریں (PEM یا Base64):</string>
+    <string name="cfg_cert_password_prompt">سرٹیفکیٹ کا پاس ورڈ درج کریں:</string>
+    <string name="cfg_cert_password_incorrect">غلط سرٹیفکیٹ پاس ورڈ۔</string>
+    <string name="cfg_cert_import_success">سرٹیفکیٹ کامیابی سے انسٹال ہو گیا: %1$s</string>
+    <string name="cfg_cert_import_failed">سرٹیفکیٹ درآمد کرنے میں ناکامی: %1$s</string>
+    <string name="cfg_cert_remove_confirm">سرٹیفکیٹ %1$s کو ہٹا دیں؟</string>
+    <string name="cfg_cert_testing_tls">TLS ہینڈ شیک کا ٹیسٹ کیا جا رہا ہے…</string>
+
+    <string name="cfg_spotify_header">Spotify</string>
+    <string name="cfg_spotify_client_id">Client ID</string>
+    <string name="cfg_spotify_connect">جوڑیں</string>
+    <string name="cfg_spotify_disconnect">منقطع کریں</string>
+    <string name="cfg_spotify_status_on">جڑا ہوا</string>
+    <string name="cfg_spotify_status_off">جڑا نہیں</string>
+    <string name="cfg_spotify_need_id">پہلے Client ID درج کریں</string>
+    <string name="spotify_connected">Spotify جڑ گیا</string>
+    <string name="spotify_connect_failed">Spotify: رابطہ نہیں ہو سکا</string>
+    <string name="cfg_security_header">سیکیورٹی</string>
+    <string name="cfg_commands_label">HA سے کمانڈز قبول کریں</string>
+    <string name="cfg_commands_on">HA سے کمانڈز قبول کی جا رہی ہیں</string>
+    <string name="cfg_commands_off">کمانڈز بلاک ہیں — صرف ٹیلی میٹری</string>
+    <string name="cfg_commands_hint">بند ہونے پر، گاڑی Home Assistant سے آنے والی چارجنگ اور روشنی کی کمانڈز کو نظر انداز کرتی ہے۔</string>
+    <string name="cfg_lock_label">ہر ٹیپ کے بعد سوئچ لاک کا دورانیہ (سیکنڈ)</string>
+    <string name="cfg_adb_label">adb</string>
+    <string name="cfg_adb_off">بند۔ جب تک کھلا ہے، ایک ہی نیٹ ورک پر موجود کوئی بھی شخص اس یونٹ پر روٹ شیل حاصل کر لیتا ہے۔</string>
+    <string name="cfg_adb_on">کھلا — %1$d منٹ میں خود بند ہو جائے گا۔</string>
+    <string name="cfg_adb_no_helper">modehelper انسٹال نہیں ہے، اس لیے یہاں کچھ بھی adb کو آن یا آف نہیں کر سکتا۔</string>
+    <string name="cfg_trusted_wifi_label">مراعات یافتہ وائی فائی (SSID)</string>
+    <string name="cfg_trusted_wifi_hint">اس نیٹ ورک سے منسلک رہنے کے دوران، ADB مسلسل کھلا رہتا ہے اور ویک لاک یونٹ کو معطل ہونے سے روکتا ہے۔</string>
+    <string name="cfg_btn_use_current_wifi">موجودہ وائی فائی استعمال کریں</string>
+    <string name="cfg_trusted_wifi_saved">مراعات یافتہ وائی فائی محفوظ ہو گیا</string>
+    <string name="cfg_doors_header">دروازے</string>
+    <string name="cfg_window_on_door">دروازہ کھلنے پر شیشہ تھوڑا نیچے کریں</string>
+    <string name="cfg_window_on_door_hint">اس دروازے کا شیشہ تقریباً 1 سینٹی میٹر نیچے کرتا ہے تاکہ دروازہ بند کیبن سے جھگڑے بغیر بند ہو سکے، اور دروازہ بند ہونے پر اسے واپس کر دیتا ہے۔ یہ صرف وہی شیشہ بند کرتا ہے جو خود کھولا تھا، اور کسی بھی شیشے کو نہیں چھیڑتا جسے آپ نے خود حرکت دی ہو۔</string>
+    <string name="cfg_actions_header">اقدامات</string>
+    <string name="cfg_btn_on">آن کریں</string>
+    <string name="cfg_btn_off">آف کریں</string>
+    <string name="cfg_btn_test">ٹیسٹ کریں</string>
+    <string name="cfg_btn_discovery">MQTT دریافت</string>
+    <string name="cfg_btn_update">اپ ڈیٹ کریں</string>
+    <string name="cfg_btn_save">محفوظ کریں</string>
+    <string name="cfg_testing">ٹیسٹ کیا جا رہا ہے...</string>
+    <string name="cfg_discovery_sending">MQTT دریافت بھیجی جا رہی ہے…</string>
+    <string name="cfg_discovery_ok">MQTT دریافت کامیابی سے بھیج دی گئی</string>
+    <string name="cfg_discovery_failed">دریافت ناکام ہوگئی: %1$s</string>
+    <string name="cfg_discovery_svc_inactive">ٹیلی میٹری سروس نہیں چل رہی ہے</string>
+    <string name="cfg_discovery_no_client">MQTT کلائنٹ شروع نہیں ہوا ہے</string>
+    <string name="cfg_cleanup">صفائی اور اخراج…</string>
+    <string name="cfg_drive_header">ڈرائیونگ موڈ</string>
+    <string name="cfg_connecting">رابطہ ہو رہا ہے…</string>
+    <string name="cfg_mode_eco">Eco</string>
+    <string name="cfg_mode_comfort">Comfort</string>
+    <string name="cfg_mode_sport">Sport</string>
+    <string name="cfg_regen_header">ری جنریشن</string>
+    <string name="cfg_regen_low">کم</string>
+    <string name="cfg_regen_mid">درمیانہ</string>
+    <string name="cfg_regen_high">زیادہ</string>
+    <string name="turbo_header">ٹربو</string>
+    <string name="turbo_enable_label">ٹربو کارڈ دکھائیں</string>
+    <string name="turbo_duration_label">دورانیہ (سیکنڈ)</string>
+    <string name="cfg_btn_apply">ابھی لاگو کریں</string>
+    <string name="cfg_btn_save_default">بطور ڈیفالٹ محفوظ کریں</string>
+    <string name="cfg_car_connect_fail">گاڑی سے رابطہ نہیں ہو سکا</string>
+    <string name="cfg_applied">لاگو ہوا: %1$s + %2$s</string>
+    <string name="cfg_applied_turbo_active">لاگو ہوا: %1$s۔ ڈرائیونگ موڈ جوں کا توں — ٹربو فعال ہے۔</string>
+    <string name="cfg_startup_default">اسٹارٹ اپ ڈیفالٹ: %1$s + %2$s</string>
+    <string name="cfg_mode_unknown">موجودہ موڈ نامعلوم ہے — لاگو کرنے کے لیے ایک چنیں</string>
+    <string name="cfg_current">موجودہ: %1$s + %2$s</string>
+    <string name="cfg_bar_header">مینو بار میں ڈسپلے</string>
+    <string name="cfg_bar_outtemp">بار میں بیرونی درجہ حرارت</string>
+    <string name="cfg_bar_wifi">بار میں Wi-Fi (ترتیبات کھولتا ہے)</string>
+    <string name="cfg_bar_soc">بار میں بیٹری %</string>
+    <string name="cfg_appearance_header">ظاہری شکل</string>
+    <string name="cfg_appearance_light">ہلکا</string>
+    <string name="cfg_appearance_dark">گہرا</string>
+    <string name="cfg_appearance_auto">خودکار</string>
+    <string name="cfg_appearance_note">خودکار اس یونٹ کی اپنی دن/رات کی ترتیب کی پیروی کرتا ہے۔ Neon اور Noturno ہمیشہ اپنا ایک مقررہ رنگ اسکیم استعمال کرتے ہیں، چاہے یہ ترتیب کچھ بھی ہو۔</string>
+    <string name="cfg_theme_header">تھیم</string>
+    <string name="cfg_theme_sub">Drive Assist کی ہر اسکرین پر لاگو ہوتا ہے۔ تھمب نیل کارڈز کا رنگ اور شکل دکھاتا ہے — تبدیلی فوری ہوتی ہے۔</string>
+    <string name="cfg_theme_selected">%1$s  ✓</string>
+    <string name="cfg_theme_ambient_on">یہ تھیم کیبن کی ماحولیاتی روشنی کو تھیم کا رنگ کنٹرول کرنے دیتا ہے۔</string>
+    <string name="cfg_theme_ambient_off">یہ تھیم جان بوجھ کر کیبن کی روشنی کو نظر انداز کرتا ہے — ہائی لائٹ رنگ کہربائی رہتا ہے۔</string>
+    <string name="theme_geely_blurb">رات کو دھاتی سرمئی، دن کو ہاتھی دانت جیسا</string>
+    <string name="theme_noturno_blurb">سیاہ اور کہربائی · vaporwave پینل</string>
+    <string name="theme_neon_blurb">روشن خاکہ، سیان اور میجنٹا</string>
+
+    <!-- ruler -->
+    <!-- Two different faults, and telling them apart is not cosmetic: one
+         message covering both named the outside temperature while the real
+         problem was a dead binder, and cost an hour aimed at the wrong half. -->
+    <string name="ruler_no_car">گاڑی سے رابطہ نہیں</string>
+    <string name="ruler_no_outside_temp">کوئی بیرونی درجہ حرارت نہیں</string>
+    <string name="ruler_defrosting">ڈیفروسٹنگ</string>
+    <string name="ruler_at_limit">%1$s · حد پر</string>
+    <string name="ruler_car_refused">گاڑی نے %1$d° قبول نہیں کیا</string>
+    <string name="ruler_committed">آرام دہ ترتیب محفوظ ہو گئی</string>
+    <string name="ruler_steady">مستحکم</string>
+    <string name="ruler_level">%1$s · سطح %2$d</string>
+    <string name="ruler_src_cold">ٹھنڈا کر رہا ہے</string>
+    <string name="ruler_src_fresh">باہر کی ہوا</string>
+    <string name="ruler_src_hold">ری سرکولیٹ ہو رہا ہے</string>
+    <string name="ruler_src_hot">گرم کر رہا ہے</string>
+
+    <!-- cmd -->
+    <!-- second command column + the gate -->
+    <string name="cmd_title">کمانڈز</string>
+    <string name="gate_title">گیٹ</string>
+    <string name="gate_open">گیٹ کھولیں</string>
+    <string name="gate_sent">گیٹ: درخواست بھیج دی گئی</string>
+    <!-- gate button on the comfort board: short, the card title already says "Gate" -->
+    <string name="gate_button_open">کھولیں</string>
+    <string name="gate_button_close">بند کریں</string>
+    <string name="gate_button_sent">درخواست بھیج دی گئی</string>
+    <string name="gate_no_link">Home Assistant سے کوئی رابطہ نہیں</string>
+    <string name="gate_close">گیٹ بند کریں</string>
+    <string name="gate_opening">کھل رہا ہے…</string>
+    <string name="gate_closing">بند ہو رہا ہے…</string>
+
+    <!-- purge: drop every window half way, press again to put them back -->
+    <string name="purge_label">کھڑکیاں کھولیں</string>
+    <string name="purge_close_label">کھڑکیاں بند کریں</string>
+    <string name="purge_opening">کھڑکیاں نیچے جا رہی ہیں</string>
+    <string name="purge_closing">کھڑکیاں دوبارہ اوپر جا رہی ہیں</string>
+    <string name="purge_nothing">حرکت دینے کو کچھ نہیں</string>
+    <string name="purge_unreadable">کھڑکیاں پڑھی نہیں جا سکتیں — کیا گاڑی بیدار ہے؟</string>
+    <!-- dashcam gallery -->
+    <string name="clips_title">ریکارڈنگز</string>
+    <string name="clips_usage">%1$d کلپس · %2$s استعمال شدہ · %3$s محفوظ شدہ · %4$s خالی</string>
+    <string name="clips_none">ابھی تک کچھ ریکارڈ نہیں ہوا۔</string>
+    <string name="clips_play">چلائیں</string>
+    <string name="clips_hold">روکیں</string>
+    <string name="clips_release">آزاد کریں</string>
+    <string name="clips_delete">حذف کریں</string>
+    <string name="clips_delete_q">%1$s حذف کریں؟</string>
+    <string name="clip_play_failed">یہ کلپ نہیں چلایا جا سکا (%1$d/%2$d)</string>
+    <string name="clips_recording">ریکارڈ ہو رہا ہے</string>
+    <string name="clips_orphan">بند نہیں ہوا — بحال کیا جا سکتا ہے</string>
+    <string name="clips_record">ریکارڈ کریں</string>
+    <string name="clips_stop">روکیں</string>
+    <string name="cfg_nav_clips">Dashcam</string>
+    <string name="clips_back">← واپس</string>
+    <string name="cam_all">تمام</string>
+    <string name="cam_front">اگلا</string>
+    <string name="cam_rear">پچھلا</string>
+    <string name="cam_left">بائیں</string>
+    <string name="cam_right">دائیں</string>
+    <string name="cam_orbit">گھومنے والا</string>
+    <!-- charging history -->
+    <string name="cfg_nav_charge">چارجنگ</string>
+    <string name="charge_title">چارجنگ کی تاریخ</string>
+    <string name="charge_summary">%1$d چارجز · کل %2$.1f kWh</string>
+    <string name="charge_ltm_title">پچھلے 12 مہینے</string>
+    <string name="charge_period_30d">پچھلے 30 دن</string>
+    <string name="charge_ltm_count_label">چارجز</string>
+    <string name="charge_row_subtitle">SoC %1$d%%→%2$d%% · %3$.1f kWh · %4$.1f kW</string>
+    <string name="charge_none">ابھی تک کوئی چارجنگ سیشن ریکارڈ نہیں ہوا۔</string>
+    <!-- stats -->
+    <string name="cfg_nav_stats">اعداد و شمار</string>
+    <string name="stats_title">ڈرائیونگ کے اعداد و شمار</string>
+    <string name="stats_driving_header">اس ہفتے</string>
+    <string name="stats_trips_label">سفر</string>
+    <string name="stats_chart_header">کلومیٹر فی دن</string>
+    <!-- OBD2 + ABRP -->
+    <string name="cfg_nav_obd">OBD2 / ABRP</string>
+    <string name="obd_title">OBD2 ڈونگل اور ABRP</string>
+    <string name="obd_status_connected">منسلک ہے — بیٹری سے اصل پاور پڑھ رہا ہے</string>
+    <string name="obd_status_searching">ڈونگل کی تلاش جاری ہے…</string>
+    <string name="obd_status_off">بند</string>
+    <string name="obd_enable_label">بلوٹوتھ OBD2 ڈونگل استعمال کریں</string>
+    <string name="obd_hint">آن ہونے پر، پہلے سے پیئر کیے گئے ELM327 طرز کے ڈونگل کو تلاش کرتا ہے اور براہ راست بیٹری سے اصل پاور/وولٹیج/کرنٹ پڑھتا ہے — تخمینے سے زیادہ درست، اور جب بھی ڈونگل منسلک ہو تو استعمال ہوتا ہے۔</string>
+    <string name="abrp_header">ABRP (A Better Route Planner)</string>
+    <string name="abrp_enable_label">ABRP کو لائیو ڈیٹا بھیجیں</string>
+    <string name="abrp_location_label">GPS مقام بھیجیں</string>
+    <string name="abrp_location_hint">بند ہونے پر، ABRP گاڑی کے GPS کے بجائے آپ کے فون کا مقام استعمال کرتا ہے۔</string>
+    <string name="abrp_field_user_token">ABRP صارف ٹوکن</string>
+    <string name="abrp_test_sending">ABRP کو ٹیسٹ پنگ بھیجا جا رہا ہے…</string>
+    <string name="abrp_test_ok">بھیج دیا گیا — کنکشن کی تصدیق کے لیے ABRP ایپ/سائٹ دیکھیں۔</string>
+    <string name="abrp_test_fail">ناکام ہوگیا: %1$s</string>
+    <string name="abrp_debug_header">لائیو ڈیبگ</string>
+    <string name="abrp_debug_sent_header">ABRP کو بھیجا گیا</string>
+    <string name="abrp_debug_no_data">ابھی تک کوئی ڈیٹا نہیں ہے</string>
+    <string name="abrp_debug_last_ok">آخری بار بھیجا گیا: %1$s — ٹھیک ہے</string>
+    <string name="abrp_debug_last_fail">آخری کوشش: %1$s — ناکام: %2$s</string>
+    <string name="abrp_debug_log_header">حالیہ سرگرمی</string>
+    <string name="abrp_debug_connected">منسلک ہے: %1$s</string>
+    <string name="abrp_debug_yes">ہاں</string>
+    <string name="abrp_debug_no">نہیں</string>
+    <string name="charge_export">USB میں برآمد کریں</string>
+    <string name="charge_export_ok">%1$d فائلیں USB میں برآمد ہو گئیں</string>
+    <string name="charge_export_no_drive">کوئی USB ڈرائیو نہیں ملی</string>
+    <string name="charge_export_nothing">برآمد کرنے کو کچھ نہیں</string>
+    <!-- charge card (ComfortActivity) -->
+    <string name="charge_card_title">بیٹری</string>
+    <string name="charge_card_soc">%1$d%%</string>
+    <string name="charge_card_elapsed">%1$d منٹ چارجنگ</string>
+    <string name="charge_card_remaining">100%% تک ~%1$d منٹ</string>
+    <string name="charge_card_calculating">تخمینہ لگایا جا رہا ہے…</string>
+    <string name="charge_card_ready">تیار</string>
+    <string name="charge_card_unknown">نامعلوم</string>
+
+    <!-- charge stats & cost tracking -->
+    <string name="charge_stats_title">چارجنگ کے اعدادوشمار</string>
+    <string name="charge_completed_title">چارجنگ مکمل ہوگئی</string>
+    <string name="charge_cost_label">لاگت</string>
+    <string name="charge_cost_input_title">چارج کی لاگت</string>
+    <string name="charge_cost_input_hint">کل لاگت (مثلاً 45.00)</string>
+    <string name="charge_cost_btn_input">لاگت درج کریں</string>
+    <string name="charge_cost_btn_edit">ترمیم کریں</string>
+    <string name="charge_cost_btn_save">محفوظ کریں</string>
+    <string name="charge_cost_btn_dismiss">مسترد کریں</string>
+    <string name="charge_cost_not_set">لاگت مقرر نہیں ہے</string>
+    <string name="charge_cost_invalid">غلط لاگت کی قیمت</string>
+    <string name="charge_cost_parked_only">لاگت صرف پارکنگ کی حالت میں درج کی جا سکتی ہے۔</string>
+    <string name="charge_stat_total_cost">کل لاگت</string>
+    <string name="charge_stat_avg_cost_kwh">لاگت / kWh</string>
+    <string name="charge_stat_cost_100km">لاگت / 100km</string>
+
+    <!-- software update dialog & prompt -->
+    <string name="update_dialog_title">سافٹ ویئر اپ ڈیٹ دستیاب ہے</string>
+    <string name="update_dialog_version_comp">Version: %1$s   ➔   %2$s</string>
+    <string name="update_dialog_current_ver">موجودہ ورژن: %1$s</string>
+    <string name="update_dialog_new_ver">نیا ورژن: %1$s</string>
+    <string name="update_dialog_changelog_header">نیا کیا ہے:</string>
+    <string name="update_dialog_accept">قبول کریں اور اپ ڈیٹ کریں</string>
+    <string name="update_dialog_decline">بعد میں</string>
+    <string name="update_checking">اپ ڈیٹس کی جانچ ہو رہی ہے…</string>
+    <string name="update_up_to_date">Drive Assist اپ ٹو ڈیٹ ہے (%1$s)</string>
+    <string name="update_check_failed">اپ ڈیٹس کی جانچ نہیں ہو سکی: %1$s</string>
+    <string name="update_downloading">اپ ڈیٹ ڈاؤن لوڈ ہو رہا ہے (%1$s) …</string>
+    <string name="update_installing">انسٹالیشن کے لیے ModeHelper کے حوالے کیا جا رہا ہے…</string>
+    <string name="update_not_parked">اپ ڈیٹس کا جائزہ اور انسٹالیشن صرف پارکنگ کی حالت میں ہی کیا جا سکتا ہے۔</string>
+</resources>

@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Translation of values/strings.xml (Tamil / ta). See that file for authoring notes. -->
+<resources>
+    <string name="app_name">Drive Assist</string>
+    <string name="ac_title">குளிரூட்டல்</string>
+
+    <!-- comfort -->
+    <!-- ComfortActivity: tela do ar-condicionado. ac_title ja existe, nao repetir. -->
+    <string name="ac_outside_label">வெளியே</string>
+    <string name="ac_reading">படிக்கிறது...</string>
+    <string name="ac_adjust_header">எதை சரிசெய்வது?</string>
+    <string name="ac_cooler">குளிராக</string>
+    <string name="ac_warmer">சூடாக</string>
+    <string name="ac_recirc_label">மறுசுழற்சி</string>
+    <string name="ac_recirc_on_label">வெளிக் காற்று</string>
+    <string name="ac_recirc_refused">மறுசுழற்சி: கார் மறுத்துவிட்டது</string>
+    <string name="ac_recirc_on">மறுசுழற்சி நடக்கிறது — வெளிக் காற்று நுழைவு மூடப்பட்டுள்ளது</string>
+    <string name="ac_recirc_off">வெளிக் காற்று நுழைவு திறந்துள்ளது</string>
+    <string name="ac_connect_failed">காருடன் இணைக்க முடியவில்லை</string>
+    <string name="clima_title">காலநிலை</string>
+    <!-- Turbo card: 30s Sport-mode boost, then back to whatever mode was running before -->
+    <string name="turbo_title">டர்போ</string>
+    <string name="regen_boost_title">மறுஉருவாக்கம்</string>
+    <!-- Linha de verdade dos atuadores. %1$s = setpoint, %2$s = ventoinha.
+    As aspas preservam os espacos multiplos (o aapt colapsaria). -->
+    <string name="ac_readout">"காற்று %1$s °C   ·   விசிறி %2$s"</string>
+    <!-- %1$s = a linha ate aqui; a clausula inteira volta traduzida -->
+    <string name="ac_readout_recirc">"%1$s   ·   மறுசுழற்சி"</string>
+    <!-- %1$s = a linha ate aqui, %2$s = status da regua de conforto -->
+    <string name="ac_readout_status">"%1$s   —   %2$s"</string>
+
+    <!-- misc -->
+    <string name="cleanup_title">சுத்தம் செய்தல்</string>
+    <string name="cleanup_subtitle">தொழிற்சாலை படிமத்திற்குப் பிறகு சேர்க்கப்பட்ட அனைத்தையும் அகற்றுகிறது. ADB-ஐ மீட்டெடுக்காது (அது recovery இலிருந்து வந்தது) மற்றும் சிஸ்டம் ஆப்களைத் தொடாது.</string>
+    <string name="cleanup_step1_header">படி 1 — எஞ்சியவை</string>
+    <string name="cleanup_step2_header">படி 2 — ஆப்களை அகற்று</string>
+    <string name="cleanup_action_stop_wipe">சேவைகளை நிறுத்தி Drive Assist-யின் தரவை அழி</string>
+    <string name="cleanup_action_uninstall_apps">தனிப்பயன் ஆப்களை நிறுவல் நீக்கு</string>
+    <string name="cleanup_action_uninstall_self">Drive Assist-யையே நிறுவல் நீக்கு</string>
+    <string name="cleanup_log_idle">இதுவரை எதுவும் செய்யப்படவில்லை.\nஒவ்வொரு பொத்தானும் உறுதிப்படுத்தலைக் கேட்கிறது (இரண்டு முறை தட்டவும்).</string>
+    <string name="cleanup_confirm_prompt">உறுதிப்படுத்த மீண்டும் \"%1$s\" ஐ தட்டவும்.</string>
+    <string name="cleanup_stopping">சேவைகள் நிறுத்தப்படுகின்றன...</string>
+    <string name="cleanup_wiped">சேவைகள் நிறுத்தப்பட்டன, ஐகான்கள் அகற்றப்பட்டன, அலாரம் ரத்து செய்யப்பட்டது, தரவு அழிக்கப்பட்டது.\nDrive Assist இன்னும் நிறுவப்பட்டுள்ளது, ஆனால் செயலற்றது.</string>
+    <string name="cleanup_uninstall_header">இதை நிறுவல் நீக்க கோரப்படுகிறது:</string>
+    <string name="cleanup_uninstall_item_failed">தோல்வி: %1$s</string>
+    <string name="cleanup_uninstall_footer">ஒவ்வொரு சிஸ்டம் உரையாடலையும் உறுதிப்படுத்தவும். ஒவ்வொன்றாக.</string>
+    <string name="cleanup_none_found">தனிப்பயன் ஆப் எதுவும் கிடைக்கவில்லை.</string>
+    <string name="cleanup_removing_self">Drive Assist-யை அகற்ற கோரப்படுகிறது...</string>
+    <string name="cleanup_failed">தோல்வி: %1$s</string>
+    <string name="notif_tele_channel">டெலிமெட்ரி</string>
+    <string name="notif_tele_title">Drive Assist — டெலிமெட்ரி</string>
+    <string name="notif_tele_text">Home Assistant-க்கு தரவு அனுப்பப்படுகிறது</string>
+    <string name="notif_outtemp_channel">வெளி வெப்பநிலை</string>
+    <string name="notif_outtemp_fg_text">வெளி வெப்பநிலை</string>
+    <string name="notif_outtemp_title">வெளி வெப்பநிலை</string>
+    <string name="notif_outtemp_unavailable">கிடைக்கவில்லை</string>
+    <string name="notif_outtemp_value">%1$s °C</string>
+    <string name="notif_wifi_channel">Wi-Fi</string>
+    <string name="notif_wifi_fg_text">வைஃபை</string>
+    <string name="notif_wifi_title">Wi-Fi</string>
+    <string name="notif_wifi_disconnected">துண்டிக்கப்பட்டது</string>
+    <string name="notif_wifi_no_network">நெட்வொர்க் இல்லை</string>
+    <string name="notif_soc_channel">பேட்டரி %</string>
+    <string name="notif_soc_fg_text">பேட்டரி %</string>
+    <string name="notif_soc_title">பேட்டரி</string>
+    <string name="notif_soc_unavailable">கிடைக்கவில்லை</string>
+    <string name="notif_soc_value">%1$s%%</string>
+
+    <!-- config -->
+    <string name="cfg_title">அமைப்புகள்</string>
+    <string name="cfg_nav_doors">கதவுகள்</string>
+    <string name="cfg_nav_mqtt">MQTT</string>
+    <string name="cfg_nav_drive">ஓட்டும் முறை</string>
+    <string name="cfg_nav_bar">மெனு பட்டி</string>
+    <string name="cfg_nav_look">தோற்றம்</string>
+    <string name="cfg_nav_spotify">Spotify</string>
+    <string name="cfg_nav_system">அமைப்பு</string>
+    <!-- sidebar group captions -->
+    <string name="cfg_group_car">கார்</string>
+    <string name="cfg_group_display">காட்சி</string>
+    <string name="cfg_group_integrations">ஒருங்கிணைப்புகள்</string>
+    <string name="cfg_group_system">அமைப்பு</string>
+    <string name="cfg_system_header">அமைப்பு</string>
+    <string name="cfg_app_info_header">பயன்பாட்டு தகவல்</string>
+    <string name="cfg_version_label">பதிப்பு: %1$s (உருவாக்கம் %2$d)</string>
+    <string name="cfg_sha_label">APK SHA-256</string>
+    <string name="cfg_update_header">மென்பொருள் புதுப்பிப்பு</string>
+    <string name="cfg_update_url_label">புதுப்பிப்பு URL (HTTPS)</string>
+    <string name="cfg_btn_check_update">புதுப்பிப்பைச் சரிபார்த்து நிறுவவும்</string>
+    <string name="cfg_touch_header">தொடு கட்டுப்பாடுகள் மற்றும் கூல்டவுன்</string>
+    <string name="cfg_cooldown_label">சுவிட்ச் கூல்டவுன்</string>
+    <string name="cfg_cooldown_hint">வாகனம் ஓட்டும்போது தவறுதலாக இருமுறை தட்டுவதைத் தடுக்க, எந்த சுவிட்சையும் தட்டிய பிறகு தற்காலிக பூட்டு கால அளவு.</string>
+    <string name="cfg_maintenance_header">பராமரிப்பு</string>
+    <string name="cfg_mqtt_header">Home Assistant-க்கு அனுப்புதல்</string>
+    <string name="cfg_mqtt_enable_label">MQTT டெலிமெட்ரியை இயக்கு</string>
+    <string name="cfg_mqtt_enable_hint">ப்ரோக்கருடன் இணைத்து வாகன டெலிமெட்ரியை Home Assistant-க்கு அனுப்புகிறது.</string>
+    <string name="cfg_status_sending">Home Assistant-க்கு அனுப்பப்படுகிறது</string>
+    <string name="cfg_status_off">அணைந்துள்ளது</string>
+    <string name="cfg_sending_every">அனுப்பப்படுகிறது (ஒவ்வொரு %1$d வினாடிகளுக்கும்)</string>
+    <string name="cfg_broker_header">MQTT பிராக்கர்</string>
+    <string name="cfg_field_hosts">முகவரிகள் (ஒரு வரிக்கு ஒன்று)</string>
+    <string name="cfg_field_user">பயனர்பெயர்</string>
+    <string name="cfg_field_pass">கடவுச்சொல்</string>
+    <string name="cfg_field_interval">இடைவெளி (வி)</string>
+    <string name="cfg_seconds_suffix">விநாடி</string>
+    <string name="cfg_lock_short_label">சுவிட்ச் பூட்டு</string>
+    <string name="cfg_saved">அமைப்புகள் சேமிக்கப்பட்டன</string>
+    <string name="cfg_btn_save_all">அனைத்து அமைப்புகளையும் சேமிக்கவும்</string>
+    <string name="cfg_log_title">நிகழ்நேர பதிவு மற்றும் கருத்து</string>
+    <string name="cfg_active_status_title">இணைப்பு நிலை</string>
+    <string name="cfg_active_broker">செயலில் உள்ள புரோக்கர்: %1$s</string>
+    <string name="cfg_client_id">கிளையன்ட் ஐடி: %1$s</string>
+    <string name="cfg_last_sent">கடைசியாக அனுப்பப்பட்டது: %1$s</string>
+
+    <!-- certificates / tls -->
+    <string name="cfg_certs_header">சான்றிதழ்கள் மற்றும் TLS</string>
+    <string name="cfg_client_cert_label">கிளையன்ட் சான்றிதழ் (mTLS)</string>
+    <string name="cfg_ca_cert_label">CA சான்றிதழ் (சேவையக நம்பிக்கை)</string>
+    <string name="cfg_cert_status_installed">நிறுவப்பட்டது: %1$s (%2$s வரை செல்லுபடியாகும்)</string>
+    <string name="cfg_cert_status_none">எதுவும் நிறுவப்படவில்லை (தொலை mTLS-க்கு தேவை)</string>
+    <string name="cfg_ca_status_default">இயல்புநிலை (பயன்பாட்டில் சேர்க்கப்பட்டுள்ளது)</string>
+    <string name="cfg_ca_status_custom">தனிப்பயன்: %1$s (%2$s வரை செல்லுபடியாகும்)</string>
+    <string name="cfg_btn_import_cert">இறக்குமதி செய்</string>
+    <string name="cfg_btn_remove_cert">நீக்கு</string>
+    <string name="cfg_btn_reset_default">இயல்புநிலைக்கு மீட்டமை</string>
+    <string name="cfg_btn_test_tls">TLS ஹேண்ட்ஷேக்கைச் சோதிக்கவும்</string>
+    <string name="cfg_tls_test_target_label">சோதிக்க வேண்டிய TLS புரோக்கர் முகவரி</string>
+    <string name="cfg_cert_import_title">சான்றிதழை இறக்குமதி செய்</string>
+    <string name="cfg_cert_import_usb">USB டிரைவ்</string>
+    <string name="cfg_cert_import_url">URL-லிருந்து பதிவிறக்கவும்</string>
+    <string name="cfg_cert_import_file">சேமிப்பக கோப்பு தெரிவுசெய்பவர்</string>
+    <string name="cfg_cert_import_paste">உரையை ஒட்டவும் (PEM / Base64)</string>
+    <string name="cfg_cert_usb_not_found">/storage-ன் கீழ் USB டிரைவ் எதுவும் கிடைக்கவில்லை</string>
+    <string name="cfg_cert_usb_no_files">USB டிரைவில் சான்றிதழ் கோப்புகள் (.p12, .pfx, .crt, .cer, .pem) எதுவும் கிடைக்கவில்லை</string>
+    <string name="cfg_cert_usb_pick_file">USB டிரைவில் சான்றிதழைத் தேர்ந்தெடுக்கவும்</string>
+    <string name="cfg_cert_url_prompt">சான்றிதழைப் பதிவிறக்க URL-ஐ உள்ளிடவும் (.p12, .pfx, .crt, .pem):</string>
+    <string name="cfg_cert_paste_prompt">சான்றிதழ் உள்ளடக்கத்தை ஒட்டவும் (PEM அல்லது Base64):</string>
+    <string name="cfg_cert_password_prompt">சான்றிதழ் கடவுச்சொல்லை உள்ளிடவும்:</string>
+    <string name="cfg_cert_password_incorrect">தவறான சான்றிதழ் கடவுச்சொல்.</string>
+    <string name="cfg_cert_import_success">சான்றிதழ் வெற்றிகரமாக நிறுவப்பட்டது: %1$s</string>
+    <string name="cfg_cert_import_failed">சான்றிதழை இறக்குமதி செய்ய முடியவில்லை: %1$s</string>
+    <string name="cfg_cert_remove_confirm">சான்றிதழ் %1$s-ஐ நீக்கவா?</string>
+    <string name="cfg_cert_testing_tls">TLS ஹேண்ட்ஷேக் சோதிக்கப்படுகிறது…</string>
+
+    <string name="cfg_spotify_header">Spotify</string>
+    <string name="cfg_spotify_client_id">Client ID</string>
+    <string name="cfg_spotify_connect">இணை</string>
+    <string name="cfg_spotify_disconnect">துண்டி</string>
+    <string name="cfg_spotify_status_on">இணைக்கப்பட்டுள்ளது</string>
+    <string name="cfg_spotify_status_off">இணைக்கப்படவில்லை</string>
+    <string name="cfg_spotify_need_id">முதலில் Client ID ஐ உள்ளிடவும்</string>
+    <string name="spotify_connected">Spotify இணைக்கப்பட்டது</string>
+    <string name="spotify_connect_failed">Spotify: இணைக்க முடியவில்லை</string>
+    <string name="cfg_security_header">பாதுகாப்பு</string>
+    <string name="cfg_commands_label">HA-இலிருந்து கட்டளைகளை ஏற்கவும்</string>
+    <string name="cfg_commands_on">HA-இலிருந்து கட்டளைகள் ஏற்கப்படுகின்றன</string>
+    <string name="cfg_commands_off">கட்டளைகள் தடுக்கப்பட்டன — டெலிமெட்ரி மட்டும்</string>
+    <string name="cfg_commands_hint">அணைந்திருக்கும்போது, Home Assistant-இலிருந்து வரும் சார்ஜிங் மற்றும் லைட் கட்டளைகளை கார் புறக்கணிக்கிறது.</string>
+    <string name="cfg_lock_label">ஒவ்வொரு தட்டலுக்குப் பிறகும் சுவிட்ச் பூட்டு கால அளவு (விநாடிகள்)</string>
+    <string name="cfg_adb_label">adb</string>
+    <string name="cfg_adb_off">மூடப்பட்டுள்ளது. திறந்திருக்கும் வரை, அதே நெட்வொர்க்கில் உள்ள யாரும் இந்த யூனிட்டில் root ஷெல்லைப் பெறுவர்.</string>
+    <string name="cfg_adb_on">திறந்துள்ளது — %1$d நிமிடங்களில் தானாகவே மூடிவிடும்.</string>
+    <string name="cfg_adb_no_helper">modehelper நிறுவப்படவில்லை, எனவே இங்கு எதுவும் adb-ஐ ஆன் அல்லது ஆஃப் செய்ய முடியாது.</string>
+    <string name="cfg_trusted_wifi_label">சிறப்புரிமை பெற்ற வைஃபை (SSID)</string>
+    <string name="cfg_trusted_wifi_hint">இந்த நெட்வொர்க்குடன் இணைக்கப்பட்டிருக்கும் போது, ADB காலவரையின்றி திறந்திருக்கும் மற்றும் வேக்-லாக் சாதனம் இடைநிறுத்தப்படுவதைத் தடுக்கிறது.</string>
+    <string name="cfg_btn_use_current_wifi">தற்போதைய வைஃபையைப் பயன்படுத்தவும்</string>
+    <string name="cfg_trusted_wifi_saved">சிறப்புரிமை பெற்ற வைஃபை சேமிக்கப்பட்டது</string>
+    <string name="cfg_doors_header">கதவுகள்</string>
+    <string name="cfg_window_on_door">கதவு திறக்கும்போது ஜன்னலை சிறிதளவு திற</string>
+    <string name="cfg_window_on_door_hint">அந்தக் கதவின் ஜன்னலை ~1 செ.மீ கீழே இறக்குகிறது, இதனால் கதவு இறுக்கமான கேபினுடன் போராடாமல் மூடிக்கொள்கிறது, கதவு மூடும்போது அதை மீண்டும் ஏற்றுகிறது. அது தானே திறந்த ஜன்னலை மட்டுமே மூடும், நீங்களே நகர்த்திய எந்த ஜன்னலையும் தொடாது.</string>
+    <string name="cfg_actions_header">செயல்கள்</string>
+    <string name="cfg_btn_on">இயக்கு</string>
+    <string name="cfg_btn_off">அணை</string>
+    <string name="cfg_btn_test">சோதி</string>
+    <string name="cfg_btn_discovery">MQTT கண்டறிதல்</string>
+    <string name="cfg_btn_update">புதுப்பி</string>
+    <string name="cfg_btn_save">சேமி</string>
+    <string name="cfg_testing">சோதிக்கப்படுகிறது...</string>
+    <string name="cfg_discovery_sending">MQTT கண்டறிதல் அனுப்பப்படுகிறது…</string>
+    <string name="cfg_discovery_ok">MQTT கண்டறிதல் வெற்றிகரமாக அனுப்பப்பட்டது</string>
+    <string name="cfg_discovery_failed">கண்டறிதல் தோல்வியடைந்தது: %1$s</string>
+    <string name="cfg_discovery_svc_inactive">டெலிமெட்ரி சேவை இயங்கவில்லை</string>
+    <string name="cfg_discovery_no_client">MQTT கிளையன்ட் தொடங்கப்படவில்லை</string>
+    <string name="cfg_cleanup">சுத்தம் மற்றும் அகற்றுதல்…</string>
+    <string name="cfg_drive_header">ஓட்டும் முறை</string>
+    <string name="cfg_connecting">இணைக்கிறது…</string>
+    <string name="cfg_mode_eco">Eco</string>
+    <string name="cfg_mode_comfort">Comfort</string>
+    <string name="cfg_mode_sport">Sport</string>
+    <string name="cfg_regen_header">மறுஉருவாக்கம்</string>
+    <string name="cfg_regen_low">குறைவு</string>
+    <string name="cfg_regen_mid">நடுத்தரம்</string>
+    <string name="cfg_regen_high">அதிகம்</string>
+    <string name="turbo_header">டர்போ</string>
+    <string name="turbo_enable_label">டர்போ கார்டைக் காட்டு</string>
+    <string name="turbo_duration_label">கால அளவு (வி)</string>
+    <string name="cfg_btn_apply">இப்போது பயன்படுத்து</string>
+    <string name="cfg_btn_save_default">இயல்பாக சேமி</string>
+    <string name="cfg_car_connect_fail">காருடன் இணைக்க முடியவில்லை</string>
+    <string name="cfg_applied">பயன்படுத்தப்பட்டது: %1$s + %2$s</string>
+    <string name="cfg_applied_turbo_active">பயன்படுத்தப்பட்டது: %1$s. ஓட்டும் முறை மாறவில்லை — டர்போ செயலில் உள்ளது.</string>
+    <string name="cfg_startup_default">தொடக்க இயல்புநிலை: %1$s + %2$s</string>
+    <string name="cfg_mode_unknown">தற்போதைய முறை தெரியவில்லை — பயன்படுத்த ஒன்றைத் தேர்ந்தெடுக்கவும்</string>
+    <string name="cfg_current">தற்போதைய: %1$s + %2$s</string>
+    <string name="cfg_bar_header">மெனு பட்டியில் காட்சிகள்</string>
+    <string name="cfg_bar_outtemp">பட்டியில் வெளி வெப்பநிலை</string>
+    <string name="cfg_bar_wifi">பட்டியில் Wi-Fi (அமைப்புகளைத் திறக்கும்)</string>
+    <string name="cfg_bar_soc">பட்டியில் பேட்டரி %</string>
+    <string name="cfg_appearance_header">தோற்றம்</string>
+    <string name="cfg_appearance_light">வெளிர்</string>
+    <string name="cfg_appearance_dark">அடர்</string>
+    <string name="cfg_appearance_auto">தானியங்கி</string>
+    <string name="cfg_appearance_note">தானியங்கி இந்த யூனிட்டின் சொந்த பகல்/இரவு அமைப்பைப் பின்பற்றும். Neon மற்றும் Noturno எப்போதும் தங்கள் ஒரே நிலையான வண்ணத் திட்டத்தைப் பயன்படுத்தும், இந்த அமைப்பு எதுவாக இருந்தாலும்.</string>
+    <string name="cfg_theme_header">தீம்</string>
+    <string name="cfg_theme_sub">Drive Assist-யின் ஒவ்வொரு திரைக்கும் பொருந்தும். சிறுபடம் கார்டுகளின் நிறத்தையும் வடிவத்தையும் காட்டுகிறது — மாற்றம் உடனடியாகும்.</string>
+    <string name="cfg_theme_selected">%1$s  ✓</string>
+    <string name="cfg_theme_ambient_on">இந்த தீம் கேபினின் சுற்றுப்புற ஒளியை உச்சரிப்பு நிறத்தைக் கட்டுப்படுத்த அனுமதிக்கிறது.</string>
+    <string name="cfg_theme_ambient_off">இந்த தீம் வேண்டுமென்றே கேபின் ஒளியை புறக்கணிக்கிறது — உச்சரிப்பு ஆம்பர் நிறமாகவே இருக்கும்.</string>
+    <string name="theme_geely_blurb">இரவில் கண்மெட்டல் சாம்பல், பகலில் தந்தம் நிறம்</string>
+    <string name="theme_noturno_blurb">கருப்பு மற்றும் ஆம்பர் · வேப்பர்வேவ் பேனல்</string>
+    <string name="theme_neon_blurb">ஒளிரும் அவுட்லைன், சயான் மற்றும் மெஜந்தா</string>
+
+    <!-- ruler -->
+    <!-- Two different faults, and telling them apart is not cosmetic: one
+         message covering both named the outside temperature while the real
+         problem was a dead binder, and cost an hour aimed at the wrong half. -->
+    <string name="ruler_no_car">காருடன் இணைப்பு இல்லை</string>
+    <string name="ruler_no_outside_temp">வெளி வெப்பநிலை இல்லை</string>
+    <string name="ruler_defrosting">பனி நீக்கம்</string>
+    <string name="ruler_at_limit">%1$s · வரம்பில்</string>
+    <string name="ruler_car_refused">கார் %1$d° ஏற்கவில்லை</string>
+    <string name="ruler_committed">வசதி சேமிக்கப்பட்டது</string>
+    <string name="ruler_steady">நிலையானது</string>
+    <string name="ruler_level">%1$s · நிலை %2$d</string>
+    <string name="ruler_src_cold">குளிர்விக்கிறது</string>
+    <string name="ruler_src_fresh">வெளிக் காற்று</string>
+    <string name="ruler_src_hold">மறுசுழற்சி</string>
+    <string name="ruler_src_hot">சூடாக்குகிறது</string>
+
+    <!-- cmd -->
+    <!-- second command column + the gate -->
+    <string name="cmd_title">கட்டளைகள்</string>
+    <string name="gate_title">கேட்</string>
+    <string name="gate_open">கேட்டைத் திற</string>
+    <string name="gate_sent">கேட்: கோரிக்கை அனுப்பப்பட்டது</string>
+    <!-- gate button on the comfort board: short, the card title already says "Gate" -->
+    <string name="gate_button_open">திற</string>
+    <string name="gate_button_close">மூடு</string>
+    <string name="gate_button_sent">கோரிக்கை அனுப்பப்பட்டது</string>
+    <string name="gate_no_link">Home Assistant உடன் இணைப்பு இல்லை</string>
+    <string name="gate_close">கேட்டை மூடு</string>
+    <string name="gate_opening">திறக்கிறது…</string>
+    <string name="gate_closing">மூடுகிறது…</string>
+
+    <!-- purge: drop every window half way, press again to put them back -->
+    <string name="purge_label">ஜன்னல்களைத் திற</string>
+    <string name="purge_close_label">ஜன்னல்களை மூடு</string>
+    <string name="purge_opening">ஜன்னல்கள் இறங்குகின்றன</string>
+    <string name="purge_closing">ஜன்னல்கள் மீண்டும் ஏறுகின்றன</string>
+    <string name="purge_nothing">நகர்த்த எதுவும் இல்லை</string>
+    <string name="purge_unreadable">ஜன்னல்களைப் படிக்க முடியவில்லை — கார் விழித்திருக்கிறதா?</string>
+    <!-- dashcam gallery -->
+    <string name="clips_title">பதிவுகள்</string>
+    <string name="clips_usage">%1$d கிளிப்கள் · %2$s பயன்படுத்தப்பட்டது · %3$s வைக்கப்பட்டது · %4$s காலி</string>
+    <string name="clips_none">இதுவரை எதுவும் பதிவு செய்யப்படவில்லை.</string>
+    <string name="clips_play">இயக்கு</string>
+    <string name="clips_hold">வை</string>
+    <string name="clips_release">விடு</string>
+    <string name="clips_delete">நீக்கு</string>
+    <string name="clips_delete_q">%1$s ஐ நீக்கவா?</string>
+    <string name="clip_play_failed">இந்த கிளிப்பை இயக்க முடியவில்லை (%1$d/%2$d)</string>
+    <string name="clips_recording">பதிவு செய்கிறது</string>
+    <string name="clips_orphan">மூடப்படவில்லை — மீட்டெடுக்கக்கூடியது</string>
+    <string name="clips_record">பதிவு செய்</string>
+    <string name="clips_stop">நிறுத்து</string>
+    <string name="cfg_nav_clips">Dashcam</string>
+    <string name="clips_back">← பின்செல்</string>
+    <string name="cam_all">அனைத்தும்</string>
+    <string name="cam_front">முன்</string>
+    <string name="cam_rear">பின்</string>
+    <string name="cam_left">இடது</string>
+    <string name="cam_right">வலது</string>
+    <string name="cam_orbit">சுற்று</string>
+    <!-- charging history -->
+    <string name="cfg_nav_charge">சார்ஜிங்</string>
+    <string name="charge_title">சார்ஜிங் வரலாறு</string>
+    <string name="charge_summary">%1$d சார்ஜ்கள் · மொத்தம் %2$.1f kWh</string>
+    <string name="charge_ltm_title">கடந்த 12 மாதங்கள்</string>
+    <string name="charge_period_30d">கடந்த 30 நாட்கள்</string>
+    <string name="charge_ltm_count_label">சார்ஜ்கள்</string>
+    <string name="charge_row_subtitle">SoC %1$d%%→%2$d%% · %3$.1f kWh · %4$.1f kW</string>
+    <string name="charge_none">இதுவரை எந்த சார்ஜிங் அமர்வும் பதிவு செய்யப்படவில்லை.</string>
+    <!-- stats -->
+    <string name="cfg_nav_stats">புள்ளிவிவரங்கள்</string>
+    <string name="stats_title">ஓட்டுதல் புள்ளிவிவரங்கள்</string>
+    <string name="stats_driving_header">இந்த வாரம்</string>
+    <string name="stats_trips_label">பயணங்கள்</string>
+    <string name="stats_chart_header">தினமும் கி.மீ</string>
+    <!-- OBD2 + ABRP -->
+    <string name="cfg_nav_obd">OBD2 / ABRP</string>
+    <string name="obd_title">OBD2 டாங்கிள் மற்றும் ABRP</string>
+    <string name="obd_status_connected">இணைக்கப்பட்டது — பேட்டரியிலிருந்து உண்மையான சக்தியைப் படிக்கிறது</string>
+    <string name="obd_status_searching">டாங்கிளைத் தேடுகிறது…</string>
+    <string name="obd_status_off">முடக்கப்பட்டது</string>
+    <string name="obd_enable_label">புளூடூத் OBD2 டாங்கிளைப் பயன்படுத்தவும்</string>
+    <string name="obd_hint">இயக்கப்படும் போது, ஏற்கனவே இணைக்கப்பட்ட ELM327 பாணி டாங்கிளைத் தேடி, பேட்டரியிலிருந்து உண்மையான சக்தி/மின்னழுத்தம்/மின்னோட்டத்தை நேரடியாகப் படிக்கிறது — மதிப்பீட்டை விட மிகவும் துல்லியமானது மற்றும் டாங்கிள் இணைக்கப்படும் போது பயன்படுத்தப்படுகிறது.</string>
+    <string name="abrp_header">ABRP (A Better Route Planner)</string>
+    <string name="abrp_enable_label">ABRP-க்கு நேரடித் தரவை அனுப்பவும்</string>
+    <string name="abrp_location_label">GPS இருப்பிடத்தை அனுப்பவும்</string>
+    <string name="abrp_location_hint">முடக்கப்பட்டிருக்கும் போது, ABRP வாகன GPS-க்கு பதிலாக உங்கள் தொலைபேசியின் இருப்பிடத்தைப் பயன்படுத்துகிறது.</string>
+    <string name="abrp_field_user_token">ABRP பயனர் டோக்கன்</string>
+    <string name="abrp_test_sending">ABRP-க்கு சோதனை பிங் அனுப்பப்படுகிறது…</string>
+    <string name="abrp_test_ok">அனுப்பப்பட்டது — இணைக்கப்பட்டதை உறுதிப்படுத்த ABRP பயன்பாடு/தளத்தைச் சரிபார்க்கவும்.</string>
+    <string name="abrp_test_fail">தோல்வியடைந்தது: %1$s</string>
+    <string name="abrp_debug_header">நேரடி பிழைத்திருத்தம்</string>
+    <string name="abrp_debug_sent_header">ABRP-க்கு அனுப்பப்பட்டது</string>
+    <string name="abrp_debug_no_data">இன்னும் தரவு இல்லை</string>
+    <string name="abrp_debug_last_ok">கடைசியாக அனுப்பப்பட்டது: %1$s — சரி</string>
+    <string name="abrp_debug_last_fail">கடைசி முயற்சி: %1$s — தோல்வி: %2$s</string>
+    <string name="abrp_debug_log_header">சமீபத்திய செயல்பாடு</string>
+    <string name="abrp_debug_connected">இணைக்கப்பட்டது: %1$s</string>
+    <string name="abrp_debug_yes">ஆம்</string>
+    <string name="abrp_debug_no">இல்லை</string>
+    <string name="charge_export">USB-க்கு ஏற்றுமதி செய்</string>
+    <string name="charge_export_ok">%1$d கோப்புகள் USB-க்கு ஏற்றுமதி செய்யப்பட்டன</string>
+    <string name="charge_export_no_drive">USB டிரைவ் எதுவும் கிடைக்கவில்லை</string>
+    <string name="charge_export_nothing">ஏற்றுமதி செய்ய எதுவும் இல்லை</string>
+    <!-- charge card (ComfortActivity) -->
+    <string name="charge_card_title">பேட்டரி</string>
+    <string name="charge_card_soc">%1$d%%</string>
+    <string name="charge_card_elapsed">%1$d நிமிடம் சார்ஜிங்</string>
+    <string name="charge_card_remaining">100%% வரை ~%1$d நிமிடம்</string>
+    <string name="charge_card_calculating">மதிப்பிடுகிறது…</string>
+    <string name="charge_card_ready">தயார்</string>
+    <string name="charge_card_unknown">தெரியவில்லை</string>
+
+    <!-- charge stats & cost tracking -->
+    <string name="charge_stats_title">சார்ஜிங் புள்ளிவிவரங்கள்</string>
+    <string name="charge_completed_title">சார்ஜிங் முடிந்தது</string>
+    <string name="charge_cost_label">செலவு</string>
+    <string name="charge_cost_input_title">சார்ஜ் செலவு</string>
+    <string name="charge_cost_input_hint">மொத்த செலவு (எ.கா. 45.00)</string>
+    <string name="charge_cost_btn_input">செலவை உள்ளிடவும்</string>
+    <string name="charge_cost_btn_edit">திருத்து</string>
+    <string name="charge_cost_btn_save">சேமி</string>
+    <string name="charge_cost_btn_dismiss">நிராகரி</string>
+    <string name="charge_cost_not_set">செலவு அமைக்கப்படவில்லை</string>
+    <string name="charge_cost_invalid">தவறான செலவு மதிப்பு</string>
+    <string name="charge_cost_parked_only">வாகனம் நிறுத்தப்பட்டிருக்கும் போது மட்டுமே செலவை உள்ளிட முடியும்.</string>
+    <string name="charge_stat_total_cost">மொத்த செலவு</string>
+    <string name="charge_stat_avg_cost_kwh">செலவு / kWh</string>
+    <string name="charge_stat_cost_100km">செலவு / 100km</string>
+
+    <!-- software update dialog & prompt -->
+    <string name="update_dialog_title">மென்பொருள் புதுப்பிப்பு கிடைக்கிறது</string>
+    <string name="update_dialog_version_comp">Version: %1$s   ➔   %2$s</string>
+    <string name="update_dialog_current_ver">தற்போதைய பதிப்பு: %1$s</string>
+    <string name="update_dialog_new_ver">புதிய பதிப்பு: %1$s</string>
+    <string name="update_dialog_changelog_header">புதியவை என்ன:</string>
+    <string name="update_dialog_accept">ஏற்றுக்கொண்டு புதுப்பிக்கவும்</string>
+    <string name="update_dialog_decline">பின்னர்</string>
+    <string name="update_checking">புதுப்பிப்புகள் சரிபார்க்கப்படுகின்றன…</string>
+    <string name="update_up_to_date">Drive Assist புதுப்பித்த நிலையில் உள்ளது (%1$s)</string>
+    <string name="update_check_failed">புதுப்பிப்புகளைச் சரிபார்க்க முடியவில்லை: %1$s</string>
+    <string name="update_downloading">புதுப்பிப்பு பதிவிறக்கப்படுகிறது (%1$s) …</string>
+    <string name="update_installing">நிறுவலுக்காக ModeHelper-க்கு மாற்றப்படுகிறது…</string>
+    <string name="update_not_parked">வாகனம் நிறுத்தப்பட்டிருக்கும் போது மட்டுமே புதுப்பிப்புகளை மதிப்பாய்வு செய்து நிறுவ முடியும்.</string>
+</resources>
