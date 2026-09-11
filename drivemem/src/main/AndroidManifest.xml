@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="28" />
+
+    <!-- permissoes de carro exigidas para powertrain/energy -->
+    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+    <uses-permission android:name="android.car.permission.CAR_ENERGY" />
+    <!-- Windows: needed to CRACK a window when its door opens. signature|privileged
+         like the two above, and granted for the same reason — this unit ships with
+         ro.control_privapp_permissions empty, so a debug-signed apk gets them. -->
+    <uses-permission android:name="android.car.permission.CONTROL_CAR_WINDOWS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <!-- Obd2Reader: the ELM327 dongle link. Normal (install-time) permissions
+         at this targetSdkVersion (28) — the runtime BLUETOOTH_CONNECT dance
+         only applies from targetSdk 31 on, so no permission prompt to handle. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <!-- USB export: writing to a plugged-in drive's own root (not this app's
+         sandboxed folder) needs this. No runtime request anywhere in this app
+         (see ACCESS_FINE_LOCATION above) because this unit's empty
+         ro.control_privapp_permissions already grants declared permissions
+         outright. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+
+    <application
+        android:label="Drive Assist"
+        android:icon="@mipmap/ic_launcher"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+        android:allowBackup="false">
+
+        <activity android:name=".ui.ComfortActivity" android:exported="true"
+                  android:label="Drive Assist"
+                  android:launchMode="singleInstance"
+                  android:taskAffinity="">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name=".ui.CleanupActivity" android:exported="false" android:label="Drive Assist — Limpeza" />
+        <activity android:name=".ui.ClipPlayerActivity" android:exported="false"
+                  android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
+        <activity android:name=".ui.TeleProbe" android:exported="false" />
+        <activity android:name=".ui.HvacProbe" android:exported="false" />
+        <activity android:name=".ui.HvacSet" android:exported="false" />
+
+        <receiver android:name=".util.BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <!-- Instalar cancela os alarmes do app: sem isto o watchdog
+                     morre em todo apk novo e a telemetria nunca volta sozinha. -->
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="com.geely.drivemem.OUTTEMP_ON" />
+                <action android:name="com.geely.drivemem.WATCHDOG" />
+                <action android:name="com.geely.drivemem.WIFIICON_ON" />
+            </intent-filter>
+        </receiver>
+
+        <service android:name=".services.TelemetryService" android:exported="false" />
+        <service android:name=".services.OutTempService" android:exported="false" />
+        <service android:name=".services.WifiIconService" android:exported="false" />
+        <service android:name=".services.SocIconService" android:exported="false" />
+        <activity android:name=".ui.GpsProbe" android:exported="false" />
+        <activity android:name=".ui.ChargeProbe" android:exported="false" />
+        <!-- exported: Spotify login now happens in the car's own browser
+             (Firefox), not an in-app WebView — that engine was too old to
+             render the login page (garbled icon fonts) and kept losing the
+             email step. The system hands the drivemem:// redirect back to
+             THIS activity, which is why it must be exported and carry the
+             intent-filter below; a browser in another app/process is what
+             invokes it. -->
+        <activity android:name=".ui.SpotifyAuthActivity" android:exported="true"
+                  android:launchMode="singleInstance"
+                  android:taskAffinity="">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="drivemem" android:host="spotify-callback" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".ui.TelemetryActivity" android:exported="false"
+                  android:label="Drive Assist — Telemetria" />
+    </application>
+</manifest>

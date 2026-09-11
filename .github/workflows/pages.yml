@@ -1,0 +1,49 @@
+name: Deploy Documentation to GitHub Pages
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup GitHub Pages
+        id: setup
+        uses: actions/configure-pages@v5
+        continue-on-error: true
+
+      - name: Upload Pages Artifact
+        if: steps.setup.outcome == 'success'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'docs'
+
+      - name: Deploy to GitHub Pages
+        if: steps.setup.outcome == 'success'
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: GitHub Pages Status Notice
+        if: steps.setup.outcome != 'success'
+        run: |
+          echo "::warning title=GitHub Pages Not Enabled::GitHub Pages deployment was skipped because GitHub Pages is not activated on this repository. To enable: Go to GitHub Repo -> Settings -> Pages -> Build and deployment -> Source: select 'GitHub Actions'."

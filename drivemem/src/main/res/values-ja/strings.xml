@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Translation of values/strings.xml (Japanese / ja). See that file for authoring notes. -->
+<resources>
+    <string name="app_name">Drive Assist</string>
+    <string name="ac_title">エアコン</string>
+
+    <!-- comfort -->
+    <!-- ComfortActivity: tela do ar-condicionado. ac_title ja existe, nao repetir. -->
+    <string name="ac_outside_label">外気</string>
+    <string name="ac_reading">読み込み中...</string>
+    <string name="ac_adjust_header">何を調整しますか?</string>
+    <string name="ac_cooler">もっと涼しく</string>
+    <string name="ac_warmer">もっと暖かく</string>
+    <string name="ac_recirc_label">内気循環</string>
+    <string name="ac_recirc_on_label">外気</string>
+    <string name="ac_recirc_refused">内気循環: 車が拒否しました</string>
+    <string name="ac_recirc_on">内気循環中 — 外気取り入れ口は閉じています</string>
+    <string name="ac_recirc_off">外気取り入れ口は開いています</string>
+    <string name="ac_connect_failed">車に接続できませんでした</string>
+    <string name="clima_title">クライメート</string>
+    <!-- Turbo card: 30s Sport-mode boost, then back to whatever mode was running before -->
+    <string name="turbo_title">ターボ</string>
+    <string name="regen_boost_title">回生</string>
+    <!-- Linha de verdade dos atuadores. %1$s = setpoint, %2$s = ventoinha.
+    As aspas preservam os espacos multiplos (o aapt colapsaria). -->
+    <string name="ac_readout">"空気 %1$s °C   ·   ファン %2$s"</string>
+    <!-- %1$s = a linha ate aqui; a clausula inteira volta traduzida -->
+    <string name="ac_readout_recirc">"%1$s   ·   内気循環中"</string>
+    <!-- %1$s = a linha ate aqui, %2$s = status da regua de conforto -->
+    <string name="ac_readout_status">"%1$s   —   %2$s"</string>
+
+    <!-- misc -->
+    <string name="cleanup_title">クリーンアップ</string>
+    <string name="cleanup_subtitle">工場出荷イメージの後に追加されたものをすべて削除します。ADB は元に戻しません(recovery から来たものなので)。また、システムアプリには影響しません。</string>
+    <string name="cleanup_step1_header">ステップ1 — 残存ファイル</string>
+    <string name="cleanup_step2_header">ステップ2 — アプリの削除</string>
+    <string name="cleanup_action_stop_wipe">サービスを停止し、Drive Assistのデータを消去</string>
+    <string name="cleanup_action_uninstall_apps">カスタムアプリをアンインストール</string>
+    <string name="cleanup_action_uninstall_self">Drive Assist自体をアンインストール</string>
+    <string name="cleanup_log_idle">まだ何も実行されていません。\n各ボタンは確認を求めます(2回タップ)。</string>
+    <string name="cleanup_confirm_prompt">確認するにはもう一度「%1$s」をタップしてください。</string>
+    <string name="cleanup_stopping">サービスを停止中...</string>
+    <string name="cleanup_wiped">サービスが停止し、アイコンが削除され、アラームがキャンセルされ、データが消去されました。\nDrive Assistはまだインストールされていますが、動作していません。</string>
+    <string name="cleanup_uninstall_header">アンインストールを要求中:</string>
+    <string name="cleanup_uninstall_item_failed">失敗: %1$s</string>
+    <string name="cleanup_uninstall_footer">システムダイアログをそれぞれ確認してください。1つずつ。</string>
+    <string name="cleanup_none_found">カスタムアプリは見つかりませんでした。</string>
+    <string name="cleanup_removing_self">Drive Assistの削除を要求中...</string>
+    <string name="cleanup_failed">失敗: %1$s</string>
+    <string name="notif_tele_channel">テレメトリー</string>
+    <string name="notif_tele_title">Drive Assist — テレメトリー</string>
+    <string name="notif_tele_text">Home Assistantにデータを送信中</string>
+    <string name="notif_outtemp_channel">外気温</string>
+    <string name="notif_outtemp_fg_text">外気温</string>
+    <string name="notif_outtemp_title">外気温</string>
+    <string name="notif_outtemp_unavailable">利用不可</string>
+    <string name="notif_outtemp_value">%1$s °C</string>
+    <string name="notif_wifi_channel">Wi-Fi</string>
+    <string name="notif_wifi_fg_text">wi-fi</string>
+    <string name="notif_wifi_title">Wi-Fi</string>
+    <string name="notif_wifi_disconnected">切断</string>
+    <string name="notif_wifi_no_network">ネットワークなし</string>
+    <string name="notif_soc_channel">バッテリー %</string>
+    <string name="notif_soc_fg_text">バッテリー %</string>
+    <string name="notif_soc_title">バッテリー</string>
+    <string name="notif_soc_unavailable">利用不可</string>
+    <string name="notif_soc_value">%1$s%%</string>
+
+    <!-- config -->
+    <string name="cfg_title">設定</string>
+    <string name="cfg_nav_doors">ドア</string>
+    <string name="cfg_nav_mqtt">MQTT</string>
+    <string name="cfg_nav_drive">走行モード</string>
+    <string name="cfg_nav_bar">メニューバー</string>
+    <string name="cfg_nav_look">外観</string>
+    <string name="cfg_nav_spotify">Spotify</string>
+    <string name="cfg_nav_system">システム</string>
+    <!-- sidebar group captions -->
+    <string name="cfg_group_car">車両</string>
+    <string name="cfg_group_display">ディスプレイ</string>
+    <string name="cfg_group_integrations">連携</string>
+    <string name="cfg_group_system">システム</string>
+    <string name="cfg_system_header">システム</string>
+    <string name="cfg_app_info_header">アプリ情報</string>
+    <string name="cfg_version_label">バージョン：%1$s（ビルド %2$d）</string>
+    <string name="cfg_sha_label">APK SHA-256</string>
+    <string name="cfg_update_header">ソフトウェアアップデート</string>
+    <string name="cfg_update_url_label">更新 URL (HTTPS)</string>
+    <string name="cfg_btn_check_update">更新を確認してインストール</string>
+    <string name="cfg_touch_header">タッチ操作とクールダウン</string>
+    <string name="cfg_cooldown_label">スイッチのクールダウン</string>
+    <string name="cfg_cooldown_hint">運転中の誤った連続タップを防ぐため、スイッチ操作後に一時的にロックする時間です。</string>
+    <string name="cfg_maintenance_header">メンテナンス</string>
+    <string name="cfg_mqtt_header">Home Assistantへの送信</string>
+    <string name="cfg_mqtt_enable_label">MQTT テレメトリを有効にする</string>
+    <string name="cfg_mqtt_enable_hint">ブローカーに接続し、車両のテレメトリを Home Assistant に送信します。</string>
+    <string name="cfg_status_sending">Home Assistantに送信中</string>
+    <string name="cfg_status_off">オフ</string>
+    <string name="cfg_sending_every">送信中(%1$d秒ごと)</string>
+    <string name="cfg_broker_header">MQTTブローカー</string>
+    <string name="cfg_field_hosts">アドレス(1行に1つ)</string>
+    <string name="cfg_field_user">ユーザー名</string>
+    <string name="cfg_field_pass">パスワード</string>
+    <string name="cfg_field_interval">間隔(秒)</string>
+    <string name="cfg_seconds_suffix">s</string>
+    <string name="cfg_lock_short_label">スイッチロック</string>
+    <string name="cfg_saved">設定を保存しました</string>
+    <string name="cfg_btn_save_all">すべての設定を保存</string>
+    <string name="cfg_log_title">リアルタイムログとフィードバック</string>
+    <string name="cfg_active_status_title">接続状態</string>
+    <string name="cfg_active_broker">アクティブなブローカー：%1$s</string>
+    <string name="cfg_client_id">クライアント ID：%1$s</string>
+    <string name="cfg_last_sent">最終送信：%1$s</string>
+
+    <!-- certificates / tls -->
+    <string name="cfg_certs_header">証明書と TLS</string>
+    <string name="cfg_client_cert_label">クライアント証明書 (mTLS)</string>
+    <string name="cfg_ca_cert_label">CA 証明書 (サーバー信頼)</string>
+    <string name="cfg_cert_status_installed">インストール済み：%1$s（有効期限 %2$s）</string>
+    <string name="cfg_cert_status_none">未インストール（リモート mTLS に必要）</string>
+    <string name="cfg_ca_status_default">デフォルト（アプリに同梱）</string>
+    <string name="cfg_ca_status_custom">カスタム：%1$s（有効期限 %2$s）</string>
+    <string name="cfg_btn_import_cert">インポート</string>
+    <string name="cfg_btn_remove_cert">削除</string>
+    <string name="cfg_btn_reset_default">デフォルトに戻す</string>
+    <string name="cfg_btn_test_tls">TLS ハンドシェイクをテスト</string>
+    <string name="cfg_tls_test_target_label">テスト対象の TLS ブローカーアドレス</string>
+    <string name="cfg_cert_import_title">証明書のインポート</string>
+    <string name="cfg_cert_import_usb">USB ドライブ</string>
+    <string name="cfg_cert_import_url">URL からダウンロード</string>
+    <string name="cfg_cert_import_file">ストレージファイルピッカー</string>
+    <string name="cfg_cert_import_paste">テキストを貼り付け (PEM / Base64)</string>
+    <string name="cfg_cert_usb_not_found">/storage に USB ドライブが見つかりません</string>
+    <string name="cfg_cert_usb_no_files">USB ドライブに証明書ファイル (.p12, .pfx, .crt, .cer, .pem) が見つかりません</string>
+    <string name="cfg_cert_usb_pick_file">USB ドライブ上の証明書を選択</string>
+    <string name="cfg_cert_url_prompt">証明書をダウンロードする URL を入力 (.p12, .pfx, .crt, .pem)：</string>
+    <string name="cfg_cert_paste_prompt">証明書の内容を貼り付け (PEM または Base64)：</string>
+    <string name="cfg_cert_password_prompt">証明書のパスワードを入力：</string>
+    <string name="cfg_cert_password_incorrect">証明書のパスワードが正しくありません。</string>
+    <string name="cfg_cert_import_success">証明書が正常にインストールされました：%1$s</string>
+    <string name="cfg_cert_import_failed">証明書のインポートに失敗しました：%1$s</string>
+    <string name="cfg_cert_remove_confirm">証明書 %1$s を削除しますか？</string>
+    <string name="cfg_cert_testing_tls">TLS ハンドシェイクをテスト中...</string>
+
+    <string name="cfg_spotify_header">Spotify</string>
+    <string name="cfg_spotify_client_id">Client ID</string>
+    <string name="cfg_spotify_connect">接続</string>
+    <string name="cfg_spotify_disconnect">切断</string>
+    <string name="cfg_spotify_status_on">接続済み</string>
+    <string name="cfg_spotify_status_off">未接続</string>
+    <string name="cfg_spotify_need_id">まずClient IDを入力してください</string>
+    <string name="spotify_connected">Spotify接続済み</string>
+    <string name="spotify_connect_failed">Spotify: 接続できませんでした</string>
+    <string name="cfg_security_header">セキュリティ</string>
+    <string name="cfg_commands_label">HAからのコマンドを受け付ける</string>
+    <string name="cfg_commands_on">HAからのコマンドを受け付け中</string>
+    <string name="cfg_commands_off">コマンドはブロック中 — テレメトリーのみ</string>
+    <string name="cfg_commands_hint">オフのとき、車はHome Assistantから届く充電と照明のコマンドを無視します。</string>
+    <string name="cfg_lock_label">タップ後のスイッチロック時間（秒）</string>
+    <string name="cfg_adb_label">adb</string>
+    <string name="cfg_adb_off">閉じています。開いている間は、同じネットワーク上の誰もがこのユニットでrootシェルを取得できます。</string>
+    <string name="cfg_adb_on">開いています — %1$d分後に自動的に閉じます。</string>
+    <string name="cfg_adb_no_helper">modehelperがインストールされていないため、ここでadbをオン・オフにすることはできません。</string>
+    <string name="cfg_trusted_wifi_label">特権 Wi-Fi (SSID)</string>
+    <string name="cfg_trusted_wifi_hint">このネットワークに接続中は ADB が常時有効になり、WakeLock によって本体のスリープが防止されます。</string>
+    <string name="cfg_btn_use_current_wifi">現在の Wi-Fi を使用</string>
+    <string name="cfg_trusted_wifi_saved">特権 Wi-Fi を保存しました</string>
+    <string name="cfg_doors_header">ドア</string>
+    <string name="cfg_window_on_door">ドアを開けるときに窓を少し開ける</string>
+    <string name="cfg_window_on_door_hint">密閉されたキャビンに逆らわずにドアが閉まるよう、そのドアの窓を約1cm下げ、ドアが閉まると元に戻します。自分で開けた窓だけを閉じ、あなた自身が動かした窓には触れません。</string>
+    <string name="cfg_actions_header">操作</string>
+    <string name="cfg_btn_on">オン</string>
+    <string name="cfg_btn_off">オフ</string>
+    <string name="cfg_btn_test">テスト</string>
+    <string name="cfg_btn_discovery">MQTT ディスカバリー</string>
+    <string name="cfg_btn_update">アップデート</string>
+    <string name="cfg_btn_save">保存</string>
+    <string name="cfg_testing">テスト中...</string>
+    <string name="cfg_discovery_sending">MQTT ディスカバリーを送信中…</string>
+    <string name="cfg_discovery_ok">MQTT ディスカバリーが正常に送信されました</string>
+    <string name="cfg_discovery_failed">ディスカバリー失敗：%1$s</string>
+    <string name="cfg_discovery_svc_inactive">テレメトリサービスが実行されていません</string>
+    <string name="cfg_discovery_no_client">MQTT クライアントが初期化されていません</string>
+    <string name="cfg_cleanup">クリーンアップと削除…</string>
+    <string name="cfg_drive_header">走行モード</string>
+    <string name="cfg_connecting">接続中…</string>
+    <string name="cfg_mode_eco">Eco</string>
+    <string name="cfg_mode_comfort">Comfort</string>
+    <string name="cfg_mode_sport">Sport</string>
+    <string name="cfg_regen_header">回生</string>
+    <string name="cfg_regen_low">弱</string>
+    <string name="cfg_regen_mid">中</string>
+    <string name="cfg_regen_high">強</string>
+    <string name="turbo_header">ターボ</string>
+    <string name="turbo_enable_label">ターボカードを表示</string>
+    <string name="turbo_duration_label">持続時間(秒)</string>
+    <string name="cfg_btn_apply">今すぐ適用</string>
+    <string name="cfg_btn_save_default">デフォルトとして保存</string>
+    <string name="cfg_car_connect_fail">車に接続できませんでした</string>
+    <string name="cfg_applied">適用済み: %1$s + %2$s</string>
+    <string name="cfg_applied_turbo_active">適用済み: %1$s。走行モードは変更なし — ターボが有効です。</string>
+    <string name="cfg_startup_default">起動時のデフォルト: %1$s + %2$s</string>
+    <string name="cfg_mode_unknown">現在のモードは不明です — 適用するモードを選択してください</string>
+    <string name="cfg_current">現在: %1$s + %2$s</string>
+    <string name="cfg_bar_header">メニューバーの表示</string>
+    <string name="cfg_bar_outtemp">バーに外気温を表示</string>
+    <string name="cfg_bar_wifi">バーにWi-Fiを表示(設定を開きます)</string>
+    <string name="cfg_bar_soc">バーにバッテリー%を表示</string>
+    <string name="cfg_appearance_header">外観</string>
+    <string name="cfg_appearance_light">ライト</string>
+    <string name="cfg_appearance_dark">ダーク</string>
+    <string name="cfg_appearance_auto">自動</string>
+    <string name="cfg_appearance_note">自動モードはこのユニット自体の昼夜設定に従います。NeonとNoturnoは、この設定に関わらず常にそれぞれ固定のカラースキームを使用します。</string>
+    <string name="cfg_theme_header">テーマ</string>
+    <string name="cfg_theme_sub">Drive Assistのすべての画面に適用されます。サムネイルにはカードの色と形が表示され、変更は即座に反映されます。</string>
+    <string name="cfg_theme_selected">%1$s  ✓</string>
+    <string name="cfg_theme_ambient_on">このテーマでは、キャビンのアンビエントライトがアクセントカラーを決定します。</string>
+    <string name="cfg_theme_ambient_off">このテーマは意図的にキャビンのライトを無視します — アクセントはアンバーのままです。</string>
+    <string name="theme_geely_blurb">夜はガンメタルグレー、昼はアイボリー</string>
+    <string name="theme_noturno_blurb">ブラックとアンバー · ヴェイパーウェーブ調パネル</string>
+    <string name="theme_neon_blurb">光るアウトライン、シアンとマゼンタ</string>
+
+    <!-- ruler -->
+    <!-- Two different faults, and telling them apart is not cosmetic: one
+         message covering both named the outside temperature while the real
+         problem was a dead binder, and cost an hour aimed at the wrong half. -->
+    <string name="ruler_no_car">車に接続されていません</string>
+    <string name="ruler_no_outside_temp">外気温がありません</string>
+    <string name="ruler_defrosting">デフロスター作動中</string>
+    <string name="ruler_at_limit">%1$s · 限界</string>
+    <string name="ruler_car_refused">車は%1$d°を受け付けませんでした</string>
+    <string name="ruler_committed">快適設定を保存しました</string>
+    <string name="ruler_steady">安定</string>
+    <string name="ruler_level">%1$s · レベル %2$d</string>
+    <string name="ruler_src_cold">冷房中</string>
+    <string name="ruler_src_fresh">外気</string>
+    <string name="ruler_src_hold">内気循環中</string>
+    <string name="ruler_src_hot">暖房中</string>
+
+    <!-- cmd -->
+    <!-- second command column + the gate -->
+    <string name="cmd_title">コマンド</string>
+    <string name="gate_title">ゲート</string>
+    <string name="gate_open">ゲートを開ける</string>
+    <string name="gate_sent">ゲート: リクエスト送信済み</string>
+    <!-- gate button on the comfort board: short, the card title already says "Gate" -->
+    <string name="gate_button_open">開く</string>
+    <string name="gate_button_close">閉じる</string>
+    <string name="gate_button_sent">リクエスト送信済み</string>
+    <string name="gate_no_link">Home Assistantとの接続がありません</string>
+    <string name="gate_close">ゲートを閉じる</string>
+    <string name="gate_opening">開いています…</string>
+    <string name="gate_closing">閉じています…</string>
+
+    <!-- purge: drop every window half way, press again to put them back -->
+    <string name="purge_label">窓を開ける</string>
+    <string name="purge_close_label">窓を閉じる</string>
+    <string name="purge_opening">窓が下がっています</string>
+    <string name="purge_closing">窓が再び上がっています</string>
+    <string name="purge_nothing">動かすものはありません</string>
+    <string name="purge_unreadable">窓の状態を読み取れません — 車は起きていますか?</string>
+    <!-- dashcam gallery -->
+    <string name="clips_title">録画</string>
+    <string name="clips_usage">%1$d クリップ · %2$s 使用 · %3$s 保持 · %4$s 空き</string>
+    <string name="clips_none">まだ何も録画されていません。</string>
+    <string name="clips_play">再生</string>
+    <string name="clips_hold">保持</string>
+    <string name="clips_release">解放</string>
+    <string name="clips_delete">削除</string>
+    <string name="clips_delete_q">%1$sを削除しますか?</string>
+    <string name="clip_play_failed">このクリップを再生できませんでした (%1$d/%2$d)</string>
+    <string name="clips_recording">録画中</string>
+    <string name="clips_orphan">未終了 — 復元可能</string>
+    <string name="clips_record">録画</string>
+    <string name="clips_stop">停止</string>
+    <string name="cfg_nav_clips">ドライブレコーダー</string>
+    <string name="clips_back">← 戻る</string>
+    <string name="cam_all">すべて</string>
+    <string name="cam_front">前方</string>
+    <string name="cam_rear">後方</string>
+    <string name="cam_left">左</string>
+    <string name="cam_right">右</string>
+    <string name="cam_orbit">周回</string>
+    <!-- charging history -->
+    <string name="cfg_nav_charge">充電</string>
+    <string name="charge_title">充電履歴</string>
+    <string name="charge_summary">充電%1$d回 · 合計%2$.1f kWh</string>
+    <string name="charge_ltm_title">過去12か月</string>
+    <string name="charge_period_30d">過去30日間</string>
+    <string name="charge_ltm_count_label">充電回数</string>
+    <string name="charge_row_subtitle">SoC %1$d%%→%2$d%% · %3$.1f kWh · %4$.1f kW</string>
+    <string name="charge_none">まだ充電セッションが記録されていません。</string>
+    <!-- stats -->
+    <string name="cfg_nav_stats">統計</string>
+    <string name="stats_title">走行統計</string>
+    <string name="stats_driving_header">今週</string>
+    <string name="stats_trips_label">走行回数</string>
+    <string name="stats_chart_header">1日あたりのkm</string>
+    <!-- OBD2 + ABRP -->
+    <string name="cfg_nav_obd">OBD2 / ABRP</string>
+    <string name="obd_title">OBD2 ドングルと ABRP</string>
+    <string name="obd_status_connected">接続済み — バッテリーの実電力を読み取り中</string>
+    <string name="obd_status_searching">ドングルを検索中…</string>
+    <string name="obd_status_off">オフ</string>
+    <string name="obd_enable_label">Bluetooth OBD2 ドングルを使用</string>
+    <string name="obd_hint">オンにすると、ペアリング済みの ELM327 形式のドングルを検索し、バッテリーの実際の電力/電圧/電流を直接読み取ります。推定値よりも正確で、ドングル接続時は常に優先されます。</string>
+    <string name="abrp_header">ABRP (A Better Route Planner)</string>
+    <string name="abrp_enable_label">ライブデータを ABRP に送信</string>
+    <string name="abrp_location_label">GPS 位置情報を送信</string>
+    <string name="abrp_location_hint">オフの場合、ABRP は車両の GPS ではなくスマートフォンの位置情報を使用します。</string>
+    <string name="abrp_field_user_token">ABRP ユーザートークン</string>
+    <string name="abrp_test_sending">ABRP にテスト ping を送信中…</string>
+    <string name="abrp_test_ok">送信完了 — ABRP のアプリまたはサイトで接続を確認してください。</string>
+    <string name="abrp_test_fail">失敗：%1$s</string>
+    <string name="abrp_debug_header">ライブデバッグ</string>
+    <string name="abrp_debug_sent_header">ABRP への送信</string>
+    <string name="abrp_debug_no_data">データがまだありません</string>
+    <string name="abrp_debug_last_ok">最終送信：%1$s — 正常</string>
+    <string name="abrp_debug_last_fail">最終試行：%1$s — 失敗：%2$s</string>
+    <string name="abrp_debug_log_header">最近のアクティビティ</string>
+    <string name="abrp_debug_connected">接続済み：%1$s</string>
+    <string name="abrp_debug_yes">はい</string>
+    <string name="abrp_debug_no">いいえ</string>
+    <string name="charge_export">USBにエクスポート</string>
+    <string name="charge_export_ok">%1$d個のファイルをUSBにエクスポートしました</string>
+    <string name="charge_export_no_drive">USBドライブが見つかりません</string>
+    <string name="charge_export_nothing">エクスポートするものがありません</string>
+    <!-- charge card (ComfortActivity) -->
+    <string name="charge_card_title">バッテリー</string>
+    <string name="charge_card_soc">%1$d%%</string>
+    <string name="charge_card_elapsed">充電時間 %1$d分</string>
+    <string name="charge_card_remaining">100%%まで残り約%1$d分</string>
+    <string name="charge_card_calculating">推定中…</string>
+    <string name="charge_card_ready">準備完了</string>
+    <string name="charge_card_unknown">不明</string>
+
+    <!-- charge stats & cost tracking -->
+    <string name="charge_stats_title">充電統計</string>
+    <string name="charge_completed_title">充電完了</string>
+    <string name="charge_cost_label">費用</string>
+    <string name="charge_cost_input_title">充電費用</string>
+    <string name="charge_cost_input_hint">合計費用 (例: 45.00)</string>
+    <string name="charge_cost_btn_input">費用を入力</string>
+    <string name="charge_cost_btn_edit">編集</string>
+    <string name="charge_cost_btn_save">保存</string>
+    <string name="charge_cost_btn_dismiss">閉じる</string>
+    <string name="charge_cost_not_set">費用未設定</string>
+    <string name="charge_cost_invalid">無効な費用です</string>
+    <string name="charge_cost_parked_only">費用は駐車中 (P) にのみ入力できます。</string>
+    <string name="charge_stat_total_cost">合計費用</string>
+    <string name="charge_stat_avg_cost_kwh">費用 / kWh</string>
+    <string name="charge_stat_cost_100km">費用 / 100km</string>
+
+    <!-- software update dialog & prompt -->
+    <string name="update_dialog_title">ソフトウェアアップデートが利用可能</string>
+    <string name="update_dialog_version_comp">Version: %1$s   ➔   %2$s</string>
+    <string name="update_dialog_current_ver">現在のバージョン：%1$s</string>
+    <string name="update_dialog_new_ver">新しいバージョン：%1$s</string>
+    <string name="update_dialog_changelog_header">更新内容：</string>
+    <string name="update_dialog_accept">同意して更新</string>
+    <string name="update_dialog_decline">後で</string>
+    <string name="update_checking">アップデートを確認中…</string>
+    <string name="update_up_to_date">Drive Assist は最新です (%1$s)</string>
+    <string name="update_check_failed">アップデートを確認できませんでした：%1$s</string>
+    <string name="update_downloading">アップデートをダウンロード中 (%1$s) …</string>
+    <string name="update_installing">インストールのため ModeHelper に引き渡し中…</string>
+    <string name="update_not_parked">アップデートの確認とインストールは駐車中 (P) にのみ行えます。</string>
+</resources>

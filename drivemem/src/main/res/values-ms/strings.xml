@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Translation of values/strings.xml (Malay / ms). See that file for authoring notes. -->
+<resources>
+    <string name="app_name">Drive Assist</string>
+    <string name="ac_title">Penyaman udara</string>
+
+    <!-- comfort -->
+    <!-- ComfortActivity: tela do ar-condicionado. ac_title ja existe, nao repetir. -->
+    <string name="ac_outside_label">di luar</string>
+    <string name="ac_reading">Membaca...</string>
+    <string name="ac_adjust_header">Apa yang hendak dilaraskan?</string>
+    <string name="ac_cooler">Lebih sejuk</string>
+    <string name="ac_warmer">Lebih panas</string>
+    <string name="ac_recirc_label">Pengitaran semula</string>
+    <string name="ac_recirc_on_label">Udara luar</string>
+    <string name="ac_recirc_refused">Pengitaran semula: kereta menolak</string>
+    <string name="ac_recirc_on">Mengitar semula — pengambilan udara luar ditutup</string>
+    <string name="ac_recirc_off">Pengambilan udara luar terbuka</string>
+    <string name="ac_connect_failed">Gagal menyambung ke kereta</string>
+    <string name="clima_title">Iklim</string>
+    <!-- Turbo card: 30s Sport-mode boost, then back to whatever mode was running before -->
+    <string name="turbo_title">Turbo</string>
+    <string name="regen_boost_title">Penjanaan semula</string>
+    <!-- Linha de verdade dos atuadores. %1$s = setpoint, %2$s = ventoinha.
+    As aspas preservam os espacos multiplos (o aapt colapsaria). -->
+    <string name="ac_readout">"Udara %1$s °C   ·   kipas %2$s"</string>
+    <!-- %1$s = a linha ate aqui; a clausula inteira volta traduzida -->
+    <string name="ac_readout_recirc">"%1$s   ·   mengitar semula"</string>
+    <!-- %1$s = a linha ate aqui, %2$s = status da regua de conforto -->
+    <string name="ac_readout_status">"%1$s   —   %2$s"</string>
+
+    <!-- misc -->
+    <string name="cleanup_title">Pembersihan</string>
+    <string name="cleanup_subtitle">Membuang semua yang ditambah selepas imej kilang. Tidak membatalkan ADB (itu datang dari recovery) dan tidak menyentuh aplikasi sistem.</string>
+    <string name="cleanup_step1_header">Langkah 1 — baki</string>
+    <string name="cleanup_step2_header">Langkah 2 — buang aplikasi</string>
+    <string name="cleanup_action_stop_wipe">Hentikan perkhidmatan dan padam data Drive Assist</string>
+    <string name="cleanup_action_uninstall_apps">Nyahpasang aplikasi tersuai</string>
+    <string name="cleanup_action_uninstall_self">Nyahpasang Drive Assist sendiri</string>
+    <string name="cleanup_log_idle">Belum ada apa-apa dilakukan.\nSetiap butang meminta pengesahan (ketik dua kali).</string>
+    <string name="cleanup_confirm_prompt">Ketik semula \"%1$s\" untuk mengesahkan.</string>
+    <string name="cleanup_stopping">Menghentikan perkhidmatan...</string>
+    <string name="cleanup_wiped">Perkhidmatan dihentikan, ikon dibuang, penggera dibatalkan dan data dipadam.\nDrive Assist masih dipasang, tetapi tidak aktif.</string>
+    <string name="cleanup_uninstall_header">Meminta nyahpasang:</string>
+    <string name="cleanup_uninstall_item_failed">gagal: %1$s</string>
+    <string name="cleanup_uninstall_footer">Sahkan setiap dialog sistem. Satu demi satu.</string>
+    <string name="cleanup_none_found">Tiada aplikasi tersuai ditemui.</string>
+    <string name="cleanup_removing_self">Meminta pembuangan Drive Assist...</string>
+    <string name="cleanup_failed">Gagal: %1$s</string>
+    <string name="notif_tele_channel">Telemetri</string>
+    <string name="notif_tele_title">Drive Assist — telemetri</string>
+    <string name="notif_tele_text">Menghantar data ke Home Assistant</string>
+    <string name="notif_outtemp_channel">Suhu luar</string>
+    <string name="notif_outtemp_fg_text">suhu luar</string>
+    <string name="notif_outtemp_title">Suhu luar</string>
+    <string name="notif_outtemp_unavailable">tidak tersedia</string>
+    <string name="notif_outtemp_value">%1$s °C</string>
+    <string name="notif_wifi_channel">Wi-Fi</string>
+    <string name="notif_wifi_fg_text">wi-fi</string>
+    <string name="notif_wifi_title">Wi-Fi</string>
+    <string name="notif_wifi_disconnected">terputus</string>
+    <string name="notif_wifi_no_network">tiada rangkaian</string>
+    <string name="notif_soc_channel">Bateri %</string>
+    <string name="notif_soc_fg_text">bateri %</string>
+    <string name="notif_soc_title">Bateri</string>
+    <string name="notif_soc_unavailable">tidak tersedia</string>
+    <string name="notif_soc_value">%1$s%%</string>
+
+    <!-- config -->
+    <string name="cfg_title">Tetapan</string>
+    <string name="cfg_nav_doors">Pintu</string>
+    <string name="cfg_nav_mqtt">MQTT</string>
+    <string name="cfg_nav_drive">Mod pemanduan</string>
+    <string name="cfg_nav_bar">Bar menu</string>
+    <string name="cfg_nav_look">Rupa</string>
+    <string name="cfg_nav_spotify">Spotify</string>
+    <string name="cfg_nav_system">Sistem</string>
+    <!-- sidebar group captions -->
+    <string name="cfg_group_car">Kereta</string>
+    <string name="cfg_group_display">Paparan</string>
+    <string name="cfg_group_integrations">Integrasi</string>
+    <string name="cfg_group_system">Sistem</string>
+    <string name="cfg_system_header">Sistem</string>
+    <string name="cfg_app_info_header">Maklumat aplikasi</string>
+    <string name="cfg_version_label">Versi: %1$s (bina %2$d)</string>
+    <string name="cfg_sha_label">APK SHA-256</string>
+    <string name="cfg_update_header">Kemas kini perisian</string>
+    <string name="cfg_update_url_label">URL Kemas Kini (HTTPS)</string>
+    <string name="cfg_btn_check_update">Semak &amp; Pasang Kemas Kini</string>
+    <string name="cfg_touch_header">Kawalan sentuh &amp; bertenang</string>
+    <string name="cfg_cooldown_label">Tempoh bertenang suis</string>
+    <string name="cfg_cooldown_hint">Tempoh kunci sementara selepas mengetik sebarang suis untuk mengelakkan sentuhan dua kali secara tidak sengaja semasa memandu.</string>
+    <string name="cfg_maintenance_header">Penyelenggaraan</string>
+    <string name="cfg_mqtt_header">Menghantar ke Home Assistant</string>
+    <string name="cfg_mqtt_enable_label">Dayakan telemetri MQTT</string>
+    <string name="cfg_mqtt_enable_hint">Menyambung ke broker dan menghantar telemetri kenderaan ke Home Assistant.</string>
+    <string name="cfg_status_sending">Menghantar ke Home Assistant</string>
+    <string name="cfg_status_off">Mati</string>
+    <string name="cfg_sending_every">Menghantar (setiap %1$d saat)</string>
+    <string name="cfg_broker_header">Broker MQTT</string>
+    <string name="cfg_field_hosts">Alamat (satu setiap baris)</string>
+    <string name="cfg_field_user">Nama pengguna</string>
+    <string name="cfg_field_pass">Kata laluan</string>
+    <string name="cfg_field_interval">Selang (saat)</string>
+    <string name="cfg_seconds_suffix">s</string>
+    <string name="cfg_lock_short_label">Kunci suis</string>
+    <string name="cfg_saved">Tetapan disimpan</string>
+    <string name="cfg_btn_save_all">Simpan semua tetapan</string>
+    <string name="cfg_log_title">Log masa nyata &amp; maklum balas</string>
+    <string name="cfg_active_status_title">Status sambungan</string>
+    <string name="cfg_active_broker">Broker aktif: %1$s</string>
+    <string name="cfg_client_id">ID Klien: %1$s</string>
+    <string name="cfg_last_sent">Terakhir dihantar: %1$s</string>
+
+    <!-- certificates / tls -->
+    <string name="cfg_certs_header">Sijil &amp; TLS</string>
+    <string name="cfg_client_cert_label">Sijil klien (mTLS)</string>
+    <string name="cfg_ca_cert_label">Sijil CA (kepercayaan pelayan)</string>
+    <string name="cfg_cert_status_installed">Dipasang: %1$s (sah sehingga %2$s)</string>
+    <string name="cfg_cert_status_none">Tiada yang dipasang (diperlukan untuk mTLS jauh)</string>
+    <string name="cfg_ca_status_default">Lalai (terbina dalam aplikasi)</string>
+    <string name="cfg_ca_status_custom">Tersuai: %1$s (sah sehingga %2$s)</string>
+    <string name="cfg_btn_import_cert">Import</string>
+    <string name="cfg_btn_remove_cert">Alih keluar</string>
+    <string name="cfg_btn_reset_default">Tetapkan semula ke lalai</string>
+    <string name="cfg_btn_test_tls">Uji jabat tangan TLS</string>
+    <string name="cfg_tls_test_target_label">Alamat broker TLS untuk diuji</string>
+    <string name="cfg_cert_import_title">Import sijil</string>
+    <string name="cfg_cert_import_usb">Pemacu USB</string>
+    <string name="cfg_cert_import_url">Muat turun dari URL</string>
+    <string name="cfg_cert_import_file">Pemilih fail storan</string>
+    <string name="cfg_cert_import_paste">Tampal teks (PEM / Base64)</string>
+    <string name="cfg_cert_usb_not_found">Tiada pemacu USB ditemui di /storage</string>
+    <string name="cfg_cert_usb_no_files">Tiada fail sijil (.p12, .pfx, .crt, .cer, .pem) ditemui pada pemacu USB</string>
+    <string name="cfg_cert_usb_pick_file">Pilih sijil pada pemacu USB</string>
+    <string name="cfg_cert_url_prompt">Masukkan URL untuk memuat turun sijil (.p12, .pfx, .crt, .pem):</string>
+    <string name="cfg_cert_paste_prompt">Tampal kandungan sijil (PEM atau Base64):</string>
+    <string name="cfg_cert_password_prompt">Masukkan kata laluan sijil:</string>
+    <string name="cfg_cert_password_incorrect">Kata laluan sijil salah.</string>
+    <string name="cfg_cert_import_success">Sijil berjaya dipasang: %1$s</string>
+    <string name="cfg_cert_import_failed">Gagal mengimport sijil: %1$s</string>
+    <string name="cfg_cert_remove_confirm">Alih keluar sijil %1$s?</string>
+    <string name="cfg_cert_testing_tls">Menguji jabat tangan TLS…</string>
+
+    <string name="cfg_spotify_header">Spotify</string>
+    <string name="cfg_spotify_client_id">Client ID</string>
+    <string name="cfg_spotify_connect">Sambung</string>
+    <string name="cfg_spotify_disconnect">Putuskan sambungan</string>
+    <string name="cfg_spotify_status_on">Disambungkan</string>
+    <string name="cfg_spotify_status_off">Tidak disambungkan</string>
+    <string name="cfg_spotify_need_id">Masukkan Client ID dahulu</string>
+    <string name="spotify_connected">Spotify disambungkan</string>
+    <string name="spotify_connect_failed">Spotify: gagal menyambung</string>
+    <string name="cfg_security_header">Keselamatan</string>
+    <string name="cfg_commands_label">Terima arahan daripada HA</string>
+    <string name="cfg_commands_on">Menerima arahan daripada HA</string>
+    <string name="cfg_commands_off">Arahan DISEKAT — telemetri sahaja</string>
+    <string name="cfg_commands_hint">Apabila dimatikan, kereta mengabaikan arahan pengecasan dan lampu yang datang dari Home Assistant.</string>
+    <string name="cfg_lock_label">Tempoh kunci suis (s), selepas setiap ketikan</string>
+    <string name="cfg_adb_label">adb</string>
+    <string name="cfg_adb_off">Tertutup. Selagi terbuka, sesiapa sahaja pada rangkaian yang sama mendapat root shell pada unit ini.</string>
+    <string name="cfg_adb_on">Terbuka — akan tertutup sendiri dalam %1$d minit.</string>
+    <string name="cfg_adb_no_helper">modehelper tidak dipasang, jadi tiada apa-apa di sini boleh menghidupkan atau mematikan adb.</string>
+    <string name="cfg_trusted_wifi_label">Wi-Fi Berkeistimewaan (SSID)</string>
+    <string name="cfg_trusted_wifi_hint">Semasa disambungkan ke rangkaian ini, ADB kekal dibuka dan WakeLock menghalang unit daripada digantung.</string>
+    <string name="cfg_btn_use_current_wifi">Gunakan Wi-Fi Semasa</string>
+    <string name="cfg_trusted_wifi_saved">Wi-Fi Berkeistimewaan disimpan</string>
+    <string name="cfg_doors_header">Pintu</string>
+    <string name="cfg_window_on_door">Buka sedikit tingkap apabila pintu dibuka</string>
+    <string name="cfg_window_on_door_hint">Menurunkan tingkap pintu itu ~1 cm supaya pintu dapat ditutup tanpa melawan kabin kedap, dan mengembalikannya apabila pintu ditutup. Ia hanya menutup tingkap yang dibukanya sendiri, dan tidak menyentuh mana-mana tingkap yang anda gerakkan sendiri.</string>
+    <string name="cfg_actions_header">Tindakan</string>
+    <string name="cfg_btn_on">Hidupkan</string>
+    <string name="cfg_btn_off">Matikan</string>
+    <string name="cfg_btn_test">Uji</string>
+    <string name="cfg_btn_discovery">Penemuan MQTT</string>
+    <string name="cfg_btn_update">Kemas kini</string>
+    <string name="cfg_btn_save">Simpan</string>
+    <string name="cfg_testing">Menguji...</string>
+    <string name="cfg_discovery_sending">Menghantar penemuan MQTT…</string>
+    <string name="cfg_discovery_ok">Penemuan MQTT berjaya dihantar</string>
+    <string name="cfg_discovery_failed">Penemuan gagal: %1$s</string>
+    <string name="cfg_discovery_svc_inactive">Perkhidmatan telemetri tidak berjalan</string>
+    <string name="cfg_discovery_no_client">Klien MQTT belum dimulakan</string>
+    <string name="cfg_cleanup">Pembersihan dan pembuangan…</string>
+    <string name="cfg_drive_header">Mod pemanduan</string>
+    <string name="cfg_connecting">Menyambung…</string>
+    <string name="cfg_mode_eco">Eco</string>
+    <string name="cfg_mode_comfort">Comfort</string>
+    <string name="cfg_mode_sport">Sport</string>
+    <string name="cfg_regen_header">Regenerasi</string>
+    <string name="cfg_regen_low">Rendah</string>
+    <string name="cfg_regen_mid">Sederhana</string>
+    <string name="cfg_regen_high">Tinggi</string>
+    <string name="turbo_header">Turbo</string>
+    <string name="turbo_enable_label">Tunjukkan kad Turbo</string>
+    <string name="turbo_duration_label">Tempoh (saat)</string>
+    <string name="cfg_btn_apply">Guna pakai sekarang</string>
+    <string name="cfg_btn_save_default">Simpan sebagai lalai</string>
+    <string name="cfg_car_connect_fail">Gagal menyambung ke kereta</string>
+    <string name="cfg_applied">Digunakan: %1$s + %2$s</string>
+    <string name="cfg_applied_turbo_active">Digunakan: %1$s. Mod pemanduan tidak berubah — Turbo aktif.</string>
+    <string name="cfg_startup_default">Lalai semasa dimulakan: %1$s + %2$s</string>
+    <string name="cfg_mode_unknown">Mod semasa tidak diketahui — pilih satu untuk digunakan</string>
+    <string name="cfg_current">Semasa: %1$s + %2$s</string>
+    <string name="cfg_bar_header">Paparan pada bar menu</string>
+    <string name="cfg_bar_outtemp">Suhu luar pada bar</string>
+    <string name="cfg_bar_wifi">Wi-Fi pada bar (membuka tetapan)</string>
+    <string name="cfg_bar_soc">Bateri % pada bar</string>
+    <string name="cfg_appearance_header">Rupa</string>
+    <string name="cfg_appearance_light">Cerah</string>
+    <string name="cfg_appearance_dark">Gelap</string>
+    <string name="cfg_appearance_auto">Automatik</string>
+    <string name="cfg_appearance_note">Automatik mengikut tetapan siang/malam unit ini sendiri. Neon dan Noturno sentiasa menggunakan satu skema warna tetap mereka, tanpa mengira tetapan ini.</string>
+    <string name="cfg_theme_header">Tema</string>
+    <string name="cfg_theme_sub">Terpakai pada setiap skrin Drive Assist. Lakaran kecil menunjukkan warna dan bentuk kad — perubahan berlaku serta-merta.</string>
+    <string name="cfg_theme_selected">%1$s  ✓</string>
+    <string name="cfg_theme_ambient_on">Tema ini membenarkan cahaya sekeliling kabin mengawal warna aksen.</string>
+    <string name="cfg_theme_ambient_off">Tema ini sengaja mengabaikan cahaya kabin — aksen kekal ambar.</string>
+    <string name="theme_geely_blurb">Kelabu gunmetal pada waktu malam, gading pada waktu siang</string>
+    <string name="theme_noturno_blurb">Hitam dan ambar · panel vaporwave</string>
+    <string name="theme_neon_blurb">Garis luar bercahaya, sian dan magenta</string>
+
+    <!-- ruler -->
+    <!-- Two different faults, and telling them apart is not cosmetic: one
+         message covering both named the outside temperature while the real
+         problem was a dead binder, and cost an hour aimed at the wrong half. -->
+    <string name="ruler_no_car">tidak disambungkan ke kereta</string>
+    <string name="ruler_no_outside_temp">tiada suhu luar</string>
+    <string name="ruler_defrosting">menyahbeku</string>
+    <string name="ruler_at_limit">%1$s · pada had</string>
+    <string name="ruler_car_refused">kereta tidak menerima %1$d°</string>
+    <string name="ruler_committed">keselesaan disimpan</string>
+    <string name="ruler_steady">stabil</string>
+    <string name="ruler_level">%1$s · tahap %2$d</string>
+    <string name="ruler_src_cold">menyejukkan</string>
+    <string name="ruler_src_fresh">udara luar</string>
+    <string name="ruler_src_hold">mengitar semula</string>
+    <string name="ruler_src_hot">memanaskan</string>
+
+    <!-- cmd -->
+    <!-- second command column + the gate -->
+    <string name="cmd_title">Arahan</string>
+    <string name="gate_title">Pintu pagar</string>
+    <string name="gate_open">Buka pintu pagar</string>
+    <string name="gate_sent">Pintu pagar: permintaan dihantar</string>
+    <!-- gate button on the comfort board: short, the card title already says "Gate" -->
+    <string name="gate_button_open">Buka</string>
+    <string name="gate_button_close">Tutup</string>
+    <string name="gate_button_sent">Permintaan dihantar</string>
+    <string name="gate_no_link">Tiada pautan ke Home Assistant</string>
+    <string name="gate_close">Tutup pintu pagar</string>
+    <string name="gate_opening">Membuka…</string>
+    <string name="gate_closing">Menutup…</string>
+
+    <!-- purge: drop every window half way, press again to put them back -->
+    <string name="purge_label">Buka tingkap</string>
+    <string name="purge_close_label">Tutup tingkap</string>
+    <string name="purge_opening">Tingkap sedang turun</string>
+    <string name="purge_closing">Tingkap sedang naik semula</string>
+    <string name="purge_nothing">Tiada apa untuk digerakkan</string>
+    <string name="purge_unreadable">Tidak dapat membaca tingkap — adakah kereta terjaga?</string>
+    <!-- dashcam gallery -->
+    <string name="clips_title">Rakaman</string>
+    <string name="clips_usage">%1$d klip · %2$s digunakan · %3$s disimpan · %4$s bebas</string>
+    <string name="clips_none">Belum ada apa-apa dirakam.</string>
+    <string name="clips_play">Main</string>
+    <string name="clips_hold">Simpan</string>
+    <string name="clips_release">Lepaskan</string>
+    <string name="clips_delete">Padam</string>
+    <string name="clips_delete_q">Padam %1$s?</string>
+    <string name="clip_play_failed">Klip ini tidak dapat dimainkan (%1$d/%2$d)</string>
+    <string name="clips_recording">merakam</string>
+    <string name="clips_orphan">belum ditutup — boleh dipulihkan</string>
+    <string name="clips_record">Rakam</string>
+    <string name="clips_stop">Henti</string>
+    <string name="cfg_nav_clips">Dashcam</string>
+    <string name="clips_back">← Kembali</string>
+    <string name="cam_all">Semua</string>
+    <string name="cam_front">Depan</string>
+    <string name="cam_rear">Belakang</string>
+    <string name="cam_left">Kiri</string>
+    <string name="cam_right">Kanan</string>
+    <string name="cam_orbit">Orbit</string>
+    <!-- charging history -->
+    <string name="cfg_nav_charge">Pengecasan</string>
+    <string name="charge_title">Sejarah pengecasan</string>
+    <string name="charge_summary">%1$d pengecasan · jumlah %2$.1f kWh</string>
+    <string name="charge_ltm_title">12 bulan terakhir</string>
+    <string name="charge_period_30d">30 hari terakhir</string>
+    <string name="charge_ltm_count_label">pengecasan</string>
+    <string name="charge_row_subtitle">SoC %1$d%%→%2$d%% · %3$.1f kWh · %4$.1f kW</string>
+    <string name="charge_none">Belum ada sesi pengecasan direkodkan.</string>
+    <!-- stats -->
+    <string name="cfg_nav_stats">Statistik</string>
+    <string name="stats_title">Statistik pemanduan</string>
+    <string name="stats_driving_header">Minggu ini</string>
+    <string name="stats_trips_label">perjalanan</string>
+    <string name="stats_chart_header">km sehari</string>
+    <!-- OBD2 + ABRP -->
+    <string name="cfg_nav_obd">OBD2 / ABRP</string>
+    <string name="obd_title">Dongle OBD2 dan ABRP</string>
+    <string name="obd_status_connected">Disambungkan — membaca kuasa bateri sebenar</string>
+    <string name="obd_status_searching">Mencari dongle…</string>
+    <string name="obd_status_off">Mati</string>
+    <string name="obd_enable_label">Gunakan dongle Bluetooth OBD2</string>
+    <string name="obd_hint">Apabila hidup, mencari dongle gaya ELM327 yang telah digandingkan dan membaca kuasa/voltan/arus bateri sebenar secara langsung — lebih tepat daripada anggaran, dan sentiasa digunakan apabila dongle disambungkan.</string>
+    <string name="abrp_header">ABRP (A Better Route Planner)</string>
+    <string name="abrp_enable_label">Hantar data langsung ke ABRP</string>
+    <string name="abrp_location_label">Hantar lokasi GPS</string>
+    <string name="abrp_location_hint">Apabila dimatikan, ABRP menggunakan lokasi telefon anda dan bukannya GPS kenderaan.</string>
+    <string name="abrp_field_user_token">Token pengguna ABRP</string>
+    <string name="abrp_test_sending">Menghantar ujian ping ke ABRP…</string>
+    <string name="abrp_test_ok">Dihantar — semak aplikasi/laman ABRP untuk mengesahkan sambungan.</string>
+    <string name="abrp_test_fail">Gagal: %1$s</string>
+    <string name="abrp_debug_header">Penyahpepijatan langsung</string>
+    <string name="abrp_debug_sent_header">Dihantar ke ABRP</string>
+    <string name="abrp_debug_no_data">Tiada data lagi</string>
+    <string name="abrp_debug_last_ok">Terakhir dihantar: %1$s — OK</string>
+    <string name="abrp_debug_last_fail">Percubaan terakhir: %1$s — Gagal: %2$s</string>
+    <string name="abrp_debug_log_header">Aktiviti terkini</string>
+    <string name="abrp_debug_connected">Disambungkan: %1$s</string>
+    <string name="abrp_debug_yes">ya</string>
+    <string name="abrp_debug_no">tidak</string>
+    <string name="charge_export">Eksport ke USB</string>
+    <string name="charge_export_ok">%1$d fail dieksport ke USB</string>
+    <string name="charge_export_no_drive">Tiada pemacu USB ditemui</string>
+    <string name="charge_export_nothing">Tiada apa untuk dieksport</string>
+    <!-- charge card (ComfortActivity) -->
+    <string name="charge_card_title">Bateri</string>
+    <string name="charge_card_soc">%1$d%%</string>
+    <string name="charge_card_elapsed">%1$d min mengecas</string>
+    <string name="charge_card_remaining">~%1$d min hingga 100%%</string>
+    <string name="charge_card_calculating">Menganggarkan…</string>
+    <string name="charge_card_ready">Sedia</string>
+    <string name="charge_card_unknown">Tidak diketahui</string>
+
+    <!-- charge stats & cost tracking -->
+    <string name="charge_stats_title">Statistik pengecasan</string>
+    <string name="charge_completed_title">Pengecasan selesai</string>
+    <string name="charge_cost_label">Kos</string>
+    <string name="charge_cost_input_title">Kos Pengecasan</string>
+    <string name="charge_cost_input_hint">Jumlah kos (cth. 45.00)</string>
+    <string name="charge_cost_btn_input">Masukkan Kos</string>
+    <string name="charge_cost_btn_edit">Edit</string>
+    <string name="charge_cost_btn_save">Simpan</string>
+    <string name="charge_cost_btn_dismiss">Tolak</string>
+    <string name="charge_cost_not_set">Kos belum ditetapkan</string>
+    <string name="charge_cost_invalid">Nilai kos tidak sah</string>
+    <string name="charge_cost_parked_only">Kos hanya boleh dimasukkan semasa meletakkan kenderaan.</string>
+    <string name="charge_stat_total_cost">Jumlah kos</string>
+    <string name="charge_stat_avg_cost_kwh">Kos / kWh</string>
+    <string name="charge_stat_cost_100km">Kos / 100km</string>
+
+    <!-- software update dialog & prompt -->
+    <string name="update_dialog_title">Kemas Kini Perisian Tersedia</string>
+    <string name="update_dialog_version_comp">Version: %1$s   ➔   %2$s</string>
+    <string name="update_dialog_current_ver">Versi semasa: %1$s</string>
+    <string name="update_dialog_new_ver">Versi baru: %1$s</string>
+    <string name="update_dialog_changelog_header">Perkara baharu:</string>
+    <string name="update_dialog_accept">Terima &amp; Kemas Kini</string>
+    <string name="update_dialog_decline">Kemudian</string>
+    <string name="update_checking">Menyemak kemas kini…</string>
+    <string name="update_up_to_date">Drive Assist sudah yang terkini (%1$s)</string>
+    <string name="update_check_failed">Tidak dapat menyemak kemas kini: %1$s</string>
+    <string name="update_downloading">Memuat turun kemas kini (%1$s) …</string>
+    <string name="update_installing">Menyerahkan kepada ModeHelper untuk pemasangan…</string>
+    <string name="update_not_parked">Kemas kini hanya boleh disemak dan dipasang semasa meletakkan kenderaan.</string>
+</resources>
