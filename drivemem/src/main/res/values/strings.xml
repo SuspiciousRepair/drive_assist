@@ -241,7 +241,14 @@
     <string name="value_calculating">Calculating…</string>
     <string name="cfg_bar_outtemp">Outside temperature in the bar</string>
     <string name="cfg_bar_wifi">Wi-Fi in the bar (opens settings)</string>
+    <string name="cfg_bar_topbar_header">Status bar</string>
     <string name="cfg_bar_soc">Battery % in the bar</string>
+    <string name="cfg_bar_home_header">Home screen</string>
+    <string name="cfg_overlay_label">Floating quick-access button</string>
+    <string name="overlay_climate_label">Climate</string>
+    <string name="overlay_open_app">Open app</string>
+    <string name="notif_overlay_channel">Floating button</string>
+    <string name="notif_overlay_fg_text">quick-access button</string>
     <string name="cfg_appearance_header">Appearance</string>
     <string name="cfg_appearance_light">Light</string>
     <string name="cfg_appearance_dark">Dark</string>

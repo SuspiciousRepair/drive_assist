@@ -371,7 +371,7 @@ Once installed, Drive Assist integrates naturally into your daily driving routin
 
 ### 3. Trip Statistics & Altimetry Dashboard
 ![Drive Assist Daily Statistics View](screenshots/daily-stats.png)
-*Figure 3: Drive Assist Daily Statistics View with 14-day distance bar chart, altimetry metrics, and chronological drive & charging diary.*
+*Figure 3: Drive Assist's Daily Statistics view, showing the day's session log — drives, a charging session, and a Valet-mode interval — alongside the hourly distance-by-speed-bucket chart.*
 
 * Tap the statistics icon in the left-rail dock (`(50, 548)`) to switch from the Comfort card grid to the Daily Statistics view.
 * **14-Day Distance Chart**: Interactive bar chart powered by MPAndroidChart. Tap any bar or use `[◀ Ontem]` and `[Amanhã ▶]` to navigate history.

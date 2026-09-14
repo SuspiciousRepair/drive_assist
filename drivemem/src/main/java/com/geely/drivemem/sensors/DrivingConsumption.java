@@ -10,10 +10,20 @@ public final class DrivingConsumption {
     private double previousOdo = Double.NaN;
     private long previousLegacyTs = -1;
 
-    /** Missing gear only qualifies when speed proves movement; zero speed alone is ambiguous. */
+    /** Missing gear only qualifies when speed proves movement; zero speed alone is ambiguous.
+     * Gear wins over the charging flag whenever gear is actually known: is_charging is
+     * derived from a car property (charge_a) that has been observed to latch at its last
+     * reading for hours, including straight through an entire drive (2026-09-14) — trusting
+     * it over gear=8 zeroed out real trips' consumption entirely. charging is only the
+     * decider when gear itself is missing, the one case a stuck charging read is still the
+     * best available signal for "probably parked." */
     static boolean isDriving(Integer gear, double speed, boolean charging) {
-        if (charging || (gear != null && gear == 4)) return false;
-        return (gear != null && (gear == 1 || gear == 2 || gear == 8)) || speed > 0;
+        if (gear != null) {
+            if (gear == 4) return false;
+            return gear == 1 || gear == 2 || gear == 8 || speed > 0;
+        }
+        if (charging) return false;
+        return speed > 0;
     }
 
     void add(long ts, double odo, double speed, Integer gear, boolean charging,

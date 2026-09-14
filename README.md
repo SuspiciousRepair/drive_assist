@@ -1,9 +1,11 @@
+<img src="logo.svg" width="96" height="96" alt="Drive Assist logo">
+
 # Drive Assist
 
 **English** · [Português (Brasil)](README.pt-BR.md)
 
 [![CI Build](https://img.shields.io/badge/build-passing-brightgreen.svg)](#building)
-[![JaCoCo Coverage](https://img.shields.io/badge/coverage-5.55%25%20%28131%20tests%29-blue.svg)](docs/CODE-QUALITY-REPORT.md)
+[![JaCoCo Coverage](https://img.shields.io/badge/coverage-14.20%25%20%28194%20tests%29-blue.svg)](docs/CODE-QUALITY-REPORT.md)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Geely%20IHU629G%20%7C%20Android%209-orange.svg)](docs/ARCHITECTURE-SAFETY-AUDIT.md)
 

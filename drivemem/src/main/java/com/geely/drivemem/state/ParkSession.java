@@ -1,41 +1,37 @@
 package com.geely.drivemem.state;
 
 import com.geely.drivemem.car.CarAccess;
-import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.car.CarDb;
-import com.geely.drivemem.car.EntityBus;
-import com.geely.drivemem.util.Modes;
 
 import android.content.ContentValues;
 import android.content.Context;
 import android.util.Log;
 
 /** Records each period the car spends parked in Park gear, enabling measurement
- * of standby power loss. Uses gear-based state (GEAR_PARK_ADAPTED). No snapshot
- * columns; battery state is queried at read time via telemetry_sample joins. */
+ * of standby power loss. No snapshot columns; battery state is queried at read
+ * time via telemetry_sample joins. Edge detection lives in TripSession, not
+ * here — see CarState's class comment for why a second independent car.gear
+ * subscription is exactly the bug this app already shipped once. */
 public final class ParkSession {
     static final String TAG = CarAccess.TAG;
 
     private static volatile boolean subscribed = false;
 
-    /** Subscribes to gear changes to track park sessions; idempotent. */
+    /** Subscribes to CarState's parked notifications to track park sessions;
+     * idempotent. CarState only calls its listeners on a real change, so
+     * there is no "is this actually an edge" check needed here any more. */
     public static synchronized void ensureSubscribed(Context ctx) {
         if (subscribed) return;
         subscribed = true;
         Context app = ctx.getApplicationContext();
-        EntityBus.subscribe("car.gear", (key, reading) -> {
-            if (reading.status == CarActor.Reading.Status.OK && reading.value instanceof Integer)
-                onGear(app, (Integer) reading.value);
-        });
+        CarState.addListener(parked -> onParkedChange(app, parked));
     }
 
-    // State accessed only from CarActor's thread.
-    private static boolean wasParked = true;
+    // State accessed only from CarActor's thread (CarState.reportParked()
+    // runs there, from TripSession.onGear()).
     private static long startMs = 0, startSampleId = -1;
 
-    private static void onGear(Context ctx, int gear) {
-        boolean nowParked = gear == Modes.GEAR_PARK_ADAPTED;
-        if (nowParked == wasParked) return;   // no edge
+    private static void onParkedChange(Context ctx, boolean nowParked) {
         if (nowParked) {
             // Driving -> parked: a park session starts.
             startMs = System.currentTimeMillis();
@@ -57,7 +53,6 @@ public final class ParkSession {
                 });
             }
         }
-        wasParked = nowParked;
     }
 
     private ParkSession() {}

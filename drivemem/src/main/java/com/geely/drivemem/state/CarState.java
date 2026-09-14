@@ -1,13 +1,19 @@
 package com.geely.drivemem.state;
 
-import com.geely.drivemem.car.CarActor;
-import com.geely.drivemem.car.EntityBus;
-import com.geely.drivemem.services.TelemetryService;
-import com.geely.drivemem.util.Modes;
-
-/** Parked state derived from instant car.gear updates (not 15s telemetry).
+/** Parked state, broadcast-only: TripSession is the one place car.gear gets
+ * turned into "parked or not" — it already has to (grace periods, segment
+ * stitching, its own test suite) — so this class does not read car.gear
+ * itself any more. Two independent subscriptions to the same raw property,
+ * each keeping its own latch, is exactly how they drifted apart on
+ * 2026-09-14: a charge session outlived a trip start because this class's
+ * old observe() only compared against ITS OWN last value, and never saw the
+ * edge TripSession had already caught. Now there is one detector
+ * (TripSession.onGear) and this is purely the PubSub relay other consumers
+ * (Turbo, Charging, Valet, Gate) subscribe to or read — reportParked() is
+ * called only from there, right at the edge, so the two can no longer
+ * disagree about whether or when one happened.
  * Gates cards that apply only when driving (Turbo) or parked (Charging).
- * Parked defaults to true; becomes false on real gear change. */
+ * Parked defaults to true; becomes false on the first real report. */
 public final class CarState {
     public interface Listener { void onParked(boolean parked); }
     private static final java.util.List<Listener> listeners = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -18,13 +24,17 @@ public final class CarState {
         if (l != null) listeners.add(l);
     }
 
-    // Default true (safer to hide Turbo until real gear state is known).
+    // Default true (safer to hide Turbo until TripSession reports otherwise).
     private static volatile boolean parked = true;
 
     public static boolean isParked() { return parked; }
 
-    private static void observe(int gear) {
-        boolean nowParked = gear == Modes.GEAR_PARK_ADAPTED;
+    /** Called by TripSession.onGear() only, exactly once per confirmed edge —
+     * see the class comment for why nothing else should feed this. The
+     * equality check is a defensive no-op backstop, not a second detector:
+     * by the time this runs, TripSession has already decided an edge
+     * happened. */
+    static void reportParked(boolean nowParked) {
         if (nowParked != parked) {
             parked = nowParked;
             for (Listener l : listeners) {
@@ -33,17 +43,10 @@ public final class CarState {
         }
     }
 
-    private static volatile boolean subscribed = false;
-
-    /** Subscribes to gear changes; idempotent. */
-    public static synchronized void ensureSubscribed() {
-        if (subscribed) return;
-        subscribed = true;
-        EntityBus.subscribe("car.gear", (key, reading) -> {
-            if (reading.status == CarActor.Reading.Status.OK && reading.value instanceof Integer)
-                observe((Integer) reading.value);
-        });
-    }
+    /** No-op kept only so existing call sites (ChargeSession, TelemetryService)
+     * don't need to change — there is nothing left to subscribe to here now
+     * that TripSession owns the car.gear read. */
+    public static void ensureSubscribed() {}
 
     private CarState() {}
 }

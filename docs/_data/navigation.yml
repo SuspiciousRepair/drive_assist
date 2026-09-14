@@ -11,11 +11,6 @@
     - title: Safety and privacy
       url: /WELCOME.html
 
-- title: Journal
-  links:
-    - title: Development journal
-      url: /journal/
-
 - title: Optional connections
   links:
     - title: Home Assistant

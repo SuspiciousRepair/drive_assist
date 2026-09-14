@@ -14,6 +14,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Overlay button: BootReceiver's LocalAdb self-grants this on install
+         (see LocalAdb.java), so the manifest declaration alone is enough —
+         no Settings.ACTION_MANAGE_OVERLAY_PERMISSION screen ever shown. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
@@ -32,6 +36,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <application
+        android:name=".DriveMemApplication"
         android:label="Drive Assist"
         android:icon="@mipmap/ic_launcher"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
@@ -80,6 +85,7 @@
         <service android:name=".services.OutTempService" android:exported="false" />
         <service android:name=".services.WifiIconService" android:exported="false" />
         <service android:name=".services.SocIconService" android:exported="false" />
+        <service android:name=".services.OverlayService" android:exported="false" />
         <activity android:name=".ui.GpsProbe" android:exported="false" />
         <activity android:name=".ui.ChargeProbe" android:exported="false" />
         <!-- exported: Spotify login now happens in the car's own browser

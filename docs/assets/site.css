@@ -44,11 +44,9 @@ th { background: #eef5fa; }
 blockquote { border-left: 4px solid #1da5d8; color: #3b4d64; margin-left: 0; padding-left: 18px; }
 .eyebrow { color: var(--accent-dark); font-size: .76rem; font-weight: 750; letter-spacing: .1em; margin-bottom: .6rem; text-transform: uppercase; }
 .post-meta { color: var(--muted); margin-bottom: 2rem; }
-.journal-list { list-style: none; margin: 2rem 0 0; padding: 0; }
-.journal-list li { border-top: 1px solid var(--line); padding: 20px 0; }
-.journal-list h2 { font-size: 1.35rem; margin: 0 0 .2rem; }
-.journal-list time { color: var(--muted); font-size: .9rem; }
 .site-footer { color: var(--muted); display: flex; justify-content: space-between; padding-bottom: 30px; font-size: .85rem; }
+.mermaid { margin: 1.5rem 0; overflow-x: auto; text-align: center; }
+.mermaid svg { height: auto; max-width: 100%; }
 @media (max-width: 780px) {
   .shell { width: min(100% - 28px, 720px); }
   .header-inner { min-height: 66px; }

@@ -2,7 +2,7 @@
 
 **Project**: Drive Assist (`com.geely.drivemem`)  
 **Target Platform**: Geely EX2 / Geometry E (IHU629G Head Unit, Android 9 / API 28)  
-**Date**: 2026-09-10  
+**Date**: 2026-09-10 (Section 2 refreshed 2026-09-14 — see its own note on the methodology change; Sections 3+ are unchanged from the original audit)  
 **Status**: Integrated & Verified Baseline  
 
 ---
@@ -29,73 +29,99 @@ The unit test suite consists of pure JUnit 4 tests executed against mock environ
 
 | Metric | Value |
 |---|---|
-| **Total Test Suites** | 15 suites |
-| **Total Tests Executed** | 131 tests |
+| **Total Test Suites** | 23 suites |
+| **Total Tests Executed** | 194 tests |
 | **Failures** | 0 |
 | **Errors** | 0 |
 | **Skipped** | 0 |
 | **Pass Rate** | 100.0% |
-| **Execution Duration** | ~0.57s (total test task ~1.69s) |
+| **Execution Duration** | ~1.11s (test task only) |
 
 #### Test Suite Breakdown
 | Test Suite | Tests | Failures | Time | Primary Focus |
 |---|---|---|---|---|
-| `com.geely.drivemem.EffortTableTest` | 35 | 0 | 0.017s | HVAC comfort ruler interpolation and effort lookup tables |
-| `com.geely.drivemem.ClipsTest` | 17 | 0 | 0.029s | Media clip index parsing and timestamp math |
+| `com.geely.drivemem.EffortTableTest` | 39 | 0 | 0.017s | HVAC comfort ruler interpolation and effort lookup tables |
+| `com.geely.drivemem.ClipsTest` | 18 | 0 | 0.028s | Media clip index parsing and timestamp math |
+| `com.geely.drivemem.ChargeSessionTest` | 13 | 0 | 0.018s | Battery charging session start/stop and energy tracking |
+| `com.geely.drivemem.TripSessionTest` | 12 | 0 | 0.006s | Trip park/drive edge detection, grace periods, segment stitching |
 | `com.geely.drivemem.CarDataHubApplyTest` | 11 | 0 | 0.019s | Car property updates and VHAL property mapping |
-| `com.geely.drivemem.GateStateTest` | 8 | 0 | 0.007s | Tailgate and door open/closed state transitions |
-| `com.geely.drivemem.ModesTest` | 8 | 0 | 0.006s | Vehicle drive mode (Eco/Sport) and regen state machines |
-| `com.geely.drivemem.CarDataHubTest` | 7 | 0 | 0.004s | Signal bus dispatch and listener registration |
-| `com.geely.drivemem.CertImporterTest` | 7 | 0 | 0.424s | TLS PKCS12 / PEM certificate import and validation |
-| `com.geely.drivemem.ChargeSessionLogTest` | 6 | 0 | 0.013s | Charging session CSV export and log rotation |
-| `com.geely.drivemem.OdoStatsTest` | 6 | 0 | 0.007s | Odometer math, delta calculations, and daily counters |
-| `com.geely.drivemem.MusicStateTest` | 5 | 0 | 0.004s | Media session metadata and playback state |
+| `com.geely.drivemem.sensors.DrivingConsumptionTest` | 10 | 0 | 0.001s | Driving energy/speed-bucket accumulation from telemetry |
+| `com.geely.drivemem.GateStateTest` | 8 | 0 | 0.010s | Tailgate and door open/closed state transitions |
+| `com.geely.drivemem.DailyStatsProviderTest` | 8 | 0 | 0.022s | Daily/weekly/monthly statistics aggregation |
+| `com.geely.drivemem.ModesTest` | 8 | 0 | 0.003s | Vehicle drive mode (Eco/Sport) and regen state machines |
+| `com.geely.drivemem.CarDataHubTest` | 7 | 0 | 0.008s | Signal bus dispatch and listener registration |
+| `com.geely.drivemem.CertImporterTest` | 7 | 0 | 0.775s | TLS PKCS12 / PEM certificate import and validation |
+| `com.geely.drivemem.EnergyIntegratorTest` | 7 | 0 | 0.006s | Trapezoidal power integration, trip/window energy accumulators |
+| `com.geely.drivemem.ChargeSessionLogTest` | 6 | 0 | 0.027s | Charging session CSV export and log rotation |
+| `com.geely.drivemem.OdoStatsTest` | 6 | 0 | 0.005s | Odometer math, delta calculations, and daily counters |
+| `com.geely.drivemem.CarTraceTest` | 5 | 0 | 0.007s | Car property change tracing/logging |
 | `com.geely.drivemem.TelemetryTest` | 5 | 0 | 0.002s | Telemetry number formatting and rounding rules |
-| `com.geely.drivemem.AbrpUploaderTest` | 4 | 0 | 0.029s | ABRP telemetry JSON payload serialization |
-| `com.geely.drivemem.ChargeSessionTest` | 4 | 0 | 0.002s | Battery charging session start/stop and energy tracking |
-| `com.geely.drivemem.MqttDiscoveryTest` | 4 | 0 | 0.006s | Home Assistant MQTT discovery JSON payloads |
+| `com.geely.drivemem.MusicStateTest` | 5 | 0 | 0.002s | Media session metadata and playback state |
+| `com.geely.drivemem.AbrpUploaderTest` | 4 | 0 | 0.031s | ABRP telemetry JSON payload serialization |
 | `com.geely.drivemem.PanelStateTest` | 4 | 0 | 0.002s | Comfort panel UI display state |
+| `com.geely.drivemem.MqttDiscoveryTest` | 4 | 0 | 0.004s | Home Assistant MQTT discovery JSON payloads |
+| `com.geely.drivemem.MqttTlsTest` | 3 | 0 | 0.096s | MQTT TLS handshake/config |
+| `com.geely.drivemem.ui.ChargeCostDialogTest` | 3 | 0 | 0.022s | Charge-cost entry dialog input parsing |
+| `com.geely.drivemem.sensors.CarTraceConsumptionTest` | 1 | 0 | 0.002s | Car trace consumption helper |
 
 ---
 
 ### 2.2 JaCoCo Code Coverage Metrics
 
-JaCoCo code coverage was captured during `testDebugUnitTest` across all 68 Java source files (135 compiled class files):
+**Methodology changed since the original 2026-09-10 baseline these numbers replace.** The `jacocoTestReport` task now excludes `ui/`, `art/`, `services/`, and `controls/` from the coverage *ratio* — those packages have no unit-test harness (no Robolectric; they're exercised on a real device instead), so folding their all-zero instruction counts into the denominator measured "how much of the app is UI" rather than "how much of the tested logic is tested." The excluded code is still compiled and shipped, and still covered — just by on-device testing instead of this report. That's also why the headline number jumped from 5.55% to 14.20% with no change in test behavior: the denominator shrank, the numerator didn't move.
+
+JaCoCo code coverage was captured during `testDebugUnitTest`, scoped to the testable packages (`hvac`, `state`, `car`, `sensors`, `net`, `util`, plus the top-level package):
 
 | Counter Type | Total | Covered | Missed | Coverage % |
 |---|---|---|---|---|
-| **Instructions** | 60,750 | 3,374 | 57,376 | **5.55%** |
-| **Branches** | 4,823 | 348 | 4,475 | **7.22%** |
-| **Lines** | 9,998 | 553 | 9,445 | **5.53%** |
-| **Cyclomatic Complexity** | 3,833 | 250 | 3,583 | **6.52%** |
-| **Methods** | 1,391 | 115 | 1,276 | **8.27%** |
-| **Classes** | 135 | 29 | 106 | **21.48%** |
+| **Instructions** | 38,570 | 5,477 | 33,093 | **14.20%** |
+| **Branches** | 4,024 | 598 | 3,426 | **14.86%** |
+| **Lines** | 6,487 | 1,072 | 5,415 | **16.53%** |
+| **Cyclomatic Complexity** | 3,005 | 409 | 2,596 | **13.61%** |
+| **Methods** | 972 | 182 | 790 | **18.72%** |
+| **Classes** | 111 | 39 | 72 | **35.14%** |
 
-#### Package Coverage Breakdown
+#### Package Coverage Breakdown (testable packages only)
 | Package | Instructions Covered | Instruction % | Lines Covered | Line % | Branches Covered | Branch % |
 |---|---|---|---|---|---|---|
-| `com.geely.drivemem.hvac` | 718 / 2,573 | **27.9%** | 101 / 417 | **24.2%** | 134 / 393 | **34.1%** |
-| `com.geely.drivemem.state` | 288 / 1,549 | **18.6%** | 68 / 336 | **20.2%** | 20 / 166 | **12.0%** |
-| `com.geely.drivemem.car` | 845 / 4,716 | **17.9%** | 90 / 654 | **13.8%** | 41 / 333 | **12.3%** |
-| `com.geely.drivemem.net` | 938 / 9,247 | **10.1%** | 203 / 1,538 | **13.2%** | 108 / 1,002 | **10.8%** |
-| `com.geely.drivemem.util` | 407 / 7,857 | **5.2%** | 61 / 1,212 | **5.0%** | 37 / 639 | **5.8%** |
-| `com.geely.drivemem.sensors` | 178 / 5,052 | **3.5%** | 30 / 840 | **3.6%** | 8 / 494 | **1.6%** |
-| `com.geely.drivemem.controls` | 0 / 1,709 | **0.0%** | 0 / 273 | **0.0%** | 0 / 148 | **0.0%** |
-| `com.geely.drivemem.services` | 0 / 1,952 | **0.0%** | 0 / 410 | **0.0%** | 0 / 118 | **0.0%** |
-| `com.geely.drivemem.ui` | 0 / 20,755 | **0.0%** | 0 / 3,664 | **0.0%** | 0 / 1,216 | **0.0%** |
-| `com.geely.drivemem.art` | 0 / 5,340 | **0.0%** | 0 / 654 | **0.0%** | 0 / 314 | **0.0%** |
+| `com.geely.drivemem.hvac` | 735 / 2,634 | **27.9%** | 106 / 432 | **24.5%** | 141 / 406 | **34.7%** |
+| `com.geely.drivemem.state` | 1,137 / 4,189 | **27.1%** | 320 / 872 | **36.7%** | 133 / 560 | **23.8%** |
+| `com.geely.drivemem.car` | 849 / 5,026 | **16.9%** | 90 / 731 | **12.3%** | 41 / 371 | **11.1%** |
+| `com.geely.drivemem.sensors` | 1,336 / 8,274 | **16.1%** | 279 / 1,445 | **19.3%** | 124 / 914 | **13.6%** |
+| `com.geely.drivemem.net` | 1,007 / 9,730 | **10.3%** | 215 / 1,621 | **13.3%** | 122 / 1,056 | **11.6%** |
+| `com.geely.drivemem.util` | 413 / 8,709 | **4.7%** | 62 / 1,382 | **4.5%** | 37 / 717 | **5.2%** |
+| `com.geely.drivemem` (root) | 0 / 8 | **0.0%** | 0 / 4 | **0.0%** | — | — |
+
+**Excluded from the ratio** (compiled and shipped; exercised on a real device instead of a JVM unit test):
+| Package | Instructions | Why excluded |
+|---|---|---|
+| `com.geely.drivemem.ui` | ~20,700 | Activities/custom Views — need a real window manager |
+| `com.geely.drivemem.art` | ~5,300 | Canvas art renderers — visual output, checked by eye on-device |
+| `com.geely.drivemem.services` | ~2,000 | Background services — need `NotificationManager`/system state |
+| `com.geely.drivemem.controls` | ~1,700 | Physical car-control widgets — need a live VHAL connection |
 
 #### Key Classes Coverage Analysis
-- **High Coverage Models & Logic**:
-  - `com.geely.drivemem.hvac.EffortTable`: **97.4%** instruction coverage (98.9% lines)
-  - `com.geely.drivemem.util.Modes`: **96.9%** instruction coverage (91.7% lines)
-  - `com.geely.drivemem.car.CarDataHub`: **91.1%** instruction coverage (84.5% lines)
-  - `com.geely.drivemem.state.GateState`: **100.0%** instruction coverage (100.0% lines)
-  - `com.geely.drivemem.sensors.OdoStats`: **65.8%** instruction coverage (67.6% lines)
-  - `com.geely.drivemem.net.CertImporter`: **28.2%** instruction coverage (31.8% lines)
+- **High Coverage Models & Logic** (≥50 instructions):
+  - `com.geely.drivemem.state.GateState`: **100.0%** instruction coverage
+  - `com.geely.drivemem.hvac.EffortTable`: **97.9%** instruction coverage
+  - `com.geely.drivemem.util.Modes`: **96.9%** instruction coverage
+  - `com.geely.drivemem.sensors.DrivingConsumption`: **95.0%** instruction coverage
+  - `com.geely.drivemem.car.CarDataHub`: **91.1%** instruction coverage
+  - `com.geely.drivemem.sensors.EnergyIntegrator`: **79.3%** instruction coverage
+  - `com.geely.drivemem.sensors.OdoStats`: **49.3%** instruction coverage
+  - `com.geely.drivemem.util.Clips`: **36.2%** instruction coverage
+- **Largest Untested Classes** (0% coverage, by instruction count — the real next targets, distinct from the excluded packages above):
+  - `com.geely.drivemem.net.MqttReporter` (4,300 instructions)
+  - `com.geely.drivemem.util.Style` (2,372 instructions)
+  - `com.geely.drivemem.util.Diagnostics` (2,116 instructions)
+  - `com.geely.drivemem.sensors.Obd2Reader` (1,220 instructions)
+  - `com.geely.drivemem.hvac.ComfortRuler` (1,160 instructions)
+  - `com.geely.drivemem.net.Updater` (1,023 instructions)
+  - `com.geely.drivemem.sensors.TelemetryRollup` (898 instructions)
+  - `com.geely.drivemem.car.CarActor` (866 instructions)
 - **Coverage Gap Root Cause**:
-  - The UI package (`com.geely.drivemem.ui`, 20,755 instructions) and Custom Canvas Art (`com.geely.drivemem.art`, 5,340 instructions) comprise 43% of the total application codebase. Because these classes directly inherit from Android `Activity` or `View` and interact with the Android window manager without Robolectric or an instrumentation runner, they are unexercised by JVM unit tests.
-  - Background services (`OutTempService`, `SocIconService`, `WifiIconService`) directly manipulate `NotificationManager` and system status bar overlays, which require Android framework stubs.
+  - Most of the remaining gap within the testable packages is integration-shaped code: `MqttReporter`, `Obd2Reader`, `CarActor`, and `Updater` talk directly to a live broker, a Bluetooth OBD2 adapter, the VHAL, or the network — none of which exist in a JVM unit test without a fake/mocked transport layer, and none of those fakes have been built yet.
+  - `Style` is almost entirely Android `View`/`GradientDrawable`/`Canvas` construction — the same shape as the excluded `ui`/`art` packages, it just hasn't been moved out of `util` to join them.
 
 ---
 

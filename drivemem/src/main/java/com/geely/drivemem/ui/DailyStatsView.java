@@ -1480,8 +1480,8 @@ public class DailyStatsView extends LinearLayout {
         LinearLayout title = new LinearLayout(c);
         title.setGravity(Gravity.CENTER_VERTICAL);
         android.widget.ImageView icon = new android.widget.ImageView(c);
-        icon.setImageResource(R.drawable.ic_car);
-        icon.setColorFilter(Style.ACCENT, android.graphics.PorterDuff.Mode.SRC_IN);
+        icon.setImageResource(R.drawable.ic_shield_car);
+        icon.setColorFilter(Style.PURPLE, android.graphics.PorterDuff.Mode.SRC_IN);
         title.addView(icon, new LinearLayout.LayoutParams(Style.dp(c, 20), Style.dp(c, 20)));
         TextView label = new TextView(c);
         label.setText("Modo manobrista  ·  " + sessionTime(v.timeLabel, v.durationLabel));

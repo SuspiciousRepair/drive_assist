@@ -5,11 +5,12 @@ import android.content.SharedPreferences;
 
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.car.EntityBus;
-import com.geely.drivemem.util.Modes;
 
 import java.util.Map;
 
-/** Persistent baseline for the current continuous stay in Park, including charging. */
+/** Persistent baseline for the current continuous stay in Park, including
+ * charging. Start/clear follow CarState's parked notifications, not a direct
+ * car.gear subscription of its own — see CarState's class comment for why. */
 public final class ParkingState {
     private static final String PREFS = "drivemem";
     private static final String START = "parking_start_ms";
@@ -31,9 +32,8 @@ public final class ParkingState {
         if (subscribed) return;
         subscribed = true;
         Context app = context.getApplicationContext();
-        EntityBus.subscribe("car.gear", (key, reading) -> {
-            if (reading.status != CarActor.Reading.Status.OK || !(reading.value instanceof Integer)) return;
-            if ((Integer) reading.value == Modes.GEAR_PARK_ADAPTED) ensureBaseline(app, null);
+        CarState.addListener(parked -> {
+            if (parked) ensureBaseline(app, null);
             else clear(app);
         });
         EntityBus.subscribe("telemetry.tick", (key, reading) -> {

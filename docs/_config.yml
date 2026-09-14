@@ -6,10 +6,7 @@ lang: en
 timezone: America/Sao_Paulo
 markdown: kramdown
 theme: null
-permalink: /journal/:year/:month/:day/:title/
-
 plugins:
-  - jekyll-feed
   - jekyll-seo-tag
   - jekyll-relative-links
 
@@ -22,12 +19,6 @@ defaults:
       path: ""
     values:
       layout: page
-  - scope:
-      path: "_posts"
-      type: posts
-    values:
-      layout: post
-
 exclude:
   - Gemfile
   - Gemfile.lock

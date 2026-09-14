@@ -21,18 +21,23 @@ public class DrivingConsumptionTest {
         assertEquals(22.5, DrivingConsumption.per100km(c.spent[0], c.regen[0], c.distance[0]), 1e-9);
     }
 
-    @Test public void legacyDoesNotBridgeParkChargingOrDirectSamples() {
+    // Charging no longer breaks the legacy bridge when gear says driving (see
+    // isDriving()'s own comment: is_charging can latch for hours, including
+    // through an entire real drive, on 2026-09-14 it zeroed out two trips'
+    // consumption outright). Only a real Park row still breaks it.
+    @Test public void legacyBridgesThroughAStaleChargingFlagButNotPark() {
         DrivingConsumption c = new DrivingConsumption();
         c.add(0, 100, 0, 8, false, NaN, NaN, 12);
         c.add(15000, 100, 0, 8, false, NaN, NaN, 12);
         assertEquals(.05, c.totalSpent, 1e-9);
-        c.add(20000, 100, 0, 4, false, NaN, NaN, 12);
-        c.add(30000, 100, 0, 8, false, NaN, NaN, 12);
-        c.add(35000, 100, 0, 8, true, NaN, NaN, 12);
+        c.add(20000, 100, 0, 4, false, NaN, NaN, 12);   // Park: breaks the bridge
+        c.add(30000, 100, 0, 8, false, NaN, NaN, 12);   // back to Drive: no prior ts, no integration yet
+        c.add(35000, 100, 0, 8, true, NaN, NaN, 12);    // gear still says driving — charging is ignored
         c.add(40000, 100, 0, 8, false, NaN, NaN, 12);
         c.add(45000, 100, 0, 8, false, .1, 0, 12);
         c.add(50000, 100, 0, 8, false, NaN, NaN, 12);
-        assertEquals(.15, c.totalSpent, 1e-9);
+        double expected = .05 + 12.0 * 5000 / 3_600_000.0 + 12.0 * 5000 / 3_600_000.0 + .1;
+        assertEquals(expected, c.totalSpent, 1e-9);
     }
 
     @Test public void unknownStationaryGearIsNotAssumedDriving() {
@@ -40,7 +45,11 @@ public class DrivingConsumptionTest {
         assertTrue(DrivingConsumption.isDriving(null, 10, false));
         assertFalse(DrivingConsumption.isDriving(4, 10, false));
         assertTrue(DrivingConsumption.isDriving(8, 0, false));
-        assertFalse(DrivingConsumption.isDriving(8, 0, true));
+        // Gear wins over charging whenever gear is known — see isDriving()'s
+        // own comment for why trusting charging here zeroed out real trips.
+        assertTrue(DrivingConsumption.isDriving(8, 0, true));
+        // Charging only matters as a fallback when gear itself is unknown.
+        assertFalse(DrivingConsumption.isDriving(null, 0, true));
     }
 
     @Test public void legacyGapsAndOdometerStartupDoNotInflateConsumption() {

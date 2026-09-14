@@ -229,7 +229,14 @@
     <string name="value_calculating">Calculando…</string>
     <string name="cfg_bar_outtemp">Temperatura externa na barra</string>
     <string name="cfg_bar_wifi">Wi-Fi na barra (abre ajustes)</string>
+    <string name="cfg_bar_topbar_header">Barra de status</string>
     <string name="cfg_bar_soc">Bateria % na barra</string>
+    <string name="cfg_bar_home_header">Tela inicial</string>
+    <string name="cfg_overlay_label">Botão flutuante de acesso rápido</string>
+    <string name="overlay_climate_label">Clima</string>
+    <string name="overlay_open_app">Abrir app</string>
+    <string name="notif_overlay_channel">Botão flutuante</string>
+    <string name="notif_overlay_fg_text">botão de acesso rápido</string>
     <string name="cfg_appearance_header">Aparência</string>
     <string name="cfg_appearance_light">Clara</string>
     <string name="cfg_appearance_dark">Escura</string>

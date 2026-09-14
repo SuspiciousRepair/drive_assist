@@ -41,6 +41,17 @@ public class BootReceiver extends BroadcastReceiver {
             Log.i(CarAccess.TAG, "apk updated — reattaching watchdog and services");
             scheduleWatchdog(ctx);
             try { ensureAll(ctx); } catch (Throwable t) { Log.w(CarAccess.TAG, "replaced: " + t); }
+            // Self-grants the overlay button's draw-over-apps permission, so it
+            // works without anyone visiting a settings screen. No-op once already
+            // granted. Needs a socket, so off the main thread; goAsync() keeps the
+            // process alive long enough for that (a few hundred ms, typically).
+            final PendingResult overlayPr = goAsync();
+            final Context app = ctx.getApplicationContext();
+            new Thread(() -> {
+                try { LocalAdb.grantOverlayPermission(app); }
+                catch (Throwable t) { Log.w(CarAccess.TAG, "overlay self-grant: " + t); }
+                finally { overlayPr.finish(); }
+            }).start();
             return;
         }
 
@@ -226,6 +237,18 @@ public class BootReceiver extends BroadcastReceiver {
             WifiIconService.class, Beat.WIFIICON, STALE_WIFI_MS);
         ensureService(ctx, p.getBoolean("soc_on", false),
             SocIconService.class, Beat.SOCICON, STALE_SOC_MS);
+
+        // Own small block, not ensureService(): that helper's zombie-detection
+        // needs a Beat key with a real periodic tick behind it, and the overlay
+        // has none — startForegroundService()'s own no-op on an already-running
+        // instance is all the restart-safety this one needs.
+        if (p.getBoolean("overlay_on", false)) {
+            try {
+                Intent s = new Intent(ctx, com.geely.drivemem.services.OverlayService.class);
+                if (android.os.Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(s);
+                else ctx.startService(s);
+            } catch (Throwable t) { Log.w(CarAccess.TAG, "ensure overlay: " + t); }
+        }
     }
 
     private static void ensureService(Context ctx, boolean enabled,

@@ -9,13 +9,14 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.PorterDuff;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.util.AttributeSet;
 import android.view.Gravity;
-import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.DecelerateInterpolator;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -28,7 +29,7 @@ public class GateCard extends LinearLayout {
 
     private final TextView gateStatusView;
     private final GradientDrawable gateCardBg;
-    private final GradientDrawable gateLampBg;
+    private final ImageView gateIcon;
     private ValueAnimator gateGlowAnim;
     private boolean gateDebounced = false;
     private int currentAccent = Style.ACCENT;
@@ -53,15 +54,16 @@ public class GateCard extends LinearLayout {
         setFocusable(true);
         setOnClickListener(v -> handleCardClick());
 
-        View lamp = new View(context);
-        gateLampBg = new GradientDrawable();
-        gateLampBg.setShape(GradientDrawable.OVAL);
-        gateLampBg.setColor(currentAccent);
-        lamp.setBackground(gateLampBg);
-        LinearLayout.LayoutParams lampLp =
-            new LinearLayout.LayoutParams(Style.dp(context, 14), Style.dp(context, 14));
-        lampLp.rightMargin = Style.dp(context, 22);
-        addView(lamp, lampLp);
+        // garage-variant / garage-open-variant, not a plain status dot — the
+        // icon itself says open or closed; color still carries urgency the
+        // same way the dot used to (tinted via setAccent()).
+        gateIcon = new ImageView(context);
+        gateIcon.setImageResource(R.drawable.ic_garage_variant);
+        gateIcon.setColorFilter(currentAccent, PorterDuff.Mode.SRC_IN);
+        LinearLayout.LayoutParams iconLp =
+            new LinearLayout.LayoutParams(Style.dp(context, 32), Style.dp(context, 32));
+        iconLp.rightMargin = Style.dp(context, 18);
+        addView(gateIcon, iconLp);
 
         TextView title = new TextView(context);
         title.setText(context.getString(R.string.gate_title));
@@ -86,7 +88,7 @@ public class GateCard extends LinearLayout {
 
     public void setAccent(int accent) {
         this.currentAccent = accent;
-        if (gateLampBg != null) gateLampBg.setColor(accent);
+        if (gateIcon != null) gateIcon.setColorFilter(accent, PorterDuff.Mode.SRC_IN);
         refreshStatus();
     }
 
@@ -99,6 +101,14 @@ public class GateCard extends LinearLayout {
             return;
         }
         String s = GateState.state();
+        // Only two icons exist for four states: "closing" still reads as
+        // physically open (the door is mid-travel, mostly up) and "opening"
+        // still reads as physically closed, same as the real world lags a
+        // press before the door actually finishes moving.
+        boolean showOpen = "open".equals(s) || "closing".equals(s);
+        if (gateIcon != null) {
+            gateIcon.setImageResource(showOpen ? R.drawable.ic_garage_open_variant : R.drawable.ic_garage_variant);
+        }
         if ("opening".equals(s)) {
             gateStatusView.setText(c.getString(R.string.gate_opening));
             gateStatusView.setTextColor(currentAccent);

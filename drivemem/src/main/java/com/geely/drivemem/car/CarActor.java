@@ -90,6 +90,24 @@ public final class CarActor {
             return Reading.ok((a > 0.5f) ? 1 : 0);
         });
 
+        // Ground truth for "is a cable physically in the port" — a real
+        // connector-engagement property, not derived from current flow like
+        // car.is_charging above. Needed because 605291008 (charge_a) has been
+        // observed to latch at its last non-zero reading and never return to
+        // 0 on its own (2026-09-14: 245V/11.4A held steady for hours after
+        // the plug was physically pulled) — car.is_charging inherits that
+        // staleness since it reads the very same property. ChargeSession uses
+        // this one to know when to stop believing it.
+        registerPoll("car.plug_connected", 2000, c -> {
+            String v = c.readAny(557887621, 0, 'i');   // same prop Telemetry.java's plug_connected reads
+            if (v == null) return Reading.error("no reading");
+            try {
+                return Reading.ok(Integer.parseInt(v) != 0 ? 1 : 0);
+            } catch (NumberFormatException e) {
+                return Reading.error("bad value: " + v);
+            }
+        });
+
         // Always-on baseline (independent of OutTempService lifecycle).
         registerPoll("telemetry.outside_temp", 15000, c -> {
             Float outC = c.readOutsideTempC();

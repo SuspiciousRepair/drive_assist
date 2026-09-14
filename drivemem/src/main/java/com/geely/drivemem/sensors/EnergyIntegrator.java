@@ -118,9 +118,22 @@ public final class EnergyIntegrator {
      * Accessible package-private / for testing. */
     public static void onPowerReading(long nowMonoMs, double kw) {
         synchronized (LOCK) {
-            // If the vehicle is plugged in and actively charging, do not integrate
-            // charging current as driving regenerative braking.
-            if (com.geely.drivemem.state.ChargeSession.isCharging()) {
+            // If the vehicle is PARKED and plugged in and actively charging, do
+            // not integrate charging current as driving regenerative braking.
+            // Gated on CarState.isParked() (the one reliable, gear-derived
+            // signal — see CarState's own class comment) rather than trusting
+            // ChargeSession.isCharging() alone: that flag is current-derived
+            // (charge_a > 0.5A) off a property already caught latching at its
+            // last reading for hours (2026-09-14), including through a whole
+            // drive. Skipping every power reading for however long that flag
+            // stays wrongly "charging" mid-trip is exactly how a real drive's
+            // consumption came out as a flat 0.0 kWh. It is physically
+            // impossible to be both driving and parked-charging at once, so
+            // once CarState confirms we are actually driving, a stuck
+            // "charging" flag is definitely the sensor bug, never a real
+            // reason to stop integrating.
+            if (com.geely.drivemem.state.CarState.isParked()
+                    && com.geely.drivemem.state.ChargeSession.isCharging()) {
                 lastSampleMonoMs = 0;
                 lastPowerKw = null;
                 return;

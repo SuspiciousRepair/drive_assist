@@ -1,8 +1,8 @@
 ---
-title: Writing documentation and journal entries
+title: Writing documentation
 ---
 
-# Writing documentation and journal entries
+# Writing documentation
 
 The documentation site is built with Jekyll from this `docs/` directory. Existing
 guides remain ordinary Markdown files; Jekyll supplies the shared navigation and
@@ -14,25 +14,21 @@ Write a normal Markdown file in `docs/`. Add it to the `_data/navigation.yml`
 source file when it belongs in the permanent library. Prefer a guide when the
 reader needs instructions or a stable reference.
 
-## Write a development note
+## Add a diagram
 
-Create a file in `_posts/` named `YYYY-MM-DD-short-title.md`. Start it with:
+Use a fenced code block marked `mermaid`. The site converts it into a responsive
+SVG diagram when the page loads:
 
-```yaml
----
-title: A clear, human title
-description: One sentence used on the journal index.
----
+````markdown
+```mermaid
+flowchart LR
+  Car --> Drive_Assist
+  Drive_Assist --> Home_Assistant
 ```
+````
 
-Write what changed, why the decision was made, and any limitation worth carrying
-forward. A journal entry is a dated account of the work; move settled instructions
-and reference material into a guide instead.
-
-Write a journal entry in the language in which it is naturally written. Do not
-create a second translation just to keep the journal mirrored. Add `locale:
-pt-BR` to a Portuguese entry when you want it to use the Portuguese site chrome;
-the shared journal intentionally lists entries in their original language.
+Keep labels concise and do not put untrusted HTML in diagrams. Mermaid is loaded
+with its strict security setting.
 
 ## Preview locally
 

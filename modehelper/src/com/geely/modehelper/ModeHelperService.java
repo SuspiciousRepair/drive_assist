@@ -206,16 +206,34 @@ public class ModeHelperService extends Service {
         }
     }
 
-    // PARKED: same shape again, for AVAS mute. 0 = muted, >=1 = active mode
-    // (see AvasMuteTestReceiver). Same "no preference yet, don't touch it" rule.
+    // AVAS mute. 0 = muted, >=1 = active mode (see AvasMuteTestReceiver). Same
+    // "no preference yet, don't touch it" rule as enforceAeb().
+    //
+    // Unlike drive/regen and AEB above, this does NOT keep re-forcing the saved
+    // value forever: it applies the saved value ONCE, right when the car
+    // connection first comes up (boot / process start). After that it only
+    // MIRRORS — if the car's mode no longer matches, that means the owner
+    // changed it live in OEM Settings, so the saved preference is updated to
+    // match instead of being fought. The saved value is reasserted again on
+    // the next boot. See plan/AVAS-MUTE-ROADMAP.md.
+    private boolean avasAppliedOnce = false;
     private void enforceAvasParked() {
         SharedPreferences p = getSharedPreferences("modehelper", MODE_PRIVATE);
         if (!p.contains("avas")) return;
-        int want = p.getInt("avas", 1);
         Object cur = car.audioCall("getAVASMode");
-        if (cur instanceof Integer && !cur.equals(want)) {
-            car.audioCall("setAVASMode", want);
-            Log.i(TAG, "modo: avas " + cur + " -> " + want);
+        if (!(cur instanceof Integer)) return;
+        int want = p.getInt("avas", 1);
+        if (!avasAppliedOnce) {
+            avasAppliedOnce = true;
+            if (!cur.equals(want)) {
+                car.audioCall("setAVASMode", want);
+                Log.i(TAG, "modo: avas " + cur + " -> " + want + " (boot apply)");
+            }
+            return;
+        }
+        if (!cur.equals(want)) {
+            p.edit().putInt("avas", (Integer) cur).apply();
+            Log.i(TAG, "modo: avas mirrored from OEM " + want + " -> " + cur);
         }
     }
 

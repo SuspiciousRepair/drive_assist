@@ -441,10 +441,17 @@ public final class DailyStatsProvider {
     public static HourlySpeedData getHourlySpeedData(Context ctx, String dateStr) {
         HourlySpeedData out = new HourlySpeedData();
         long[] bounds = dayBoundsMs(dateStr);
+        // Gear wins whenever it's known — same reasoning as DrivingConsumption
+        // .isDriving(): is_charging is derived from a car property observed
+        // to latch for hours, including through a real drive (2026-09-14),
+        // and excluding on it alone emptied this whole chart for the day.
+        // is_charging is only the decider when gear itself is missing.
         Cursor c = CarDb.get(ctx).db().rawQuery(
                 "SELECT odo_km, speed_kmh, ts_ms FROM telemetry_sample "
               + "WHERE ts_ms >= ? AND ts_ms < ? "
-              + "AND (is_charging IS NULL OR is_charging = 0) ORDER BY id ASC",
+              + "AND (CASE WHEN gear IS NOT NULL THEN gear <> 4 "
+              + "     ELSE (is_charging IS NULL OR is_charging = 0) END) "
+              + "ORDER BY id ASC",
                 new String[]{String.valueOf(bounds[0]), String.valueOf(bounds[1])});
         try {
             double previousOdo = -1;

@@ -40,7 +40,7 @@ flowchart TD
 Phase 1 provides an interactive daily overview directly on the IHU display:
 
 ![Drive Assist Daily Statistics View](screenshots/daily-stats.png)
-*Figure 1: Drive Assist Daily Statistics View running live on the Geely EX2 IHU629G head unit (1920x1080 display). Features 14-day interactive distance bar chart (MPAndroidChart), day navigator controls (`[◀ Ontem]` and `[Amanhã ▶]`), cumulative altimetry dashboard (▲ Ganho Total D+, ▼ Perda Total D-, ↕ Saldo Líquido), battery & climate summary (59% ➔ 69% SoC, min SoC, 19.5°C), and chronological session log of drives and charging sessions.*
+*Figure 1: Drive Assist's chronological session log and hourly distance chart, running live on the Geely EX2 IHU629G head unit (1920x1080 display). **Sessões do Dia** lists the day's drives, charging sessions, and Valet-mode intervals in reverse-chronological order — each row showing time range, duration, distance, efficiency (kWh/100km), SoC change, ascent/descent, and energy consumed/regenerated, with parked gaps interleaved between them. **Distância por Hora & Velocidade** breaks the day's total distance down by hour, colored by speed bucket (0–40, 40–80, 80–120, 120+ km/h).*
 
 ### 1. Interactive Daily Bar Chart & Navigation
 - **Bar Chart (MPAndroidChart)**: Displays daily distance (`last_odo_km - first_odo_km`) over the past 14 days.

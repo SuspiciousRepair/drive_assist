@@ -19,11 +19,6 @@ serviços que você já usa.
 - [Segurança do ADB root](../ADB-ROOT-SAFETY.pt-BR.md) — entenda esse acesso antes de habilitá-lo.
 - [Conecte o Home Assistant](../HOME-ASSISTANT.pt-BR.md) ou o [A Better Routeplanner](../ABRP.pt-BR.md).
 
-## Acompanhe o desenvolvimento
-
-O [diário de desenvolvimento](../journal/) registra mudanças, descobertas no carro e
-decisões de projeto. Cada texto permanece no idioma em que foi escrito.
-
 ## Biblioteca técnica
 
 As referências técnicas continuam em inglês por enquanto. Elas cobrem

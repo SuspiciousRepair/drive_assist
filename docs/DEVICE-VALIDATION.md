@@ -33,8 +33,8 @@ watchdogs, boot/resume behavior, telemetry persistence, or database migrations.
 - [ ] Capture only sanitized screenshots or observations for public docs.
 - [ ] Add a regression test or recorded scenario when the behavior can be
   represented without real vehicle data.
-- [ ] State whether the commit was vehicle-validated in its PR, journal entry,
-  or private release note.
+- [ ] State whether the commit was vehicle-validated in its PR or private release
+  note.
 
 This is a test checklist, not a deployment command. It never widens the safety
 rules in [Contributing](../CONTRIBUTING.md).

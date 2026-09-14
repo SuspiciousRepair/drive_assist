@@ -1808,6 +1808,25 @@ public class TelemetryActivity extends Activity {
         });
     }
 
+    // Reads android.car.media.CarAudioManager's live getAVASMode() and moves
+    // the switch to match — ON when a sound is chosen (mode >= 1), OFF when
+    // muted (mode == 0). Silent: setCheckedSilently() doesn't re-fire
+    // setOnToggle(), so this can't loop back into sendAdasPreference() and
+    // re-announce a preference nobody actually changed.
+    private void refreshAvasFromCar(GeelySwitch sw) {
+        CarActor.get(this).runOnCarThread(() -> {
+            CarAccess c = CarActor.get(this).rawAccess();
+            if (!c.isReady() && !c.connect(getApplicationContext())) return;
+            Object mode = c.audioCall("getAVASMode");
+            if (!(mode instanceof Integer)) return;
+            boolean on = ((Integer) mode) != 0;
+            ui.post(() -> {
+                prefs.edit().putBoolean("avas_on", on).apply();
+                sw.setCheckedSilently(on);
+            });
+        });
+    }
+
     private void forceDiscoveryNow() {
         saveAll(prefs.getBoolean("tele_enabled", false));
         status.setText(getString(R.string.cfg_discovery_sending));
@@ -1971,13 +1990,23 @@ public class TelemetryActivity extends Activity {
         // AVAS mute: no Park-gate, no confirmation — much lower stakes (a
         // pedestrian-warning chime, not braking), matching a "quick per-drive
         // toggle" per plan/AVAS-MUTE-ROADMAP.md's still-open question.
-        LinearLayout avasRow = toggleRow(getString(R.string.cfg_avas_label),
-            prefs.getBoolean("avas_on", true), on -> {
-                prefs.edit().putBoolean("avas_on", on).apply();
-                sendAdasPreference("avas", on);
-            });
+        //
+        // Built without toggleRow()'s callback param, same as the AEB row
+        // above, so refreshAvasFromCar() can move the switch on its own once
+        // the live read comes back — modehelper now mirrors an OEM-side
+        // change into its own saved preference (see ModeHelperService), so
+        // Drive Assist's own saved "avas_on" can go stale the moment the
+        // owner picks a different sound in OEM Settings. Reading the car
+        // directly on every screen entry is what keeps this switch honest.
+        LinearLayout avasRow = toggleRow(getString(R.string.cfg_avas_label), prefs.getBoolean("avas_on", true), null);
+        GeelySwitch avasSwitch = (GeelySwitch) avasRow.getChildAt(0);
+        avasSwitch.setOnToggle(on -> {
+            prefs.edit().putBoolean("avas_on", on).apply();
+            sendAdasPreference("avas", on);
+        });
         avasRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
         content.addView(avasRow);
+        refreshAvasFromCar(avasSwitch);
 
         content.addView(Style.header(this, getString(R.string.cfg_actions_header)));
         LinearLayout actionRow = new LinearLayout(this);
@@ -2153,6 +2182,8 @@ public class TelemetryActivity extends Activity {
     private void buildBar() {
         content.addView(Style.header(this, getString(R.string.cfg_bar_header)));
 
+        content.addView(Style.header(this, getString(R.string.cfg_bar_topbar_header)));
+
         content.addView(toggleRow(getString(R.string.cfg_bar_outtemp),
             prefs.getBoolean("outtemp_on", false), on -> {
                 prefs.edit().putBoolean("outtemp_on", on).apply();
@@ -2178,9 +2209,20 @@ public class TelemetryActivity extends Activity {
                 } else stopService(svc);
             }));
 
+        content.addView(Style.header(this, getString(R.string.cfg_bar_home_header)));
+
         content.addView(toggleRow(getString(R.string.cfg_drive_card),
             prefs.getBoolean("drive_card_enabled", true), on ->
                 prefs.edit().putBoolean("drive_card_enabled", on).apply()));
+
+        content.addView(toggleRow(getString(R.string.cfg_overlay_label),
+            prefs.getBoolean("overlay_on", false), on -> {
+                prefs.edit().putBoolean("overlay_on", on).apply();
+                Intent svc = new Intent(this, com.geely.drivemem.services.OverlayService.class);
+                if (on) {
+                    if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(svc); else startService(svc);
+                } else stopService(svc);
+            }));
     }
 
     // =====================================================================

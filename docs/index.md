@@ -17,13 +17,6 @@ already run.
 - [Root ADB safety](ADB-ROOT-SAFETY.md) — understand the access before enabling it.
 - [Safety and privacy](WELCOME.md) — what the app reads, controls, and cannot do.
 
-## Follow the work
-
-The [development journal](journal/) is a running record of changes, discoveries,
-and design decisions made while living with the car. It is intentionally separate
-from the guides: guides explain how something works today; journal entries explain
-how and why it got there.
-
 ## Go deeper
 
 The documentation library covers [Home Assistant](HOME-ASSISTANT.md),

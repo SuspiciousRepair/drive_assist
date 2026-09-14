@@ -47,8 +47,23 @@ public final class ChargeSession {
         subscribed = true;
         Context app = ctx.getApplicationContext();
         EntityBus.subscribe("car.is_charging", (key, reading) -> {
-            if (reading.status == CarActor.Reading.Status.OK && reading.value instanceof Integer)
-                onChargingEdge(app, (Integer) reading.value == 1);
+            if (reading.status != CarActor.Reading.Status.OK || !(reading.value instanceof Integer)) return;
+            boolean charging = (Integer) reading.value == 1;
+            // car.is_charging is current-derived (charge_a > 0.5A) and that
+            // property is the one known to latch — never trust it INTO a
+            // session while CarActor's own cache (the one place plug state
+            // lives — no shadow copy here) says nothing is plugged in, or the
+            // 2s poll cycle would just reopen what the plug_connected
+            // subscription below is closing, forever.
+            if (charging && isKnownUnplugged(app)) return;
+            onChargingEdge(app, charging);
+        });
+        EntityBus.subscribe("car.plug_connected", (key, reading) -> {
+            if (reading.status == CarActor.Reading.Status.OK && reading.value instanceof Integer
+                    && (Integer) reading.value == 0 && wasCharging) {
+                Log.i(TAG, "chargesession: plug reads disconnected while still marked charging — closing");
+                onChargingEdge(app, false);
+            }
         });
         EntityBus.subscribe("telemetry.tick", (key, reading) -> {
             if (reading.status == CarActor.Reading.Status.OK) {
@@ -210,6 +225,15 @@ public final class ChargeSession {
             + " socStart=" + socStart + " socEnd=" + socEnd
             + " whAccum=" + String.format(Locale.US, "%.3f", whAccum)
             + " samples=" + sampleCount;
+    }
+
+    // CarActor.get() is the cache — the one place a reading lives once
+    // published. Optimistic (false) on anything but a confirmed 0, same
+    // reasoning as CarState's own "parked defaults to true": don't block a
+    // real charge start just because this hasn't been read yet at boot.
+    private static boolean isKnownUnplugged(Context ctx) {
+        CarActor.Reading r = CarActor.get(ctx).get("car.plug_connected");
+        return r.status == CarActor.Reading.Status.OK && r.value instanceof Integer && (Integer) r.value == 0;
     }
 
     public static void onParkExit(Context ctx) {

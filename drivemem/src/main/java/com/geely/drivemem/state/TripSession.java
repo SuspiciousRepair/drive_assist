@@ -102,6 +102,11 @@ public final class TripSession {
         boolean nowParked = (gear == Modes.GEAR_PARK_ADAPTED);
         if (nowParked == wasParked) return; // no edge
 
+        // The one place car.gear becomes "parked or not" — CarState relays
+        // this to everyone else (ChargeSession included) via its own
+        // listeners, so nothing downstream needs its own gear subscription.
+        CarState.reportParked(nowParked);
+
         if (!nowParked) {
             // Parked -> driving: cancel pending park grace finalizer if any
             if (parkGraceRunnable != null) {
@@ -115,17 +120,10 @@ public final class TripSession {
                 // Continue existing trip seamlessly (stitch/merge segments)
                 currentDriveSegmentStartMs = now;
             } else {
-                // Start a brand new trip. Force-close any charge session here
-                // directly, rather than relying only on CarState's own parked
-                // listener: CarState and TripSession keep separate "was parked"
-                // latches fed by the same car.gear stream, and if they ever
-                // drift out of sync (observed 2026-09-14: a charge session
-                // stayed "em andamento" through a whole trip start) CarState's
-                // listener can miss the edge entirely, since it only fires on
-                // a change relative to ITS OWN last value. This call uses the
-                // edge TripSession just detected on its own, which is known-
-                // reliable here, so the charge session can never outlive it.
-                ChargeSession.onParkExit(ctx);
+                // Start a brand new trip. Any open charge session already got
+                // force-closed by CarState.reportParked() above — its onParkExit
+                // listener runs synchronously, before this line — so there is
+                // nothing to do here for that any more.
                 tripActive = true;
                 startMs = now;
                 currentDriveSegmentStartMs = now;
@@ -333,6 +331,15 @@ public final class TripSession {
         int persistedStartSoc = p.getInt(PREF_OPEN_START_SOC, -1);
 
         tripActive = true;
+        // Recovering an open trip IS proof the car was mid-drive when the
+        // process died — sync both the local latch and the shared hub to
+        // match, or two things stay stuck: wasParked stays at its default
+        // true, so the REAL Park edge that eventually ends this trip reads
+        // as "no change" and finalizeTrip() never gets scheduled at all; and
+        // CarState stays parked too, so anything hanging off it (charging
+        // included) never gets the memo that a drive is already under way.
+        wasParked = false;
+        CarState.reportParked(false);
         startMs = persistedStartMs;
         startSampleId = persistedStartSampleId;
         startOdoKm = persistedStartOdoKm;
@@ -400,11 +407,15 @@ public final class TripSession {
 
     // Same fallback formula DailyStatsProvider already uses when a trip row's
     // own energy columns are missing — see queryDaySessions()'s own comment.
+    // Gear wins over is_charging whenever gear is known — see
+    // DrivingConsumption.isDriving()'s own comment for why.
     private static double[] sumEnergySince(Context ctx, long startMs, long endMs) {
         Cursor c = CarDb.get(ctx).db().rawQuery(
             "SELECT COALESCE(SUM(energy_spent_kwh),0), COALESCE(SUM(energy_regen_kwh),0), "
           + "COALESCE(SUM(energy_net_kwh),0) FROM telemetry_sample "
-          + "WHERE ts_ms BETWEEN ? AND ? AND (is_charging IS NULL OR is_charging = 0)",
+          + "WHERE ts_ms BETWEEN ? AND ? "
+          + "AND (CASE WHEN gear IS NOT NULL THEN gear <> 4 "
+          + "     ELSE (is_charging IS NULL OR is_charging = 0) END)",
             new String[]{String.valueOf(startMs), String.valueOf(endMs)});
         try {
             if (c.moveToFirst()) return new double[]{c.getDouble(0), c.getDouble(1), c.getDouble(2)};

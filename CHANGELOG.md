@@ -1,6 +1,14 @@
 # Changelog
 
-All notable changes to this project are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [v0.1.6] — 2026-09-14
+
+### Added
+- **Overlay shortcut**: User can now enable a shortcut that stays on top of every other app, including Carplay or Android Auto. It shows Climate Control, Turbo Mode/Regen and a shortcut to the app.
+- **New App Icon**: The app is now identified by the mdi:view-dashboard-varient icon.
+
+### Fixed
+- **AVAS (pedestrian warning sound)**: Drive Assist no longer fights a sound picked in the car's own Settings — it applies its saved choice once when the car starts, then leaves whatever is chosen in OEM Settings alone until the next restart. The Config toggle also now reads the car's real state every time the screen opens, instead of showing a value that could be out of date.
+- **Gate card**: now shows a real open/closed garage icon that reflects the actual gate state, instead of a plain colored dot.
 
 ## [v0.1.5] — 2026-09-14
 
