@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.5] — 2026-09-14
+
+### Fixed
+- A charging session that reached 100% could stay marked "in progress" indefinitely, even after driving away — the car's own charging signal can stay latched at its last reading instead of dropping to zero once the battery is full. The app now closes any open charging session the moment a real trip starts, instead of relying only on that signal.
+
 ## [v0.1.4] — 2026-09-13
 
 ### Added
