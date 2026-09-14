@@ -67,7 +67,7 @@
     <string name="cfg_nav_doors">Portas</string>
     <string name="cfg_nav_mqtt">MQTT</string>
     <string name="cfg_nav_drive">Modo de condução</string>
-    <string name="cfg_nav_bar">Barra de menu</string>
+    <string name="cfg_nav_bar">Elementos</string>
     <string name="cfg_nav_look">Aparência</string>
     <string name="cfg_mqtt_header">Envio para o Home Assistant</string>
     <string name="cfg_status_sending">A enviar para o Home Assistant</string>
@@ -126,7 +126,18 @@
     <string name="cfg_startup_default">Predefinição de arranque: %1$s + %2$s</string>
     <string name="cfg_mode_unknown">Modo atual desconhecido — escolha um para aplicar</string>
     <string name="cfg_current">Atual: %1$s + %2$s</string>
-    <string name="cfg_bar_header">Indicadores na barra de menu</string>
+    <string name="cfg_bar_header">Elementos</string>
+    <string name="cfg_drive_card">Mostrar cartão da viagem atual</string>
+    <string name="drive_card_title">Viagem atual</string>
+    <string name="drive_card_detail">%1$.1f km · %2$s · desde %3$s · recuperados %4$.2f kWh</string>
+    <string name="parked_card_title">Estacionado</string>
+    <string name="parked_card_detail">Bateria %1$s · temperatura %2$s</string>
+    <string name="valet_start">Ativar modo Valet</string>
+    <string name="valet_end">Terminar modo Valet</string>
+    <string name="valet_active_title">Modo Valet ativo</string>
+    <string name="valet_active_detail">Ativo há %1$s · potência máxima %2$s</string>
+    <string name="value_unavailable">Indisponível</string>
+    <string name="value_calculating">A calcular…</string>
     <string name="cfg_bar_outtemp">Temperatura exterior na barra</string>
     <string name="cfg_bar_wifi">Wi-Fi na barra (abre as definições)</string>
     <string name="cfg_bar_soc">Bateria % na barra</string>
@@ -136,6 +147,9 @@
     <string name="cfg_appearance_auto">Automático</string>
     <string name="cfg_appearance_note">Automático segue a definição de dia/noite desta própria unidade. O Neon e o Noturno usam sempre o seu esquema de cor único e fixo, seja qual for esta definição.</string>
     <string name="cfg_theme_header">Tema</string>
+    <string name="cfg_skyline_header">Skyline</string>
+    <string name="cfg_dark_mode_header">Modo escuro</string>
+    <string name="cfg_theme_selection_header">Seleção do tema</string>
     <string name="cfg_theme_sub">Aplica-se a todos os ecrãs do Drive Assist. A miniatura mostra a cor e a forma dos cartões — a mudança é imediata.</string>
     <string name="cfg_theme_selected">%1$s  ✓</string>
     <string name="cfg_theme_ambient_on">Este tema deixa a luz ambiente da cabine controlar a cor de destaque.</string>
@@ -331,6 +345,13 @@
     <string name="abrp_debug_no">não</string>
     <!-- charge stats & cost -->
     <string name="charge_stats_title">Estatísticas de carregamento</string>
+    <string name="charge_sessions_title">Carregamentos · mais recentes primeiro</string>
+    <string name="charge_soc_chart_title">Intervalo da bateria · ordem cronológica</string>
+    <string name="charge_curve_title">Potência de carregamento ao longo do tempo</string>
+    <string name="charge_curve_unavailable">As amostras deste carregamento já não estão disponíveis.</string>
+    <string name="charge_curve_power_label">Potência (kW)</string>
+    <string name="charge_curve_temp_label">Temp. exterior (°C)</string>
+    <string name="charge_curve_batt_temp_label">Temp. da bateria (°C)</string>
     <string name="charge_completed_title">Carregamento concluído</string>
     <string name="charge_cost_label">Custo</string>
     <string name="charge_cost_input_title">Custo do carregamento</string>
@@ -338,6 +359,7 @@
     <string name="charge_cost_btn_input">Introduzir custo</string>
     <string name="charge_cost_btn_edit">Editar</string>
     <string name="charge_cost_btn_save">Guardar</string>
+    <string name="charge_cost_btn_per_kwh">× kWh</string>
     <string name="charge_cost_btn_dismiss">Dispensar</string>
     <string name="charge_cost_not_set">Custo não definido</string>
     <string name="charge_cost_invalid">Valor de custo inválido</string>

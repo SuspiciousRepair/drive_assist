@@ -5,6 +5,7 @@ on:
     branches: [ master ]
     paths:
       - 'docs/**'
+      - 'Gemfile'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -30,20 +31,21 @@ jobs:
       - name: Setup GitHub Pages
         id: setup
         uses: actions/configure-pages@v5
-        continue-on-error: true
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Build Jekyll site
+        run: bundle exec jekyll build --source docs --destination _site --baseurl "${{ steps.setup.outputs.base_path }}"
 
       - name: Upload Pages Artifact
-        if: steps.setup.outcome == 'success'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'docs'
+          path: '_site'
 
       - name: Deploy to GitHub Pages
-        if: steps.setup.outcome == 'success'
         id: deployment
         uses: actions/deploy-pages@v4
-
-      - name: GitHub Pages Status Notice
-        if: steps.setup.outcome != 'success'
-        run: |
-          echo "::warning title=GitHub Pages Not Enabled::GitHub Pages deployment was skipped because GitHub Pages is not activated on this repository. To enable: Go to GitHub Repo -> Settings -> Pages -> Build and deployment -> Source: select 'GitHub Actions'."

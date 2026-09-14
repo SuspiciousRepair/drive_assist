@@ -47,6 +47,13 @@ public class SocIconService extends Service {
         if (running) return START_STICKY;
         running = true;
         EntityBus.subscribe("telemetry.battery", battListener);
+        // Draw immediately from whatever CarActor already has cached — ingest()
+        // only republishes on change, so without this the icon stayed blank
+        // until the SoC next ticked over, which can be many minutes.
+        CarActor.Reading r = CarActor.get(this).get("telemetry.battery");
+        Float pct = (r.status == CarActor.Reading.Status.OK && r.value instanceof Integer)
+            ? ((Integer) r.value).floatValue() : null;
+        postIcon(pct);
         return START_STICKY;
     }
 

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="{{ page.locale | default: site.lang | default: 'en' }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% seo %}
+    <link rel="alternate" type="application/atom+xml" title="{{ site.title }} journal" href="{{ '/feed.xml' | relative_url }}">
+    <link rel="stylesheet" href="{{ '/assets/site.css' | relative_url }}">
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="shell header-inner">
+        <a class="brand" href="{{ '/' | relative_url }}">
+          <span class="brand-mark" aria-hidden="true">DA</span>
+          <span>Drive Assist <small>Geely EX2 / Geometry E</small></span>
+        </a>
+        <nav aria-label="Primary">
+          {% if page.locale == 'pt-BR' %}
+          <a href="{{ '/journal/' | relative_url }}">Diário</a>
+          <a href="{{ '/' | relative_url }}">English</a>
+          {% else %}
+          <a href="{{ '/journal/' | relative_url }}">Journal</a>
+          <a href="{{ '/pt-br/' | relative_url }}">Português</a>
+          {% endif %}
+          <a href="https://github.com/SuspiciousRepair/drive_assist">{% if page.locale == 'pt-BR' %}Código{% else %}Source{% endif %}</a>
+        </nav>
+      </div>
+    </header>
+    <div class="shell site-grid">
+      <aside class="sidebar" aria-label="{% if page.locale == 'pt-BR' %}Navegação da documentação{% else %}Documentation navigation{% endif %}">
+        {% if page.locale == 'pt-BR' %}{% assign navigation = site.data.navigation_pt_br %}{% else %}{% assign navigation = site.data.navigation %}{% endif %}
+        {% for section in navigation %}
+        <section>
+          <h2>{{ section.title }}</h2>
+          <ul>
+            {% for item in section.links %}
+            <li><a href="{% if item.url contains '://' %}{{ item.url }}{% else %}{{ item.url | relative_url }}{% endif %}">{{ item.title }}</a></li>
+            {% endfor %}
+          </ul>
+        </section>
+        {% endfor %}
+      </aside>
+      <main class="content" id="content">
+        {{ content }}
+      </main>
+    </div>
+    <footer class="site-footer shell">
+      <span>{% if page.locale == 'pt-BR' %}O Drive Assist é um software livre e independente para proprietários.{% else %}Drive Assist is independent, open-source software for owners.{% endif %}</span>
+      <a href="{{ '/feed.xml' | relative_url }}">{% if page.locale == 'pt-BR' %}Feed do diário{% else %}Journal feed{% endif %}</a>
+    </footer>
+  </body>
+</html>

@@ -80,7 +80,7 @@
     <string name="cfg_nav_doors">Portas</string>
     <string name="cfg_nav_mqtt">MQTT</string>
     <string name="cfg_nav_drive">Modo de Condução</string>
-    <string name="cfg_nav_bar">Barra de menu</string>
+    <string name="cfg_nav_bar">Elementos</string>
     <string name="cfg_nav_look">Aparência</string>
     <string name="cfg_nav_spotify">Spotify</string>
     <string name="cfg_nav_system">Sistema</string>
@@ -92,13 +92,11 @@
     <string name="cfg_system_header">Sistema</string>
     <string name="cfg_app_info_header">Informações do aplicativo</string>
     <string name="cfg_version_label">Versão: %1$s (compilação %2$d)</string>
+    <string name="cfg_ip_label">Endereço IP (Wi-Fi): %1$s</string>
     <string name="cfg_sha_label">SHA-256 do APK</string>
     <string name="cfg_update_header">Atualização de software</string>
     <string name="cfg_update_url_label">URL de atualização (HTTPS)</string>
     <string name="cfg_btn_check_update">Verificar e instalar atualização</string>
-    <string name="cfg_touch_header">Controles de toque e trava</string>
-    <string name="cfg_cooldown_label">Trava do botão</string>
-    <string name="cfg_cooldown_hint">Tempo de bloqueio temporário após tocar em qualquer interruptor para prevenir toques acidentais ao dirigir sobre irregularidades.</string>
     <string name="cfg_maintenance_header">Manutenção</string>
     <string name="cfg_mqtt_header">Envio ao Home Assistant</string>
     <string name="cfg_mqtt_enable_label">Habilitar telemetria MQTT</string>
@@ -203,6 +201,12 @@
     <string name="turbo_header">Turbo</string>
     <string name="turbo_enable_label">Mostrar o card Turbo</string>
     <string name="turbo_duration_label">Duração (s)</string>
+    <string name="cfg_adas_header">Assistência ao motorista</string>
+    <string name="cfg_aeb_label">AEB (frenagem automática de emergência)</string>
+    <string name="cfg_avas_label">AVAS (som de alerta a pedestres)</string>
+    <string name="cfg_aeb_confirm_title">Desativar a frenagem automática de emergência?</string>
+    <string name="cfg_aeb_confirm_body">Desativar o AEB interrompe a frenagem automática quando o carro detecta risco de colisão frontal. Diferente do menu do próprio carro, isto permanece desativado após reiniciar, até você reativar por aqui.</string>
+    <string name="cfg_aeb_confirm_turn_off">Desativar</string>
     <string name="cfg_btn_apply">Aplicar agora</string>
     <string name="cfg_btn_save_default">Salvar padrão</string>
     <string name="cfg_car_connect_fail">Falha ao conectar ao carro</string>
@@ -211,7 +215,18 @@
     <string name="cfg_startup_default">Padrão de partida: %1$s + %2$s</string>
     <string name="cfg_mode_unknown">Modo atual desconhecido — escolha para aplicar</string>
     <string name="cfg_current">Atual: %1$s + %2$s</string>
-    <string name="cfg_bar_header">Displays na barra de menu</string>
+    <string name="cfg_bar_header">Elementos</string>
+    <string name="cfg_drive_card">Mostrar cartão da viagem atual</string>
+    <string name="drive_card_title">Viagem atual</string>
+    <string name="drive_card_detail">%1$.1f km · %2$s · desde %3$s · recuperados %4$.2f kWh</string>
+    <string name="parked_card_title">Estacionado</string>
+    <string name="parked_card_detail">Bateria %1$s · temperatura %2$s</string>
+    <string name="valet_start">Ativar modo manobrista</string>
+    <string name="valet_end">Encerrar modo manobrista</string>
+    <string name="valet_active_title">Modo manobrista ativo</string>
+    <string name="valet_active_detail">Ativo há %1$s · potência máxima %2$s</string>
+    <string name="value_unavailable">Indisponível</string>
+    <string name="value_calculating">Calculando…</string>
     <string name="cfg_bar_outtemp">Temperatura externa na barra</string>
     <string name="cfg_bar_wifi">Wi-Fi na barra (abre ajustes)</string>
     <string name="cfg_bar_soc">Bateria % na barra</string>
@@ -221,12 +236,15 @@
     <string name="cfg_appearance_auto">Automática</string>
     <string name="cfg_appearance_note">Automática segue o ajuste de dia/noite do próprio painel do carro. Neon e Noturno sempre usam seu esquema de cor único, seja qual for este ajuste.</string>
     <string name="cfg_skyline_label">Mostrar arte do horizonte</string>
+    <string name="cfg_skyline_header">Skyline</string>
     <string name="cfg_skyline_seed_header">Semente do Horizonte</string>
     <string name="cfg_skyline_seed_label">Semente</string>
     <string name="cfg_skyline_seed_save">Salvar</string>
     <string name="cfg_skyline_cycle">Sortear</string>
     <string name="cfg_skyline_random_per_drive_label">Aleatório a cada viagem</string>
     <string name="cfg_theme_header">Tema</string>
+    <string name="cfg_dark_mode_header">Modo escuro</string>
+    <string name="cfg_theme_selection_header">Seleção do tema</string>
     <string name="cfg_theme_sub">Vale para todas as telas do Drive Assist. A miniatura mostra a cor e o formato dos cartões — a troca é imediata.</string>
     <string name="cfg_theme_selected">%1$s  ✓</string>
     <string name="cfg_theme_ambient_on">Este tema deixa a luz ambiente da cabine mandar no acento.</string>
@@ -348,6 +366,13 @@
 
     <!-- charge stats & cost tracking -->
     <string name="charge_stats_title">Estatísticas de recarga</string>
+    <string name="charge_sessions_title">Recargas · mais recentes primeiro</string>
+    <string name="charge_soc_chart_title">Faixa da bateria · ordem cronológica</string>
+    <string name="charge_curve_title">Potência de recarga ao longo do tempo</string>
+    <string name="charge_curve_unavailable">As amostras desta recarga não estão mais disponíveis.</string>
+    <string name="charge_curve_power_label">Potência (kW)</string>
+    <string name="charge_curve_temp_label">Temp. externa (°C)</string>
+    <string name="charge_curve_batt_temp_label">Temp. da bateria (°C)</string>
     <string name="charge_completed_title">Recarga concluída</string>
     <string name="charge_cost_label">Custo</string>
     <string name="charge_cost_input_title">Custo da Recarga</string>
@@ -355,6 +380,7 @@
     <string name="charge_cost_btn_input">Informar Custo</string>
     <string name="charge_cost_btn_edit">Editar</string>
     <string name="charge_cost_btn_save">Salvar</string>
+    <string name="charge_cost_btn_per_kwh">× kWh</string>
     <string name="charge_cost_btn_dismiss">Dispensar</string>
     <string name="charge_cost_not_set">Custo não informado</string>
     <string name="charge_cost_invalid">Valor de custo inválido</string>

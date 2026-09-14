@@ -57,11 +57,30 @@ public class ModeHelperService extends Service {
             rx = new BroadcastReceiver() {
                 @Override public void onReceive(Context c, Intent it) {
                     if (SET_MODE.equals(it.getAction())) {
-                        int d = it.getIntExtra("drive", CarMode.DRIVE_ECO);
-                        int r = it.getIntExtra("regen", CarMode.REGEN_MID);
-                        getSharedPreferences("modehelper", MODE_PRIVATE).edit()
-                            .putInt("drive", d).putInt("regen", r).apply();
-                        Log.i(TAG, "default from drivemem: drive=" + d + " regen=" + r);
+                        // Each preference is independent and optional — drivemem may
+                        // send drive/regen together (its existing "Save" action) and
+                        // aeb/avas from a different screen entirely, on its own. Only
+                        // touch what's actually present, so one doesn't clobber another.
+                        SharedPreferences.Editor e = getSharedPreferences("modehelper", MODE_PRIVATE).edit();
+                        StringBuilder log = new StringBuilder("default from drivemem:");
+                        if (it.hasExtra("drive")) {
+                            int d = it.getIntExtra("drive", CarMode.DRIVE_ECO);
+                            e.putInt("drive", d); log.append(" drive=").append(d);
+                        }
+                        if (it.hasExtra("regen")) {
+                            int r = it.getIntExtra("regen", CarMode.REGEN_MID);
+                            e.putInt("regen", r); log.append(" regen=").append(r);
+                        }
+                        if (it.hasExtra("aeb")) {
+                            boolean aeb = it.getBooleanExtra("aeb", true);
+                            e.putBoolean("aeb", aeb); log.append(" aeb=").append(aeb);
+                        }
+                        if (it.hasExtra("avas")) {
+                            int avas = it.getIntExtra("avas", 1);
+                            e.putInt("avas", avas); log.append(" avas=").append(avas);
+                        }
+                        e.apply();
+                        Log.i(TAG, log.toString());
                     }
                 }
             };
@@ -102,7 +121,18 @@ public class ModeHelperService extends Service {
                 if (g != null) {
                     if (g != lastGear) Log.i(TAG, "gear " + lastGear + " -> " + g);
                     lastGear = g;
-                    if (parked) enforceModeParked();  // hold the saved default while parked
+                    if (parked) {
+                        enforceModeParked();  // hold the saved default while parked
+                    }
+                    // AEB and AVAS are NOT parked-gated, unlike drive/regen mode above:
+                    // by owner's explicit choice, both apply in any condition, driving
+                    // or parked — see plan/ADAS-CONTROLS-ROADMAP.md and
+                    // plan/AVAS-MUTE-ROADMAP.md. Drive/regen mode stays parked-gated on
+                    // purpose, for a different reason: it respects whatever the driver
+                    // picks live during a drive, only reasserting the saved default
+                    // once parked.
+                    enforceAeb();
+                    enforceAvasParked();
                 }
                 // AGGRESSIVE Wi-Fi while parked (~= at home, charging/paused): keep it
                 // on, switching it back on if it drops. While driving we do not force
@@ -111,6 +141,13 @@ public class ModeHelperService extends Service {
                 if (parked) ensureWifiOn();
                 nudgeWifiScan();
             } catch (Throwable t) { Log.w(TAG, "poll: " + t); }
+            // Liveness heartbeat — a timestamp in SharedPreferences (survives process
+            // death), so BootReceiver's watchdog can tell whether this loop is still
+            // actually running instead of just assuming a START_STICKY restart happened.
+            // Marked even if the try block above threw, so a stuck car connection
+            // doesn't also look like a dead poll loop.
+            getSharedPreferences("modehelper", MODE_PRIVATE).edit()
+                .putLong("beat_poll", System.currentTimeMillis()).apply();
             try { Thread.sleep(4000); } catch (InterruptedException e) { break; }
         }
     }
@@ -152,6 +189,34 @@ public class ModeHelperService extends Service {
         Integer cd = car.readDrive(), cr = car.readRegen();
         if (cd != null && cd != drive) { car.writeDrive(drive); Log.i(TAG, "modo: drive " + cd + " -> " + drive); }
         if (cr != null && cr != regen) { car.writeRegen(regen); Log.i(TAG, "modo: regen " + cr + " -> " + regen); }
+    }
+
+    // Same shape as enforceModeParked(), for AEB — but runs every tick regardless
+    // of parked state (owner's explicit choice: applies in any condition). Only
+    // acts once drivemem has actually sent a preference (SET_MODE with an "aeb"
+    // extra) — no preference yet means "don't touch it", not "force it on".
+    private void enforceAeb() {
+        SharedPreferences p = getSharedPreferences("modehelper", MODE_PRIVATE);
+        if (!p.contains("aeb")) return;
+        boolean want = p.getBoolean("aeb", true);
+        Boolean have = car.readBoolProp(CarMode.AEB_PROP, CarMode.AEB_AREA);
+        if (have != null && have != want) {
+            car.writeBoolProp(CarMode.AEB_PROP, CarMode.AEB_AREA, want);
+            Log.i(TAG, "modo: aeb " + have + " -> " + want);
+        }
+    }
+
+    // PARKED: same shape again, for AVAS mute. 0 = muted, >=1 = active mode
+    // (see AvasMuteTestReceiver). Same "no preference yet, don't touch it" rule.
+    private void enforceAvasParked() {
+        SharedPreferences p = getSharedPreferences("modehelper", MODE_PRIVATE);
+        if (!p.contains("avas")) return;
+        int want = p.getInt("avas", 1);
+        Object cur = car.audioCall("getAVASMode");
+        if (cur instanceof Integer && !cur.equals(want)) {
+            car.audioCall("setAVASMode", want);
+            Log.i(TAG, "modo: avas " + cur + " -> " + want);
+        }
     }
 
     // Command-line pairing: `adb shell am broadcast -a com.geely.modehelper.BT_PAIR

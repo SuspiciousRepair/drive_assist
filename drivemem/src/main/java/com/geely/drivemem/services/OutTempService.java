@@ -83,6 +83,13 @@ public class OutTempService extends Service {
         // was the wrong shape. Only the subscription is this service's own.
         CarActor.get(this);   // ensure it exists — harmless if already built
         EntityBus.subscribe(KEY, tempListener);
+        // Draw immediately from whatever CarActor already has cached — ingest()
+        // only republishes on change, so without this the icon stayed blank
+        // until the temperature next ticked over, which can be many minutes.
+        CarActor.Reading r = CarActor.get(this).get(KEY);
+        lastTemp = (r.status == CarActor.Reading.Status.OK && r.value instanceof Float)
+            ? (Float) r.value : null;
+        postIcon(lastTemp);
         return START_STICKY;
     }
 

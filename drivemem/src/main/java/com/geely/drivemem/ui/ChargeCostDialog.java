@@ -5,7 +5,10 @@ import android.content.Context;
 import android.graphics.Typeface;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
+import android.text.InputFilter;
 import android.text.InputType;
+import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
@@ -58,15 +61,30 @@ public final class ChargeCostDialog {
         input.setHintTextColor(Style.TEXT_DIM);
         input.setTextSize(22f);
         input.setTypeface(Typeface.DEFAULT_BOLD);
-        input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        input.setInputType(InputType.TYPE_CLASS_NUMBER);
+        // TYPE_CLASS_NUMBER installs a digits-only InputFilter as well as a
+        // numeric KeyListener. Keep the KeyListener/keyboard, but allow the
+        // formatter to insert the visual comma into the Editable.
+        input.setFilters(new InputFilter[0]);
         input.setBackground(Style.card(Style.CARD_HI, context));
         int inPad = Style.dp(context, 14);
         input.setPadding(inPad, inPad, inPad, inPad);
-        if (currentCost != null && currentCost > 0) {
-            input.setText(String.format(Locale.US, "%.2f", currentCost));
-        } else {
-            input.setText("0");
-        }
+        input.setText(formatCents(currentCost == null ? 0 : Math.round(currentCost * 100)));
+        input.addTextChangedListener(new TextWatcher() {
+            private boolean formatting;
+
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override public void afterTextChanged(Editable value) {
+                if (formatting) return;
+                formatting = true;
+                String formatted = formatCents(centsFromText(value.toString()));
+                input.setText(formatted);
+                input.setSelection(formatted.length());
+                formatting = false;
+            }
+        });
         input.selectAll();
         card.addView(input);
 
@@ -88,20 +106,19 @@ public final class ChargeCostDialog {
         btnRow.addView(btnCancel);
         Style.gap(btnRow, context, 10);
 
+        TextView btnPerKwh = Style.cardButton(context,
+            context.getString(R.string.charge_cost_btn_per_kwh), false, () -> {
+                double cost = totalCostFromRateCents(centsFromText(input.getText().toString()), kwh);
+                input.setText(formatCents(Math.round(cost * 100)));
+                input.setSelection(input.length());
+            });
+        btnRow.addView(btnPerKwh);
+        Style.gap(btnRow, context, 10);
+
         TextView btnSave = Style.cardButton(context, context.getString(R.string.charge_cost_btn_save), true, () -> {
-            String txt = input.getText().toString().trim().replace(',', '.');
-            if (txt.isEmpty()) {
-                txt = "0";
-            }
             try {
-                double cost = Double.parseDouble(txt);
-                if (cost < 0) {
-                    Toast.makeText(context, context.getString(R.string.charge_cost_invalid), Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                ChargeSession.updateCost(context, sessionId, cost);
-                dialog.dismiss();
-                if (onUpdated != null) onUpdated.run();
+                double cost = centsFromText(input.getText().toString()) / 100.0;
+                saveCost(context, dialog, sessionId, cost, onUpdated);
             } catch (NumberFormatException e) {
                 Toast.makeText(context, context.getString(R.string.charge_cost_invalid), Toast.LENGTH_SHORT).show();
             }
@@ -111,7 +128,7 @@ public final class ChargeCostDialog {
 
         dialog.show();
 
-        // Focus and request software keyboard after display
+        // Focus and request the compact digits keyboard after display.
         input.requestFocus();
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             input.selectAll();
@@ -122,5 +139,30 @@ public final class ChargeCostDialog {
         }, 150);
 
         return dialog;
+    }
+
+    private static void saveCost(Context context, AlertDialog dialog, long sessionId,
+                                 double cost, Runnable onUpdated) {
+        ChargeSession.updateCost(context, sessionId, cost);
+        dialog.dismiss();
+        if (onUpdated != null) onUpdated.run();
+    }
+
+    static double totalCostFromRateCents(long rateCents, double kwh) {
+        return Math.round(rateCents * kwh) / 100.0;
+    }
+
+    static long centsFromText(String text) {
+        String digits = text.replaceAll("[^0-9]", "");
+        if (digits.isEmpty()) return 0;
+        try {
+            return Long.parseLong(digits);
+        } catch (NumberFormatException ignored) {
+            return Long.MAX_VALUE;
+        }
+    }
+
+    static String formatCents(long cents) {
+        return String.format(Locale.getDefault(), "%d,%02d", cents / 100, cents % 100);
     }
 }

@@ -19,6 +19,11 @@ public class CarMode {
     static final int DRIVE_ECO = 570491137, DRIVE_COMFORT = 570491138, DRIVE_SPORT = 570491139;
     static final int REGEN_LOW = 537003265, REGEN_MID = 537003266, REGEN_HIGH = 537003267;
 
+    // AEB (Autonomous Emergency Braking) master switch, boolean, area 0. See
+    // docs/field-catalog.md §6 — confirmed via directed diff on the OEM ADAS
+    // screen and cross-checked against a decompiled reference app.
+    static final int AEB_PROP = 557858874, AEB_AREA = 0;
+
     // gear: CURRENT_GEAR (same id the telemetry uses). VehicleGear enum:
     // NEUTRAL=1, REVERSE=2, PARK=4, DRIVE=8
     static final int GEAR = 289408001;
@@ -86,11 +91,46 @@ public class CarMode {
     Boolean readBoolProp(int prop, int area) {
         try { return cpm.getBooleanProperty(prop, area); } catch (Throwable t) { return null; }
     }
+    // Generic writer. Package-private on purpose: only a narrowly-scoped,
+    // hardcoded-property receiver (e.g. AebWriteTestReceiver) may call this —
+    // never wire it behind a receiver that takes an arbitrary id from the
+    // caller. See ProbeReceiver's own comment for why.
+    boolean writeBoolProp(int prop, int area, boolean val) {
+        try { cpm.setBooleanProperty(prop, area, val); return true; }
+        catch (Throwable t) { Log.w(TAG, "writeBoolProp " + prop + "@" + area + ": " + t); return false; }
+    }
     Float readFloatProp(int prop, int area) {
         try { return cpm.getFloatProperty(prop, area); } catch (Throwable t) { return null; }
     }
     Integer readIntProp(int prop, int area) {
         try { return cpm.getIntProperty(prop, area); } catch (Throwable t) { return null; }
+    }
+    // android.car.media.CarAudioManager — hidden framework class, called by
+    // reflection rather than compiled against (same class drivemem's
+    // CarAccess.audioCall() uses). Package-private: only a narrowly-scoped,
+    // hardcoded-method receiver (e.g. AvasMuteTestReceiver) may call this —
+    // never wire it behind a receiver that takes an arbitrary method name
+    // from the caller. See ProbeReceiver's own comment for why.
+    Object audioCall(String method, Object... args) {
+        if (car == null) return "ERR:no car";
+        try {
+            Object mgr = car.getCarManager("audio");
+            if (mgr == null) return "ERR:no audio manager";
+            Class<?>[] types = new Class<?>[args.length];
+            for (int i = 0; i < args.length; i++) {
+                Object a = args[i];
+                types[i] = (a instanceof Integer) ? int.class
+                         : (a instanceof Boolean) ? boolean.class
+                         : (a instanceof Float) ? float.class
+                         : a.getClass();
+            }
+            return mgr.getClass().getMethod(method, types).invoke(mgr, args);
+        } catch (java.lang.reflect.InvocationTargetException t) {
+            Throwable cause = t.getCause();
+            return "ERR:" + (cause != null ? cause : t);
+        } catch (Throwable t) {
+            return "ERR:" + t;
+        }
     }
     // is this prop in the VHAL list?
     boolean hasProp(int prop) {

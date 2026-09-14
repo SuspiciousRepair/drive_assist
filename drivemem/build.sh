@@ -12,7 +12,7 @@
 #   GEELY_TOOLS    Path to external tools directory (defaults to $HOME/dev/geely)
 #   NO_DEPLOY      Set to 1 to build only (skip HA upload and vehicle install)
 #   NO_GUARD       Set to 1 to bypass git integration and ancestor safety checks
-#   INTEGRATION    Git branch to verify against HEAD (defaults to main or master)
+#   INTEGRATION    Git branch to verify against HEAD (defaults to dev, then main, then master)
 #   HA_HOST        Override Home Assistant host address
 #   CAR            Override vehicle ADB target address (host:port)
 #   OTA_TOPIC      Override OTA MQTT topic (defaults to drivemem/geely/update/set)
@@ -107,9 +107,19 @@ fi
 # ============================================================================
 # Ensures the current branch has integrated upstream changes and contains the
 # currently deployed commit before releasing, preventing accidental rollbacks.
+#
+# `dev` is checked first: it is this project's actual integration trunk (see
+# CLAUDE.md's two-branch workflow). `master` is a DOWNSTREAM squash target
+# produced by push-release.sh, which writes a fresh commit with no parent
+# link back to dev -- so master and dev are unrelated histories by design.
+# An ancestor check against master can never pass from dev, and the
+# "run: git merge master" it would suggest fails with git's own
+# "refusing to merge unrelated histories" -- an unfollowable instruction.
+# `related()` below detects that case and downgrades it to a warning instead
+# of a hard block, for both checks in this section.
 INTEGRATION="${INTEGRATION:-}"
 if [ -z "$INTEGRATION" ]; then
-  for b in main master; do
+  for b in dev main master; do
     git rev-parse --verify "$b" >/dev/null 2>&1 && { INTEGRATION="$b"; break; }
   done
 fi
@@ -121,6 +131,11 @@ guard_fail() {
   exit 2
 }
 
+# True only if $1 and $2 share at least one commit. False for branches that
+# were never joined (e.g. dev and a fresh squash-release master) as opposed
+# to branches that share history but have simply diverged.
+related() { git merge-base "$1" "$2" >/dev/null 2>&1; }
+
 if [ -z "${NO_GUARD:-}" ] && git rev-parse --git-dir >/dev/null 2>&1; then
   # Exclude drive_assist.apk itself as it is a build artifact.
   # Uncommitted changes in source files must be committed before deploying.
@@ -128,7 +143,9 @@ if [ -z "${NO_GUARD:-}" ] && git rev-parse --git-dir >/dev/null 2>&1; then
     || { echo "Uncommitted changes:"; git status --short -- . ':!drive_assist.apk' | sed 's/^/    /'
          guard_fail "commit changes before deploying"; }
 
-  if [ -n "$INTEGRATION" ] && ! git merge-base --is-ancestor "$INTEGRATION" HEAD 2>/dev/null; then
+  if [ -n "$INTEGRATION" ] && ! related "$INTEGRATION" HEAD; then
+    echo "Note: '$INTEGRATION' shares no history with HEAD (unrelated branch, e.g. a squashed release target) -- skipping integration check."
+  elif [ -n "$INTEGRATION" ] && ! git merge-base --is-ancestor "$INTEGRATION" HEAD 2>/dev/null; then
     echo "Integration pending: '$INTEGRATION' contains commits not present in HEAD:"
     git log --oneline HEAD.."$INTEGRATION" | sed 's/^/    /'
     guard_fail "run: git merge $INTEGRATION"
@@ -159,7 +176,9 @@ done
 
 if [ -z "${NO_GUARD:-}" ] && [ -n "$deployed" ] && git rev-parse --git-dir >/dev/null 2>&1; then
   if git cat-file -e "$deployed^{commit}" 2>/dev/null; then
-    if ! git merge-base --is-ancestor "$deployed" HEAD; then
+    if ! related "$deployed" HEAD; then
+      echo "Warning: deployed commit ($(git rev-parse --short "$deployed")) shares no history with HEAD (unrelated branch) -- cannot verify it is safe to overwrite. Proceeding, since there is no mergeable relationship to check."
+    elif ! git merge-base --is-ancestor "$deployed" HEAD; then
       echo "Deployed commit ($(git rev-parse --short "$deployed")) contains commits not present in HEAD:"
       git log --oneline HEAD.."$deployed" | sed 's/^/    /'
       guard_fail "deploying now would overwrite deployed commits. Run: git merge $deployed"

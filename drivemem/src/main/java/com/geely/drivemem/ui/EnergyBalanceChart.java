@@ -105,7 +105,11 @@ public final class EnergyBalanceChart extends LinearLayout {
         BarDataSet set = new BarDataSet(entries, "");
         set.setStackLabels(new String[]{getContext().getString(R.string.charge_balance_spent),
                 getContext().getString(R.string.charge_balance_regen), "AC", "DC"});
-        set.setColors(Style.HEAT, Style.COOL, Style.ACCENT, 0xFFAB8CFF);
+        // AC/DC colors follow the app-wide charging style guide (2026-09-13):
+        // AC = blue (Style.ACCENT), DC = green (Style.GOOD). Regen = purple
+        // (2026-09-13), distinct from AC's blue since both can stack above
+        // zero on the same bar.
+        set.setColors(Style.HEAT, Style.PURPLE, Style.ACCENT, Style.GOOD);
         set.setDrawValues(false);
         BarData data = new BarData(set);
         data.setBarWidth(.7f);

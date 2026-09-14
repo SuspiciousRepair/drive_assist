@@ -1,16 +1,5 @@
 package com.geely.drivemem.sensors;
 
-import com.geely.drivemem.car.CarAccess;
-import com.geely.drivemem.car.CarActor;
-import com.geely.drivemem.car.EntityBus;
-import com.geely.drivemem.car.Telemetry;
-import com.geely.drivemem.controls.DoorWindow;
-import com.geely.drivemem.hvac.ComfortHub;
-import com.geely.drivemem.net.AbrpUploader;
-import com.geely.drivemem.services.TelemetryService;
-import com.geely.drivemem.state.CarplayState;
-import com.geely.drivemem.state.ChargeSession;
-
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -82,7 +71,11 @@ public final class Obd2Reader {
     // (Telemetry.java, AbrpUploader), same volatile-fields discipline
     // ChargeSession's own static state already uses.
     private static volatile boolean connected = false;
-    private static volatile Double soc, voltage, current, battTempC, powerKw;
+    private static volatile Double soc;
+    private static volatile Double voltage;
+    private static volatile Double current;
+    private static volatile Double battTempC;
+    private static volatile Double powerKw;
     private static volatile Integer reportedSpeedKmh;
     private static volatile long lastReadingAtMs = 0;
 
@@ -102,54 +95,85 @@ public final class Obd2Reader {
 
     /** A snapshot of OBD2 readings from the battery ECU. */
     public static final class Reading {
-        public final Double soc, voltage, current, battTempC, powerKw;
+        public final Double soc;
+        public final Double voltage;
+        public final Double current;
+        public final Double battTempC;
+        public final Double powerKw;
         public final Integer speedKmh;
         public final long atMs;
         Reading(Double soc, Double voltage, Double current, Double battTempC,
                 Double powerKw, Integer speedKmh, long atMs) {
-            this.soc = soc; this.voltage = voltage; this.current = current;
-            this.battTempC = battTempC; this.powerKw = powerKw;
-            this.speedKmh = speedKmh; this.atMs = atMs;
+            this.soc = soc;
+            this.voltage = voltage;
+            this.current = current;
+            this.battTempC = battTempC;
+            this.powerKw = powerKw;
+            this.speedKmh = speedKmh;
+            this.atMs = atMs;
         }
     }
 
     private static final java.util.List<Listener> listeners = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /** Subscribes a listener to OBD2 events. */
-    public static void subscribe(Listener l) { listeners.add(l); }
+    public static void subscribe(Listener l) {
+        listeners.add(l);
+    }
     /** Unsubscribes a listener from OBD2 events. */
-    public static void unsubscribe(Listener l) { listeners.remove(l); }
+    public static void unsubscribe(Listener l) {
+        listeners.remove(l);
+    }
 
     private static void setConnected(boolean c) {
-        if (connected == c) return;
+        if (connected == c) {
+            return;
+        }
         connected = c;
-        for (Listener l : listeners) l.onObd2ConnectedChanged(c);
+        for (Listener l : listeners) {
+            l.onObd2ConnectedChanged(c);
+        }
     }
 
     private static void notifyReading() {
         Reading r = new Reading(soc, voltage, current, battTempC, powerKw, reportedSpeedKmh, lastReadingAtMs);
         logReading(r);
-        for (Listener l : listeners) l.onObd2Reading(r);
+        for (Listener l : listeners) {
+            l.onObd2Reading(r);
+        }
     }
 
-    private Obd2Reader() {}
+    private Obd2Reader() {
+    }
 
     /** Returns whether an OBD2 connection is currently active. */
-    public static boolean isConnected() { return connected; }
+    public static boolean isConnected() {
+        return connected;
+    }
 
     private static boolean fresh(long maxAgeMs) {
         return lastReadingAtMs > 0 && System.currentTimeMillis() - lastReadingAtMs <= maxAgeMs;
     }
     /** Returns the last measured power (kW) if within maxAgeMs, or null. */
-    public static Float freshPowerKw(long maxAgeMs)   { return (fresh(maxAgeMs) && powerKw != null) ? powerKw.floatValue() : null; }
+    public static Float freshPowerKw(long maxAgeMs) {
+        return (fresh(maxAgeMs) && powerKw != null) ? powerKw.floatValue() : null;
+    }
     /** Returns the last measured SOC (%) if within maxAgeMs, or null. */
-    public static Float freshSoc(long maxAgeMs)       { return (fresh(maxAgeMs) && soc != null) ? soc.floatValue() : null; }
+    public static Float freshSoc(long maxAgeMs) {
+        return (fresh(maxAgeMs) && soc != null) ? soc.floatValue() : null;
+    }
     /** Returns the last measured voltage (V) if within maxAgeMs, or null. */
-    public static Float freshVoltage(long maxAgeMs)   { return (fresh(maxAgeMs) && voltage != null) ? voltage.floatValue() : null; }
+    public static Float freshVoltage(long maxAgeMs) {
+        return (fresh(maxAgeMs) && voltage != null) ? voltage.floatValue() : null;
+    }
     /** Returns the last measured current (A) if within maxAgeMs, or null. */
-    public static Float freshCurrent(long maxAgeMs)   { return (fresh(maxAgeMs) && current != null) ? current.floatValue() : null; }
+    public static Float freshCurrent(long maxAgeMs) {
+        return (fresh(maxAgeMs) && current != null) ? current.floatValue() : null;
+    }
     /** Returns the last measured battery temperature (C) if within maxAgeMs, or null. */
-    public static Float freshBattTempC(long maxAgeMs) { return (fresh(maxAgeMs) && battTempC != null) ? battTempC.floatValue() : null; }
+    public static Float freshBattTempC(long maxAgeMs) {
+        return (fresh(maxAgeMs) && battTempC != null) ? battTempC.floatValue() : null;
+    }
 
     private static volatile Thread readerThread;
     private static volatile Context appCtx;
@@ -179,34 +203,52 @@ public final class Obd2Reader {
 
     private static void logReading(Reading r) {
         Context app = appCtx;
-        if (app == null) return;
+        if (app == null) {
+            return;
+        }
         String line = LOG_FMT.format(new java.util.Date(r.atMs)) + '\t'
             + r.soc + '\t' + r.voltage + '\t' + r.current + '\t'
             + r.powerKw + '\t' + r.battTempC + '\t' + r.speedKmh;
         try {
             java.io.File dir = app.getExternalFilesDir(null);
-            if (dir == null) dir = app.getFilesDir();
+            if (dir == null) {
+                dir = app.getFilesDir();
+            }
             java.io.File f = new java.io.File(dir, "obd2-reading.log");
-            if (f.exists() && f.length() > LOG_CAP_BYTES) f.delete(); // rotate: start over, don't grow forever
+            if (f.exists() && f.length() > LOG_CAP_BYTES) {
+                f.delete(); // rotate: start over, don't grow forever
+            }
             boolean fresh = !f.exists();
             java.io.FileWriter w = new java.io.FileWriter(f, true);
             try {
-                if (fresh) w.write("wall\tsoc\tvoltage\tcurrent\tpowerKw\tbattTempC\tspeedKmh\n");
+                if (fresh) {
+                    w.write("wall\tsoc\tvoltage\tcurrent\tpowerKw\tbattTempC\tspeedKmh\n");
+                }
                 w.write(line + "\n");
-            } finally { w.close(); }
-        } catch (Throwable t) { Log.w(TAG, "obd2: reading log write: " + t); }
+            } finally {
+                w.close();
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "obd2: reading log write: " + t);
+        }
     }
 
     /** Interrupts any current retry delay to attempt connection immediately. */
     public static void forceReconnectSoon() {
         Thread t = readerThread;
-        if (t != null) t.interrupt();
+        if (t != null) {
+            t.interrupt();
+        }
     }
 
     /** Enables or disables OBD2 reading. Disabling does not interrupt an in-flight session. */
     public static void setEnabled(Context ctx, boolean on) {
         ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE).edit().putBoolean("obd2_enabled", on).apply();
-        if (on) ensureStarted(ctx); else enabledWanted = false;
+        if (on) {
+            ensureStarted(ctx);
+        } else {
+            enabledWanted = false;
+        }
     }
 
     /** Transport-agnostic interface for OBD2 command execution. */
@@ -249,14 +291,23 @@ public final class Obd2Reader {
                 Log.w(TAG, "obd2: " + t);
             } finally {
                 setConnected(false);
-                if (ch != null) ch.close();
+                if (ch != null) {
+                    ch.close();
+                }
             }
-            if (enabledWanted) sleep(RETRY_MS);
+            if (enabledWanted) {
+                sleep(RETRY_MS);
+            }
         }
         running = false;
     }
 
-    private static void sleep(long ms) { try { Thread.sleep(ms); } catch (InterruptedException ignored) {} }
+    private static void sleep(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException ignored) {
+        }
+    }
 
     // Init runs once per NEW connection (a fresh session after a real
     // disconnect gets a fresh ATZ), not once per app-process lifetime --
@@ -264,7 +315,9 @@ public final class Obd2Reader {
     // power for the life of the app, which doesn't hold: it got unplugged
     // mid-session during tonight's testing.
     private static void runSession(Channel ch) {
-        for (String cmd : INIT_CMDS) ch.command(cmd);
+        for (String cmd : INIT_CMDS) {
+            ch.command(cmd);
+        }
         setConnected(true);
         while (enabledWanted && ch.isConnected()) {
             String socResp   = ch.command("224B36");
@@ -289,25 +342,41 @@ public final class Obd2Reader {
     @SuppressLint("MissingPermission")
     private static Channel openClassic() {
         BluetoothAdapter a = BluetoothAdapter.getDefaultAdapter();
-        if (a == null || !a.isEnabled()) { Log.i(TAG, "obd2: classic skipped — adapter off/missing"); return null; }
+        if (a == null || !a.isEnabled()) {
+            Log.i(TAG, "obd2: classic skipped — adapter off/missing");
+            return null;
+        }
         Set<BluetoothDevice> bonded = a.getBondedDevices();
-        if (bonded == null) bonded = java.util.Collections.emptySet();
+        if (bonded == null) {
+            bonded = java.util.Collections.emptySet();
+        }
         Log.i(TAG, "obd2: " + bonded.size() + " bonded device(s): "
             + bonded.stream().map(BluetoothDevice::getName).collect(java.util.stream.Collectors.joining(", ")));
         BluetoothDevice dev = null;
         for (BluetoothDevice d : bonded) {
-            if (matchesHint(d.getName())) { dev = d; break; }
+            if (matchesHint(d.getName())) {
+                dev = d;
+                break;
+            }
         }
-        if (dev == null) return null;
+        if (dev == null) {
+            return null;
+        }
 
         Log.i(TAG, "obd2: classic connecting to " + dev.getName());
         a.cancelDiscovery();
         BluetoothSocket sock = classicConnect(dev);
-        if (sock == null) { Log.w(TAG, "obd2: classic connect failed (all 3 strategies)"); return null; }
+        if (sock == null) {
+            Log.w(TAG, "obd2: classic connect failed (all 3 strategies)");
+            return null;
+        }
         try {
             return new ClassicChannel(sock);
         } catch (IOException e) {
-            try { sock.close(); } catch (Throwable ignored) {}
+            try {
+                sock.close();
+            } catch (Throwable ignored) {
+            }
             return null;
         }
     }
@@ -350,7 +419,9 @@ public final class Obd2Reader {
         return s;   // null here means neither strategy worked -- caller falls back to BLE
     }
 
-    private interface SocketFactory { BluetoothSocket make() throws Exception; }
+    private interface SocketFactory {
+        BluetoothSocket make() throws Exception;
+    }
 
     private static BluetoothSocket tryStrategy(SocketFactory f) {
         BluetoothSocket s = null;
@@ -360,15 +431,26 @@ public final class Obd2Reader {
             return s;
         } catch (Throwable t) {
             Log.w(TAG, "obd2: classic strategy failed: " + t);
-            if (s != null) { try { s.close(); } catch (Throwable ignored) {} }
+            if (s != null) {
+                try {
+                    s.close();
+                } catch (Throwable ignored) {
+                }
+            }
             return null;
         }
     }
 
     private static boolean matchesHint(String name) {
-        if (name == null) return false;
+        if (name == null) {
+            return false;
+        }
         String upper = name.toUpperCase(Locale.US);
-        for (String hint : NAME_HINTS) if (upper.contains(hint)) return true;
+        for (String hint : NAME_HINTS) {
+            if (upper.contains(hint)) {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -380,10 +462,19 @@ public final class Obd2Reader {
         // track actual connectivity via this flag, flipping to false on command failure.
         private volatile boolean alive = true;
         ClassicChannel(BluetoothSocket s) throws IOException {
-            sock = s; in = s.getInputStream(); out = s.getOutputStream();
+            sock = s;
+            in = s.getInputStream();
+            out = s.getOutputStream();
         }
-        @Override public boolean isConnected() { return alive && sock.isConnected(); }
-        @Override public void close() { try { sock.close(); } catch (Throwable ignored) {} }
+        @Override public boolean isConnected() {
+            return alive && sock.isConnected();
+        }
+        @Override public void close() {
+            try {
+                sock.close();
+            } catch (Throwable ignored) {
+            }
+        }
 
         // Writes cmd + CR, reads until the ELM327 '>' prompt or
         // CMD_TIMEOUT_MS elapses -- matches the ELM327's own plain-text
@@ -398,9 +489,14 @@ public final class Obd2Reader {
                 while (System.currentTimeMillis() < deadline) {
                     if (in.available() > 0) {
                         int b = in.read();
-                        if (b < 0) { alive = false; break; }
+                        if (b < 0) {
+                            alive = false;
+                            break;
+                        }
                         char c = (char) b;
-                        if (c == '>') break;
+                        if (c == '>') {
+                            break;
+                        }
                         sb.append(c);
                     } else {
                         sleep(12);

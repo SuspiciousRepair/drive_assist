@@ -58,11 +58,13 @@ Before opening a Pull Request, all contributors must execute the complete verifi
 
 ### 3.1 Unit Tests & JaCoCo Coverage
 ```bash
-./gradlew test jacocoTestReport
+./tools/verify.sh
 ```
-* **Requirement**: All 131 unit tests across 15 suites must pass (0 failures, 0 errors).
+* **Requirement**: All unit tests must pass (currently 164 tests across 22 suites).
 * Generates HTML report at `drivemem/build/reports/jacoco/test/html/index.html`.
-* Coverage baseline must not regress.
+* Produces lint, Checkstyle, SpotBugs, and release-assembly results too.
+* Coverage for calculation, state, and storage code must not regress; do not use
+  a whole-app percentage as a proxy for Android UI or vehicle validation.
 
 ### 3.2 Release APK Assembly
 ```bash
@@ -74,9 +76,19 @@ Before opening a Pull Request, all contributors must execute the complete verifi
 ```bash
 ./gradlew lint checkstyle spotbugs
 ```
-* **Android Lint**: Zero fatal errors. Ensure all `StringFormatMatches` and `StringFormatInvalid` checks pass across all localization files (`res/values-*/strings.xml`).
-* **Checkstyle**: Conforms to ruleset defined in `config/checkstyle/checkstyle.xml`.
-* **SpotBugs**: Conforms to ruleset and exclusion filter in `config/spotbugs/exclude.xml`.
+* **Android Lint**: Ensure all `StringFormatMatches` and `StringFormatInvalid` checks pass across all localization files (`res/values-*/strings.xml`).
+* **Checkstyle and SpotBugs**: CI publishes both reports. Their legacy baseline is
+  currently non-blocking; review new findings and reduce that baseline in focused,
+  behavior-preserving cleanup commits.
+
+### 3.4 Secrets, PII, and vehicle validation
+```bash
+./tools/check-pii.sh --staged
+```
+* The scanner rejects newly added private keys, VIN-shaped values, private IP
+  addresses, and credential-bearing URLs. Use placeholders in public material.
+* For vehicle-facing work, complete the [Vehicle validation checklist](docs/DEVICE-VALIDATION.md)
+  after automated verification and before treating a build as release-ready.
 
 ---
 
@@ -141,9 +153,10 @@ Modifications interacting with vehicle systems must strictly respect the followi
 When opening a Pull Request, confirm that:
 - [ ] Target branch is `dev`.
 - [ ] Commit messages follow Conventional Commits format.
-- [ ] `./gradlew test jacocoTestReport` passes (131 tests, 0 failures).
+- [ ] `./tools/verify.sh` passes (all tests, reports, and release assembly).
 - [ ] `./gradlew :drivemem:assembleRelease` builds successfully.
-- [ ] `./gradlew lint checkstyle spotbugs` passes cleanly.
+- [ ] Lint, Checkstyle, and SpotBugs reports contain no unreviewed new findings.
 - [ ] No hardcoded secrets, private IPs, or personal VINs are introduced.
+- [ ] Vehicle-facing work follows the documented device validation checklist.
 - [ ] Vehicle safety invariants (No-Reboot, Park-only gating, VHAL bounds) are fully respected.
 - [ ] Documentation is updated in `docs/` where applicable.

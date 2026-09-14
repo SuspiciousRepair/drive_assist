@@ -66,6 +66,7 @@ technical detail needed to verify and reproduce each discovery.
 
 ### Vehicle signals and reverse engineering
 
+- [Vehicle integration paths: head unit, VHAL, OBD2, and TBOX](VEHICLE-INTEGRATION.md)
 - [Verified vehicle data catalog](DATA-CATALOG.md)
 - [Full field catalog](field-catalog.md)
 - [Discovery history and experiments](field-history.md)

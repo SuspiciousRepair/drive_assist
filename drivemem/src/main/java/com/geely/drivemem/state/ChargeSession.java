@@ -80,7 +80,7 @@ public final class ChargeSession {
         public final long id;
         public final long startWallMs, endWallMs;
         public final int socStart, socEnd;
-        public final double kwh, avgPowerW;
+        public final double kwh, avgPowerW, maxChargeV;
         public final int samples;
         public final double odoStart;   // km, -1 if unknown — for a future "km driven since" stat
         public final Double cost;       // nullable: user-inputted total cost in currency units
@@ -88,19 +88,32 @@ public final class ChargeSession {
 
         public Summary(long startWallMs, long endWallMs, int socStart, int socEnd,
                 double kwh, double avgPowerW, int samples, double odoStart) {
-            this(-1, startWallMs, endWallMs, socStart, socEnd, kwh, avgPowerW, samples, odoStart, null, false);
+            this(-1, startWallMs, endWallMs, socStart, socEnd, kwh, avgPowerW,
+                Double.NaN, samples, odoStart, null, false);
         }
 
         public Summary(long id, long startWallMs, long endWallMs, int socStart, int socEnd,
                 double kwh, double avgPowerW, int samples, double odoStart, Double cost, boolean dismissed) {
+            this(id, startWallMs, endWallMs, socStart, socEnd, kwh, avgPowerW,
+                Double.NaN, samples, odoStart, cost, dismissed);
+        }
+
+        public Summary(long id, long startWallMs, long endWallMs, int socStart, int socEnd,
+                double kwh, double avgPowerW, double maxChargeV, int samples,
+                double odoStart, Double cost, boolean dismissed) {
             this.id = id;
             this.startWallMs = startWallMs; this.endWallMs = endWallMs;
             this.socStart = socStart; this.socEnd = socEnd;
-            this.kwh = kwh; this.avgPowerW = avgPowerW; this.samples = samples;
+            this.kwh = kwh; this.avgPowerW = avgPowerW; this.maxChargeV = maxChargeV;
+            this.samples = samples;
             this.odoStart = odoStart;
             this.cost = cost;
             this.dismissed = dismissed;
         }
+
+        /** Pack voltage is the authoritative charging-type discriminator. */
+        public boolean isDcfc() { return !Double.isNaN(maxChargeV) && maxChargeV >= 250.0; }
+        public boolean hasChargeVoltage() { return !Double.isNaN(maxChargeV) && maxChargeV > 0; }
 
         public long durationS() { return Math.max(0, (endWallMs - startWallMs) / 1000); }
 
@@ -150,6 +163,7 @@ public final class ChargeSession {
     private static long startWallMs = 0, pauseWallMs = 0, lastSampleMonoMs = 0, startSampleId = -1;
     private static int socStart = -1, socEnd = -1;
     private static double whAccum = 0;   // running energy, Wh
+    private static double maxChargeV = Double.NaN;
     private static double odoStart = -1;
     private static int sampleCount = 0;
     private static boolean wasCharging = false;
@@ -246,6 +260,7 @@ public final class ChargeSession {
                 socStart = (soc != null) ? soc : -1;
                 socEnd = socStart;
                 whAccum = 0;
+                maxChargeV = Double.NaN;
                 sampleCount = 0;
                 odoStart = -1;
                 currentSessionRowId = -1;
@@ -286,7 +301,7 @@ public final class ChargeSession {
             long rowId = currentSessionRowId > 0 ? currentSessionRowId : 1L;
             currentSessionRowId = rowId;
             Summary complete = new Summary(rowId, startWallMs, endWallMs, socStart, socEnd,
-                kwh, avgPowerW, sampleCount, odoStart, currentCost, false);
+                kwh, avgPowerW, maxChargeV, sampleCount, odoStart, currentCost, false);
             Listener l = listener;
             if (l != null) l.onSession(complete);
             ProgressListener pl = progressListener;
@@ -305,6 +320,7 @@ public final class ChargeSession {
                 v.put("soc_end", socEnd);
                 v.put("kwh", kwh);
                 v.put("avg_power_w", avgPowerW);
+                if (!Double.isNaN(maxChargeV)) v.put("max_charge_v", maxChargeV);
                 v.put("samples", sampleCount);
                 if (odoStart >= 0) v.put("odo_start_km", odoStart);
                 v.put("dismissed", 0);
@@ -319,7 +335,12 @@ public final class ChargeSession {
                 }
 
                 Summary complete = new Summary(rowId, startWallMs, endWallMs, socStart, socEnd,
-                    kwh, avgPowerW, sampleCount, odoStart, currentCost, false);
+                    kwh, avgPowerW, maxChargeV, sampleCount, odoStart, currentCost, false);
+                android.content.ContentValues event = new android.content.ContentValues();
+                event.put("session_id", rowId); event.put("occurred_ms", endWallMs);
+                event.put("soc", socEnd); event.put("kwh", kwh);
+                CarDb.get(ctx).db().insertWithOnConflict("charge_stop_event", null, event,
+                    android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE);
                 Listener l = listener;
                 if (l != null) l.onSession(complete);
                 ProgressListener pl = progressListener;
@@ -384,6 +405,7 @@ public final class ChargeSession {
         socStart = -1;
         socEnd = -1;
         whAccum = 0;
+        maxChargeV = Double.NaN;
         sampleCount = 0;
         odoStart = -1;
         currentSessionRowId = -1;
@@ -419,6 +441,7 @@ public final class ChargeSession {
 
         if (soc != null) socEnd = soc;
         if (odoStart < 0 && odo != null) odoStart = odo;
+        if (v != null && v > 0 && (Double.isNaN(maxChargeV) || v > maxChargeV)) maxChargeV = v;
         // Rectangular integration at the tick's own cadence (whatever it
         // actually was, measured via nowMono - lastSampleMonoMs — not
         // assumed): this tick's power held for the time since the last
@@ -505,14 +528,15 @@ public final class ChargeSession {
     public static java.util.List<Summary> readLog(Context ctx) {
         java.util.List<Summary> out = new java.util.ArrayList<>();
         android.database.Cursor c = CarDb.get(ctx).db().rawQuery(
-            "SELECT id, start_ms, end_ms, soc_start, soc_end, kwh, avg_power_w, samples, odo_start_km, cost, dismissed "
+            "SELECT id, start_ms, end_ms, soc_start, soc_end, kwh, avg_power_w, max_charge_v, samples, odo_start_km, cost, dismissed "
           + "FROM charge_session ORDER BY start_ms ASC", null);
         try {
             while (c.moveToNext()) {
-                Double cost = c.isNull(9) ? null : c.getDouble(9);
-                boolean dismissed = c.getInt(10) != 0;
+                double maxV = c.isNull(7) ? Double.NaN : c.getDouble(7);
+                Double cost = c.isNull(10) ? null : c.getDouble(10);
+                boolean dismissed = c.getInt(11) != 0;
                 out.add(new Summary(c.getLong(0), c.getLong(1), c.getLong(2), c.getInt(3), c.getInt(4),
-                    c.getDouble(5), c.getDouble(6), c.getInt(7), c.getDouble(8), cost, dismissed));
+                    c.getDouble(5), c.getDouble(6), maxV, c.getInt(8), c.getDouble(9), cost, dismissed));
             }
         } finally { c.close(); }
         return out;
@@ -521,14 +545,15 @@ public final class ChargeSession {
     /** Returns the most recent completed charge that has not been dismissed yet. */
     public static Summary getLatestUndismissed(Context ctx) {
         android.database.Cursor c = CarDb.get(ctx).db().rawQuery(
-            "SELECT id, start_ms, end_ms, soc_start, soc_end, kwh, avg_power_w, samples, odo_start_km, cost, dismissed "
+            "SELECT id, start_ms, end_ms, soc_start, soc_end, kwh, avg_power_w, max_charge_v, samples, odo_start_km, cost, dismissed "
           + "FROM charge_session WHERE dismissed = 0 ORDER BY end_ms DESC LIMIT 1", null);
         try {
             if (c.moveToFirst()) {
-                Double cost = c.isNull(9) ? null : c.getDouble(9);
-                boolean dismissed = c.getInt(10) != 0;
+                double maxV = c.isNull(7) ? Double.NaN : c.getDouble(7);
+                Double cost = c.isNull(10) ? null : c.getDouble(10);
+                boolean dismissed = c.getInt(11) != 0;
                 return new Summary(c.getLong(0), c.getLong(1), c.getLong(2), c.getInt(3), c.getInt(4),
-                    c.getDouble(5), c.getDouble(6), c.getInt(7), c.getDouble(8), cost, dismissed);
+                    c.getDouble(5), c.getDouble(6), maxV, c.getInt(8), c.getDouble(9), cost, dismissed);
             }
         } finally { c.close(); }
         return null;

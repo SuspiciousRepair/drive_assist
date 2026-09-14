@@ -7,6 +7,20 @@ import static org.junit.Assert.*;
 
 public class ChargeSessionTest {
 
+    @Test public void chargingTypeUsesPeakVoltageNotAveragePower() {
+        ChargeSession.Summary taperedDc = new ChargeSession.Summary(
+            1, 0, 3600_000L, 70, 90, 8.0, 8_000, 401.0, 90, -1, null, false);
+        ChargeSession.Summary highPowerAc = new ChargeSession.Summary(
+            2, 0, 3600_000L, 20, 80, 22.0, 24_000, 240.0, 90, -1, null, false);
+        ChargeSession.Summary legacyUnknown = new ChargeSession.Summary(
+            3, 0, 3600_000L, 20, 80, 22.0, 50_000, 90, -1, null, false);
+
+        assertTrue(taperedDc.isDcfc());
+        assertFalse(highPowerAc.isDcfc());
+        assertFalse(legacyUnknown.isDcfc());
+        assertFalse(legacyUnknown.hasChargeVoltage());
+    }
+
     @Test public void durationLabelUnderAnHour() {
         ChargeSession.Summary s = new ChargeSession.Summary(
             0, 45 * 60 * 1000L, 30, 80, 20.0, 4000, 90, -1);

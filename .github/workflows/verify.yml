@@ -1,0 +1,67 @@
+name: Verify Drive Assist
+
+on:
+  push:
+    branches: [dev, master]
+  pull_request:
+    branches: [dev, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platforms;android-28 platforms;android-34 build-tools;34.0.0
+          log-accepted-android-sdk-licenses: false
+
+      - name: Ensure car stubs
+        run: |
+          if [ ! -f car-stubs/car-stubs.jar ]; then
+            mkdir -p car-stubs/out
+            javac -source 8 -target 8 -classpath "$ANDROID_HOME/platforms/android-28/android.jar" -d car-stubs/out $(find car-stubs/android -name '*.java')
+            jar cf car-stubs/car-stubs.jar -C car-stubs/out .
+            rm -rf car-stubs/out
+          fi
+
+      - name: Reject added secrets and personal vehicle data
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            ./tools/check-pii.sh --base "origin/${{ github.base_ref }}"
+          elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ] && git cat-file -e "${{ github.event.before }}^{commit}" 2>/dev/null; then
+            ./tools/check-pii.sh --base "${{ github.event.before }}"
+          elif git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+            ./tools/check-pii.sh --base HEAD^
+          else
+            ./tools/check-pii.sh --base HEAD
+          fi
+
+      - name: Verify tests, reports, and release assembly
+        run: ./tools/verify.sh
+
+      - name: Upload verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-reports
+          if-no-files-found: warn
+          path: |
+            drivemem/build/reports/**
+            drivemem/build/test-results/**

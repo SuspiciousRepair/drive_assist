@@ -259,6 +259,19 @@ public final class EnergyIntegrator {
         }
     }
 
+    /** Adds already-known energy to the active trip's accumulators. For recovering
+     * a trip whose in-memory totals were lost to a process restart mid-drive — the
+     * caller sums the missing portion from telemetry_sample and hands it in here
+     * rather than starting the trip's energy back at zero. Must be called after
+     * startTrip(). */
+    public static void seedTrip(double spentKwh, double regenKwh, double netKwh) {
+        synchronized (LOCK) {
+            tripSpentKwh += spentKwh;
+            tripRegenKwh += regenKwh;
+            tripNetKwh += netKwh;
+        }
+    }
+
     /** Stops tracking and returns the accumulated trip energy. */
     public static TripSnapshot endTrip() {
         synchronized (LOCK) {

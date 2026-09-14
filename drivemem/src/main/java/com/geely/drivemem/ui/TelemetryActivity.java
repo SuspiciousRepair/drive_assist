@@ -115,7 +115,6 @@ public class TelemetryActivity extends Activity {
     private EditText fSpotifyClientId;
     private EditText fTurbo;
     private EditText fSkylineSeed;
-    private EditText fLockSec;
     private TextView spotifyStatus;
     // Drive mode. Two separate ideas, kept in separate fields on purpose —
     // conflating them into one used to mean a car that answered late (or
@@ -1466,6 +1465,18 @@ public class TelemetryActivity extends Activity {
         content.addView(spRow);
     }
 
+    /** Current Wi-Fi IPv4 address, dotted-quad, or "—" if not connected/available. */
+    private String wifiIpAddress() {
+        try {
+            android.net.wifi.WifiManager wm =
+                (android.net.wifi.WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+            int ip = wm.getConnectionInfo().getIpAddress();
+            if (ip == 0) return "—";
+            return String.format(java.util.Locale.US, "%d.%d.%d.%d",
+                ip & 0xff, (ip >> 8) & 0xff, (ip >> 16) & 0xff, (ip >> 24) & 0xff);
+        } catch (Throwable t) { return "—"; }
+    }
+
     // =====================================================================
     // System panel — application version, APK SHA-256, OTA update URL and
     // installer, universal switch cooldown, and maintenance/cleanup.
@@ -1501,8 +1512,20 @@ public class TelemetryActivity extends Activity {
         devIdView.setText("Device ID: " + MqttReporter.getDevId());
         devIdView.setTextColor(Style.TEXT_DIM);
         devIdView.setTextSize(13);
-        devIdView.setPadding(0, Style.dp(this, 4), 0, Style.dp(this, 8));
+        devIdView.setPadding(0, Style.dp(this, 4), 0, 0);
         infoCard.addView(devIdView);
+
+        // For connecting over adb without guessing the car's address --
+        // this head unit's IP moves around DHCP, and asking the driver to
+        // dig through Android's own network settings mid-task isn't
+        // reasonable when this screen already shows every other identifier.
+        TextView ipView = new TextView(this);
+        ipView.setText(getString(R.string.cfg_ip_label, wifiIpAddress()));
+        ipView.setTextColor(Style.TEXT_DIM);
+        ipView.setTextSize(13);
+        ipView.setTextIsSelectable(true);
+        ipView.setPadding(0, Style.dp(this, 2), 0, Style.dp(this, 8));
+        infoCard.addView(ipView);
 
         TextView shaLbl = Style.label(this, getString(R.string.cfg_sha_label) + ":");
         shaLbl.setTextSize(14);
@@ -1582,62 +1605,6 @@ public class TelemetryActivity extends Activity {
         updateCard.addView(status);
 
         content.addView(updateCard);
-
-        // ---- Touch Controls & Cooldown Card ----
-        content.addView(Style.header(this, getString(R.string.cfg_touch_header)));
-        LinearLayout touchCard = new LinearLayout(this);
-        touchCard.setOrientation(LinearLayout.VERTICAL);
-        touchCard.setBackground(Style.card(Style.CARD, this));
-        touchCard.setPadding(pad, pad, pad, pad);
-
-        TextView cooldownHint = new TextView(this);
-        cooldownHint.setTextColor(Style.TEXT_DIM);
-        cooldownHint.setTextSize(13);
-        cooldownHint.setText(getString(R.string.cfg_cooldown_hint));
-        cooldownHint.setPadding(0, 0, 0, Style.dp(this, 8));
-        touchCard.addView(cooldownHint);
-
-        LinearLayout lockRow = new LinearLayout(this);
-        lockRow.setOrientation(LinearLayout.HORIZONTAL);
-        lockRow.setGravity(Gravity.CENTER_VERTICAL);
-        lockRow.setPadding(0, Style.dp(this, 4), 0, Style.dp(this, 4));
-
-        TextView lockLbl = Style.label(this, getString(R.string.cfg_cooldown_label) + ":");
-        lockLbl.setTextSize(15);
-        lockRow.addView(lockLbl);
-
-        fLockSec = new EditText(this);
-        fLockSec.setText(String.valueOf(prefs.getInt("switch_lock_s", GeelySwitch.DEFAULT_LOCK_S)));
-        fLockSec.setInputType(InputType.TYPE_CLASS_NUMBER);
-        fLockSec.setTextColor(Style.TEXT);
-        fLockSec.setTextSize(16);
-        fLockSec.setGravity(Gravity.CENTER);
-        fLockSec.setBackground(Style.card(Style.CARD_HI, this));
-        fLockSec.setPadding(Style.dp(this, 10), Style.dp(this, 8), Style.dp(this, 10), Style.dp(this, 8));
-        LinearLayout.LayoutParams lockLp = new LinearLayout.LayoutParams(
-            Style.dp(this, 75), ViewGroup.LayoutParams.WRAP_CONTENT);
-        lockLp.setMargins(Style.dp(this, 10), 0, Style.dp(this, 6), 0);
-        fLockSec.setLayoutParams(lockLp);
-        lockRow.addView(fLockSec);
-
-        TextView lockUnit = new TextView(this);
-        lockUnit.setText(getString(R.string.cfg_seconds_suffix));
-        lockUnit.setTextColor(Style.TEXT_DIM);
-        lockUnit.setTextSize(14);
-        lockRow.addView(lockUnit);
-
-        lockRow.addView(button(getString(R.string.cfg_btn_save), Style.ACCENT, () -> {
-            int s;
-            try { s = Integer.parseInt(fLockSec.getText().toString().trim()); }
-            catch (NumberFormatException e) { s = GeelySwitch.DEFAULT_LOCK_S; }
-            s = Math.max(1, Math.min(30, s));
-            prefs.edit().putInt("switch_lock_s", s).apply();
-            fLockSec.setText(String.valueOf(s));
-            Toast.makeText(this, getString(R.string.cfg_saved), Toast.LENGTH_SHORT).show();
-        }));
-        touchCard.addView(lockRow);
-
-        content.addView(touchCard);
 
         // ---- Maintenance Card ----
         content.addView(Style.header(this, getString(R.string.cfg_maintenance_header)));
@@ -1733,15 +1700,6 @@ public class TelemetryActivity extends Activity {
         if (fTlsTarget != null && fTlsTarget.getText() != null) {
             String val = fTlsTarget.getText().toString().trim();
             if (!val.isEmpty()) ed.putString("mqtt_tls_test_target", val);
-        }
-
-        if (fLockSec != null && fLockSec.getText() != null) {
-            int s;
-            try { s = Integer.parseInt(fLockSec.getText().toString().trim()); }
-            catch (NumberFormatException e) { s = GeelySwitch.DEFAULT_LOCK_S; }
-            s = Math.max(1, Math.min(30, s));
-            ed.putInt("switch_lock_s", s);
-            fLockSec.setText(String.valueOf(s));
         }
 
         if (fTrustedSsid != null && fTrustedSsid.getText() != null) {
@@ -1978,6 +1936,49 @@ public class TelemetryActivity extends Activity {
         // press, with the same one clear save moment instead of a listener
         // whose firing conditions are easy to get wrong twice.
 
+        content.addView(Style.header(this, getString(R.string.cfg_adas_header)));
+
+        // AEB: needs Park + its own confirmation, since writing this property
+        // directly (via modehelper) skips the OEM's own warning dialog entirely
+        // — see plan/ADAS-CONTROLS-ROADMAP.md. Built without the toggleRow()
+        // helper's callback param (passed null, overridden below) so the
+        // listener can hold a reference to its own switch, to revert it
+        // silently on cancel/not-parked without rebuilding the whole screen.
+        LinearLayout aebRow = toggleRow(getString(R.string.cfg_aeb_label), prefs.getBoolean("aeb_on", true), null);
+        GeelySwitch aebSwitch = (GeelySwitch) aebRow.getChildAt(0);
+        aebSwitch.setOnToggle(on -> {
+            if (!on) {
+                // No Park requirement, by design: applies in any condition,
+                // driving or parked — see plan/ADAS-CONTROLS-ROADMAP.md.
+                new android.app.AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.cfg_aeb_confirm_title))
+                    .setMessage(getString(R.string.cfg_aeb_confirm_body))
+                    .setPositiveButton(getString(R.string.cfg_aeb_confirm_turn_off), (d, w) -> {
+                        prefs.edit().putBoolean("aeb_on", false).apply();
+                        sendAdasPreference("aeb", false);
+                    })
+                    .setNegativeButton(android.R.string.cancel, (d, w) -> aebSwitch.setCheckedSilently(true))
+                    .setOnCancelListener(d -> aebSwitch.setCheckedSilently(true))
+                    .show();
+            } else {
+                prefs.edit().putBoolean("aeb_on", true).apply();
+                sendAdasPreference("aeb", true);
+            }
+        });
+        aebRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
+        content.addView(aebRow);
+
+        // AVAS mute: no Park-gate, no confirmation — much lower stakes (a
+        // pedestrian-warning chime, not braking), matching a "quick per-drive
+        // toggle" per plan/AVAS-MUTE-ROADMAP.md's still-open question.
+        LinearLayout avasRow = toggleRow(getString(R.string.cfg_avas_label),
+            prefs.getBoolean("avas_on", true), on -> {
+                prefs.edit().putBoolean("avas_on", on).apply();
+                sendAdasPreference("avas", on);
+            });
+        avasRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
+        content.addView(avasRow);
+
         content.addView(Style.header(this, getString(R.string.cfg_actions_header)));
         LinearLayout actionRow = new LinearLayout(this);
         actionRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -2097,6 +2098,24 @@ public class TelemetryActivity extends Activity {
             Modes.driveName(selDrive), Modes.regenName(selRegen)));
     }
 
+    // Same SET_MODE broadcast saveDefault() sends for drive/regen, but for
+    // one AEB/AVAS preference at a time — modehelper's receiver treats each
+    // extra as independent and optional, so this never touches the other
+    // three. Drive Assist cannot write either property itself (confirmed for
+    // AVAS, expected for AEB — see plan/ADAS-CONTROLS-ROADMAP.md); this only
+    // updates the preference modehelper's own poll loop enforces while
+    // parked, so the actual car write lands within a few seconds, not
+    // instantly.
+    private void sendAdasPreference(String key, boolean on) {
+        try {
+            android.content.Intent i = new android.content.Intent("com.geely.modehelper.SET_MODE");
+            i.setPackage("com.geely.modehelper");
+            if ("avas".equals(key)) i.putExtra("avas", on ? 1 : 0);
+            else i.putExtra(key, on);
+            sendBroadcast(i);
+        } catch (Throwable ignored) {}
+    }
+
     // A fresh read (CarActor.read -> CarDataHub), not a cache lookup — this
     // is the one seed value the screen needs the instant it opens, and the
     // discrete watch above may not have delivered its first event yet.
@@ -2158,6 +2177,10 @@ public class TelemetryActivity extends Activity {
                     if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(svc); else startService(svc);
                 } else stopService(svc);
             }));
+
+        content.addView(toggleRow(getString(R.string.cfg_drive_card),
+            prefs.getBoolean("drive_card_enabled", true), on ->
+                prefs.edit().putBoolean("drive_card_enabled", on).apply()));
     }
 
     // =====================================================================
@@ -2165,20 +2188,6 @@ public class TelemetryActivity extends Activity {
     // =====================================================================
     private void buildLook() {
         int pageWidth = Style.dp(this, 960);   // same half-screen cap as the drive/regen/turbo page
-
-        content.addView(Style.header(this, getString(R.string.cfg_appearance_header)));
-        LinearLayout appRow = new LinearLayout(this);
-        appRow.setOrientation(LinearLayout.HORIZONTAL);
-        appRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        appRow.addView(appearanceTile(Style.APPEARANCE_LIGHT, getString(R.string.cfg_appearance_light)));
-        appRow.addView(appearanceTile(Style.APPEARANCE_DARK,  getString(R.string.cfg_appearance_dark)));
-        appRow.addView(appearanceTile(Style.APPEARANCE_AUTO,  getString(R.string.cfg_appearance_auto)));
-        content.addView(appRow);
-        TextView appNote = new TextView(this);
-        appNote.setTextColor(Style.TEXT_DIM); appNote.setTextSize(13);
-        appNote.setPadding(0, Style.dp(this, 8), 0, 0);
-        appNote.setText(getString(R.string.cfg_appearance_note));
-        content.addView(appNote);
 
         // Noturno's own scene (VaporArtView) is a different art path entirely
         // from the skyline (SkylineArtView) every other theme uses -- this
@@ -2189,6 +2198,7 @@ public class TelemetryActivity extends Activity {
         // the seed config below must appear/disappear with it, not just sit
         // there disabled -- "the config for it" goes away along with the
         // skyline itself, not just the art.
+        content.addView(Style.header(this, getString(R.string.cfg_skyline_header)));
         boolean skylineEnabled = prefs.getBoolean("skyline_enabled", true);
         LinearLayout skylineToggle = toggleRow(getString(R.string.cfg_skyline_label),
             skylineEnabled,
@@ -2247,6 +2257,21 @@ public class TelemetryActivity extends Activity {
         }
 
         content.addView(Style.header(this, getString(R.string.cfg_theme_header)));
+        content.addView(sectionLabel(getString(R.string.cfg_dark_mode_header)));
+        LinearLayout appRow = new LinearLayout(this);
+        appRow.setOrientation(LinearLayout.HORIZONTAL);
+        appRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
+        appRow.addView(appearanceTile(Style.APPEARANCE_LIGHT, getString(R.string.cfg_appearance_light)));
+        appRow.addView(appearanceTile(Style.APPEARANCE_DARK,  getString(R.string.cfg_appearance_dark)));
+        appRow.addView(appearanceTile(Style.APPEARANCE_AUTO,  getString(R.string.cfg_appearance_auto)));
+        content.addView(appRow);
+        TextView appNote = new TextView(this);
+        appNote.setTextColor(Style.TEXT_DIM); appNote.setTextSize(13);
+        appNote.setPadding(0, Style.dp(this, 8), 0, Style.dp(this, 12));
+        appNote.setText(getString(R.string.cfg_appearance_note));
+        content.addView(appNote);
+
+        content.addView(sectionLabel(getString(R.string.cfg_theme_selection_header)));
         TextView sub = new TextView(this);
         sub.setTextColor(Style.TEXT_DIM); sub.setTextSize(14);
         sub.setText(getString(R.string.cfg_theme_sub));

@@ -22,7 +22,14 @@ import android.os.HandlerThread;
 // at a time. Reads are synchronous and callable from any thread.
 public final class CarDb extends SQLiteOpenHelper {
     private static final String NAME = "car.db";
-    private static final int VERSION = 9;
+    // A branch that requested VERSION 10 got deployed once, on 2026-09-12,
+    // against a car.db that in-progress adb-installed testing had already
+    // pushed to user_version 14 outside build.sh (so no commit recorded that
+    // as "deployed" for the publish guard to catch). SQLiteOpenHelper refuses
+    // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
+    // every write failed until this was bumped past 14. See the v15 entry in
+    // onUpgrade below for what v15 itself actually does.
+    private static final int VERSION = 17;
 
     private static volatile CarDb instance;
 
@@ -64,7 +71,8 @@ public final class CarDb extends SQLiteOpenHelper {
             + "power_regen_kw REAL,"
             + "energy_spent_kwh REAL,"
             + "energy_regen_kwh REAL,"
-            + "energy_net_kwh REAL)");
+            + "energy_net_kwh REAL,"
+            + "battery_temp_c REAL)");
         db.execSQL("CREATE INDEX idx_sample_ts ON telemetry_sample(ts_ms)");
         db.execSQL("CREATE INDEX idx_sample_odo ON telemetry_sample(odo_km)");
 
@@ -74,6 +82,7 @@ public final class CarDb extends SQLiteOpenHelper {
             + "start_sample_id INTEGER, end_sample_id INTEGER,"
             + "soc_start INTEGER, soc_end INTEGER,"
             + "kwh REAL, avg_power_w REAL,"
+            + "max_charge_v REAL,"
             + "samples INTEGER,"
             + "odo_start_km REAL,"
             + "cost REAL,"
@@ -128,6 +137,9 @@ public final class CarDb extends SQLiteOpenHelper {
             + "soh_pct REAL NOT NULL,"
             + "source TEXT NOT NULL)");
 
+        createValetSession(db);
+        createChargeStopEvent(db);
+
         createDailyStat(db);
     }
 
@@ -156,6 +168,22 @@ public final class CarDb extends SQLiteOpenHelper {
             + "discharge_kwh REAL NOT NULL DEFAULT 0,"
             + "regen_kwh REAL NOT NULL DEFAULT 0,"
             + "net_kwh REAL NOT NULL DEFAULT 0)");
+    }
+
+    private static void createValetSession(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS valet_session ("
+            + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            + "start_ms INTEGER NOT NULL, end_ms INTEGER,"
+            + "start_odo_km REAL, end_odo_km REAL,"
+            + "start_soc INTEGER, end_soc INTEGER,"
+            + "max_speed_kmh REAL, max_power_kw REAL)");
+    }
+
+    private static void createChargeStopEvent(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS charge_stop_event ("
+            + "id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER NOT NULL,"
+            + "occurred_ms INTEGER NOT NULL, soc INTEGER, kwh REAL, published INTEGER NOT NULL DEFAULT 0,"
+            + "UNIQUE(session_id, occurred_ms))");
     }
 
     @Override public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
@@ -235,6 +263,75 @@ public final class CarDb extends SQLiteOpenHelper {
             db.execSQL("ALTER TABLE charge_session ADD COLUMN cost REAL");
             db.execSQL("ALTER TABLE charge_session ADD COLUMN dismissed INTEGER NOT NULL DEFAULT 0");
             db.execSQL("ALTER TABLE daily_stat ADD COLUMN charge_cost REAL NOT NULL DEFAULT 0");
+        }
+        // v9 -> v10: driving energy now excludes gear=P (4), while retaining
+        // zero-speed samples in a driving gear for stopped traffic. Invalidate
+        // only summaries that still have raw telemetry available. Older frozen
+        // days may already have had their raw rows pruned; deleting those rows
+        // would permanently erase their history rather than improve it.
+        if (oldVersion < 10) {
+            db.execSQL("DELETE FROM daily_stat WHERE date IN ("
+                + "SELECT DISTINCT date(ts_ms/1000,'unixepoch','localtime') "
+                + "FROM telemetry_sample)");
+        }
+        // v10 -> v11: persist the session's peak charger voltage. Voltage
+        // remains stable while DC current tapers, making it a more reliable
+        // AC/DC discriminator than average power. Backfill sessions whose raw
+        // samples are still available; older rows intentionally stay unknown.
+        if (oldVersion < 11) {
+            db.execSQL("ALTER TABLE charge_session ADD COLUMN max_charge_v REAL");
+            db.execSQL("UPDATE charge_session SET max_charge_v = ("
+                + "SELECT MAX(charge_v) FROM telemetry_sample "
+                + "WHERE telemetry_sample.id BETWEEN charge_session.start_sample_id "
+                + "AND charge_session.end_sample_id) "
+                + "WHERE start_sample_id IS NOT NULL AND end_sample_id IS NOT NULL");
+        }
+        // v11 -> v12: explicit Valet intervals group their underlying trips
+        // in Daily Stats while leaving the original trip rows untouched.
+        if (oldVersion < 12) createValetSession(db);
+        // v12 briefly required end_ms at activation time, which made durable
+        // active rows impossible. Rebuild the new table with a nullable end.
+        if (oldVersion < 13) {
+            db.execSQL("ALTER TABLE valet_session RENAME TO valet_session_v12");
+            createValetSession(db);
+            db.execSQL("INSERT INTO valet_session (id,start_ms,end_ms,start_odo_km,end_odo_km,"
+                + "start_soc,end_soc,max_speed_kmh,max_power_kw) SELECT id,start_ms,end_ms,"
+                + "start_odo_km,end_odo_km,start_soc,end_soc,max_speed_kmh,max_power_kw FROM valet_session_v12");
+            db.execSQL("DROP TABLE valet_session_v12");
+        }
+        if (oldVersion < 14) createChargeStopEvent(db);
+        // v15 repairs the v13 migration helper, which accidentally recreated
+        // end_ms as NOT NULL and therefore rejected activation-time rows.
+        if (oldVersion < 15) {
+            db.execSQL("ALTER TABLE valet_session RENAME TO valet_session_v14");
+            createValetSession(db);
+            db.execSQL("INSERT INTO valet_session (id,start_ms,end_ms,start_odo_km,end_odo_km,"
+                + "start_soc,end_soc,max_speed_kmh,max_power_kw) SELECT id,start_ms,end_ms,"
+                + "start_odo_km,end_odo_km,start_soc,end_soc,max_speed_kmh,max_power_kw FROM valet_session_v14");
+            db.execSQL("DROP TABLE valet_session_v14");
+        }
+        // v16: battery temperature, from the OBD2 dongle (Obd2Reader
+        // .freshBattTempC()) -- there was previously no column for it at
+        // all, so nothing to backfill; it only starts recording from here.
+        if (oldVersion < 16) {
+            db.execSQL("ALTER TABLE telemetry_sample ADD COLUMN battery_temp_c REAL");
+        }
+        // v17: on at least one real device, valet_session's end_ms is STILL
+        // NOT NULL even though user_version already reads 16 -- the v15 fix
+        // above only runs when oldVersion < 15, but this device's
+        // user_version was already bumped past 15 by an earlier out-of-band
+        // build (see the VERSION-10 note near the top of this file) before
+        // the v15 fix existed, so it was silently skipped forever and every
+        // valet activation has been failing on the NOT NULL constraint since.
+        // Re-run the identical rebuild under a version number no device has
+        // seen yet, unconditionally.
+        if (oldVersion < 17) {
+            db.execSQL("ALTER TABLE valet_session RENAME TO valet_session_v16");
+            createValetSession(db);
+            db.execSQL("INSERT INTO valet_session (id,start_ms,end_ms,start_odo_km,end_odo_km,"
+                + "start_soc,end_soc,max_speed_kmh,max_power_kw) SELECT id,start_ms,end_ms,"
+                + "start_odo_km,end_odo_km,start_soc,end_soc,max_speed_kmh,max_power_kw FROM valet_session_v16");
+            db.execSQL("DROP TABLE valet_session_v16");
         }
     }
 

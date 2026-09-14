@@ -97,19 +97,46 @@ public final class OdoStats {
      * Includes frozen daily_stat rows and the latest telemetry_sample for unfrozen days. */
     public static List<Reading> readLog(Context ctx) {
         List<Reading> out = new ArrayList<>();
-        android.database.Cursor c = CarDb.get(ctx).db().rawQuery(
+        android.database.sqlite.SQLiteDatabase db = CarDb.get(ctx).db();
+
+        // Only telemetry_sample days after the last one daily_stat already
+        // has are ever needed here (in practice just today) -- bound the
+        // GROUP BY to that via idx_sample_ts instead of grouping the whole
+        // (up to 90-day) table and filtering the result by date string
+        // afterward. Called on every Charging Stats refresh via kmSince(),
+        // so unlike DailyStatsProvider's per-day queries this one's cost was
+        // already being paid regularly, not just once per period switch.
+        // No frozen day yet (fresh install) -> cutoff 0, i.e. no bound,
+        // same as today's behavior in that case.
+        long cutoffMs = 0;
+        android.database.Cursor maxC = db.rawQuery("SELECT MAX(date) FROM daily_stat", null);
+        try {
+            if (maxC.moveToFirst() && !maxC.isNull(0)) cutoffMs = dayBoundsMs(maxC.getString(0))[1];
+        } finally { maxC.close(); }
+
+        android.database.Cursor c = db.rawQuery(
             "SELECT date, first_odo_km AS odo_km FROM daily_stat "
           + "UNION ALL "
           + "SELECT grp.day AS date, ts.odo_km FROM telemetry_sample ts "
           + "JOIN (SELECT date(ts_ms/1000,'unixepoch','localtime') AS day, MIN(id) AS first_id "
-          + "      FROM telemetry_sample WHERE odo_km IS NOT NULL GROUP BY day) grp "
+          + "      FROM telemetry_sample WHERE odo_km IS NOT NULL AND ts_ms >= ? GROUP BY day) grp "
           + "ON ts.id = grp.first_id "
-          + "WHERE grp.day > COALESCE((SELECT MAX(date) FROM daily_stat), '0000-00-00') "
-          + "ORDER BY date ASC", null);
+          + "ORDER BY date ASC", new String[]{String.valueOf(cutoffMs)});
         try {
             while (c.moveToNext()) out.add(new Reading(c.getString(0), c.getDouble(1)));
         } finally { c.close(); }
         return out;
+    }
+
+    /** [start, end) epoch-ms bounds of the local calendar day `dateStr`. */
+    private static long[] dayBoundsMs(String dateStr) {
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0); cal.set(java.util.Calendar.MINUTE, 0);
+        cal.set(java.util.Calendar.SECOND, 0); cal.set(java.util.Calendar.MILLISECOND, 0);
+        try { cal.setTime(DAY_FMT.parse(dateStr)); } catch (Exception ignored) { /* keep today */ }
+        long start = cal.getTimeInMillis();
+        cal.add(java.util.Calendar.DAY_OF_MONTH, 1);
+        return new long[]{start, cal.getTimeInMillis()};
     }
 
     /** Returns oldest-first first/last odometer readings for each calendar day from the database. */

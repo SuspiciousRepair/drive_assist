@@ -50,6 +50,7 @@ public final class Clips {
         public final long bytes;
         public final long whenMs;
         public final int seconds;      // from the sidecar; -1 when there is none
+        public final boolean valet;
 
         Clip(File mp4, boolean held, Kind kind) {
             this.mp4 = mp4;
@@ -61,6 +62,7 @@ public final class Clips {
             this.thumb = new File(mp4.getParentFile(), name(mp4) + ".jpg");
             this.bytes = mp4.length();
             this.whenMs = parseStamp(name(mp4), mp4.lastModified());
+            this.valet = name(mp4).endsWith("_valet");
             this.seconds = cueCount(this.vtt);
         }
 
@@ -75,6 +77,7 @@ public final class Clips {
             else b.append("--:--");
             b.append("   ").append(mb(bytes));
             if (kind == Kind.DONE && !vtt.exists()) b.append("   (no data)");
+            if (valet) b.append("   · Valet");
             return b.toString();
         }
     }

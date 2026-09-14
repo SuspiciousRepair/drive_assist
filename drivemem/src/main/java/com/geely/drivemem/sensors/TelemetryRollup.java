@@ -32,11 +32,28 @@ import java.util.Set;
  */
 public final class TelemetryRollup {
     private static final String TAG = CarAccess.TAG;
-    private static final String PREF_KEY = "rollup_last_day";
+    // Version the guard whenever a DB migration invalidates frozen summaries,
+    // so an update installed after today's rollup still rebuilds them at once.
+    private static final String PREF_KEY = "rollup_last_day_v10";
     private static final int RETAIN_DAYS = 90;
     private static final SimpleDateFormat DAY_FMT = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
 
     private TelemetryRollup() {}
+
+    /** [start, end) epoch-ms bounds of the local calendar day `dateStr` --
+     * lets a query use idx_sample_ts (ts_ms range) instead of wrapping the
+     * column in date(ts_ms/1000,'unixepoch','localtime'), which forces a
+     * full table scan every time (see DailyStatsProvider's own copy of this
+     * helper for the measured cost: ~1.2s vs ~0.0004s on a 90-day table). */
+    private static long[] dayBoundsMs(String dateStr) {
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0); cal.set(java.util.Calendar.MINUTE, 0);
+        cal.set(java.util.Calendar.SECOND, 0); cal.set(java.util.Calendar.MILLISECOND, 0);
+        try { cal.setTime(DAY_FMT.parse(dateStr)); } catch (Exception ignored) { /* keep today */ }
+        long start = cal.getTimeInMillis();
+        cal.add(java.util.Calendar.DAY_OF_MONTH, 1);
+        return new long[]{start, cal.getTimeInMillis()};
+    }
 
     /** Freezes completed days and prunes old telemetry if not already done today. */
     public static void runIfDue(Context ctx) {
@@ -98,26 +115,47 @@ public final class TelemetryRollup {
         } finally { c.close(); }
         if (days.isEmpty()) return;
 
+        // The above must scan the whole table once, to discover which days
+        // even exist -- but every query below already knows exactly which
+        // days (the `days` list), so it can bound itself to that range's
+        // ts_ms/start_ms via idx_sample_ts instead of re-scanning all 90
+        // days of history every time this runs (this job scoped a fixed
+        // handful of queries instead of one per day, but not once per run
+        // either -- unbounded, it paid the same date()-forced full scan
+        // this whole 2026-09-13 session's other fixes removed elsewhere).
+        String minDay = days.get(0), maxDay = days.get(0);
+        for (String d : days) {
+            if (d.compareTo(minDay) < 0) minDay = d;
+            if (d.compareTo(maxDay) > 0) maxDay = d;
+        }
+        String rangeStart = String.valueOf(dayBoundsMs(minDay)[0]);
+        String rangeEnd = String.valueOf(dayBoundsMs(maxDay)[1]);
+
         // MAX(speed_kmh) only -- avg_speed_kmh below is distance/duration,
         // not a per-sample average.
         Map<String, double[]> speed = groupedByDay(db,
             "SELECT date(ts_ms/1000,'unixepoch','localtime') AS day, MAX(speed_kmh) "
-          + "FROM telemetry_sample WHERE speed_kmh > 0 GROUP BY day", 1);
+          + "FROM telemetry_sample WHERE speed_kmh > 0 AND ts_ms >= ? AND ts_ms < ? GROUP BY day",
+            1, rangeStart, rangeEnd);
         Map<String, double[]> temp = groupedByDay(db,
             "SELECT date(ts_ms/1000,'unixepoch','localtime') AS day, "
           + "MIN(outside_temp_c), AVG(outside_temp_c), MAX(outside_temp_c) "
-          + "FROM telemetry_sample WHERE outside_temp_c IS NOT NULL GROUP BY day", 3);
+          + "FROM telemetry_sample WHERE outside_temp_c IS NOT NULL AND ts_ms >= ? AND ts_ms < ? GROUP BY day",
+            3, rangeStart, rangeEnd);
         Map<String, double[]> battRange = groupedByDay(db,
             "SELECT date(ts_ms/1000,'unixepoch','localtime') AS day, MIN(battery_pct), MAX(battery_pct) "
-          + "FROM telemetry_sample WHERE battery_pct IS NOT NULL GROUP BY day", 2);
+          + "FROM telemetry_sample WHERE battery_pct IS NOT NULL AND ts_ms >= ? AND ts_ms < ? GROUP BY day",
+            2, rangeStart, rangeEnd);
         Map<String, double[]> trips = groupedByDay(db,
             "SELECT date(start_ms/1000,'unixepoch','localtime') AS day, "
           + "COALESCE(SUM(ascent_m),0), COALESCE(SUM(descent_m),0), COUNT(*), COALESCE(SUM(end_ms-start_ms),0) "
-          + "FROM trip WHERE end_ms IS NOT NULL GROUP BY day", 4);
+          + "FROM trip WHERE end_ms IS NOT NULL AND start_ms >= ? AND start_ms < ? GROUP BY day",
+            4, rangeStart, rangeEnd);
         Map<String, double[]> charges = groupedByDay(db,
             "SELECT date(start_ms/1000,'unixepoch','localtime') AS day, COUNT(*), COALESCE(SUM(kwh),0), COALESCE(SUM(cost),0) "
-          + "FROM charge_session GROUP BY day", 3);
-        Map<String, EnergyStats> energy = energyByDay(db, days);
+          + "FROM charge_session WHERE start_ms >= ? AND start_ms < ? GROUP BY day",
+            3, rangeStart, rangeEnd);
+        Map<String, EnergyStats> energy = energyByDay(db, days, rangeStart, rangeEnd);
 
         for (String day : days) {
             double[] ob = odoBatt.get(day);
@@ -161,10 +199,12 @@ public final class TelemetryRollup {
     // Column 0 of `sql` must be the day string; the rest are numeric and
     // land in the returned array in order. One query per metric group
     // instead of one query per day, so backfilling months of history at
-    // once is still a fixed handful of queries, not N.
-    private static Map<String, double[]> groupedByDay(SQLiteDatabase db, String sql, int cols) {
+    // once is still a fixed handful of queries, not N. `boundArgs` is the
+    // [rangeStart, rangeEnd] pair `sql`'s own ts_ms/start_ms range filter
+    // expects, in order -- omit for a query with no such filter.
+    private static Map<String, double[]> groupedByDay(SQLiteDatabase db, String sql, int cols, String... boundArgs) {
         Map<String, double[]> out = new HashMap<>();
-        Cursor c = db.rawQuery(sql, null);
+        Cursor c = db.rawQuery(sql, boundArgs.length > 0 ? boundArgs : null);
         try {
             while (c.moveToNext()) {
                 double[] vals = new double[cols];
@@ -193,73 +233,50 @@ public final class TelemetryRollup {
     // (energy_spent_kwh, energy_regen_kwh, energy_net_kwh) when available, and
     // falls back to rectangular integration separating positive/negative power
     // for legacy samples.
-    private static Map<String, EnergyStats> energyByDay(SQLiteDatabase db, List<String> days) {
+    private static Map<String, EnergyStats> energyByDay(SQLiteDatabase db, List<String> days,
+            String rangeStart, String rangeEnd) {
         Map<String, EnergyStats> out = new HashMap<>();
         if (days.isEmpty()) return out;
-        StringBuilder placeholders = new StringBuilder();
-        String[] args = new String[days.size()];
-        for (int i = 0; i < days.size(); i++) {
-            if (i > 0) placeholders.append(',');
-            placeholders.append('?');
-            args[i] = days.get(i);
-        }
 
-        Map<String, double[]> acc = new HashMap<>();
-        for (String d : days) acc.put(d, new double[2]);
+        Map<String, DrivingConsumption> acc = new HashMap<>();
+        for (String d : days) acc.put(d, new DrivingConsumption());
 
-        // 1. Direct sum over high-frequency integrated telemetry_sample columns
-        Cursor sc = db.rawQuery(
-            "SELECT date(ts_ms/1000,'unixepoch','localtime') AS day, "
-          + "       COALESCE(SUM(energy_spent_kwh), 0), "
-          + "       COALESCE(SUM(energy_regen_kwh), 0) "
-          + "FROM telemetry_sample "
-          + "WHERE date(ts_ms/1000,'unixepoch','localtime') IN (" + placeholders + ") "
-          + "  AND energy_spent_kwh IS NOT NULL "
-          + "  AND (is_charging IS NULL OR is_charging = 0) "
-          + "GROUP BY day", args);
-        try {
-            while (sc.moveToNext()) {
-                String day = sc.getString(0);
-                double[] a = acc.get(day);
-                if (a != null) {
-                    a[0] += sc.getDouble(1);
-                    a[1] += sc.getDouble(2);
-                }
-            }
-        } finally { sc.close(); }
-
-        // 2. Piecewise integration for legacy samples where energy_spent_kwh is NULL
+        // Bounded to [rangeStart, rangeEnd) via idx_sample_ts, not a
+        // date() IN-list (which can't use that index and forces a full
+        // scan) -- a non-contiguous `days` list can pull in a few rows for
+        // an already-frozen day in between, but acc.get(day) below is null
+        // for those and they're skipped, same as before this bound existed.
+        //
+        // Include every row. DrivingConsumption excludes Park/charging energy and
+        // uses those rows to break the legacy integration chain. A zero-speed row
+        // in a driving gear remains part of consumption, as it should in traffic.
         Cursor c = db.rawQuery(
-            "SELECT date(ts_ms/1000,'unixepoch','localtime') AS day, ts_ms, instant_power_kw_est "
+            "SELECT date(ts_ms/1000,'unixepoch','localtime') AS day, "
+          + "       ts_ms, odo_km, speed_kmh, gear, is_charging, "
+          + "       energy_spent_kwh, energy_regen_kwh, instant_power_kw_est "
           + "FROM telemetry_sample "
-          + "WHERE instant_power_kw_est IS NOT NULL AND energy_spent_kwh IS NULL "
-          + "  AND (is_charging IS NULL OR is_charging = 0) "
-          + "  AND date(ts_ms/1000,'unixepoch','localtime') IN (" + placeholders + ") "
-          + "ORDER BY ts_ms ASC", args);
+          + "WHERE ts_ms >= ? AND ts_ms < ? "
+          + "ORDER BY day ASC, ts_ms ASC, id ASC", new String[]{rangeStart, rangeEnd});
         try {
-            String prevDay = null;
-            long prevTs = -1;
             while (c.moveToNext()) {
                 String day = c.getString(0);
+                DrivingConsumption a = acc.get(day);
+                if (a == null) continue;
                 long ts = c.getLong(1);
-                double kw = c.getDouble(2);
-                if (day.equals(prevDay)) {
-                    double hours = (ts - prevTs) / 3_600_000.0;
-                    if (hours > 0 && hours <= 60.0 / 3600.0) {
-                        double[] a = acc.get(day);
-                        if (a != null) {
-                            if (kw >= 0) a[0] += kw * hours;
-                            else a[1] += -kw * hours;
-                        }
-                    }
-                }
-                prevDay = day; prevTs = ts;
+                double odo = c.isNull(2) ? Double.NaN : c.getDouble(2);
+                double speed = c.isNull(3) ? Double.NaN : c.getDouble(3);
+                Integer gear = c.isNull(4) ? null : c.getInt(4);
+                boolean charging = !c.isNull(5) && c.getInt(5) != 0;
+                double spent = c.isNull(6) ? Double.NaN : c.getDouble(6);
+                double regen = c.isNull(7) ? Double.NaN : c.getDouble(7);
+                double power = c.isNull(8) ? Double.NaN : c.getDouble(8);
+                a.add(ts, odo, speed, gear, charging, spent, regen, power);
             }
         } finally { c.close(); }
 
-        for (Map.Entry<String, double[]> e : acc.entrySet()) {
-            double spent = e.getValue()[0];
-            double regen = e.getValue()[1];
+        for (Map.Entry<String, DrivingConsumption> e : acc.entrySet()) {
+            double spent = e.getValue().totalSpent;
+            double regen = e.getValue().totalRegen;
             out.put(e.getKey(), new EnergyStats(spent, regen, spent - regen));
         }
         return out;

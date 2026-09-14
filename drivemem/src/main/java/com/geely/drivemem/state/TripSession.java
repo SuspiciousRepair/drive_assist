@@ -10,6 +10,7 @@ import com.geely.drivemem.util.Modes;
 
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.SharedPreferences; // pii: allow (17-char identifier, not a VIN)
 import android.database.Cursor;
 import android.util.Log;
 
@@ -36,6 +37,22 @@ public final class TripSession {
     public static final double MIN_TRIP_DISTANCE_KM = 0.1;
     public static final long MIN_TRIP_DRIVE_DURATION_MS = 45_000L;
 
+    // A trip in progress lives ONLY in the static fields below — nothing about
+    // it touches disk until finalizeTrip() writes the summary row. That's fine
+    // for a normal park-to-park drive, but a process restart mid-trip (an app
+    // reinstall during a brief Park is what actually happened, on 2026-09-12:
+    // ~34 minutes and 12km of driving before the install were never written,
+    // because the whole in-progress trip lived only in these fields) wipes
+    // every one of them with nothing to show for the drive already underway.
+    // These prefs are the fix: just enough of the trip's IDENTITY (not its
+    // accumulators) to find it again in telemetry_sample after a restart.
+    // See persistOpenTrip/recoverOpenTrip below.
+    private static final String PREFS = "drivemem";
+    private static final String PREF_OPEN_START_MS = "trip_open_start_ms";
+    private static final String PREF_OPEN_START_SAMPLE_ID = "trip_open_start_sample_id";
+    private static final String PREF_OPEN_START_ODO_KM = "trip_open_start_odo_km";
+    private static final String PREF_OPEN_START_SOC = "trip_open_start_soc";
+
     private static volatile boolean subscribed = false;
 
     /** Subscribes to gear and telemetry changes to track trips; idempotent. */
@@ -44,6 +61,7 @@ public final class TripSession {
         subscribed = true;
         Context app = ctx.getApplicationContext();
         EnergyIntegrator.ensureSubscribed(app);
+        recoverOpenTrip(app);
         EntityBus.subscribe("car.gear", (key, reading) -> {
             if (reading.status == CarActor.Reading.Status.OK && reading.value instanceof Integer) {
                 onGear(app, (Integer) reading.value);
@@ -118,6 +136,7 @@ public final class TripSession {
                     startSoc = -1;
                 }
                 EnergyIntegrator.startTrip();
+                if (ctx != null) persistOpenTrip(ctx);
             }
         } else {
             // Driving -> parked: enter park grace period
@@ -138,14 +157,19 @@ public final class TripSession {
 
     private static void onTelemetryTick(Context ctx, Map<String, Object> data) {
         if (!tripActive) return; // only track while a trip is actually open
+        boolean backfilled = false;
         if (startOdoKm < 0 && data.containsKey("odometer")) {
             Object o = data.get("odometer");
-            if (o instanceof Number) startOdoKm = ((Number) o).doubleValue();
+            if (o instanceof Number) { startOdoKm = ((Number) o).doubleValue(); backfilled = true; }
         }
         if (startSoc < 0 && data.containsKey("battery")) {
             Object b = data.get("battery");
-            if (b instanceof Integer) startSoc = (Integer) b;
+            if (b instanceof Integer) { startSoc = (Integer) b; backfilled = true; }
         }
+        // Re-persist once the identity fields are actually known — a restart
+        // right after trip start but before the first odometer/SoC reading
+        // arrived would otherwise recover a marker with startOdoKm still -1.
+        if (backfilled && ctx != null) persistOpenTrip(ctx);
         if (wasParked) return; // stationary in park debounce: don't accumulate altitude jitter
         double[] loc = GpsReader.read(ctx);
         if (loc == null) return;
@@ -235,8 +259,147 @@ public final class TripSession {
                 distanceKm, drivingDurationMs / 1000.0));
         }
 
+        if (ctx != null) clearOpenTrip(ctx);
         resetTripState();
         return qualified;
+    }
+
+    // ---- Crash/restart recovery (see the PREF_OPEN_* fields' own comment) ----
+
+    private static void persistOpenTrip(Context ctx) {
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putLong(PREF_OPEN_START_MS, startMs)
+            .putLong(PREF_OPEN_START_SAMPLE_ID, startSampleId)
+            .putFloat(PREF_OPEN_START_ODO_KM, (float) startOdoKm)
+            .putInt(PREF_OPEN_START_SOC, startSoc)
+            .apply();
+    }
+
+    private static void clearOpenTrip(Context ctx) {
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .remove(PREF_OPEN_START_MS)
+            .remove(PREF_OPEN_START_SAMPLE_ID)
+            .remove(PREF_OPEN_START_ODO_KM)
+            .remove(PREF_OPEN_START_SOC)
+            .apply();
+    }
+
+    // Runs once per process start (from ensureSubscribed, before any gear/tick
+    // arrives). A leftover marker means the LAST process died with a trip open
+    // — normal finalization always clears it first. Restores the trip's
+    // identity and replays its ascent/descent and energy from telemetry_sample,
+    // which kept recording the whole time regardless of what TripSession's own
+    // in-memory accumulators were doing. drivingDurationMs is deliberately left
+    // at 0 rather than reconstructed: the distance check (startOdoKm is exact,
+    // recovered below) already qualifies the overwhelming majority of real
+    // trips, and the remaining sliver — a very short, very slow drive that
+    // ALSO happens to restart mid-trip — is an acceptable gap for how rare it
+    // is, versus the complexity of replaying per-sample gear timings too.
+    private static void recoverOpenTrip(Context ctx) {
+        // Runs unconditionally on every app start, before anything else --
+        // there is no safe fallback path above this in the call chain
+        // (TelemetryService.onStartCommand has none either). Learned the hard
+        // way on 2026-09-12: this whole method used to run bare, and a
+        // completely unrelated DB problem (a schema-downgrade refusal) turned
+        // into an uncaught SQLiteException here, which crashed the service,
+        // which got the whole app killed and backed off for an hour. Recovery
+        // is a best-effort convenience, not something worth ever bringing the
+        // app down over -- any failure here should cost the recovered trip's
+        // ascent/descent/energy accuracy at worst, never app startup.
+        try {
+            recoverOpenTripUnsafe(ctx);
+        } catch (Throwable t) {
+            Log.w(TAG, "trip recovery: failed, continuing without it: " + t);
+        }
+    }
+
+    private static void recoverOpenTripUnsafe(Context ctx) {
+        SharedPreferences p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE); // pii: allow (17-char identifier, not a VIN)
+        long persistedStartMs = p.getLong(PREF_OPEN_START_MS, -1);
+        if (persistedStartMs < 0) return; // normal case: no trip was left open
+
+        long persistedStartSampleId = p.getLong(PREF_OPEN_START_SAMPLE_ID, -1);
+        double persistedStartOdoKm = p.getFloat(PREF_OPEN_START_ODO_KM, -1f);
+        int persistedStartSoc = p.getInt(PREF_OPEN_START_SOC, -1);
+
+        tripActive = true;
+        startMs = persistedStartMs;
+        startSampleId = persistedStartSampleId;
+        startOdoKm = persistedStartOdoKm;
+        startSoc = persistedStartSoc;
+        currentDriveSegmentStartMs = System.currentTimeMillis();
+        drivingDurationMs = 0;
+        lastAltitude = null;
+        ascentM = 0;
+        descentM = 0;
+
+        long endSampleId = CarDb.get(ctx).latestSampleId();
+        if (persistedStartSampleId >= 0 && endSampleId >= persistedStartSampleId) {
+            double[] ad = replayAscentDescent(readGearAndAltitude(ctx, persistedStartSampleId, endSampleId));
+            ascentM = ad[0];
+            descentM = ad[1];
+        }
+
+        EnergyIntegrator.startTrip();
+        double[] energy = sumEnergySince(ctx, persistedStartMs, System.currentTimeMillis());
+        EnergyIntegrator.seedTrip(energy[0], energy[1], energy[2]);
+
+        Log.i(TAG, String.format(Locale.US,
+            "trip recovery: restored open trip from %d (ascent=%.1fm descent=%.1fm)",
+            persistedStartMs, ascentM, descentM));
+    }
+
+    private static Object[][] readGearAndAltitude(Context ctx, long startSampleId, long endSampleId) {
+        Cursor c = CarDb.get(ctx).db().rawQuery(
+            "SELECT gear, altitude_m FROM telemetry_sample WHERE id BETWEEN ? AND ? ORDER BY id",
+            new String[]{String.valueOf(startSampleId), String.valueOf(endSampleId)});
+        try {
+            Object[][] rows = new Object[c.getCount()][2];
+            int i = 0;
+            while (c.moveToNext()) {
+                rows[i][0] = c.isNull(0) ? null : c.getInt(0);
+                rows[i][1] = c.isNull(1) ? null : c.getDouble(1);
+                i++;
+            }
+            return rows;
+        } finally { c.close(); }
+    }
+
+    /** Replays the same altitude noise filter onTelemetryTick uses, over
+     * {gear, altitude} rows in sample-id order. Pure/testable — the DB read
+     * is kept separate in readGearAndAltitude(). Each row is {Integer gear,
+     * Double altitude}, either of which may be null. */
+    public static double[] replayAscentDescent(Object[][] gearAltitudeRows) {
+        double ascent = 0, descent = 0;
+        Double lastAlt = null;
+        for (Object[] row : gearAltitudeRows) {
+            Integer gear = (Integer) row[0];
+            Double alt = (Double) row[1];
+            if (gear == null || gear == Modes.GEAR_PARK_ADAPTED) continue; // parked: don't accumulate jitter
+            if (alt == null) continue;
+            if (lastAlt != null) {
+                double delta = alt - lastAlt;
+                if (delta > ALTITUDE_NOISE_M) ascent += delta;
+                else if (delta < -ALTITUDE_NOISE_M) descent += -delta;
+                else continue; // within noise band — don't move the reference point either
+            }
+            lastAlt = alt;
+        }
+        return new double[]{ascent, descent};
+    }
+
+    // Same fallback formula DailyStatsProvider already uses when a trip row's
+    // own energy columns are missing — see queryDaySessions()'s own comment.
+    private static double[] sumEnergySince(Context ctx, long startMs, long endMs) {
+        Cursor c = CarDb.get(ctx).db().rawQuery(
+            "SELECT COALESCE(SUM(energy_spent_kwh),0), COALESCE(SUM(energy_regen_kwh),0), "
+          + "COALESCE(SUM(energy_net_kwh),0) FROM telemetry_sample "
+          + "WHERE ts_ms BETWEEN ? AND ? AND (is_charging IS NULL OR is_charging = 0)",
+            new String[]{String.valueOf(startMs), String.valueOf(endMs)});
+        try {
+            if (c.moveToFirst()) return new double[]{c.getDouble(0), c.getDouble(1), c.getDouble(2)};
+        } finally { c.close(); }
+        return new double[]{0, 0, 0};
     }
 
     public static boolean isQualified(double distanceKm, long drivingDurationMs) {

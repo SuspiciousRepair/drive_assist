@@ -92,7 +92,7 @@
     <string name="cfg_nav_doors">Doors</string>
     <string name="cfg_nav_mqtt">MQTT</string>
     <string name="cfg_nav_drive">Driving mode</string>
-    <string name="cfg_nav_bar">Menu bar</string>
+    <string name="cfg_nav_bar">Elements</string>
     <string name="cfg_nav_look">Appearance</string>
     <string name="cfg_nav_spotify">Spotify</string>
     <string name="cfg_nav_system">System</string>
@@ -104,13 +104,11 @@
     <string name="cfg_system_header">System</string>
     <string name="cfg_app_info_header">Application info</string>
     <string name="cfg_version_label">Version: %1$s (build %2$d)</string>
+    <string name="cfg_ip_label">Wi-Fi IP address: %1$s</string>
     <string name="cfg_sha_label">APK SHA-256</string>
     <string name="cfg_update_header">Software update</string>
     <string name="cfg_update_url_label">Update URL (HTTPS)</string>
     <string name="cfg_btn_check_update">Check &amp; Install Update</string>
-    <string name="cfg_touch_header">Touch controls &amp; cooldown</string>
-    <string name="cfg_cooldown_label">Switch cooldown</string>
-    <string name="cfg_cooldown_hint">Temporary lock duration after tapping any switch to prevent accidental double-touches while driving.</string>
     <string name="cfg_maintenance_header">Maintenance</string>
     <string name="cfg_mqtt_header">Sending to Home Assistant</string>
     <string name="cfg_mqtt_enable_label">Enable MQTT telemetry</string>
@@ -215,6 +213,12 @@
     <string name="turbo_header">Turbo</string>
     <string name="turbo_enable_label">Show the Turbo card</string>
     <string name="turbo_duration_label">Duration (s)</string>
+    <string name="cfg_adas_header">Driver assistance</string>
+    <string name="cfg_aeb_label">AEB (automatic emergency braking)</string>
+    <string name="cfg_avas_label">AVAS (pedestrian warning sound)</string>
+    <string name="cfg_aeb_confirm_title">Turn off automatic emergency braking?</string>
+    <string name="cfg_aeb_confirm_body">Turning off AEB stops the car from braking itself when it detects a forward collision risk. Unlike the car\'s own menu, this stays off across restarts until you turn it back on here.</string>
+    <string name="cfg_aeb_confirm_turn_off">Turn off</string>
     <string name="cfg_btn_apply">Apply now</string>
     <string name="cfg_btn_save_default">Save as default</string>
     <string name="cfg_car_connect_fail">Could not connect to the car</string>
@@ -223,7 +227,18 @@
     <string name="cfg_startup_default">Startup default: %1$s + %2$s</string>
     <string name="cfg_mode_unknown">Current mode unknown — pick one to apply</string>
     <string name="cfg_current">Current: %1$s + %2$s</string>
-    <string name="cfg_bar_header">Menu bar displays</string>
+    <string name="cfg_bar_header">Elements</string>
+    <string name="cfg_drive_card">Show current drive card</string>
+    <string name="drive_card_title">Current drive</string>
+    <string name="drive_card_detail">%1$.1f km · %2$s · since %3$s · recovered %4$.2f kWh</string>
+    <string name="parked_card_title">Parked</string>
+    <string name="parked_card_detail">Battery %1$s · temperature %2$s</string>
+    <string name="valet_start">Start Valet Mode</string>
+    <string name="valet_end">End Valet Mode</string>
+    <string name="valet_active_title">Valet Mode active</string>
+    <string name="valet_active_detail">Active for %1$s · max power %2$s</string>
+    <string name="value_unavailable">Unavailable</string>
+    <string name="value_calculating">Calculating…</string>
     <string name="cfg_bar_outtemp">Outside temperature in the bar</string>
     <string name="cfg_bar_wifi">Wi-Fi in the bar (opens settings)</string>
     <string name="cfg_bar_soc">Battery % in the bar</string>
@@ -233,12 +248,15 @@
     <string name="cfg_appearance_auto">Auto</string>
     <string name="cfg_appearance_note">Auto follows this head unit\'s own day/night setting. Neon and Noturno always use their one fixed colour scheme, whatever this is set to.</string>
     <string name="cfg_skyline_label">Show skyline art</string>
+    <string name="cfg_skyline_header">Skyline</string>
     <string name="cfg_skyline_seed_header">Skyline Seed</string>
     <string name="cfg_skyline_seed_label">Seed</string>
     <string name="cfg_skyline_seed_save">Save</string>
     <string name="cfg_skyline_cycle">Cycle</string>
     <string name="cfg_skyline_random_per_drive_label">Random every drive</string>
     <string name="cfg_theme_header">Theme</string>
+    <string name="cfg_dark_mode_header">Dark mode</string>
+    <string name="cfg_theme_selection_header">Theme selection</string>
     <string name="cfg_theme_sub">Applies to every Drive Assist screen. The thumbnail shows the colour and the shape of the cards — the change is immediate.</string>
     <string name="cfg_theme_selected">%1$s  ✓</string>
     <string name="cfg_theme_ambient_on">This theme lets the cabin ambient light drive the accent colour.</string>
@@ -363,6 +381,13 @@
 
     <!-- charge stats & cost tracking -->
     <string name="charge_stats_title">Charging stats</string>
+    <string name="charge_sessions_title">Recharge sessions · newest first</string>
+    <string name="charge_soc_chart_title">Battery range · chronological</string>
+    <string name="charge_curve_title">Charging power over time</string>
+    <string name="charge_curve_unavailable">Samples are no longer available for this session.</string>
+    <string name="charge_curve_power_label">Power (kW)</string>
+    <string name="charge_curve_temp_label">Outside temp. (°C)</string>
+    <string name="charge_curve_batt_temp_label">Battery temp. (°C)</string>
     <string name="charge_completed_title">Charge completed</string>
     <string name="charge_cost_label">Cost</string>
     <string name="charge_cost_input_title">Charge Cost</string>
@@ -370,6 +395,7 @@
     <string name="charge_cost_btn_input">Enter Cost</string>
     <string name="charge_cost_btn_edit">Edit</string>
     <string name="charge_cost_btn_save">Save</string>
+    <string name="charge_cost_btn_per_kwh">× kWh</string>
     <string name="charge_cost_btn_dismiss">Dismiss</string>
     <string name="charge_cost_not_set">Cost not set</string>
     <string name="charge_cost_invalid">Invalid cost value</string>

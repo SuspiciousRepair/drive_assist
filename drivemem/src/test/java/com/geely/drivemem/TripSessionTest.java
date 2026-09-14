@@ -177,4 +177,70 @@ public class TripSessionTest {
         assertFalse(TripSession.isTripActive());
         assertFalse(TripSession.isParkGraceScheduled());
     }
+
+    // ---- replayAscentDescent: the crash-recovery ascent/descent replay ----
+    // (reconstructs from telemetry_sample after a restart mid-trip — see the
+    // 2026-09-12 lost-session incident TripSession's own header comment on
+    // PREF_OPEN_START_MS describes)
+
+    private static Object[] row(Integer gear, Double altitude) {
+        return new Object[]{gear, altitude};
+    }
+
+    @Test
+    public void testReplayAscentDescentClimbAndDescend() {
+        Object[][] rows = {
+            row(Modes.DRIVE_COMFORT, 100.0),
+            row(Modes.DRIVE_COMFORT, 110.0),  // +10 climb
+            row(Modes.DRIVE_COMFORT, 108.0),  // -2, within noise band: ignored, reference unmoved
+            row(Modes.DRIVE_COMFORT, 95.0),   // -15 from 110 (unmoved reference): descend
+        };
+        double[] ad = TripSession.replayAscentDescent(rows);
+        assertEquals(10.0, ad[0], 1e-9);
+        assertEquals(15.0, ad[1], 1e-9);
+    }
+
+    @Test
+    public void testReplayAscentDescentIgnoresNoiseBand() {
+        Object[][] rows = {
+            row(Modes.DRIVE_COMFORT, 50.0),
+            row(Modes.DRIVE_COMFORT, 52.0),   // +2: within 3m noise band
+            row(Modes.DRIVE_COMFORT, 49.0),   // -3 from original 50 reference (still unmoved): within band (not < -3)
+        };
+        double[] ad = TripSession.replayAscentDescent(rows);
+        assertEquals(0.0, ad[0], 1e-9);
+        assertEquals(0.0, ad[1], 1e-9);
+    }
+
+    @Test
+    public void testReplayAscentDescentSkipsParkedSamplesWithoutResettingReference() {
+        Object[][] rows = {
+            row(Modes.DRIVE_COMFORT, 100.0),
+            row(Modes.GEAR_PARK_ADAPTED, 250.0),  // parked: ignored entirely, even though altitude jumped
+            row(Modes.DRIVE_COMFORT, 112.0),      // +12 from the pre-park reference (100), not from 250
+        };
+        double[] ad = TripSession.replayAscentDescent(rows);
+        assertEquals(12.0, ad[0], 1e-9);
+        assertEquals(0.0, ad[1], 1e-9);
+    }
+
+    @Test
+    public void testReplayAscentDescentSkipsNullGearAndAltitude() {
+        Object[][] rows = {
+            row(Modes.DRIVE_COMFORT, 100.0),
+            row(null, 200.0),
+            row(Modes.DRIVE_COMFORT, null),
+            row(Modes.DRIVE_COMFORT, 130.0),  // +30 from 100 (nulls skipped, reference unmoved)
+        };
+        double[] ad = TripSession.replayAscentDescent(rows);
+        assertEquals(30.0, ad[0], 1e-9);
+        assertEquals(0.0, ad[1], 1e-9);
+    }
+
+    @Test
+    public void testReplayAscentDescentEmpty() {
+        double[] ad = TripSession.replayAscentDescent(new Object[0][]);
+        assertEquals(0.0, ad[0], 1e-9);
+        assertEquals(0.0, ad[1], 1e-9);
+    }
 }

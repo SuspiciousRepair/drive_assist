@@ -9,8 +9,6 @@ import android.graphics.Typeface;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
-import android.text.style.RelativeSizeSpan;
-import android.text.style.StyleSpan;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -52,6 +50,22 @@ public class DailyStatsView extends LinearLayout {
     private List<DailyStatsProvider.DayItem> days = new ArrayList<>();
     private int selectedIdx = -1;
     private final Runnable onBack;
+
+    // Day/Week/Month segmented control -- plan/active/STATS-PERIOD-VIEWS-ROADMAP.md.
+    // Week/Month don't drill into one period's individual days (that was the
+    // first cut of this feature); each bar IS a whole week or month, same
+    // shape as Day mode's one-bar-per-day chart, just at a coarser grain
+    // (2026-09-13 rework, "aggregate of the months: Aug, Sep, Oct...").
+    private enum Period { DAY, WEEK, MONTH }
+    private Period period = Period.DAY;
+    private String periodAnchorDate;
+    private TextView periodDropdownLabel;
+    // The recent-N-weeks or recent-N-months window backing the Week/Month
+    // chart, oldest first -- parallel to `days`, which stays Day-mode-only.
+    private List<DailyStatsProvider.PeriodOverview> periodWindow = new ArrayList<>();
+    private int periodSelectedIdx = -1;
+    private static final int WEEK_WINDOW = 8;
+    private static final int MONTH_WINDOW = 12;
 
     private BarChart chart;
     private TextView navPrevBtn;
@@ -140,8 +154,12 @@ public class DailyStatsView extends LinearLayout {
             @Override
             public void onValueSelected(Entry e, Highlight h) {
                 int idx = (int) e.getX();
-                if (idx >= 0 && idx < days.size() && idx != selectedIdx) {
-                    selectIndex(idx, false);
+                if (period == Period.DAY) {
+                    if (idx >= 0 && idx < days.size() && idx != selectedIdx) {
+                        selectIndex(idx, false);
+                    }
+                } else if (idx >= 0 && idx < periodWindow.size() && idx != periodSelectedIdx) {
+                    selectPeriodIndex(idx, false);
                 }
             }
 
@@ -152,14 +170,19 @@ public class DailyStatsView extends LinearLayout {
         addView(chart);
         Style.gap(this, c, 14);
 
-        // 3. Day Navigator [ ◀ Ontem ]   [ Data ]   [ Amanhã ▶ ]
+        // 3. Left column: Day/Week/Month navigator [ ◀ ]  [ Data ]  [ ▶ ]
+        //    Right column: Dia / Semana / Mês segmented control.
+        // (plan/active/STATS-PERIOD-VIEWS-ROADMAP.md's decided two-column layout)
         LinearLayout navRow = new LinearLayout(c);
         navRow.setOrientation(LinearLayout.HORIZONTAL);
         navRow.setGravity(Gravity.CENTER_VERTICAL);
 
-        navPrevBtn = Style.cardButton(c, c.getString(R.string.daily_stats_prev_day), false, () -> {
-            if (selectedIdx > 0) selectIndex(selectedIdx - 1, true);
-        });
+        LinearLayout dateNav = new LinearLayout(c);
+        dateNav.setOrientation(LinearLayout.HORIZONTAL);
+        dateNav.setGravity(Gravity.CENTER_VERTICAL);
+        dateNav.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        navPrevBtn = Style.cardButton(c, c.getString(R.string.daily_stats_prev_day), false, this::onNavPrev);
         setNavIcon(navPrevBtn, R.drawable.ic_chevron_left, true);
 
         navDateLabel = new TextView(c);
@@ -170,14 +193,48 @@ public class DailyStatsView extends LinearLayout {
         LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         navDateLabel.setLayoutParams(nlp);
 
-        navNextBtn = Style.cardButton(c, c.getString(R.string.daily_stats_next_day), false, () -> {
-            if (selectedIdx < days.size() - 1) selectIndex(selectedIdx + 1, true);
-        });
+        navNextBtn = Style.cardButton(c, c.getString(R.string.daily_stats_next_day), false, this::onNavNext);
         setNavIcon(navNextBtn, R.drawable.ic_chevron_right, false);
 
-        navRow.addView(navPrevBtn);
-        navRow.addView(navDateLabel);
-        navRow.addView(navNextBtn);
+        dateNav.addView(navPrevBtn);
+        dateNav.addView(navDateLabel);
+        dateNav.addView(navNextBtn);
+        navRow.addView(dateNav);
+
+        Style.gap(navRow, c, 14);
+
+        // Single dropdown trigger instead of three separate pills (2026-09-13):
+        // "Dia"/"Semana"/"Mês" as three side-by-side buttons never matched
+        // width (Semana is much longer than Dia/Mês), and their hit targets
+        // sat close enough together to make a mistap easy. One button
+        // showing the current period, opening a menu of the other two, fixes
+        // both.
+        LinearLayout periodDropdownBtn = new LinearLayout(c);
+        periodDropdownBtn.setOrientation(LinearLayout.HORIZONTAL);
+        periodDropdownBtn.setGravity(Gravity.CENTER_VERTICAL);
+        periodDropdownBtn.setBackground(Style.card(Style.CARD, c));
+        int ddPadH = Style.dp(c, 18), ddPadV = Style.dp(c, 14);
+        periodDropdownBtn.setPadding(ddPadH, ddPadV, ddPadH, ddPadV);
+
+        periodDropdownLabel = new TextView(c);
+        periodDropdownLabel.setText(periodDisplayName(period));
+        periodDropdownLabel.setTextColor(Style.onFill(Style.CARD));
+        periodDropdownLabel.setTextSize(15.5f);
+        periodDropdownLabel.setTypeface(null, Typeface.BOLD);
+        periodDropdownBtn.addView(periodDropdownLabel);
+
+        android.widget.ImageView periodChevron = new android.widget.ImageView(c);
+        periodChevron.setImageResource(R.drawable.ic_chevron_right);
+        periodChevron.setColorFilter(Style.onFill(Style.CARD), android.graphics.PorterDuff.Mode.SRC_IN);
+        periodChevron.setRotation(90f); // right-pointing glyph, rotated to point down
+        LinearLayout.LayoutParams chevLp = new LinearLayout.LayoutParams(Style.dp(c, 18), Style.dp(c, 18));
+        chevLp.leftMargin = Style.dp(c, 8);
+        periodChevron.setLayoutParams(chevLp);
+        periodDropdownBtn.addView(periodChevron);
+
+        periodDropdownBtn.setOnClickListener(v -> showPeriodMenu(periodDropdownBtn));
+        navRow.addView(periodDropdownBtn);
+
         addView(navRow);
         Style.gap(this, c, 18);
 
@@ -295,7 +352,7 @@ public class DailyStatsView extends LinearLayout {
         distanceAxis.setSpaceTop(15f);
         distanceAxis.setDrawAxisLine(false);
         distanceAxis.setTextColor(Style.TEXT_DIM);
-        distanceAxis.setTextSize(11f);
+        distanceAxis.setTextSize(12.5f);
         distanceAxis.setLabelCount(4);
         distanceAxis.setGridColor(Style.blend(Style.cardFillColor(), Style.TEXT_DIM, 0.18f));
         distanceAxis.setGridLineWidth(0.7f);
@@ -305,7 +362,7 @@ public class DailyStatsView extends LinearLayout {
         hourAxis.setDrawAxisLine(true);
         hourAxis.setAxisLineColor(Style.blend(Style.cardFillColor(), Style.TEXT_DIM, 0.35f));
         hourAxis.setTextColor(Style.TEXT_DIM);
-        hourAxis.setTextSize(11f);
+        hourAxis.setTextSize(12.5f);
         hourAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
         hourAxis.setYOffset(8f);
         hourAxis.setAxisMinimum(-0.65f);
@@ -351,11 +408,23 @@ public class DailyStatsView extends LinearLayout {
 
         updateChartData();
         selectIndex(selectedIdx, true);
+        // selectIndex() above always (re)renders Day content, needed either
+        // way to keep the 14-day chart's own data current -- if a Week/Month
+        // view was open (e.g. a midnight rollover mid-view), restore it on
+        // top rather than silently dropping back to Day.
+        if (period != Period.DAY) loadPeriod();
     }
 
     /** Live tick update (~15s) while screen is actively displayed. */
     private void onLiveTick() {
         if (!isShown() || days == null || days.isEmpty()) return;
+        // Day-only: `selectedIdx` stays pointed at today's index even while
+        // Week/Month is open (it's Day-mode-only state, see the field's own
+        // comment), so without this guard every tick called renderOverview()
+        // below and silently clobbered the open Week/Month view back to a
+        // single day -- the nav label, the four dashboard cards, all reverted
+        // out from under the user a second or two after switching (2026-09-13).
+        if (period != Period.DAY) return;
         String today = DailyStatsProvider.todayDateStr();
         int todayIdx = days.size() - 1;
         if (todayIdx < 0) return;
@@ -393,16 +462,26 @@ public class DailyStatsView extends LinearLayout {
     }
 
     private void updateChartData() {
-        Context c = getContext();
+        String[] labels = new String[days.size()];
+        double[] kms = new double[days.size()];
+        for (int i = 0; i < days.size(); i++) {
+            labels[i] = days.get(i).shortLabel;
+            kms[i] = days.get(i).km;
+        }
+        renderBarChart(labels, kms, selectedIdx);
+    }
+
+    /** Draws `chart` from parallel label/km arrays, highlighting
+     * selectedIndex (pass -1 for none). Shared by the Day mode's recent-14
+     * chart and the Week/Month period chart added for plan/active/
+     * STATS-PERIOD-VIEWS-ROADMAP.md — same rendering, different x-axis
+     * entries ("same thing, different element on the x-axis"). */
+    private void renderBarChart(String[] labels, double[] kms, int selectedIndex) {
         List<BarEntry> entries = new ArrayList<>();
         List<Integer> colors = new ArrayList<>();
-        String[] labels = new String[days.size()];
-
-        for (int i = 0; i < days.size(); i++) {
-            DailyStatsProvider.DayItem item = days.get(i);
-            entries.add(new BarEntry(i, (float) item.km));
-            labels[i] = item.shortLabel;
-            colors.add(i == selectedIdx ? Style.ACCENT : tileBarColor());
+        for (int i = 0; i < kms.length; i++) {
+            entries.add(new BarEntry(i, (float) kms[i]));
+            colors.add(i == selectedIndex ? Style.ACCENT : tileBarColor());
         }
 
         BarDataSet set = new BarDataSet(entries, "km");
@@ -426,7 +505,7 @@ public class DailyStatsView extends LinearLayout {
             }
         });
         set.setValueTextColor(Style.TEXT);
-        set.setValueTextSize(11f);
+        set.setValueTextSize(12.5f);
         set.setHighLightAlpha(0);
 
         BarData data = new BarData(set);
@@ -437,7 +516,7 @@ public class DailyStatsView extends LinearLayout {
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
         xAxis.setDrawGridLines(false);
         xAxis.setTextColor(Style.TEXT_DIM);
-        xAxis.setTextSize(11f);
+        xAxis.setTextSize(12.5f);
         xAxis.setGranularity(1f);
         xAxis.setLabelCount(labels.length);
         xAxis.setValueFormatter(new IndexAxisValueFormatter(labels));
@@ -484,6 +563,290 @@ public class DailyStatsView extends LinearLayout {
         // Fetch day details
         DailyStatsProvider.DayOverview ov = DailyStatsProvider.getDayOverview(getContext(), dayItem.date);
         renderOverview(ov);
+    }
+
+    private void onNavPrev() {
+        if (period == Period.DAY) {
+            if (selectedIdx > 0) selectIndex(selectedIdx - 1, true);
+        } else if (periodSelectedIdx > 0) {
+            selectPeriodIndex(periodSelectedIdx - 1, true);
+        }
+    }
+
+    private void onNavNext() {
+        if (period == Period.DAY) {
+            if (selectedIdx < days.size() - 1) selectIndex(selectedIdx + 1, true);
+        } else if (periodSelectedIdx < periodWindow.size() - 1) {
+            selectPeriodIndex(periodSelectedIdx + 1, true);
+        }
+    }
+
+    private static String periodDisplayName(Period p) {
+        switch (p) {
+            case WEEK: return "Semana";
+            case MONTH: return "Mês";
+            default: return "Dia";
+        }
+    }
+
+    /** Builds and shows the Dia/Semana/Mês menu below the dropdown trigger.
+     * Rebuilt fresh each tap -- it's three rows, cheap to build, and always
+     * needs to reflect whichever period is current at open time. */
+    private void showPeriodMenu(View anchor) {
+        Context c = getContext();
+        LinearLayout menu = new LinearLayout(c);
+        menu.setOrientation(LinearLayout.VERTICAL);
+        menu.setBackground(Style.card(Style.CARD, c));
+        int pad = Style.dp(c, 6);
+        menu.setPadding(pad, pad, pad, pad);
+
+        android.widget.PopupWindow popup = new android.widget.PopupWindow(menu,
+            Style.dp(c, 200), ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        popup.setOutsideTouchable(true);
+        popup.setElevation(Style.dp(c, 8));
+
+        for (Period p : Period.values()) {
+            TextView row = new TextView(c);
+            row.setText(periodDisplayName(p));
+            row.setTextSize(15.5f);
+            boolean current = p == period;
+            row.setTypeface(null, current ? Typeface.BOLD : Typeface.NORMAL);
+            row.setTextColor(current ? Style.ACCENT : Style.TEXT);
+            int rpad = Style.dp(c, 14);
+            row.setPadding(rpad, rpad, rpad, rpad);
+            row.setOnClickListener(v -> {
+                popup.dismiss();
+                setPeriod(p);
+            });
+            menu.addView(row);
+        }
+
+        popup.showAsDropDown(anchor, 0, Style.dp(c, 8));
+    }
+
+    private void setPeriod(Period p) {
+        if (period == p) return;
+        period = p;
+        periodDropdownLabel.setText(periodDisplayName(p));
+
+        if (p == Period.DAY) {
+            updateChartData(); // reload the recent-14 dataset before selectIndex recolors it in place
+            if (selectedIdx >= 0 && selectedIdx < days.size()) selectIndex(selectedIdx, true);
+        } else {
+            if (periodAnchorDate == null) {
+                periodAnchorDate = (selectedIdx >= 0 && selectedIdx < days.size())
+                    ? days.get(selectedIdx).date : DailyStatsProvider.todayDateStr();
+            }
+            periodSelectedIdx = -1; // switching period type: always land on the most recent one
+            loadPeriod();
+        }
+    }
+
+    /** Loads the recent-N-weeks or recent-N-months window and renders it,
+     * landing on the period containing periodAnchorDate (always the last
+     * entry, by construction) unless periodSelectedIdx already points
+     * in-bounds -- e.g. a refresh() while the user has paged elsewhere in
+     * the window should not silently snap them back to "now" (same
+     * preserve-if-in-bounds rule Day mode's own selectedIdx already
+     * follows). Each bar is one whole week or month now, not one of its
+     * days -- "aggregate of the months: Aug, Sep, Oct..." (2026-09-13
+     * rework; the previous cut drilled into one period's own days, which
+     * wasn't the ask). */
+    private void loadPeriod() {
+        Context c = getContext();
+        periodWindow = period == Period.WEEK
+            ? DailyStatsProvider.recentWeeks(c, periodAnchorDate, WEEK_WINDOW)
+            : DailyStatsProvider.recentMonths(c, periodAnchorDate, MONTH_WINDOW);
+
+        int idx = (periodSelectedIdx >= 0 && periodSelectedIdx < periodWindow.size())
+            ? periodSelectedIdx : periodWindow.size() - 1;
+
+        String[] labels = new String[periodWindow.size()];
+        double[] kms = new double[periodWindow.size()];
+        for (int i = 0; i < periodWindow.size(); i++) {
+            DailyStatsProvider.PeriodOverview po = periodWindow.get(i);
+            String firstDate = po.days.get(0).date;
+            labels[i] = period == Period.WEEK ? weekChartLabel(firstDate) : monthChartLabel(firstDate);
+            kms[i] = po.totals.distanceKm;
+        }
+        renderBarChart(labels, kms, idx);
+        renderPeriodCards(idx);
+    }
+
+    /** Tapping a bar, or Anterior/Próximo, re-highlights `chart` in place
+     * (mirrors selectIndex()'s own cheap in-place recolor) instead of
+     * rebuilding it via renderBarChart -- the window's bars don't change,
+     * only which one is highlighted. */
+    private void selectPeriodIndex(int idx, boolean updateChartHighlight) {
+        if (idx < 0 || idx >= periodWindow.size()) return;
+        if (chart.getData() != null) {
+            BarDataSet ds = (BarDataSet) chart.getData().getDataSetByIndex(0);
+            if (ds != null) {
+                List<Integer> colors = new ArrayList<>();
+                for (int i = 0; i < periodWindow.size(); i++) {
+                    colors.add(i == idx ? Style.ACCENT : tileBarColor());
+                }
+                ds.setColors(colors);
+                if (updateChartHighlight) chart.highlightValue(idx, 0);
+                chart.invalidate();
+            }
+        }
+        renderPeriodCards(idx);
+    }
+
+    /** Nav label, nav-button bounds, and the four dashboard cards for one
+     * entry of `periodWindow` -- shared by loadPeriod()'s initial render and
+     * selectPeriodIndex()'s in-place bar switch. */
+    private void renderPeriodCards(int idx) {
+        periodSelectedIdx = idx;
+        DailyStatsProvider.PeriodOverview po = periodWindow.get(idx);
+
+        navDateLabel.setText(po.periodLabel);
+        navPrevBtn.setEnabled(idx > 0);
+        navPrevBtn.setAlpha(idx > 0 ? 1.0f : 0.35f);
+        navNextBtn.setEnabled(idx < periodWindow.size() - 1);
+        navNextBtn.setAlpha(idx < periodWindow.size() - 1 ? 1.0f : 0.35f);
+
+        renderConsumptionCard(po.totals);
+        renderBatteryCard(po.totals); // pii: allow (17-char identifier, not a VIN)
+        renderTimeCard(po.totals);
+        renderAltitudeCard(po.totals);
+        renderPeriodSessions(po);
+        // Hour-of-day breakdown doesn't apply across a week/month; render the
+        // existing empty state rather than querying a bogus "date".
+        renderHourlyChart(new DailyStatsProvider.HourlySpeedData());
+    }
+
+    /** ISO-ish week-of-year number for the chart x-axis ("30", "31", "32"...). */
+    private static String weekChartLabel(String isoDate) {
+        try {
+            java.util.Calendar cal = java.util.Calendar.getInstance();
+            cal.setTime(new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(isoDate));
+            return String.valueOf(cal.get(java.util.Calendar.WEEK_OF_YEAR));
+        } catch (Exception e) { return isoDate; }
+    }
+
+    /** Short month abbreviation for the chart x-axis ("Ago", "Set", "Out"...). */
+    private static final java.text.SimpleDateFormat MONTH_CHART_FMT =
+        new java.text.SimpleDateFormat("MMM", new Locale("pt", "BR"));
+    private static String monthChartLabel(String isoDate) {
+        try {
+            String s = MONTH_CHART_FMT.format(new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(isoDate));
+            s = s.replace(".", ""); // pt-BR abbreviations sometimes carry a trailing dot ("set.")
+            return s.substring(0, 1).toUpperCase(new Locale("pt", "BR")) + s.substring(1);
+        } catch (Exception e) { return isoDate; }
+    }
+
+    /** Week/Month session log: one header per day (date + that day's distance),
+     * that day's trips/charges nested underneath -- a flat list across a whole
+     * month would carry no indication of which day each session belongs to,
+     * since session cards only ever show a time, never a date (correct for
+     * the single-day view, not enough on its own here). A day with recorded
+     * activity (distance/charge count > 0) but no surviving session rows is
+     * flagged as older than the 90-day telemetry_sample retention window
+     * rather than shown as empty -- see the roadmap's "How far back" decision. */
+    private void renderPeriodSessions(DailyStatsProvider.PeriodOverview period) {
+        Context c = getContext();
+        sessionsContainer.removeAllViews();
+        int trips = 0, charges = 0, valets = 0;
+        for (DailyStatsProvider.DaySession s : period.totals.sessions) {
+            if (s.isValet()) valets++;
+            else if (s.isTrip()) trips++;
+            else charges++;
+        }
+        sessionsSummary.setText(trips + (trips == 1 ? " viagem" : " viagens")
+                + " · " + charges + (charges == 1 ? " recarga" : " recargas")
+                + (valets > 0 ? " · " + valets + " manobrista" : ""));
+
+        List<DailyStatsProvider.DayOverview> orderedDays = new ArrayList<>(period.days);
+        Collections.reverse(orderedDays); // newest day first
+
+        long ninetyDaysAgoMs = System.currentTimeMillis() - 90L * 24 * 3600 * 1000;
+        boolean anyRendered = false;
+        for (DailyStatsProvider.DayOverview day : orderedDays) {
+            boolean hadActivity = day.distanceKm > 0.05 || day.chargeCount > 0;
+            if (!hadActivity) continue; // a quiet day: skip rather than clutter the list
+
+            anyRendered = true;
+            sessionsContainer.addView(periodDayHeader(day));
+
+            if (day.sessions.isEmpty()) {
+                long dayMs = parseDayMs(day.date);
+                String msg = (dayMs > 0 && dayMs < ninetyDaysAgoMs)
+                    ? "Detalhes indisponíveis — mais de 90 dias"
+                    : "Sem detalhes de sessão para este dia.";
+                TextView unavailable = new TextView(c);
+                unavailable.setText(msg);
+                unavailable.setTextColor(Style.TEXT_DIM);
+                unavailable.setTextSize(14f);
+                unavailable.setPadding(Style.dp(c, 30), Style.dp(c, 2), 0, Style.dp(c, 10));
+                sessionsContainer.addView(unavailable);
+                continue;
+            }
+
+            List<DailyStatsProvider.DaySession> ordered = new ArrayList<>(day.sessions);
+            Collections.reverse(ordered);
+            for (DailyStatsProvider.DaySession s : ordered) {
+                View card = buildSessionCard(s);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                lp.topMargin = Style.dp(c, 6);
+                card.setLayoutParams(lp);
+                sessionsContainer.addView(card);
+            }
+            Style.gap(sessionsContainer, c, 10);
+        }
+
+        if (!anyRendered) {
+            TextView empty = Style.label(c, "Nenhuma viagem ou recarga registrada neste período.");
+            empty.setPadding(0, Style.dp(c, 20), 0, Style.dp(c, 20));
+            sessionsContainer.addView(empty);
+        }
+    }
+
+    private View periodDayHeader(DailyStatsProvider.DayOverview day) {
+        Context c = getContext();
+        LinearLayout row = new LinearLayout(c);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        rlp.topMargin = Style.dp(c, 10);
+        row.setLayoutParams(rlp);
+
+        TextView label = new TextView(c);
+        String d = day.displayDate != null && !day.displayDate.isEmpty()
+                ? Character.toUpperCase(day.displayDate.charAt(0)) + day.displayDate.substring(1)
+                : day.date;
+        label.setText(d);
+        label.setTextColor(Style.TEXT_DIM);
+        label.setTextSize(14f);
+        label.setTypeface(null, Typeface.BOLD);
+        row.addView(label, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView km = new TextView(c);
+        km.setText(String.format(Locale.getDefault(), "%.1f km", day.distanceKm));
+        km.setTextColor(Style.TEXT_DIM);
+        km.setTextSize(14f);
+        row.addView(km);
+
+        View divider = sessionDivider(c);
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 1));
+        dlp.topMargin = Style.dp(c, 6);
+
+        LinearLayout wrap = new LinearLayout(c);
+        wrap.setOrientation(LinearLayout.VERTICAL);
+        wrap.setLayoutParams(rlp);
+        wrap.addView(row);
+        wrap.addView(divider, dlp);
+        return wrap;
+    }
+
+    private static long parseDayMs(String isoDate) {
+        try {
+            return new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(isoDate).getTime();
+        } catch (Exception e) { return -1; }
     }
 
     private void renderOverview(DailyStatsProvider.DayOverview ov) {
@@ -563,7 +926,7 @@ public class DailyStatsView extends LinearLayout {
     private TextView sectionSummary(Context c) {
         TextView item = new TextView(c);
         item.setTextColor(Style.TEXT_DIM);
-        item.setTextSize(12);
+        item.setTextSize(13.5f);
         return item;
     }
 
@@ -596,7 +959,7 @@ public class DailyStatsView extends LinearLayout {
         TextView title = new TextView(c);
         title.setText("Consumo & Eficiência");
         title.setTextColor(Style.TEXT_DIM);
-        title.setTextSize(14);
+        title.setTextSize(15.5f);
         title.setTypeface(null, Typeface.BOLD);
         consumptionCard.addView(title);
         Style.gap(consumptionCard, c, 8);
@@ -656,7 +1019,7 @@ public class DailyStatsView extends LinearLayout {
         TextView title = new TextView(c);
         title.setText("Bateria & Recargas");
         title.setTextColor(Style.TEXT_DIM);
-        title.setTextSize(14);
+        title.setTextSize(15.5f);
         title.setTypeface(null, Typeface.BOLD);
         batteryCard.addView(title);
         Style.gap(batteryCard, c, 8);
@@ -696,7 +1059,7 @@ public class DailyStatsView extends LinearLayout {
         TextView title = new TextView(c);
         title.setText("Tempo & Velocidade");
         title.setTextColor(Style.TEXT_DIM);
-        title.setTextSize(14);
+        title.setTextSize(15.5f);
         title.setTypeface(null, Typeface.BOLD);
         timeCard.addView(title);
         Style.gap(timeCard, c, 8);
@@ -725,7 +1088,7 @@ public class DailyStatsView extends LinearLayout {
         TextView title = new TextView(c);
         title.setText("Altitude");
         title.setTextColor(Style.TEXT_DIM);
-        title.setTextSize(14);
+        title.setTextSize(15.5f);
         title.setTypeface(null, Typeface.BOLD);
         altitudeCard.addView(title);
         Style.gap(altitudeCard, c, 8);
@@ -757,8 +1120,12 @@ public class DailyStatsView extends LinearLayout {
     // sat close enough in size to a 11.5sp label that nothing read as more
     // important than anything else. See the "Glanceable Stats" design
     // artifact from this pass for the full before/after reasoning.
-    private static final float HERO_UNIT_SCALE = 0.40f;
-    private static final float ROW_UNIT_SCALE = 0.68f;
+    // Moved to Style.UNIT_SCALE_HERO/ROW on 2026-09-13 so the home screen's
+    // journey card can share the exact same "number + dim smaller unit"
+    // look instead of concatenating plain strings. Kept as aliases here
+    // rather than rewriting this file's ~20 call sites.
+    private static final float HERO_UNIT_SCALE = Style.UNIT_SCALE_HERO;
+    private static final float ROW_UNIT_SCALE = Style.UNIT_SCALE_ROW;
 
     private View createHeroView(Context c, CharSequence value, String subCaption) {
         LinearLayout hero = new LinearLayout(c);
@@ -774,7 +1141,7 @@ public class DailyStatsView extends LinearLayout {
         TextView capTv = new TextView(c);
         capTv.setText(subCaption);
         capTv.setTextColor(Style.TEXT_DIM);
-        capTv.setTextSize(12);
+        capTv.setTextSize(13.5f);
         capTv.setPadding(0, Style.dp(c, 2), 0, 0);
         hero.addView(capTv);
 
@@ -797,7 +1164,7 @@ public class DailyStatsView extends LinearLayout {
         TextView labelTv = new TextView(c);
         labelTv.setText(label);
         labelTv.setTextColor(Style.TEXT_DIM);
-        labelTv.setTextSize(12.5f);
+        labelTv.setTextSize(14f);
         chip.addView(labelTv);
 
         TextView valueTv = new TextView(c);
@@ -861,7 +1228,7 @@ public class DailyStatsView extends LinearLayout {
             TextView valLbl = new TextView(c);
             valLbl.setText(hasData ? String.format(Locale.US, "%.1f", b.kwh100km) : "—");
             valLbl.setTextColor(Style.TEXT_DIM);
-            valLbl.setTextSize(9.5f);
+            valLbl.setTextSize(11f);
             col.addView(valLbl);
 
             View bar = new View(c);
@@ -904,7 +1271,7 @@ public class DailyStatsView extends LinearLayout {
             TextView lbl = new TextView(c);
             lbl.setText(SPEED_BUCKET_LABELS[i]);
             lbl.setTextColor(Style.TEXT_DIM);
-            lbl.setTextSize(9.5f);
+            lbl.setTextSize(11f);
             lbl.setGravity(Gravity.CENTER);
             LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             if (i > 0) llp.leftMargin = Style.dp(c, 5);
@@ -977,35 +1344,17 @@ public class DailyStatsView extends LinearLayout {
 
     /** number, optionally colored, followed by a smaller/lighter/dimmer unit. */
     private static CharSequence valueWithUnit(String number, Integer numberColor, String unit, float unitScale) {
-        SpannableStringBuilder sb = new SpannableStringBuilder();
-        int vStart = sb.length();
-        sb.append(number);
-        if (numberColor != null) {
-            sb.setSpan(new ForegroundColorSpan(numberColor), vStart, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        }
-        if (unit != null && !unit.isEmpty()) {
-            appendUnit(sb, " " + unit, unitScale);
-        }
-        return sb;
+        return Style.valueWithUnit(number, numberColor, unit, unitScale);
     }
 
     /** "59% → 95%" with both % signs de-emphasized the same way as a trailing unit. */
     private static CharSequence percentRange(int from, int to, float unitScale) {
-        SpannableStringBuilder sb = new SpannableStringBuilder();
-        sb.append(String.valueOf(from));
-        appendUnit(sb, "%", unitScale);
-        sb.append(" → ").append(String.valueOf(to));
-        appendUnit(sb, "%", unitScale);
-        return sb;
+        return Style.percentRange(from, to, unitScale);
     }
 
     /** Appends text as smaller, normal-weight and dim — used for units and parenthetical asides. */
     private static void appendUnit(SpannableStringBuilder sb, String text, float scale) {
-        int start = sb.length();
-        sb.append(text);
-        sb.setSpan(new RelativeSizeSpan(scale), start, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        sb.setSpan(new StyleSpan(Typeface.NORMAL), start, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        sb.setSpan(new ForegroundColorSpan(Style.TEXT_DIM), start, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        Style.appendUnit(sb, text, scale);
     }
 
     private void renderSessions(DailyStatsProvider.DayOverview ov) {
@@ -1013,12 +1362,15 @@ public class DailyStatsView extends LinearLayout {
         sessionsContainer.removeAllViews();
         int trips = 0;
         int charges = 0;
+        int valets = 0;
         for (DailyStatsProvider.DaySession session : ov.sessions) {
-            if (session.isTrip()) trips++;
+            if (session.isValet()) valets++;
+            else if (session.isTrip()) trips++;
             else charges++;
         }
         sessionsSummary.setText(trips + (trips == 1 ? " viagem" : " viagens")
-                + " · " + charges + (charges == 1 ? " recarga" : " recargas"));
+                + " · " + charges + (charges == 1 ? " recarga" : " recargas")
+                + (valets > 0 ? " · " + valets + " manobrista" : ""));
         if (ov.sessions.isEmpty()) {
             TextView empty = Style.label(c, "Nenhuma viagem ou recarga registrada nesta data.");
             empty.setPadding(0, Style.dp(c, 20), 0, Style.dp(c, 20));
@@ -1082,7 +1434,7 @@ public class DailyStatsView extends LinearLayout {
 
         TextView tv = new TextView(c);
         tv.setTextColor(Style.TEXT_DIM);
-        tv.setTextSize(12.5f);
+        tv.setTextSize(16f);
         tv.setText("Estacionado " + formatGapDuration(gapMs));
         row.addView(tv);
 
@@ -1112,13 +1464,50 @@ public class DailyStatsView extends LinearLayout {
         card.setPadding(pad, pad, pad, pad);
         card.setBackground(Style.tile(c));
 
-        if (session.isTrip()) {
+        if (session.isValet()) {
+            buildValetSessionCard(card, (DailyStatsProvider.ValetSessionItem) session);
+        } else if (session.isTrip()) {
             buildDriveSessionCard(card, (DailyStatsProvider.DriveSession) session);
         } else {
             buildChargeSessionCard(card, (DailyStatsProvider.ChargeSessionItem) session);
         }
 
         return card;
+    }
+
+    private void buildValetSessionCard(LinearLayout card, DailyStatsProvider.ValetSessionItem v) {
+        Context c = getContext();
+        LinearLayout title = new LinearLayout(c);
+        title.setGravity(Gravity.CENTER_VERTICAL);
+        android.widget.ImageView icon = new android.widget.ImageView(c);
+        icon.setImageResource(R.drawable.ic_car);
+        icon.setColorFilter(Style.ACCENT, android.graphics.PorterDuff.Mode.SRC_IN);
+        title.addView(icon, new LinearLayout.LayoutParams(Style.dp(c, 20), Style.dp(c, 20)));
+        TextView label = new TextView(c);
+        label.setText("Modo manobrista  ·  " + sessionTime(v.timeLabel, v.durationLabel));
+        label.setTextColor(Style.TEXT);
+        label.setTextSize(17f);
+        label.setTypeface(null, Typeface.BOLD);
+        label.setPadding(Style.dp(c, 10), 0, 0, 0);
+        title.addView(label, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView distance = new TextView(c);
+        distance.setText(String.format(Locale.getDefault(), "%.1f km", v.distanceKm));
+        distance.setTextColor(Style.TEXT);
+        distance.setTextSize(18f);
+        distance.setTypeface(null, Typeface.BOLD);
+        title.addView(distance);
+        card.addView(title);
+
+        TextView details = new TextView(c);
+        String power = v.maxPowerKw == null ? "—" : String.format(Locale.getDefault(), "%.1f kW", v.maxPowerKw);
+        String battery = v.startSoc >= 0 && v.endSoc >= 0
+            ? String.format(Locale.getDefault(), "%+d pp", v.endSoc - v.startSoc) : "—";
+        details.setText(String.format(Locale.getDefault(), "Máx. %.0f km/h  ·  potência %s  ·  bateria %s",
+            v.maxSpeedKmh, power, battery));
+        details.setTextColor(Style.TEXT_DIM);
+        details.setTextSize(16f);
+        details.setPadding(Style.dp(c, 30), Style.dp(c, 8), 0, 0);
+        card.addView(details);
     }
 
     private void buildDriveSessionCard(LinearLayout card, DailyStatsProvider.DriveSession t) {
@@ -1148,7 +1537,7 @@ public class DailyStatsView extends LinearLayout {
         // Time range: 08:18 – 09:05 (48m)
         TextView timeView = new TextView(c);
         timeView.setTextColor(Style.TEXT);
-        timeView.setTextSize(13);
+        timeView.setTextSize(17f);
         timeView.setTypeface(null, Typeface.BOLD);
         timeView.setText(sessionTime(t.timeLabel, t.durationLabel));
         timeView.setPadding(Style.dp(c, 10), 0, 0, 0);
@@ -1159,7 +1548,7 @@ public class DailyStatsView extends LinearLayout {
         // Right metric: 10.0 km • 10.5 kWh/100km (bold, Style.TEXT, dim/small units)
         TextView rightMetric = new TextView(c);
         rightMetric.setTextColor(Style.TEXT);
-        rightMetric.setTextSize(14);
+        rightMetric.setTextSize(18f);
         rightMetric.setTypeface(null, Typeface.BOLD);
         SpannableStringBuilder rightSb = new SpannableStringBuilder();
         rightSb.append(valueWithUnit(String.format(Locale.US, "%.1f", t.distanceKm), null, "km", ROW_UNIT_SCALE));
@@ -1176,7 +1565,7 @@ public class DailyStatsView extends LinearLayout {
 
         // Line 2: SoC: 100% → 97% | ▲+163m ▼-189m | Consumo: 1.0 kWh (Regen +0.7)
         TextView line2 = new TextView(c);
-        line2.setTextSize(12.5f);
+        line2.setTextSize(16f);
         line2.setPadding(Style.dp(c, 30), Style.dp(c, 7), 0, 0);
 
         SpannableStringBuilder l2Sb = new SpannableStringBuilder();
@@ -1238,20 +1627,21 @@ public class DailyStatsView extends LinearLayout {
         LinearLayout.LayoutParams leftLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         leftBox.setLayoutParams(leftLp);
 
-        // Charge marker: an MDI vector icon (station bolt for DC fast
-        // charge, plug for AC) instead of an emoji that doesn't render
-        // cleanly on this display. Whether it's still going is already
-        // said by the time text below ("... – em andamento").
+        // Charge marker: an MDI vector icon (bolt for DC fast charge, plug
+        // for AC) instead of an emoji that doesn't render cleanly on this
+        // display. Whether it's still going is already said by the time
+        // text below ("... – em andamento"). App-wide charging style guide
+        // (2026-09-13): AC = blue + plug, DC = green + bolt.
         android.widget.ImageView badge = new android.widget.ImageView(c);
-        badge.setImageResource(ch.isDcfc ? R.drawable.ic_ev_station : R.drawable.ic_power_plug);
-        badge.setColorFilter(ch.isDcfc ? Style.HEAT : 0xFF4CAF50, android.graphics.PorterDuff.Mode.SRC_IN);
+        badge.setImageResource(ch.isDcfc ? R.drawable.ic_ev_plug_ccs2 : R.drawable.ic_power_plug);
+        badge.setColorFilter(ch.isDcfc ? Style.GOOD : Style.ACCENT, android.graphics.PorterDuff.Mode.SRC_IN);
         badge.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(c, 20), Style.dp(c, 20)));
         leftBox.addView(badge);
 
         // Time range: 01:20 – 04:42 (3h 22m)
         TextView timeView = new TextView(c);
         timeView.setTextColor(Style.TEXT);
-        timeView.setTextSize(13);
+        timeView.setTextSize(17f);
         timeView.setTypeface(null, Typeface.BOLD);
         timeView.setText(sessionTime(ch.timeLabel, ch.durationLabel));
         timeView.setPadding(Style.dp(c, 10), 0, 0, 0);
@@ -1259,10 +1649,10 @@ public class DailyStatsView extends LinearLayout {
 
         line1.addView(leftBox);
 
-        // Right: +14.2 kWh (bold green/cool or heat text, dim/small unit)
+        // Right: +14.2 kWh (bold blue for AC, green for DC; dim/small unit)
         TextView rightMetric = new TextView(c);
-        int metricColor = ch.isDcfc ? Style.HEAT : (Style.LIGHT ? 0xFF2E7D32 : 0xFF4CAF50);
-        rightMetric.setTextSize(15);
+        int metricColor = ch.isDcfc ? Style.GOOD : Style.ACCENT;
+        rightMetric.setTextSize(18.5f);
         rightMetric.setTypeface(null, Typeface.BOLD);
         rightMetric.setText(valueWithUnit(String.format(Locale.US, "+%.1f", ch.kwh), metricColor, "kWh", ROW_UNIT_SCALE));
         line1.addView(rightMetric);
@@ -1271,7 +1661,7 @@ public class DailyStatsView extends LinearLayout {
 
         // Line 2: SoC: 66% → 100% | Potência Méd: 4.2 kW | Custo: R$ 0,00 (or Custo não informado)
         TextView line2 = new TextView(c);
-        line2.setTextSize(12.5f);
+        line2.setTextSize(16f);
         line2.setPadding(Style.dp(c, 30), Style.dp(c, 7), 0, 0);
 
         SpannableStringBuilder l2Sb = new SpannableStringBuilder();

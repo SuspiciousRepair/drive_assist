@@ -3,6 +3,7 @@ package com.geely.drivemem.ui;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Typeface;
+import android.text.SpannableStringBuilder;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -42,6 +43,11 @@ public class ChargeStatsView extends LinearLayout {
     private LinearLayout kpiContainer;
     private EnergyBalanceChart energyBalanceChart;
     private LinearLayout listContainer;
+    private ScrollView sessionListScroll;
+    private ChargeSocChart chargeSocChart;
+    private long selectedSessionId = -1;
+    private final Map<Long, ChargeSession.Summary> visibleSessions = new LinkedHashMap<>();
+    private final Map<Long, View> sessionRows = new LinkedHashMap<>();
 
     private final EntityBus.Listener chargeListener = (key, reading) -> {
         post(this::refresh);
@@ -99,43 +105,97 @@ public class ChargeStatsView extends LinearLayout {
         kpiContainer.setLayoutParams(kpiLp);
         addView(kpiContainer);
 
-        // 3. Actions Row (Export)
-        LinearLayout actRow = new LinearLayout(c);
-        actRow.setOrientation(LinearLayout.HORIZONTAL);
-        actRow.setPadding(0, Style.dp(c, 14), 0, Style.dp(c, 4));
-        actRow.addView(Style.cardButton(c, c.getString(R.string.charge_export), false, () ->
-            UsbExport.exportFiles((ok, drive, copied) -> post(() -> {
-                String msg = drive == null ? c.getString(R.string.charge_export_no_drive)
-                           : !ok || copied == 0 ? c.getString(R.string.charge_export_nothing)
-                           : c.getString(R.string.charge_export_ok, copied);
-                Toast.makeText(c, msg, Toast.LENGTH_LONG).show();
-            }), CarDb.file(c))));
-        addView(actRow);
+        // 3. Compact session navigator and chronological SoC chart.
+        // These are two independent cards, not a matched pair -- neither's
+        // height should derive from the other's. Previously both were forced
+        // into one shared fixed-height row (390dp), so a short chart reserved
+        // the same box as a long session list and vice versa; whichever had
+        // more content than that box could hold got clipped instead of
+        // scrolling on its own. Each card now sizes to (or caps) its own
+        // content independently.
+        LinearLayout overview = new LinearLayout(c);
+        overview.setOrientation(LinearLayout.HORIZONTAL);
+        overview.setBaselineAligned(false);
+        LinearLayout.LayoutParams overviewLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        overviewLp.topMargin = Style.dp(c, 12);
+        overview.setLayoutParams(overviewLp);
 
-        // 4. Energy Balance Chart (spent vs regen/AC/DC per day)
+        LinearLayout listCard = new LinearLayout(c);
+        listCard.setOrientation(LinearLayout.VERTICAL);
+        int cardPad = Style.dp(c, 14);
+        listCard.setPadding(cardPad, cardPad, cardPad, cardPad);
+        listCard.setBackground(Style.card(Style.cardFillColor(), c));
+        TextView listTitle = Style.label(c, c.getString(R.string.charge_sessions_title));
+        listTitle.setTextSize(14);
+        listTitle.setTypeface(null, Typeface.BOLD);
+        listCard.addView(listTitle);
+
+        sessionListScroll = new ScrollView(c);
+        sessionListScroll.setVerticalScrollBarEnabled(false);
+        sessionListScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        listContainer = new LinearLayout(c);
+        listContainer.setOrientation(LinearLayout.VERTICAL);
+        sessionListScroll.addView(listContainer);
+        // Own fixed cap (not tied to the chart card): enough room for a
+        // couple of session cards before this list scrolls internally,
+        // regardless of how tall the chart beside it ends up being.
+        listCard.addView(sessionListScroll, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 340)));
+        LinearLayout.LayoutParams listLp = new LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.WRAP_CONTENT, 46f);
+        listLp.rightMargin = Style.dp(c, 12);
+        overview.addView(listCard, listLp);
+
+        LinearLayout chartCard = new LinearLayout(c);
+        chartCard.setOrientation(LinearLayout.VERTICAL);
+        chartCard.setPadding(cardPad, cardPad, cardPad, Style.dp(c, 8));
+        chartCard.setBackground(Style.card(Style.cardFillColor(), c));
+        LinearLayout chartHeading = new LinearLayout(c);
+        chartHeading.setGravity(Gravity.CENTER_VERTICAL);
+        TextView chartTitle = Style.label(c, c.getString(R.string.charge_soc_chart_title));
+        chartTitle.setTextSize(14);
+        chartTitle.setTypeface(null, Typeface.BOLD);
+        chartHeading.addView(chartTitle, new LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        chartHeading.addView(legend(c, "AC", Style.ACCENT));
+        chartHeading.addView(legend(c, "DC", Style.GOOD));
+        chartCard.addView(chartHeading);
+        chargeSocChart = new ChargeSocChart(c);
+        chargeSocChart.setListener(id -> selectSession(id, true));
+        // WRAP_CONTENT, not a shared weighted fill: ChargeSocChart already
+        // computes its own ideal height from its session count (see its
+        // setMinimumHeight call), so this card is exactly as tall as its own
+        // bars need, independent of the list card beside it.
+        chartCard.addView(chargeSocChart, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        // Energy Balance sits below the SoC chart, in the same column at the
+        // same width -- both are per-day charts, so they read as a pair
+        // (2026-09-13; previously Balanço de Energia spanned the full page
+        // width below both columns, which orphaned it from the chart it's
+        // most related to).
+        LinearLayout rightColumn = new LinearLayout(c);
+        rightColumn.setOrientation(LinearLayout.VERTICAL);
+        rightColumn.addView(chartCard, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
         energyBalanceChart = new EnergyBalanceChart(c);
         LinearLayout.LayoutParams chartLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        chartLp.topMargin = Style.dp(c, 8);
+        chartLp.topMargin = Style.dp(c, 12);
         energyBalanceChart.setLayoutParams(chartLp);
-        addView(energyBalanceChart);
+        rightColumn.addView(energyBalanceChart);
 
-        // 5. Session History List Container
-        listContainer = new LinearLayout(c);
-        listContainer.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams listLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        listLp.topMargin = Style.dp(c, 8);
-        listContainer.setLayoutParams(listLp);
-        addView(listContainer);
+        overview.addView(rightColumn, new LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.WRAP_CONTENT, 54f));
+        addView(overview);
     }
 
     private static final SimpleDateFormat DAY_FMT =
             new SimpleDateFormat("yyyy-MM-dd", Locale.US);
     private static final SimpleDateFormat SHORT_DAY_FMT =
             new SimpleDateFormat("d/M", Locale.US);
-    /** Existing session classification: 22 kW and above is DC fast. */
-    private static final double DCFC_W_THRESHOLD = 22_000;
 
     public void refresh() {
         Context c = getContext();
@@ -158,31 +218,34 @@ public class ChargeStatsView extends LinearLayout {
         }
         double kmDriven = OdoStats.kmSince(c, periodDays);
 
-        // Rebuild KPI Card
+        // Rebuild KPI row: a standalone metrics card (three columns, two rows,
+        // same as before) beside a narrow controls column (period toggle +
+        // export) -- 2026-09-13, replacing the previous stack of controls
+        // above metrics. The metrics are the primary content here; the
+        // period/export controls are secondary, so they get a slim side
+        // column (~1/8 of the row) instead of a full-width band of their own.
         kpiContainer.removeAllViews();
-        LinearLayout ltmCard = new LinearLayout(c);
-        ltmCard.setOrientation(LinearLayout.VERTICAL);
-        int pad = Style.dp(c, 20);
-        ltmCard.setPadding(pad, pad, pad, pad);
-        ltmCard.setBackground(Style.card(Style.CARD, c));
+        LinearLayout topRowSection = new LinearLayout(c);
+        topRowSection.setOrientation(LinearLayout.HORIZONTAL);
+        topRowSection.setBaselineAligned(false);
 
-        // Period toggle buttons
-        LinearLayout periodRow = new LinearLayout(c);
-        periodRow.setOrientation(LinearLayout.HORIZONTAL);
-        periodRow.addView(periodTile(30, c.getString(R.string.charge_period_30d)));
-        Style.gap(periodRow, c, 10);
-        periodRow.addView(periodTile(365, c.getString(R.string.charge_ltm_title)));
-        ltmCard.addView(periodRow);
+        LinearLayout statsCard = new LinearLayout(c);
+        statsCard.setOrientation(LinearLayout.VERTICAL);
+        int pad = Style.dp(c, 20);
+        statsCard.setPadding(pad, pad, pad, pad);
+        statsCard.setBackground(Style.card(Style.CARD, c));
 
         // Metric row 1: Count, Energy, Cost
         LinearLayout statsRow1 = new LinearLayout(c);
         statsRow1.setOrientation(LinearLayout.HORIZONTAL);
-        statsRow1.setPadding(0, Style.dp(c, 16), 0, 0);
         statsRow1.addView(statTile(String.valueOf(count), c.getString(R.string.charge_ltm_count_label), Style.TEXT));
-        statsRow1.addView(statTile(String.format(Locale.US, "%.1f kWh", totalKwh), "Energia", Style.COOL));
+        // Unit style guide (2026-09-13): the unit renders smaller/dimmer than
+        // its value everywhere -- Style.valueWithUnit, not a plain concatenated string.
+        statsRow1.addView(statTile(Style.valueWithUnit(String.format(Locale.US, "%.1f", totalKwh),
+            Style.COOL, "kWh", Style.UNIT_SCALE_HERO), "Energia", Style.COOL));
         String costStr = costSessionCount > 0 ? String.format(Locale.getDefault(), "R$ %.2f", totalCost) : "—";
         statsRow1.addView(statTile(costStr, c.getString(R.string.charge_stat_total_cost), Style.TEXT));
-        ltmCard.addView(statsRow1);
+        statsCard.addView(statsRow1);
 
         // Metric row 2: Cost/kWh, Cost/100km, km driven
         LinearLayout statsRow2 = new LinearLayout(c);
@@ -196,10 +259,33 @@ public class ChargeStatsView extends LinearLayout {
         String costPer100kmStr = (costSessionCount > 0 && kmDriven > 0)
             ? String.format(Locale.getDefault(), "R$ %.2f", (totalCost / kmDriven) * 100) : "—";
         statsRow2.addView(statTile(costPer100kmStr, c.getString(R.string.charge_stat_cost_100km), Style.TEXT));
-        statsRow2.addView(statTile(String.format(Locale.US, "%.0f km", kmDriven), "Distância", Style.TEXT_DIM));
-        ltmCard.addView(statsRow2);
+        statsRow2.addView(statTile(Style.valueWithUnit(String.format(Locale.US, "%.0f", kmDriven),
+            Style.TEXT_DIM, "km", Style.UNIT_SCALE_HERO), "Distância", Style.TEXT_DIM));
+        statsCard.addView(statsRow2);
 
-        kpiContainer.addView(ltmCard);
+        LinearLayout.LayoutParams statsCardLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 7f);
+        statsCardLp.rightMargin = Style.dp(c, 12);
+        topRowSection.addView(statsCard, statsCardLp);
+
+        LinearLayout controlsCol = new LinearLayout(c);
+        controlsCol.setOrientation(LinearLayout.VERTICAL);
+        controlsCol.addView(sideButton(30, c.getString(R.string.charge_period_30d)));
+        Style.gap(controlsCol, c, 10);
+        controlsCol.addView(sideButton(365, c.getString(R.string.charge_ltm_title)));
+        Style.gap(controlsCol, c, 10);
+        TextView exportBtn = Style.cardButton(c, c.getString(R.string.charge_export), false, () ->
+            UsbExport.exportFiles((ok, drive, copied) -> post(() -> {
+                String msg = drive == null ? c.getString(R.string.charge_export_no_drive)
+                           : !ok || copied == 0 ? c.getString(R.string.charge_export_nothing)
+                           : c.getString(R.string.charge_export_ok, copied);
+                Toast.makeText(c, msg, Toast.LENGTH_LONG).show();
+            }), CarDb.file(c)));
+        exportBtn.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        controlsCol.addView(exportBtn);
+        topRowSection.addView(controlsCol, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        kpiContainer.addView(topRowSection);
 
         // Always render the complete rolling calendar, including days with
         // driving energy but no recharge. Overnight sessions are apportioned
@@ -210,18 +296,37 @@ public class ChargeStatsView extends LinearLayout {
         energyBalanceChart.setDays(chartDays);
         energyBalanceChart.setVisibility(VISIBLE);
 
-        // Rebuild Session History List (Newest first)
+        // Rebuild session navigator and chart in the same order (newest
+        // first) -- they used to disagree (list newest-first, chart
+        // chronological), which read as two different sort orders for the
+        // same data sitting side by side.
         listContainer.removeAllViews();
-        if (allSessions.isEmpty()) {
+        sessionRows.clear();
+        visibleSessions.clear();
+        List<ChargeSession.Summary> periodSessions = new ArrayList<>();
+        for (ChargeSession.Summary s : allSessions) {
+            if (s.startWallMs >= cutoff) {
+                periodSessions.add(s);
+                visibleSessions.put(s.id, s);
+            }
+        }
+        if (periodSessions.isEmpty()) {
             listContainer.addView(Style.label(c, c.getString(R.string.charge_none)));
+            chargeSocChart.setSessions(periodSessions, -1);
             return;
         }
-
-        List<ChargeSession.Summary> rev = new ArrayList<>(allSessions);
+        if (!visibleSessions.containsKey(selectedSessionId)) {
+            selectedSessionId = periodSessions.get(periodSessions.size() - 1).id;
+        }
+        List<ChargeSession.Summary> rev = new ArrayList<>(periodSessions);
         Collections.reverse(rev);
         for (ChargeSession.Summary s : rev) {
-            listContainer.addView(chargeRow(s));
+            View row = chargeRow(s);
+            sessionRows.put(s.id, row);
+            listContainer.addView(row);
         }
+        chargeSocChart.setSessions(rev, selectedSessionId);
+        chargeSocChart.select(selectedSessionId, true);
     }
 
     private List<EnergyBalanceChart.Day> buildBalanceDays(Context c,
@@ -243,7 +348,7 @@ public class ChargeStatsView extends LinearLayout {
                 long overlapEnd = Math.min(end, s.endWallMs);
                 if (overlapEnd <= overlapStart || s.endWallMs <= s.startWallMs) continue;
                 double share = (overlapEnd - overlapStart) / (double) (s.endWallMs - s.startWallMs);
-                if (s.avgPowerW > DCFC_W_THRESHOLD) item.dc += s.kwh * share;
+                if (s.isDcfc()) item.dc += s.kwh * share;
                 else item.ac += s.kwh * share;
             }
             out.add(item);
@@ -263,18 +368,21 @@ public class ChargeStatsView extends LinearLayout {
         } finally { cursor.close(); }
     }
 
-    private View periodTile(int days, String label) {
+    /** A period-toggle button sized for the narrow controls column -- full
+     * width, stacked vertically with its sibling, rather than splitting a
+     * row's width with it (2026-09-13). */
+    private View sideButton(int days, String label) {
         boolean sel = periodDays == days;
         TextView b = Style.cardButton(getContext(), label, sel, () -> {
             periodDays = days;
             refresh();
         });
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        b.setLayoutParams(lp);
+        b.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         return b;
     }
 
-    private LinearLayout statTile(String value, String label, int color) {
+    private LinearLayout statTile(CharSequence value, String label, int color) {
         LinearLayout t = new LinearLayout(getContext());
         t.setOrientation(LinearLayout.VERTICAL);
         t.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -301,97 +409,183 @@ public class ChargeStatsView extends LinearLayout {
         Context c = getContext();
         LinearLayout card = new LinearLayout(c);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackground(Style.card(Style.CARD, c));
-        int p = Style.dp(c, 16);
-        card.setPadding(p, p, p, p);
+        // More horizontal padding than vertical: the icon and the SoC/Cost
+        // corner text both used to sit flush against the card's left/right
+        // edge. Vertical stays tight (each corner is one line now). Right
+        // gets extra: the right corners are bold, variable-width numbers
+        // (energy, cost) that came closer to the border than the left side
+        // did at the same padding value.
+        int pL = Style.dp(c, 16);
+        int pR = Style.dp(c, 24);
+        int pV = Style.dp(c, 10);
+        card.setPadding(pL, pV, pR, pV);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = Style.dp(c, 10);
+        lp.topMargin = Style.dp(c, 16);
         card.setLayoutParams(lp);
 
-        // Header row with Title and Fast/Slow charging badge
-        LinearLayout titleRow = new LinearLayout(c);
-        titleRow.setOrientation(LinearLayout.HORIZONTAL);
-        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+        boolean isDcfc = s.isDcfc();
+        int typeColor = !s.hasChargeVoltage() ? Style.TEXT_DIM : isDcfc ? Style.GOOD : Style.ACCENT;
 
-        boolean isDcfc = s.avgPowerW >= 22000;
+        // Four corners, one per dimension (2026-09-13 v2, replacing the
+        // previous four-stacked-row layout -- that version was too tall for
+        // what it showed, with too much vertical gap between rows and hero
+        // numbers sized the same as secondary text). Top-left Time,
+        // top-right SoC/Energy, bottom-left Power (+ chart link),
+        // bottom-right Cost -- each quadrant anchored to its own corner
+        // instead of stacked full-width lines.
+        LinearLayout topRow = new LinearLayout(c);
+        topRow.setOrientation(LinearLayout.HORIZONTAL);
+        topRow.setGravity(Gravity.TOP);
 
-        // MDI vector icon instead of an emoji, same as the daily stats session list.
+        // Top-left: Time.
+        LinearLayout timeCell = new LinearLayout(c);
+        timeCell.setOrientation(LinearLayout.HORIZONTAL);
+        timeCell.setGravity(Gravity.CENTER_VERTICAL);
+        timeCell.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        // App-wide charging style guide (2026-09-13): AC = blue + plug icon,
+        // DC = green + ev-plug-ccs2 icon, color/icon alone carry the meaning
+        // -- no "AC"/"DC" text on a session card, that's reserved for the
+        // chart legend (the one place two colors side by side need naming).
         ImageView typeIcon = new ImageView(c);
-        typeIcon.setImageResource(isDcfc ? R.drawable.ic_ev_station : R.drawable.ic_power_plug);
-        typeIcon.setColorFilter(isDcfc ? Style.HEAT : Style.COOL, android.graphics.PorterDuff.Mode.SRC_IN);
+        typeIcon.setImageResource(isDcfc ? R.drawable.ic_ev_plug_ccs2 : R.drawable.ic_power_plug);
+        typeIcon.setColorFilter(typeColor, android.graphics.PorterDuff.Mode.SRC_IN);
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(Style.dp(c, 20), Style.dp(c, 20));
         iconLp.rightMargin = Style.dp(c, 8);
         typeIcon.setLayoutParams(iconLp);
-        titleRow.addView(typeIcon);
+        timeCell.addView(typeIcon);
 
+        // Time and duration share one line -- "11 set 13:40 -> 14:39  0:58"
+        // -- rather than duration sitting on its own line below (2026-09-13:
+        // that made the cell taller than it needed to be for one related fact).
+        LinearLayout timeText = new LinearLayout(c);
+        timeText.setOrientation(LinearLayout.HORIZONTAL);
+        timeText.setGravity(Gravity.CENTER_VERTICAL);
         TextView title = new TextView(c);
-        title.setText(s.title());
+        title.setText(s.title()); // "11 set  13:40 → 14:39"
         title.setTextColor(Style.TEXT);
-        title.setTextSize(18);
+        title.setTextSize(17);
         title.setTypeface(null, Typeface.BOLD);
-        titleRow.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        timeText.addView(title);
+        TextView durationText = new TextView(c);
+        durationText.setText(s.durationLabel());
+        durationText.setTextColor(Style.TEXT_DIM);
+        durationText.setTextSize(13);
+        LinearLayout.LayoutParams durationLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        durationLp.leftMargin = Style.dp(c, 8);
+        durationText.setLayoutParams(durationLp);
+        timeText.addView(durationText);
+        timeCell.addView(timeText);
+        topRow.addView(timeCell);
 
-        TextView typeBadge = new TextView(c);
-        typeBadge.setText(isDcfc ? "DC Fast" : "AC Mains");
-        typeBadge.setTextColor(isDcfc ? Style.HEAT : Style.COOL);
-        typeBadge.setTextSize(13);
-        typeBadge.setTypeface(null, Typeface.BOLD);
-        titleRow.addView(typeBadge);
-        card.addView(titleRow);
+        // Top-right: SoC and the energy it added share one line -- these are
+        // two views of the same fact (how much the battery gained), not two
+        // separate ones, so they read better side by side than stacked.
+        LinearLayout socCell = new LinearLayout(c);
+        socCell.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+        socCell.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView socEnergyText = new TextView(c);
+        SpannableStringBuilder socEnergy = new SpannableStringBuilder();
+        socEnergy.append(Style.percentRange(s.socStart, s.socEnd, Style.UNIT_SCALE_ROW));
+        socEnergy.append("  ");
+        // Normal weight, not bold: the SoC range is the primary fact on this
+        // corner, the energy added is secondary -- two bold numbers side by
+        // side on one line fought for attention instead of reading as
+        // primary/secondary (2026-09-13).
+        socEnergy.append(Style.valueWithUnit(String.format(Locale.getDefault(), "+%.1f", s.kwh),
+            null, "kWh", Style.UNIT_SCALE_ROW, false));
+        socEnergyText.setText(socEnergy);
+        socEnergyText.setTextColor(Style.TEXT);
+        socEnergyText.setTextSize(19);
+        socEnergyText.setTypeface(null, Typeface.BOLD);
+        socCell.addView(socEnergyText);
+        topRow.addView(socCell);
+        card.addView(topRow);
 
-        // Visual charge range bar
-        final ImageView bar = new ImageView(c);
-        LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 24));
-        barLp.topMargin = Style.dp(c, 8);
-        bar.setLayoutParams(barLp);
-        bar.post(() -> {
-            int w = bar.getWidth();
-            if (w > 0) {
-                int color = isDcfc ? Style.HEAT : Style.ACCENT;
-                bar.setImageBitmap(Style.chargeRangeBar(c, w, bar.getHeight(),
-                    s.socStart / 100f, s.socEnd / 100f, color, s.durationLabel()));
-            }
-        });
-        card.addView(bar);
-
-        // Metrics & Cost Action Row
-        LinearLayout infoRow = new LinearLayout(c);
-        infoRow.setOrientation(LinearLayout.HORIZONTAL);
-        infoRow.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams irLp = new LinearLayout.LayoutParams(
+        LinearLayout bottomRow = new LinearLayout(c);
+        bottomRow.setOrientation(LinearLayout.HORIZONTAL);
+        bottomRow.setGravity(Gravity.BOTTOM);
+        LinearLayout.LayoutParams bottomLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        irLp.topMargin = Style.dp(c, 8);
-        infoRow.setLayoutParams(irLp);
+        bottomLp.topMargin = Style.dp(c, 4);
+        bottomRow.setLayoutParams(bottomLp);
 
-        TextView sub = new TextView(c);
-        sub.setText(s.subtitle(c));
-        sub.setTextColor(Style.TEXT_DIM);
-        sub.setTextSize(15);
-        infoRow.addView(sub, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        // Bottom-left: Power, with the link to its detail chart right next to
+        // it (the chart it opens *is* the power curve, so it belongs with
+        // this number rather than floating between two unrelated ones).
+        // A spacer matching the icon's own width (20dp) + its margin (8dp)
+        // comes first, so Power's text starts at the same x as Time's text
+        // above it -- the icon stays where it is (top-left only), but the
+        // two corners' text still lines up into one visual column.
+        LinearLayout powerCell = new LinearLayout(c);
+        powerCell.setOrientation(LinearLayout.HORIZONTAL);
+        powerCell.setGravity(Gravity.CENTER_VERTICAL);
+        powerCell.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        View iconAlignSpacer = new View(c);
+        iconAlignSpacer.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(c, 28), 0));
+        powerCell.addView(iconAlignSpacer);
 
-        // Cost display & input button
+        TextView powerText = new TextView(c);
+        SpannableStringBuilder power = new SpannableStringBuilder();
+        power.append(Style.valueWithUnit(String.format(Locale.getDefault(), "%.1f", s.avgPowerW / 1000.0),
+            Style.TEXT, "kW", Style.UNIT_SCALE_ROW));
+        Style.appendUnit(power, " méd.", Style.UNIT_SCALE_ROW);
+        powerText.setText(power);
+        powerText.setTextSize(19);
+        powerText.setTypeface(null, Typeface.BOLD);
+        powerCell.addView(powerText);
+
+        // A small icon, not a full button -- a labeled button sitting in the
+        // middle of a data row read as an odd, heavy element.
+        ImageView curveBtn = new ImageView(c);
+        curveBtn.setImageResource(R.drawable.ic_chart_line);
+        curveBtn.setColorFilter(Style.TEXT_DIM, android.graphics.PorterDuff.Mode.SRC_IN);
+        curveBtn.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        int curvePad = Style.dp(c, 6);
+        curveBtn.setPadding(curvePad, curvePad, curvePad, curvePad);
+        // 44dp touch target around a 24dp glyph -- a hand-sized tap area, not
+        // just a visually-sized one (see CLAUDE.md's note on touch targets).
+        curveBtn.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(c, 44), Style.dp(c, 44)));
+        curveBtn.setOnClickListener(v -> {
+            if (!com.geely.drivemem.state.CarState.isParked()) {
+                Toast.makeText(c, R.string.charge_cost_parked_only, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            ChargeCurrentCurveDialog.show(c, s);
+        });
+        powerCell.addView(curveBtn);
+        bottomRow.addView(powerCell);
+
+        // Bottom-right: Cost, anchored to that corner. Total and its per-kWh
+        // rate share one line, same as SoC/Energy above -- the rate is
+        // de-emphasized inline (smaller/dimmer) rather than stacked on its
+        // own line, per the unit style guide's "value then smaller/dimmer
+        // detail" idea applied to a rate instead of a suffix unit.
+        LinearLayout costCell = new LinearLayout(c);
+        costCell.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+        costCell.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
         if (s.cost != null && s.cost >= 0) {
-            LinearLayout costCol = new LinearLayout(c);
-            costCol.setOrientation(LinearLayout.VERTICAL);
-            costCol.setGravity(Gravity.END);
-
-            TextView costVal = new TextView(c);
-            costVal.setText(s.costLabel() + " (" + s.costPerKwhLabel() + ")");
-            costVal.setTextColor(Style.ACCENT);
-            costVal.setTextSize(15);
-            costVal.setTypeface(null, Typeface.BOLD);
-            costCol.addView(costVal);
-
-            costCol.setOnClickListener(v -> {
+            TextView costText = new TextView(c);
+            SpannableStringBuilder costSb = new SpannableStringBuilder();
+            costSb.append(s.costLabel());
+            if (s.costPerKwhLabel() != null) {
+                Style.appendUnit(costSb, "  " + s.costPerKwhLabel(), Style.UNIT_SCALE_ROW);
+            }
+            costText.setText(costSb);
+            costText.setTextColor(Style.ACCENT);
+            costText.setTextSize(19);
+            costText.setTypeface(null, Typeface.BOLD);
+            costText.setOnClickListener(v -> {
                 if (!com.geely.drivemem.state.CarState.isParked()) {
                     Toast.makeText(c, R.string.charge_cost_parked_only, Toast.LENGTH_SHORT).show();
                     return;
                 }
                 ChargeCostDialog.show(c, s.id, s.kwh, s.socStart, s.socEnd, s.cost, this::refresh);
             });
-            infoRow.addView(costCol);
+            costCell.addView(costText);
         } else {
             TextView costBtn = Style.cardButton(c, "+ " + c.getString(R.string.charge_cost_label), false, () -> {
                 if (!com.geely.drivemem.state.CarState.isParked()) {
@@ -400,10 +594,37 @@ public class ChargeStatsView extends LinearLayout {
                 }
                 ChargeCostDialog.show(c, s.id, s.kwh, s.socStart, s.socEnd, null, this::refresh);
             });
-            infoRow.addView(costBtn);
+            costCell.addView(costBtn);
         }
-
-        card.addView(infoRow);
+        bottomRow.addView(costCell);
+        card.addView(bottomRow);
+        card.setOnClickListener(v -> selectSession(s.id, false));
+        card.setBackground(s.id == selectedSessionId
+            ? Style.outlinedCard(isDcfc ? Style.GOOD : Style.ACCENT, c)
+            : Style.card(Style.CARD, c));
         return card;
+    }
+
+    private void selectSession(long id, boolean fromChart) {
+        selectedSessionId = id;
+        for (Map.Entry<Long, View> entry : sessionRows.entrySet()) {
+            ChargeSession.Summary s = visibleSessions.get(entry.getKey());
+            int color = s != null && s.isDcfc() ? Style.GOOD : Style.ACCENT;
+            entry.getValue().setBackground(entry.getKey() == id
+                ? Style.outlinedCard(color, getContext())
+                : Style.card(Style.CARD, getContext()));
+        }
+        chargeSocChart.select(id, !fromChart);
+        View row = sessionRows.get(id);
+        if (fromChart && row != null) sessionListScroll.smoothScrollTo(0, row.getTop());
+    }
+
+    private View legend(Context c, String text, int color) {
+        TextView v = new TextView(c);
+        v.setText("● " + text);
+        v.setTextColor(color);
+        v.setTextSize(13);
+        v.setPadding(Style.dp(c, 12), 0, 0, 0);
+        return v;
     }
 }

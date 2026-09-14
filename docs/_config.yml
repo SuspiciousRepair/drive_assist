@@ -1,0 +1,33 @@
+title: Drive Assist
+description: An everyday dashboard for the Geely EX2 / Geometry E.
+url: "https://suspiciousrepair.github.io"
+baseurl: "/drive_assist"
+lang: en
+timezone: America/Sao_Paulo
+markdown: kramdown
+theme: null
+permalink: /journal/:year/:month/:day/:title/
+
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: true
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: page
+  - scope:
+      path: "_posts"
+      type: posts
+    values:
+      layout: post
+
+exclude:
+  - Gemfile
+  - Gemfile.lock

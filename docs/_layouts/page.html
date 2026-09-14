@@ -1,0 +1,5 @@
+---
+layout: default
+---
+{% unless page.url == '/' or page.url == '/pt-br/' %}<p class="eyebrow">{% if page.locale == 'pt-BR' %}Documentação{% else %}Documentation{% endif %}</p>{% endunless %}
+{{ content }}

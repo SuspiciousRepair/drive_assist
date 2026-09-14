@@ -112,6 +112,7 @@ public class MqttReporter {
     static final String CHARGE_LIMIT_STATE_TOPIC = BASE_TOPIC + "/charge_limit/state";
     static final String CHARGE_SW_CMD_TOPIC   = BASE_TOPIC + "/charging/set";
     static final String CHARGE_SW_STATE_TOPIC = BASE_TOPIC + "/charging/state";
+    static final String CHARGE_EVENT_TOPIC = BASE_TOPIC + "/charge/event";
     static final String AVAIL_TOPIC = BASE_TOPIC + "/available";
     static final String LIGHT_CMD_TOPIC = BASE_TOPIC + "/light/set";
     static final String LIGHT_STATE_TOPIC = BASE_TOPIC + "/light/state";
@@ -268,13 +269,45 @@ public class MqttReporter {
         parkListener = (key, reading) -> {
             if (reading.status == CarActor.Reading.Status.OK) h.post(this::doPublishParkState);
         };
+        chargeCompletedListener = (key, reading) -> {
+            if (reading.status == CarActor.Reading.Status.OK) h.post(this::publishPendingChargeStops);
+        };
         EntityBus.subscribe("car.is_charging", chargingListener);
         EntityBus.subscribe("car.park_mode", parkListener);
+        EntityBus.subscribe("charge.completed", chargeCompletedListener);
     }
 
     private final GateState.Sender gateSender;
     private final EntityBus.Listener chargingListener;
     private final EntityBus.Listener parkListener;
+    private final EntityBus.Listener chargeCompletedListener;
+
+    private void publishPendingChargeStops() {
+        if (!ensureConnected()) return;
+        if (ctx == null) return;
+        android.database.Cursor c = com.geely.drivemem.car.CarDb.get(ctx).db().rawQuery(
+            "SELECT id, session_id, occurred_ms, soc, kwh FROM charge_stop_event "
+          + "WHERE published = 0 ORDER BY id ASC", null);
+        try {
+            while (c.moveToNext()) {
+                long id = c.getLong(0);
+                String payload = "{\"event\":\"charging_stopped\",\"occurrence_id\":" + id
+                    + ",\"session_id\":" + c.getLong(1) + ",\"occurred_ms\":" + c.getLong(2)
+                    + ",\"soc\":" + c.getInt(3) + ",\"kwh\":"
+                    + String.format(java.util.Locale.US, "%.3f", c.getDouble(4)) + "}";
+                try {
+                    MqttMessage message = new MqttMessage(payload.getBytes("UTF-8"));
+                    message.setQos(1); message.setRetained(false);
+                    client.publish(CHARGE_EVENT_TOPIC, message).waitForCompletion(3000);
+                    com.geely.drivemem.car.CarDb.get(ctx).db().execSQL(
+                        "UPDATE charge_stop_event SET published = 1 WHERE id = ?", new Object[]{id});
+                } catch (Throwable t) {
+                    Log.w(TAG, "charge event remains queued: " + t);
+                    break;
+                }
+            }
+        } finally { c.close(); }
+    }
 
     // Builds the server list in the order it was typed. Accepts newline, comma
     // or space as a separator in BOTH arguments — the UI uses a single
@@ -565,6 +598,7 @@ public class MqttReporter {
             pubComfort();
             subscribeCommands();
             subscribePanel();
+            publishPendingChargeStops();
             return true;
         } catch (Throwable t) {
             // root cause spelled out: with TLS the top-level error ("Connection
@@ -1139,6 +1173,7 @@ public class MqttReporter {
         GateState.clearSender(gateSender);
         EntityBus.unsubscribe("car.is_charging", chargingListener);
         EntityBus.unsubscribe("car.park_mode", parkListener);
+        EntityBus.unsubscribe("charge.completed", chargeCompletedListener);
         final MqttAsyncClient c = client;
         client = null;
         if (c == null) return;

@@ -56,6 +56,8 @@ public final class DashRecorder {
 
     private static final SimpleDateFormat NAME =
         new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US);
+    private static final SimpleDateFormat SUB_TIME =
+        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
 
     private final Context ctx;
     private final CarMode car;
@@ -70,6 +72,8 @@ public final class DashRecorder {
     // Latest telemetry, refreshed off the encoder thread so a slow binder read can
     // never stall the drain loop.
     private volatile String tele = "";
+    private volatile boolean valetEdge;
+    private boolean lastValet;
 
     public DashRecorder(Context ctx, CarMode car) { this.ctx = ctx; this.car = car; }
 
@@ -152,9 +156,12 @@ public final class DashRecorder {
         while (running) {
             try {
                 if (car.isReady()) {
-                    StringBuilder b = new StringBuilder(48);
+                    boolean valet = new File(dir(), "valet.active").exists();
+                    if (valet != lastValet) { lastValet = valet; valetEdge = true; }
+                    StringBuilder b = new StringBuilder(64);
+                    b.append(SUB_TIME.format(new Date()));
                     Float sp = car.readSpeed();
-                    b.append(sp == null ? "?" : String.valueOf(Math.round(sp))).append(" km/h");
+                    b.append(" · ").append(sp == null ? "?" : String.valueOf(Math.round(sp))).append(" km/h");
                     Integer g = car.readGear();
                     if (g != null) b.append(" · ").append(gear(g));
                     Float t = car.readOutsideTempC();
@@ -286,7 +293,8 @@ public final class DashRecorder {
 
                 codec.releaseOutputBuffer(idx, false);
 
-                if (!rotateArmed && seg.ageMs() >= SEGMENT_MS) {
+                if (!rotateArmed && (seg.ageMs() >= SEGMENT_MS || valetEdge)) {
+                    valetEdge = false;
                     Bundle b = new Bundle();
                     b.putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0);
                     codec.setParameters(b);
@@ -324,7 +332,8 @@ public final class DashRecorder {
         boolean done;
 
         Seg(MediaFormat f) throws Exception {
-            String stem = "dash_" + NAME.format(new Date());
+            String stem = "dash_" + NAME.format(new Date())
+                + (new File(dir(), "valet.active").exists() ? "_valet" : "");
             File d = dir();
             mp4 = new File(d, stem + ".mp4");
             vtt = new File(d, stem + ".vtt");

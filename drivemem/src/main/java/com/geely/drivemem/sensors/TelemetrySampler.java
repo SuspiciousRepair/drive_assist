@@ -63,6 +63,12 @@ public final class TelemetrySampler {
         putIfPresent(v, "energy_spent_kwh", data.get("energy_spent_kwh"));
         putIfPresent(v, "energy_regen_kwh", data.get("energy_regen_kwh"));
         putIfPresent(v, "energy_net_kwh", data.get("energy_net_kwh"));
+        // Battery temperature: only available through the optional OBD2
+        // dongle (Obd2Reader), not any VHAL property -- null (and the column
+        // stays empty) whenever the dongle isn't connected or enabled. 30s
+        // freshness is generous next to the dongle's own ~2s reading cadence.
+        Float battTempC = Obd2Reader.freshBattTempC(30_000);
+        if (battTempC != null) v.put("battery_temp_c", battTempC);
         // drive/battery/other_energy_pct: left NULL for now — not yet a
         // tracked telemetry field (see field-catalog.md's open question on
         // ITripData.TRIP_ED_* liveness). Columns exist so filling them in

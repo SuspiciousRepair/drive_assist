@@ -102,6 +102,12 @@ public class ClipsTest {
         assertEquals(-999L, parseStamp("nounderscore", -999L));
     }
 
+    @Test public void parseStampAcceptsTrailingValetTag() throws Exception {
+        SimpleDateFormat fmt = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US);
+        long expected = fmt.parse("20260101_120000").getTime();
+        assertEquals(expected, parseStamp("dash_20260101_120000_valet", -999L));
+    }
+
     @Test public void parseStampMalformedDateReturnsFallback() throws Exception {
         assertEquals(-999L, parseStamp("front_notadate", -999L));
     }

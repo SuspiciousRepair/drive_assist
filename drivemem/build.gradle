@@ -275,7 +275,18 @@ tasks.register('jacocoTestReport', JacocoReport) {
         '**/BuildConfig.*',
         '**/Manifest*.*',
         '**/*Test*.*',
-        'android/**/*.*'
+        'android/**/*.*',
+        // Android UI/framework classes (Activities, custom Views, art
+        // renderers, Services, physical-control widgets) have no unit-test
+        // harness in this project (no Robolectric) -- they're exercised on
+        // a real device instead. Left in the build, only excluded from the
+        // coverage ratio: including them made the headline number measure
+        // "how much of the app is UI" rather than "how much of the tested
+        // logic is tested," e.g. 7.7% overall vs. 35.7% in state/ alone.
+        '**/ui/**',
+        '**/art/**',
+        '**/services/**',
+        '**/controls/**'
     ]
 
     def javaClasses = fileTree(

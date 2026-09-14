@@ -1,0 +1,41 @@
+- title: Comece aqui
+  links:
+    - title: Início
+      url: /pt-br/
+    - title: Guia para motoristas
+      url: /DRIVER-GUIDE.pt-BR.html
+    - title: Instale o Drive Assist
+      url: /QUICK-INSTALL.pt-BR.html
+    - title: Segurança do ADB root
+      url: /ADB-ROOT-SAFETY.pt-BR.html
+    - title: Home Assistant
+      url: /HOME-ASSISTANT.pt-BR.html
+    - title: A Better Routeplanner
+      url: /ABRP.pt-BR.html
+
+- title: Diário
+  links:
+    - title: Diário de desenvolvimento
+      url: /journal/
+
+- title: Biblioteca técnica
+  links:
+    - title: Instalação técnica (English)
+      url: /INSTALL-GUIDE.html
+    - title: Estatísticas de viagem (English)
+      url: /TRIP-STATISTICS.html
+    - title: Catálogo de dados do veículo (English)
+      url: /DATA-CATALOG.html
+    - title: Dashcam (English)
+      url: /DASHCAM.html
+    - title: Referência MQTT (English)
+      url: /MQTT-GUIDE.html
+
+- title: Projeto
+  links:
+    - title: Escrever documentação (English)
+      url: /CONTRIBUTING-TO-DOCS.html
+    - title: Repositório no GitHub
+      url: https://github.com/SuspiciousRepair/drive_assist
+    - title: Versões e downloads
+      url: https://github.com/SuspiciousRepair/drive_assist/releases

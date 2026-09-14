@@ -19,12 +19,17 @@ import com.geely.drivemem.hvac.EffortTable;
 import com.geely.drivemem.net.AbrpUploader;
 import com.geely.drivemem.net.MqttReporter;
 import com.geely.drivemem.sensors.Obd2Reader;
+import com.geely.drivemem.sensors.DrivingConsumption;
+import com.geely.drivemem.sensors.EnergyIntegrator;
 import com.geely.drivemem.services.TelemetryService;
 import com.geely.drivemem.state.CarState;
 import com.geely.drivemem.state.ChargeSession;
 import com.geely.drivemem.state.GateState;
 import com.geely.drivemem.state.MusicState;
 import com.geely.drivemem.state.PanelState;
+import com.geely.drivemem.state.ParkingState;
+import com.geely.drivemem.state.TripSession;
+import com.geely.drivemem.state.ValetSession;
 import com.geely.drivemem.util.BootReceiver;
 import com.geely.drivemem.util.Modes;
 import com.geely.drivemem.util.SpotifyClient;
@@ -41,6 +46,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.SpannableStringBuilder;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -135,6 +141,12 @@ public class ComfortActivity extends Activity {
     private TextView chargeCostActionBtn, chargeDismissBtn;
     private ChargeSession.Summary retainedChargeSession = null;
     private boolean lastChargeAvailable = false;
+
+    // One compact identity whose content follows driving, parked and Valet state.
+    private LinearLayout journeyCard;
+    private TextView journeyTitle, journeyPrimary, journeySecondary, journeyAction, journeyDismiss;
+    private boolean driveCardEnabledAtBuild;
+    private boolean lastJourneyAvailable;
 
     // The column flow: kept as fields, not onCreate locals, because Portão's
     // visibility changes AFTER the initial pack (HA answers over MQTT a beat
@@ -240,6 +252,9 @@ public class ComfortActivity extends Activity {
         gateCard.setVisibility(lastGateAvailable ? View.VISIBLE : View.GONE);
         cards.add(gateCard);
         if (turboEnabledAtBuild) cards.add(turboCard());
+        driveCardEnabledAtBuild = prefs.getBoolean("drive_card_enabled", true);
+        journeyCard = journeyCard();
+        cards.add(journeyCard);
         cards.add(musicCard());
         chargeCard = chargeCard();
         cards.add(chargeCard);
@@ -372,16 +387,14 @@ public class ComfortActivity extends Activity {
     // three columns' worth the shared HorizontalScrollView (see onCreate)
     // scrolls the whole row instead of anyone getting squeezed.
     //
-    // RE-ENTRANT ON PURPOSE: this is not a one-time layout, it is called
-    // again every time any card's visibility changes (see the gate/music/
-    // panel listeners), so a hidden card actually gives its slot back to
-    // the next one instead of leaving a hole where a static, one-time pack
-    // had already decided it would go. `columns.removeAllViews()` discards
-    // the old column LinearLayouts (cheap, disposable containers); the CARD
-    // views themselves are the same objects every time — LinearLayout
-    // requires a child to be detached from any previous parent before it
-    // is re-added, so each one is pulled out of whatever it was previously
-    // sitting in before this rebuilds around it.
+    // RE-ENTRANT ON PURPOSE, and self-healing against stale measurements --
+    // see Style.packIntoColumns()'s own header, which does the actual
+    // packing now (2026-09-13: extracted so any other screen needing this
+    // same "flow like HTML columns" behavior has a standard view to reuse
+    // instead of copying this). This wrapper only owns what's specific to
+    // ComfortActivity: reading `columns`'/`band`'s real measured size, and
+    // retrying via post() until that's actually available (band has no
+    // real width on the very first onCreate pass).
     private void repackColumns() {
         int availH = columns.getHeight();
         int colW = columnWidth();
@@ -389,42 +402,7 @@ public class ComfortActivity extends Activity {
             columns.post(this::repackColumns);
             return;
         }
-        columns.removeAllViews();
-        int gapV = Style.dp(this, 16), gapH = Style.dp(this, 24);
-
-        LinearLayout col = null;
-        int used = 0;
-        for (LinearLayout card : cards) {
-            ViewGroup oldParent = (ViewGroup) card.getParent();
-            if (oldParent != null) oldParent.removeView(card);
-
-            // GONE cards cost nothing to pack, same as inside a plain
-            // LinearLayout — a card behind a hidden one moves up to take its
-            // place, because this whole pack is redone from scratch every
-            // time visibility changes, not computed once and left stale.
-            int cardH = 0;
-            if (card.getVisibility() != View.GONE) {
-                card.measure(
-                    View.MeasureSpec.makeMeasureSpec(colW, View.MeasureSpec.EXACTLY),
-                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
-                cardH = card.getMeasuredHeight();
-            }
-            boolean startNew = (col == null) || (used + gapV + cardH > availH);
-            if (startNew) {
-                col = new LinearLayout(this);
-                col.setOrientation(LinearLayout.VERTICAL);
-                LinearLayout.LayoutParams clp =
-                    new LinearLayout.LayoutParams(colW, ViewGroup.LayoutParams.WRAP_CONTENT);
-                if (columns.getChildCount() > 0) clp.leftMargin = gapH;
-                columns.addView(col, clp);
-                used = 0;
-            } else {
-                Style.gap(col, this, 16);
-                used += gapV;
-            }
-            col.addView(card);
-            used += cardH;
-        }
+        Style.packIntoColumns(this, columns, cards, colW, availH);
     }
 
     // The Clima card: title, outside temp, the effort scale, the two ask tiles
@@ -1048,6 +1026,142 @@ public class ComfortActivity extends Activity {
         return m;
     }
 
+    /** Current drive / parked / Valet card. Turbo remains ahead of it in card order. */
+    private LinearLayout journeyCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        int pad = Style.dp(this, 22);
+        card.setPadding(pad, pad, pad, pad);
+        card.setBackground(Style.card(Style.cardFillColor(), this));
+
+        LinearLayout heading = new LinearLayout(this);
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+        journeyTitle = new TextView(this);
+        journeyTitle.setTextColor(Style.TEXT);
+        journeyTitle.setTextSize(21);
+        journeyTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        heading.addView(journeyTitle, new LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        journeyDismiss = new TextView(this);
+        journeyDismiss.setText("×");
+        journeyDismiss.setTextColor(Style.TEXT_DIM);
+        journeyDismiss.setTextSize(28);
+        journeyDismiss.setGravity(Gravity.CENTER);
+        journeyDismiss.setOnClickListener(v -> {
+            prefs.edit().putLong("drive_card_dismissed_trip", TripSession.getActiveTripStartMs()).apply();
+            refreshJourneyCard();
+        });
+        heading.addView(journeyDismiss, new LinearLayout.LayoutParams(Style.dp(this, 48), Style.dp(this, 48)));
+        card.addView(heading);
+
+        journeyPrimary = new TextView(this);
+        journeyPrimary.setTextColor(Style.TEXT);
+        journeyPrimary.setTextSize(30);
+        journeyPrimary.setTypeface(null, android.graphics.Typeface.BOLD);
+        card.addView(journeyPrimary);
+        journeySecondary = new TextView(this);
+        journeySecondary.setTextColor(Style.TEXT_DIM);
+        journeySecondary.setTextSize(16);
+        journeySecondary.setPadding(0, Style.dp(this, 8), 0, 0);
+        card.addView(journeySecondary);
+        journeyAction = Style.cardButton(this, getString(R.string.valet_start), true, () -> {
+            if (!CarState.isParked()) return;
+            if (ValetSession.isActive(this)) ValetSession.stop(this); else ValetSession.start(this);
+            refreshJourneyCard();
+        });
+        LinearLayout.LayoutParams actionLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        actionLp.topMargin = Style.dp(this, 14);
+        card.addView(journeyAction, actionLp);
+        return card;
+    }
+
+    private void refreshJourneyCard() {
+        if (journeyCard == null) return;
+        boolean valet = ValetSession.isActive(this);
+        boolean parked = CarState.isParked();
+        boolean driving = !parked && TripSession.isTripActive();
+        long dismissed = prefs.getLong("drive_card_dismissed_trip", -1);
+        // The parked entry point remains available even when the optional live
+        // drive card is disabled; otherwise Valet could become unreachable.
+        boolean visible = valet || parked || (driveCardEnabledAtBuild && driving
+            && dismissed != TripSession.getActiveTripStartMs());
+        journeyCard.setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (!visible) {
+            if (lastJourneyAvailable) { lastJourneyAvailable = false; repackColumns(); }
+            return;
+        }
+
+        journeyDismiss.setVisibility(driving && !valet ? View.VISIBLE : View.GONE);
+        journeyAction.setVisibility(parked ? View.VISIBLE : View.GONE);
+        if (valet) {
+            ValetSession.Snapshot s = ValetSession.snapshot(this);
+            journeyTitle.setText(R.string.valet_active_title);
+            journeyPrimary.setText(String.format(Locale.getDefault(), "%.1f km  ·  %.0f km/h",
+                s.distanceKm, s.maxSpeedKmh));
+            String power = s.maxPowerKw == null ? getString(R.string.value_unavailable)
+                : String.format(Locale.getDefault(), "%.1f kW", s.maxPowerKw);
+            journeySecondary.setText(getString(R.string.valet_active_detail,
+                formatElapsed(System.currentTimeMillis() - s.startMs), power));
+            journeyAction.setText(R.string.valet_end);
+        } else if (driving) {
+            EnergyIntegrator.TripSnapshot energy = EnergyIntegrator.currentTrip();
+            double odoStart = TripSession.getActiveTripStartOdoKm();
+            Number odoNow = cachedNumber("telemetry.odometer");
+            double km = odoNow != null && odoStart >= 0 ? Math.max(0, odoNow.doubleValue() - odoStart) : 0;
+            // Same formula the daily stats page uses for this exact still-driving
+            // trip (DailyStatsProvider.queryDaySessions' active-trip branch) --
+            // this card used to net spentKwh alone, overstating consumption on
+            // any trip with real regen braking. See DrivingConsumption
+            // .efficiencyKwh100km's own header for the fuller history.
+            double eff = DrivingConsumption.efficiencyKwh100km(km, energy.spentKwh, energy.regenKwh);
+            journeyTitle.setText(R.string.drive_card_title);
+            // Smaller/dimmer units, same look as a daily-stats session row
+            // (Style.valueWithUnit), instead of plain concatenated strings.
+            SpannableStringBuilder primary = new SpannableStringBuilder();
+            primary.append(eff > 0
+                ? Style.valueWithUnit(String.format(Locale.getDefault(), "%.1f", eff),
+                    null, "kWh/100 km", Style.UNIT_SCALE_HERO)
+                : getString(R.string.value_calculating));
+            primary.append("  ·  ");
+            primary.append(Style.valueWithUnit(String.format(Locale.getDefault(), "%.2f", energy.netKwh),
+                null, "kWh", Style.UNIT_SCALE_HERO));
+            journeyPrimary.setText(primary);
+            journeySecondary.setText(getString(R.string.drive_card_detail, km,
+                formatElapsed(TripSession.getDrivingDurationMs()), formatClock(TripSession.getActiveTripStartMs()),
+                energy.regenKwh));
+        } else {
+            ParkingState.Snapshot s = ParkingState.snapshot(this);
+            journeyTitle.setText(R.string.parked_card_title);
+            journeyPrimary.setText(s.startMs > 0 ? formatElapsed(System.currentTimeMillis() - s.startMs)
+                : getString(R.string.value_unavailable));
+            String battery = s.startSoc != null && s.currentSoc != null
+                ? String.format(Locale.getDefault(), "%+d pp", s.currentSoc - s.startSoc)
+                : getString(R.string.value_unavailable);
+            String temp = s.startTemp != null && s.currentTemp != null
+                ? String.format(Locale.getDefault(), "%+.1f °C", s.currentTemp - s.startTemp)
+                : getString(R.string.value_unavailable);
+            journeySecondary.setText(getString(R.string.parked_card_detail, battery, temp));
+            journeyAction.setText(R.string.valet_start);
+        }
+        if (!lastJourneyAvailable) { lastJourneyAvailable = true; repackColumns(); }
+    }
+
+    private Number cachedNumber(String key) {
+        CarActor.Reading r = CarActor.get(this).get(key);
+        return r.status == CarActor.Reading.Status.OK && r.value instanceof Number ? (Number) r.value : null;
+    }
+
+    private String formatElapsed(long ms) {
+        long minutes = Math.max(0, ms) / 60_000L;
+        return minutes >= 60 ? String.format(Locale.getDefault(), "%dh %02dmin", minutes / 60, minutes % 60)
+            : String.format(Locale.getDefault(), "%d min", minutes);
+    }
+
+    private String formatClock(long ms) {
+        return new java.text.SimpleDateFormat("HH:mm", Locale.getDefault()).format(new java.util.Date(ms));
+    }
+
     // Generic glyph tile — same shell as the ask/switch tiles, but a plain
     // Runnable instead of iconTile()'s hardcoded comfortRuler.tap(), since
     // these two buttons don't belong to the ruler.
@@ -1200,6 +1314,7 @@ public class ComfortActivity extends Activity {
 
     private void refresh() {
         refreshStatusSidebar();
+        refreshJourneyCard();
         // Outside temp already lives in CarActor's own cache (kept fresh by
         // its always-on 15s poll, independent of this screen) — no need for
         // a live read of our own any more.
@@ -1323,6 +1438,7 @@ public class ComfortActivity extends Activity {
         }
     };
     private final EntityBus.Listener chargeBusListener = (key, reading) -> ui.post(this::checkRetainedCharge);
+    private final EntityBus.Listener journeyBusListener = (key, reading) -> ui.post(this::refreshJourneyCard);
 
     private Updater.UpdateInfo pendingUpdate = null;
     private android.app.AlertDialog activeUpdateDialog = null;
@@ -1372,6 +1488,7 @@ public class ComfortActivity extends Activity {
         } else {
             checkRetainedCharge();
         }
+        refreshJourneyCard();
 
         if (!parked) {
             // "Random every drive": a fresh seed on every P->D edge, applied
@@ -1715,6 +1832,7 @@ public class ComfortActivity extends Activity {
         // same idea: the Turbo toggle in Config only takes effect on the next
         // build of this screen, same as a theme change
         if (prefs.getBoolean("turbo_enabled", true) != turboEnabledAtBuild) { recreate(); return; }
+        if (prefs.getBoolean("drive_card_enabled", true) != driveCardEnabledAtBuild) { recreate(); return; }
         // Same again for the skyline settings. This was previously missing
         // the "skyline_enabled" half entirely -- the toggle saved fine but
         // nothing ever told this already-running screen to rebuild art, so
@@ -1780,10 +1898,14 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe("charge.cost_updated", chargeBusListener);
         EntityBus.subscribe("charge.dismissed", chargeBusListener);
         EntityBus.subscribe("charge.completed", chargeBusListener);
+        EntityBus.subscribe("valet.changed", journeyBusListener);
+        EntityBus.subscribe("valet.progress", journeyBusListener);
+        EntityBus.subscribe("parking.changed", journeyBusListener);
         if (turboCardView != null) {
             boolean turboVisible = turboEnabledAtBuild && !CarState.isParked();
             turboCardView.setVisibility(turboVisible ? View.VISIBLE : View.GONE);
         }
+        refreshJourneyCard();
         // Screen-scoped, not process-wide like Turbo/the gate: nothing bad
         // happens if this stops polling while the screen is off, unlike
         // abandoning a countdown mid-boost.
@@ -1813,6 +1935,9 @@ public class ComfortActivity extends Activity {
         EntityBus.unsubscribe("charge.cost_updated", chargeBusListener);
         EntityBus.unsubscribe("charge.dismissed", chargeBusListener);
         EntityBus.unsubscribe("charge.completed", chargeBusListener);
+        EntityBus.unsubscribe("valet.changed", journeyBusListener);
+        EntityBus.unsubscribe("valet.progress", journeyBusListener);
+        EntityBus.unsubscribe("parking.changed", journeyBusListener);
         try { unregisterReceiver(updateReceiver); } catch (Throwable ignored) {}
         if (activeUpdateDialog != null && activeUpdateDialog.isShowing()) {
             try { activeUpdateDialog.dismiss(); } catch (Throwable ignored) {}

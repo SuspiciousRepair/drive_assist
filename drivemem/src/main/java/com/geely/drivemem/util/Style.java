@@ -11,12 +11,20 @@ import com.geely.drivemem.ui.TelemetryActivity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.RelativeSizeSpan;
+import android.text.style.StyleSpan;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import java.util.List;
 
 /** Central theme management for the app.
  *
@@ -38,6 +46,8 @@ public class Style {
     public static int ACCENT    = 0xFF1E6FFF;  // accent
     public static int COOL      = 0xFF2196F3;  // cool semantics
     public static int HEAT      = 0xFFFF9800;  // heat semantics
+    public static int GOOD      = 0xFF43A047;  // positive/green semantics (e.g. DC fast charging)
+    public static int PURPLE    = 0xFF8E24AA;  // regen energy (Balanço de Energia chart)
 
     // ---- active shape ----
     public static int  RADIUS_DP    = 14;
@@ -371,6 +381,60 @@ public class Style {
         return t;
     }
 
+    // Relative sizes for a de-emphasized unit trailing a headline number --
+    // HERO for a big standalone figure (a card's main number), ROW for a
+    // smaller inline one (a session-list row, a live status line). Moved
+    // here from DailyStatsView on 2026-09-13 so every screen that renders
+    // "number + unit" shares one look instead of each screen inventing its
+    // own — the home screen's live journey card used to just concatenate
+    // plain strings with no de-emphasis at all.
+    public static final float UNIT_SCALE_HERO = 0.40f;
+    public static final float UNIT_SCALE_ROW = 0.68f;
+
+    /** A number, optionally colored, followed by a smaller/lighter/dimmer unit. */
+    public static CharSequence valueWithUnit(String number, Integer numberColor, String unit, float unitScale) {
+        return valueWithUnit(number, numberColor, unit, unitScale, true);
+    }
+
+    /** Same as {@link #valueWithUnit(String, Integer, String, float)}, but lets the
+     * number itself drop to normal weight -- for a secondary figure sharing a line
+     * with a bolder primary one (e.g. an energy delta beside a SoC range), where two
+     * bold numbers side by side compete instead of reading as primary/secondary. */
+    public static CharSequence valueWithUnit(String number, Integer numberColor, String unit, float unitScale, boolean boldNumber) {
+        SpannableStringBuilder sb = new SpannableStringBuilder();
+        int vStart = sb.length();
+        sb.append(number);
+        if (numberColor != null) {
+            sb.setSpan(new ForegroundColorSpan(numberColor), vStart, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        if (!boldNumber) {
+            sb.setSpan(new StyleSpan(Typeface.NORMAL), vStart, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        if (unit != null && !unit.isEmpty()) {
+            appendUnit(sb, " " + unit, unitScale);
+        }
+        return sb;
+    }
+
+    /** "59% → 95%" with both % signs de-emphasized the same way as a trailing unit. */
+    public static CharSequence percentRange(int from, int to, float unitScale) {
+        SpannableStringBuilder sb = new SpannableStringBuilder();
+        sb.append(String.valueOf(from));
+        appendUnit(sb, "%", unitScale);
+        sb.append(" → ").append(String.valueOf(to));
+        appendUnit(sb, "%", unitScale);
+        return sb;
+    }
+
+    /** Appends text as smaller, normal-weight and dim — used for units and parenthetical asides. */
+    public static void appendUnit(SpannableStringBuilder sb, String text, float scale) {
+        int start = sb.length();
+        sb.append(text);
+        sb.setSpan(new RelativeSizeSpan(scale), start, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        sb.setSpan(new StyleSpan(Typeface.NORMAL), start, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        sb.setSpan(new ForegroundColorSpan(TEXT_DIM), start, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+    }
+
     /** Creates a label text view. */
     public static TextView label(Context c, String s) {
         TextView t = new TextView(c);
@@ -673,6 +737,88 @@ public class Style {
         View v = new View(c);
         v.setLayoutParams(new LinearLayout.LayoutParams(1, dp(c, d)));
         col.addView(v);
+    }
+
+    // Standard app-wide spacing for a column of sibling cards (CARD_GAP_DP)
+    // and between columns of cards (COLUMN_GAP_DP) -- see docs/STYLE-GUIDE.md
+    // "Card spacing". Before this, every screen picked its own gap number
+    // (12/14/16/20dp all appeared for the same conceptual "space between two
+    // cards"), which read as inconsistent across screens doing the same
+    // thing. New card layouts should use these, not a fresh literal.
+    public static final int CARD_GAP_DP = 16;
+    public static final int COLUMN_GAP_DP = 24;
+
+    /** Packs `cards` into vertical, equal-width columns inside `columns` (a
+     * HORIZONTAL LinearLayout that already has its final width/height),
+     * left to right, top to bottom within each column, starting a new
+     * column whenever the next card would run past `availableHeightPx` --
+     * the standard "flow like HTML multi-column text" layout for a
+     * dashboard of differently-sized cards in priority order, rather than
+     * clipping or leaving gaps. GONE cards cost nothing (the next card
+     * takes their slot).
+     *
+     * Re-entrant on purpose: safe, and expected, to call again any time a
+     * card's visibility or size might have changed -- it always rebuilds
+     * from scratch, so a card that shrank or hid gives its slot back
+     * instead of leaving a hole a one-time pack had already decided.
+     *
+     * SELF-HEALING: a card's content can still grow after being packed
+     * (new data arriving, a session list growing, etc.) without whoever
+     * changed it remembering to call this again -- that gap is what let a
+     * column quietly overflow and clip its last card off the bottom of the
+     * screen (found live on the Home screen, 2026-09-13: "sometimes 3 cards
+     * pack in column 1 and the third card is clipped"). One verify pass
+     * runs after the layout settles; if a column's real height overflowed
+     * the budget after all, this repacks once more automatically. */
+    public static void packIntoColumns(Context c, LinearLayout columns, List<LinearLayout> cards,
+            int columnWidthPx, int availableHeightPx) {
+        packIntoColumnsOnce(c, columns, cards, columnWidthPx, availableHeightPx);
+        columns.post(() -> {
+            for (int i = 0; i < columns.getChildCount(); i++) {
+                if (columns.getChildAt(i).getHeight() > availableHeightPx) {
+                    packIntoColumnsOnce(c, columns, cards, columnWidthPx, availableHeightPx);
+                    return;
+                }
+            }
+        });
+    }
+
+    private static void packIntoColumnsOnce(Context c, LinearLayout columns, List<LinearLayout> cards,
+            int columnWidthPx, int availableHeightPx) {
+        columns.removeAllViews();
+        int gapV = dp(c, CARD_GAP_DP), gapH = dp(c, COLUMN_GAP_DP);
+
+        LinearLayout col = null;
+        int used = 0;
+        for (LinearLayout card : cards) {
+            ViewGroup oldParent = (ViewGroup) card.getParent();
+            if (oldParent != null) oldParent.removeView(card);
+
+            // A hidden card costs nothing to pack, same as inside a plain
+            // LinearLayout -- a card behind it moves up to take its place.
+            int cardH = 0;
+            if (card.getVisibility() != View.GONE) {
+                card.measure(
+                    View.MeasureSpec.makeMeasureSpec(columnWidthPx, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+                cardH = card.getMeasuredHeight();
+            }
+            boolean startNew = (col == null) || (used + gapV + cardH > availableHeightPx);
+            if (startNew) {
+                col = new LinearLayout(c);
+                col.setOrientation(LinearLayout.VERTICAL);
+                LinearLayout.LayoutParams clp =
+                    new LinearLayout.LayoutParams(columnWidthPx, ViewGroup.LayoutParams.WRAP_CONTENT);
+                if (columns.getChildCount() > 0) clp.leftMargin = gapH;
+                columns.addView(col, clp);
+                used = 0;
+            } else {
+                gap(col, c, CARD_GAP_DP);
+                used += gapV;
+            }
+            col.addView(card);
+            used += cardH;
+        }
     }
 
     /** Applies margin values to an already-added view. */

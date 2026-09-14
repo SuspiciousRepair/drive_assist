@@ -94,6 +94,8 @@ public class TelemetryService extends Service {
         TelemetrySampler.ensureSubscribed(this);
         TripSession.ensureSubscribed(this);
         ParkSession.ensureSubscribed(this);
+        com.geely.drivemem.state.ParkingState.ensureSubscribed(this);
+        com.geely.drivemem.state.ValetSession.ensureSubscribed(this);
         EnergyIntegrator.ensureSubscribed(this);
         Obd2Reader.ensureStarted(this);
         AbrpUploader.ensureSubscribed(this);

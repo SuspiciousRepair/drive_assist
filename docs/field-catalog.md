@@ -130,7 +130,35 @@ To distinguish DC fast charging from AC charging reliably across power tapering 
 | `557884439` | `float` | 0 | RW | Lane Departure Warning status echo: `1.0` = ON, `0.0` = OFF | ✅ |
 | `557858878` | `boolean` | 0 | RW | Forward Collision Warning (FCW): `true` = ON, `false` = OFF | ✅ |
 | `557858879` | `int` | 0 | RW | FCW Sensitivity: `0`=Disabled, `0x200e0201`=Late, `0x200e0202`=Medium, `0x200e0203`=Early | ✅ |
+| `557858874` | `boolean` | 0 | RW | AEB (Autonomous Emergency Braking) master switch: `true` = ON, `false` = OFF. Distinct from FCW above — this is the active-braking system, FCW is only the alert. Turning it off also forces FCW off (557858878 → `false`, 557858879 → `0`) and grays out the FCW row in the OEM UI. **The OEM UI re-arms this to ON on every vehicle power-on** — confirmed both by the on-screen warning text and by matching `AEB_PROP_ID`/`KEY_AEB_RESTORE_ON_BOOT` in a decompiled reference app (`backup-centralex/jadx-out`, package `com.ex.auto`), which keeps it off across power cycles by rewriting it after boot. Verified via directed diff (OEM ADAS screen toggle) and via a direct write from `modehelper` (`setBooleanProperty`, no `SecurityException`, readback confirmed the change, then restored) — both 2026-09-12. Writing it this way bypasses the OEM UI's own confirmation dialog entirely (that dialog is enforced client-side in the settings app, not at the property layer). Write access from Drive Assist itself (not platform-signed) remains untested | ✅ |
 | `557887557` | `int` | 0 | RW | Leading Vehicle Departing Alert: `1` = ON, `0` = OFF | ✅ |
+
+---
+
+## 6a. AVAS (Acoustic Vehicle Alerting System)
+
+Not to be confused with ADAS above — AVAS is the low-speed pedestrian
+warning sound, a completely different system with a different control
+path. The OEM Settings "Som" screen only exposes which *tune* plays
+(`Clássico` / `Tom Galático` / `Caminhada Espacial`, a plain `int`
+`CarPropertyManager` property) — it never shows a mute/off control at all,
+for any tune.
+
+Muting is a separate call, not a property write: `android.car.media.CarAudioManager`
+(a hidden framework class, reached by reflection — `getCarManager("audio")`,
+confirmed real by decompiling the reference app, see `CarAccess.audioCall()`
+in `drivemem`) exposes `getAVASMode()` / `setAVASMode(int)`, where `0` =
+muted and `>=1` = the active mode. This is the mechanism the reference app
+(`backup-centralex/jadx-out`, `KEY_AVAS_MUTED`) uses for its own AVAS mute
+toggle — not a Settings-app UI patch.
+
+**Confirmed 2026-09-12, live from `modehelper`:** `isAVASModeSupported()` →
+`true`; baseline `getAVASMode()` → `1`; `setAVASMode(0)` muted it (readback
+confirmed `0`); `setAVASMode(1)` restored it (readback confirmed `1`). No
+`SecurityException` — unlike the identical call attempted from Drive Assist
+itself, which fails with `requires permission
+android.car.permission.CAR_CONTROL_AUDIO_VOLUME`. Same pattern as the AEB
+property write: the platform-signed helper can do it, the normal app can't.
 
 ---
 

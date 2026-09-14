@@ -67,6 +67,11 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.ACTION_BOOT_HU" />
+                <!-- Re-arms the watchdog immediately on reinstall/update, same
+                     reasoning as drivemem: this unit suspends rather than
+                     rebooting, so BOOT_COMPLETED alone could be days away. -->
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="com.geely.modehelper.WATCHDOG" />
             </intent-filter>
         </receiver>
         <!-- Exported because Drive Assist, a different app with a different signer, has
@@ -83,6 +88,20 @@
         <receiver android:name=".ProbeReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="com.geely.modehelper.READPROP" />
+            </intent-filter>
+        </receiver>
+        <!-- One-off diagnostic, hardcoded to the AEB property only — see the
+             class header. Not a general write capability. -->
+        <receiver android:name=".AebWriteTestReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.geely.modehelper.AEBWRITETEST" />
+            </intent-filter>
+        </receiver>
+        <!-- One-off diagnostic, hardcoded to setAVASMode only — see the class
+             header. AVAS (pedestrian warning sound), not ADAS/AEB. -->
+        <receiver android:name=".AvasMuteTestReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.geely.modehelper.AVASMUTETEST" />
             </intent-filter>
         </receiver>
         <receiver android:name=".DashReceiver" android:exported="true">

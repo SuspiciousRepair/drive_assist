@@ -1,0 +1,58 @@
+- title: Start here
+  links:
+    - title: Guide home
+      url: /
+    - title: What Drive Assist does
+      url: /DRIVER-GUIDE.html
+    - title: Install Drive Assist
+      url: /QUICK-INSTALL.html
+    - title: Root ADB safety
+      url: /ADB-ROOT-SAFETY.html
+    - title: Safety and privacy
+      url: /WELCOME.html
+
+- title: Journal
+  links:
+    - title: Development journal
+      url: /journal/
+
+- title: Optional connections
+  links:
+    - title: Home Assistant
+      url: /HOME-ASSIST.html
+    - title: A Better Routeplanner
+      url: /ABRP.html
+    - title: Dashcam
+      url: /DASHCAM.html
+
+- title: Technical library
+  links:
+    - title: Technical installation
+      url: /INSTALL-GUIDE.html
+    - title: MQTT protocol reference
+      url: /MQTT-GUIDE.html
+    - title: ABRP and OBD2 reference
+      url: /ABRP-GUIDE.html
+    - title: Statistics calculations
+      url: /TRIP-STATISTICS.html
+    - title: Vehicle data catalog
+      url: /DATA-CATALOG.html
+    - title: Field history and timeline
+      url: /field-history.html
+    - title: Climate and HVAC facts
+      url: /CLIMATE-FACTS.html
+    - title: Dashcam architecture
+      url: /DASHCAM.html
+
+- title: Project
+  links:
+    - title: Write documentation
+      url: /CONTRIBUTING-TO-DOCS.html
+    - title: Code quality and test coverage
+      url: /CODE-QUALITY-REPORT.html
+    - title: Release readiness
+      url: /RELEASE-READINESS-MATRIX.html
+    - title: GitHub repository
+      url: https://github.com/SuspiciousRepair/drive_assist
+    - title: Releases and downloads
+      url: https://github.com/SuspiciousRepair/drive_assist/releases

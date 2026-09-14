@@ -53,4 +53,26 @@ public final class DrivingConsumption {
     static double per100km(double spent, double regen, double km) {
         return km > 0.2 ? Math.max(0, spent - regen) / km * 100 : 0;
     }
+
+    /** Headline efficiency (kWh/100km) for a drive: net energy (spent minus
+     * regen) when it's a positive load, falling back to gross energy spent
+     * when net isn't (a regen-heavy trip shouldn't read as "0" consumption).
+     * 0 below the 200m qualifying-distance floor.
+     *
+     * The one formula behind the day overview, every completed trip row, the
+     * still-driving trip on the daily stats page, and the live journey card
+     * on the home screen -- consolidated 2026-09-13 after it had drifted
+     * into four separate copies, one of them (the journey card) missing the
+     * regen netting entirely and overstating consumption on any trip with
+     * real regen braking. Deliberately NOT the same formula as per100km()
+     * above: that one backs the speed-bucket chart, which clamps a
+     * net-negative bucket to a plain 0 rather than falling back to gross --
+     * a different, equally deliberate choice for a different display.
+     */
+    public static double efficiencyKwh100km(double distanceKm, double spentKwh, double regenKwh) {
+        if (distanceKm <= 0.2) return 0;
+        double netKwh = spentKwh - regenKwh;
+        if (netKwh > 0) return netKwh / distanceKm * 100.0;
+        return spentKwh > 0 ? spentKwh / distanceKm * 100.0 : 0;
+    }
 }
