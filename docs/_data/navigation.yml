@@ -10,11 +10,13 @@
       url: /ADB-ROOT-SAFETY.html
     - title: Safety and privacy
       url: /WELCOME.html
+    - title: Security guide
+      url: /SECURITY-SAFETY.html
 
 - title: Optional connections
   links:
     - title: Home Assistant
-      url: /HOME-ASSIST.html
+      url: /HOME-ASSISTANT.html
     - title: A Better Routeplanner
       url: /ABRP.html
     - title: Dashcam
