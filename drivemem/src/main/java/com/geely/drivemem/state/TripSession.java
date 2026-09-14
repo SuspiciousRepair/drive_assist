@@ -115,7 +115,17 @@ public final class TripSession {
                 // Continue existing trip seamlessly (stitch/merge segments)
                 currentDriveSegmentStartMs = now;
             } else {
-                // Start a brand new trip
+                // Start a brand new trip. Force-close any charge session here
+                // directly, rather than relying only on CarState's own parked
+                // listener: CarState and TripSession keep separate "was parked"
+                // latches fed by the same car.gear stream, and if they ever
+                // drift out of sync (observed 2026-09-14: a charge session
+                // stayed "em andamento" through a whole trip start) CarState's
+                // listener can miss the edge entirely, since it only fires on
+                // a change relative to ITS OWN last value. This call uses the
+                // edge TripSession just detected on its own, which is known-
+                // reliable here, so the charge session can never outlive it.
+                ChargeSession.onParkExit(ctx);
                 tripActive = true;
                 startMs = now;
                 currentDriveSegmentStartMs = now;
