@@ -216,6 +216,7 @@
     <string name="cfg_adas_header">Driver assistance</string>
     <string name="cfg_aeb_label">AEB (automatic emergency braking)</string>
     <string name="cfg_avas_label">AVAS (pedestrian warning sound)</string>
+    <string name="cfg_park_monitor_label">Park monitoring</string>
     <string name="cfg_aeb_confirm_title">Turn off automatic emergency braking?</string>
     <string name="cfg_aeb_confirm_body">Turning off AEB stops the car from braking itself when it detects a forward collision risk. Unlike the car\'s own menu, this stays off across restarts until you turn it back on here.</string>
     <string name="cfg_aeb_confirm_turn_off">Turn off</string>
@@ -324,7 +325,8 @@
     <string name="clips_recording">recording</string>
     <string name="clips_orphan">unclosed — recoverable</string>
     <string name="clips_record">Record</string>
-    <string name="clips_stop">Stop</string>
+    <string name="clips_limit_label">Recording limit (GB)</string>
+    <string name="clips_limit_save">Save</string>
     <string name="cfg_nav_clips">Dashcam</string>
     <string name="clips_back">← Back</string>
     <string name="cam_all">All</string>

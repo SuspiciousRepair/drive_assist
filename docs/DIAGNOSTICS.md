@@ -1,92 +1,69 @@
-# Diagnostic Logging & Telemetry Architecture
+# Diagnostic Logging
 
-Architecture specification for structured diagnostic event logging, local storage rotation, and secure remote offloading on the Geely IHU629G.
+What actually exists on-device for diagnosing Drive Assist and modehelper —
+corrected 2026-09-15 after the previous version of this document described a
+`diag.log` ring buffer, a `DriveLog.event` call site, and an HTTP log-upload
+webhook. None of that exists in the code. There is no `DriveLog` class, no
+`diag.log` file, and no `diag_upload_url` setting anywhere in this repo. That
+architecture was either planned and never built, or removed at some point
+without this doc following — either way, do not rely on it.
 
 ---
 
-## 1. System Overview & Purpose
+## 1. The default: Android logcat
 
-Drive Assist operates in constrained automotive environments where interactive terminal debugging is not continuously available. The diagnostic logging subsystem provides structured, persistent recording of vehicle bus interactions, actor queue operations, connectivity state transitions, and unhandled exceptions.
+The overwhelming majority of logging in both apps is a plain `Log.i/w/e(...)`
+call, tagged `"ModeHelper"` (modehelper) or the calling class's own tag
+(drivemem). This goes to **logcat only** — the OS's own circular buffer,
+cleared automatically (and definitely on reboot). Nothing in either app
+persists it, and nothing needs to: `adb logcat` while reproducing an issue is
+the normal way to read it.
 
-```text
-┌────────────────────────────────────────────────────────┐
-│ Application Subsystems                                 │
-│                                                        │
-│  CarActor          MqttReporter      WatchdogServices  │
-│  (Queue/Writes)    (Broker State)    (Process Beats)   │
-└────────────┬─────────────┬─────────────────┬───────────┘
-             │             │                 │
-             └─────────────┼─────────────────┘
-                           ▼
-                 ┌──────────────────┐
-                 │  DriveLog.event  │
-                 └─────────┬────────┘
-                           │
-             ┌─────────────┴─────────────┐
-             ▼                           ▼
-      Android Logcat          Circular Log Buffer
-      (Streamed via adb)      (/files/logs/diag.log)
-                                         │
-                                         ▼ HTTP POST
-                              ┌────────────────────┐
-                              │ Configured Endpoint│
-                              │ (Home Assistant)   │
-                              └────────────────────┘
+```
+adb logcat | grep -E "ModeHelper|drivemem"
 ```
 
----
+## 2. On-disk diagnostic files — developer-triggered only
 
-## 2. Event Schema & Captured Subsystems
+A handful of `Diagnostics.java` broadcast probes (started by hand over `adb`,
+not from any Settings UI) write a plain-text file to
+`getExternalFilesDir(null)` — i.e.
+`/sdcard/Android/data/com.geely.drivemem/files/`:
 
-Log entries capture critical operational events without duplicating verbose Android framework logcat output:
+| File | Written by | Lifetime |
+|---|---|---|
+| `obd2-reading.log` | `Obd2Reader` | Capped at 5 MB — deletes and restarts itself once exceeded. |
+| `abrp-attempt.log` | `AbrpUploader` | Capped at 5 MB, same self-rotation. |
 
-1. **`CarActor` Cast Transactions**: Entity identifier, requested target value, applied status, rejection reason (if rejected), and queue latency in milliseconds.
-2. **Missing Property Reads**: VHAL property reads returning `null` or unexpected empty parcels.
-3. **MQTT State Transitions**: Broker connection, disconnection, TLS handshake failures, and reconnect backoff intervals.
-4. **Command Lock Toggles**: Driver state changes for the remote command acceptance lock.
-5. **Watchdog Restarts**: Component heartbeat expirations and automated service restarts.
-6. **Uncaught Exceptions**: Full stack traces for unhandled runtime exceptions.
+Both are read with `adb pull` after reproducing whatever is being diagnosed;
+neither uploads anywhere.
 
-### Log Entry Format
+## 3. Legacy files — dead, migration-only
 
-Entries use ISO 8601 timestamps, uppercase classification tags, and key-value attributes:
+`charge.log` and `odo.log` are pre-SQLite flat-file formats. `DbMigration`
+still knows how to parse them **once**, on first upgrade past the SQLite
+switch, to import old history. Nothing writes either file anymore.
 
-```text
-2026-09-02T18:08:39.476-03:00 CAST ambient_brightness req=0 applied=true value=0.0 latency_ms=12
-2026-09-02T18:08:39.470-03:00 MQTT_CMD light state=OFF
-2026-09-02T18:03:10.002-03:00 WATCHDOG restart TelemetryService reason=stale_beat
-```
+## 4. What used to exist and doesn't anymore
 
----
+Two exploration-only probes were removed on 2026-09-15, once the question
+each was built to answer had one:
 
-## 3. Storage & Buffer Rotation
+- **`limits.log`**: `modehelper`'s `DashRecorder` briefly kept this file
+  inside the dashcam folder, logging the raw camera/nav speed-limit readings
+  it was evaluating for the subtitle overlay's "max NN" display. It had no
+  cap and grew forever. Which candidate property to trust is now answered
+  (see `plausible()` and the fallback order in `DashRecorder`), so the
+  logging was removed rather than capped — the speed-limit reading itself is
+  still live in the dashcam subtitles, only the standalone log is gone.
+- **`power-probe.log`** / `PowerProbe.run()`: a manually-triggered probe
+  (`com.geely.drivemem.POWERPROBE` broadcast) that sampled power/energy
+  properties over a whole drive to a file, for validating which car
+  properties the real energy integrator should trust. Removed along with its
+  `Diagnostics` dispatch entry once that validation work was done.
 
-Log files are stored in app-specific external storage:
+## 5. Security note
 
-```text
-/sdcard/Android/data/com.geely.drivemem/files/logs/
-```
-
-* **Permission Independence**: Access requires no runtime storage permissions (`READ_EXTERNAL_STORAGE` / `WRITE_EXTERNAL_STORAGE`) on Android 9 (API 28).
-* **Ring Buffer Rotation**: The active log file (`diag.log`) is capped at **512 KB**. When the threshold is reached, it rolls over to `diag.log.1` and `diag.log.2`, maintaining a maximum of 3 generations (~1.5 MB total footprint).
-
----
-
-## 4. Extraction & Remote Offloading
-
-To operate on head units lacking standard Android share sheets, cloud accounts, or email clients, diagnostic logs are exported directly via HTTP.
-
-### HTTP POST Dispatch
-
-1. **Configuration**: A user-specified endpoint is defined via `diag_upload_url` in application settings.
-2. **Manual Transmission**: A "Send Diagnostic Log" action in Settings triggers an asynchronous background `HttpURLConnection` POST payload containing the raw log bytes.
-3. **Self-Hosted Integration**: By default, the endpoint is configured to target a private Home Assistant Webhook:
-   ```text
-   https://<ha-server-address>/api/webhook/<secret-webhook-id>
-   ```
-   An automation in Home Assistant writes the received payload directly to storage without external cloud intermediaries.
-
-### Security & Privacy Guarantees
-
-* **Zero Third-Party SDKs**: No proprietary analytics, crash tracking, or telemetry SDKs are embedded.
-* **No Centralized Servers**: Telemetry and logs are transmitted exclusively to infrastructure owned and configured by the vehicle operator.
+No third-party analytics, crash-reporting, or telemetry SDK is embedded in
+either app. Nothing above leaves the device on its own; a file only travels
+anywhere when pulled by hand over `adb`.

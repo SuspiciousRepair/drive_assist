@@ -123,6 +123,18 @@ public class MqttReporter {
     static final String PANEL_TOPIC = BASE_TOPIC + "/panel";
     // HA -> app, retained: "is the gate worth offering right now?"
     static final String GATE_AVAIL_TOPIC = BASE_TOPIC + "/gate/available";
+    // app -> HA, NEVER retained: "I just (re)connected — please re-check right
+    // now and answer on GATE_AVAIL_TOPIC." Exists because MSG_GATE_AVAIL
+    // deliberately ignores the retained replay a fresh subscribe gets (see
+    // that handler's own comment — the car must never grant itself gate
+    // access off a cached belief, only an answer HA is standing behind right
+    // now), and HA's own automation only otherwise republishes on a zone
+    // enter/leave or a gear change. Without this, a car sitting at home
+    // through a WiFi blip or an HA restart could stay hidden indefinitely:
+    // correct on the broker, but never re-asserted, and never trusted as a
+    // stale replay. This closes that gap without weakening the trust rule —
+    // HA still decides, right now, at request time.
+    static final String GATE_REFRESH_TOPIC = BASE_TOPIC + "/gate/refresh_request";
     // app -> HA, NEVER retained. `/toggle` and not `/set` on purpose: in this
     // repo `/set` means HA writing to the car, and this goes the other way.
     // One topic, not one each for open/close: the gate motor has a single
@@ -541,6 +553,7 @@ public class MqttReporter {
                             GateState.setConnected(true);
                             subscribeCommands();
                             subscribePanel();
+                            pub(GATE_REFRESH_TOPIC, "request", false);
                         });
                     }
                 }
@@ -598,6 +611,7 @@ public class MqttReporter {
             pubComfort();
             subscribeCommands();
             subscribePanel();
+            pub(GATE_REFRESH_TOPIC, "request", false);
             publishPendingChargeStops();
             return true;
         } catch (Throwable t) {

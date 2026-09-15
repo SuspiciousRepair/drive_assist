@@ -25,6 +25,7 @@ public class ModeHelperService extends Service {
     static final String TAG = "ModeHelper";
     static final String SET_MODE = "com.geely.modehelper.SET_MODE";
     public static final String ACTION_DASHCAM = "com.geely.modehelper.svc.DASHCAM";
+    public static final String ACTION_PARKED_MONITORING = "com.geely.modehelper.svc.PARKED_MONITORING";
     public static final String ACTION_BT_PAIR = "com.geely.modehelper.svc.BT_PAIR";
     private boolean btRxRegistered = false;
     private final CarMode car = new CarMode();
@@ -36,6 +37,8 @@ public class ModeHelperService extends Service {
     private BroadcastReceiver rx;
     private int lastGear = -999;
     private long lastLog = 0;
+    private final ParkedMonitorPolicy parkedMonitorPolicy = new ParkedMonitorPolicy();
+    private ParkedMonitoringProbe parkedMonitor;
 
     @Override public int onStartCommand(Intent i, int flags, int startId) {
         startAsForeground();
@@ -47,7 +50,20 @@ public class ModeHelperService extends Service {
             // go quiet) but the ENGINE binder is separate and always available.
             if (on == 1) dash.start();
             else if (on == 0) dash.stop();
+            // Persisted so maybeAutoStart() respects an explicit "off" across a
+            // restart, not just for the rest of this process's life — see that
+            // method's own comment for why this used to not survive a restart.
+            if (on == 0 || on == 1) {
+                getSharedPreferences("modehelper", MODE_PRIVATE).edit()
+                    .putBoolean("dashcam_on", on == 1).apply();
+            }
             Log.i(TAG, "dashcam: now " + (dash.isRunning() ? "RUNNING" : "stopped"));
+        }
+        if (i != null && ACTION_PARKED_MONITORING.equals(i.getAction())) {
+            boolean enabled = i.getIntExtra("on", 0) == 1;
+            getSharedPreferences("modehelper", MODE_PRIVATE).edit()
+                .putBoolean("parked_monitoring", enabled).apply();
+            Log.i(TAG, "parked runtime: enabled=" + enabled);
         }
         if (ACTION_BT_PAIR.equals(i != null ? i.getAction() : null)) {
             ensureBtListener();
@@ -78,6 +94,16 @@ public class ModeHelperService extends Service {
                         if (it.hasExtra("avas")) {
                             int avas = it.getIntExtra("avas", 1);
                             e.putInt("avas", avas); log.append(" avas=").append(avas);
+                        }
+                        if (it.hasExtra("parked_monitoring")) {
+                            boolean enabled = it.getBooleanExtra("parked_monitoring", false);
+                            e.putBoolean("parked_monitoring", enabled);
+                            log.append(" parked_monitoring=").append(enabled);
+                        }
+                        if (it.hasExtra("dashcam_limit_gb")) {
+                            int gb = it.getIntExtra("dashcam_limit_gb", DashRecorder.DEFAULT_BUDGET_GB);
+                            e.putInt("dashcam_limit_gb", gb);
+                            log.append(" dashcam_limit_gb=").append(gb);
                         }
                         e.apply();
                         Log.i(TAG, log.toString());
@@ -118,6 +144,7 @@ public class ModeHelperService extends Service {
                 Integer g = car.readGear();
                 boolean parked = (g != null && g == CarMode.GEAR_PARK);
                 maybeAutoStart();
+                updateParkedMonitoring(parked);
                 if (g != null) {
                     if (g != lastGear) Log.i(TAG, "gear " + lastGear + " -> " + g);
                     lastGear = g;
@@ -152,17 +179,45 @@ public class ModeHelperService extends Service {
         }
     }
 
-    /** Dashcam auto-start flag: records continuously from boot until shutdown.
-     * Started once on first poll tick when car is ready; thereafter controlled
-     * only by user action. This avoids interfering with user-initiated stop/start. */
+    /** Dashcam auto-start flag: records from boot until shutdown, UNLESS the
+     * owner has explicitly turned it off (ACTION_DASHCAM persists that choice
+     * to "dashcam_on" — see its own comment). Checked once on first poll tick
+     * when car is ready; thereafter controlled only by user action. Default
+     * true keeps existing installs recording as before an explicit choice is
+     * ever made. */
     private boolean dashAutoStarted = false;
 
     private void maybeAutoStart() {
         if (dashAutoStarted || !car.isReady()) return;
         dashAutoStarted = true;
+        boolean wanted = getSharedPreferences("modehelper", MODE_PRIVATE)
+            .getBoolean("dashcam_on", true);
+        if (!wanted) { Log.i(TAG, "dashcam: system up — recording turned off, not starting"); return; }
         if (dash == null) dash = new DashRecorder(getApplicationContext(), car);
         Log.i(TAG, "dashcam: system up — starting");
         dash.start();
+    }
+
+    /** Test-only metadata path; defaults off and never creates a clip or model run. */
+    private void updateParkedMonitoring(boolean parked) {
+        boolean enabled = getSharedPreferences("modehelper", MODE_PRIVATE)
+            .getBoolean("parked_monitoring", false);
+        ParkedMonitorPolicy.State state = parkedMonitorPolicy.update(
+            SystemClock.elapsedRealtime(), enabled && parked && car.isReady());
+        if (state == ParkedMonitorPolicy.State.ARMED && parkedMonitor == null) {
+            parkedMonitor = new ParkedMonitoringProbe(getApplicationContext(), false,
+                frames -> {
+                    if (dash != null && dash.isRunning()) dash.saveCurrentSegmentForEvent();
+                    else Log.w(TAG, "parked event had no running dashcam frames=" + frames);
+                });
+            Log.i(TAG, "parked runtime: starting metadata analysis after Park settle"
+                + " dashcam=" + (dash != null && dash.isRunning()));
+            parkedMonitor.start();
+        } else if (state != ParkedMonitorPolicy.State.ARMED && parkedMonitor != null) {
+            Log.i(TAG, "parked runtime: disarming " + state);
+            parkedMonitor.stop();
+            parkedMonitor = null;
+        }
     }
 
     // Stop on the way down, so the last segment gets its moov atom and its
@@ -172,6 +227,10 @@ public class ModeHelperService extends Service {
     // If the unit suspends WITHOUT announcing it, nothing is lost either: the
     // write-ahead .h264 is exactly the safety net for that case.
     private void stopForShutdown(String why) {
+        if (parkedMonitor != null) {
+            parkedMonitor.stop();
+            parkedMonitor = null;
+        }
         if (dash != null && dash.isRunning()) {
             Log.i(TAG, "dashcam: " + why + " — closing the segment");
             dash.stop();

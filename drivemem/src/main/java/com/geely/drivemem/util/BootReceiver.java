@@ -41,6 +41,7 @@ public class BootReceiver extends BroadcastReceiver {
             Log.i(CarAccess.TAG, "apk updated — reattaching watchdog and services");
             scheduleWatchdog(ctx);
             try { ensureAll(ctx); } catch (Throwable t) { Log.w(CarAccess.TAG, "replaced: " + t); }
+            try { cleanupDeadExplorationFiles(ctx); } catch (Throwable t) { Log.w(CarAccess.TAG, "cleanup: " + t); }
             // Self-grants the overlay button's draw-over-apps permission, so it
             // works without anyone visiting a settings screen. No-op once already
             // granted. Needs a socket, so off the main thread; goAsync() keeps the
@@ -248,6 +249,26 @@ public class BootReceiver extends BroadcastReceiver {
                 if (android.os.Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(s);
                 else ctx.startService(s);
             } catch (Throwable t) { Log.w(CarAccess.TAG, "ensure overlay: " + t); }
+        }
+    }
+
+    // Leftovers from exploration probes whose code is gone: limits.log
+    // (DashRecorder's old speed-limit-source comparison, no cap, unbounded),
+    // power-probe.log (PowerProbe.java, removed once it had answered which
+    // power property to trust), charge-compare.log (an even older probe,
+    // already gone from the code entirely before either of those). Their
+    // writers are gone, but on an install that ran any of them the file is
+    // still sitting on disk with no code left to clean it up — this is that
+    // cleanup, run once per update so every existing install gets it too,
+    // not just this one. delete() on a file that was never created is a
+    // harmless no-op, so this needs no "have we done this already" guard.
+    private static void cleanupDeadExplorationFiles(Context ctx) {
+        java.io.File dir = ctx.getExternalFilesDir(null);
+        if (dir == null) return;
+        for (String path : new String[]{
+                "charge-compare.log", "power-probe.log", "dashcam/limits.log"}) {
+            java.io.File f = new java.io.File(dir, path);
+            if (f.exists() && f.delete()) Log.i(CarAccess.TAG, "cleanup: removed stale " + path);
         }
     }
 

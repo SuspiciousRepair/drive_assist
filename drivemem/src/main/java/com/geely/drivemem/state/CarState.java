@@ -48,5 +48,12 @@ public final class CarState {
      * that TripSession owns the car.gear read. */
     public static void ensureSubscribed() {}
 
+    /** Test-only: sets the parked flag directly, bypassing the "one caller"
+     * rule above — reportParked() stays package-private and TripSession-only
+     * in production; this exists only so tests outside the state package
+     * (e.g. EnergyIntegratorTest) can simulate "driving" without wiring up a
+     * real TripSession. Mirrors EnergyIntegrator.resetForTesting(). */
+    public static void setParkedForTesting(boolean nowParked) { parked = nowParked; }
+
     private CarState() {}
 }

@@ -103,16 +103,19 @@ android {
 
     signingConfigs {
         release {
-            if (file("${rootProject.projectDir}/keystore/debug.ks").exists()) {
-                storeFile file("${rootProject.projectDir}/keystore/debug.ks")
-                storePassword "android"
-                keyAlias "d"
-                keyPassword "android"
-            } else if (keystoreFile.exists()) {
+            // Prefer the configured release identity. The local debug key is
+            // only a fallback for fresh development checkouts; otherwise a
+            // signed car install cannot be updated in place.
+            if (keystoreFile.exists()) {
                 storeFile file(keystoreProps.getProperty("storeFile"))
                 storePassword keystoreProps.getProperty("storePassword")
                 keyAlias keystoreProps.getProperty("keyAlias")
                 keyPassword keystoreProps.getProperty("keyPassword")
+            } else if (file("${rootProject.projectDir}/keystore/debug.ks").exists()) {
+                storeFile file("${rootProject.projectDir}/keystore/debug.ks")
+                storePassword "android"
+                keyAlias "d"
+                keyPassword "android"
             } else if (System.getenv("KEYSTORE_FILE") && file(System.getenv("KEYSTORE_FILE")).exists()) {
                 storeFile file(System.getenv("KEYSTORE_FILE"))
                 storePassword System.getenv("KEYSTORE_PASSWORD") ?: "android"
@@ -304,4 +307,3 @@ tasks.register('jacocoTestReport', JacocoReport) {
         ]
     ))
 }
-

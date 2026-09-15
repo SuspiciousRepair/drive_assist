@@ -322,20 +322,47 @@ public class TelemetryActivity extends Activity {
             Clips.mb(new android.os.StatFs(Clips.dir(this).getAbsolutePath()).getAvailableBytes())));
         content.addView(usage);
 
-        LinearLayout ctl = new LinearLayout(this);
-        ctl.setOrientation(LinearLayout.HORIZONTAL);
-        ctl.setPadding(0, Style.dp(this, 12), 0, Style.dp(this, 4));
-        ctl.addView(Style.cardButton(this,
-            getString(on ? R.string.clips_stop : R.string.clips_record), on, () -> {
-                // Drive Assist does not record — modehelper does. Ask over the same
-                // broadcast adb uses, then re-read the directory rather than
-                // assuming: a segment file takes a moment to appear.
-                sendBroadcast(new Intent("com.geely.modehelper.DASHCAM")
-                    .setClassName("com.geely.modehelper", "com.geely.modehelper.DashReceiver")
-                    .putExtra("on", on ? 0 : 1));
-                content.postDelayed(() -> { if (section == SEC_CLIPS) selectSection(SEC_CLIPS); }, 1500);
-            }));
-        content.addView(ctl);
+        // A real toggle, not a momentary button: modehelper now persists
+        // whatever is sent here ("dashcam_on") and checks it before
+        // auto-starting on the next boot too — see ModeHelperService's own
+        // comment on maybeAutoStart(). Displayed state is the live directory
+        // read (Clips.recording()), the same honest-over-cached approach as
+        // the AVAS toggle, not a locally-remembered guess.
+        LinearLayout recordRow = toggleRow(getString(R.string.clips_record), on, wantOn -> {
+            // Drive Assist does not record — modehelper does. Ask over the same
+            // broadcast adb uses, then re-read the directory rather than
+            // assuming: a segment file takes a moment to appear.
+            sendBroadcast(new Intent("com.geely.modehelper.DASHCAM")
+                .setClassName("com.geely.modehelper", "com.geely.modehelper.DashReceiver")
+                .putExtra("on", wantOn ? 1 : 0));
+            content.postDelayed(() -> { if (section == SEC_CLIPS) selectSection(SEC_CLIPS); }, 1500);
+        });
+        content.addView(recordRow);
+
+        final EditText fDashLimit = field(content, getString(R.string.clips_limit_label),
+            String.valueOf(prefs.getInt("dashcam_limit_gb", 10)), InputType.TYPE_CLASS_NUMBER);
+        content.addView(Style.cardButton(this, getString(R.string.clips_limit_save), false, () -> {
+            int gb;
+            try { gb = Integer.parseInt(fDashLimit.getText().toString().trim()); }
+            catch (NumberFormatException e) { gb = -1; }
+            if (gb < 1) { fDashLimit.setText(String.valueOf(prefs.getInt("dashcam_limit_gb", 10))); return; }
+            gb = Math.min(gb, 500); // storage is real; a typo shouldn't ask for the whole disk
+            prefs.edit().putInt("dashcam_limit_gb", gb).apply();
+            Intent i = new Intent("com.geely.modehelper.SET_MODE").setPackage("com.geely.modehelper");
+            i.putExtra("dashcam_limit_gb", gb);
+            sendBroadcast(i);
+            Toast.makeText(this, getString(R.string.cfg_saved), Toast.LENGTH_SHORT).show();
+        }));
+
+        LinearLayout parkedMonitor = toggleRow(getString(R.string.cfg_park_monitor_label),
+            prefs.getBoolean("parked_monitoring", false), enabled -> {
+                prefs.edit().putBoolean("parked_monitoring", enabled).apply();
+                sendBroadcast(new Intent("com.geely.modehelper.PARKED_MONITORING")
+                    .setClassName("com.geely.modehelper",
+                        "com.geely.modehelper.ParkedMonitoringReceiver")
+                    .putExtra("on", enabled ? 1 : 0));
+            });
+        content.addView(parkedMonitor);
 
         if (clips.isEmpty()) { content.addView(Style.label(this, getString(R.string.clips_none))); return; }
         for (Clips.Clip c : clips) content.addView(clipRow(c));

@@ -2,24 +2,10 @@ package com.geely.drivemem.services;
 
 import com.geely.drivemem.R;
 
-import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
-import com.geely.drivemem.hvac.ComfortHub;
-import com.geely.drivemem.net.AbrpUploader;
 import com.geely.drivemem.net.MqttReporter;
-import com.geely.drivemem.sensors.EnergyIntegrator;
 import com.geely.drivemem.sensors.GpsReader;
-import com.geely.drivemem.sensors.Obd2Reader;
-import com.geely.drivemem.sensors.OdoStats;
-import com.geely.drivemem.sensors.TelemetryRollup;
-import com.geely.drivemem.sensors.TelemetrySampler;
-import com.geely.drivemem.state.CarState;
-import com.geely.drivemem.state.CarplayState;
-import com.geely.drivemem.state.ChargeSession;
-import com.geely.drivemem.state.ParkSession;
-import com.geely.drivemem.state.TripSession;
 import com.geely.drivemem.util.Beat;
-import com.geely.drivemem.util.DbMigration;
 
 import android.app.Service;
 import android.content.Intent;
@@ -77,29 +63,16 @@ public class TelemetryService extends Service {
             return START_STICKY;
         }
         startAsForeground(); // Android 9: lets us start from boot without being blocked
-        // Bring the comfort hub up here, not only when somebody opens the screen.
-        // Its heartbeat is what samples the HVAC state into comfort.log, and a
-        // trip nobody complained about is precisely the trip worth recording —
-        // it is the baseline every ruler decision has to be judged against.
-        ComfortHub.get(this);
-        // Same reasoning, extended to the Hub itself: CarActor's own tick
-        // must run regardless of whether telemetry-to-HA is enabled below —
-        // CarState/ChargeSession/OdoStats and the Turbo/Battery cards depend
-        // on it even with MQTT publishing off.
-        CarActor.get(this);
-        DbMigration.runOnce(this);
-        TelemetryRollup.runIfDue(this);
-        CarState.ensureSubscribed();
-        ChargeSession.ensureSubscribed(this);
-        TelemetrySampler.ensureSubscribed(this);
-        TripSession.ensureSubscribed(this);
-        ParkSession.ensureSubscribed(this);
-        com.geely.drivemem.state.ParkingState.ensureSubscribed(this);
-        com.geely.drivemem.state.ValetSession.ensureSubscribed(this);
-        EnergyIntegrator.ensureSubscribed(this);
-        Obd2Reader.ensureStarted(this);
-        AbrpUploader.ensureSubscribed(this);
-        CarplayState.ensureSubscribed(this);
+        // Core car-state tracking (CarActor, TripSession, ParkSession,
+        // ChargeSession, EnergyIntegrator, ComfortHub, etc.) used to be
+        // bootstrapped here, on the theory that this service is the thing
+        // guaranteed to start early. It moved to DriveMemApplication.onCreate()
+        // — see that class's own comment for why: this service is neither
+        // guaranteed to run (BootReceiver skips it entirely when MQTT
+        // telemetry is off) nor reliably alive (it crashed and was
+        // force-restarted four times in one evening, 2026-09-14). Nothing
+        // below this point is anything but the MQTT-to-HA publishing this
+        // service is actually named for.
         SharedPreferences p = getSharedPreferences("drivemem", MODE_PRIVATE);
         if (!p.getBoolean("tele_enabled", false)) { stopSelf(); return START_NOT_STICKY; }
         String uri = p.getString("mqtt_uri", "");

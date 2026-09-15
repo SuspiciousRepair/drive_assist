@@ -36,17 +36,18 @@ public final class DashRecorder {
     static final int  BITRATE = 16_000_000;
     static final int  IFRAME_SEC = 1;
     static final long SEGMENT_MS = 5 * 60 * 1000L;
-    static final long BUDGET_BYTES = 10L * 1024 * 1024 * 1024;   // 10 GB ring buffer
+    // Default ring-buffer size; the owner can override it from Drive Assist's
+    // Recordings panel (SET_MODE's "dashcam_limit_gb" extra, read fresh in
+    // enforceBudget() below rather than cached, so a change takes effect on
+    // the very next segment rotation, not the next restart).
+    static final int  DEFAULT_BUDGET_GB = 10;
     static final long CUE_US = 1_000_000L;                        // one subtitle per second
 
-    // Speed limit candidates: multiple sources available (camera, navigation).
-    // All are logged to determine which are reliable.
+    // Speed limit candidates for the subtitle overlay: camera sign, then nav,
+    // then nav-speed, in that fallback order — see plausible() below.
     static final int P_CAM_LIMIT = 0x2140b029;
     static final int P_NAVI_LIMIT = 0x2140303a;
     static final int P_NAVSPEED   = 0x2140a405;
-    static final int P_TSR_KPH    = 0x2140a80f;
-
-    private String lastLimits = "";
 
     // A real speed limit is a small round number. Anything outside this is an
     // enum, a sentinel or noise, and putting it on screen would be a lie.
@@ -66,6 +67,8 @@ public final class DashRecorder {
     private LocationListener gps;
     private final EvsClient evs = new EvsClient();
     private volatile boolean running;
+    private volatile Seg activeSegment;
+    private volatile boolean rotateRequested;
     private Thread thread;
     private Thread sampler;
 
@@ -130,6 +133,18 @@ public final class DashRecorder {
         Log.i(TAG, "dashcam: stop requested");
     }
 
+    /** Preserve and promptly close the segment containing a detected event. */
+    public void saveCurrentSegmentForEvent() {
+        Seg segment = activeSegment;
+        if (segment == null) {
+            Log.w(TAG, "dashcam: event had no active segment to save");
+            return;
+        }
+        segment.markHeld();
+        rotateRequested = true;
+        Log.i(TAG, "dashcam: event segment marked for keep " + segment.mp4.getName());
+    }
+
     // Clips stored in drivemem's external files directory. Accessible to both apps
     // without additional permissions. Uninstalling drivemem removes clips. Hardcoded
     // because modehelper cannot query drivemem's files dir.
@@ -176,38 +191,18 @@ public final class DashRecorder {
                     Integer camL  = car.readIntProp(P_CAM_LIMIT, 0);
                     Integer naviL = car.readIntProp(P_NAVI_LIMIT, 0);
                     Integer navS  = car.readIntProp(P_NAVSPEED, 0);
-                    Integer tsrK  = car.readIntProp(P_TSR_KPH, 0);
 
                     int lim = plausible(camL);
                     if (lim < 0) lim = plausible(naviL);
                     if (lim < 0) lim = plausible(navS);
                     if (lim > 0) b.append(" · max ").append(lim);
 
-                    // Log speed limits only on change: reduces clutter in the log.
-                    String now = camL + "," + naviL + "," + navS + "," + tsrK;
-                    if (!now.equals(lastLimits)) {
-                        lastLimits = now;
-                        limitLog("cam=" + camL + " navi=" + naviL + " navspeed=" + navS
-                               + " tsrkph=" + tsrK + " speed=" + (sp == null ? "?" : Math.round(sp)));
-                    }
                     // Turn signal omitted: no verified property in field-catalog yet.
                     tele = b.toString();
                 }
             } catch (Throwable t) { Log.w(TAG, "dashcam: sample: " + t); }
             try { Thread.sleep(1000); } catch (InterruptedException e) { return; }
         }
-    }
-
-    // Its own file rather than the subtitle track, because this is an
-    // experiment: it has to survive whichever clip was rotating at the time and
-    // be readable without opening a video.
-    private void limitLog(String line) {
-        try {
-            java.io.FileWriter w = new java.io.FileWriter(new File(dir(), "limits.log"), true);
-            w.write(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date())
-                    + "  " + line + "\n");
-            w.close();
-        } catch (Throwable t) { Log.w(TAG, "dashcam: limitLog: " + t); }
     }
 
     private static String gear(int g) {
@@ -255,6 +250,7 @@ public final class DashRecorder {
                 if (idx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     outFmt = codec.getOutputFormat();
                     seg = new Seg(outFmt);
+                    activeSegment = seg;
                     continue;
                 }
                 if (idx < 0) continue;
@@ -271,8 +267,9 @@ public final class DashRecorder {
                 // Rotate segment at a key frame: segments must start seekable.
                 if (rotateArmed && key) {
                     seg.finish();
-                    enforceBudget();
+                    enforceBudget(ctx);
                     seg = new Seg(outFmt);
+                    activeSegment = seg;
                     rotateArmed = false;
                     lastCue = -1;
                 }
@@ -293,8 +290,9 @@ public final class DashRecorder {
 
                 codec.releaseOutputBuffer(idx, false);
 
-                if (!rotateArmed && (seg.ageMs() >= SEGMENT_MS || valetEdge)) {
+                if (!rotateArmed && (seg.ageMs() >= SEGMENT_MS || valetEdge || rotateRequested)) {
                     valetEdge = false;
+                    rotateRequested = false;
                     Bundle b = new Bundle();
                     b.putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0);
                     codec.setParameters(b);
@@ -306,9 +304,10 @@ public final class DashRecorder {
         } finally {
             running = false;
             if (seg != null) seg.finish();
+            activeSegment = null;
             try { if (codec != null) { codec.stop(); codec.release(); } } catch (Throwable ignored) { }
             try { if (input != null) input.release(); } catch (Throwable ignored) { }
-            enforceBudget();
+            enforceBudget(ctx);
             stopGps();
             Log.i(TAG, "dashcam: stopped");
         }
@@ -320,7 +319,7 @@ public final class DashRecorder {
     // never mistaken for a whole one — by the ring buffer, by a player, or by
     // whatever eventually uploads them.
     private final class Seg {
-        final File mp4, vtt, mp4Tmp, vttTmp, raw, jpg;
+        final File mp4, vtt, mp4Tmp, vttTmp, raw, jpg, hold;
         final MediaMuxer muxer;
         final int track;
         // Use uptimeMillis, not elapsedRealtime: suspension doesn't interrupt the
@@ -341,6 +340,7 @@ public final class DashRecorder {
             vttTmp = new File(d, stem + ".vtt.tmp");
             raw    = new File(d, stem + ".h264");
             jpg    = new File(d, stem + ".jpg");
+            hold   = new File(d, stem + ".hold");
             muxer = new MediaMuxer(mp4Tmp.getAbsolutePath(), MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
             track = muxer.addTrack(f);
             muxer.start();
@@ -411,6 +411,11 @@ public final class DashRecorder {
             try { sub.cue(fromUs, toUs, text); } catch (Throwable ignored) { }
         }
 
+        void markHeld() {
+            try { hold.createNewFile(); }
+            catch (Throwable t) { Log.w(TAG, "dashcam: could not mark event segment", t); }
+        }
+
         void finish() {
             if (done) return;
             done = true;
@@ -470,11 +475,14 @@ public final class DashRecorder {
     // outright. Run after every finished segment.
     //
     // Held clips still cannot be evicted — keepDir() is never in the
-    // candidate list below — but they DO count against BUDGET_BYTES, so
+    // candidate list below — but they DO count against the budget, so
     // holding more leaves less room for new recording instead of being free
-    // storage on top of the 10 GB budget.
-    static void enforceBudget() {
+    // storage on top of it.
+    static void enforceBudget(Context ctx) {
         try {
+            int gb = ctx.getSharedPreferences("modehelper", Context.MODE_PRIVATE)
+                .getInt("dashcam_limit_gb", DEFAULT_BUDGET_GB);
+            long budgetBytes = Math.max(1, gb) * 1024L * 1024 * 1024;
             File[] all = dir().listFiles();
             if (all == null) return;
             File[] clips = Arrays.stream(all)
@@ -485,9 +493,9 @@ public final class DashRecorder {
             for (File f : all) if (f.isFile()) used += Math.max(0, f.length());
             File[] held = keepDir().listFiles();
             if (held != null) for (File f : held) if (f.isFile()) used += Math.max(0, f.length());
-            if (used <= BUDGET_BYTES) return;
+            if (used <= budgetBytes) return;
             for (File f : clips) {
-                if (used <= BUDGET_BYTES) return;
+                if (used <= budgetBytes) return;
                 String stem = f.getName().substring(0, f.getName().length() - 4);
                 File side = new File(f.getParentFile(), stem + ".vtt");
                 File th   = new File(f.getParentFile(), stem + ".jpg");

@@ -143,6 +143,16 @@ The `dvr` function operates independently from the primary display pipeline:
 * The background `dvr` Binder stream continues delivering frames at an uninterrupted 25.0 fps without dropped buffers or pipeline stalls.
 * No yield/reclaim state machine is required when consuming the `dvr` function.
 
+### Attended `ImageReader` hold evidence
+
+An on-car diagnostic retained as `/data/local/tmp/evshold.dex` attached an
+`ImageReader` configured as `1920×800`, `RGBA_8888`, with three acquired images
+to the `dvr,avm` Binder path. Its saved log reports sustained approximately
+25 fps for more than two and a half minutes and explicitly invited a Reverse
+gear check. This confirms the safe initial analysis-consumer shape and factory
+reverse-camera coexistence. It does **not** establish that this consumer can
+run simultaneously with the hardware encoder; that remains a separate test.
+
 ---
 
 ## 5. Optical Geometry & Fisheye Dewarping

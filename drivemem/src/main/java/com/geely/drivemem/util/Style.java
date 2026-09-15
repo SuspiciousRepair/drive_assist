@@ -803,6 +803,7 @@ public class Style {
                     View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
                 cardH = card.getMeasuredHeight();
             }
+            boolean visible = card.getVisibility() != View.GONE;
             boolean startNew = (col == null) || (used + gapV + cardH > availableHeightPx);
             if (startNew) {
                 col = new LinearLayout(c);
@@ -812,7 +813,14 @@ public class Style {
                 if (columns.getChildCount() > 0) clp.leftMargin = gapH;
                 columns.addView(col, clp);
                 used = 0;
-            } else {
+            } else if (visible) {
+                // A GONE card contributes no height, so it must not contribute
+                // a gap either — otherwise whichever card follows it inherits
+                // a phantom extra CARD_GAP_DP on top of its own real gap,
+                // making that one pairing look wider than every other one
+                // depending purely on which card happened to be hidden at
+                // pack time (e.g. Portão hidden between Clima and the journey
+                // card). Only a visible card "spends" a gap.
                 gap(col, c, CARD_GAP_DP);
                 used += gapV;
             }

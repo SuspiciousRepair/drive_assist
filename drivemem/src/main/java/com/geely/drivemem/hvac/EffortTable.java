@@ -202,14 +202,16 @@ public final class EffortTable {
 
         // Recirculation strategy differs by side. Cold side: enabled where
         // ambient is a liability (recirc cabin air is easier to cool than outside
-        // air). Warm side: only at W1 (first machine column), and only when that
-        // column is running the machine. W1's warm air benefits from recirc (cabin
-        // air requires less heating to reach setpoint), and it's safe because W1
-        // air is directed at the glass (clearing it). W2+ air goes to feet/face,
-        // so recirc is not enabled (risk of fogging due to trapped moisture on cold
-        // glass).
-        boolean recirc = coldSide ? (machine && level > free + 1 && outC > CABIN_TARGET_C)
-                                  : (machine && level == -1);
+        // air). Warm side: never — recirculated cabin air carries occupant
+        // respiration humidity, which condenses into fog the moment it's blown
+        // on cold glass. That includes W1: it used to be the one exception,
+        // reasoned as "safe because it's gentle" — backwards in practice, since
+        // W1 is the column that's aimed AT the glass (DIR_GLASS above) on a cold
+        // day, exactly where fogging risk matters most. Outside air, even cold,
+        // is what actually clears a windshield — it's what every W2+ column
+        // already did, and what a car's own defrost mode forces for the same
+        // reason.
+        boolean recirc = coldSide && machine && level > free + 1 && outC > CABIN_TARGET_C;
 
         return new Column(level, machine, sp, fan, dir, recirc);
     }

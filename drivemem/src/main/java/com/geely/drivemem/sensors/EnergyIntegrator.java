@@ -179,7 +179,17 @@ public final class EnergyIntegrator {
                     windowDurationMs += deltaMs;
                     windowSampleCount++;
 
-                    if (tripActive) {
+                    // A trip stays "active" through TripSession's 75s park-grace
+                    // period (and however much longer a flickering gear signal
+                    // stretches it) so a brief stop doesn't split the trip in two —
+                    // but that grace window is about NOT LOSING the trip, not about
+                    // still being on the move. Gating this on CarState.isParked()
+                    // (the same authoritative signal DrivingConsumption.isDriving()
+                    // trusts) keeps idle/HVAC draw after the driver has actually
+                    // parked out of the trip's own spent/regen totals — otherwise a
+                    // short trip's efficiency reads worse the longer its parked tail
+                    // happens to run, which is exactly backwards.
+                    if (tripActive && !com.geely.drivemem.state.CarState.isParked()) {
                         tripSpentKwh += stepSpentKwh;
                         tripRegenKwh += stepRegenKwh;
                         tripNetKwh += stepNetKwh;

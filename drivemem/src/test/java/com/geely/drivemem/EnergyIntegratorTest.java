@@ -1,6 +1,7 @@
 package com.geely.drivemem;
 
 import com.geely.drivemem.sensors.EnergyIntegrator;
+import com.geely.drivemem.state.CarState;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -14,6 +15,10 @@ public class EnergyIntegratorTest {
     @Before
     public void setUp() {
         EnergyIntegrator.resetForTesting();
+        // Trip accumulation is gated on CarState.isParked(), which defaults
+        // to true (see CarState's own class comment) — every existing test
+        // here simulates an active drive, so it needs to look "driving".
+        CarState.setParkedForTesting(false);
     }
 
     @Test
@@ -180,5 +185,39 @@ public class EnergyIntegratorTest {
         assertEquals(live2.spentKwh, endTrip.spentKwh, EPSILON);
         assertEquals(live2.regenKwh, endTrip.regenKwh, EPSILON);
         assertEquals(live2.netKwh, endTrip.netKwh, EPSILON);
+    }
+
+    // A trip stays "active" through TripSession's park-grace window so a
+    // brief stop doesn't split it in two, but that used to mean any idle/HVAC
+    // power draw during that window — after the driver has actually parked —
+    // got counted as trip consumption too. Found by comparing a real short,
+    // cold trip's DB row against its own telemetry: a park-grace tail kept
+    // adding energy to a trip that had already ended in every way that
+    // mattered to the driver.
+    @Test
+    public void testParkedDoesNotAccumulateIntoTrip() {
+        EnergyIntegrator.startTrip();
+
+        // Drives for one step (2s @ 30kW avg), same as testPureDischargeConsumption.
+        EnergyIntegrator.onPowerReading(10_000, 20.0);
+        EnergyIntegrator.onPowerReading(12_000, 40.0);
+        EnergyIntegrator.TripSnapshot whileDriving = EnergyIntegrator.currentTrip();
+        assertTrue("Sanity: driving must have accumulated something", whileDriving.spentKwh > 0);
+
+        // Driver parks — CarState reflects it the same tick TripSession would.
+        CarState.setParkedForTesting(true);
+        // Idle/HVAC draw for a while during the park-grace window.
+        EnergyIntegrator.onPowerReading(14_000, 2.0);
+        EnergyIntegrator.onPowerReading(16_000, 2.0);
+
+        EnergyIntegrator.TripSnapshot trip = EnergyIntegrator.endTrip();
+        assertEquals("Parked ticks must not add to the trip total",
+            whileDriving.spentKwh, trip.spentKwh, EPSILON);
+        assertEquals(whileDriving.sampleCount, trip.sampleCount);
+
+        // The window (live power gauge) is a different consumer and should
+        // still see the parked draw — only the trip total excludes it.
+        EnergyIntegrator.WindowSnapshot snap = EnergyIntegrator.drainWindow(20_000, null);
+        assertTrue("Window must still reflect parked draw", snap.spentKwh > trip.spentKwh);
     }
 }

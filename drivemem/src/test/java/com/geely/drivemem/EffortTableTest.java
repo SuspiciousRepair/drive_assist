@@ -125,12 +125,15 @@ public class EffortTableTest {
         assertTrue(c.warm());
     }
 
-    @Test public void warmFirstColumnGlassAndRecircOnColdDay() {
+    @Test public void warmFirstColumnGlassNoRecircOnColdDay() {
         // outC=16 (< CABIN_TARGET_C) -> free=0, so W1 is a machine column.
+        // W1 is aimed at the glass (DIR_GLASS), which is exactly why it must
+        // use outside air, not recirc: recirculated cabin air carries
+        // occupant humidity that fogs cold glass on contact.
         Column c = EffortTable.column(16f, -1);
         assertTrue(c.machine);
         assertEquals(EffortTable.DIR_GLASS, c.direction);
-        assertTrue(c.recirc);
+        assertFalse(c.recirc);
         assertEquals(25f, c.setpointC, 0f);
     }
 

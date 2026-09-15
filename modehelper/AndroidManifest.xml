@@ -62,6 +62,11 @@
 
     <application android:label="ModeHelper" android:allowBackup="false">
         <service android:name=".ModeHelperService" android:exported="false" />
+        <!-- The sole on-car camera compatibility entry point. DUMP is held by
+             root/system diagnostics, so regular applications cannot start it. -->
+        <service android:name=".ParkedMonitoringProbeService"
+            android:exported="true"
+            android:permission="android.permission.DUMP" />
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
@@ -107,6 +112,11 @@
         <receiver android:name=".DashReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="com.geely.modehelper.DASHCAM" />
+            </intent-filter>
+        </receiver>
+        <receiver android:name=".ParkedMonitoringReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.geely.modehelper.PARKED_MONITORING" />
             </intent-filter>
         </receiver>
         <!-- Exported for the same reason as InstallReceiver: Drive Assist is a

@@ -34,6 +34,7 @@ flowchart LR
         T_GATE_AVAIL["drivemem/<vin>/gate/available"]
         T_GATE_TOGGLE["drivemem/<vin>/gate/toggle"]
         T_GATE_STATE["drivemem/<vin>/gate/state"]
+        T_GATE_REFRESH["drivemem/<vin>/gate/refresh_request"]
     end
 
     subgraph HA["Home Assistant"]
@@ -59,6 +60,8 @@ flowchart LR
     T_GATE_TOGGLE --> AUTO
     AUTO -->|Cover state label| T_GATE_STATE
     T_GATE_STATE --> GATE
+    GATE -->|On every (re)connect| T_GATE_REFRESH
+    T_GATE_REFRESH -->|Re-check now, answer fresh| AUTO
 ```
 
 ---
@@ -244,6 +247,42 @@ The car's **Comfort** screen features a dynamic garage gate button. The button o
         topic: drivemem/123456/gate/available
         retain: true
         payload: offline
+
+- id: 'car_gate_refresh_on_request'
+  alias: "Car — Answer gate availability on request"
+  # The car deliberately does NOT trust the retained value it gets from a
+  # fresh subscribe (see MqttReporter's GATE_REFRESH_TOPIC comment) — it
+  # will not grant itself gate access off a cached belief about its own
+  # location, only an answer HA gives right now. The two automations above
+  # only republish on a zone enter/leave or a gear change, so a car sitting
+  # at home through a WiFi blip, an HA restart, or anything else that drops
+  # the MQTT connection can stay stuck with no button showing, even though
+  # the correct answer never actually changed. The car publishes to this
+  # topic once, every time it (re)connects; this automation re-checks the
+  # real condition right now and answers fresh, closing that gap without
+  # weakening the trust rule.
+  triggers:
+    - trigger: mqtt
+      topic: drivemem/123456/gate/refresh_request
+  actions:
+    - choose:
+        - conditions:
+            - condition: zone.in_zone
+              target:
+                entity_id: device_tracker.geely_ex2_123456_localizacao
+              zone: zone.home
+          sequence:
+            - action: mqtt.publish
+              data:
+                topic: drivemem/123456/gate/available
+                retain: true
+                payload: online
+      default:
+        - action: mqtt.publish
+          data:
+            topic: drivemem/123456/gate/available
+            retain: true
+            payload: offline
 ```
 
 ### 2. Context Panel: Pushing Dynamic HTML to the Car

@@ -309,7 +309,8 @@
     <string name="clips_recording">gravando</string>
     <string name="clips_orphan">não fechado — recuperável</string>
     <string name="clips_record">Gravar</string>
-    <string name="clips_stop">Parar</string>
+    <string name="clips_limit_label">Limite de gravação (GB)</string>
+    <string name="clips_limit_save">Salvar</string>
     <string name="cfg_nav_clips">Dashcam</string>
     <string name="clips_back">← Voltar</string>
     <string name="cam_all">Todas</string>

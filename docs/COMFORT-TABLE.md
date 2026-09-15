@@ -70,13 +70,13 @@ The airflow path and recirculation state are engineered to maximize passenger co
   * **Higher Compressor Steps (`level > free + 1`)**: Directed to **Face** (`DIR_FACE`) for direct cooling.
 * **Warm Side**:
   * **Thermal Comfort & Defogging Physics (`W2..W4` when $\text{outC} < 23^\circ\text{C}$)**: Directed to **Glass + Feet** (`DIR_GLASS_FEET`, `6`). Warm air flows to footwell vents for lower-body comfort while washing the windshield with a warm air boundary layer to prevent glass fogging from occupant respiration.
-  * **Mild Windshield Warming (`W1` when $\text{outC} < 23^\circ\text{C}$)**: Directed to **Glass** (`DIR_GLASS`) with recirculation to introduce gentle warmth without draft.
+  * **Mild Windshield Warming (`W1` when $\text{outC} < 23^\circ\text{C}$)**: Directed to **Glass** (`DIR_GLASS`), using outside air — see Recirculation Logic below.
   * **Warm Days ($\text{outC} \ge 23^\circ\text{C}$)**: Directed to **Feet** (`DIR_FEET`) since ambient air is warm and glass fogging does not occur.
   * **All-Out Heating (`W5`)**: Directed to **Face + Feet** (`DIR_FACE_FEET`) for immediate full-body warmth.
 
 ### Recirculation Logic
 * **Cooling**: Recirculation is an intensity lever. When ambient outside air is hot ($\text{outC} > 23^\circ\text{C}$) and the compressor is operating past the first step (`level > free + 1`), recirculation engages because cooling already-conditioned cabin air is substantially more effective than cooling hot outside air.
-* **Heating**: Recirculation is disabled across heating levels to prevent occupant respiration humidity from condensing on cold glass. The sole exception is `W1` (where air is directed at the windshield).
+* **Heating**: Recirculation is disabled across every heating level, with no exception. `W1` used to be an exception, on the reasoning that its gentle output made recirculated air "safe" — backwards in practice: `W1` is the column aimed directly at the windshield (`DIR_GLASS`), which is exactly where recirculated cabin air's occupant-respiration humidity is most likely to condense into fog on contact with cold glass. Outside air, even cold, is what actually clears a windshield — the same reason every real car's defrost mode forces outside air.
 
 ---
 

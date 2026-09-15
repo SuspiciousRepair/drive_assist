@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Dashcam recording limit**: a new "Recording limit (GB)" field in the
+  Recordings panel lets you set how much storage the dashcam's ring buffer
+  is allowed to use, instead of a fixed 10 GB.
+
+### Fixed
+- **Cold-weather heating (W1)**: The gentlest heat setting no longer recirculates cabin air on cold days — it now uses outside air, like every other heat setting. Recirculated air was blowing straight at the windshield, which risked fogging it instead of clearing it.
+- **Trip energy**: idle power draw after you've actually parked no longer counts toward that trip's consumption, so a short trip's efficiency no longer gets worse just because it took a while to close out.
+- **Dashcam recording toggle**: turning recording off in the Recordings panel now actually stays off across a restart. Before, the "Record" control was a momentary button — the car always started recording again on its own at the next boot regardless of what you'd chosen.
+- **Home screen card spacing**: a hidden card (like Portão when the gate isn't available) no longer leaves an extra gap behind it — one card-to-card spacing no longer looks wider than the others depending on which card happens to be hidden.
+- **Parked/trip tracking reliability**: trip, park, charging, and energy tracking no longer depend on the MQTT telemetry service staying alive. That service isn't guaranteed to run (it's skipped entirely when telemetry is off) and isn't guaranteed to stay up — this is what let the "Estacionado" card get stuck showing a park duration from the previous day, unaffected by a real drive in between.
+- **Parked-monitoring camera safety**: disabled the parked-monitoring probe — it was opening its own independent connection to the same camera the dashcam already uses. On its first real use this froze the factory reverse-camera display on a stale image after a Park-then-Reverse transition, a real safety issue while backing up. Nothing in the app now opens that camera except the dashcam recorder itself.
+
 ## [v0.1.6] — 2026-09-14
 
 ### Added

@@ -7,7 +7,6 @@ import com.geely.drivemem.controls.TurboMode;
 import com.geely.drivemem.hvac.ComfortRuler;
 import com.geely.drivemem.hvac.EffortTable;
 import com.geely.drivemem.net.MqttReporter;
-import com.geely.drivemem.sensors.PowerProbe;
 import com.geely.drivemem.state.ChargeSession;
 
 import android.content.Context;
@@ -39,7 +38,6 @@ public final class Diagnostics {
         "com.geely.drivemem.HUBTEST",
         "com.geely.drivemem.ACTORTEST",
         "com.geely.drivemem.CHARGETEST",
-        "com.geely.drivemem.POWERPROBE",
         "com.geely.drivemem.CONFIGCHECK",
         "com.geely.drivemem.FAKESET"
     ));
@@ -71,7 +69,6 @@ public final class Diagnostics {
             case "com.geely.drivemem.HUBTEST":     hubTest(app, intent, onDone); break;
             case "com.geely.drivemem.ACTORTEST":   actorTest(app, intent, onDone); break;
             case "com.geely.drivemem.CHARGETEST":  chargeTest(app, intent, onDone); break;
-            case "com.geely.drivemem.POWERPROBE":  powerProbe(app, intent, onDone); break;
             case "com.geely.drivemem.CONFIGCHECK": configCheck(app, intent, onDone); break;
             case "com.geely.drivemem.FAKESET":     fakeSet(app, intent, onDone); break;
             default: onDone.run(); // unreachable — BootReceiver gates on ACTIONS first
@@ -465,23 +462,6 @@ public final class Diagnostics {
     // be checked mid-session instead of waiting for a real one to finish.
     private static void chargeTest(Context app, Intent intent, Runnable onDone) {
         Log.i(CarAccess.TAG, "chargetest: " + ChargeSession.debugState());
-        onDone.run();
-    }
-
-    // Kicks off PowerProbe.run() and returns right away — see PowerProbe's
-    // own header for why it can't hold this broadcast's goAsync() open for
-    // its whole duration.
-    //   --ei secs 300 --ei interval_ms 1000
-    // Cap is 14400s (4h): a drive-to-a-fast-charger session (drive there,
-    // charge, drive back) does not fit in 10 minutes, and this tool is meant
-    // to be armed before the car leaves and left running for the whole
-    // outing, not re-triggered mid-drive (adb is gone the moment the car
-    // leaves the home network).
-    private static void powerProbe(Context app, Intent intent, Runnable onDone) {
-        int secs = Math.max(10, Math.min(14400, intent.getIntExtra("secs", 300)));
-        int intervalMs = Math.max(200, Math.min(5000, intent.getIntExtra("interval_ms", 1000)));
-        Log.i(CarAccess.TAG, "powerprobe: starting, secs=" + secs + " interval_ms=" + intervalMs);
-        PowerProbe.run(app, secs, intervalMs);
         onDone.run();
     }
 
