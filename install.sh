@@ -75,16 +75,14 @@ else
   exit 1
 fi
 
-# Apply Bluetooth OBD2 PIN Fix (0000 -> 1234)
-echo "==> Applying Bluetooth OBD2 PIN fix (btDefSetting.json)..."
-if [ -x "$HERE/bt-pin-fix/apply-pin-1234.sh" ]; then
-  "$HERE/bt-pin-fix/apply-pin-1234.sh"
-else
-  echo "    Skipping PIN fix (script not executable)."
-fi
-
 echo ""
 echo "========================================================"
 echo "  ✅ Installation Complete!"
 echo "  Drive Assist is now running on your vehicle screen."
+echo ""
+echo "  Pairing an OBD2 dongle? It needs a one-time PIN fix,"
+echo "  run separately and only if you need it:"
+echo "    bt-pin-fix/apply-pin-1234.sh   (before pairing)"
+echo "    bt-pin-fix/revert-pin-0000.sh  (right after pairing)"
+echo "  See docs/WELCOME.md for details."
 echo "========================================================"

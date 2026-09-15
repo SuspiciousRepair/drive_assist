@@ -87,6 +87,23 @@ One of the most important hardware enhancements in Drive Assist is connecting to
 3. When pairing is initiated, the head unit silently sends `"0000"` to the dongle **without ever displaying a PIN entry prompt on the screen** and without broadcasting `ACTION_PAIRING_REQUEST`.
 4. The dongle immediately rejects `"0000"` with `AUTHENTICATION_FAILURE` (`UNBOND_REASON_AUTH_FAILED`).
 
+**This fix is optional and separate from installing Drive Assist.**
+`install.sh` does not run it. Only run it yourself if you're pairing an OBD2
+dongle — see the scripts in `bt-pin-fix/` below.
+
+> [!WARNING]
+> **This is the one change in the whole project that does not go away on its
+> own.** It edits a file under `/system`, not `/data`. Uninstalling Drive
+> Assist does not undo it, and a factory reset does not undo it either — only
+> running `bt-pin-fix/revert-pin-0000.sh` does. Nothing else in Drive Assist
+> touches `/system`.
+>
+> **You don't need to leave it changed.** The PIN is only checked at the
+> moment of pairing — once the dongle is paired, the car remembers it by a
+> stored bond key, not the PIN. Pair the dongle, then run
+> `bt-pin-fix/revert-pin-0000.sh` right away. The dongle stays paired with the
+> PIN back at factory `0000`.
+
 ### Resolution Architecture (ADB Override)
 To pair an OBD2 dongle, root ADB access is required to override the default system PIN:
 1. **Method A — Modifying `btDefSetting.json`**:

@@ -141,6 +141,7 @@ Full architectural documentation and reverse-engineering guides are located in t
 ### Audits, Quality & Governance
 - [Release Readiness Matrix](docs/RELEASE-READINESS-MATRIX.md) — Comprehensive Go/No-Go release audit and remediation roadmap
 - [Software Architecture & Vehicle Safety Audit](docs/ARCHITECTURE-SAFETY-AUDIT.md) — Multi-perspective audit of UID separation, Park invariants, and VHAL safety
+- [Open-source Head-unit Software Review](docs/OPEN-SOURCE-HEAD-UNIT-REVIEW.md) — Prioritized maintainability, architecture, performance, safety, and community recommendations for rooted sideloaded deployment
 - [Code Quality & Test Coverage Report](docs/CODE-QUALITY-REPORT.md) — JaCoCo test metrics (5.55% / 131 tests), Lint tuning, Checkstyle, and SpotBugs catalog
 - [Contributing Guidelines](CONTRIBUTING.md) — Branching rules (`dev`/`master`), Conventional Commits, and pull request checklist
 - [Changelog](CHANGELOG.md) — Full version history, release notes, and unreleased enhancements

@@ -113,8 +113,29 @@ If your laptop (macOS, Linux, or Windows with Git Bash) is on the same local Wi-
 1. **ADB Connectivity**: Establishes connection to `<CAR_IP>:5555` and verifies target device model (`IHU629G`).
 2. **Asset Resolution**: Checks for `drive_assist_installer.apk`. If found, installs and executes the wizard. If individual APKs are present (`drive_assist.apk` and `modehelper/modehelper.apk`), it installs both directly with `-r -g` flags.
 3. **Service Initialization**: Starts the ModeHelper foreground daemon (`ModeHelperService`) and brings `ComfortActivity` to the foreground display.
-4. **Bluetooth OBD2 PIN Fix**: Automatically executes `bt-pin-fix/apply-pin-1234.sh` (remounts `/system`, updates `btDefSetting.json` from `0000` to `1234`, and cycles Bluetooth).
-5. **Completion**: Prints confirmation banner when Drive Assist is active on screen.
+4. **Completion**: Prints confirmation banner when Drive Assist is active on screen.
+
+`install.sh` does **not** touch the Bluetooth PIN. That fix is optional and
+separate, only needed if you're pairing an OBD2 dongle — run it yourself:
+
+```bash
+bt-pin-fix/apply-pin-1234.sh    # before pairing the dongle
+bt-pin-fix/revert-pin-0000.sh   # right after pairing succeeds
+```
+
+> [!WARNING]
+> **This is the one change in the whole project that does not go away on its
+> own.** Everything else (the app, `modehelper`) lives under `/data` and goes
+> away if you uninstall it or factory reset the car. The Bluetooth PIN change
+> lives under `/system`, so **uninstalling Drive Assist does not undo it, and
+> a factory reset does not undo it either.** Only `bt-pin-fix/revert-pin-0000.sh`
+> undoes it.
+>
+> **You only need the PIN changed for the few minutes it takes to pair the
+> dongle.** Once a Bluetooth device is paired, the car remembers it by a stored
+> bond key, not by re-checking the PIN — so the PIN can go back to factory
+> `0000` right after pairing succeeds, and the dongle stays paired. Don't leave
+> the PIN on `1234` any longer than that.
 
 ---
 
