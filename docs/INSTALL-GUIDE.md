@@ -267,7 +267,7 @@ ModeHelper: rp: 557884279@0 = 120  # Outdoor temperature: 20.0 °C
 ### 1. Bluetooth OBD2 Dongle Pairing Fails (`UNBOND_REASON_AUTH_FAILED`)
 
 #### Problem
-Pairing an OBD2 dongle (vLinker MC+, OBDLink LX, Veepeak) from the vehicle Bluetooth settings screen fails 100% of the time without ever displaying a PIN entry prompt.
+Pairing an OBD2 dongle (tested with the vLinker MC+; other ELM327-based dongles are believed compatible but untested) from the vehicle Bluetooth settings screen fails 100% of the time without ever displaying a PIN entry prompt.
 
 #### Root Cause
 In `/system/etc/bluetooth/btDefSetting.json`, the factory firmware hardcodes `"pairingCode": "0000"` for automated background pairing. Standard OBD2 dongles expect PIN `"1234"`. The vehicle automatically transmits `0000` without prompting the user, and the dongle immediately rejects the pairing request.
@@ -294,7 +294,11 @@ adb shell am broadcast -a com.geely.modehelper.BT_PAIR \
   -n com.geely.modehelper/.BtPairReceiver
 ```
 
-#### Reverting to Factory Settings (For Dealership Visits)
+#### Reverting to Factory Settings
+
+Run this **right after pairing succeeds** — the dongle stays paired via its
+own stored bond key, not the PIN, so there's no reason to leave the PIN
+changed. Also run it before dealership visits, maintenance, or towing:
 ```bash
 ./bt-pin-fix/revert-pin-0000.sh <CAR_IP>
 ```

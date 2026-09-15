@@ -83,7 +83,7 @@ One of the most important hardware enhancements in Drive Assist is connecting to
 
 ### Why Standard Pairing Fails
 1. The head unit's factory Android 9 Bluetooth stack has an internal auto-pairing PIN hardcoded in `/system/etc/bluetooth/btDefSetting.json` set to `"pairingCode": "0000"`.
-2. Standard OBD2 / ELM327 adapters (such as vLinker MC+, OBDLink, or Veepeak) expect PIN `"1234"` by default.
+2. Standard OBD2 / ELM327 adapters (such as the tested vLinker MC+) expect PIN `"1234"` by default.
 3. When pairing is initiated, the head unit silently sends `"0000"` to the dongle **without ever displaying a PIN entry prompt on the screen** and without broadcasting `ACTION_PAIRING_REQUEST`.
 4. The dongle immediately rejects `"0000"` with `AUTHENTICATION_FAILURE` (`UNBOND_REASON_AUTH_FAILED`).
 
@@ -230,7 +230,7 @@ Android Debug Bridge (ADB) allows low-level terminal debugging:
 | Consideration | Details | Best Practice |
 | :--- | :--- | :--- |
 | **12V Auxiliary Battery** | Frequent background polling or prolonged parked Wi-Fi connection could theoretically deplete the 12V battery. | Drive Assist halts background polling when the car is parked and off. The IHU automatically enters deep standby when the car is locked. |
-| **Bluetooth PIN Override** | Overriding `/system/etc/bluetooth/btDefSetting.json` to `"1234"` is a global change affecting future phone pairing requests. | If pairing a new phone that expects `"0000"`, enter `"1234"` on the phone, or run `bt-pin-fix/revert-pin-0000.sh` before dealer visits. |
+| **Bluetooth PIN Override** | Overriding `/system/etc/bluetooth/btDefSetting.json` to `"1234"` is a global, `/system`-level change that survives uninstall and factory reset. It also affects future phone pairing requests while active. | Revert it right after pairing the dongle (`bt-pin-fix/revert-pin-0000.sh`) — the dongle stays paired. Also run it before dealer visits, or if pairing a new phone that expects `"0000"`. |
 | **Network Tethering** | Streaming high-frequency telemetry (MQTT/ABRP) consumes mobile data if tethered via personal hotspot. | At 10s intervals, telemetry consumes approximately 2–5 MB per driving hour. |
 | **Firmware Updates** | Official dealership firmware updates to the IHU may overwrite root access or system modifications. | Always back up configuration files and follow the update guide in [docs/GUIA-ADB-IHU629G.md](GUIA-ADB-IHU629G.md). |
 

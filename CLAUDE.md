@@ -106,12 +106,22 @@ cd drivemem && ./build.sh             # compile, verify guard, publish, and inst
   ```
 
 ### 5. Bluetooth OBD2 PIN Fix
-* The factory pairing PIN in `/system/etc/bluetooth/btDefSetting.json` is changed from `"0000"` to `"1234"` to support standard OBD2 Bluetooth dongles.
-* **Before vehicle dealer service, maintenance, or towing**, revert the PIN to factory standard:
+* Optional, manual, not run by `install.sh`. `bt-pin-fix/apply-pin-1234.sh`
+  changes the factory pairing PIN in `/system/etc/bluetooth/btDefSetting.json`
+  from `"0000"` to `"1234"`, needed only to get an OBD2 dongle through initial
+  pairing.
+* **This is the one change in the project that survives an uninstall or a
+  factory reset** — it edits `/system`, not `/data`.
+* **You only need the PIN changed for the moment of pairing.** Android
+  remembers a paired device by a stored bond key, not by the PIN, so the
+  dongle stays paired after the PIN goes back to `0000`. Revert it right
+  after pairing succeeds — don't leave it on `1234` indefinitely:
   ```bash
   bash ./bt-pin-fix/revert-pin-0000.sh
   ```
-* Re-apply afterwards with:
+* Also revert it before vehicle dealer service, maintenance, or towing, in
+  case it was left changed. Re-apply afterwards if the dongle is still
+  needed:
   ```bash
   bash ./bt-pin-fix/apply-pin-1234.sh
   ```

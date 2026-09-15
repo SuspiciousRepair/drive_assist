@@ -98,12 +98,16 @@ The telemetry payload conforms to the official **ITERNIO Telemetry Specification
 While Drive Assist works completely standalone using the car's built-in VHAL, pairing an **OBD2 Bluetooth dongle** unlocks decimal-level precision (0.1% SoC) and live battery power (kW) polled directly from the Battery Management System (ECU `0x7E2`).
 
 ### Supported Adapters
-* **Classic Bluetooth 2.1/3.0 / Dual-Mode Adapters** (Tested & Verified):
-  * **vLinker MC+** (Classic identity: `vLinker MC-Android`)
-  * **OBDLink LX / MX**
+* **Tested & Verified**:
+  * **vLinker MC+** (Classic identity: `vLinker MC-Android`) — the only adapter
+    actually tested against this head unit. Everything below is untested,
+    listed only because it uses the same Classic Bluetooth ELM327 protocol
+    and should work the same way — not a confirmed claim.
+* **Untested, believed compatible (Classic Bluetooth 2.1/3.0 / Dual-Mode)**:
+  * OBDLink LX / MX
   * Standard ELM327 Bluetooth v1.5/v2.1
-* **BLE (Bluetooth Low Energy) Adapters**:
-  * **OBDLink CX**, **Vgate iCar Pro BLE 4.0**, **Veepeak OBDCheck BLE+**
+* **Untested, believed compatible (BLE — Bluetooth Low Energy)**:
+  * OBDLink CX, Vgate iCar Pro BLE 4.0, Veepeak OBDCheck BLE+
 
 ---
 
@@ -135,9 +139,19 @@ adb shell svc bluetooth disable
 adb shell svc bluetooth enable
 ```
 3. Once the Bluetooth service restarts with the updated PIN, plug the dongle into the OBD2 port, open the car's Bluetooth screen (or trigger pairing), and it will bond immediately without errors.
+4. **Right after pairing succeeds, revert the PIN:**
+   ```bash
+   ./bt-pin-fix/revert-pin-0000.sh
+   ```
 
-> [!NOTE]
-> **Reverting before dealer visits**: Because `btDefSetting.json` is a global system file, running `./bt-pin-fix/revert-pin-0000.sh` restores the original factory `"0000"` code if needed.
+> [!WARNING]
+> **This PIN fix edits a `/system` file — it is the one change in this whole
+> project that survives an uninstall or a factory reset.** You only need it
+> changed for the moment of pairing: Android remembers a paired device by a
+> stored bond key, not by the PIN, so the dongle stays paired even after the
+> PIN goes back to `0000`. Don't leave it on `1234` — run
+> `./bt-pin-fix/revert-pin-0000.sh` as soon as pairing succeeds (step 4 above),
+> not just "before a dealer visit."
 
 #### Method 2: Headless Command-Line Pairing via ModeHelper
 If you prefer not to modify system files, the companion app [`modehelper`](../modehelper/README.md) holds `BLUETOOTH_PRIVILEGED` permissions and can execute a direct headless bond:
