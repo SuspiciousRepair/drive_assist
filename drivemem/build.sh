@@ -206,6 +206,13 @@ for H in "${HA_HOSTS[@]}"; do
       scp -q -P "$HA_PORT" -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new \
         "$ROOT/CHANGELOG.md" "$HA_USER@$H:/config/www/changelog.txt" 2>/dev/null || true
     fi
+    # Also upload modehelper.apk, so it can be OTA-updated the same way --
+    # built fresh by the installer step above (build-installer.sh always
+    # rebuilds it now, never reuses a stale one).
+    if [ -f "$ROOT/modehelper/modehelper.apk" ]; then
+      scp -q -P "$HA_PORT" -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new \
+        "$ROOT/modehelper/modehelper.apk" "$HA_USER@$H:/config/www/modehelper.apk" 2>/dev/null || true
+    fi
     break
   fi
 done
@@ -271,33 +278,59 @@ fi
 # OTA Notification (Retained MQTT)
 # ============================================================================
 # Always publish the update URL to MQTT so that the vehicle automatically
-# downloads and installs the update whenever it connects.
-[ -z "$ha_ok" ] && exit 0
-
-MQTT_HOST="${MQTT_HOST:-homeassistant.local}"
-if [ -n "${OTA_URL_BASE:-}" ]; then
-  OTA_URL="${OTA_URL_BASE}?v=$VC"
-else
-  OTA_URL=""
-fi
-
-OTA_TOPIC="${OTA_TOPIC:-drivemem/geely/update/set}"
-
-if [ -z "$OTA_URL" ]; then
-  echo "OTA   -> skipped: set OTA_URL_BASE in .ota-env to publish retained update"
+# downloads and installs the update whenever it connects. Two independent
+# announcements, drivemem and modehelper -- neither exits the script early
+# any more (it used to, via `exit 0`), specifically so a modehelper
+# announcement still happens even on a run where OTA_URL_BASE isn't set.
+if [ -z "$ha_ok" ]; then
+  echo "OTA   -> skipped: HA upload did not succeed"
   exit 0
 fi
 
-if [ -n "${MQTT_USER:-}" ] && [ -n "${MQTT_PASS:-}" ]; then
-  OTA_TOPICS=("${OTA_TOPIC:-drivemem/geely/update/set}" "drivemem/ihu/update/set")
-  [ -n "${OTA_VIN_TOPIC:-}" ] && OTA_TOPICS+=("$OTA_VIN_TOPIC")
-  for top in "${OTA_TOPICS[@]}"; do
-    ssh "${SSH_OPTS[@]}" "$HA_USER@$ha_ok" \
-         "mosquitto_pub -h '$MQTT_HOST' -p 1883 -u '$MQTT_USER' -P '$MQTT_PASS' \
-          -r -t '$top' -m '$OTA_URL'" 2>/dev/null || true
-  done
-  echo "OTA   -> announced (retained): $OTA_URL across ${OTA_TOPICS[*]}"
+MQTT_HOST="${MQTT_HOST:-homeassistant.local}"
+
+if [ -n "${OTA_URL_BASE:-}" ]; then
+  OTA_URL="${OTA_URL_BASE}?v=$VC"
+  OTA_TOPIC="${OTA_TOPIC:-drivemem/geely/update/set}"
+  if [ -n "${MQTT_USER:-}" ] && [ -n "${MQTT_PASS:-}" ]; then
+    OTA_TOPICS=("${OTA_TOPIC:-drivemem/geely/update/set}" "drivemem/ihu/update/set")
+    [ -n "${OTA_VIN_TOPIC:-}" ] && OTA_TOPICS+=("$OTA_VIN_TOPIC")
+    for top in "${OTA_TOPICS[@]}"; do
+      ssh "${SSH_OPTS[@]}" "$HA_USER@$ha_ok" \
+           "mosquitto_pub -h '$MQTT_HOST' -p 1883 -u '$MQTT_USER' -P '$MQTT_PASS' \
+            -r -t '$top' -m '$OTA_URL'" 2>/dev/null || true
+    done
+    echo "OTA   -> announced (retained): $OTA_URL across ${OTA_TOPICS[*]}"
+  else
+    echo "OTA   -> missing credentials: set MQTT_USER and MQTT_PASS in $TOOLS/.ota-env"
+    echo "         (or trigger update manually via Home Assistant)"
+  fi
 else
-  echo "OTA   -> missing credentials: set MQTT_USER and MQTT_PASS in $TOOLS/.ota-env"
-  echo "         (or trigger update manually via Home Assistant)"
+  echo "OTA   -> skipped: set OTA_URL_BASE in .ota-env to publish retained update"
+fi
+
+# modehelper's own OTA announcement -- same shape, a separate URL base and
+# topic (see MqttReporter.UPDATE_HELPER_CMD_TOPIC / Updater.check's
+# targetPkg), so a plain drivemem-only automation can never accidentally
+# target the privileged helper.
+if [ -n "${OTA_URL_BASE_MODEHELPER:-}" ] && [ -f "$ROOT/modehelper/modehelper.apk" ]; then
+  MODEHELPER_VC=$("$BT/aapt2" dump badging "$ROOT/modehelper/modehelper.apk" | grep -oP "versionCode='\K[0-9]+")
+  if [ -n "$MODEHELPER_VC" ]; then
+    OTA_URL_MODEHELPER="${OTA_URL_BASE_MODEHELPER}?v=$MODEHELPER_VC"
+    OTA_TOPIC_MODEHELPER="${OTA_TOPIC_MODEHELPER:-drivemem/geely/update/modehelper/set}"
+    if [ -n "${MQTT_USER:-}" ] && [ -n "${MQTT_PASS:-}" ]; then
+      OTA_TOPICS_MODEHELPER=("$OTA_TOPIC_MODEHELPER" "drivemem/ihu/update/modehelper/set")
+      [ -n "${OTA_VIN_TOPIC:-}" ] && OTA_TOPICS_MODEHELPER+=("${OTA_VIN_TOPIC%/update/set}/update/modehelper/set")
+      for top in "${OTA_TOPICS_MODEHELPER[@]}"; do
+        ssh "${SSH_OPTS[@]}" "$HA_USER@$ha_ok" \
+             "mosquitto_pub -h '$MQTT_HOST' -p 1883 -u '$MQTT_USER' -P '$MQTT_PASS' \
+              -r -t '$top' -m '$OTA_URL_MODEHELPER'" 2>/dev/null || true
+      done
+      echo "OTA   -> modehelper announced (retained): $OTA_URL_MODEHELPER across ${OTA_TOPICS_MODEHELPER[*]}"
+    else
+      echo "OTA   -> modehelper: missing MQTT_USER/MQTT_PASS, skipped"
+    fi
+  fi
+else
+  echo "OTA   -> modehelper: skipped (set OTA_URL_BASE_MODEHELPER in .ota-env to publish)"
 fi

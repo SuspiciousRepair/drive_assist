@@ -64,7 +64,9 @@ public class UpdateDialog {
 
             // Title
             TextView title = new TextView(activity);
-            title.setText(activity.getString(R.string.update_dialog_title));
+            title.setText(info.targetLabel != null
+                ? activity.getString(R.string.update_dialog_title_target, info.targetLabel)
+                : activity.getString(R.string.update_dialog_title));
             title.setTextColor(Style.TEXT);
             title.setTextSize(22f);
             title.setTypeface(Typeface.DEFAULT_BOLD);
@@ -88,7 +90,8 @@ public class UpdateDialog {
             colCur.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
 
             TextView curLbl = new TextView(activity);
-            curLbl.setText(activity.getString(R.string.update_dialog_current_ver, BuildConfig.VERSION_NAME));
+            String currentVn = info.currentVersionName != null ? info.currentVersionName : BuildConfig.VERSION_NAME;
+            curLbl.setText(activity.getString(R.string.update_dialog_current_ver, currentVn));
             curLbl.setTextColor(Style.TEXT_DIM);
             curLbl.setTextSize(13f);
             curLbl.setTypeface(Typeface.DEFAULT_BOLD);
@@ -167,6 +170,31 @@ public class UpdateDialog {
             if (dialog.getWindow() != null) {
                 dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
             }
+
+            // Skip-this-version button: left-aligned via weight, separate
+            // from Decline -- Decline just asks again next time (retained
+            // MQTT redelivery, the daily auto-check, or another manual
+            // check), Skip persists so THIS versionCode stops prompting at
+            // all until something newer ships. Checked back in
+            // Updater.check() -- one place enforcing it, not one per
+            // caller that might show this dialog.
+            Button btnSkip = new Button(activity);
+            btnSkip.setText(activity.getString(R.string.update_dialog_skip));
+            btnSkip.setTextColor(Style.TEXT_DIM);
+            btnSkip.setTextSize(13f);
+            btnSkip.setBackgroundColor(Color.TRANSPARENT);
+            LinearLayout.LayoutParams skipLp = new LinearLayout.LayoutParams(
+                0, Style.dp(activity, 48), 1.0f);
+            btnSkip.setLayoutParams(skipLp);
+            btnSkip.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
+            btnSkip.setOnClickListener(v -> {
+                dialog.dismiss();
+                String key = info.targetLabel != null ? "skip_update_vc_modehelper" : "skip_update_vc";
+                activity.getSharedPreferences("drivemem", android.content.Context.MODE_PRIVATE)
+                    .edit().putInt(key, info.versionCode).apply();
+                if (onDecline != null) onDecline.run();
+            });
+            btnRow.addView(btnSkip);
 
             // Decline button
             Button btnDecline = new Button(activity);

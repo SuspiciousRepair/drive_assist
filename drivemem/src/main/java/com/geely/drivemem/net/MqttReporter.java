@@ -153,6 +153,13 @@ public class MqttReporter {
     // and installs it (root)
     static final String UPDATE_CMD_TOPIC   = BASE_TOPIC + "/update/set";
     static final String UPDATE_STATE_TOPIC = BASE_TOPIC + "/update/state";
+    // Same idea, for modehelper's own OTA (see Updater.check/update's
+    // targetPkg parameter and Installer.java's ALLOWED_PKGS) — a second,
+    // parallel topic rather than overloading the one above, so a plain HA
+    // automation publishing the drivemem URL can never accidentally target
+    // the privileged helper instead.
+    static final String UPDATE_HELPER_CMD_TOPIC   = BASE_TOPIC + "/update/modehelper/set";
+    static final String UPDATE_HELPER_STATE_TOPIC = BASE_TOPIC + "/update/modehelper/state";
     // WHICH BUILD IS ACTUALLY IN THE CAR. Updater cannot report its own success —
     // a successful install kills the process that would send the message — so the
     // only evidence used to be the car coming back `online`, which cannot tell a
@@ -204,6 +211,7 @@ public class MqttReporter {
     private static final int MSG_GATE_STATE     = 17;  // coalesce
     // 18/19/20 (MSG_MEDIA_*) freed — the Music card talks to Spotify's Web
     // API directly now, not through HA/MQTT. See SpotifyClient.
+    private static final int MSG_CMD_UPDATE_HELPER = 21;  // no — modehelper's own OTA, see UPDATE_HELPER_CMD_TOPIC
 
     private final String uri, user, pass;
     // Alternative addresses, in order of preference. Paho walks the list and
@@ -452,6 +460,7 @@ public class MqttReporter {
                 case MSG_CMD_PARK_TIMER: doCmdParkTimer((String) m.obj); break;
                 case MSG_PARK_SYNC:      doPublishParkState(); break;
                 case MSG_CMD_UPDATE:     doCmdUpdate((String) m.obj); break;
+                case MSG_CMD_UPDATE_HELPER: doCmdUpdateHelper((String) m.obj); break;
                 case MSG_CMD_ACTION:     doCmdAction((String) m.obj); break;
                 case MSG_CMD_ADB:        doCmdAdb((String) m.obj); break;
                 case MSG_CLOSE:       doClose(); break;
@@ -661,7 +670,7 @@ public class MqttReporter {
             else {
                 for (String t : new String[]{CHARGE_CMD_TOPIC, CHARGE_SW_CMD_TOPIC, LIGHT_CMD_TOPIC,
                                              PARK_CMD_TOPIC, PARK_TIMER_CMD_TOPIC, UPDATE_CMD_TOPIC,
-                                             ACTION_CMD_TOPIC, ADB_CMD_TOPIC}) {
+                                             UPDATE_HELPER_CMD_TOPIC, ACTION_CMD_TOPIC, ADB_CMD_TOPIC}) {
                     try { client.unsubscribe(t); } catch (Throwable ignored) {}
                 }
                 Log.i(TAG, "commands OFF — unsubscribed from every topic");
@@ -695,6 +704,10 @@ public class MqttReporter {
             client.subscribe(UPDATE_CMD_TOPIC, 1, (IMqttMessageListener) (topic, msg) ->
                 h.obtainMessage(MSG_CMD_UPDATE, new String(msg.getPayload()).trim()).sendToTarget());
             Log.i(TAG, "subscribed to " + UPDATE_CMD_TOPIC);
+
+            client.subscribe(UPDATE_HELPER_CMD_TOPIC, 1, (IMqttMessageListener) (topic, msg) ->
+                h.obtainMessage(MSG_CMD_UPDATE_HELPER, new String(msg.getPayload()).trim()).sendToTarget());
+            Log.i(TAG, "subscribed to " + UPDATE_HELPER_CMD_TOPIC);
 
             client.subscribe(ACTION_CMD_TOPIC, 1, (IMqttMessageListener) (topic, msg) ->
                 h.obtainMessage(MSG_CMD_ACTION, new String(msg.getPayload()).trim()).sendToTarget());
@@ -936,6 +949,50 @@ public class MqttReporter {
             @Override
             public void onError(String error) {
                 pub(UPDATE_STATE_TOPIC, "erro: " + error, false);
+            }
+        });
+    }
+
+    // Same shape as doCmdUpdate(), for modehelper's own OTA — see
+    // Updater.check()'s targetPkg parameter and Installer.java's
+    // ALLOWED_PKGS. Updater.update() itself needs no target-awareness: it
+    // only ever hands a URL to modehelper, which decides what it's an
+    // update FOR from the downloaded APK's own declared package.
+    private void doCmdUpdateHelper(String body) {
+        if (cmdBlocked("update")) return;
+        if (ctx == null) { Log.w(TAG, "update: no Context"); return; }
+        Log.i(TAG, "CMD update (modehelper) from HA: " + body);
+
+        if (body != null && body.toLowerCase(java.util.Locale.US).contains("force")) {
+            pub(UPDATE_HELPER_STATE_TOPIC, "iniciando (forçado)", false);
+            Updater.updateHelper(ctx, body, s -> pub(UPDATE_HELPER_STATE_TOPIC, s, false));
+            return;
+        }
+
+        pub(UPDATE_HELPER_STATE_TOPIC, "verificando", false);
+        Updater.check(ctx, body, Updater.HELPER_PKG, new Updater.CheckCallback() {
+            @Override
+            public void onUpdateAvailable(Updater.UpdateInfo info) {
+                pub(UPDATE_HELPER_STATE_TOPIC, "disponivel: " + info.versionName, false);
+                Intent it = new Intent(Updater.ACTION_UPDATE_AVAILABLE);
+                it.putExtra("versionName", info.versionName);
+                it.putExtra("versionCode", info.versionCode);
+                it.putExtra("changelog", info.changelog);
+                it.putExtra("url", info.apkUrl);
+                it.putExtra("target", "modehelper");
+                it.putExtra("targetLabel", info.targetLabel);
+                it.putExtra("currentVersionName", info.currentVersionName);
+                ctx.sendBroadcast(it);
+            }
+
+            @Override
+            public void onAlreadyUpToDate(String currentVer) {
+                pub(UPDATE_HELPER_STATE_TOPIC, "já atualizado (" + currentVer + ")", false);
+            }
+
+            @Override
+            public void onError(String error) {
+                pub(UPDATE_HELPER_STATE_TOPIC, "erro: " + error, false);
             }
         });
     }

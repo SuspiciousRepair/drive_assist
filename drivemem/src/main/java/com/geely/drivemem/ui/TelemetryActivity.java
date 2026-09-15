@@ -261,6 +261,22 @@ public class TelemetryActivity extends Activity {
         return t;
     }
 
+    // Selected sidebar row: a thin accent bar on the left edge plus a faint
+    // tinted row background, matching this car's own OEM settings menu
+    // (thin blue rail + tinted label, sharp -- no glow) instead of the
+    // solid filled pill this used before.
+    private android.graphics.drawable.Drawable selectedNavBg() {
+        android.graphics.drawable.GradientDrawable row = new android.graphics.drawable.GradientDrawable();
+        row.setColor(Style.blend(Style.ACCENT, Style.cardFillColor(), 0.88f));
+        android.graphics.drawable.GradientDrawable bar = new android.graphics.drawable.GradientDrawable();
+        bar.setColor(Style.ACCENT);
+        android.graphics.drawable.LayerDrawable ld = new android.graphics.drawable.LayerDrawable(
+            new android.graphics.drawable.Drawable[]{row, bar});
+        ld.setLayerGravity(1, Gravity.LEFT | Gravity.FILL_VERTICAL);
+        ld.setLayerWidth(1, Style.dp(this, 3));
+        return ld;
+    }
+
     // sidebar item: stays highlighted while it is the selected one
     private TextView navItem(String label, final int idx) {
         TextView t = new TextView(this);
@@ -286,8 +302,8 @@ public class TelemetryActivity extends Activity {
         section = idx;
         for (TextView t : navItems) {
             boolean sel = ((Integer) t.getTag() == idx);
-            t.setBackground(sel ? Style.card(Style.CARD_ON, this) : null);
-            t.setTextColor(sel ? Style.onFill(Style.CARD_ON) : Style.TEXT_DIM);
+            t.setBackground(sel ? selectedNavBg() : null);
+            t.setTextColor(sel ? Style.ACCENT : Style.TEXT_DIM);
             t.setTypeface(null, sel ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
         }
         content.removeAllViews();
@@ -317,11 +333,6 @@ public class TelemetryActivity extends Activity {
         List<Clips.Clip> clips = Clips.list(this);
         boolean on = Clips.recording(this);
 
-        TextView usage = Style.label(this, getString(R.string.clips_usage,
-            clips.size(), Clips.mb(Clips.usedBytes(this)), Clips.mb(Clips.heldBytes(this)),
-            Clips.mb(new android.os.StatFs(Clips.dir(this).getAbsolutePath()).getAvailableBytes())));
-        content.addView(usage);
-
         // A real toggle, not a momentary button: modehelper now persists
         // whatever is sent here ("dashcam_on") and checks it before
         // auto-starting on the next boot too — see ModeHelperService's own
@@ -339,9 +350,45 @@ public class TelemetryActivity extends Activity {
         });
         content.addView(recordRow);
 
-        final EditText fDashLimit = field(content, getString(R.string.clips_limit_label),
-            String.valueOf(prefs.getInt("dashcam_limit_gb", 10)), InputType.TYPE_CLASS_NUMBER);
-        content.addView(Style.cardButton(this, getString(R.string.clips_limit_save), false, () -> {
+        // A GB count is a couple of digits, not a URL -- a field and a
+        // button that both stretch to the full row width (field()'s and
+        // cardButton()'s usual shape, right for every OTHER field on this
+        // screen) just leaves both looking like empty bars with their
+        // content stranded in a corner. One compact row instead.
+        TextView limitLbl = new TextView(this);
+        limitLbl.setText(getString(R.string.clips_limit_label));
+        limitLbl.setTextColor(Style.TEXT_DIM);
+        limitLbl.setTextSize(14);
+        limitLbl.setPadding(0, Style.dp(this, 10), 0, Style.dp(this, 2));
+        content.addView(limitLbl);
+
+        LinearLayout limitRow = new LinearLayout(this);
+        limitRow.setOrientation(LinearLayout.HORIZONTAL);
+        limitRow.setGravity(Gravity.CENTER_VERTICAL);
+        // Explicit bottom margin: previously this gap came from button()'s
+        // own stray top margin (removed below, see saveBtn), which was
+        // incidental spacing, not a deliberate one.
+        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        rowLp.bottomMargin = Style.dp(this, 10);
+        limitRow.setLayoutParams(rowLp);
+        content.addView(limitRow);
+
+        final EditText fDashLimit = new EditText(this);
+        fDashLimit.setText(String.valueOf(prefs.getInt("dashcam_limit_gb", 10)));
+        fDashLimit.setInputType(InputType.TYPE_CLASS_NUMBER);
+        fDashLimit.setTextColor(Style.TEXT);
+        fDashLimit.setTextSize(17);
+        fDashLimit.setBackground(Style.card(Style.CARD, this));
+        int fp = Style.dp(this, 12);
+        fDashLimit.setPadding(fp, fp, fp, fp);
+        LinearLayout.LayoutParams fLp = new LinearLayout.LayoutParams(
+            Style.dp(this, 120), ViewGroup.LayoutParams.WRAP_CONTENT);
+        fLp.setMarginEnd(Style.dp(this, 12));
+        fDashLimit.setLayoutParams(fLp);
+        limitRow.addView(fDashLimit);
+
+        TextView saveBtn = button(getString(R.string.clips_limit_save), Style.ACCENT, () -> {
             int gb;
             try { gb = Integer.parseInt(fDashLimit.getText().toString().trim()); }
             catch (NumberFormatException e) { gb = -1; }
@@ -352,7 +399,17 @@ public class TelemetryActivity extends Activity {
             i.putExtra("dashcam_limit_gb", gb);
             sendBroadcast(i);
             Toast.makeText(this, getString(R.string.cfg_saved), Toast.LENGTH_SHORT).show();
-        }));
+        });
+        // button() bakes in an 8dp TOP margin (meant for buttons stacked
+        // vertically with a gap between them) and no bottom margin. In this
+        // horizontal, CENTER_VERTICAL row that margin just pushes the
+        // button down and out of limitRow's own measured height -- not a
+        // rendering artifact, an actual position bug: it was overlapping
+        // (getting drawn under) the Park monitoring row right below.
+        LinearLayout.LayoutParams sLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        saveBtn.setLayoutParams(sLp);
+        limitRow.addView(saveBtn);
 
         LinearLayout parkedMonitor = toggleRow(getString(R.string.cfg_park_monitor_label),
             prefs.getBoolean("parked_monitoring", false), enabled -> {
@@ -363,6 +420,26 @@ public class TelemetryActivity extends Activity {
                     .putExtra("on", enabled ? 1 : 0));
             });
         content.addView(parkedMonitor);
+
+        // Settings end here, the clip list starts below -- a divider and its
+        // own header so the two don't read as one long undifferentiated
+        // column, same problem the compact limit-field row above just fixed
+        // for the field/button pair.
+        View divider = new View(this);
+        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 1));
+        divLp.topMargin = Style.dp(this, 18);
+        divLp.bottomMargin = Style.dp(this, 10);
+        divider.setLayoutParams(divLp);
+        divider.setBackgroundColor(Style.blend(Style.cardFillColor(), Style.TEXT_DIM, 0.18f));
+        content.addView(divider);
+        content.addView(sectionLabel(getString(R.string.clips_list_header)));
+        // Count/size is a fact about the clip list below, not the settings
+        // above it -- moved down here to sit with what it describes.
+        content.addView(Style.label(this, getString(R.string.clips_usage,
+            clips.size(), Clips.mb(Clips.usedBytes(this)), Clips.mb(Clips.heldBytes(this)),
+            Clips.mb(new android.os.StatFs(Clips.dir(this).getAbsolutePath()).getAvailableBytes()))));
+        Style.gap(content, this, 8);
 
         if (clips.isEmpty()) { content.addView(Style.label(this, getString(R.string.clips_none))); return; }
         for (Clips.Clip c : clips) content.addView(clipRow(c));
@@ -378,8 +455,12 @@ public class TelemetryActivity extends Activity {
                                   : Style.card(Style.CARD, this));
         int p = Style.dp(this, 14);
         card.setPadding(p, p, p, p);
+        // Capped, not MATCH_PARENT: a thumbnail, a couple of text lines, and
+        // two or three small buttons don't need the whole content width --
+        // stretched that far, every clip read as an empty bar with its
+        // content stranded on one side.
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            Style.dp(this, 820), ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.topMargin = Style.dp(this, 10);
         card.setLayoutParams(lp);
 
@@ -1793,6 +1874,54 @@ public class TelemetryActivity extends Activity {
                 ui.post(() -> {
                     if (status != null) status.setText(getString(R.string.update_check_failed, error));
                     logMqtt("UPDATE", "Erro na verificação: " + error);
+                });
+            }
+        });
+        updateCheckHelper();
+    }
+
+    // Same button, second independent check -- modehelper never shows its
+    // own UI, so there's no separate "check modehelper" affordance; this is
+    // the one place a manual check can reach it. Fired alongside the
+    // drivemem check above, not chained after it -- neither depends on the
+    // other's outcome. Derives modehelper's URL by swapping the filename on
+    // whatever drivemem's own configured update URL resolves to (same HA
+    // /local server, sibling file) rather than adding a second Settings
+    // field for one more URL to keep in sync.
+    private void updateCheckHelper() {
+        String base = Updater.resolveUrl(getApplicationContext(), null);
+        int slash = base.lastIndexOf('/');
+        if (slash < 0) return;
+        String helperUrl = base.substring(0, slash + 1) + "modehelper.apk";
+        Updater.check(getApplicationContext(), helperUrl, Updater.HELPER_PKG, new Updater.CheckCallback() {
+            @Override
+            public void onUpdateAvailable(Updater.UpdateInfo info) {
+                ui.post(() -> {
+                    logMqtt("UPDATE", "Atualização do ModeHelper encontrada: " + info.versionName);
+                    if (!com.geely.drivemem.state.CarState.isParked()) {
+                        logMqtt("UPDATE", "ModeHelper: veículo em movimento, atualização bloqueada.");
+                        return;
+                    }
+                    UpdateDialog.show(TelemetryActivity.this, info, () -> {
+                        logMqtt("UPDATE", "Atualização do ModeHelper aceita. Baixando e instalando...");
+                        Updater.updateHelper(getApplicationContext(), info.apkUrl,
+                            s -> ui.post(() -> logMqtt("UPDATE", "ModeHelper: " + s)));
+                    });
+                });
+            }
+
+            @Override
+            public void onAlreadyUpToDate(String currentVer) {
+                ui.post(() -> logMqtt("UPDATE", "ModeHelper já está na versão mais recente: " + currentVer));
+            }
+
+            @Override
+            public void onError(String error) {
+                ui.post(() -> {
+                    logMqtt("UPDATE", "ModeHelper: erro na verificação: " + error);
+                    if (error != null && error.contains("predates self-update")) {
+                        Toast.makeText(TelemetryActivity.this, error, Toast.LENGTH_LONG).show();
+                    }
                 });
             }
         });

@@ -1,19 +1,62 @@
 # Changelog
 
-## [Unreleased]
+## [v0.2.0] — 2026-09-15
+
+### ⚠️ Upgrade note for existing installs
+This release changes how ModeHelper accepts its own updates. If your
+ModeHelper was installed by an **older** release, it cannot update itself
+through the new automatic path — it doesn't yet recognize its own package
+as a valid update target. Drive Assist detects this up front and tells you
+so directly (instead of offering an update that would silently do nothing
+once confirmed). One-time fix: re-download and re-run
+`drive_assist_installer.apk` from this release. After that, both apps
+update themselves automatically from then on. Brand-new installs from this
+release are unaffected. Nothing else about ModeHelper — camera safety, the
+ADB toggle, drive modes, Drive Assist's own updates — depends on this and
+all keep working normally on an older ModeHelper in the meantime.
 
 ### Added
 - **Dashcam recording limit**: a new "Recording limit (GB)" field in the
   Recordings panel lets you set how much storage the dashcam's ring buffer
   is allowed to use, instead of a fixed 10 GB.
+- **OTA updates now cover ModeHelper too**, not just Drive Assist itself.
+  The privileged helper used to require a physical `adb install` for every
+  fix — including the camera-safety fix below. It now gets its own real,
+  build-to-build version number, its own update channel, and the same
+  Park-gated confirmation dialog Drive Assist's own updates already use.
+  Updating it delivers the standalone installer rather than trying to have
+  it narrowly "self-update" — the installer already bundles fresh copies
+  of both apps and installs them together, which is simpler and more
+  robust than tracking per-package version state through a restricted
+  self-check. Verified live on-device, twice: once end to end, and once
+  again after finding and fixing a real race condition where ModeHelper's
+  own cleanup logic could kill the installer mid-run.
+- **Automatic update checks**: Drive Assist now checks for new versions of
+  itself and ModeHelper once a day on its own, against your configured
+  update server or — if you never set one — GitHub Releases directly.
+  Previously this only ever ran when someone pressed "Check Update" or an
+  MQTT command told it to, so an install with no private server behind it
+  had no way to find out about a new release without being told to look.
+  Still fully silent unless something is actually newer, and still
+  Park-gated before ever showing a prompt.
+- **"Skip this version"**: the update dialog can now dismiss one specific
+  version for good, not just "ask again later" — for anyone who's decided
+  to pass on a particular build. A newer release still prompts normally.
+- **Battery-range chart context**: session bars in Charging Statistics now
+  sit on a faint full 0–100% track instead of floating on blank space —
+  light blue for the charge already held before the session, light grey
+  for the headroom left after it.
 
 ### Fixed
 - **Cold-weather heating (W1)**: The gentlest heat setting no longer recirculates cabin air on cold days — it now uses outside air, like every other heat setting. Recirculated air was blowing straight at the windshield, which risked fogging it instead of clearing it.
 - **Trip energy**: idle power draw after you've actually parked no longer counts toward that trip's consumption, so a short trip's efficiency no longer gets worse just because it took a while to close out.
 - **Dashcam recording toggle**: turning recording off in the Recordings panel now actually stays off across a restart. Before, the "Record" control was a momentary button — the car always started recording again on its own at the next boot regardless of what you'd chosen.
 - **Home screen card spacing**: a hidden card (like Portão when the gate isn't available) no longer leaves an extra gap behind it — one card-to-card spacing no longer looks wider than the others depending on which card happens to be hidden.
-- **Parked/trip tracking reliability**: trip, park, charging, and energy tracking no longer depend on the MQTT telemetry service staying alive. That service isn't guaranteed to run (it's skipped entirely when telemetry is off) and isn't guaranteed to stay up — this is what let the "Estacionado" card get stuck showing a park duration from the previous day, unaffected by a real drive in between.
+- **"Estacionado" (parked) timer stuck for hours**: opening the app's main screen was silently unregistering the listeners that reset the park timer, record park sessions, and track charging — a `setListener` call was replacing the whole list instead of adding to it, so simply looking at the screen after the first time broke tracking for the rest of the drive. Verified against real trip data: the timer had been stuck on the same 10+ hour-old timestamp across five separate drives in one day before this fix. Fixed by adding to the list instead of replacing it.
 - **Parked-monitoring camera safety**: disabled the parked-monitoring probe — it was opening its own independent connection to the same camera the dashcam already uses. On its first real use this froze the factory reverse-camera display on a stale image after a Park-then-Reverse transition, a real safety issue while backing up. Nothing in the app now opens that camera except the dashcam recorder itself.
+- **Weekly/Monthly stats hour-of-day chart**: was left blank on Week and Month views ("doesn't apply across a week" per the old logic) even though every other card on the same screen already shows real totals for the period. Now sums each day into one chart, same as those other cards already do.
+- **Config screen selected-item style**: now matches this car's own OEM settings menu — a thin accent bar and tinted label — instead of a solid filled pill.
+- **Dashcam settings page layout**: recording settings and the clip list below them read as one undifferentiated column; now separated by a clear divider. The recording-limit field and its Save button no longer stretch to the full row width. Each clip row is narrower instead of spanning the whole screen. The clip count/storage line now sits with the clip list it describes instead of up with the settings.
 
 ## [v0.1.6] — 2026-09-14
 

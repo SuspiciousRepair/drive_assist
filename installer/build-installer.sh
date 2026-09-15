@@ -42,11 +42,11 @@ _fp=$(openssl x509 -in "$KEY/platform.x509.pem" -outform DER | sha256sum | cut -
 [ "$_fp" = "c8a2e9bccf597c2fb6dc66bee293fc13f2fc47ec77bc6b2b0d52c11f51192ab8" ] \
   || { echo "ABORT: platform key != the car's ($_fp)"; exit 2; }
 
-# Step 1: Ensure modehelper.apk is built
-if [ ! -f "$ROOT/modehelper/modehelper.apk" ]; then
-  echo "Building modehelper..."
-  "$ROOT/modehelper/build-modehelper.sh"
-fi
+# Step 1: Always rebuild modehelper.apk -- never bundle/deploy a stale one
+# left over from an earlier run (this used to only build if the file was
+# missing, which could silently ship yesterday's modehelper indefinitely).
+echo "Building modehelper..."
+"$ROOT/modehelper/build-modehelper.sh"
 
 # Step 2: Ensure drive_assist.apk is built
 MAIN_APK="$ROOT/drive_assist.apk"

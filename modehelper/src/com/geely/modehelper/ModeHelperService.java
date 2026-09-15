@@ -124,10 +124,31 @@ public class ModeHelperService extends Service {
         return START_STICKY;
     }
 
-    /** Cleans up the temporary Drive Assist installer if it was left installed. */
+    // How long a just-launched installer gets before it's treated as a
+    // stale leftover instead of still legitimately running. Observed a
+    // full run (extract + install two APKs + launch drivemem + delete
+    // itself) finish in well under a minute; this is a generous margin,
+    // not a tight deadline.
+    private static final long INSTALLER_GRACE_MS = 3 * 60_000L;
+
+    /** Cleans up the temporary Drive Assist installer if it was left
+     * installed from an old, abandoned run -- but NOT if InstallResultReceiver
+     * just launched it as part of the installer-delivery OTA path (see its
+     * own comment): this runs on every service start, including the one
+     * caused by THIS install replacing modehelper itself, so without the
+     * grace window it would race the installer it just launched and kill
+     * it mid-flight, before it ever gets to install drivemem. */
     private void cleanupInstaller() {
         try {
             getPackageManager().getPackageInfo("com.geely.installer", 0);
+            long launchedMs = getSharedPreferences("modehelper", MODE_PRIVATE)
+                .getLong("installer_launched_ms", 0);
+            long age = System.currentTimeMillis() - launchedMs;
+            if (launchedMs > 0 && age < INSTALLER_GRACE_MS) {
+                Log.i(TAG, "cleanupInstaller: com.geely.installer launched " + (age / 1000)
+                    + "s ago, still within grace -- leaving it alone");
+                return;
+            }
             Log.i(TAG, "cleanupInstaller: found leftover com.geely.installer, uninstalling...");
             Installer.uninstall(getApplicationContext(), "com.geely.installer");
         } catch (PackageManager.NameNotFoundException ignored) {

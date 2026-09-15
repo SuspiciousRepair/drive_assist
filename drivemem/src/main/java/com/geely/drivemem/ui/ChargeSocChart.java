@@ -91,6 +91,21 @@ public final class ChargeSocChart extends ScrollView {
                 float half = Style.dp(getContext(), s.id == selectedId ? 13 : 11);
                 float xStart = left + axisWidth * Math.min(clamp(s.socStart), clamp(s.socEnd)) / 100f;
                 float xEnd = left + axisWidth * Math.max(clamp(s.socStart), clamp(s.socEnd)) / 100f;
+
+                // "The battery is always there": a full 0-100% track behind the
+                // session's own charged range, so that range reads in context of
+                // the whole pack instead of floating on blank space -- what it
+                // already had before this session (faint blue) and the headroom
+                // left afterward (light grey), same rounded shape as the segment
+                // itself. Drawn before the segment below, which paints over the
+                // middle third unchanged.
+                paint.setColor(Style.blend(Style.cardFillColor(), Style.TEXT_DIM, .18f));
+                canvas.drawRoundRect(new RectF(left, cy - half, right, cy + half), 7, 7, paint);
+                if (xStart > left) {
+                    paint.setColor(Style.blend(Style.cardFillColor(), Style.ACCENT, .18f));
+                    canvas.drawRoundRect(new RectF(left, cy - half, xStart, cy + half), 7, 7, paint);
+                }
+
                 int barColor = !s.hasChargeVoltage() ? Style.TEXT_DIM : s.isDcfc() ? Style.GOOD : Style.ACCENT;
                 paint.setColor(barColor);
                 paint.setAlpha(s.id == selectedId ? 255 : 205);

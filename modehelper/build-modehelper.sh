@@ -52,8 +52,24 @@ _fp=$(openssl x509 -in "$KEY/platform.x509.pem" -outform DER | sha256sum | cut -
   || { echo "ABORT: platform key != the car's ($_fp)"; exit 2; }
 echo "signing with the platform key ($_fp)"
 
+# Real, increasing version stamp -- same formula build.gradle already uses
+# for drivemem (versionCode = minutes since epoch, versionName = date + short
+# git SHA), so the two apps' version numbers mean the same thing. The tracked
+# manifest keeps its placeholder "1"/"1.0": patch a throwaway temp copy
+# instead of sed -i'ing the checked-in file, so a build never leaves the repo
+# dirty. Without this, every modehelper build reports identical versionCode=1
+# forever, and nothing (OTA included) can ever detect "there's a newer one."
+VC=$(( $(date +%s) / 60 ))
+VN="$(date +%Y%m%d-%H%M)-$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo nogit)"
+MANIFEST_BUILD="$(mktemp /tmp/modehelper-manifest-XXXXXX.xml)"
+trap 'rm -f "$MANIFEST_BUILD"' EXIT
+sed -e "s/android:versionCode=\"1\"/android:versionCode=\"$VC\"/" \
+    -e "s/android:versionName=\"1\.0\"/android:versionName=\"$VN\"/" \
+    AndroidManifest.xml > "$MANIFEST_BUILD"
+echo "version: versionCode=$VC versionName=$VN"
+
 rm -rf obj *.apk classes.dex; mkdir -p obj
-"$BT/aapt2" link -o base.apk -I "$AJ" --manifest AndroidManifest.xml \
+"$BT/aapt2" link -o base.apk -I "$AJ" --manifest "$MANIFEST_BUILD" \
   --min-sdk-version 28 --target-sdk-version 28
 "$JAVA_HOME/bin/javac" -classpath "$AJ:$CARJAR" -d obj $(find src -name '*.java')
 "$BT/d8" --min-api 28 --lib "$AJ" --output . $(find obj -name '*.class')

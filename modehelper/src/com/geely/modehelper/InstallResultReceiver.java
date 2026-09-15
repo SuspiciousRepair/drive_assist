@@ -21,8 +21,17 @@ public class InstallResultReceiver extends BroadcastReceiver {
         String msg = i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
         switch (status) {
             case PackageInstaller.STATUS_SUCCESS:
-                // Rarely seen: the process being replaced is usually gone first.
+                // Rarely seen for drivemem/modehelper themselves: the process
+                // being replaced is usually gone first. Reliably seen for the
+                // installer package, though -- installing IT never kills this
+                // process, since it's a third, independent package. That's
+                // exactly the case that needs a nudge: being installed does
+                // not run it, so launch it to actually do its job (install
+                // fresh drivemem + modehelper, then delete itself).
                 Log.i(TAG, "install: SUCCESS");
+                if ("com.geely.installer".equals(i.getStringExtra("targetPkg"))) {
+                    launchInstaller(ctx);
+                }
                 break;
             case PackageInstaller.STATUS_PENDING_USER_ACTION:
                 // Indicates INSTALL_PACKAGES is not granted, meaning the build is
@@ -32,6 +41,31 @@ public class InstallResultReceiver extends BroadcastReceiver {
                 break;
             default:
                 Log.e(TAG, "install: FAILED status=" + status + " " + msg);
+        }
+    }
+
+    private static void launchInstaller(Context ctx) {
+        try {
+            Intent launch = ctx.getPackageManager().getLaunchIntentForPackage("com.geely.installer");
+            if (launch == null) {
+                Log.w(TAG, "install: com.geely.installer has no launch intent");
+                return;
+            }
+            // Recorded BEFORE launching, not after: this line races
+            // ModeHelperService's own restart (this install just replaced
+            // modehelper itself) against ModeHelperService.cleanupInstaller(),
+            // which otherwise sees the installer package this launch just
+            // put there and treats it as a stale leftover from an OLD,
+            // abandoned run -- silently uninstalling it out from under
+            // itself mid-flight. cleanupInstaller() checks this timestamp
+            // and gives a fresh launch a grace window instead.
+            ctx.getSharedPreferences("modehelper", Context.MODE_PRIVATE).edit()
+                .putLong("installer_launched_ms", System.currentTimeMillis()).apply();
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(launch);
+            Log.i(TAG, "install: launched com.geely.installer to finish refreshing drivemem + modehelper");
+        } catch (Throwable t) {
+            Log.w(TAG, "install: failed to launch installer: " + t, t);
         }
     }
 }

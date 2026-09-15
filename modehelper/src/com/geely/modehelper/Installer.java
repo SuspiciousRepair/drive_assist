@@ -23,7 +23,26 @@ import java.net.URL;
  * (HTTPS, package name, signature match) rather than trusting the caller. */
 public class Installer {
     static final String TAG = "ModeHelper";
-    static final String TARGET_PKG = "com.geely.drivemem";
+    // Which package a downloaded APK is FOR is read from the APK's own
+    // declared package name, not passed in by the caller — same "verify the
+    // payload, not the caller" principle as everything else here. This
+    // allowlist is what stops that from becoming "install anything": only
+    // these two packages, both already part of this device's own install,
+    // are ever eligible. Modehelper installing an update to ITSELF (the
+    // com.geely.modehelper case) works the same way drivemem's own OTA
+    // already does — the installing process gets killed mid-call by the
+    // replace, and comes back via MY_PACKAGE_REPLACED, which BootReceiver
+    // already listens for.
+    // com.geely.installer is the standalone setup installer: it bundles
+    // fresh copies of BOTH drivemem and modehelper and installs them
+    // together, so an OTA that wants to refresh everything can deliver it
+    // instead of modehelper.apk directly -- see run()'s launch step below.
+    // It normally deletes itself after each run, which is why verify()
+    // below has to be able to check its signature without an existing
+    // install to compare against.
+    private static final java.util.Set<String> ALLOWED_PKGS =
+        new java.util.HashSet<>(java.util.Arrays.asList(
+            "com.geely.drivemem", "com.geely.modehelper", "com.geely.installer"));
     private static final int MAX_BYTES = 40 * 1024 * 1024;   // an apk, not a disk image
 
     // Serialize installations: retained MQTT commands trigger multiple broadcasts.
@@ -51,9 +70,10 @@ public class Installer {
             apk = download(ctx, url);
             if (apk == null) return;
 
-            if (!verify(ctx, apk)) return;      // logs its own reason
+            String targetPkg = verify(ctx, apk);      // logs its own reason
+            if (targetPkg == null) return;
 
-            commit(ctx, apk);
+            commit(ctx, apk, targetPkg);
         } catch (Throwable t) {
             Log.e(TAG, "install: failed: " + t, t);
         } finally {
@@ -85,34 +105,54 @@ public class Installer {
     }
 
     // The three checks that make an exported installer safe to expose.
-    private static boolean verify(Context ctx, File apk) {
+    // @return the verified target package name, or null if the payload was refused.
+    private static String verify(Context ctx, File apk) {
         PackageManager pm = ctx.getPackageManager();
         PackageInfo got = pm.getPackageArchiveInfo(apk.getAbsolutePath(),
                                                    PackageManager.GET_SIGNATURES);
-        if (got == null) { Log.w(TAG, "install: refused, not a readable apk"); return false; }
-        if (!TARGET_PKG.equals(got.packageName)) {
-            Log.w(TAG, "install: refused, package is " + got.packageName + " not " + TARGET_PKG);
-            return false;
+        if (got == null) { Log.w(TAG, "install: refused, not a readable apk"); return null; }
+        if (!ALLOWED_PKGS.contains(got.packageName)) {
+            Log.w(TAG, "install: refused, package " + got.packageName + " is not on the allowlist");
+            return null;
         }
-        PackageInfo cur;
+        PackageInfo cur = null;
         try {
-            cur = pm.getPackageInfo(TARGET_PKG, PackageManager.GET_SIGNATURES);
-        } catch (Throwable t) {
-            Log.w(TAG, "install: refused, " + TARGET_PKG + " is not installed to compare against");
-            return false;
+            cur = pm.getPackageInfo(got.packageName, PackageManager.GET_SIGNATURES);
+        } catch (Throwable ignored) {
+            // Not currently installed -- expected for com.geely.installer,
+            // which deletes itself after every run. Fall through to the
+            // signature fallback below instead of refusing outright.
         }
-        if (!sameSigner(cur.signatures, got.signatures)) {
-            Log.w(TAG, "install: refused, signature does not match the installed " + TARGET_PKG);
-            return false;
+
+        // Signature baseline: the target's own existing install if it has
+        // one, otherwise ourselves. drivemem, modehelper and the installer
+        // are always signed with the same platform key in this project, so
+        // falling back to our own signature is the same trust anchor, not
+        // a weaker one -- it only ever applies to a package with no install
+        // of its own to compare against yet.
+        PackageInfo baseline = cur;
+        if (baseline == null) {
+            try {
+                baseline = pm.getPackageInfo(ctx.getPackageName(), PackageManager.GET_SIGNATURES);
+            } catch (Throwable t) {
+                Log.w(TAG, "install: refused, no signature baseline available for " + got.packageName);
+                return null;
+            }
+        }
+        if (!sameSigner(baseline.signatures, got.signatures)) {
+            Log.w(TAG, "install: refused, signature does not match for " + got.packageName);
+            return null;
         }
         // Skip if already at this version: avoids redundant reinstalls when both
-        // cable install and OTA announcement happen for the same build.
-        if (got.versionCode == cur.versionCode) {
+        // cable install and OTA announcement happen for the same build. Only
+        // meaningful when the target is already installed -- a fresh install
+        // (the installer, most of the time) has nothing to skip against.
+        if (cur != null && got.versionCode == cur.versionCode) {
             Log.i(TAG, "install: skipped, already at versionCode " + cur.versionCode);
-            return false;
+            return null;
         }
         Log.i(TAG, "install: verified " + got.packageName + " v" + got.versionCode);
-        return true;
+        return got.packageName;
     }
 
     private static boolean sameSigner(Signature[] a, Signature[] b) {
@@ -125,25 +165,27 @@ public class Installer {
         return a.length == b.length;
     }
 
-    private static void commit(Context ctx, File apk) throws Exception {
+    private static void commit(Context ctx, File apk, String targetPkg) throws Exception {
         PackageInstaller pi = ctx.getPackageManager().getPackageInstaller();
         PackageInstaller.SessionParams p = new PackageInstaller.SessionParams(
             PackageInstaller.SessionParams.MODE_FULL_INSTALL);
-        p.setAppPackageName(TARGET_PKG);
+        p.setAppPackageName(targetPkg);
         int id = pi.createSession(p);
         try (PackageInstaller.Session s = pi.openSession(id)) {
             try (InputStream in = new java.io.FileInputStream(apk);
-                 OutputStream o = s.openWrite("drivemem", 0, apk.length())) {
+                 OutputStream o = s.openWrite(targetPkg, 0, apk.length())) {
                 byte[] buf = new byte[16384];
                 int n;
                 while ((n = in.read(buf)) > 0) o.write(buf, 0, n);
                 s.fsync(o);
             }
             // The result comes back to InstallResultReceiver. It matters that the
-            // session is owned by THIS app: the install replaces Drive Assist, killing
-            // Drive Assist's process mid-operation, so Drive Assist could never have driven its
+            // session is owned by THIS app: the install replaces the target package,
+            // killing its process mid-operation (including modehelper's own, when
+            // targetPkg is itself) — so that process could never have driven its
             // own session to completion.
             Intent i = new Intent(ctx, InstallResultReceiver.class);
+            i.putExtra("targetPkg", targetPkg);
             // No FLAG_MUTABLE: it only exists from API 31 and this builds against
             // android-28, where PendingIntents are mutable by default — which
             // this one must be, since PackageInstaller fills in the status

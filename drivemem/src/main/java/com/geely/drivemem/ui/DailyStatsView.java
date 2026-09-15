@@ -712,9 +712,12 @@ public class DailyStatsView extends LinearLayout {
         renderTimeCard(po.totals);
         renderAltitudeCard(po.totals);
         renderPeriodSessions(po);
-        // Hour-of-day breakdown doesn't apply across a week/month; render the
-        // existing empty state rather than querying a bogus "date".
-        renderHourlyChart(new DailyStatsProvider.HourlySpeedData());
+        // Hour-of-day doesn't mean a single moment across a week/month, but
+        // the days making up the period can still be summed into one chart
+        // -- same idea as po.totals already being the days summed together.
+        List<String> dates = new ArrayList<>(po.days.size());
+        for (DailyStatsProvider.DayOverview d : po.days) dates.add(d.date);
+        renderHourlyChart(DailyStatsProvider.getHourlySpeedData(getContext(), dates));
     }
 
     /** ISO-ish week-of-year number for the chart x-axis ("30", "31", "32"...). */

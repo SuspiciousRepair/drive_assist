@@ -38,12 +38,27 @@ public class Updater {
         public final int versionCode;
         public final String changelog;
         public final String apkUrl;
+        // Null for both = this app's own update, exactly as before (dialog
+        // falls back to the plain title and BuildConfig.VERSION_NAME). Set
+        // both when this UpdateInfo describes a DIFFERENT installed package
+        // (e.g. modehelper) — targetLabel is what the dialog titles itself
+        // with, currentVersionName is that package's own installed version,
+        // not this app's.
+        public final String targetLabel;
+        public final String currentVersionName;
 
         public UpdateInfo(String versionName, int versionCode, String changelog, String apkUrl) {
+            this(versionName, versionCode, changelog, apkUrl, null, null);
+        }
+
+        public UpdateInfo(String versionName, int versionCode, String changelog, String apkUrl,
+                           String targetLabel, String currentVersionName) {
             this.versionName = versionName;
             this.versionCode = versionCode;
             this.changelog = changelog;
             this.apkUrl = apkUrl;
+            this.targetLabel = targetLabel;
+            this.currentVersionName = currentVersionName;
         }
     }
 
@@ -57,27 +72,95 @@ public class Updater {
     public static final String HELPER_PKG = "com.geely.modehelper";
     static final String HELPER_INSTALL = "com.geely.modehelper.INSTALL_APK";
 
+    // The lowest ModeHelper versionCode whose own Installer.java accepts an
+    // update FOR ITSELF -- earlier builds only ever recognized drivemem as a
+    // valid update target and silently reject anything else (safe, but
+    // silent: no crash, no feedback, the confirm dialog just does nothing).
+    // Below this floor, check() refuses to offer a helper update at all,
+    // rather than dangling a prompt that fails after the user confirms it.
+    // See v0.2.0's changelog upgrade note -- a one-time `adb install`/
+    // installer re-run past this floor is what unblocks it for good.
+    public static final int HELPER_MIN_SELF_UPDATE_VC = 29825020;
+
     /**
      * Checks if a software update is available without immediately installing it.
      * Fetches the release notes and compares version codes.
      */
     public static void check(final Context ctx, final String url, final CheckCallback cb) {
+        check(ctx, url, null, cb);
+    }
+
+    /**
+     * Same as {@link #check(Context, String, CheckCallback)}, but compares
+     * against a different installed package's version instead of this app's
+     * own — e.g. "com.geely.modehelper", to check for a helper update. Pass
+     * null (or this app's own package) for the original self-update behavior.
+     */
+    /** The URL check()/update() actually resolve "" / "go" / null to — the
+     * user's configured drivemem update URL, or DEFAULT_URL. Exposed so a
+     * caller can derive a related URL (e.g. swap the filename to check for
+     * a modehelper update at the same server) without duplicating this
+     * resolution logic. */
+    public static String resolveUrl(Context ctx, String url) {
+        String u = (url == null) ? "" : url.trim();
+        if (u.isEmpty() || u.equalsIgnoreCase("go")) {
+            android.content.SharedPreferences pfUrl =
+                ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
+            u = pfUrl.getString("update_url", DEFAULT_URL);
+            if (u.trim().isEmpty()) u = DEFAULT_URL;
+        }
+        return u;
+    }
+
+    public static void check(final Context ctx, final String url, final String targetPkg, final CheckCallback cb) {
         new Thread(() -> {
             try {
-                String u = (url == null) ? "" : url.trim();
-                if (u.isEmpty() || u.equalsIgnoreCase("go")) {
-                    android.content.SharedPreferences pfUrl =
-                        ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-                    u = pfUrl.getString("update_url", DEFAULT_URL);
-                    if (u.trim().isEmpty()) u = DEFAULT_URL;
-                }
+                String u = resolveUrl(ctx, url);
                 if (!u.startsWith("https://")) {
                     if (cb != null) cb.onError("URL must start with https://");
                     return;
                 }
 
-                int curVc = BuildConfig.VERSION_CODE;
-                String curVn = BuildConfig.VERSION_NAME;
+                int curVc;
+                String curVn;
+                // Null for a self-update, exactly as before this method took a
+                // targetPkg at all -- UpdateInfo below only tags itself with a
+                // target label when this check is genuinely for a different
+                // installed package.
+                String targetLabel = null;
+                if (targetPkg == null || targetPkg.equals(ctx.getPackageName())) {
+                    curVc = BuildConfig.VERSION_CODE;
+                    curVn = BuildConfig.VERSION_NAME;
+                } else {
+                    targetLabel = HELPER_PKG.equals(targetPkg) ? "ModeHelper" : targetPkg;
+                    // A public PackageInfo query — no special permission needed to
+                    // read another installed app's own versionCode/versionName.
+                    PackageInfo self;
+                    try {
+                        self = ctx.getPackageManager().getPackageInfo(targetPkg, 0);
+                    } catch (PackageManager.NameNotFoundException e) {
+                        if (cb != null) cb.onError(targetPkg + " is not installed");
+                        return;
+                    }
+                    curVc = self.versionCode;
+                    curVn = self.versionName;
+                    if (HELPER_PKG.equals(targetPkg) && curVc < HELPER_MIN_SELF_UPDATE_VC) {
+                        if (cb != null) cb.onError("ModeHelper " + curVn
+                            + " predates self-update support -- reinstall drive_assist_installer.apk once");
+                        return;
+                    }
+                }
+
+                // A version the user explicitly dismissed with "Skip this
+                // version" (UpdateDialog) acts as a floor on top of curVc for
+                // "is this newer" purposes only -- every comparison below uses
+                // effectiveVc, not curVc, so the dialog itself (built from
+                // curVc/curVn, untouched) still shows what's REALLY installed,
+                // not what was last skipped. A newer release than the skipped
+                // one still prompts normally.
+                String skipKey = (targetLabel != null) ? "skip_update_vc_modehelper" : "skip_update_vc";
+                int skippedVc = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE).getInt(skipKey, 0);
+                int effectiveVc = Math.max(curVc, skippedVc);
 
                 // 1. Check if the URL carries a version query parameter (?v=...)
                 int remoteVc = -1;
@@ -86,7 +169,7 @@ public class Updater {
                     try { remoteVc = Integer.parseInt(m.group(1)); } catch (Exception ignored) {}
                 }
 
-                if (remoteVc > 0 && remoteVc <= curVc) {
+                if (remoteVc > 0 && remoteVc <= effectiveVc) {
                     if (cb != null) cb.onAlreadyUpToDate(curVn);
                     return;
                 }
@@ -101,8 +184,8 @@ public class Updater {
                     if (vm.find()) remoteVn = "v" + vm.group(1);
                 }
 
-                if (remoteVc > 0 && remoteVc > curVc) {
-                    if (cb != null) cb.onUpdateAvailable(new UpdateInfo(remoteVn, remoteVc, changelog, u));
+                if (remoteVc > 0 && remoteVc > effectiveVc) {
+                    if (cb != null) cb.onUpdateAvailable(new UpdateInfo(remoteVn, remoteVc, changelog, u, targetLabel, curVn));
                     return;
                 }
 
@@ -123,7 +206,7 @@ public class Updater {
                                 changelog = apkChangelog;
                             }
 
-                            if (remoteVc <= curVc) {
+                            if (remoteVc <= effectiveVc) {
                                 if (cb != null) cb.onAlreadyUpToDate(curVn);
                                 return;
                             }
@@ -134,7 +217,7 @@ public class Updater {
                 }
 
                 if (cb != null) {
-                    cb.onUpdateAvailable(new UpdateInfo(remoteVn, remoteVc > 0 ? remoteVc : curVc + 1, changelog, u));
+                    cb.onUpdateAvailable(new UpdateInfo(remoteVn, remoteVc > 0 ? remoteVc : effectiveVc + 1, changelog, u, targetLabel, curVn));
                 }
             } catch (Throwable t) {
                 Log.w(TAG, "check error: " + t);
@@ -217,6 +300,85 @@ public class Updater {
         } catch (Throwable t) {
             return false;
         }
+    }
+
+    private static final String AUTO_CHECK_PREF = "auto_update_last_check_ms";
+    public static final long AUTO_CHECK_INTERVAL_MS = 24L * 3600 * 1000;
+
+    /** Unattended update check against whatever URL is configured -- for
+     * most installs, nobody: that's what makes it resolve to DEFAULT_URL,
+     * the GitHub Releases download, same as a manual "Check Update" tap.
+     * Without this, an install with no private MQTT/HA of its own only
+     * ever finds out about a new release if someone remembers to press
+     * that button. Throttled to once a day (SharedPrefs timestamp, so it
+     * survives a process restart) and called from ComfortActivity.onResume
+     * -- opening the app is already the moment BootReceiver re-arms the
+     * watchdog, same "cheap, idempotent, do it whenever the screen opens"
+     * shape. Silent on already-up-to-date or error: the only visible
+     * effect, if any, is the same Park-gated UpdateDialog a manual check
+     * or MQTT command already produces. */
+    public static void autoCheckIfDue(final Context ctx) {
+        android.content.SharedPreferences pf = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
+        long last = pf.getLong(AUTO_CHECK_PREF, 0);
+        long now = System.currentTimeMillis();
+        if (now - last < AUTO_CHECK_INTERVAL_MS) return;
+        pf.edit().putLong(AUTO_CHECK_PREF, now).apply();
+
+        check(ctx, null, new CheckCallback() {
+            @Override public void onUpdateAvailable(UpdateInfo info) { broadcastAvailable(ctx, info); }
+            @Override public void onAlreadyUpToDate(String currentVer) {}
+            @Override public void onError(String error) {}
+        });
+
+        // Same filename-swap TelemetryActivity.updateCheckHelper() already
+        // uses for the manual button -- one more automatic consumer of the
+        // same derivation, not a second one to keep in sync.
+        String base = resolveUrl(ctx, null);
+        int slash = base.lastIndexOf('/');
+        if (slash < 0) return;
+        String helperUrl = base.substring(0, slash + 1) + "modehelper.apk";
+        check(ctx, helperUrl, HELPER_PKG, new CheckCallback() {
+            @Override public void onUpdateAvailable(UpdateInfo info) { broadcastAvailable(ctx, info); }
+            @Override public void onAlreadyUpToDate(String currentVer) {}
+            @Override public void onError(String error) {}
+        });
+    }
+
+    private static void broadcastAvailable(Context ctx, UpdateInfo info) {
+        Intent it = new Intent(ACTION_UPDATE_AVAILABLE);
+        it.putExtra("versionName", info.versionName);
+        it.putExtra("versionCode", info.versionCode);
+        it.putExtra("changelog", info.changelog);
+        it.putExtra("url", info.apkUrl);
+        if (info.targetLabel != null) it.putExtra("targetLabel", info.targetLabel);
+        if (info.currentVersionName != null) it.putExtra("currentVersionName", info.currentVersionName);
+        ctx.sendBroadcast(it);
+    }
+
+    /** Same delivery mechanism as {@link #update}, but for ModeHelper: swaps
+     * the filename to drive_assist_installer.apk before handing the URL
+     * over, so modehelper installs the standalone installer instead of
+     * modehelper.apk directly. The installer bundles fresh copies of BOTH
+     * drivemem and modehelper and refreshes them together -- simpler and
+     * more robust than modehelper "self-updating", and the only way an
+     * update ever reaches modehelper at all: nothing delivered THROUGH
+     * modehelper can fix modehelper's own rule about what it accepts, so
+     * this only works once modehelper is already new enough to accept the
+     * installer package in the first place (see HELPER_MIN_SELF_UPDATE_VC,
+     * already checked by check() before this is ever reachable). Callers
+     * that already know they're updating the helper should call this
+     * instead of update() directly -- one place doing the URL swap, not
+     * one per call site. */
+    public static void updateHelper(final Context ctx, final String helperApkUrl, final Progress p) {
+        String u = helperApkUrl;
+        int slash = (u == null) ? -1 : u.lastIndexOf('/');
+        if (slash >= 0) {
+            String rest = u.substring(slash + 1);
+            int q = rest.indexOf('?');
+            String query = q >= 0 ? rest.substring(q) : "";
+            u = u.substring(0, slash + 1) + "drive_assist_installer.apk" + query;
+        }
+        update(ctx, u, p);
     }
 
     public static void update(final Context ctx, final String url, final Progress p) {

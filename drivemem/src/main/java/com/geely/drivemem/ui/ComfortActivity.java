@@ -1459,9 +1459,12 @@ public class ComfortActivity extends Activity {
         activeUpdateDialog = UpdateDialog.show(this, info, () -> {
             pendingUpdate = null;
             activeUpdateDialog = null;
-            Updater.update(getApplicationContext(), info.apkUrl, s -> {
-                android.util.Log.i("ComfortActivity", "Update step: " + s);
-            });
+            Updater.Progress step = s -> android.util.Log.i("ComfortActivity", "Update step: " + s);
+            if (info.targetLabel != null) {
+                Updater.updateHelper(getApplicationContext(), info.apkUrl, step);
+            } else {
+                Updater.update(getApplicationContext(), info.apkUrl, step);
+            }
         }, () -> {
             // Driver declined/dismissed
             pendingUpdate = null;
@@ -1892,7 +1895,7 @@ public class ComfortActivity extends Activity {
             if (columns != null) repackColumns();
         }
         ChargeSession.setProgressListener(chargeListener);
-        CarState.setListener(carStateListener);
+        CarState.addListener(carStateListener);
         chargeBarW = -1;   // force one redraw even if the numbers match
         checkRetainedCharge();
         EntityBus.subscribe("charge.cost_updated", chargeBusListener);
@@ -1913,6 +1916,7 @@ public class ComfortActivity extends Activity {
         try {
             registerReceiver(updateReceiver, new IntentFilter(Updater.ACTION_UPDATE_AVAILABLE));
         } catch (Throwable ignored) {}
+        Updater.autoCheckIfDue(this);
         if (CarState.isParked() && pendingUpdate != null && (activeUpdateDialog == null || !activeUpdateDialog.isShowing())) {
             promptUpdateIfParked(pendingUpdate);
         }
@@ -1926,7 +1930,13 @@ public class ComfortActivity extends Activity {
             int vc = intent.getIntExtra("versionCode", 0);
             String cl = intent.getStringExtra("changelog");
             String url = intent.getStringExtra("url");
-            promptUpdateIfParked(new Updater.UpdateInfo(vn, vc, cl, url));
+            // Present only for a non-self update (e.g. modehelper) — see
+            // MqttReporter.doCmdUpdateHelper(). Absent extras fall through
+            // to the two nulls UpdateInfo's short constructor already uses,
+            // so this app's own update prompt is unchanged.
+            String targetLabel = intent.getStringExtra("targetLabel");
+            String currentVersionName = intent.getStringExtra("currentVersionName");
+            promptUpdateIfParked(new Updater.UpdateInfo(vn, vc, cl, url, targetLabel, currentVersionName));
         }
     };
 
@@ -1950,6 +1960,7 @@ public class ComfortActivity extends Activity {
         if (gateCard != null) gateCard.onPause();
         SpotifyClient.stopPolling();
         TurboMode.get(this).setListener(null);
+        CarState.removeListener(carStateListener);
         stopCarActorPolls();
         ui.removeCallbacks(rulerPoll);
         PanelState.setListener(null);

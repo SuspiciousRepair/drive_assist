@@ -478,6 +478,27 @@ public final class DailyStatsProvider {
         return out;
     }
 
+    /** Same hour-of-day/speed-bucket breakdown, summed across every date in
+     * a Week/Month period instead of just one day -- a single date's own
+     * "hour of day" doesn't mean anything once the period spans several of
+     * them, but the days making it up can still be summed into one chart,
+     * same shape as {@link #aggregate} does for the other daily totals. */
+    public static HourlySpeedData getHourlySpeedData(Context ctx, List<String> dates) {
+        HourlySpeedData out = new HourlySpeedData();
+        for (String d : dates) {
+            HourlySpeedData day = getHourlySpeedData(ctx, d);
+            for (int h = 0; h < 24; h++)
+                for (int b = 0; b < day.km[h].length; b++)
+                    out.km[h][b] += day.km[h][b];
+        }
+        for (int h = 0; h < 24; h++) {
+            double total = 0;
+            for (double value : out.km[h]) total += value;
+            if (total > out.maxHourlyTotalKm) out.maxHourlyTotalKm = total;
+        }
+        return out;
+    }
+
     /**
      * Buckets telemetry_sample by each row's own speed_kmh (0-40 / 40-80 /
      * 80-120 / 120+), same as the day's overall efficiency: energy_spent_kwh/

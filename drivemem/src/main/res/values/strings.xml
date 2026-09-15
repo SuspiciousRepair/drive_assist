@@ -315,6 +315,7 @@
     <!-- dashcam gallery -->
     <string name="clips_title">Recordings</string>
     <string name="clips_usage">%1$d clips · %2$s used · %3$s held · %4$s free</string>
+    <string name="clips_list_header">Clips</string>
     <string name="clips_none">Nothing recorded yet.</string>
     <string name="clips_play">Play</string>
     <string name="clips_hold">Hold</string>
@@ -421,12 +422,14 @@
 
     <!-- software update dialog & prompt -->
     <string name="update_dialog_title">Software Update Available</string>
+    <string name="update_dialog_title_target">%1$s Update Available</string>
     <string name="update_dialog_version_comp">Version: %1$s   ➔   %2$s</string>
     <string name="update_dialog_current_ver">Current version: %1$s</string>
     <string name="update_dialog_new_ver">New version: %1$s</string>
     <string name="update_dialog_changelog_header">What\'s new:</string>
     <string name="update_dialog_accept">Accept &amp; Update</string>
     <string name="update_dialog_decline">Later</string>
+    <string name="update_dialog_skip">Skip this version</string>
     <string name="update_checking">Checking for updates…</string>
     <string name="update_up_to_date">Drive Assist is up to date (%1$s)</string>
     <string name="update_check_failed">Could not check for updates: %1$s</string>
