@@ -137,4 +137,46 @@ public class DrivingConsumptionTest {
         double regen = 2 * (2.0 * 15_000.0 / 3_600_000.0); // two intervals × 2 kW × 15 s
         assertEquals(regen, c.totalRegen, 1e-9);
     }
+
+    // ── energySource() tally, via the 9-arg add() overload ──────────────────────
+
+    @Test public void energySourceIsMeasuredWhenAllRowsAreObd2() {
+        DrivingConsumption c = new DrivingConsumption();
+        c.add(0, 100, 20, 8, false, .1, 0, NaN, 1);
+        c.add(15000, 101, 20, 8, false, .1, 0, NaN, 1);
+        assertEquals(EnergySource.MEASURED, c.energySource());
+    }
+
+    @Test public void energySourceIsEstimatedWhenAllRowsAreSocDelta() {
+        DrivingConsumption c = new DrivingConsumption();
+        c.add(0, 100, 20, 8, false, .1, 0, NaN, 0);
+        c.add(15000, 101, 20, 8, false, .1, 0, NaN, 0);
+        assertEquals(EnergySource.ESTIMATED, c.energySource());
+    }
+
+    @Test public void energySourceIsMixedWhenBothKindsOfRowAppear() {
+        DrivingConsumption c = new DrivingConsumption();
+        c.add(0, 100, 20, 8, false, .1, 0, NaN, 1);
+        c.add(15000, 101, 20, 8, false, .1, 0, NaN, 0);
+        assertEquals(EnergySource.MIXED, c.energySource());
+    }
+
+    // A null energy_measured is a pre-migration row: real spent/regen energy
+    // exists, but nothing recorded which source it came from. Must resolve
+    // NO_DATA, not get miscounted as either measured or estimated.
+    @Test public void energySourceIsNoDataForLegacyRowsWithNoRecordedSource() {
+        DrivingConsumption c = new DrivingConsumption();
+        c.add(0, 100, 20, 8, false, .1, 0, NaN, null);
+        c.add(15000, 101, 20, 8, false, .1, 0, NaN, null);
+        assertEquals(EnergySource.NO_DATA, c.energySource());
+        assertEquals(.2, c.totalSpent, 1e-9); // energy itself is still tallied
+    }
+
+    // Matches totalSpent/totalRegen's own gating: a parked row contributes
+    // nothing to the tally either, even if it claims to be measured.
+    @Test public void energySourceTallyExcludesParkedRows() {
+        DrivingConsumption c = new DrivingConsumption();
+        c.add(0, 100, 0, 4, false, 2, 0, NaN, 1); // parked (gear 4): excluded
+        assertEquals(EnergySource.NO_DATA, c.energySource());
+    }
 }

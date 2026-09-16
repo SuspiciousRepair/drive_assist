@@ -139,25 +139,30 @@ public class Telemetry {
         // 3. Regen (energy recovered: kW and kWh >= 0)
         Float obdPower = Obd2Reader.freshPowerKw(POWER_WINDOW_MS / 2);
         Float fallbackSocPower = null;
-        if (obdPower == null) {
-            Object socObj = out.get("battery");
-            if (socObj instanceof Integer) {
-                int socNow = (Integer) socObj;
-                long now = System.currentTimeMillis();
-                if (lastPowerSoc != null) {
-                    long elapsedMs = now - lastPowerSocAtMs;
-                    if (elapsedMs >= POWER_WINDOW_MS) {
-                        double deltaFrac = (lastPowerSoc - socNow) / 100.0;
-                        double hours = elapsedMs / 3_600_000.0;
-                        double watts = (deltaFrac * CAPACITY_WH) / hours;
-                        fallbackSocPower = (float) (watts / 1000.0);
-                        lastPowerSoc = socNow;
-                        lastPowerSocAtMs = now;
-                    }
-                } else {
+        double fallbackWindowHours = 0;
+        // Tracked always, not only when OBD2 is absent -- so a mid-trip
+        // disconnect doesn't cold-start this estimate (the SoC tracker was
+        // already warm), and every window has a recorded estimate alongside
+        // whatever the "best available" (OBD-priority) energy turned out to
+        // be. See EnergySource / CarDb v21.
+        Object socObj = out.get("battery");
+        if (socObj instanceof Integer) {
+            int socNow = (Integer) socObj;
+            long now = System.currentTimeMillis();
+            if (lastPowerSoc != null) {
+                long elapsedMs = now - lastPowerSocAtMs;
+                if (elapsedMs >= POWER_WINDOW_MS) {
+                    double deltaFrac = (lastPowerSoc - socNow) / 100.0;
+                    double hours = elapsedMs / 3_600_000.0;
+                    double watts = (deltaFrac * CAPACITY_WH) / hours;
+                    fallbackSocPower = (float) (watts / 1000.0);
+                    fallbackWindowHours = hours;
                     lastPowerSoc = socNow;
                     lastPowerSocAtMs = now;
                 }
+            } else {
+                lastPowerSoc = socNow;
+                lastPowerSocAtMs = now;
             }
         }
 
@@ -176,6 +181,15 @@ public class Telemetry {
         out.put("energy_spent_kwh", (float) snap.spentKwh);
         out.put("energy_regen_kwh", (float) snap.regenKwh);
         out.put("energy_net_kwh", (float) snap.netKwh);
+        out.put("energy_measured", snap.sampleCount > 0 ? 1 : 0);
+        // Always-recorded SoC-delta estimate, independent of whether OBD2
+        // backed this window's "best available" energy above.
+        if (fallbackSocPower != null) {
+            out.put("energy_spent_est_kwh",
+                fallbackSocPower >= 0 ? (float) (fallbackSocPower * fallbackWindowHours) : 0f);
+            out.put("energy_regen_est_kwh",
+                fallbackSocPower < 0 ? (float) (-fallbackSocPower * fallbackWindowHours) : 0f);
+        }
 
         // Parking Mode (0 = off; otherwise the low byte is the chosen duration)
         Integer pm = car.readParkMode();

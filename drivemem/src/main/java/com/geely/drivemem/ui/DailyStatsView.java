@@ -2,6 +2,7 @@ package com.geely.drivemem.ui;
 
 import com.geely.drivemem.car.EntityBus;
 import com.geely.drivemem.sensors.DailyStatsProvider;
+import com.geely.drivemem.sensors.EnergySource;
 import com.geely.drivemem.util.Style;
 
 import android.content.Context;
@@ -457,7 +458,8 @@ public class DailyStatsView extends LinearLayout {
 
         // If currently viewing today, update cards and session log
         if (selectedIdx == todayIdx) {
-            renderOverview(ov);
+            renderOverview(DailyStatsProvider.getStatsDetail(
+                    getContext(), DailyStatsProvider.Granularity.DAY, today));
         }
     }
 
@@ -561,8 +563,8 @@ public class DailyStatsView extends LinearLayout {
         }
 
         // Fetch day details
-        DailyStatsProvider.DayOverview ov = DailyStatsProvider.getDayOverview(getContext(), dayItem.date);
-        renderOverview(ov);
+        renderOverview(DailyStatsProvider.getStatsDetail(
+                getContext(), DailyStatsProvider.Granularity.DAY, dayItem.date));
     }
 
     private void onNavPrev() {
@@ -707,21 +709,35 @@ public class DailyStatsView extends LinearLayout {
         navNextBtn.setEnabled(idx < periodWindow.size() - 1);
         navNextBtn.setAlpha(idx < periodWindow.size() - 1 ? 1.0f : 0.35f);
 
-        renderConsumptionCard(po.totals);
+        // periodWindow's own entries are the cheap totals-only kind (built by
+        // recentWeeks()/recentMonths() for every bar in the nav strip); the
+        // charts below need the fuller breakdown, fetched only for the one
+        // period actually on screen -- same granularity, any day inside it
+        // as the anchor (getStatsDetail re-derives the period's own bounds).
+        DailyStatsProvider.Granularity granularity = period == Period.WEEK
+                ? DailyStatsProvider.Granularity.WEEK : DailyStatsProvider.Granularity.MONTH;
+        DailyStatsProvider.StatsDetail detail =
+                DailyStatsProvider.getStatsDetail(getContext(), granularity, po.days.get(0).date);
+
+        renderConsumptionCard(po.totals, detail.speedBuckets);
         renderBatteryCard(po.totals); // pii: allow (17-char identifier, not a VIN)
         renderTimeCard(po.totals);
         renderAltitudeCard(po.totals);
         renderPeriodSessions(po);
-        // Hour-of-day doesn't mean a single moment across a week/month, but
-        // the days making up the period can still be summed into one chart
-        // -- same idea as po.totals already being the days summed together.
-        List<String> dates = new ArrayList<>(po.days.size());
-        for (DailyStatsProvider.DayOverview d : po.days) dates.add(d.date);
-        renderHourlyChart(DailyStatsProvider.getHourlySpeedData(getContext(), dates));
+        renderHourlyChart(detail.hourly);
     }
 
     /** ISO-ish week-of-year number for the chart x-axis ("30", "31", "32"...). */
-    private static String weekChartLabel(String isoDate) {
+    /** Parenthetical suffix for a caption/value string, matching the
+     * existing "(estimado)" convention this file already uses for trip
+     * rows -- MEASURED/NO_DATA get no suffix at all. */
+    static String energySourceSuffix(EnergySource source) {
+        if (source == EnergySource.ESTIMATED) return " (estimado)";
+        if (source == EnergySource.MIXED) return " (parcialmente estimado)";
+        return "";
+    }
+
+    static String weekChartLabel(String isoDate) {
         try {
             java.util.Calendar cal = java.util.Calendar.getInstance();
             cal.setTime(new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(isoDate));
@@ -732,7 +748,7 @@ public class DailyStatsView extends LinearLayout {
     /** Short month abbreviation for the chart x-axis ("Ago", "Set", "Out"...). */
     private static final java.text.SimpleDateFormat MONTH_CHART_FMT =
         new java.text.SimpleDateFormat("MMM", new Locale("pt", "BR"));
-    private static String monthChartLabel(String isoDate) {
+    static String monthChartLabel(String isoDate) {
         try {
             String s = MONTH_CHART_FMT.format(new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(isoDate));
             s = s.replace(".", ""); // pt-BR abbreviations sometimes carry a trailing dot ("set.")
@@ -852,24 +868,26 @@ public class DailyStatsView extends LinearLayout {
         } catch (Exception e) { return -1; }
     }
 
-    private void renderOverview(DailyStatsProvider.DayOverview ov) {
-        // Capitalize the first letter of display date (e.g. "Quinta-feira, 10 de setembro")
-        if (ov.displayDate != null && !ov.displayDate.isEmpty()) {
-            String capDate = Character.toUpperCase(ov.displayDate.charAt(0)) + ov.displayDate.substring(1);
-            navDateLabel.setText(capDate);
+    private void renderOverview(DailyStatsProvider.StatsDetail detail) {
+        DailyStatsProvider.DayOverview ov = detail.overview.totals;
+
+        // Capitalize the first letter of the nav label (e.g. "Quinta-feira, 10 de setembro")
+        String label = detail.overview.periodLabel;
+        if (label != null && !label.isEmpty()) {
+            navDateLabel.setText(Character.toUpperCase(label.charAt(0)) + label.substring(1));
         } else {
             navDateLabel.setText("");
         }
 
         // 4-Column Middle Section
-        renderConsumptionCard(ov);
+        renderConsumptionCard(ov, detail.speedBuckets);
         renderBatteryCard(ov);
         renderTimeCard(ov);
         renderAltitudeCard(ov);
 
         // Bottom Section: Sessions
         renderSessions(ov);
-        renderHourlyChart(DailyStatsProvider.getHourlySpeedData(getContext(), ov.date));
+        renderHourlyChart(detail.hourly);
     }
 
     private void renderHourlyChart(DailyStatsProvider.HourlySpeedData data) {
@@ -954,7 +972,7 @@ public class DailyStatsView extends LinearLayout {
         return caption;
     }
 
-    private void renderConsumptionCard(DailyStatsProvider.DayOverview ov) {
+    private void renderConsumptionCard(DailyStatsProvider.DayOverview ov, DailyStatsProvider.SpeedBucket[] buckets) {
         Context c = getContext();
         consumptionCard.removeAllViews();
 
@@ -971,7 +989,8 @@ public class DailyStatsView extends LinearLayout {
         CharSequence heroVal = ov.efficiencyKwh100km > 0
                 ? valueWithUnit(String.format(Locale.US, "%.1f", ov.efficiencyKwh100km), null, "kWh/100 km", HERO_UNIT_SCALE)
                 : "—";
-        consumptionCard.addView(createHeroView(c, heroVal, "Consumo por velocidade"));
+        String consumptionCaption = "Consumo por velocidade" + energySourceSuffix(ov.energySource);
+        consumptionCard.addView(createHeroView(c, heroVal, consumptionCaption));
         Style.gap(consumptionCard, c, 10);
 
         // Consumption by speed bucket (0-40/40-80/80-120/120+ km/h) -- the
@@ -980,8 +999,6 @@ public class DailyStatsView extends LinearLayout {
         // average marked as a reference line, so the hero number reads next
         // to the question it actually answers: is today's average coming
         // from city driving, highway, or a mix.
-        DailyStatsProvider.SpeedBucket[] buckets =
-                DailyStatsProvider.getSpeedBucketEfficiency(c, ov.date);
         consumptionCard.addView(buildSpeedBucketChart(c, buckets, ov.efficiencyKwh100km));
         Style.gap(consumptionCard, c, 14);
 
@@ -1597,7 +1614,9 @@ public class DailyStatsView extends LinearLayout {
         appendDivider(l2Sb);
 
         // Consumo: 1.0 kWh (Regen +0.7)
-        String netStr = (t.spentKwh > 0 || t.regenKwh > 0)
+        String netStr = (t.energySource == EnergySource.ESTIMATED || t.energySource == EnergySource.MIXED)
+                ? String.format(Locale.US, "%.1f kWh", t.energyKwh) + energySourceSuffix(t.energySource)
+                : (t.spentKwh > 0 || t.regenKwh > 0)
                 ? String.format(Locale.US, "%.1f kWh", t.energyKwh)
                 : (t.distanceKm > 0 ? "0.0 kWh" : "—");
         appendMetadata(l2Sb, "Consumo: ", netStr, Style.TEXT);

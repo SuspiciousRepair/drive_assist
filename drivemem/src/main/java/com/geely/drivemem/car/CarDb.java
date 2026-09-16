@@ -29,7 +29,7 @@ public final class CarDb extends SQLiteOpenHelper {
     // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
     // every write failed until this was bumped past 14. See the v15 entry in
     // onUpgrade below for what v15 itself actually does.
-    private static final int VERSION = 17;
+    private static final int VERSION = 21;
 
     private static volatile CarDb instance;
 
@@ -55,7 +55,7 @@ public final class CarDb extends SQLiteOpenHelper {
             + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
             + "ts_ms INTEGER NOT NULL,"
             + "odo_km REAL,"
-            + "battery_pct INTEGER,"
+            + "battery_pct INTEGER, battery_raw_pct REAL,"
             + "speed_kmh REAL,"
             + "gear INTEGER,"
             + "is_charging INTEGER,"
@@ -72,7 +72,9 @@ public final class CarDb extends SQLiteOpenHelper {
             + "energy_spent_kwh REAL,"
             + "energy_regen_kwh REAL,"
             + "energy_net_kwh REAL,"
-            + "battery_temp_c REAL)");
+            + "battery_temp_c REAL,"
+            + "energy_measured INTEGER,"
+            + "energy_spent_est_kwh REAL, energy_regen_est_kwh REAL)");
         db.execSQL("CREATE INDEX idx_sample_ts ON telemetry_sample(ts_ms)");
         db.execSQL("CREATE INDEX idx_sample_odo ON telemetry_sample(odo_km)");
 
@@ -120,7 +122,9 @@ public final class CarDb extends SQLiteOpenHelper {
             + "ascent_m REAL, descent_m REAL,"
             + "regen_kwh REAL,"
             + "spent_kwh REAL,"
-            + "net_kwh REAL)");
+            + "net_kwh REAL,"
+            + "energy_source TEXT, estimated_net_kwh REAL)");
+        createTripEnergySegment(db);
 
         db.execSQL("CREATE TABLE comfort_event ("
             + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -167,7 +171,17 @@ public final class CarDb extends SQLiteOpenHelper {
             + "charge_cost REAL NOT NULL DEFAULT 0,"
             + "discharge_kwh REAL NOT NULL DEFAULT 0,"
             + "regen_kwh REAL NOT NULL DEFAULT 0,"
-            + "net_kwh REAL NOT NULL DEFAULT 0)");
+            + "net_kwh REAL NOT NULL DEFAULT 0,"
+            + "energy_source TEXT)");
+    }
+
+    /** Immutable source-specific portions of a trip; never merge estimated and measured energy. */
+    private static void createTripEnergySegment(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS trip_energy_segment ("
+            + "id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER,"
+            + "start_ms INTEGER NOT NULL, end_ms INTEGER NOT NULL,"
+            + "source TEXT NOT NULL, net_kwh REAL NOT NULL)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_trip_energy_segment_trip ON trip_energy_segment(trip_id)");
     }
 
     private static void createValetSession(SQLiteDatabase db) {
@@ -332,6 +346,32 @@ public final class CarDb extends SQLiteOpenHelper {
                 + "start_soc,end_soc,max_speed_kmh,max_power_kw) SELECT id,start_ms,end_ms,"
                 + "start_odo_km,end_odo_km,start_soc,end_soc,max_speed_kmh,max_power_kw FROM valet_session_v16");
             db.execSQL("DROP TABLE valet_session_v16");
+        }
+        // v17 -> v18: preserve the VHAL's decimal SoC beside the established
+        // whole-percent display value. It supports explicitly-estimated
+        // no-OBD trip totals without changing existing UI/HA semantics.
+        if (oldVersion < 18) {
+            db.execSQL("ALTER TABLE telemetry_sample ADD COLUMN battery_raw_pct REAL");
+        }
+        if (oldVersion < 19) {
+            db.execSQL("ALTER TABLE trip ADD COLUMN energy_source TEXT");
+            db.execSQL("ALTER TABLE trip ADD COLUMN estimated_net_kwh REAL");
+        }
+        if (oldVersion < 20) createTripEnergySegment(db);
+        // v20 -> v21: was this sample's energy measured (OBD2) or estimated
+        // (VHAL SoC-delta)? See EnergySource. Nullable, forward-only -- no
+        // backfill for pre-migration rows, since the split for that history
+        // was never captured (that's the bug this migration fixes, not
+        // something recoverable). energy_spent_est_kwh/energy_regen_est_kwh
+        // are the SoC-delta estimate, now recorded every tick regardless of
+        // whether OBD2 was available that tick, so a mid-trip disconnect
+        // doesn't cold-start the estimate and any period can be
+        // reconstructed on a consistent all-estimated basis later.
+        if (oldVersion < 21) {
+            db.execSQL("ALTER TABLE telemetry_sample ADD COLUMN energy_measured INTEGER");
+            db.execSQL("ALTER TABLE telemetry_sample ADD COLUMN energy_spent_est_kwh REAL");
+            db.execSQL("ALTER TABLE telemetry_sample ADD COLUMN energy_regen_est_kwh REAL");
+            db.execSQL("ALTER TABLE daily_stat ADD COLUMN energy_source TEXT");
         }
     }
 

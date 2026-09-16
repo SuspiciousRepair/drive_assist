@@ -6,6 +6,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.geely.drivemem.R;
+import com.geely.drivemem.sensors.EnergySource;
 import com.geely.drivemem.util.Style;
 import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.components.XAxis;
@@ -27,6 +28,7 @@ public final class EnergyBalanceChart extends LinearLayout {
     public static final class Day {
         public final String label;
         public double spent, regen, ac, dc;
+        public EnergySource energySource = EnergySource.NO_DATA;
 
         public Day(String label) { this.label = label; }
     }
@@ -123,8 +125,11 @@ public final class EnergyBalanceChart extends LinearLayout {
     }
 
     private void showDay(Day d) {
+        // Reuses DailyStatsView's own "(estimado)"/"(parcialmente estimado)"
+        // suffix convention -- same package, one vocabulary for this idea.
         detail.setText(String.format(Locale.getDefault(), "%s  ·  %s −%.2f  ·  %s +%.2f  ·  AC +%.2f  ·  DC +%.2f kWh",
                 d.label, getContext().getString(R.string.charge_balance_spent), d.spent,
-                getContext().getString(R.string.charge_balance_regen), d.regen, d.ac, d.dc));
+                getContext().getString(R.string.charge_balance_regen), d.regen, d.ac, d.dc)
+                + DailyStatsView.energySourceSuffix(d.energySource));
     }
 }
