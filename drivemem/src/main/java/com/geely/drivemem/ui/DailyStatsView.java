@@ -719,22 +719,16 @@ public class DailyStatsView extends LinearLayout {
     }
 
     /** ISO-ish week-of-year number for the chart x-axis ("30", "31", "32"...). */
-    /** Parenthetical suffix for a caption/value string, matching the
-     * existing "(estimado)" convention this file already uses for trip
-     * rows -- MEASURED/NO_DATA get no suffix at all. */
-    static String energySourceSuffix(EnergySource source) {
-        if (source == EnergySource.ESTIMATED) return " (estimado)";
-        if (source == EnergySource.MIXED) return " (parcialmente estimado)";
-        return "";
-    }
-
-    /** Adds the compact source marker to values that contain estimated energy. */
+    /** Appends a small, wordless "~" mark (dim, undersized, via Style's
+     * existing appendUnit -- the same treatment units/asides already get)
+     * when a value isn't fully OBD2-measured. No text, one glyph, functions
+     * as an icon rather than a label. MEASURED/NO_DATA get nothing appended. */
     static CharSequence withEnergySourceMark(CharSequence base, EnergySource source) {
         if (source != EnergySource.ESTIMATED && source != EnergySource.MIXED) return base;
-        SpannableStringBuilder marked = new SpannableStringBuilder(base);
-        marked.append(' ');
-        Style.appendUnit(marked, "~", 0.85f);
-        return marked;
+        SpannableStringBuilder sb = new SpannableStringBuilder(base);
+        sb.append(' ');
+        Style.appendUnit(sb, "~", 0.85f);
+        return sb;
     }
 
     static String weekChartLabel(String isoDate) {
@@ -988,7 +982,7 @@ public class DailyStatsView extends LinearLayout {
                 ? withEnergySourceMark(valueWithUnit(String.format(Locale.US, "%.1f", ov.efficiencyKwh100km),
                     null, "kWh/100 km", HERO_UNIT_SCALE), ov.energySource)
                 : "—";
-        String consumptionCaption = "Consumo por velocidade" + energySourceSuffix(ov.energySource);
+        CharSequence consumptionCaption = withEnergySourceMark("Consumo por velocidade", ov.energySource);
         consumptionCard.addView(createHeroView(c, heroVal, consumptionCaption));
         Style.gap(consumptionCard, c, 10);
 
@@ -1000,7 +994,19 @@ public class DailyStatsView extends LinearLayout {
         // from city driving, highway, or a mix.
         DailyStatsProvider.SpeedBucket[] buckets =
                 DailyStatsProvider.getSpeedBucketEfficiency(c, ov.date);
-        consumptionCard.addView(buildSpeedBucketChart(c, buckets, ov.efficiencyKwh100km));
+        //
+        // Without OBD2, this breakdown isn't just less precise, it's not
+        // computable at all: the VHAL SoC-delta estimate is one power number
+        // averaged over a ~30s window, and a car's speed can cross several
+        // buckets within that window -- there is no way to know how much of
+        // that window's energy happened at which speed. A day with zero
+        // telemetry (NO_DATA) keeps the existing per-bucket "—" chart, which
+        // already says "nothing recorded" correctly; only ESTIMATED/MIXED
+        // energy gets the explicit unavailable message instead of a
+        // fabricated bucket-level number.
+        consumptionCard.addView(ov.energySource == EnergySource.ESTIMATED || ov.energySource == EnergySource.MIXED
+                ? buildSpeedBucketUnavailable(c)
+                : buildSpeedBucketChart(c, buckets, ov.efficiencyKwh100km));
         Style.gap(consumptionCard, c, 14);
 
         // Every secondary number gets its own chip, distributed across the
@@ -1157,7 +1163,7 @@ public class DailyStatsView extends LinearLayout {
     private static final float HERO_UNIT_SCALE = Style.UNIT_SCALE_HERO;
     private static final float ROW_UNIT_SCALE = Style.UNIT_SCALE_ROW;
 
-    private View createHeroView(Context c, CharSequence value, String subCaption) {
+    private View createHeroView(Context c, CharSequence value, CharSequence subCaption) {
         LinearLayout hero = new LinearLayout(c);
         hero.setOrientation(LinearLayout.VERTICAL);
 
@@ -1206,6 +1212,20 @@ public class DailyStatsView extends LinearLayout {
         chip.addView(valueTv);
 
         return chip;
+    }
+
+    /** Replaces the speed-bucket chart when the period's energy isn't OBD2-measured
+     * -- see buildSpeedBucketChart's call site for why a bucket-level number
+     * can't be honestly computed from the SoC-delta estimate. */
+    private View buildSpeedBucketUnavailable(Context c) {
+        TextView msg = Style.label(c, "Detalhamento por velocidade indisponível sem OBD2");
+        msg.setTextSize(13f);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = Style.dp(c, 6);
+        lp.bottomMargin = Style.dp(c, 6);
+        msg.setLayoutParams(lp);
+        return msg;
     }
 
     /** Puts an MDI chevron on a nav button (left of text if onLeft, else right), tinted to match the label. */
@@ -1624,12 +1644,18 @@ public class DailyStatsView extends LinearLayout {
         appendDivider(l2Sb);
 
         // Consumo: 1.0 kWh (Regen +0.7)
-        String netStr = (t.energySource == EnergySource.ESTIMATED || t.energySource == EnergySource.MIXED)
-                ? String.format(Locale.US, "%.1f kWh", t.energyKwh) + energySourceSuffix(t.energySource)
-                : (t.spentKwh > 0 || t.regenKwh > 0)
+        String netStr = (t.spentKwh > 0 || t.regenKwh > 0)
                 ? String.format(Locale.US, "%.1f kWh", t.energyKwh)
                 : (t.distanceKm > 0 ? "0.0 kWh" : "—");
         appendMetadata(l2Sb, "Consumo: ", netStr, Style.TEXT);
+        // Appended outside appendMetadata, not inside netStr: a color span
+        // embedded in netStr would be layered under appendMetadata's own
+        // valueColor span over the same range, an ambiguous overlap. Applied
+        // here instead, it's the last (and only) span over this exact range.
+        if (t.energySource == EnergySource.ESTIMATED || t.energySource == EnergySource.MIXED) {
+            l2Sb.append(' ');
+            Style.appendUnit(l2Sb, "~", 0.85f);
+        }
 
         if (t.regenKwh > 0) {
             l2Sb.append(" (Regen ");

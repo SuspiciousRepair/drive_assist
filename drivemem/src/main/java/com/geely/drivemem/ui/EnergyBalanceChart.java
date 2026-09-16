@@ -125,11 +125,11 @@ public final class EnergyBalanceChart extends LinearLayout {
     }
 
     private void showDay(Day d) {
-        // Reuses DailyStatsView's own "(estimado)"/"(parcialmente estimado)"
-        // suffix convention -- same package, one vocabulary for this idea.
-        detail.setText(String.format(Locale.getDefault(), "%s  ·  %s −%.2f  ·  %s +%.2f  ·  AC +%.2f  ·  DC +%.2f kWh",
+        String base = String.format(Locale.getDefault(), "%s  ·  %s −%.2f  ·  %s +%.2f  ·  AC +%.2f  ·  DC +%.2f kWh",
                 d.label, getContext().getString(R.string.charge_balance_spent), d.spent,
-                getContext().getString(R.string.charge_balance_regen), d.regen, d.ac, d.dc)
-                + DailyStatsView.energySourceSuffix(d.energySource));
+                getContext().getString(R.string.charge_balance_regen), d.regen, d.ac, d.dc);
+        // Reuses DailyStatsView's own wordless "~" mark -- same package, one
+        // vocabulary for "not fully OBD2-measured".
+        detail.setText(DailyStatsView.withEnergySourceMark(base, d.energySource));
     }
 }
