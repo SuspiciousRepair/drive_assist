@@ -98,49 +98,59 @@ The telemetry payload conforms to the official **ITERNIO Telemetry Specification
 While Drive Assist works completely standalone using the car's built-in VHAL, pairing an **OBD2 Bluetooth dongle** unlocks decimal-level precision (0.1% SoC) and live battery power (kW) polled directly from the Battery Management System (ECU `0x7E2`).
 
 ### Supported Adapters
-* **Classic Bluetooth 2.1/3.0 / Dual-Mode Adapters** (Tested & Verified):
-  * **vLinker MC+** (Classic identity: `vLinker MC-Android`)
-  * **OBDLink LX / MX**
+* **Tested & Verified**:
+  * **vLinker MC+** (Classic identity: `vLinker MC-Android`) — the only adapter
+    actually tested against this head unit. Everything below is untested,
+    listed only because it uses the same Classic Bluetooth ELM327 protocol
+    and should work the same way — not a confirmed claim.
+* **Untested, believed compatible (Classic Bluetooth 2.1/3.0 / Dual-Mode)**:
+  * OBDLink LX / MX
   * Standard ELM327 Bluetooth v1.5/v2.1
-* **BLE (Bluetooth Low Energy) Adapters**:
-  * **OBDLink CX**, **Vgate iCar Pro BLE 4.0**, **Veepeak OBDCheck BLE+**
+* **Untested, believed compatible (BLE — Bluetooth Low Energy)**:
+  * OBDLink CX, Vgate iCar Pro BLE 4.0, Veepeak OBDCheck BLE+
 
 ---
 
 ### ⚠️ The IHU629G Bluetooth Pairing Wall (Important!)
 
 > [!WARNING]
-> **Pairing from the car's Bluetooth settings screen will fail!**
-> The Geely IHU629G head unit runs a customized MediaTek Android 9 stack with a hardcoded auto-pairing PIN of `"0000"` in `/system/etc/bluetooth/btDefSetting.json`. When pairing with an OBD2 dongle, Android silently transmits `"0000"` without prompting you on screen. Because virtually all OBD2 dongles require PIN `"1234"`, the dongle immediately rejects the connection with `AUTHENTICATION_FAILURE`.
+> **Tested pairing failure:**
+> The tested vLinker MC+ fails from the car's Bluetooth settings screen because
+> this IHU silently sends its configured `"0000"` PIN without a prompt. Other
+> adapters are untested; do not change the system PIN unless your adapter fails
+> normal pairing and is known to require `"1234"`.
 
 ### How to Pair Your OBD2 Dongle via ADB
 
-Pairing requires root ADB access to the car to override the system PIN or trigger programmatic bonding:
+An OBD2 adapter is optional. Drive Assist and ABRP work with native vehicle
+readings without one. Only if the adapter needs the workaround, pairing requires
+root ADB to override the system PIN or trigger programmatic bonding:
 
-#### Method 1: Override Default PIN to 1234 (Recommended)
+#### Method 1: Temporary Default-PIN Override
 We provide automated helper scripts in the repository (`bt-pin-fix/`):
 ```bash
-# 1. Connect to the car via ADB over Wi-Fi
-adb connect 192.168.0.X:5555
-adb root
-adb remount
-
-# 2. Apply the PIN fix (updates pairingCode: "0000" -> "1234" in btDefSetting.json)
-# Run locally from the repo:
-./bt-pin-fix/apply-pin-1234.sh
-
-# Or execute manually on the head unit:
-adb shell "sed -i 's/\"pairingCode\": \"0000\"/\"pairingCode\": \"1234\"/g' /system/etc/bluetooth/btDefSetting.json"
-adb shell svc bluetooth disable
-adb shell svc bluetooth enable
+# From the repository, with the car parked:
+./bt-pin-fix/apply-pin-1234.sh <CAR_IP>
 ```
 3. Once the Bluetooth service restarts with the updated PIN, plug the dongle into the OBD2 port, open the car's Bluetooth screen (or trigger pairing), and it will bond immediately without errors.
+4. **Right after pairing succeeds, revert the PIN:**
+   ```bash
+   ./bt-pin-fix/revert-pin-0000.sh
+   ```
 
-> [!NOTE]
-> **Reverting before dealer visits**: Because `btDefSetting.json` is a global system file, running `./bt-pin-fix/revert-pin-0000.sh` restores the original factory `"0000"` code if needed.
+> [!WARNING]
+> **This is an optional, persistent, system-wide change.** It changes the
+> automatic simple-pairing PIN for every Bluetooth device while active and
+> survives uninstall and factory reset. Do it only while parked and when it will
+> not interrupt a call or media session. The scripts replace the complete
+> configuration file captured from the tested firmware; do not apply or revert
+> them after an IHU update until the on-car file has been checked. Android keeps
+> the dongle's bond key, so restore `0000` immediately after pairing succeeds.
 
 #### Method 2: Headless Command-Line Pairing via ModeHelper
-If you prefer not to modify system files, the companion app [`modehelper`](../modehelper/README.md) holds `BLUETOOTH_PRIVILEGED` permissions and can execute a direct headless bond:
+If you prefer not to modify system files, the trusted companion app
+[`modehelper`](../modehelper/README.md) can execute a direct headless bond for a
+specified MAC address. This remains an optional privileged operation:
 ```bash
 # Obtain the dongle's MAC address (e.g. from an Android phone scan or HCI log)
 adb shell am broadcast -a com.geely.modehelper.BT_PAIR \

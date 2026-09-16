@@ -108,7 +108,10 @@ Getting Drive Assist running on your vehicle head unit:
    ```bash
    ./install.sh <CAR_IP>
    ```
-   *Provisions `modehelper.apk`, installs `drive_assist.apk`, and applies the Bluetooth OBD2 PIN fix automatically.*
+   *Provisions `modehelper.apk`, installs `drive_assist.apk`, and launches Drive Assist. It does not change Bluetooth settings or any file under `/system`.*
+
+   Bluetooth OBD2 pairing is optional. The separate, temporary PIN workaround is
+   documented with its risks in the [installation guide](docs/INSTALL-GUIDE.md).
 
 2. **Standalone USB Installer (`drive_assist_installer.apk`)**:
    Copy the single installer APK to a FAT32 USB flash drive, insert it into the vehicle USB port, open the vehicle's File Manager, and tap to install. The installer bundles both packages, installs them with platform privileges, and self-uninstalls on completion.
@@ -141,6 +144,7 @@ Full architectural documentation and reverse-engineering guides are located in t
 ### Audits, Quality & Governance
 - [Release Readiness Matrix](docs/RELEASE-READINESS-MATRIX.md) — Comprehensive Go/No-Go release audit and remediation roadmap
 - [Software Architecture & Vehicle Safety Audit](docs/ARCHITECTURE-SAFETY-AUDIT.md) — Multi-perspective audit of UID separation, Park invariants, and VHAL safety
+- [Open-source Head-unit Software Review](docs/OPEN-SOURCE-HEAD-UNIT-REVIEW.md) — Prioritized maintainability, architecture, performance, safety, and community recommendations for rooted sideloaded deployment
 - [Code Quality & Test Coverage Report](docs/CODE-QUALITY-REPORT.md) — JaCoCo test metrics (5.55% / 131 tests), Lint tuning, Checkstyle, and SpotBugs catalog
 - [Contributing Guidelines](CONTRIBUTING.md) — Branching rules (`dev`/`master`), Conventional Commits, and pull request checklist
 - [Changelog](CHANGELOG.md) — Full version history, release notes, and unreleased enhancements

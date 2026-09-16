@@ -113,8 +113,37 @@ If your laptop (macOS, Linux, or Windows with Git Bash) is on the same local Wi-
 1. **ADB Connectivity**: Establishes connection to `<CAR_IP>:5555` and verifies target device model (`IHU629G`).
 2. **Asset Resolution**: Checks for `drive_assist_installer.apk`. If found, installs and executes the wizard. If individual APKs are present (`drive_assist.apk` and `modehelper/modehelper.apk`), it installs both directly with `-r -g` flags.
 3. **Service Initialization**: Starts the ModeHelper foreground daemon (`ModeHelperService`) and brings `ComfortActivity` to the foreground display.
-4. **Bluetooth OBD2 PIN Fix**: Automatically executes `bt-pin-fix/apply-pin-1234.sh` (remounts `/system`, updates `btDefSetting.json` from `0000` to `1234`, and cycles Bluetooth).
-5. **Completion**: Prints confirmation banner when Drive Assist is active on screen.
+4. **Completion**: Prints confirmation banner when Drive Assist is active on screen.
+
+`install.sh` does **not** touch Bluetooth pairing or `/system`. An OBD2 adapter
+is optional; Drive Assist works without one. The PIN workaround is a separate,
+manual action only for a compatible dongle that cannot pair normally:
+
+```bash
+bt-pin-fix/apply-pin-1234.sh    # before pairing the dongle
+bt-pin-fix/revert-pin-0000.sh   # right after pairing succeeds
+```
+
+> [!WARNING]
+> **This is a persistent, system-wide change, not an installation step.** It
+> modifies `/system/etc/bluetooth/btDefSetting.json`; uninstalling Drive Assist
+> and factory-resetting the car do not undo it. While active, it changes the
+> automatic PIN used for simple Bluetooth pairing for every device, not only the
+> OBD2 adapter. Do it only while parked, disconnect/reconnect Bluetooth only
+> when it will not interrupt a call or media session, and restore `0000`
+> immediately after the intended dongle bonds.
+>
+> **You only need the PIN changed for the few minutes it takes to pair the
+> dongle.** Once a Bluetooth device is paired, the car remembers it by a stored
+> bond key, not by re-checking the PIN — so the PIN can go back to factory
+> `0000` right after pairing succeeds, and the dongle stays paired. Don't leave
+> the PIN on `1234` any longer than that.
+>
+> The scripts replace the complete configuration file captured from the tested
+> firmware, not an isolated setting. Do not apply or revert them after an IHU
+> firmware update unless you have first checked that the on-car file matches the
+> expected version; otherwise either operation can overwrite OEM Bluetooth
+> configuration changes.
 
 ---
 
@@ -161,15 +190,11 @@ adb shell am start-foreground-service com.geely.modehelper/.ModeHelperService
 adb shell am start -n com.geely.drivemem/.ui.ComfortActivity
 ```
 
-#### 4. Apply Bluetooth OBD2 PIN Fix (Recommended)
-```bash
-adb root
-adb remount
-adb shell "sed -i 's/\"pairingCode\": \"0000\"/\"pairingCode\": \"1234\"/g' /system/etc/bluetooth/btDefSetting.json"
-adb shell svc bluetooth disable
-sleep 2
-adb shell svc bluetooth enable
-```
+#### 4. Optional: Pair an OBD2 Adapter
+
+Do not modify Bluetooth settings as part of normal installation. If a compatible
+adapter fails because this IHU automatically sends `0000`, read the warning and
+follow the one-time procedure in [Bluetooth OBD2 troubleshooting](#1-bluetooth-obd2-dongle-pairing-fails-unbond_reason_auth_failed).
 
 #### 5. Extend Network ADB Auto-Off Window
 By default, ModeHelper enforces a 15-minute auto-off timer for network ADB security. To extend the active debugging window during setup:
@@ -246,34 +271,44 @@ ModeHelper: rp: 557884279@0 = 120  # Outdoor temperature: 20.0 °C
 ### 1. Bluetooth OBD2 Dongle Pairing Fails (`UNBOND_REASON_AUTH_FAILED`)
 
 #### Problem
-Pairing an OBD2 dongle (vLinker MC+, OBDLink LX, Veepeak) from the vehicle Bluetooth settings screen fails 100% of the time without ever displaying a PIN entry prompt.
+The tested vLinker MC+ fails from the vehicle Bluetooth settings screen without
+displaying a PIN entry prompt. Other ELM327-based adapters are untested and may
+use a different pairing method or PIN.
 
 #### Root Cause
 In `/system/etc/bluetooth/btDefSetting.json`, the factory firmware hardcodes `"pairingCode": "0000"` for automated background pairing. Standard OBD2 dongles expect PIN `"1234"`. The vehicle automatically transmits `0000` without prompting the user, and the dongle immediately rejects the pairing request.
 
-#### Solution A — Automated Script
+#### Optional workaround A — Scripted system-file change
+
+Only use this while the car is parked and only after reading the warning above.
+It is not needed for Drive Assist, ABRP, or an adapter that pairs normally.
 ```bash
 ./bt-pin-fix/apply-pin-1234.sh <CAR_IP>
 ```
 
-#### Solution B — Manual Patch via ADB
-```bash
-adb root
-adb shell mount -o rw,remount /system
-adb shell "sed -i 's/\"pairingCode\": \"0000\"/\"pairingCode\": \"1234\"/g' /system/etc/bluetooth/btDefSetting.json"
-adb shell mount -o ro,remount /system
-adb shell svc bluetooth disable && sleep 2 && adb shell svc bluetooth enable
-```
+#### Manual system-file edits
 
-#### Solution C — Headless Bluetooth Pairing via ModeHelper
-ModeHelper provides programmatic pairing bypassing the UI:
+They are deliberately not documented as a normal alternative. A failed command
+can leave `/system` writable, and a partial or firmware-mismatched edit can
+damage the Bluetooth configuration. Use the script only for the tested firmware
+and only for the temporary workaround above.
+
+#### Optional workaround C — Headless Bluetooth Pairing via ModeHelper
+
+ModeHelper can request a bond for a specified MAC address without changing
+`/system`. It is still a privileged operation and requires the trusted
+ModeHelper package to be installed; it is not required for normal use.
 ```bash
 adb shell am broadcast -a com.geely.modehelper.BT_PAIR \
   --es addr "AA:BB:CC:DD:EE:FF" --es pin "1234" \
   -n com.geely.modehelper/.BtPairReceiver
 ```
 
-#### Reverting to Factory Settings (For Dealership Visits)
+#### Reverting to Factory Settings
+
+Run this **right after pairing succeeds** — the dongle stays paired via its
+own stored bond key, not the PIN, so there's no reason to leave the PIN
+changed. Also run it before dealership visits, maintenance, or towing:
 ```bash
 ./bt-pin-fix/revert-pin-0000.sh <CAR_IP>
 ```

@@ -114,7 +114,12 @@ Writing directly to `WINDOW_POS` (`322964416`) actuates the mechanical window mo
 ### Pairing PIN Override
 The factory Android 9 Bluetooth stack on the IHU629G enforces an automated background pairing sequence hardcoded to PIN `"0000"` in `/system/etc/bluetooth/btDefSetting.json`. Because standard ELM327 adapters require PIN `"1234"`, pairing attempts initiated from the stock UI fail silently with `UNBOND_REASON_AUTH_FAILED`.
 
-Modifying `/system/etc/bluetooth/btDefSetting.json` to `"pairingCode": "1234"` or dispatching `modehelper`'s privileged `BtPairReceiver` broadcast enables successful pairing without user prompts.
+For the tested vLinker MC+, temporarily modifying
+`/system/etc/bluetooth/btDefSetting.json` to `"pairingCode": "1234"`, or
+dispatching `modehelper`'s privileged `BtPairReceiver` broadcast, enables
+pairing without user prompts. The system-file method is optional, global while
+active, and must be reverted immediately after bonding; it is not part of
+normal Drive Assist installation.
 
 ### RFCOMM Socket Architecture
 Android's standard SDP-based `device.createRfcommSocketToServiceRecord(MY_UUID)` fails on this head unit due to non-standard Bluetooth middleware shims. Communication requires direct channel-1 RFCOMM socket allocation via reflection:

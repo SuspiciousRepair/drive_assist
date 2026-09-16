@@ -75,28 +75,49 @@ flowchart TD
 
 ## 🔌 The OBD2 Connection Reality & Pairing Requirement
 
-One of the most important hardware enhancements in Drive Assist is connecting to a Bluetooth OBD2 dongle to read true battery pack voltage, current, and cell temperature directly from the Battery Management System (BMS ECU `0x7E2`).
+An optional Bluetooth OBD2 dongle can provide finer battery readings directly
+from the Battery Management System (BMS ECU `0x7E2`). Drive Assist remains
+usable without it.
 
 > [!IMPORTANT]
-> **IHU629G Bluetooth Pairing Architecture**:
-> On the Geely IHU629G, pairing an OBD2 dongle from the car's standard Bluetooth settings screen **will fail 100% of the time** out of the box. 
+> **Tested IHU629G behavior**:
+> The tested vLinker MC+ could not pair from the car's standard Bluetooth
+> settings screen. Other adapters are untested and may work normally.
 
 ### Why Standard Pairing Fails
 1. The head unit's factory Android 9 Bluetooth stack has an internal auto-pairing PIN hardcoded in `/system/etc/bluetooth/btDefSetting.json` set to `"pairingCode": "0000"`.
-2. Standard OBD2 / ELM327 adapters (such as vLinker MC+, OBDLink, or Veepeak) expect PIN `"1234"` by default.
+2. Standard OBD2 / ELM327 adapters (such as the tested vLinker MC+) expect PIN `"1234"` by default.
 3. When pairing is initiated, the head unit silently sends `"0000"` to the dongle **without ever displaying a PIN entry prompt on the screen** and without broadcasting `ACTION_PAIRING_REQUEST`.
 4. The dongle immediately rejects `"0000"` with `AUTHENTICATION_FAILURE` (`UNBOND_REASON_AUTH_FAILED`).
 
-### Resolution Architecture (ADB Override)
-To pair an OBD2 dongle, root ADB access is required to override the default system PIN:
+**This fix is optional and separate from installing Drive Assist.**
+`install.sh` does not run it. Only run it yourself if you're pairing an OBD2
+dongle — see the scripts in `bt-pin-fix/` below.
+
+> [!WARNING]
+> **This is a persistent, system-wide change, not a normal setup step.** It
+> edits `/system`, so uninstalling Drive Assist and factory-resetting the car do
+> not undo it. While active, it changes the automatic simple-pairing PIN for all
+> Bluetooth devices, not just the dongle. Perform it only while parked, and
+> avoid interrupting an active Bluetooth call or media session.
+>
+> **You don't need to leave it changed.** The PIN is only checked at the
+> moment of pairing — once the dongle is paired, the car remembers it by a
+> stored bond key, not the PIN. Pair the dongle, then run
+> `bt-pin-fix/revert-pin-0000.sh` right away. The dongle stays paired with the
+> PIN back at factory `0000`. The scripts replace the complete configuration
+> file from the tested firmware; do not apply or revert them after an IHU update
+> without checking the on-car configuration first.
+
+### Optional pairing workarounds
+
+Do not use either workaround unless the particular adapter fails normal pairing.
+Root ADB is required to override the system PIN:
 1. **Method A — Modifying `btDefSetting.json`**:
-   Using the script in `bt-pin-fix/apply-pin-1234.sh`:
+   Use the repository script; do not copy a hand-edited configuration file to
+   the car:
    ```bash
-   adb root
-   adb remount
-   # Changes "pairingCode": "0000" -> "1234" in /system/etc/bluetooth/btDefSetting.json
-   adb shell svc bluetooth disable
-   adb shell svc bluetooth enable
+   ./bt-pin-fix/apply-pin-1234.sh <CAR_IP>
    ```
    Once updated, pairing from the car's screen or companion app succeeds immediately with PIN `1234`.
 2. **Method B — Headless Pairing via `modehelper`**:
@@ -213,7 +234,7 @@ Android Debug Bridge (ADB) allows low-level terminal debugging:
 | Consideration | Details | Best Practice |
 | :--- | :--- | :--- |
 | **12V Auxiliary Battery** | Frequent background polling or prolonged parked Wi-Fi connection could theoretically deplete the 12V battery. | Drive Assist halts background polling when the car is parked and off. The IHU automatically enters deep standby when the car is locked. |
-| **Bluetooth PIN Override** | Overriding `/system/etc/bluetooth/btDefSetting.json` to `"1234"` is a global change affecting future phone pairing requests. | If pairing a new phone that expects `"0000"`, enter `"1234"` on the phone, or run `bt-pin-fix/revert-pin-0000.sh` before dealer visits. |
+| **Bluetooth PIN Override** | Optional workaround only: it replaces a complete, firmware-specific `/system` Bluetooth configuration and changes the automatic simple-pairing PIN globally while active. It survives uninstall and factory reset. | Use only while parked and only for the tested pairing failure; restore `0000` immediately after the dongle bonds. Do not apply or revert the bundled file after an IHU update until the on-car file has been checked. |
 | **Network Tethering** | Streaming high-frequency telemetry (MQTT/ABRP) consumes mobile data if tethered via personal hotspot. | At 10s intervals, telemetry consumes approximately 2–5 MB per driving hour. |
 | **Firmware Updates** | Official dealership firmware updates to the IHU may overwrite root access or system modifications. | Always back up configuration files and follow the update guide in [docs/GUIA-ADB-IHU629G.md](GUIA-ADB-IHU629G.md). |
 

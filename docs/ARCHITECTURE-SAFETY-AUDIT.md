@@ -123,7 +123,9 @@ In automotive user experience, presenting modal update dialogues or altering veh
 A critical vehicle hardware finding on the IHU629G head unit is that issuing `adb reboot` or programmatic `PowerManager.reboot()` power-cycles the vehicle's audio amplifier DSP. This produces an abrupt, high-amplitude pop/crack through the vehicle speakers, which can damage speaker coils or startle vehicle occupants.
 
 - **Strict Ban on Reboots**: Programmatic reboots are strictly prohibited throughout the codebase. There are zero calls to `PowerManager.reboot()` or shell `reboot` in `drivemem`, `modehelper`, or `installer`.
-- **Subsystem Daemon Restarts**: Where configuration changes require daemon resets (e.g. `bt-pin-fix/apply-pin-1234.sh:43`), the scripts restart only the specific Linux daemon (`killall -9 bluetoothd` / `start bluetoothd`), preserving head unit and DSP uptime.
+- **Subsystem Service Restarts**: Where the optional Bluetooth workaround
+  requires a service restart, the scripts use `svc bluetooth disable` / `enable`
+  rather than rebooting the head unit, preserving head unit and DSP uptime.
 - **Boot Receiver Validation**: Development testing of boot behavior avoids reboots by broadcasting the intent directly:
   ```bash
   adb shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.geely.drivemem/.util.BootReceiver
