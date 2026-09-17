@@ -986,8 +986,11 @@ public class DailyStatsView extends LinearLayout {
         Style.gap(consumptionCard, c, 8);
 
         // Hero Metric: 12.8 kWh/100 km (or — if efficiency <= 0)
+        // The caption below already got this mark; the number itself -- the
+        // most prominent figure on the whole card -- didn't.
         CharSequence heroVal = ov.efficiencyKwh100km > 0
-                ? valueWithUnit(String.format(Locale.US, "%.1f", ov.efficiencyKwh100km), null, "kWh/100 km", HERO_UNIT_SCALE)
+                ? withEnergySourceMark(valueWithUnit(String.format(Locale.US, "%.1f", ov.efficiencyKwh100km),
+                    null, "kWh/100 km", HERO_UNIT_SCALE), ov.energySource)
                 : "—";
         String consumptionCaption = "Consumo por velocidade" + energySourceSuffix(ov.energySource);
         consumptionCard.addView(createHeroView(c, heroVal, consumptionCaption));
@@ -1023,6 +1026,15 @@ public class DailyStatsView extends LinearLayout {
         CharSequence regenVal = hasRegen
                 ? valueWithUnit(String.format(Locale.US, "+%.1f", ov.regenKwh), Style.COOL, "kWh", ROW_UNIT_SCALE)
                 : "—";
+        // Same estimate as the card's own caption/speed-bucket gating above
+        // (ov.energySource) -- these three chips are the exact numbers that
+        // gating describes, so they need the same "~" mark, not just the
+        // card title.
+        if (ov.energySource == EnergySource.ESTIMATED || ov.energySource == EnergySource.MIXED) {
+            netVal = withEnergySourceMark(netVal, ov.energySource);
+            if (hasDischarge) gastoVal = withEnergySourceMark(gastoVal, ov.energySource);
+            if (hasRegen) regenVal = withEnergySourceMark(regenVal, ov.energySource);
+        }
 
         List<View> chips = new ArrayList<>();
         chips.add(metricChip(c, "Líquido", netVal));

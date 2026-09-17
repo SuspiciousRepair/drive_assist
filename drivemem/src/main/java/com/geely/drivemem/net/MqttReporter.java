@@ -1338,7 +1338,37 @@ public class MqttReporter {
         sendParkDiscovery();
         sendUpdateDiscovery();
         sendTrackerDiscovery();
+        sendEnergyDiscovery();
         discoverySent = true;
+    }
+
+    // energy_spent_kwh/energy_regen_kwh/energy_net_kwh aren't in Telemetry.FIELDS
+    // (they're computed after that loop, from EnergyIntegrator -- see Telemetry
+    // .read()), so the FIELDS-driven discovery loop above never created entities
+    // for them; the values sat in STATE_TOPIC's JSON unused by HA. json_attr_t
+    // pointing at the SAME topic (no separate template) makes HA expose every
+    // key in that payload as an attribute, same as sendUpdateDiscovery's own
+    // version sensor does -- so energy_quality (measured/estimated/no_data,
+    // this window's twin of the app's own "~" mark) rides along automatically,
+    // without a second publish or a second topic to keep in sync.
+    private void sendEnergyDiscovery() {
+        String dev = getDeviceJson();
+        sendEnergySensor("energy_spent_kwh", "Energia Gasta", dev);
+        sendEnergySensor("energy_regen_kwh", "Energia Recuperada", dev);
+        sendEnergySensor("energy_net_kwh", "Energia Líquida", dev);
+    }
+
+    private void sendEnergySensor(String key, String name, String dev) {
+        String cfg = "{"
+            + "\"name\":\"" + name + "\","
+            + "\"uniq_id\":\"" + DEV_ID + "_" + key + "\","
+            + "\"stat_t\":\"" + STATE_TOPIC + "\","
+            + "\"avty_t\":\"" + AVAIL_TOPIC + "\","
+            + "\"val_tpl\":\"{{ value_json." + key + " }}\","
+            + "\"json_attr_t\":\"" + STATE_TOPIC + "\","
+            + "\"unit_of_meas\":\"kWh\",\"dev_cla\":\"energy\"," + dev
+            + "}";
+        pub("homeassistant/sensor/" + DEV_ID + "/" + key + "/config", cfg, true);
     }
 
     // CONTROLLABLE Parking Mode: switch (on/off) + select (duration).

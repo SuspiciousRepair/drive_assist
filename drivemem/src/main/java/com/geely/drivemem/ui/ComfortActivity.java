@@ -1139,9 +1139,14 @@ public class ComfortActivity extends Activity {
                 primary.append(Style.valueWithUnit(String.format(Locale.getDefault(), "%.2f", netKwh),
                     null, "kWh", Style.UNIT_SCALE_HERO));
                 journeyPrimary.setText(DailyStatsView.withEnergySourceMark(primary, session.energySource));
-                journeySecondary.setText(getString(R.string.drive_card_detail, km,
-                    formatElapsed(TripSession.getDrivingDurationMs()), formatClock(TripSession.getActiveTripStartMs()),
-                    session.regenKwh));
+                // recovered X kWh is the last thing in this string -- the mark
+                // reads naturally right after it, same convention as every
+                // other estimated number in the app.
+                journeySecondary.setText(DailyStatsView.withEnergySourceMark(
+                    getString(R.string.drive_card_detail, km,
+                        formatElapsed(TripSession.getDrivingDurationMs()), formatClock(TripSession.getActiveTripStartMs()),
+                        session.regenKwh),
+                    session.energySource));
             }
         } else {
             ParkingState.Snapshot s = ParkingState.snapshot(this);

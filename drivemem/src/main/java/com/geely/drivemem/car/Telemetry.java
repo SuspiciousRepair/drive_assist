@@ -186,6 +186,13 @@ public class Telemetry {
         out.put("energy_regen_kwh", (float) snap.regenKwh);
         out.put("energy_net_kwh", (float) snap.netKwh);
         out.put("energy_measured", snap.sampleCount > 0 ? 1 : 0);
+        // Human-readable twin of energy_measured, for HA: surfaced as a
+        // json_attr_t attribute on the energy sensors (see MqttReporter) so
+        // this window's spent/regen/net numbers carry the same "is this a
+        // real reading or a guess" signal the app's own UI already shows via
+        // the "~" mark (see EnergySource / DailyStatsView.withEnergySourceMark).
+        out.put("energy_quality", snap.sampleCount > 0 ? "measured"
+            : (fallbackSocPower != null ? "estimated" : "no_data"));
         // Always-recorded SoC-delta estimate, independent of whether OBD2
         // backed this window's "best available" energy above.
         if (fallbackSocPower != null) {
