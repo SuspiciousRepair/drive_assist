@@ -1068,7 +1068,7 @@ public class DailyStatsView extends LinearLayout {
         // minimum SoC the same way. Each number now gets its own chip.
         CharSequence chargeVal = ov.chargeKwh > 0
                 ? valueWithUnit(String.format(Locale.US, "+%.1f", ov.chargeKwh), null, "kWh", ROW_UNIT_SCALE)
-                : "0.0 kWh";
+                : valueWithUnit("0.0", null, "kWh", ROW_UNIT_SCALE);
         CharSequence countVal = String.valueOf(ov.chargeCount);
         CharSequence tempVal = valueWithUnit(String.format(Locale.US, "%.1f", ov.avgTempC), null, "°C", ROW_UNIT_SCALE);
         CharSequence minSocVal = ov.minBatteryPct >= 0
