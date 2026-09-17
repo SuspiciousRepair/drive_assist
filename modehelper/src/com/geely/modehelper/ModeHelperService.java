@@ -74,13 +74,13 @@ public class ModeHelperService extends Service {
                 @Override public void onReceive(Context c, Intent it) {
                     if (SET_MODE.equals(it.getAction())) {
                         // Each preference is independent and optional — drivemem may
-                        // send drive/regen together (its existing "Save" action) and
+                        // send drive/regen separately on taps or together on reset, and
                         // aeb/avas from a different screen entirely, on its own. Only
                         // touch what's actually present, so one doesn't clobber another.
                         SharedPreferences.Editor e = getSharedPreferences("modehelper", MODE_PRIVATE).edit();
                         StringBuilder log = new StringBuilder("default from drivemem:");
                         if (it.hasExtra("drive")) {
-                            int d = it.getIntExtra("drive", CarMode.DRIVE_ECO);
+                            int d = it.getIntExtra("drive", CarMode.DRIVE_COMFORT);
                             e.putInt("drive", d); log.append(" drive=").append(d);
                         }
                         if (it.hasExtra("regen")) {
@@ -264,7 +264,7 @@ public class ModeHelperService extends Service {
     // PARKED: read the mode and, if it differs from the default, correct it with ONE write.
     private void enforceModeParked() {
         SharedPreferences p = getSharedPreferences("modehelper", MODE_PRIVATE);
-        int drive = p.getInt("drive", CarMode.DRIVE_ECO);
+        int drive = p.getInt("drive", CarMode.DRIVE_COMFORT);
         int regen = p.getInt("regen", CarMode.REGEN_MID);
         Integer cd = car.readDrive(), cr = car.readRegen();
         if (cd != null && cd != drive) { car.writeDrive(drive); Log.i(TAG, "modo: drive " + cd + " -> " + drive); }

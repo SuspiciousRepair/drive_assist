@@ -5,7 +5,6 @@ import com.geely.drivemem.R;
 import com.geely.drivemem.util.Clips;
 import com.geely.drivemem.util.Style;
 
-import android.app.Activity;
 import android.graphics.Color;
 import android.graphics.SurfaceTexture;
 import android.media.MediaPlayer;
@@ -38,7 +37,7 @@ import javax.microedition.khronos.opengles.GL10;
 /** Video player for 2x2 fisheye camera clips with dewarping correction.
  * Supports multiple camera views (front, rear, sides, orbit) with dynamic
  * fisheye-to-rectilinear conversion via OpenGL shader. */
-public class ClipPlayerActivity extends Activity {
+public class ClipPlayerActivity extends LocalizedActivity {
     public static final String EXTRA_PATH = "path";
 
     // Which quadrant each camera is: top-left/right are sides, bottom-left

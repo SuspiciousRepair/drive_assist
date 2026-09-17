@@ -33,7 +33,7 @@ public class GeelySwitch extends Switch {
         // Extended track makes thumb movement clearly visible.
         setSwitchMinWidth(dp(c, 64));
         setSwitchPadding(dp(c, 8));
-        setScaleX(1.6f); setScaleY(1.6f);   // Scaled for car screen interaction.
+        setMinHeight(dp(c, 64));   // Large touch area without scaling outside layout bounds.
         setPadding(dp(c, 18), 0, dp(c, 12), 0);
         setShowText(false);
 

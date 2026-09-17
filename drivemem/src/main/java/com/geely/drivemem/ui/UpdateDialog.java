@@ -69,7 +69,7 @@ public class UpdateDialog {
                 : activity.getString(R.string.update_dialog_title));
             title.setTextColor(Style.TEXT);
             title.setTextSize(22f);
-            title.setTypeface(Typeface.DEFAULT_BOLD);
+            title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
             card.addView(title);
 
             // Version Comparison Card
@@ -94,7 +94,7 @@ public class UpdateDialog {
             curLbl.setText(activity.getString(R.string.update_dialog_current_ver, currentVn));
             curLbl.setTextColor(Style.TEXT_DIM);
             curLbl.setTextSize(13f);
-            curLbl.setTypeface(Typeface.DEFAULT_BOLD);
+            curLbl.setTypeface(curLbl.getTypeface(), android.graphics.Typeface.BOLD);
             colCur.addView(curLbl);
             verCard.addView(colCur);
 
@@ -116,7 +116,7 @@ public class UpdateDialog {
             newLbl.setText(activity.getString(R.string.update_dialog_new_ver, displayNew));
             newLbl.setTextColor(Color.parseColor("#30D158"));
             newLbl.setTextSize(13f);
-            newLbl.setTypeface(Typeface.DEFAULT_BOLD);
+            newLbl.setTypeface(newLbl.getTypeface(), android.graphics.Typeface.BOLD);
             colNew.addView(newLbl);
             verCard.addView(colNew);
 
@@ -127,7 +127,7 @@ public class UpdateDialog {
             clHdr.setText(activity.getString(R.string.update_dialog_changelog_header));
             clHdr.setTextColor(Style.TEXT_DIM);
             clHdr.setTextSize(13f);
-            clHdr.setTypeface(Typeface.DEFAULT_BOLD);
+            clHdr.setTypeface(clHdr.getTypeface(), android.graphics.Typeface.BOLD);
             LinearLayout.LayoutParams clHdrLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             clHdrLp.setMargins(0, 0, 0, Style.dp(activity, 6));
@@ -150,7 +150,7 @@ public class UpdateDialog {
             TextView tvLog = new TextView(activity);
             tvLog.setText(info.changelog != null && !info.changelog.isEmpty()
                 ? info.changelog
-                : "• Performance improvements and bug fixes.");
+                : activity.getString(R.string.ui_update_default_notes));
             tvLog.setTextColor(Style.TEXT);
             tvLog.setTextSize(13f);
             tvLog.setLineSpacing(Style.dp(activity, 4), 1f);
@@ -221,7 +221,7 @@ public class UpdateDialog {
             btnAccept.setText(activity.getString(R.string.update_dialog_accept));
             btnAccept.setTextColor(Style.TEXT_ON);
             btnAccept.setTextSize(14f);
-            btnAccept.setTypeface(Typeface.DEFAULT_BOLD);
+            btnAccept.setTypeface(btnAccept.getTypeface(), android.graphics.Typeface.BOLD);
             btnAccept.setLayoutParams(new LinearLayout.LayoutParams(
                 Style.dp(activity, 200), Style.dp(activity, 48)));
             GradientDrawable accBg = new GradientDrawable();

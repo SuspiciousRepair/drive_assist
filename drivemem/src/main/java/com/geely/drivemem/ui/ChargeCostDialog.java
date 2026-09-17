@@ -44,7 +44,7 @@ public final class ChargeCostDialog {
         title.setText(context.getString(R.string.charge_cost_input_title));
         title.setTextColor(Style.TEXT);
         title.setTextSize(22f);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
         card.addView(title);
 
         String socRange = (socStart >= 0 && socEnd >= 0) ? (socStart + "% ➔ " + socEnd + "%") : "";
@@ -60,7 +60,7 @@ public final class ChargeCostDialog {
         input.setTextColor(Style.TEXT);
         input.setHintTextColor(Style.TEXT_DIM);
         input.setTextSize(22f);
-        input.setTypeface(Typeface.DEFAULT_BOLD);
+        input.setTypeface(input.getTypeface(), android.graphics.Typeface.BOLD);
         input.setInputType(InputType.TYPE_CLASS_NUMBER);
         // TYPE_CLASS_NUMBER installs a digits-only InputFilter as well as a
         // numeric KeyListener. Keep the KeyListener/keyboard, but allow the

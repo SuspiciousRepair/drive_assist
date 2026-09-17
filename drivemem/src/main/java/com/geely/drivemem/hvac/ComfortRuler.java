@@ -44,7 +44,7 @@ public class ComfortRuler {
 
     private volatile int level = 0;            // +5 = C5 ... 0 ... -5 = W5
     private volatile boolean armed = false;
-    private volatile String status = "";
+    private volatile java.util.function.Function<Context, String> status = display -> "";
     // True if a lever is still out of line (not exact match to column). See
     // "C4ish" in COMFORT-TABLE.md. Written only from CarActor's thread.
     private volatile boolean approx = false;
@@ -88,7 +88,9 @@ public class ComfortRuler {
     public int pointer()  { return level; }
 
     /** Returns the current status message. */
-    public String status(){ return status; }
+    public String status(Context displayContext) { return status.apply(displayContext); }
+
+    public String status() { return status(com.geely.drivemem.util.AppLanguage.wrap(ctx)); }
 
     /** Returns true if a lever is slightly out of line. See "C4ish" in COMFORT-TABLE.md. */
     public boolean approx(){ return approx; }
@@ -150,7 +152,7 @@ public class ComfortRuler {
             if (want < -EffortTable.MAX_LEVEL) want = -EffortTable.MAX_LEVEL;
 
             if (want == level && !approx) {
-                status = ctx.getString(R.string.ruler_at_limit, describe(level));
+                status = display -> display.getString(R.string.ruler_at_limit, describe(display, level));
                 notifyUi();
                 return;
             }
@@ -159,7 +161,7 @@ public class ComfortRuler {
                 EffortTable.Column c = EffortTable.at(table, level);
                 direction = c.power ? c.direction : 0;
             }
-            status = describe(level);
+            status = display -> describe(display, level);
             notifyUi();          // instant: the dot moves now, not after the car answers
             scheduleApply();     // the car catches up in the background
         });
@@ -220,12 +222,12 @@ public class ComfortRuler {
         // Try to connect/reconnect now. Unit suspends frequently, so an earlier
         // connection failure should not disable the ruler for the process lifetime.
         if (!car().isReady() && !car().connect(ctx)) {
-            status = ctx.getString(R.string.ruler_no_car);
+            status = display -> display.getString(R.string.ruler_no_car);
             return false;
         }
         Float outC = car().readOutsideTempC();
         if (outC == null) {
-            status = ctx.getString(R.string.ruler_no_outside_temp);
+            status = display -> display.getString(R.string.ruler_no_outside_temp);
             return false;
         }
         table = EffortTable.build(outC);
@@ -249,7 +251,7 @@ public class ComfortRuler {
         defrosting = defrost != null && defrost;
         if (defrosting) {
             direction = EffortTable.DIR_GLASS;
-            status = ctx.getString(R.string.ruler_defrosting);
+            status = display -> display.getString(R.string.ruler_defrosting);
             return;
         }
         Boolean ac  = car().readHvacFlag(CarAccess.HVAC_AC_ON);
@@ -259,7 +261,7 @@ public class ComfortRuler {
         float sp    = car().readSetpoint();
         int fan     = car().readFan();
         if (ac == null || dir == null || fan < 0) {
-            status = ctx.getString(R.string.ruler_no_car);
+            status = display -> display.getString(R.string.ruler_no_car);
             return;
         }
         boolean machine = ac;
@@ -269,7 +271,7 @@ public class ComfortRuler {
 
         level  = EffortTable.fit(table, tableOutC, power, machine, sp, fan, dir, recirc);
         approx = !matches(EffortTable.at(table, level), power, machine, sp, fan, dir, recirc);
-        status = describe(level);
+        status = display -> describe(display, level);
         direction = power ? dir : 0;
     }
 
@@ -310,7 +312,7 @@ public class ComfortRuler {
             ensureFlag(CarAccess.HVAC_POWER_ON, false);
             direction = 0;
             approx = false;
-            status = describe(lv);
+            status = display -> describe(display, lv);
             notifyUi();
             ComfortEvents.event(ctx, "apply", ComfortEvents.snap(car(), lv),
                              "col=" + c + " out=" + tableOutC);
@@ -351,7 +353,7 @@ public class ComfortRuler {
 
         direction = c.direction;
         approx = false;
-        status = describe(lv);
+        status = display -> describe(display, lv);
         notifyUi();
         ComfortEvents.event(ctx, "apply", ComfortEvents.snap(car(), lv),
                          "col=" + c + " out=" + tableOutC);
@@ -398,7 +400,7 @@ public class ComfortRuler {
                     again.append(" sp");
                     float now = car().readSetpoint();
                     if (!Float.isNaN(now) && Math.abs(now - c.setpointC) >= 0.5f) {
-                        status = ctx.getString(R.string.ruler_car_refused, (int) c.setpointC);
+                        status = display -> display.getString(R.string.ruler_car_refused, (int) c.setpointC);
                         Log.w(TAG, "ruler: the car held at " + now + " (wanted " + c.setpointC + ")");
                     }
                 }
@@ -459,10 +461,10 @@ public class ComfortRuler {
         apply(held);
     }
 
-    private String describe(int lv) {
-        if (lv == 0) return ctx.getString(R.string.ruler_steady);
-        return ctx.getString(R.string.ruler_level,
-            ctx.getString(lv > 0 ? R.string.ruler_src_cold : R.string.ruler_src_hot),
+    private String describe(Context display, int lv) {
+        if (lv == 0) return display.getString(R.string.ruler_steady);
+        return display.getString(R.string.ruler_level,
+            display.getString(lv > 0 ? R.string.ruler_src_cold : R.string.ruler_src_hot),
             Math.abs(lv));
     }
 

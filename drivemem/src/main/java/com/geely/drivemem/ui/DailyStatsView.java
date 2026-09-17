@@ -18,6 +18,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.geely.drivemem.R;
+import com.geely.drivemem.util.AppLanguage;
 import com.geely.drivemem.state.CarState;
 
 import com.github.mikephil.charting.charts.BarChart;
@@ -128,11 +129,15 @@ public class DailyStatsView extends LinearLayout {
             titleRow.addView(Style.backButton(c, onBack));
             Style.gap(titleRow, c, 16);
         }
-        titleRow.addView(Style.header(c, "Estatísticas Diárias"));
+        titleRow.addView(Style.header(c, getContext().getString(R.string.ui_daily_stats)));
         addView(titleRow);
 
         // 2. Bar Chart (compact 160dp)
         chart = new BarChart(c);
+        chart.getXAxis().setTypeface(Style.font(c));
+        chart.getAxisLeft().setTypeface(Style.font(c));
+        chart.getAxisRight().setTypeface(Style.font(c));
+        chart.getLegend().setTypeface(Style.font(c));
         LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 160));
         clp.topMargin = Style.dp(c, 8);
@@ -187,8 +192,8 @@ public class DailyStatsView extends LinearLayout {
 
         navDateLabel = new TextView(c);
         navDateLabel.setTextColor(Style.TEXT);
-        navDateLabel.setTextSize(16);
-        navDateLabel.setTypeface(null, Typeface.BOLD);
+        navDateLabel.setTextSize(24);
+        navDateLabel.setTypeface(navDateLabel.getTypeface(), Typeface.BOLD);
         navDateLabel.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         navDateLabel.setLayoutParams(nlp);
@@ -219,8 +224,8 @@ public class DailyStatsView extends LinearLayout {
         periodDropdownLabel = new TextView(c);
         periodDropdownLabel.setText(periodDisplayName(period));
         periodDropdownLabel.setTextColor(Style.onFill(Style.CARD));
-        periodDropdownLabel.setTextSize(15.5f);
-        periodDropdownLabel.setTypeface(null, Typeface.BOLD);
+        periodDropdownLabel.setTextSize(20);
+        periodDropdownLabel.setTypeface(periodDropdownLabel.getTypeface(), Typeface.BOLD);
         periodDropdownBtn.addView(periodDropdownLabel);
 
         android.widget.ImageView periodChevron = new android.widget.ImageView(c);
@@ -297,8 +302,8 @@ public class DailyStatsView extends LinearLayout {
         sessionsCard.setPadding(cardPad, cardPad, cardPad, cardPad);
         sessionsCard.setBackground(Style.card(Style.cardFillColor(), c));
         sessionsSummary = sectionSummary(c);
-        sessionsCard.addView(sectionHeading(c, "Sessões do Dia", sessionsSummary));
-        sessionsCard.addView(sectionCaption(c, "Viagens e recargas · mais recentes primeiro"));
+        sessionsCard.addView(sectionHeading(c, getContext().getString(R.string.ui_day_sessions), sessionsSummary));
+        sessionsCard.addView(sectionCaption(c, getContext().getString(R.string.ui_sessions_note)));
         Style.gap(sessionsCard, c, 12);
         sessionsContainer = new LinearLayout(c);
         sessionsContainer.setOrientation(LinearLayout.VERTICAL);
@@ -318,8 +323,8 @@ public class DailyStatsView extends LinearLayout {
         chartCard.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         hourlySummary = sectionSummary(c);
         hourlySummary.setTextColor(Style.TEXT);
-        chartCard.addView(sectionHeading(c, "Distância por Hora & Velocidade", hourlySummary));
-        chartCard.addView(sectionCaption(c, "Distância em km · cores por faixa de velocidade"));
+        chartCard.addView(sectionHeading(c, getContext().getString(R.string.ui_hourly_distance), hourlySummary));
+        chartCard.addView(sectionCaption(c, getContext().getString(R.string.ui_hourly_note)));
 
         // The legend owns its own row above the plot. It can never share the
         // plot's bottom area with the 24 hour labels.
@@ -337,6 +342,10 @@ public class DailyStatsView extends LinearLayout {
         chartCard.addView(speedLegend);
 
         hourlyChart = new BarChart(c);
+        hourlyChart.getXAxis().setTypeface(Style.font(c));
+        hourlyChart.getAxisLeft().setTypeface(Style.font(c));
+        hourlyChart.getAxisRight().setTypeface(Style.font(c));
+        hourlyChart.getLegend().setTypeface(Style.font(c));
         hourlyChart.getDescription().setEnabled(false);
         hourlyChart.getLegend().setEnabled(false);
         hourlyChart.setDrawGridBackground(false);
@@ -383,13 +392,13 @@ public class DailyStatsView extends LinearLayout {
         FrameLayout plot = new FrameLayout(c);
         plot.addView(hourlyChart, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        hourlyEmptyState = sectionCaption(c, "Sem deslocamentos registrados");
+        hourlyEmptyState = sectionCaption(c, getContext().getString(R.string.ui_no_driving));
         FrameLayout.LayoutParams emptyLp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
         plot.addView(hourlyEmptyState, emptyLp);
         chartCard.addView(plot, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 160)));
-        TextView hourCaption = sectionCaption(c, "Hora do dia");
+        TextView hourCaption = sectionCaption(c, getContext().getString(R.string.ui_time_of_day));
         hourCaption.setGravity(Gravity.END);
         chartCard.addView(hourCaption);
         bottomRow.addView(chartCard);
@@ -581,11 +590,11 @@ public class DailyStatsView extends LinearLayout {
         }
     }
 
-    private static String periodDisplayName(Period p) {
+    private String periodDisplayName(Period p) {
         switch (p) {
-            case WEEK: return "Semana";
-            case MONTH: return "Mês";
-            default: return "Dia";
+            case WEEK: return getContext().getString(R.string.ui_week);
+            case MONTH: return getContext().getString(R.string.ui_month);
+            default: return getContext().getString(R.string.ui_day);
         }
     }
 
@@ -608,9 +617,9 @@ public class DailyStatsView extends LinearLayout {
         for (Period p : Period.values()) {
             TextView row = new TextView(c);
             row.setText(periodDisplayName(p));
-            row.setTextSize(15.5f);
+            row.setTextSize(20);
             boolean current = p == period;
-            row.setTypeface(null, current ? Typeface.BOLD : Typeface.NORMAL);
+            row.setTypeface(row.getTypeface(), current ? Typeface.BOLD : Typeface.NORMAL);
             row.setTextColor(current ? Style.ACCENT : Style.TEXT);
             int rpad = Style.dp(c, 14);
             row.setPadding(rpad, rpad, rpad, rpad);
@@ -701,7 +710,12 @@ public class DailyStatsView extends LinearLayout {
         periodSelectedIdx = idx;
         DailyStatsProvider.PeriodOverview po = periodWindow.get(idx);
 
-        navDateLabel.setText(po.periodLabel);
+        String first = po.days.get(0).date;
+        String last = po.days.get(po.days.size() - 1).date;
+        navDateLabel.setText(period == Period.MONTH
+            ? AppLanguage.date(getContext(), parseDayMs(first), "yMMMM")
+            : AppLanguage.date(getContext(), parseDayMs(first), "MMMd") + " – "
+                + AppLanguage.date(getContext(), parseDayMs(last), "MMMd"));
         navPrevBtn.setEnabled(idx > 0);
         navPrevBtn.setAlpha(idx > 0 ? 1.0f : 0.35f);
         navNextBtn.setEnabled(idx < periodWindow.size() - 1);
@@ -730,14 +744,8 @@ public class DailyStatsView extends LinearLayout {
     }
 
     /** Short month abbreviation for the chart x-axis ("Ago", "Set", "Out"...). */
-    private static final java.text.SimpleDateFormat MONTH_CHART_FMT =
-        new java.text.SimpleDateFormat("MMM", new Locale("pt", "BR"));
-    private static String monthChartLabel(String isoDate) {
-        try {
-            String s = MONTH_CHART_FMT.format(new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(isoDate));
-            s = s.replace(".", ""); // pt-BR abbreviations sometimes carry a trailing dot ("set.")
-            return s.substring(0, 1).toUpperCase(new Locale("pt", "BR")) + s.substring(1);
-        } catch (Exception e) { return isoDate; }
+    private String monthChartLabel(String isoDate) {
+        return AppLanguage.date(getContext(), parseDayMs(isoDate), "MMM");
     }
 
     /** Week/Month session log: one header per day (date + that day's distance),
@@ -757,9 +765,9 @@ public class DailyStatsView extends LinearLayout {
             else if (s.isTrip()) trips++;
             else charges++;
         }
-        sessionsSummary.setText(trips + (trips == 1 ? " viagem" : " viagens")
-                + " · " + charges + (charges == 1 ? " recarga" : " recargas")
-                + (valets > 0 ? " · " + valets + " manobrista" : ""));
+        String summary = c.getString(R.string.ui_session_counts, trips, charges);
+        sessionsSummary.setText(valets > 0
+            ? c.getString(R.string.ui_session_valet_count, summary, valets) : summary);
 
         List<DailyStatsProvider.DayOverview> orderedDays = new ArrayList<>(period.days);
         Collections.reverse(orderedDays); // newest day first
@@ -776,8 +784,8 @@ public class DailyStatsView extends LinearLayout {
             if (day.sessions.isEmpty()) {
                 long dayMs = parseDayMs(day.date);
                 String msg = (dayMs > 0 && dayMs < ninetyDaysAgoMs)
-                    ? "Detalhes indisponíveis — mais de 90 dias"
-                    : "Sem detalhes de sessão para este dia.";
+                    ? getContext().getString(R.string.ui_old_session)
+                    : getContext().getString(R.string.ui_no_session_details);
                 TextView unavailable = new TextView(c);
                 unavailable.setText(msg);
                 unavailable.setTextColor(Style.TEXT_DIM);
@@ -801,7 +809,7 @@ public class DailyStatsView extends LinearLayout {
         }
 
         if (!anyRendered) {
-            TextView empty = Style.label(c, "Nenhuma viagem ou recarga registrada neste período.");
+            TextView empty = Style.label(c, getContext().getString(R.string.ui_no_period_sessions));
             empty.setPadding(0, Style.dp(c, 20), 0, Style.dp(c, 20));
             sessionsContainer.addView(empty);
         }
@@ -818,13 +826,11 @@ public class DailyStatsView extends LinearLayout {
         row.setLayoutParams(rlp);
 
         TextView label = new TextView(c);
-        String d = day.displayDate != null && !day.displayDate.isEmpty()
-                ? Character.toUpperCase(day.displayDate.charAt(0)) + day.displayDate.substring(1)
-                : day.date;
+        String d = AppLanguage.date(c, parseDayMs(day.date), "EEEEMMMMd");
         label.setText(d);
         label.setTextColor(Style.TEXT_DIM);
         label.setTextSize(14f);
-        label.setTypeface(null, Typeface.BOLD);
+        label.setTypeface(label.getTypeface(), Typeface.BOLD);
         row.addView(label, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView km = new TextView(c);
@@ -853,13 +859,7 @@ public class DailyStatsView extends LinearLayout {
     }
 
     private void renderOverview(DailyStatsProvider.DayOverview ov) {
-        // Capitalize the first letter of display date (e.g. "Quinta-feira, 10 de setembro")
-        if (ov.displayDate != null && !ov.displayDate.isEmpty()) {
-            String capDate = Character.toUpperCase(ov.displayDate.charAt(0)) + ov.displayDate.substring(1);
-            navDateLabel.setText(capDate);
-        } else {
-            navDateLabel.setText("");
-        }
+        navDateLabel.setText(AppLanguage.date(getContext(), parseDayMs(ov.date), "EEEEMMMMd"));
 
         // 4-Column Middle Section
         renderConsumptionCard(ov);
@@ -929,7 +929,7 @@ public class DailyStatsView extends LinearLayout {
     private TextView sectionSummary(Context c) {
         TextView item = new TextView(c);
         item.setTextColor(Style.TEXT_DIM);
-        item.setTextSize(13.5f);
+        item.setTextSize(18);
         return item;
     }
 
@@ -939,8 +939,8 @@ public class DailyStatsView extends LinearLayout {
         TextView heading = new TextView(c);
         heading.setText(title);
         heading.setTextColor(Style.TEXT);
-        heading.setTextSize(16);
-        heading.setTypeface(null, Typeface.BOLD);
+        heading.setTextSize(24);
+        heading.setTypeface(heading.getTypeface(), Typeface.BOLD);
         row.addView(heading, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         summary.setPadding(Style.dp(c, 12), 0, 0, 0);
         row.addView(summary);
@@ -960,10 +960,10 @@ public class DailyStatsView extends LinearLayout {
 
         // Header: "Consumo & Eficiência"
         TextView title = new TextView(c);
-        title.setText("Consumo & Eficiência");
+        title.setText(getContext().getString(R.string.ui_consumption_efficiency));
         title.setTextColor(Style.TEXT_DIM);
-        title.setTextSize(15.5f);
-        title.setTypeface(null, Typeface.BOLD);
+        title.setTextSize(22);
+        title.setTypeface(title.getTypeface(), Typeface.BOLD);
         consumptionCard.addView(title);
         Style.gap(consumptionCard, c, 8);
 
@@ -971,7 +971,7 @@ public class DailyStatsView extends LinearLayout {
         CharSequence heroVal = ov.efficiencyKwh100km > 0
                 ? valueWithUnit(String.format(Locale.US, "%.1f", ov.efficiencyKwh100km), null, "kWh/100 km", HERO_UNIT_SCALE)
                 : "—";
-        consumptionCard.addView(createHeroView(c, heroVal, "Consumo por velocidade"));
+        consumptionCard.addView(createHeroView(c, heroVal, getContext().getString(R.string.ui_consumption_speed)));
         Style.gap(consumptionCard, c, 10);
 
         // Consumption by speed bucket (0-40/40-80/80-120/120+ km/h) -- the
@@ -1008,9 +1008,9 @@ public class DailyStatsView extends LinearLayout {
                 : "—";
 
         List<View> chips = new ArrayList<>();
-        chips.add(metricChip(c, "Líquido", netVal));
-        chips.add(metricChip(c, "Gasto", gastoVal));
-        chips.add(metricChip(c, "Regen", regenVal));
+        chips.add(metricChip(c, getContext().getString(R.string.ui_net_energy), netVal));
+        chips.add(metricChip(c, getContext().getString(R.string.ui_spent_energy), gastoVal));
+        chips.add(metricChip(c, getContext().getString(R.string.ui_regeneration), regenVal));
         distributeInPairs(c, consumptionCard, chips, 10);
     }
 
@@ -1020,10 +1020,10 @@ public class DailyStatsView extends LinearLayout {
 
         // Header: "Bateria & Recargas"
         TextView title = new TextView(c);
-        title.setText("Bateria & Recargas");
+        title.setText(getContext().getString(R.string.ui_battery_charges));
         title.setTextColor(Style.TEXT_DIM);
-        title.setTextSize(15.5f);
-        title.setTypeface(null, Typeface.BOLD);
+        title.setTextSize(22);
+        title.setTypeface(title.getTypeface(), Typeface.BOLD);
         batteryCard.addView(title);
         Style.gap(batteryCard, c, 8);
 
@@ -1031,7 +1031,7 @@ public class DailyStatsView extends LinearLayout {
         CharSequence socSwing = (ov.firstBatteryPct >= 0 && ov.lastBatteryPct >= 0)
                 ? percentRange(ov.firstBatteryPct, ov.lastBatteryPct, HERO_UNIT_SCALE)
                 : "—";
-        batteryCard.addView(createHeroView(c, socSwing, "Variação de SoC"));
+        batteryCard.addView(createHeroView(c, socSwing, getContext().getString(R.string.ui_soc_change)));
         Style.gap(batteryCard, c, 14);
 
         // Energia Carregada used to fold the recharge count into the same
@@ -1047,10 +1047,10 @@ public class DailyStatsView extends LinearLayout {
                 : "—";
 
         List<View> chips = new ArrayList<>();
-        chips.add(metricChip(c, "Energia Carregada", chargeVal));
-        chips.add(metricChip(c, "Recargas", countVal));
-        chips.add(metricChip(c, "Temp. Exterior", tempVal));
-        chips.add(metricChip(c, "SoC Mínimo", minSocVal));
+        chips.add(metricChip(c, getContext().getString(R.string.ui_energy_charged), chargeVal));
+        chips.add(metricChip(c, getContext().getString(R.string.ui_charges), countVal));
+        chips.add(metricChip(c, getContext().getString(R.string.ui_outside_temp), tempVal));
+        chips.add(metricChip(c, getContext().getString(R.string.ui_min_soc), minSocVal));
         distributeInPairs(c, batteryCard, chips, 10);
     }
 
@@ -1060,26 +1060,26 @@ public class DailyStatsView extends LinearLayout {
 
         // Header: "Tempo & Velocidade"
         TextView title = new TextView(c);
-        title.setText("Tempo & Velocidade");
+        title.setText(getContext().getString(R.string.ui_time_speed));
         title.setTextColor(Style.TEXT_DIM);
-        title.setTextSize(15.5f);
-        title.setTypeface(null, Typeface.BOLD);
+        title.setTextSize(22);
+        title.setTypeface(title.getTypeface(), Typeface.BOLD);
         timeCard.addView(title);
         Style.gap(timeCard, c, 8);
 
         // Hero Metric: 11.1 km (Distância Total) -- the trip-computer trio
         // (distance/time/speed) together; altitude gets its own card now.
         CharSequence distStr = valueWithUnit(String.format(Locale.US, "%.1f", ov.distanceKm), null, "km", HERO_UNIT_SCALE);
-        timeCard.addView(createHeroView(c, distStr, "Distância Total"));
+        timeCard.addView(createHeroView(c, distStr, getContext().getString(R.string.ui_total_distance)));
         Style.gap(timeCard, c, 14);
 
         long dMin = Math.round(ov.drivingMinutes);
-        CharSequence tempoVal = String.format(Locale.US, "%dh %02dm", dMin / 60, dMin % 60);
+        CharSequence tempoVal = c.getString(R.string.ui_duration_hours, dMin / 60, dMin % 60);
         CharSequence velVal = valueWithUnit(String.format(Locale.US, "%.0f", ov.avgSpeedKmh), null, "km/h", ROW_UNIT_SCALE);
 
         List<View> chips = new ArrayList<>();
-        chips.add(metricChip(c, "Tempo", tempoVal));
-        chips.add(metricChip(c, "Vel. Média", velVal));
+        chips.add(metricChip(c, getContext().getString(R.string.ui_time), tempoVal));
+        chips.add(metricChip(c, getContext().getString(R.string.ui_average_speed), velVal));
         distributeInPairs(c, timeCard, chips, 10);
     }
 
@@ -1089,17 +1089,17 @@ public class DailyStatsView extends LinearLayout {
 
         // Header: "Altitude"
         TextView title = new TextView(c);
-        title.setText("Altitude");
+        title.setText(getContext().getString(R.string.ui_altitude));
         title.setTextColor(Style.TEXT_DIM);
-        title.setTextSize(15.5f);
-        title.setTypeface(null, Typeface.BOLD);
+        title.setTextSize(22);
+        title.setTypeface(title.getTypeface(), Typeface.BOLD);
         altitudeCard.addView(title);
         Style.gap(altitudeCard, c, 8);
 
         // Hero Metric: Saldo (net elevation change for the day)
         String signNet = ov.netElevationM >= 0 ? "+" : "";
         CharSequence saldoVal = valueWithUnit(String.format(Locale.US, "%s%.0f", signNet, ov.netElevationM), null, "m", HERO_UNIT_SCALE);
-        altitudeCard.addView(createHeroView(c, saldoVal, "Saldo do Dia"));
+        altitudeCard.addView(createHeroView(c, saldoVal, getContext().getString(R.string.ui_elevation_change)));
         Style.gap(altitudeCard, c, 14);
 
         CharSequence subidaVal = valueWithUnit(String.format(Locale.US, "+%.0f", ov.ascentDPlusM), Style.HEAT, "m", ROW_UNIT_SCALE);
@@ -1107,9 +1107,9 @@ public class DailyStatsView extends LinearLayout {
         CharSequence maxAltVal = valueWithUnit(String.format(Locale.US, "%.0f", ov.maxAltitudeM), null, "m", ROW_UNIT_SCALE);
 
         List<View> chips = new ArrayList<>();
-        chips.add(metricChip(c, "Subida", subidaVal));
-        chips.add(metricChip(c, "Descida", descidaVal));
-        chips.add(metricChip(c, "Altitude Máxima", maxAltVal));
+        chips.add(metricChip(c, getContext().getString(R.string.ui_ascent), subidaVal));
+        chips.add(metricChip(c, getContext().getString(R.string.ui_descent), descidaVal));
+        chips.add(metricChip(c, getContext().getString(R.string.ui_max_altitude), maxAltVal));
         distributeInPairs(c, altitudeCard, chips, 10);
     }
 
@@ -1138,7 +1138,7 @@ public class DailyStatsView extends LinearLayout {
         valTv.setText(value);
         valTv.setTextColor(Style.TEXT);
         valTv.setTextSize(36);
-        valTv.setTypeface(null, Typeface.BOLD);
+        valTv.setTypeface(valTv.getTypeface(), Typeface.BOLD);
         hero.addView(valTv);
 
         TextView capTv = new TextView(c);
@@ -1173,7 +1173,7 @@ public class DailyStatsView extends LinearLayout {
         TextView valueTv = new TextView(c);
         valueTv.setTextColor(Style.TEXT);
         valueTv.setTextSize(19);
-        valueTv.setTypeface(null, Typeface.BOLD);
+        valueTv.setTypeface(valueTv.getTypeface(), Typeface.BOLD);
         valueTv.setText(value);
         valueTv.setPadding(0, Style.dp(c, 2), 0, 0);
         chip.addView(valueTv);
@@ -1371,11 +1371,11 @@ public class DailyStatsView extends LinearLayout {
             else if (session.isTrip()) trips++;
             else charges++;
         }
-        sessionsSummary.setText(trips + (trips == 1 ? " viagem" : " viagens")
-                + " · " + charges + (charges == 1 ? " recarga" : " recargas")
-                + (valets > 0 ? " · " + valets + " manobrista" : ""));
+        String summary = c.getString(R.string.ui_session_counts, trips, charges);
+        sessionsSummary.setText(valets > 0
+            ? c.getString(R.string.ui_session_valet_count, summary, valets) : summary);
         if (ov.sessions.isEmpty()) {
-            TextView empty = Style.label(c, "Nenhuma viagem ou recarga registrada nesta data.");
+            TextView empty = Style.label(c, getContext().getString(R.string.ui_no_day_sessions));
             empty.setPadding(0, Style.dp(c, 20), 0, Style.dp(c, 20));
             sessionsContainer.addView(empty);
             return;
@@ -1438,7 +1438,7 @@ public class DailyStatsView extends LinearLayout {
         TextView tv = new TextView(c);
         tv.setTextColor(Style.TEXT_DIM);
         tv.setTextSize(16f);
-        tv.setText("Estacionado " + formatGapDuration(gapMs));
+        tv.setText(c.getString(R.string.ui_parked_duration, formatGapDuration(gapMs)));
         row.addView(tv);
 
         return row;
@@ -1452,11 +1452,12 @@ public class DailyStatsView extends LinearLayout {
         return divider;
     }
 
-    private static String formatGapDuration(long ms) {
+    private String formatGapDuration(long ms) {
         long totalMin = ms / 60_000L;
         long h = totalMin / 60;
         long m = totalMin % 60;
-        return h > 0 ? String.format(Locale.US, "%dh %02dmin", h, m) : String.format(Locale.US, "%dmin", m);
+        return h > 0 ? getContext().getString(R.string.ui_duration_hours, h, m)
+            : getContext().getString(R.string.ui_duration_minutes, m);
     }
 
     private View buildSessionCard(DailyStatsProvider.DaySession session) {
@@ -1487,17 +1488,17 @@ public class DailyStatsView extends LinearLayout {
         icon.setColorFilter(Style.PURPLE, android.graphics.PorterDuff.Mode.SRC_IN);
         title.addView(icon, new LinearLayout.LayoutParams(Style.dp(c, 20), Style.dp(c, 20)));
         TextView label = new TextView(c);
-        label.setText("Modo manobrista  ·  " + sessionTime(v.timeLabel, v.durationLabel));
+        label.setText(c.getString(R.string.ui_valet_session, sessionTime(v)));
         label.setTextColor(Style.TEXT);
         label.setTextSize(17f);
-        label.setTypeface(null, Typeface.BOLD);
+        label.setTypeface(label.getTypeface(), Typeface.BOLD);
         label.setPadding(Style.dp(c, 10), 0, 0, 0);
         title.addView(label, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         TextView distance = new TextView(c);
         distance.setText(String.format(Locale.getDefault(), "%.1f km", v.distanceKm));
         distance.setTextColor(Style.TEXT);
         distance.setTextSize(18f);
-        distance.setTypeface(null, Typeface.BOLD);
+        distance.setTypeface(distance.getTypeface(), Typeface.BOLD);
         title.addView(distance);
         card.addView(title);
 
@@ -1505,7 +1506,7 @@ public class DailyStatsView extends LinearLayout {
         String power = v.maxPowerKw == null ? "—" : String.format(Locale.getDefault(), "%.1f kW", v.maxPowerKw);
         String battery = v.startSoc >= 0 && v.endSoc >= 0
             ? String.format(Locale.getDefault(), "%+d pp", v.endSoc - v.startSoc) : "—";
-        details.setText(String.format(Locale.getDefault(), "Máx. %.0f km/h  ·  potência %s  ·  bateria %s",
+        details.setText(c.getString(R.string.ui_valet_details,
             v.maxSpeedKmh, power, battery));
         details.setTextColor(Style.TEXT_DIM);
         details.setTextSize(16f);
@@ -1541,8 +1542,8 @@ public class DailyStatsView extends LinearLayout {
         TextView timeView = new TextView(c);
         timeView.setTextColor(Style.TEXT);
         timeView.setTextSize(17f);
-        timeView.setTypeface(null, Typeface.BOLD);
-        timeView.setText(sessionTime(t.timeLabel, t.durationLabel));
+        timeView.setTypeface(timeView.getTypeface(), Typeface.BOLD);
+        timeView.setText(sessionTime(t));
         timeView.setPadding(Style.dp(c, 10), 0, 0, 0);
         leftBox.addView(timeView);
 
@@ -1552,7 +1553,7 @@ public class DailyStatsView extends LinearLayout {
         TextView rightMetric = new TextView(c);
         rightMetric.setTextColor(Style.TEXT);
         rightMetric.setTextSize(18f);
-        rightMetric.setTypeface(null, Typeface.BOLD);
+        rightMetric.setTypeface(rightMetric.getTypeface(), Typeface.BOLD);
         SpannableStringBuilder rightSb = new SpannableStringBuilder();
         rightSb.append(valueWithUnit(String.format(Locale.US, "%.1f", t.distanceKm), null, "km", ROW_UNIT_SCALE));
         rightSb.append("  •  ");
@@ -1577,7 +1578,7 @@ public class DailyStatsView extends LinearLayout {
         String socLabel = (t.socStart >= 0 && t.socEnd >= 0)
                 ? (t.socStart + "% → " + t.socEnd + "%")
                 : (t.socStart >= 0 ? (t.socStart + "%") : "—");
-        appendMetadata(l2Sb, "SoC: ", socLabel, Style.TEXT);
+        appendMetadata(l2Sb, getContext().getString(R.string.ui_soc_prefix), socLabel, Style.TEXT);
 
         // Divider
         appendDivider(l2Sb);
@@ -1600,10 +1601,10 @@ public class DailyStatsView extends LinearLayout {
         String netStr = (t.spentKwh > 0 || t.regenKwh > 0)
                 ? String.format(Locale.US, "%.1f kWh", t.energyKwh)
                 : (t.distanceKm > 0 ? "0.0 kWh" : "—");
-        appendMetadata(l2Sb, "Consumo: ", netStr, Style.TEXT);
+        appendMetadata(l2Sb, getContext().getString(R.string.ui_consumption_prefix), netStr, Style.TEXT);
 
         if (t.regenKwh > 0) {
-            l2Sb.append(" (Regen ");
+            l2Sb.append(getContext().getString(R.string.ui_regen_prefix));
             int rStart = l2Sb.length();
             l2Sb.append(String.format(Locale.US, "+%.1f", t.regenKwh));
             l2Sb.setSpan(new ForegroundColorSpan(Style.COOL), rStart, l2Sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -1645,8 +1646,8 @@ public class DailyStatsView extends LinearLayout {
         TextView timeView = new TextView(c);
         timeView.setTextColor(Style.TEXT);
         timeView.setTextSize(17f);
-        timeView.setTypeface(null, Typeface.BOLD);
-        timeView.setText(sessionTime(ch.timeLabel, ch.durationLabel));
+        timeView.setTypeface(timeView.getTypeface(), Typeface.BOLD);
+        timeView.setText(sessionTime(ch));
         timeView.setPadding(Style.dp(c, 10), 0, 0, 0);
         leftBox.addView(timeView);
 
@@ -1656,7 +1657,7 @@ public class DailyStatsView extends LinearLayout {
         TextView rightMetric = new TextView(c);
         int metricColor = ch.isDcfc ? Style.GOOD : Style.ACCENT;
         rightMetric.setTextSize(18.5f);
-        rightMetric.setTypeface(null, Typeface.BOLD);
+        rightMetric.setTypeface(rightMetric.getTypeface(), Typeface.BOLD);
         rightMetric.setText(valueWithUnit(String.format(Locale.US, "+%.1f", ch.kwh), metricColor, "kWh", ROW_UNIT_SCALE));
         line1.addView(rightMetric);
 
@@ -1673,14 +1674,14 @@ public class DailyStatsView extends LinearLayout {
         String socLabel = (ch.socStart >= 0 && ch.socEnd >= 0)
                 ? (ch.socStart + "% → " + ch.socEnd + "%")
                 : (ch.socStart >= 0 ? (ch.socStart + "%") : "—");
-        appendMetadata(l2Sb, "SoC: ", socLabel, Style.TEXT);
+        appendMetadata(l2Sb, getContext().getString(R.string.ui_soc_prefix), socLabel, Style.TEXT);
 
         // Divider
         appendDivider(l2Sb);
 
         // Potência Méd: 4.2 kW
         String pwrStr = String.format(Locale.US, "%.1f kW", ch.avgPowerKw);
-        appendMetadata(l2Sb, "Potência Méd: ", pwrStr, Style.TEXT);
+        appendMetadata(l2Sb, getContext().getString(R.string.ui_avg_power_prefix), pwrStr, Style.TEXT);
 
         // Divider
         appendDivider(l2Sb);
@@ -1688,10 +1689,10 @@ public class DailyStatsView extends LinearLayout {
         // Custo: R$ 0,00 or Custo não informado
         if (ch.cost != null && ch.cost >= 0) {
             String costStr = String.format(Locale.getDefault(), "R$ %.2f", ch.cost);
-            appendMetadata(l2Sb, "Custo: ", costStr, Style.ACCENT);
+            appendMetadata(l2Sb, getContext().getString(R.string.ui_cost_prefix), costStr, Style.ACCENT);
         } else {
             int cStart = l2Sb.length();
-            l2Sb.append("Custo não informado");
+            l2Sb.append(getContext().getString(R.string.ui_cost_unknown));
             l2Sb.setSpan(new ForegroundColorSpan(Style.TEXT_DIM), cStart, l2Sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
 
@@ -1713,9 +1714,14 @@ public class DailyStatsView extends LinearLayout {
         }
     }
 
-    private static CharSequence sessionTime(String timeLabel, String durationLabel) {
-        SpannableStringBuilder text = new SpannableStringBuilder(timeLabel);
-        appendUnit(text, "  ·  " + durationLabel, 0.92f);
+    private CharSequence sessionTime(DailyStatsProvider.DaySession session) {
+        java.text.SimpleDateFormat clock = new java.text.SimpleDateFormat("HH:mm", AppLanguage.locale(getContext()));
+        String time = clock.format(new java.util.Date(session.startMs)) + " – "
+            + (session.endMs > 0 ? clock.format(new java.util.Date(session.endMs))
+                : getContext().getString(R.string.ui_in_progress));
+        SpannableStringBuilder text = new SpannableStringBuilder(time);
+        long end = session.endMs > 0 ? session.endMs : System.currentTimeMillis();
+        appendUnit(text, "  ·  " + formatGapDuration(Math.max(0, end - session.startMs)), 0.92f);
         return text;
     }
 

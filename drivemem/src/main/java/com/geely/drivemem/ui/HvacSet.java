@@ -3,7 +3,6 @@ package com.geely.drivemem.ui;
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 
-import android.app.Activity;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -12,7 +11,7 @@ import android.widget.TextView;
 
 /** Diagnostic activity for HVAC fan direction. Reads current settings
  * across multiple areas. Runs on CarActor's shared thread. */
-public class HvacSet extends Activity {
+public class HvacSet extends LocalizedActivity {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private TextView out;
 

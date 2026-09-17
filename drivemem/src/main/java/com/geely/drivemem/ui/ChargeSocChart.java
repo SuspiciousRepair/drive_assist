@@ -75,7 +75,7 @@ public final class ChargeSocChart extends ScrollView {
             float axisWidth = right - left;
             float bottom = getHeight() - Style.dp(getContext(), BOTTOM);
             paint.setTextSize(Style.dp(getContext(), 12));
-            paint.setTypeface(android.graphics.Typeface.DEFAULT);
+            paint.setTypeface(Style.font(getContext()));
             paint.setStrokeWidth(1f);
             for (int pct = 0; pct <= 100; pct += 25) {
                 float x = left + axisWidth * pct / 100f;

@@ -43,9 +43,13 @@ public final class EnergyBalanceChart extends LinearLayout {
         setBackground(Style.card(Style.cardFillColor(), c));
         TextView title = Style.label(c, c.getString(R.string.charge_balance_title));
         title.setTextSize(14);
-        title.setTypeface(null, Typeface.BOLD);
+        title.setTypeface(title.getTypeface(), Typeface.BOLD);
         addView(title);
         chart = new BarChart(c);
+        chart.getXAxis().setTypeface(Style.font(c));
+        chart.getAxisLeft().setTypeface(Style.font(c));
+        chart.getAxisRight().setTypeface(Style.font(c));
+        chart.getLegend().setTypeface(Style.font(c));
         chart.getDescription().setEnabled(false);
         chart.setDrawGridBackground(false);
         chart.setDrawBorders(false);

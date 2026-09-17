@@ -1,5 +1,8 @@
 package com.geely.drivemem.util;
 
+import android.content.Context;
+import com.geely.drivemem.R;
+
 /** VHAL constants for drive modes, regen levels, and HVAC control on Geely IHU629G. */
 public final class Modes {
     public static final int PROP_DRIVE = 570491136;
@@ -12,6 +15,9 @@ public final class Modes {
     public static final int REGEN_LOW  = 537003265;
     public static final int REGEN_MID  = 537003266;
     public static final int REGEN_HIGH = 537003267;
+
+    public static final int DEFAULT_DRIVE = DRIVE_COMFORT;
+    public static final int DEFAULT_REGEN = REGEN_MID;
 
     public static final int[] DRIVE_AREAS = {0, 1, 16777216};
     public static final int[] REGEN_AREAS = {0, 1};
@@ -44,6 +50,20 @@ public final class Modes {
         if (v == DRIVE_COMFORT) return "Comfort";
         if (v == DRIVE_SPORT) return "Sport";
         return "?(" + v + ")";
+    }
+
+    public static String driveName(Context context, int value) {
+        if (value == DRIVE_ECO) return context.getString(R.string.cfg_mode_eco);
+        if (value == DRIVE_COMFORT) return context.getString(R.string.cfg_mode_comfort);
+        if (value == DRIVE_SPORT) return context.getString(R.string.cfg_mode_sport);
+        return context.getString(R.string.ui_drive_unknown, value);
+    }
+
+    public static String regenName(Context context, int value) {
+        if (value == REGEN_LOW) return context.getString(R.string.cfg_regen_low);
+        if (value == REGEN_MID) return context.getString(R.string.cfg_regen_mid);
+        if (value == REGEN_HIGH) return context.getString(R.string.cfg_regen_high);
+        return context.getString(R.string.ui_drive_unknown, value);
     }
     public static String regenName(int v) {
         if (v == REGEN_LOW) return "Low";

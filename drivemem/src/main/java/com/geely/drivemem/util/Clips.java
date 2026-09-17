@@ -68,6 +68,16 @@ public final class Clips {
 
         public String title() { return SHOWN.format(new Date(whenMs)); }
 
+        public String title(Context context) { return AppLanguage.date(context, whenMs, "MMMdHm"); }
+
+        public String subtitle(Context context) {
+            String duration = seconds > 0 ? String.format(AppLanguage.locale(context), "%d:%02d", seconds / 60, seconds % 60) : "--:--";
+            String details = duration + "   " + mb(bytes);
+            if (kind == Kind.DONE && !vtt.exists()) details += "   (" + context.getString(com.geely.drivemem.R.string.ui_no_clip_data) + ")";
+            if (valet) details += "   · " + context.getString(com.geely.drivemem.R.string.ui_clip_valet);
+            return details;
+        }
+
         public boolean playable() { return kind == Kind.DONE; }
 
         public String subtitle() {
