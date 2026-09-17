@@ -131,8 +131,12 @@ public final class CarActor {
             Reading.ok(CarplayState.connected() ? 1 : 0));
     }
 
-    // Main heartbeat: reads all Telemetry.FIELDS on cadence.
-    private static final int TICK_INTERVAL_MS = 15000;
+    // Main heartbeat: reads all Telemetry.FIELDS on cadence. 30s, not faster:
+    // the no-OBD2 battery estimate (Telemetry.POWER_WINDOW_MS) only has a
+    // fresh SoC delta every 30s -- ticking faster than that just meant every
+    // other tick's fallback energy calc used a mismatched (half-length)
+    // duration against a reading that hadn't actually changed yet.
+    private static final int TICK_INTERVAL_MS = 30000;
     private long lastTelemetryMs = -1;
 
     /** Callback for a registered periodic property poll. Runs on actor's thread. */

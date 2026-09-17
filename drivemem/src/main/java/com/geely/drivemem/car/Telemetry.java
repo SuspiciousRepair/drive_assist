@@ -12,7 +12,7 @@ public class Telemetry {
     // from CarActor's thread (read() is only called from there).
     private static final double CAPACITY_WH = 39600;
     private static final long POWER_WINDOW_MS = 30_000;
-    private static Integer lastPowerSoc = null;
+    private static Double lastPowerSoc = null;
     private static long lastPowerSocAtMs = 0;
 
     /** Metadata for a telemetry field: property ID, type, scaling divisor, and display information. */
@@ -145,9 +145,13 @@ public class Telemetry {
         // already warm), and every window has a recorded estimate alongside
         // whatever the "best available" (OBD-priority) energy turned out to
         // be. See EnergySource / CarDb v21.
-        Object socObj = out.get("battery");
-        if (socObj instanceof Integer) {
-            int socNow = (Integer) socObj;
+        // battery_raw_pct, not "battery": that's the rounded-to-integer value
+        // published for display/HA, and a 30s SoC delta is frequently well
+        // under half a percent -- reading the rounded field made this estimate
+        // see "no change" most windows, then a whole 1% jump the next.
+        Object socObj = out.get("battery_raw_pct");
+        if (socObj instanceof Float) {
+            double socNow = (Float) socObj;
             long now = System.currentTimeMillis();
             if (lastPowerSoc != null) {
                 long elapsedMs = now - lastPowerSocAtMs;
