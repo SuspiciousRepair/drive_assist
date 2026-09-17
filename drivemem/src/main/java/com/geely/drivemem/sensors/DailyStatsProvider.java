@@ -1053,6 +1053,90 @@ public final class DailyStatsProvider {
         return ov;
     }
 
+    /** The still-open trip's live stats right now, or null if not currently driving
+     * (parked, no active trip, or in Valet). Same accounting queryDaySessions' own
+     * in-progress branch used to inline, so the home-screen journey card and the
+     * daily-stats "session in progress" row can never disagree. */
+    public static DriveSession getActiveDriveSession(Context ctx, SQLiteDatabase db) {
+        if (!com.geely.drivemem.state.TripSession.isTripActive()
+                || com.geely.drivemem.state.ValetSession.isActive(ctx)) {
+            return null;
+        }
+        long startMs = com.geely.drivemem.state.TripSession.getActiveTripStartMs();
+        long startSampleId = com.geely.drivemem.state.TripSession.getActiveTripStartSampleId();
+        double odoStart = com.geely.drivemem.state.TripSession.getActiveTripStartOdoKm();
+        int socStart = com.geely.drivemem.state.TripSession.getActiveTripStartSoc();
+
+        if (odoStart < 0 || socStart < 0) {
+            if (startSampleId > 0) {
+                Cursor sc = db.rawQuery(
+                    "SELECT odo_km, battery_pct FROM telemetry_sample WHERE id = ?",
+                    new String[]{String.valueOf(startSampleId)});
+                try {
+                    if (sc.moveToFirst()) {
+                        if (odoStart < 0 && !sc.isNull(0)) odoStart = sc.getDouble(0);
+                        if (socStart < 0 && !sc.isNull(1)) socStart = sc.getInt(1);
+                    }
+                } finally { sc.close(); }
+            }
+            if ((odoStart < 0 || socStart < 0) && startMs > 0) {
+                Cursor sc = db.rawQuery(
+                    "SELECT odo_km, battery_pct FROM telemetry_sample WHERE ts_ms >= ? ORDER BY id ASC LIMIT 1",
+                    new String[]{String.valueOf(startMs)});
+                try {
+                    if (sc.moveToFirst()) {
+                        if (odoStart < 0 && !sc.isNull(0)) odoStart = sc.getDouble(0);
+                        if (socStart < 0 && !sc.isNull(1)) socStart = sc.getInt(1);
+                    }
+                } finally { sc.close(); }
+            }
+        }
+
+        double odoEnd = -1;
+        int socEnd = -1;
+        com.geely.drivemem.car.CarActor.Reading odoR = com.geely.drivemem.car.CarActor.get(ctx).get("telemetry.odometer");
+        if (odoR.status == com.geely.drivemem.car.CarActor.Reading.Status.OK && odoR.value instanceof Number) {
+            odoEnd = ((Number) odoR.value).doubleValue();
+        }
+        com.geely.drivemem.car.CarActor.Reading battR = com.geely.drivemem.car.CarActor.get(ctx).get("telemetry.battery");
+        if (battR.status == com.geely.drivemem.car.CarActor.Reading.Status.OK && battR.value instanceof Integer) {
+            socEnd = (Integer) battR.value;
+        }
+
+        if (odoEnd < 0 || socEnd < 0) {
+            Cursor lastC = db.rawQuery(
+                "SELECT odo_km, battery_pct FROM telemetry_sample ORDER BY id DESC LIMIT 1", null);
+            try {
+                if (lastC.moveToFirst()) {
+                    if (odoEnd < 0 && !lastC.isNull(0)) odoEnd = lastC.getDouble(0);
+                    if (socEnd < 0 && !lastC.isNull(1)) socEnd = lastC.getInt(1);
+                }
+            } finally { lastC.close(); }
+        }
+
+        double distanceKm = (odoStart > 0 && odoEnd >= odoStart) ? (odoEnd - odoStart) : 0;
+        double ascent = com.geely.drivemem.state.TripSession.getActiveTripAscentM();
+        double descent = com.geely.drivemem.state.TripSession.getActiveTripDescentM();
+        // Recompute from timestamped rows instead of EnergyIntegrator's live
+        // trip accumulator. The trip remains open during the Park grace period,
+        // while its displayed driving energy must stop immediately in Park.
+        DrivingConsumption activeEnergy = queryDrivingConsumption(db,
+            "ts_ms >= ?", new String[]{String.valueOf(startMs)});
+        double spent = activeEnergy.totalSpent;
+        double regen = activeEnergy.totalRegen;
+        double net = spent - regen;
+        double eff = DrivingConsumption.efficiencyKwh100km(distanceKm, spent, regen);
+
+        // endMs = 0 indicates active session ("em andamento")
+        return new DriveSession(0, startMs, 0, distanceKm, socStart, socEnd,
+                ascent, descent, regen, spent, net, eff, activeEnergy.energySource());
+    }
+
+    /** Convenience overload for callers without an already-open db handle. */
+    public static DriveSession getActiveDriveSession(Context ctx) {
+        return getActiveDriveSession(ctx, CarDb.get(ctx).db());
+    }
+
     private static List<DaySession> queryDaySessions(Context ctx, SQLiteDatabase db, String dateStr) {
         List<DaySession> out = new ArrayList<>();
         long[] bounds = dayBoundsMs(dateStr);
@@ -1116,76 +1200,9 @@ public final class DailyStatsProvider {
 
         // 2. Active in-progress trip (if driving today)
         String today = todayDateStr();
-        if (dateStr.equals(today) && com.geely.drivemem.state.TripSession.isTripActive()
-                && !com.geely.drivemem.state.ValetSession.isActive(ctx)) {
-            long startMs = com.geely.drivemem.state.TripSession.getActiveTripStartMs();
-            long startSampleId = com.geely.drivemem.state.TripSession.getActiveTripStartSampleId();
-            double odoStart = com.geely.drivemem.state.TripSession.getActiveTripStartOdoKm();
-            int socStart = com.geely.drivemem.state.TripSession.getActiveTripStartSoc();
-
-            if (odoStart < 0 || socStart < 0) {
-                if (startSampleId > 0) {
-                    Cursor sc = db.rawQuery(
-                        "SELECT odo_km, battery_pct FROM telemetry_sample WHERE id = ?",
-                        new String[]{String.valueOf(startSampleId)});
-                    try {
-                        if (sc.moveToFirst()) {
-                            if (odoStart < 0 && !sc.isNull(0)) odoStart = sc.getDouble(0);
-                            if (socStart < 0 && !sc.isNull(1)) socStart = sc.getInt(1);
-                        }
-                    } finally { sc.close(); }
-                }
-                if ((odoStart < 0 || socStart < 0) && startMs > 0) {
-                    Cursor sc = db.rawQuery(
-                        "SELECT odo_km, battery_pct FROM telemetry_sample WHERE ts_ms >= ? ORDER BY id ASC LIMIT 1",
-                        new String[]{String.valueOf(startMs)});
-                    try {
-                        if (sc.moveToFirst()) {
-                            if (odoStart < 0 && !sc.isNull(0)) odoStart = sc.getDouble(0);
-                            if (socStart < 0 && !sc.isNull(1)) socStart = sc.getInt(1);
-                        }
-                    } finally { sc.close(); }
-                }
-            }
-
-            double odoEnd = -1;
-            int socEnd = -1;
-            com.geely.drivemem.car.CarActor.Reading odoR = com.geely.drivemem.car.CarActor.get(ctx).get("telemetry.odometer");
-            if (odoR.status == com.geely.drivemem.car.CarActor.Reading.Status.OK && odoR.value instanceof Number) {
-                odoEnd = ((Number) odoR.value).doubleValue();
-            }
-            com.geely.drivemem.car.CarActor.Reading battR = com.geely.drivemem.car.CarActor.get(ctx).get("telemetry.battery");
-            if (battR.status == com.geely.drivemem.car.CarActor.Reading.Status.OK && battR.value instanceof Integer) {
-                socEnd = (Integer) battR.value;
-            }
-
-            if (odoEnd < 0 || socEnd < 0) {
-                Cursor lastC = db.rawQuery(
-                    "SELECT odo_km, battery_pct FROM telemetry_sample ORDER BY id DESC LIMIT 1", null);
-                try {
-                    if (lastC.moveToFirst()) {
-                        if (odoEnd < 0 && !lastC.isNull(0)) odoEnd = lastC.getDouble(0);
-                        if (socEnd < 0 && !lastC.isNull(1)) socEnd = lastC.getInt(1);
-                    }
-                } finally { lastC.close(); }
-            }
-
-            double distanceKm = (odoStart > 0 && odoEnd >= odoStart) ? (odoEnd - odoStart) : 0;
-            double ascent = com.geely.drivemem.state.TripSession.getActiveTripAscentM();
-            double descent = com.geely.drivemem.state.TripSession.getActiveTripDescentM();
-            // Recompute from timestamped rows instead of EnergyIntegrator's live
-            // trip accumulator. The trip remains open during the Park grace period,
-            // while its displayed driving energy must stop immediately in Park.
-            DrivingConsumption activeEnergy = queryDrivingConsumption(db,
-                "ts_ms >= ?", new String[]{String.valueOf(startMs)});
-            double spent = activeEnergy.totalSpent;
-            double regen = activeEnergy.totalRegen;
-            double net = spent - regen;
-            double eff = DrivingConsumption.efficiencyKwh100km(distanceKm, spent, regen);
-
-            // endMs = 0 indicates active session ("em andamento")
-            out.add(new DriveSession(0, startMs, 0, distanceKm, socStart, socEnd,
-                    ascent, descent, regen, spent, net, eff, activeEnergy.energySource()));
+        if (dateStr.equals(today)) {
+            DriveSession active = getActiveDriveSession(ctx, db);
+            if (active != null) out.add(active);
         }
 
         // 3. Explicit Valet intervals. Their original trips remain in the DB,

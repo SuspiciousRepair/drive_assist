@@ -19,8 +19,7 @@ import com.geely.drivemem.hvac.EffortTable;
 import com.geely.drivemem.net.AbrpUploader;
 import com.geely.drivemem.net.MqttReporter;
 import com.geely.drivemem.sensors.Obd2Reader;
-import com.geely.drivemem.sensors.DrivingConsumption;
-import com.geely.drivemem.sensors.EnergyIntegrator;
+import com.geely.drivemem.sensors.DailyStatsProvider;
 import com.geely.drivemem.services.TelemetryService;
 import com.geely.drivemem.state.CarState;
 import com.geely.drivemem.state.ChargeSession;
@@ -35,6 +34,7 @@ import com.geely.drivemem.util.Modes;
 import com.geely.drivemem.util.SpotifyClient;
 import com.geely.drivemem.net.Updater;
 import com.geely.drivemem.util.Style;
+import com.geely.drivemem.util.PressFeedbackDrawable;
 
 import android.app.Activity;
 import android.content.BroadcastReceiver;
@@ -79,6 +79,10 @@ public class ComfortActivity extends Activity {
     private android.widget.ImageView scaleView;
     private android.widget.ImageView recircBtn;
     private boolean recircOn = false;
+    // Tap-feedback drawables persist while their resting content changes, so a
+    // car-state refresh cannot cut off a finger's release animation.
+    private android.graphics.drawable.Drawable recircFeedback, purgeFeedback;
+    private int pressColor = Style.ACCENT;
     private android.widget.ImageView windDirIcon;
     private android.widget.ImageView rearDefrostIcon;
     private int currentWindDir = 0;
@@ -1105,31 +1109,40 @@ public class ComfortActivity extends Activity {
                 formatElapsed(System.currentTimeMillis() - s.startMs), power));
             journeyAction.setText(R.string.valet_end);
         } else if (driving) {
-            EnergyIntegrator.TripSnapshot energy = EnergyIntegrator.currentTrip();
-            double odoStart = TripSession.getActiveTripStartOdoKm();
-            Number odoNow = cachedNumber("telemetry.odometer");
-            double km = odoNow != null && odoStart >= 0 ? Math.max(0, odoNow.doubleValue() - odoStart) : 0;
-            // Same formula the daily stats page uses for this exact still-driving
-            // trip (DailyStatsProvider.queryDaySessions' active-trip branch) --
-            // this card used to net spentKwh alone, overstating consumption on
-            // any trip with real regen braking. See DrivingConsumption
-            // .efficiencyKwh100km's own header for the fuller history.
-            double eff = DrivingConsumption.efficiencyKwh100km(km, energy.spentKwh, energy.regenKwh);
+            // Same accounting the daily stats page uses for this exact still-driving
+            // trip (DailyStatsProvider.getActiveDriveSession, shared with
+            // queryDaySessions' own active-trip branch) -- including the real
+            // measured/mixed/estimated classification, not just "any OBD2 sample
+            // at all this trip?" which used to hide a mostly-estimated trip behind
+            // one lucky reading. See DrivingConsumption.efficiencyKwh100km's own
+            // header for the fuller history on the netting-vs-spentKwh-alone fix.
+            DailyStatsProvider.DriveSession session = DailyStatsProvider.getActiveDriveSession(this);
             journeyTitle.setText(R.string.drive_card_title);
-            // Smaller/dimmer units, same look as a daily-stats session row
-            // (Style.valueWithUnit), instead of plain concatenated strings.
             SpannableStringBuilder primary = new SpannableStringBuilder();
-            primary.append(eff > 0
-                ? Style.valueWithUnit(String.format(Locale.getDefault(), "%.1f", eff),
-                    null, "kWh/100 km", Style.UNIT_SCALE_HERO)
-                : getString(R.string.value_calculating));
-            primary.append("  ·  ");
-            primary.append(Style.valueWithUnit(String.format(Locale.getDefault(), "%.2f", energy.netKwh),
-                null, "kWh", Style.UNIT_SCALE_HERO));
-            journeyPrimary.setText(primary);
-            journeySecondary.setText(getString(R.string.drive_card_detail, km,
-                formatElapsed(TripSession.getDrivingDurationMs()), formatClock(TripSession.getActiveTripStartMs()),
-                energy.regenKwh));
+            if (session == null) {
+                primary.append(getString(R.string.value_calculating));
+                journeyPrimary.setText(primary);
+                journeySecondary.setText(getString(R.string.drive_card_detail, 0.0,
+                    formatElapsed(TripSession.getDrivingDurationMs()), formatClock(TripSession.getActiveTripStartMs()),
+                    0.0));
+            } else {
+                double km = session.distanceKm;
+                double eff = session.efficiencyKwh100km;
+                double netKwh = session.energyKwh;
+                // Smaller/dimmer units, same look as a daily-stats session row
+                // (Style.valueWithUnit), instead of plain concatenated strings.
+                primary.append(eff > 0
+                    ? Style.valueWithUnit(String.format(Locale.getDefault(), "%.1f", eff),
+                        null, "kWh/100 km", Style.UNIT_SCALE_HERO)
+                    : getString(R.string.value_calculating));
+                primary.append("  ·  ");
+                primary.append(Style.valueWithUnit(String.format(Locale.getDefault(), "%.2f", netKwh),
+                    null, "kWh", Style.UNIT_SCALE_HERO));
+                journeyPrimary.setText(DailyStatsView.withEnergySourceMark(primary, session.energySource));
+                journeySecondary.setText(getString(R.string.drive_card_detail, km,
+                    formatElapsed(TripSession.getDrivingDurationMs()), formatClock(TripSession.getActiveTripStartMs()),
+                    session.regenKwh));
+            }
         } else {
             ParkingState.Snapshot s = ParkingState.snapshot(this);
             journeyTitle.setText(R.string.parked_card_title);
@@ -1347,32 +1360,42 @@ public class ComfortActivity extends Activity {
 
     private String fmt(float v) { return Float.isNaN(v) ? "--" : String.format(java.util.Locale.US, "%.0f", v); }
 
-    // applies the ambient light colour to every detail that follows it.
-    // A theme that does not follow the cabin (Noturno) uses its own accent — at
-    // night the whole point of it is precisely NOT to carry the cabin's
-    // blue/violet light onto the screen.
-    private int lastAmbient = 0;
+    // Forwards the raw ambient light colour to the art (always, unconditionally
+    // -- see ARTE.md) and resolves the tap/press-feedback color for recirc and
+    // purge. Everything that used to also re-tint here (the HA panel/gate card
+    // accent, the recirc/purge icon fill, the turbo bar) now holds a constant
+    // Style.ACCENT set once at construction -- see Style.PRESS_AMBIENT's own
+    // comment for why that role narrowed to just the press effect.
+    private int lastRawAmbient = 0;
 
     private void applyAmbient(int rgb) {
         int raw = 0xFF000000 | (rgb & 0xFFFFFF);
-        int c = Style.FOLLOW_AMBIENT ? raw : Style.ACCENT;
         // The art always receives the REAL cabin colour and decides what to do
         // with it: Noturno does not let the cabin rule the CONTROLS (no blue in
         // your face at night), but the panel's city does follow the car's RGB.
         // (Both arts already filter a repeated colour, so this does not redraw.)
         if (art != null) art.setAmbient(raw);
-        // Skip repaints of the same color: setBackgroundColor and setTextColor
-        // invalidate even with identical values, and this 4s poll would otherwise
-        // request frames unnecessarily.
-        if (c == lastAmbient) return;
-        lastAmbient = c;
-        if (card != null) card.setAccent(c);
-        setRecirc(recircOn);      // re-tint: lit means the ambient accent
-        setPurge(purgeOpen);
-        redrawTurboBar(turboBarFraction < 0 ? 1f : turboBarFraction);   // re-tint, same fraction
-        if (gateCard != null) gateCard.setAccent(c);
+        // Skip repeat work: the sensor often reports the same reading back to
+        // back, and setColorFilter/RippleDrawable.setColor invalidate even
+        // when the value is identical.
+        if (raw == lastRawAmbient) return;
+        lastRawAmbient = raw;
         if (windDirIcon != null && currentWindDir != 0) {
             windDirIcon.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
+        }
+        int newPressColor = Style.resolvePressColor(Style.PRESS_AMBIENT, raw, Style.ACCENT);
+        if (newPressColor == pressColor) return;
+        pressColor = newPressColor;
+        updatePressColor(recircFeedback);
+        updatePressColor(purgeFeedback);
+    }
+
+    private void updatePressColor(android.graphics.drawable.Drawable drawable) {
+        if (drawable instanceof PressFeedbackDrawable) {
+            ((PressFeedbackDrawable) drawable).setPressColor(pressColor);
+        } else if (drawable instanceof android.graphics.drawable.RippleDrawable) {
+            ((android.graphics.drawable.RippleDrawable) drawable).setColor(
+                android.content.res.ColorStateList.valueOf(pressColor));
         }
     }
 
@@ -1604,10 +1627,8 @@ public class ComfortActivity extends Activity {
         if (w <= 0) { chargeBarView.post(() -> redrawChargeBar(socStart, socNow)); return; }
         if (w == chargeBarW && socStart == chargeBarStart && socNow == chargeBarNow) return;
         chargeBarW = w; chargeBarStart = socStart; chargeBarNow = socNow;
-        int color = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
-        if (color == 0) color = Style.ACCENT;
         chargeBarView.setImageBitmap(Style.chargeBar(this, w, chargeBarView.getHeight(),
-            socStart / 100f, socNow / 100f, color));
+            socStart / 100f, socNow / 100f, Style.ACCENT));
     }
 
     // TurboMode already calls back on the UI thread — no ui.post needed here.
@@ -1623,10 +1644,9 @@ public class ComfortActivity extends Activity {
         if (turboBarView == null) return;
         int w = turboBarView.getWidth();
         if (w <= 0) { turboBarView.post(() -> redrawTurboBar(fraction)); return; }
-        // Same ambient-or-fallback accent as recirc/purge — "full colour of the
-        // car", not a fixed app colour, ready or draining alike.
-        int color = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
-        if (color == 0) color = Style.ACCENT;
+        // Stable theme accent, ready or draining alike -- see Style.PRESS_AMBIENT's
+        // own comment for why this no longer follows the cabin's ambient light.
+        int color = Style.ACCENT;
         if (fraction == turboBarFraction && w == turboBarW && color == turboBarColor) return;
         turboBarFraction = fraction; turboBarW = w; turboBarColor = color;
         turboBarView.setImageBitmap(Style.turboBar(this, w, turboBarView.getHeight(), fraction, color));
@@ -1994,13 +2014,21 @@ public class ComfortActivity extends Activity {
     // when open. Window position has no natural state drawing, so the
     // icon indicates the next action.
     private void setPurge(boolean open) {
+        boolean stateChanged = open != purgeOpen;
         purgeOpen = open;
         if (purgeBtn == null) return;
-        int accent = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
-        if (accent == 0) accent = Style.ACCENT;
+        if (purgeFeedback == null || stateChanged) {
+            android.graphics.drawable.Drawable content = open
+                ? Style.card(Style.ACCENT, this, Style.RADIUS_DP - 8) : Style.tile(this);
+            if (purgeFeedback instanceof PressFeedbackDrawable) {
+                ((PressFeedbackDrawable) purgeFeedback).setContent(content);
+            } else {
+                purgeFeedback = Style.pressable(content, this, Style.RADIUS_DP - 8, pressColor);
+                purgeBtn.setBackground(purgeFeedback);
+            }
+        }
         purgeBtn.setImageResource(open ? R.drawable.ic_window_raise : R.drawable.ic_window_lower);
-        purgeBtn.setColorFilter(open ? Style.onFill(accent) : Style.TEXT);
-        purgeBtn.setBackground(open ? Style.card(accent, this, Style.RADIUS_DP - 8) : Style.tile(this));
+        purgeBtn.setColorFilter(open ? Style.onFill(Style.ACCENT) : Style.TEXT);
     }
 
     // Icon showing current state: car+loop icon lit while recirculating,
@@ -2011,13 +2039,19 @@ public class ComfortActivity extends Activity {
         boolean stateChanged = (on != recircOn);
         recircOn = on;
 
-        int accent = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
-        if (accent == 0) accent = Style.ACCENT;
-
         // The static icon at rest: ic_hvac_cycle_off while on, ic_hvac_cycle_on while off.
         int staticIcon = on ? R.drawable.ic_hvac_cycle_off : R.drawable.ic_hvac_cycle_on;
-        int colorFilter = on ? Style.onFill(accent) : Style.TEXT;
-        android.graphics.drawable.Drawable bgDrawable = on ? Style.card(accent, this, Style.RADIUS_DP - 8) : Style.tile(this);
+        int colorFilter = on ? Style.onFill(Style.ACCENT) : Style.TEXT;
+        if (recircFeedback == null || stateChanged) {
+            android.graphics.drawable.Drawable content = on
+                ? Style.card(Style.ACCENT, this, Style.RADIUS_DP - 8) : Style.tile(this);
+            if (recircFeedback instanceof PressFeedbackDrawable) {
+                ((PressFeedbackDrawable) recircFeedback).setContent(content);
+            } else {
+                recircFeedback = Style.pressable(content, this, Style.RADIUS_DP - 8, pressColor);
+            }
+        }
+        android.graphics.drawable.Drawable bgDrawable = recircFeedback;
 
         if (stateChanged && recircBtn.getDrawable() != null) {
             // State changed: play the opposite state's animation, then settle
