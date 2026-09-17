@@ -118,10 +118,25 @@ can provide more precise battery-management data. See the [ABRP guide](ABRP.md).
 
 ### Dashcam
 
-The optional dashcam uses the car's existing cameras and can add time, position,
-and speed information to recordings. Clips can be exported to USB. Read the
-[dashcam guide](DASHCAM.md) before enabling it, because storage and local recording
-rules vary by region.
+The optional dashcam uses the car's existing cameras and can add time, speed,
+gear, temperature, and heading information when available. In Settings →
+Recordings, choose 1, 3, 5, or 10 minutes per clip and a storage budget.
+Recording continues through successive clips; when the budget is exceeded,
+the oldest unprotected clips are deleted. Hold protects a clip until you
+release or delete it. Protected clips still use space, so a full drive can
+stop recording.
+
+Choose head unit storage or a connected USB/removable drive from the dropdown.
+Duration and destination changes save immediately and apply to the next clip;
+old recordings stay on their original drive. Open a completed clip, select an
+individual camera, and use Adjust view to change its playback framing.
+Live preview opens the current four-camera view. If recording is off, use
+Start recording explicitly. Returning Home or switching to another app closes
+the preview while ModeHelper continues recording in the background. Stop
+recording is a separate action; recording still depends on the head unit
+remaining awake, the camera engine, and available storage.
+Both Drive Assist and ModeHelper need the matching update. See the
+[dashcam guide](DASHCAM.md) for storage, recovery, and hardware limitations.
 
 ## What Drive Assist can control
 

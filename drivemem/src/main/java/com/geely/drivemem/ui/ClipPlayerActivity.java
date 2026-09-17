@@ -5,8 +5,12 @@ import com.geely.drivemem.R;
 import com.geely.drivemem.util.Clips;
 import com.geely.drivemem.util.Style;
 
+import android.app.AlertDialog;
+import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.SurfaceTexture;
+import android.graphics.drawable.RippleDrawable;
 import android.media.MediaPlayer;
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
@@ -16,10 +20,15 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
 import android.view.Surface;
+import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.MediaController;
+import android.widget.ScrollView;
+import android.widget.SeekBar;
 import android.widget.TextView;
 
 import java.io.BufferedReader;
@@ -153,11 +162,16 @@ public class ClipPlayerActivity extends LocalizedActivity {
     private MediaController controller;
     private final List<TextView> camButtons = new ArrayList<>();
     private int lastCue = -1;
+    private SharedPreferences viewPrefs;
+    private float[] selectedCamera = ALL;
+    private Button adjustView;
+    private AlertDialog viewDialog;
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
         Style.load(this);
         Style.edgeToEdge(this);
+        viewPrefs = getSharedPreferences("drivemem", MODE_PRIVATE);
         final String path = getIntent().getStringExtra(EXTRA_PATH);
         if (path == null) { finish(); return; }
 
@@ -238,6 +252,15 @@ public class ClipPlayerActivity extends LocalizedActivity {
         bp.topMargin  = Style.dp(this, 20) + Style.statusBarHeight(this);
         root.addView(back, bp);
 
+        adjustView = viewButton(getString(R.string.dash_view_adjust), this::showViewSettings);
+        adjustView.setVisibility(View.GONE);
+        FrameLayout.LayoutParams ap = new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        ap.gravity = Gravity.TOP | Gravity.END;
+        ap.rightMargin = Style.dp(this, 20);
+        ap.topMargin = Style.dp(this, 20) + Style.statusBarHeight(this);
+        root.addView(adjustView, ap);
+
         // Playback controls via MediaController, needed because GLSurfaceView
         // doesn't provide them like VideoView did.
         controller = new MediaController(this) {
@@ -290,16 +313,180 @@ public class ClipPlayerActivity extends LocalizedActivity {
         paint(t, selected);
         t.setOnClickListener(v -> {
             for (TextView o : camButtons) paint(o, o == t);
-            gl.queueEvent(() -> renderer.select(cam));
-            gl.requestRender();
+            selectedCamera = cam;
+            adjustView.setVisibility(cameraId(cam) == null ? View.GONE : View.VISIBLE);
+            applyView(cam);
         });
         camButtons.add(t);
         return t;
     }
 
     private void paint(TextView t, boolean on) {
+        t.setSelected(on);
         t.setBackground(on ? Style.card(Style.CARD_ON, this) : Style.card(0xB0000000, this));
         t.setTextColor(on ? Style.onFill(Style.CARD_ON) : 0xFFDDDDDD);
+    }
+
+    private static String cameraId(float[] camera) {
+        if (camera == FRONT) {
+            return "front";
+        }
+        if (camera == REAR) {
+            return "rear";
+        }
+        if (camera == LEFT) {
+            return "left";
+        }
+        if (camera == RIGHT) {
+            return "right";
+        }
+        return null;
+    }
+
+    private String cameraName(float[] camera) {
+        return getString(camera == FRONT ? R.string.cam_front : camera == REAR ? R.string.cam_rear
+            : camera == LEFT ? R.string.cam_left : R.string.cam_right);
+    }
+
+    private ClipViewSettings viewSettings(float[] camera) {
+        String key = "dash_view_" + cameraId(camera);
+        float fov = camera[4];
+        float pitch = 0;
+        try {
+            fov = viewPrefs.getFloat(key + "_fov", fov);
+        } catch (ClassCastException ignored) { }
+        try {
+            pitch = viewPrefs.getFloat(key + "_pitch_offset", pitch);
+        } catch (ClassCastException ignored) { }
+        return new ClipViewSettings(camera, fov, pitch);
+    }
+
+    private void applyView(float[] camera) {
+        final float[] snapshot = cameraId(camera) == null ? camera : viewSettings(camera).camera();
+        gl.queueEvent(() -> renderer.select(snapshot));
+        gl.requestRender();
+    }
+
+    private Button viewButton(String label, Runnable action) {
+        Button button = new Button(this);
+        button.setText(label);
+        button.setAllCaps(false);
+        button.setTextSize(22);
+        button.setTypeface(Style.font(this));
+        button.setTextColor(Style.TEXT);
+        button.setMinHeight(Style.dp(this, 56));
+        button.setMinWidth(Style.dp(this, 48));
+        button.setPadding(Style.dp(this, 16), Style.dp(this, 8),
+            Style.dp(this, 16), Style.dp(this, 8));
+        button.setStateListAnimator(null);
+        button.setBackground(new RippleDrawable(ColorStateList.valueOf(
+            Style.blend(Style.CARD_HI, Style.TEXT, .18f)), Style.card(Style.CARD_HI, this), null));
+        button.setOnClickListener(v -> action.run());
+        return button;
+    }
+
+    private void showViewSettings() {
+        final float[] camera = selectedCamera;
+        String id = cameraId(camera);
+        if (id == null || (viewDialog != null && viewDialog.isShowing())) {
+            return;
+        }
+        if (controller != null) {
+            controller.hide();
+        }
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        int pad = Style.dp(this, 24);
+        card.setPadding(pad, pad, pad, pad);
+        card.setBackground(Style.card(Style.CARD, this, 24));
+        card.addView(Style.title(this, getString(R.string.dash_view_title, cameraName(camera))));
+        TextView hint = Style.label(this, getString(R.string.dash_view_hint));
+        hint.setTextColor(Style.TEXT_DIM);
+        hint.setPadding(0, Style.dp(this, 8), 0, Style.dp(this, 16));
+        card.addView(hint);
+        TextView fovLabel = Style.label(this, "");
+        TextView pitchLabel = Style.label(this, "");
+        SeekBar fov = new SeekBar(this);
+        SeekBar pitch = new SeekBar(this);
+        fov.setMax(ClipViewSettings.MAX_FOV - ClipViewSettings.MIN_FOV);
+        pitch.setMax(ClipViewSettings.MAX_PITCH - ClipViewSettings.MIN_PITCH);
+        ClipViewSettings saved = viewSettings(camera);
+        fov.setProgress(saved.horizontalFov - ClipViewSettings.MIN_FOV);
+        pitch.setProgress(saved.pitchOffset - ClipViewSettings.MIN_PITCH);
+        addViewSlider(card, fovLabel, fov);
+        addViewSlider(card, pitchLabel, pitch);
+        TextView feedback = Style.label(this, "");
+        feedback.setTextColor(Style.GOOD);
+        feedback.setVisibility(View.GONE);
+        card.addView(feedback);
+        String key = "dash_view_" + id;
+        Runnable refreshLabels = () -> {
+            fovLabel.setText(getString(R.string.dash_view_fov, fov.getProgress() + ClipViewSettings.MIN_FOV));
+            pitchLabel.setText(getString(R.string.dash_view_pitch, pitch.getProgress() + ClipViewSettings.MIN_PITCH));
+            fov.setContentDescription(fovLabel.getText());
+            pitch.setContentDescription(pitchLabel.getText());
+        };
+        refreshLabels.run();
+        SeekBar.OnSeekBarChangeListener listener = new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
+                refreshLabels.run();
+                if (!fromUser) {
+                    return;
+                }
+                feedback.setVisibility(View.GONE);
+                viewPrefs.edit().putFloat(key + "_fov", fov.getProgress() + ClipViewSettings.MIN_FOV)
+                    .putFloat(key + "_pitch_offset", pitch.getProgress() + ClipViewSettings.MIN_PITCH).apply();
+                applyView(camera);
+            }
+            @Override public void onStartTrackingTouch(SeekBar bar) { }
+            @Override public void onStopTrackingTouch(SeekBar bar) { }
+        };
+        fov.setOnSeekBarChangeListener(listener);
+        pitch.setOnSeekBarChangeListener(listener);
+        Button reset = viewButton(getString(R.string.dash_view_restore), () -> {
+            viewPrefs.edit().remove(key + "_fov").remove(key + "_pitch_offset").apply();
+            ClipViewSettings defaults = ClipViewSettings.defaults(camera);
+            fov.setProgress(defaults.horizontalFov - ClipViewSettings.MIN_FOV);
+            pitch.setProgress(defaults.pitchOffset - ClipViewSettings.MIN_PITCH);
+            refreshLabels.run();
+            applyView(camera);
+            feedback.setText(R.string.dash_view_restored);
+            feedback.setVisibility(View.VISIBLE);
+            feedback.announceForAccessibility(getString(R.string.dash_view_restored));
+        });
+        LinearLayout.LayoutParams actionSize = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        actionSize.topMargin = Style.dp(this, 16);
+        card.addView(reset, actionSize);
+        Button done = viewButton(getString(R.string.dash_view_done), () -> viewDialog.dismiss());
+        LinearLayout.LayoutParams doneSize = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        doneSize.topMargin = Style.dp(this, 8);
+        card.addView(done, doneSize);
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(card);
+        viewDialog = new AlertDialog.Builder(this).setView(scroll).create();
+        viewDialog.show();
+        Window window = viewDialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawableResource(android.R.color.transparent);
+            window.setDimAmount(.15f);
+            window.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+            window.setLayout(Math.min(Style.dp(this, 560),
+                getResources().getDisplayMetrics().widthPixels - Style.dp(this, 32)),
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+    }
+
+    private void addViewSlider(LinearLayout card, TextView label, SeekBar slider) {
+        label.setPadding(0, Style.dp(this, 8), 0, 0);
+        card.addView(label);
+        slider.setThumbTintList(ColorStateList.valueOf(Style.TEXT));
+        slider.setProgressTintList(ColorStateList.valueOf(Style.TEXT));
+        slider.setProgressBackgroundTintList(ColorStateList.valueOf(Style.TEXT_DIM));
+        slider.setSplitTrack(false);
+        card.addView(slider, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 56)));
     }
 
     @Override protected void onPause() {
@@ -316,6 +503,9 @@ public class ClipPlayerActivity extends LocalizedActivity {
 
     @Override protected void onDestroy() {
         super.onDestroy();
+        if (viewDialog != null) {
+            viewDialog.dismiss();
+        }
         ui.removeCallbacksAndMessages(null);
         if (player != null) { try { player.release(); } catch (Throwable ignored) { } player = null; }
     }

@@ -30,11 +30,6 @@ public final class Clips {
     // second, so anything colder than this is not being written by anyone.
     private static final long LIVE_MS = 15_000;
 
-    private static final SimpleDateFormat STAMP =
-        new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US);
-    private static final SimpleDateFormat SHOWN =
-        new SimpleDateFormat("d MMM  HH:mm", Locale.getDefault());
-
     /** Clip state: DONE (playable), RECORDING (being written), or ORPHAN (incomplete). */
     public enum Kind {
         DONE,       // closed, playable
@@ -66,7 +61,9 @@ public final class Clips {
             this.seconds = cueCount(this.vtt);
         }
 
-        public String title() { return SHOWN.format(new Date(whenMs)); }
+        public String title() {
+            return new SimpleDateFormat("d MMM  HH:mm", Locale.getDefault()).format(new Date(whenMs));
+        }
 
         public String title(Context context) { return AppLanguage.date(context, whenMs, "MMMdHm"); }
 
@@ -102,7 +99,7 @@ public final class Clips {
     }
 
     public static File dir(Context c) {
-        File d = new File(c.getExternalFilesDir(null), "dashcam");
+        File d = DashcamSettings.resolveStorage(c).directory;
         if (!d.exists()) d.mkdirs();
         return d;
     }
@@ -117,10 +114,21 @@ public final class Clips {
     // you look for a clip by WHEN it happened, and holding it does not change
     // when it happened.
     public static List<Clip> list(Context c) {
-        applyPendingHolds(c);
+        List<File> directories = new ArrayList<>();
+        for (DashcamSettings.StorageOption option : DashcamSettings.readableStorageOptions(c))
+            directories.add(option.directory);
+        return listDirectories(directories);
+    }
+
+    static List<Clip> listDirectories(List<File> directories) {
         List<Clip> out = new ArrayList<>();
-        collect(dir(c), false, out);
-        collect(keepDir(c), true, out);
+        for (File directory : directories) {
+            if (directory.canWrite()) {
+                applyPendingHolds(directory);
+            }
+            collect(directory, false, out);
+            collect(new File(directory, KEEP), true, out);
+        }
         Collections.sort(out, new Comparator<Clip>() {
             @Override public int compare(Clip a, Clip b) { return Long.compare(b.whenMs, a.whenMs); }
         });
@@ -151,31 +159,35 @@ public final class Clips {
     }
 
     public static void markPending(Context c, Clip recording) {
-        try { new File(dir(c), recordingStem(recording) + PENDING_SUFFIX).createNewFile(); }
+        if (recording.kind != Kind.RECORDING) return;
+        try { pendingMarker(recording).createNewFile(); }
         catch (Exception ignored) {}
     }
 
     public static void clearPending(Context c, Clip recording) {
-        new File(dir(c), recordingStem(recording) + PENDING_SUFFIX).delete();
+        pendingMarker(recording).delete();
     }
 
     public static boolean isPending(Context c, Clip recording) {
-        return new File(dir(c), recordingStem(recording) + PENDING_SUFFIX).exists();
+        return pendingMarker(recording).exists();
+    }
+
+    private static File pendingMarker(Clip recording) {
+        return new File(recording.mp4.getParentFile(), recordingStem(recording) + PENDING_SUFFIX);
     }
 
     // A marker whose segment has not closed yet (no .mp4 beside it) is left
     // alone for next time — that is the normal case on every call but the
     // last one before the recording actually finishes.
-    private static void applyPendingHolds(Context c) {
-        File[] fs = dir(c).listFiles();
+    private static void applyPendingHolds(File directory) {
+        File[] fs = directory.listFiles();
         if (fs == null) return;
         for (File f : fs) {
             if (!f.isFile() || !f.getName().endsWith(PENDING_SUFFIX)) continue;
             String stem = f.getName().substring(0, f.getName().length() - PENDING_SUFFIX.length());
-            File mp4 = new File(dir(c), stem + ".mp4");
+            File mp4 = new File(directory, stem + ".mp4");
             if (mp4.exists()) {
-                hold(c, new Clip(mp4, false, Kind.DONE), true);
-                f.delete();
+                if (hold(null, new Clip(mp4, false, Kind.DONE), true)) f.delete();
             }
         }
     }
@@ -222,9 +234,16 @@ public final class Clips {
     }
 
     public static boolean hold(Context c, Clip clip, boolean held) {
-        File target = held ? keepDir(c) : dir(c);
+        // Never relocate an open segment, nor move an old clip to whichever
+        // volume happens to be selected for future recordings now.
+        if (clip.kind != Kind.DONE) return false;
+        File parent = clip.mp4.getParentFile();
+        File directory = clip.held ? parent.getParentFile() : parent;
+        File target = held ? new File(directory, KEEP) : directory;
         if (clip.mp4.getParentFile().equals(target)) return true;
+        if (!target.isDirectory() && !target.mkdirs()) return false;
         File mp4 = new File(target, clip.mp4.getName());
+        if (mp4.exists()) return false;
         // The clip moves first. If the sidecar move fails we lose telemetry, not
         // footage — the same precedence the recorder uses when it renames.
         if (!clip.mp4.renameTo(mp4)) return false;
@@ -248,10 +267,24 @@ public final class Clips {
     }
 
     public static long usedBytes(Context c) {
-        return sum(dir(c)) + sum(keepDir(c));
+        long bytes = 0;
+        for (DashcamSettings.StorageOption option : DashcamSettings.readableStorageOptions(c))
+            bytes += usedBytes(option.directory);
+        return bytes;
     }
 
-    public static long heldBytes(Context c) { return sum(keepDir(c)); }
+    /** All mounted destinations, matching list(Context), not just the current selection. */
+    public static long heldBytes(Context c) {
+        long bytes = 0;
+        for (DashcamSettings.StorageOption option : DashcamSettings.readableStorageOptions(c))
+            bytes += heldBytes(option.directory);
+        return bytes;
+    }
+
+    /** Space used on one recording volume, including its protected clips and sidecars. */
+    public static long usedBytes(File directory) { return sum(directory) + heldBytes(directory); }
+
+    public static long heldBytes(File directory) { return sum(new File(directory, KEEP)); }
 
     private static long sum(File d) {
         File[] fs = d.listFiles();
@@ -288,7 +321,10 @@ public final class Clips {
     private static long parseStamp(String stem, long fallback) {
         int i = stem.indexOf('_');
         if (i < 0) return fallback;
-        try { return STAMP.parse(stem.substring(i + 1)).getTime(); }
+        try {
+            return new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
+                    .parse(stem.substring(i + 1)).getTime();
+        }
         catch (Exception e) { return fallback; }
     }
 }

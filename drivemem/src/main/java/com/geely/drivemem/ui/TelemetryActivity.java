@@ -27,7 +27,6 @@ import com.geely.drivemem.services.TelemetryService;
 import com.geely.drivemem.services.WifiIconService;
 import com.geely.drivemem.state.ChargeSession;
 import com.geely.drivemem.util.AppLanguage;
-import com.geely.drivemem.util.Clips;
 import com.geely.drivemem.util.Modes;
 import com.geely.drivemem.util.SpotifyClient;
 import com.geely.drivemem.util.Style;
@@ -64,6 +63,9 @@ public class TelemetryActivity extends LocalizedActivity {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private SharedPreferences prefs;
 
+    private android.widget.FrameLayout rightPanel;
+    private ScrollView settingsScroll;
+    private DashcamPanel dashcamPanel;
     private LinearLayout content;             // right-hand panel (swapped per section)
     // THE ORDER OF THE NAV LIVES HERE AND NOWHERE ELSE. The index is not just a
     // position: it is passed through the "section" intent extra to survive the
@@ -188,14 +190,17 @@ public class TelemetryActivity extends LocalizedActivity {
         outer.addView(side);
 
         // ---- right-hand panel (scrollable) ----
-        ScrollView scroll = new ScrollView(this);
-        scroll.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        rightPanel = new android.widget.FrameLayout(this);
+        rightPanel.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        settingsScroll = new ScrollView(this);
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         int cp = Style.dp(this, 36);
         content.setPadding(cp, cp + Style.statusBarHeight(this), cp, cp);
-        scroll.addView(content);
-        outer.addView(scroll);
+        settingsScroll.addView(content);
+        rightPanel.addView(settingsScroll, new android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        outer.addView(rightPanel);
 
         setContentView(outer);
         selectSection(section);
@@ -270,6 +275,12 @@ public class TelemetryActivity extends LocalizedActivity {
         saveTurboDuration(true);
         fTurbo = null;
         section = idx;
+        if (dashcamPanel != null) {
+            dashcamPanel.stop();
+            rightPanel.removeView(dashcamPanel);
+            dashcamPanel = null;
+        }
+        settingsScroll.setVisibility(idx == SEC_CLIPS ? View.GONE : View.VISIBLE);
         for (TextView t : navItems) {
             boolean sel = ((Integer) t.getTag() == idx);
             t.setBackground(sel ? selectedNavBg() : null);
@@ -302,198 +313,9 @@ public class TelemetryActivity extends LocalizedActivity {
     // process and can close a segment or evict one at any moment, so anything
     // held here would be a guess about another app's directory.
     private void buildClips() {
-        content.addView(Style.header(this, getString(R.string.clips_title)));
-
-        List<Clips.Clip> clips = Clips.list(this);
-        boolean on = Clips.recording(this);
-
-        // A real toggle, not a momentary button: modehelper now persists
-        // whatever is sent here ("dashcam_on") and checks it before
-        // auto-starting on the next boot too — see ModeHelperService's own
-        // comment on maybeAutoStart(). Displayed state is the live directory
-        // read (Clips.recording()), the same honest-over-cached approach as
-        // the AVAS toggle, not a locally-remembered guess.
-        LinearLayout recordRow = toggleRow(getString(R.string.clips_record), on, wantOn -> {
-            // Drive Assist does not record — modehelper does. Ask over the same
-            // broadcast adb uses, then re-read the directory rather than
-            // assuming: a segment file takes a moment to appear.
-            sendBroadcast(new Intent("com.geely.modehelper.DASHCAM")
-                .setClassName("com.geely.modehelper", "com.geely.modehelper.DashReceiver")
-                .putExtra("on", wantOn ? 1 : 0));
-            content.postDelayed(() -> { if (section == SEC_CLIPS) selectSection(SEC_CLIPS); }, 1500);
-        });
-        content.addView(recordRow);
-
-        // A GB count is a couple of digits, not a URL -- a field and a
-        // button that both stretch to the full row width (field()'s and
-        // cardButton()'s usual shape, right for every OTHER field on this
-        // screen) just leaves both looking like empty bars with their
-        // content stranded in a corner. One compact row instead.
-        TextView limitLbl = new TextView(this);
-        limitLbl.setText(getString(R.string.clips_limit_label));
-        limitLbl.setTextColor(Style.TEXT_DIM);
-        limitLbl.setTextSize(14);
-        limitLbl.setPadding(0, Style.dp(this, 10), 0, Style.dp(this, 2));
-        content.addView(limitLbl);
-
-        LinearLayout limitRow = new LinearLayout(this);
-        limitRow.setOrientation(LinearLayout.HORIZONTAL);
-        limitRow.setGravity(Gravity.CENTER_VERTICAL);
-        // Explicit bottom margin: previously this gap came from button()'s
-        // own stray top margin (removed below, see saveBtn), which was
-        // incidental spacing, not a deliberate one.
-        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        rowLp.bottomMargin = Style.dp(this, 10);
-        limitRow.setLayoutParams(rowLp);
-        content.addView(limitRow);
-
-        final EditText fDashLimit = new EditText(this);
-        fDashLimit.setText(String.valueOf(prefs.getInt("dashcam_limit_gb", 10)));
-        fDashLimit.setInputType(InputType.TYPE_CLASS_NUMBER);
-        fDashLimit.setTextColor(Style.TEXT);
-        fDashLimit.setTextSize(17);
-        fDashLimit.setBackground(Style.card(Style.CARD, this));
-        int fp = Style.dp(this, 12);
-        fDashLimit.setPadding(fp, fp, fp, fp);
-        LinearLayout.LayoutParams fLp = new LinearLayout.LayoutParams(
-            Style.dp(this, 120), ViewGroup.LayoutParams.WRAP_CONTENT);
-        fLp.setMarginEnd(Style.dp(this, 12));
-        fDashLimit.setLayoutParams(fLp);
-        limitRow.addView(fDashLimit);
-
-        TextView saveBtn = button(getString(R.string.clips_limit_save), Style.ACCENT, () -> {
-            int gb;
-            try { gb = Integer.parseInt(fDashLimit.getText().toString().trim()); }
-            catch (NumberFormatException e) { gb = -1; }
-            if (gb < 1) { fDashLimit.setText(String.valueOf(prefs.getInt("dashcam_limit_gb", 10))); return; }
-            gb = Math.min(gb, 500); // storage is real; a typo shouldn't ask for the whole disk
-            prefs.edit().putInt("dashcam_limit_gb", gb).apply();
-            Intent i = new Intent("com.geely.modehelper.SET_MODE").setPackage("com.geely.modehelper");
-            i.putExtra("dashcam_limit_gb", gb);
-            sendBroadcast(i);
-            Toast.makeText(this, getString(R.string.cfg_saved), Toast.LENGTH_SHORT).show();
-        });
-        // button() bakes in an 8dp TOP margin (meant for buttons stacked
-        // vertically with a gap between them) and no bottom margin. In this
-        // horizontal, CENTER_VERTICAL row that margin just pushes the
-        // button down and out of limitRow's own measured height -- not a
-        // rendering artifact, an actual position bug: it was overlapping
-        // (getting drawn under) the Park monitoring row right below.
-        LinearLayout.LayoutParams sLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        saveBtn.setLayoutParams(sLp);
-        limitRow.addView(saveBtn);
-
-        LinearLayout parkedMonitor = toggleRow(getString(R.string.cfg_park_monitor_label),
-            prefs.getBoolean("parked_monitoring", false), enabled -> {
-                prefs.edit().putBoolean("parked_monitoring", enabled).apply();
-                sendBroadcast(new Intent("com.geely.modehelper.PARKED_MONITORING")
-                    .setClassName("com.geely.modehelper",
-                        "com.geely.modehelper.ParkedMonitoringReceiver")
-                    .putExtra("on", enabled ? 1 : 0));
-            });
-        content.addView(parkedMonitor);
-
-        // Settings end here, the clip list starts below -- a divider and its
-        // own header so the two don't read as one long undifferentiated
-        // column, same problem the compact limit-field row above just fixed
-        // for the field/button pair.
-        View divider = new View(this);
-        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 1));
-        divLp.topMargin = Style.dp(this, 18);
-        divLp.bottomMargin = Style.dp(this, 10);
-        divider.setLayoutParams(divLp);
-        divider.setBackgroundColor(Style.blend(Style.cardFillColor(), Style.TEXT_DIM, 0.18f));
-        content.addView(divider);
-        content.addView(sectionLabel(getString(R.string.clips_list_header)));
-        // Count/size is a fact about the clip list below, not the settings
-        // above it -- moved down here to sit with what it describes.
-        content.addView(Style.label(this, getString(R.string.clips_usage,
-            clips.size(), Clips.mb(Clips.usedBytes(this)), Clips.mb(Clips.heldBytes(this)),
-            Clips.mb(new android.os.StatFs(Clips.dir(this).getAbsolutePath()).getAvailableBytes()))));
-        Style.gap(content, this, 8);
-
-        if (clips.isEmpty()) { content.addView(Style.label(this, getString(R.string.clips_none))); return; }
-        for (Clips.Clip c : clips) content.addView(clipRow(c));
-    }
-
-    private View clipRow(final Clips.Clip c) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.HORIZONTAL);
-        card.setGravity(Gravity.CENTER_VERTICAL);
-        // Held clips are outlined in the accent: the point of holding is seeing
-        // at a glance which ones survive the ring buffer.
-        card.setBackground(c.held ? Style.outlinedCard(Style.ACCENT, this)
-                                  : Style.card(Style.CARD, this));
-        int p = Style.dp(this, 14);
-        card.setPadding(p, p, p, p);
-        // Capped, not MATCH_PARENT: a thumbnail, a couple of text lines, and
-        // two or three small buttons don't need the whole content width --
-        // stretched that far, every clip read as an empty bar with its
-        // content stranded on one side.
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-            Style.dp(this, 820), ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = Style.dp(this, 10);
-        card.setLayoutParams(lp);
-
-        if (c.thumb.exists()) {
-            android.widget.ImageView shot = new android.widget.ImageView(this);
-            shot.setImageBitmap(android.graphics.BitmapFactory.decodeFile(c.thumb.getAbsolutePath()));
-            shot.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
-            LinearLayout.LayoutParams ip =
-                new LinearLayout.LayoutParams(Style.dp(this, 150), Style.dp(this, 62));
-            ip.rightMargin = Style.dp(this, 14);
-            shot.setLayoutParams(ip);
-            card.addView(shot);
-        }
-
-        LinearLayout text = new LinearLayout(this);
-        text.setOrientation(LinearLayout.VERTICAL);
-        text.setLayoutParams(new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        boolean pendingHold = c.kind == Clips.Kind.RECORDING && Clips.isPending(this, c);
-        String tag = c.kind == Clips.Kind.RECORDING
-                         ? "  ● " + getString(R.string.clips_recording) + (pendingHold ? "  ★" : "")
-                   : c.kind == Clips.Kind.ORPHAN ? "  ⚠ " + getString(R.string.clips_orphan)
-                   : c.held ? "  ★" : "";
-        text.addView(Style.header(this, c.title(this) + tag));
-        text.addView(Style.label(this, c.subtitle(this)));
-        card.addView(text);
-
-        // Play only for a finished clip: a live one has no moov atom and an
-        // orphan needs remuxing before anything can open it. Hold works on
-        // both a finished clip (moves it right away) and a recording one
-        // (Clips.markPending — see its own comment for why a live file can't
-        // just be moved; it gets swept into keep/ once the segment closes).
-        if (c.playable()) {
-            card.addView(Style.cardButton(this, getString(R.string.clips_play), false,
-                () -> startActivity(new Intent(this, ClipPlayerActivity.class)
-                        .putExtra(ClipPlayerActivity.EXTRA_PATH, c.mp4.getAbsolutePath()))));
-            card.addView(Style.cardButton(this,
-                getString(c.held ? R.string.clips_release : R.string.clips_hold), c.held,
-                () -> { Clips.hold(this, c, !c.held); selectSection(SEC_CLIPS); }));
-        } else if (c.kind == Clips.Kind.RECORDING) {
-            final boolean pending = pendingHold;
-            card.addView(Style.cardButton(this,
-                getString(pending ? R.string.clips_release : R.string.clips_hold), pending,
-                () -> {
-                    if (pending) Clips.clearPending(this, c); else Clips.markPending(this, c);
-                    selectSection(SEC_CLIPS);
-                }));
-        }
-        if (c.kind != Clips.Kind.RECORDING) {
-            card.addView(Style.cardButton(this, getString(R.string.clips_delete), false, () ->
-                new android.app.AlertDialog.Builder(this)
-                    .setTitle(getString(R.string.clips_delete_q, c.title(this)))
-                    .setMessage(c.subtitle(this))
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .setPositiveButton(R.string.clips_delete,
-                        (d, w) -> { Clips.delete(c); selectSection(SEC_CLIPS); })
-                    .show()));
-        }
-        return card;
+        dashcamPanel = new DashcamPanel(this);
+        rightPanel.addView(dashcamPanel, new android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
     // =====================================================================
@@ -2691,6 +2513,9 @@ public class TelemetryActivity extends LocalizedActivity {
     // Refreshes status lines after returning from external activities
     @Override protected void onResume() {
         super.onResume();
+        if (dashcamPanel != null) {
+            dashcamPanel.start();
+        }
         if (vehicleControls != null && vehicleControls.isAttachedToWindow()) vehicleControls.start();
         if (spotifyStatus != null) {
             spotifyStatus.setText(getString(SpotifyClient.connected(this)
@@ -2701,12 +2526,18 @@ public class TelemetryActivity extends LocalizedActivity {
 
     @Override protected void onPause() {
         saveTurboDuration(true);
+        if (dashcamPanel != null) {
+            dashcamPanel.stop();
+        }
         if (vehicleControls != null) vehicleControls.stop();
         super.onPause();
     }
 
     @Override protected void onDestroy() {
         if (languagePopup != null) languagePopup.dismiss();
+        if (dashcamPanel != null) {
+            dashcamPanel.stop();
+        }
         super.onDestroy();
         if (vehicleControls != null) vehicleControls.stop();
         if (obdListener != null) Obd2Reader.unsubscribe(obdListener);
