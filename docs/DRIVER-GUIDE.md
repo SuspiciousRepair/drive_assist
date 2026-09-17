@@ -57,9 +57,11 @@ existing and new installations.
 English uses Unitext Regular; Thai uses Noto Sans Thai. The font changes with
 the app language, including after a restart. Both fonts are bundled for offline use.
 
-The default Minimal theme uses white and grey surfaces with a vehicle illustration.
-Select **Settings → Appearance** to choose Light, Dark, or Auto. Existing appearance
-preferences are preserved; new installations start in Light mode.
+The default Minimal theme uses white and grey surfaces in Light mode, and matte
+charcoal cards with soft text and muted colours in Dark mode. Select
+**Settings → Appearance** to choose Light, Dark, or Auto. New installations start
+in Light mode. The former Neon theme is retired; a saved Neon choice switches
+to Minimal in Dark mode automatically. Other appearance preferences are preserved.
 
 ## Understand each day, not just the odometer
 
@@ -157,7 +159,8 @@ in Settings → Driving mode. The Geely EX2 image
 is an offline preview: tap it to cycle immediately through the five Thai EX2 MAX
 colours (Moon White, Star Silver, Comet Gray, Nebula Beige, Aurora Green, all with
 a black roof). The last colour is saved automatically and follows the preview
-into Settings. Eco is green, Comfort is yellow, and Sport is red.
+into Settings. Eco is green, Comfort is yellow, and Sport is red. Dark mode uses
+softer versions of these colours while keeping each mode easy to distinguish.
 
 Tap the vehicle heading or its pencil icon above the car on Home or in
 Settings → Driving mode. Choose **Geely EX2** or **Geely EX2 Max** using the
@@ -171,9 +174,12 @@ and vehicle colour.
 A filled button is the saved choice; an outline indicates the mode reported
 by the vehicle. Tap any driving or regeneration mode to send the change and
 save it automatically for the next startup. **Restore defaults** selects
-**Comfort** with **Medium** regeneration and applies both. Manually selecting
-a driving mode ends an active Turbo boost, so its timer cannot later replace
-your choice. Regeneration changes leave Turbo running. Turbo duration in
+**Comfort** with **Medium** regeneration and applies both. A brief popup with a
+green checkmark and heading says
+**Defaults restored** and lists the saved driving and regeneration choices. It
+closes automatically; the vehicle's reported mode remains separate. Manually
+selecting a driving mode ends an active Turbo boost, so its timer
+cannot later replace your choice. Regeneration changes leave Turbo running. Turbo duration in
 Settings also saves automatically as you edit it.
 
 The Controls / Energy / Display tabs open the corresponding existing app panels.

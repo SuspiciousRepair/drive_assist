@@ -254,7 +254,7 @@
     <string name="cfg_appearance_light">Light</string>
     <string name="cfg_appearance_dark">Dark</string>
     <string name="cfg_appearance_auto">Auto</string>
-    <string name="cfg_appearance_note">Auto follows the head unit’s day/night setting. Neon and Night keep their own fixed colour schemes.</string>
+    <string name="cfg_appearance_note">Auto follows the head unit’s day/night setting. Dark uses matte charcoal surfaces and soft, muted colours.</string>
     <string name="cfg_skyline_label">Show skyline art</string>
     <string name="cfg_skyline_header">Skyline</string>
     <string name="cfg_skyline_seed_header">Skyline Seed</string>
@@ -598,6 +598,7 @@
     <string name="ui_settings_tab">Display</string>
     <string name="ui_mode_selection_hint">Tap a mode to switch and save automatically. An outline marks the mode reported by the vehicle.</string>
     <string name="ui_restore_drive_defaults">Restore defaults</string>
+    <string name="ui_drive_defaults_restored">Defaults restored\nDriving: %1$s · Regen: %2$s</string>
     <string name="ui_theme_preview">Theme preview</string>
     <string name="ui_other_controls">More controls</string>
     <string name="ui_vehicle_color_tap">%1$s · Tap the car to change colour</string>

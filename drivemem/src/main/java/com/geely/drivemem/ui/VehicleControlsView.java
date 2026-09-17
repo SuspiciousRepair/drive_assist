@@ -9,6 +9,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarActor;
@@ -278,6 +279,42 @@ public final class VehicleControlsView extends LinearLayout {
         persistSelection(true, true);
         TurboMode.get(context).selectDriveMode(selDrive);
         CarActor.get(context).cast("regen_mode", selRegen);
+        String message = getString(R.string.ui_drive_defaults_restored,
+            Modes.driveName(context, Modes.DEFAULT_DRIVE),
+            Modes.regenName(context, Modes.DEFAULT_REGEN));
+        // Confirm the saved defaults; live vehicle state still comes from its readings.
+        showRestoreFeedback(message);
+    }
+
+    // The platform's small toast font is difficult to read on a head unit.
+    // Keep the native, automatically dismissing popup with our locale font and palette.
+    @SuppressWarnings("deprecation")
+    private void showRestoreFeedback(String message) {
+        int success = Style.LIGHT ? 0xFF187C56 : Style.GOOD;
+        android.text.SpannableString caption = new android.text.SpannableString(message);
+        int titleEnd = message.indexOf('\n');
+        if (titleEnd < 0) titleEnd = message.length();
+        caption.setSpan(new android.text.style.ForegroundColorSpan(success), 0, titleEnd,
+            android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        caption.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, titleEnd,
+            android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        TextView text = Style.label(context, "");
+        text.setText(caption);
+        text.setTextSize(22);
+        text.setGravity(Gravity.CENTER_VERTICAL);
+        text.setMaxWidth(Style.dp(context, 720));
+        text.setPadding(Style.dp(context, 28), Style.dp(context, 18),
+            Style.dp(context, 28), Style.dp(context, 18));
+        android.graphics.drawable.Drawable check = context.getDrawable(R.drawable.ic_language_check).mutate();
+        check.setTint(success);
+        check.setBounds(0, 0, Style.dp(context, 32), Style.dp(context, 32));
+        text.setCompoundDrawablesRelative(check, null, null, null);
+        text.setCompoundDrawablePadding(Style.dp(context, 16));
+        text.setBackground(Style.accentCard(success, context));
+        Toast popup = new Toast(context);
+        popup.setView(text);
+        popup.setDuration(Toast.LENGTH_LONG);
+        popup.show();
     }
 
     // Fill = your saved choice (selDrive/selRegen, always known). Border = what
@@ -286,22 +323,30 @@ public final class VehicleControlsView extends LinearLayout {
     // lack of it) is the whole point: it is what makes "car booted into
     // something other than your standard" visible instead of silent.
     private void highlight() {
-        for (Map.Entry<Integer, LinearLayout> e : driveCards.entrySet())
+        for (Map.Entry<Integer, LinearLayout> e : driveCards.entrySet()) {
+            boolean eco = e.getKey() == Modes.DRIVE_ECO;
+            boolean comfort = e.getKey() == Modes.DRIVE_COMFORT;
+            int fill = Style.LIGHT
+                ? eco ? 0xFF187C56 : comfort ? 0xFFF3C64D : 0xFFC63C3C
+                : eco ? 0xFF2F604B : comfort ? 0xFFB79856 : 0xFF854B4D;
+            int accent = Style.LIGHT
+                ? comfort ? 0xFF966000 : fill
+                : eco ? 0xFF91B8A1 : comfort ? 0xFFC4AB79 : 0xFFCE9694;
             paintCard(e.getValue(), e.getKey() == selDrive, driveKnown && e.getKey() == liveDrive,
-                e.getKey() == Modes.DRIVE_ECO ? 0xFF187C56
-                    : e.getKey() == Modes.DRIVE_COMFORT ? 0xFFF3C64D : 0xFFC63C3C);
+                fill, accent);
+        }
         for (Map.Entry<Integer, LinearLayout> e : regenCards.entrySet())
-            paintCard(e.getValue(), e.getKey() == selRegen, regenKnown && e.getKey() == liveRegen, 0);
+            paintCard(e.getValue(), e.getKey() == selRegen, regenKnown && e.getKey() == liveRegen, 0, 0);
     }
 
     // Each driving mode keeps its colour. Selection fills the pill; the live
     // outline remains independent: a sent command is not a confirmed reading.
-    private void paintCard(LinearLayout card, boolean selected, boolean isLive, int modeColor) {
+    private void paintCard(LinearLayout card, boolean selected, boolean isLive, int modeColor, int modeAccent) {
         int fill = modeColor == 0 ? (selected ? Style.CARD_ON : Style.CARD_HI)
-            : selected ? modeColor : Style.blend(Style.CARD_HI, modeColor, Style.LIGHT ? 0.12f : 0.22f);
+            : selected ? modeColor : Style.blend(Style.CARD_HI, modeColor, Style.LIGHT ? 0.12f : 0.10f);
         android.graphics.drawable.GradientDrawable g = Style.card(fill, context, 44);
         if (isLive) g.setStroke(Style.dp(context, Style.STROKE_DP + 2),
-            modeColor == 0 ? Style.ACCENT : selected ? Style.TEXT : modeColor);
+            modeColor == 0 ? Style.ACCENT : selected ? Style.TEXT : Style.LIGHT ? modeColor : modeAccent);
         card.setBackground(g);
         card.setSelected(selected);
         int fg = Style.onFill(fill);
@@ -309,8 +354,7 @@ public final class VehicleControlsView extends LinearLayout {
             View ch = card.getChildAt(i);
             if (ch instanceof TextView) ((TextView) ch).setTextColor(fg);
             if (ch instanceof android.widget.ImageView) ((android.widget.ImageView) ch).setColorFilter(
-                !selected && modeColor != 0 ? (Style.LIGHT
-                    ? (modeColor == 0xFFF3C64D ? 0xFF966000 : modeColor) : Style.mixWhite(modeColor, 0.35f)) : fg);
+                !selected && modeColor != 0 ? modeAccent : fg);
         }
     }
 

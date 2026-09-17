@@ -2435,12 +2435,6 @@ public class TelemetryActivity extends LocalizedActivity {
         studio.addView(settings, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.6f));
         Style.gap(content, this, 20);
 
-        content.addView(sectionLabel(getString(R.string.cfg_theme_selection_header)));
-        TextView sub = new TextView(this);
-        sub.setTextColor(Style.TEXT_DIM); sub.setTextSize(18);
-        sub.setText(getString(R.string.cfg_theme_sub));
-        content.addView(sub);
-
         // A secret theme still gets a tile while it is the SAVED choice. That is
         // not a loophole in the secret: without it, someone who chose Noturno
         // before it was hidden would open this screen and find nothing selected,
@@ -2450,6 +2444,15 @@ public class TelemetryActivity extends LocalizedActivity {
         List<Style.Theme> shown = new ArrayList<>();
         for (Style.Theme t : Style.THEMES)
             if (!Style.secret(t.id) || t.id.equals(Style.savedId(this))) shown.add(t);
+
+        // Light/Dark/Auto are the everyday appearance choices. Keep the theme
+        // picker only when needed to leave or describe the hidden night theme.
+        if (shown.size() == 1 && !Style.isTransient()) return;
+        content.addView(sectionLabel(getString(R.string.cfg_theme_selection_header)));
+        TextView sub = new TextView(this);
+        sub.setTextColor(Style.TEXT_DIM); sub.setTextSize(18);
+        sub.setText(getString(R.string.cfg_theme_sub));
+        content.addView(sub);
 
         LinearLayout row = null;
         for (int i = 0; i < shown.size(); i++) {
@@ -2499,7 +2502,7 @@ public class TelemetryActivity extends LocalizedActivity {
         TextView name = new TextView(this);
         // t.name is a proper name ("Geely", "Noturno"…): not translated, it only gets the selected marker
         String themeName = getString("geely".equals(t.id) ? R.string.ui_theme_minimal
-            : "neon".equals(t.id) ? R.string.ui_theme_neon : R.string.ui_theme_night);
+            : R.string.ui_theme_night);
         name.setText(sel ? getString(R.string.cfg_theme_selected, themeName) : themeName);
         name.setTextColor(sel ? Style.ACCENT : Style.TEXT); name.setTextSize(24);
         name.setTypeface(name.getTypeface(), android.graphics.Typeface.BOLD);

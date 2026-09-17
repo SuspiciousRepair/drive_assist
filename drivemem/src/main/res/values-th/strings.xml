@@ -210,7 +210,7 @@
     <string name="cfg_appearance_light">สว่าง</string>
     <string name="cfg_appearance_dark">มืด</string>
     <string name="cfg_appearance_auto">อัตโนมัติ</string>
-    <string name="cfg_appearance_note">อัตโนมัติจะเปลี่ยนตามโหมดกลางวัน/กลางคืนของจอรถ ธีมนีออนและกลางคืนใช้โทนสีคงที่ของตัวเอง</string>
+    <string name="cfg_appearance_note">อัตโนมัติจะเปลี่ยนตามโหมดกลางวัน/กลางคืนของจอรถ โหมดมืดใช้พื้นผิวเทาดำด้านและสีที่นุ่มสบายตา</string>
     <string name="cfg_theme_header">ธีม</string>
     <string name="cfg_theme_sub">มีผลกับทุกหน้าจอของ Drive Assist ภาพขนาดย่อจะแสดงสีและรูปทรงของการ์ด — การเปลี่ยนแปลงจะเกิดขึ้นทันที</string>
     <string name="cfg_theme_selected">%1$s  ✓</string>
@@ -577,6 +577,7 @@
     <string name="ui_settings_tab">การแสดงผล</string>
     <string name="ui_mode_selection_hint">แตะโหมดเพื่อเปลี่ยนและบันทึกอัตโนมัติ กรอบปุ่มแสดงโหมดที่รถรายงาน</string>
     <string name="ui_restore_drive_defaults">คืนค่าเริ่มต้น</string>
+    <string name="ui_drive_defaults_restored">คืนค่าเริ่มต้นแล้ว\nขับขี่: %1$s · คืนพลังงาน: %2$s</string>
     <string name="ui_theme_preview">ตัวอย่างธีม</string>
     <string name="ui_other_controls">การควบคุมอื่น</string>
     <string name="ui_vehicle_color_tap">สี%1$s · แตะรถเพื่อเปลี่ยนสี</string>

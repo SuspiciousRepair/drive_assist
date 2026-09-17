@@ -50,19 +50,19 @@ public class Style {
     }
 
     // ---- active palette (default: Geely) ----
-    public static int BG_TOP    = 0xFF303640;  // background gradient (top)
-    public static int BG_BOTTOM = 0xFF171B21;  // background gradient (bottom)
-    public static int CARD      = 0xFF2E333B;  // card
-    public static int CARD_HI   = 0xFF3A4048;  // lighter card / track
-    public static int CARD_ON   = 0xFF1E6FFF;  // selected
+    public static int BG_TOP    = 0xFF111214;  // background gradient (top)
+    public static int BG_BOTTOM = 0xFF111214;  // background gradient (bottom)
+    public static int CARD      = 0xFF1C1E21;  // card
+    public static int CARD_HI   = 0xFF292C30;  // lighter card / track
+    public static int CARD_ON   = 0xFF454A50;  // selected
     public static int TEXT      = 0xFFECEFF3;  // primary text
-    public static int TEXT_DIM  = 0xFF8A93A0;  // secondary text / label
+    public static int TEXT_DIM  = 0xFFB6BAC1;  // secondary text / label
     public static int TEXT_ON   = 0xFFECEFF3;  // text OVER a coloured fill
-    public static int ACCENT    = 0xFF1E6FFF;  // accent
-    public static int COOL      = 0xFF2196F3;  // cool semantics
-    public static int HEAT      = 0xFFFF9800;  // heat semantics
-    public static int GOOD      = 0xFF43A047;  // positive/green semantics (e.g. DC fast charging)
-    public static int PURPLE    = 0xFF8E24AA;  // regen energy (Balanço de Energia chart)
+    public static int ACCENT    = 0xFFB3BDC8;  // accent
+    public static int COOL      = 0xFF97ACBA;  // cool semantics
+    public static int HEAT      = 0xFFCBA78B;  // heat semantics
+    public static int GOOD      = 0xFF91B8A1;  // positive/green semantics (e.g. DC fast charging)
+    public static int PURPLE    = 0xFFB2A1B9;  // regen energy (Balanço de Energia chart)
 
     // ---- active shape ----
     public static int  RADIUS_DP    = 14;
@@ -126,12 +126,12 @@ public class Style {
     }
 
     public static final Theme[] THEMES = new Theme[] {
-        // Minimal automotive surfaces: quiet neutrals, with blue reserved for actions.
+        // Minimal automotive surfaces: matte charcoal at night, white/grey by day.
         // Keep the saved id so existing installations receive the refreshed design.
         new Theme("geely", "Minimal", R.string.theme_geely_blurb,
-            new Palette(0xFF111315, 0xFF111315, 0xFF1D2024, 0xFF2A2E33, 0xFFE5E7EB,
-                0xFFF4F5F6, 0xFFA5ABB3, 0xFF171A20, 0xFF78A6FF, 0xFF78A6FF, 0xFFF09A78,
-                16, 0, 0x00000000, false, false, false, ART_SKYLINE),
+            new Palette(0xFF111214, 0xFF111214, 0xFF1C1E21, 0xFF292C30, 0xFF454A50,
+                0xFFECEFF3, 0xFFB6BAC1, 0xFFECEFF3, 0xFFB3BDC8, 0xFF97ACBA, 0xFFCBA78B,
+                16, 1, 0xFF383C42, false, false, false, ART_SKYLINE),
             new Palette(0xFFF4F4F4, 0xFFF4F4F4, 0xFFFFFFFF, 0xFFE8EAED, 0xFF24272C,
                 0xFF171A20, 0xFF626973, 0xFFFFFFFF, 0xFF3766D5, 0xFF3273C6, 0xFFC35B36,
                 16, 0, 0x00000000, false, true, false, ART_SKYLINE)),
@@ -146,13 +146,6 @@ public class Style {
                 22, 1, 0x1AFFFFFF, false, false, false, ART_VAPOR),
             null),
 
-        // hollow card with a lit outline, very round corner, cyan/magenta — one
-        // fixed scheme, same reasoning as Noturno: Appearance does not apply.
-        new Theme("neon", "Neon", R.string.theme_neon_blurb,
-            new Palette(0xFF10143A, 0xFF04050D, 0xFF0C1030, 0xFF1B2358, 0xFF0B4C5E,
-                0xFFE6FBFF, 0xFF7C8FB8, 0xFFE6FBFF, 0xFF00E5FF, 0xFF00E5FF, 0xFFFF2D95,
-                46, 2, 0x5500E5FF, true, false, true, ART_SKYLINE),
-            null),
     };
 
     private static Theme current = THEMES[0];
@@ -225,6 +218,11 @@ public class Style {
             p.edit().putString("theme", THEMES[0].id).putString("appearance", APPEARANCE_LIGHT).apply();
             savedTheme = THEMES[0].id;
         }
+        if ("neon".equals(savedTheme)) {
+            // Retire the glowing theme without turning an existing night UI bright.
+            p.edit().putString("theme", THEMES[0].id).putString("appearance", APPEARANCE_DARK).apply();
+            savedTheme = THEMES[0].id;
+        }
         apply(c, byId(transientId != null ? transientId : savedTheme));
     }
 
@@ -250,6 +248,9 @@ public class Style {
         CARD = pal.card; CARD_HI = pal.cardHi; CARD_ON = pal.cardOn;
         TEXT = pal.text; TEXT_DIM = pal.textDim; TEXT_ON = pal.textOn;
         ACCENT = pal.accent; COOL = pal.cool; HEAT = pal.heat;
+        boolean matteDark = "geely".equals(t.id) && !pal.light;
+        GOOD = matteDark ? 0xFF91B8A1 : 0xFF43A047;
+        PURPLE = matteDark ? 0xFFB2A1B9 : 0xFF8E24AA;
         RADIUS_DP = pal.radiusDp; STROKE_DP = pal.strokeDp; STROKE_COLOR = pal.strokeColor;
         OUTLINE = pal.outline; LIGHT = pal.light; FOLLOW_AMBIENT = pal.followAmbient;
         ART = pal.art;
@@ -293,7 +294,7 @@ public class Style {
 
     /** Returns the appropriate text color for content on top of a filled background. */
     public static int onFill(int fill) {
-        return (fill == CARD || fill == CARD_HI) ? TEXT
+        return fill == CARD_ON ? TEXT_ON : (fill == CARD || fill == CARD_HI) ? TEXT
             : (Color.luminance(fill | 0xFF000000) > 0.20 ? 0xFF171A20 : 0xFFFFFFFF);
     }
 

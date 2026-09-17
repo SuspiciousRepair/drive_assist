@@ -4,6 +4,10 @@ The Minimal theme is implemented with the app's existing Java Views and Canvas.
 It uses a neutral light/dark palette, a compact navigation rail, larger control
 targets, grouped settings, and a bundled Geely EX2 vehicle image.
 The vehicle image is decorative and does not indicate door, lock, or charging state.
+Dark mode uses matte charcoal surfaces, subtle borders, soft white text, and muted
+semantic accents. Light mode retains its white/grey palette. The Neon theme is
+retired; saved Neon preferences migrate to Minimal Dark. Light / Dark / Auto remain
+the everyday appearance choices.
 
 Design references reviewed:
 
@@ -83,6 +87,10 @@ by themselves grant redistribution rights.
   the app's Eco / Comfort / Sport selection is on the left and its existing
   regeneration levels on the right. Mode taps apply immediately via `CarActor`
   and save the startup preference; Restore defaults selects Comfort / Medium.
+  A localized native toast confirms the saved defaults separately from live vehicle
+  readings. Its 22 sp text uses the app's language font, with a green checkmark,
+  bold green heading, and green accent strip on a theme-aware card. It shows the
+  driving and regeneration choices and closes automatically.
   A manual driving selection cancels Turbo without allowing its timer to
   overwrite the new choice. The Controls / Energy /
   Display tabs open existing app panels. `SettingsView.qml` informs the responsive
@@ -92,8 +100,8 @@ by themselves grant redistribution rights.
   demo telemetry, navigation, weather, and vehicle-command backends are not imported.
 
 Primary headings are 30–32 sp, sidebar groups 24 sp, menu items 20 sp, and
-control captions 20 sp. The selected language checkmark uses the same green
-in light and dark mode.
+control captions 20 sp. The selected language checkmark is green in both light
+and dark mode, with a softer green in Dark.
 
 ## Geely EX2 MAX vehicle assets
 
@@ -126,9 +134,11 @@ in light and dark mode.
 - Copyright remains with its respective owner. The source does not state a
   redistribution license; inclusion in this local build does not grant one.
 
-Driving-mode colours: Eco green (`#187C56`), Comfort yellow (`#F3C64D`),
-and Sport red (`#C63C3C`). Selected yellow uses dark text; green and red use
-white. Inactive pills retain a muted tint and icon, alongside text labels.
+Light driving-mode colours remain Eco green (`#187C56`), Comfort yellow
+(`#F3C64D`), and Sport red (`#C63C3C`). Dark uses muted green (`#2F604B`),
+ochre yellow (`#B79856`), and red (`#854B4D`). Selected yellow uses dark text;
+green and red use white. Inactive pills retain a subtle tint and a softer semantic
+icon colour, alongside text labels. Live-status outlines remain independent of selection.
 
 Vehicle Control is now the default Home view. `VehicleControlsView` is shared
 with Settings so selection colours, reported-mode outlines, immediate mode

@@ -904,7 +904,7 @@ public class DailyStatsView extends LinearLayout {
         // the theme's ACCENT and COOL identical. Darker variants suit light cards.
         return Style.LIGHT
                 ? new int[]{0xFF087F78, 0xFF2463CC, 0xFFC46A09, 0xFFB02CA8}
-                : new int[]{0xFF2DD4BF, 0xFF609FFF, 0xFFFFB454, 0xFFE879F9};
+                : new int[]{0xFF8DAFA3, 0xFF9CADC5, 0xFFC2AA80, 0xFFB6A0B9};
     }
 
     private View speedLegendItem(Context c, String label, int color) {

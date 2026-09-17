@@ -17,6 +17,15 @@ Test device: Android Automotive API 33 ARM64 emulator, 1920 × 1080, density
   leaving the Driving section; the previous duration was restored after testing.
 - English and Thai Home layouts render in the bundled fonts; light and dark
   appearances retain readable labels and the intended heading hierarchy.
+- Dark uses matte charcoal surfaces and muted mode/chart colours. Light/Dark
+  switching works in Appearance and the retired Neon option is absent.
+  Measured primary/secondary text contrast on the dark card surfaces is at
+  least 4.5:1; selected Eco/Comfort/Sport text is at least 6.3:1.
+- Restore defaults shows an automatically dismissing popup in English and
+  Thai, naming Comfort and Medium regeneration. Its 22 sp text, green check,
+  green heading and accent strip follow the app font and light/dark palette.
+  The popup is shared by Home and Settings and confirms saved choices;
+  reported vehicle readings remain separate.
 - Language changes immediately through the dropdown. Its selected check is
   green and the navigation label changes between Language and ภาษา.
 - Car taps cycle through white, silver, grey, beige, green and back to white.
@@ -33,7 +42,7 @@ Test device: Android Automotive API 33 ARM64 emulator, 1920 × 1080, density
   The Save button uses green (`#009B46`) with white, bold 24 sp text.
   Tapping the nickname field opened the system keyboard (`mInputShown=true`);
   the model buttons, nickname field and Save action remained visible above it.
-- All 551 translatable default string keys have Thai counterparts, with no
+- All 552 translatable default string keys have Thai counterparts, with no
   format-placeholder mismatches.
 - All 199 unit tests pass, including four Energy display-data cases covering
   missing/invalid values, zero battery, measured charging power, and unplugging
@@ -61,7 +70,7 @@ and applies immediately.
 `tools/verify.sh` completed under the repository's existing non-blocking
 analysis configuration. Lint still reports 316 ExtraTranslation issues and
 five pre-existing StringFormatInvalid errors in other locales; these counts
-match the baseline. The submission run reports 509 lint warnings and 2,743
+match the baseline. The dark-mode verification run reports 511 lint warnings and 2,743
 Checkstyle findings. SpotBugs is incomplete
 under this JDK because `java.rmi.Remote` is missing (exit 3 is ignored by the
 project). These are not a claim of clean static analysis.

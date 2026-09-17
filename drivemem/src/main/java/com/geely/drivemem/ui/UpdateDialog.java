@@ -219,7 +219,7 @@ public class UpdateDialog {
             // Accept button
             Button btnAccept = new Button(activity);
             btnAccept.setText(activity.getString(R.string.update_dialog_accept));
-            btnAccept.setTextColor(Style.TEXT_ON);
+            btnAccept.setTextColor(Style.onFill(Style.ACCENT));
             btnAccept.setTextSize(14f);
             btnAccept.setTypeface(btnAccept.getTypeface(), android.graphics.Typeface.BOLD);
             btnAccept.setLayoutParams(new LinearLayout.LayoutParams(

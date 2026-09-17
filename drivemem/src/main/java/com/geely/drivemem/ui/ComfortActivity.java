@@ -1785,7 +1785,7 @@ public class ComfortActivity extends LocalizedActivity {
         closeBtn = new TextView(this);
         // "✕" is an icon (close), not prose: the same glyph in any language.
         closeBtn.setText("✕");
-        closeBtn.setTextColor(Style.TEXT_ON); closeBtn.setTextSize(22);
+        closeBtn.setTextColor(Style.TEXT); closeBtn.setTextSize(22);
         closeBtn.setGravity(Gravity.CENTER);
         closeBtn.setBackground(Style.card(Style.LIGHT ? 0x66FFFFFF : 0x66000000, this));
         FrameLayout.LayoutParams xlp = new FrameLayout.LayoutParams(
