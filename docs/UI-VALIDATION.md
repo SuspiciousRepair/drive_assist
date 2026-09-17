@@ -123,6 +123,13 @@ The dashboard observations below were recorded before the dashcam adaptation.
   adjustment/reset feedback and preview navigation were checked in the emulator.
   The original language, theme, vehicle profile and recording preferences were
   restored after QA.
+- An owner-provided 37-second in-car review shows the English light dashboard on
+  a Geely EX2 head unit while the instrument cluster reads 0 km/h. It shows taps
+  across Eco/Comfort/Sport, regeneration levels, and Restore defaults with its
+  confirmation popup. This is evidence of physical-screen rendering and UI tap
+  response only; it does not establish VHAL command success, dashcam recording,
+  live preview, or USB/exFAT compatibility. The public review copy removes the
+  source location metadata and obscures the instrument-cluster QR sticker.
 
 ## Limits of the checks
 
@@ -133,11 +140,13 @@ Battery/range follow the existing 15-second telemetry cadence; charging/plug
 events and OBD2 events can refresh the panel sooner. Colour selection is local
 and applies immediately.
 
-No physical Geely head unit, EVS camera stream, reverse-camera coexistence or
-USB/exFAT device was tested. Retention across 100 simulated segment completions and continued encoding
-during preview stalls have automated/synthetic coverage. Actual recorder segment
-rotation still requires integration/hardware verification, as do vehicle camera
-availability, storage permissions and head-unit sleep behavior.
+No supervised physical test with logs was performed on a Geely head unit. The
+owner-provided review above confirms dashboard rendering and tap interactions,
+but an EVS camera stream, reverse-camera coexistence and a physical USB/exFAT
+device were not tested. Retention across 100 simulated segment completions and
+continued encoding during preview stalls have automated/synthetic coverage.
+Actual recorder segment rotation still requires integration/hardware verification,
+as do vehicle camera availability, storage permissions and head-unit sleep behavior.
 Background recording is intended while the head unit remains awake. Gallery
 recording indicators use recent file activity and can lag by the polling and
 freshness intervals; a waiting preview is not evidence of recorded frames.
