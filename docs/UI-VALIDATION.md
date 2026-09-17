@@ -66,7 +66,12 @@ Checkstyle findings. SpotBugs is incomplete
 under this JDK because `java.rmi.Remote` is missing (exit 3 is ignored by the
 project). These are not a claim of clean static analysis.
 
-Submission screenshots: [Home dashboard](screenshots/home-thai-vehicle-dashboard.png)
-and [vehicle profile editor](screenshots/vehicle-profile-editor-thai.png).
+Submission screenshots show the current controls and profile editor in both languages:
+
+- English: [Home dashboard](screenshots/home-english-vehicle-dashboard.png),
+  [vehicle profile editor](screenshots/vehicle-profile-editor-english.png).
+- Thai: [Home dashboard](screenshots/home-thai-vehicle-dashboard.png),
+  [vehicle profile editor](screenshots/vehicle-profile-editor-thai.png).
+
 Additional local screenshots are available in `drivemem/build/ui-preview/`. Asset provenance and
 font/redistribution considerations are recorded in [UI-REFERENCES.md](UI-REFERENCES.md).
