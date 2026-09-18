@@ -10,7 +10,9 @@ public class Telemetry {
     // Battery nameplate capacity (39.6 kWh). Power window for SOC-delta
     // estimates; matches common third-party implementations. Only accessed
     // from CarActor's thread (read() is only called from there).
-    private static final double CAPACITY_WH = 39600;
+    /** Nameplate capacity used only for explicitly-labelled SoC estimates. */
+    public static final double BATTERY_CAPACITY_KWH = 39.6;
+    private static final double CAPACITY_WH = BATTERY_CAPACITY_KWH * 1000.0;
     private static final long POWER_WINDOW_MS = 30_000;
     private static Double lastPowerSoc = null;
     private static long lastPowerSocAtMs = 0;

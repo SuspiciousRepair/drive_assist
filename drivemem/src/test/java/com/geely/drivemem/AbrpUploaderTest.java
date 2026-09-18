@@ -36,7 +36,7 @@ public class AbrpUploaderTest {
         // Verify vehicle data
         assertEquals(75, tlm.getInt("soc"));
         assertEquals(60.5, tlm.getDouble("speed"), 0.01);
-        assertEquals(18.2, tlm.getDouble("power"), 0.01);
+        assertFalse("SoC-derived power estimate must not be sent to ABRP", tlm.has("power"));
         assertEquals(0, tlm.getInt("is_charging"));
         assertEquals(0, tlm.getInt("is_parked"));
         assertEquals(12500.0, tlm.getDouble("odometer"), 0.01);
@@ -76,7 +76,7 @@ public class AbrpUploaderTest {
         // Essential vehicle telemetry must still be present
         assertEquals(82, tlm.getInt("soc"));
         assertEquals(45.0, tlm.getDouble("speed"), 0.01);
-        assertEquals(12.0, tlm.getDouble("power"), 0.01);
+        assertFalse("SoC-derived power estimate must not be sent to ABRP", tlm.has("power"));
         assertEquals(0, tlm.getInt("is_charging"));
         assertEquals(0, tlm.getInt("is_parked"));
         assertEquals(12510.0, tlm.getDouble("odometer"), 0.01);

@@ -34,7 +34,6 @@ import com.geely.drivemem.util.Modes;
 import com.geely.drivemem.util.SpotifyClient;
 import com.geely.drivemem.net.Updater;
 import com.geely.drivemem.util.Style;
-import com.geely.drivemem.util.PressFeedbackDrawable;
 
 import android.app.Activity;
 import android.content.BroadcastReceiver;
@@ -79,10 +78,6 @@ public class ComfortActivity extends Activity {
     private android.widget.ImageView scaleView;
     private android.widget.ImageView recircBtn;
     private boolean recircOn = false;
-    // Tap-feedback drawables persist while their resting content changes, so a
-    // car-state refresh cannot cut off a finger's release animation.
-    private android.graphics.drawable.Drawable recircFeedback, purgeFeedback;
-    private int pressColor = Style.ACCENT;
     private android.widget.ImageView windDirIcon;
     private android.widget.ImageView rearDefrostIcon;
     private int currentWindDir = 0;
@@ -1365,13 +1360,11 @@ public class ComfortActivity extends Activity {
 
     private String fmt(float v) { return Float.isNaN(v) ? "--" : String.format(java.util.Locale.US, "%.0f", v); }
 
-    // Forwards the raw ambient light colour to the art (always, unconditionally
-    // -- see ARTE.md) and resolves the tap/press-feedback color for recirc and
-    // purge. Everything that used to also re-tint here (the HA panel/gate card
-    // accent, the recirc/purge icon fill, the turbo bar) now holds a constant
-    // Style.ACCENT set once at construction -- see Style.PRESS_AMBIENT's own
-    // comment for why that role narrowed to just the press effect.
-    private int lastRawAmbient = 0;
+    // applies the ambient light colour to every detail that follows it.
+    // A theme that does not follow the cabin (Noturno) uses its own accent — at
+    // night the whole point of it is precisely NOT to carry the cabin's
+    // blue/violet light onto the screen.
+    private int lastAmbient = 0;
 
     private void applyAmbient(int rgb) {
         int raw = 0xFF000000 | (rgb & 0xFFFFFF);
@@ -1383,24 +1376,16 @@ public class ComfortActivity extends Activity {
         // Skip repeat work: the sensor often reports the same reading back to
         // back, and setColorFilter/RippleDrawable.setColor invalidate even
         // when the value is identical.
-        if (raw == lastRawAmbient) return;
-        lastRawAmbient = raw;
+        int c = Style.FOLLOW_AMBIENT ? raw : Style.ACCENT;
+        if (c == lastAmbient) return;
+        lastAmbient = c;
+        if (card != null) card.setAccent(c);
+        setRecirc(recircOn);
+        setPurge(purgeOpen);
+        redrawTurboBar(turboBarFraction < 0 ? 1f : turboBarFraction);
+        if (gateCard != null) gateCard.setAccent(c);
         if (windDirIcon != null && currentWindDir != 0) {
             windDirIcon.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
-        }
-        int newPressColor = Style.resolvePressColor(Style.PRESS_AMBIENT, raw, Style.ACCENT);
-        if (newPressColor == pressColor) return;
-        pressColor = newPressColor;
-        updatePressColor(recircFeedback);
-        updatePressColor(purgeFeedback);
-    }
-
-    private void updatePressColor(android.graphics.drawable.Drawable drawable) {
-        if (drawable instanceof PressFeedbackDrawable) {
-            ((PressFeedbackDrawable) drawable).setPressColor(pressColor);
-        } else if (drawable instanceof android.graphics.drawable.RippleDrawable) {
-            ((android.graphics.drawable.RippleDrawable) drawable).setColor(
-                android.content.res.ColorStateList.valueOf(pressColor));
         }
     }
 
@@ -1632,8 +1617,10 @@ public class ComfortActivity extends Activity {
         if (w <= 0) { chargeBarView.post(() -> redrawChargeBar(socStart, socNow)); return; }
         if (w == chargeBarW && socStart == chargeBarStart && socNow == chargeBarNow) return;
         chargeBarW = w; chargeBarStart = socStart; chargeBarNow = socNow;
+        int color = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
+        if (color == 0) color = Style.ACCENT;
         chargeBarView.setImageBitmap(Style.chargeBar(this, w, chargeBarView.getHeight(),
-            socStart / 100f, socNow / 100f, Style.ACCENT));
+            socStart / 100f, socNow / 100f, color));
     }
 
     // TurboMode already calls back on the UI thread — no ui.post needed here.
@@ -1649,9 +1636,8 @@ public class ComfortActivity extends Activity {
         if (turboBarView == null) return;
         int w = turboBarView.getWidth();
         if (w <= 0) { turboBarView.post(() -> redrawTurboBar(fraction)); return; }
-        // Stable theme accent, ready or draining alike -- see Style.PRESS_AMBIENT's
-        // own comment for why this no longer follows the cabin's ambient light.
-        int color = Style.ACCENT;
+        int color = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
+        if (color == 0) color = Style.ACCENT;
         if (fraction == turboBarFraction && w == turboBarW && color == turboBarColor) return;
         turboBarFraction = fraction; turboBarW = w; turboBarColor = color;
         turboBarView.setImageBitmap(Style.turboBar(this, w, turboBarView.getHeight(), fraction, color));
@@ -2019,21 +2005,13 @@ public class ComfortActivity extends Activity {
     // when open. Window position has no natural state drawing, so the
     // icon indicates the next action.
     private void setPurge(boolean open) {
-        boolean stateChanged = open != purgeOpen;
         purgeOpen = open;
         if (purgeBtn == null) return;
-        if (purgeFeedback == null || stateChanged) {
-            android.graphics.drawable.Drawable content = open
-                ? Style.card(Style.ACCENT, this, Style.RADIUS_DP - 8) : Style.tile(this);
-            if (purgeFeedback instanceof PressFeedbackDrawable) {
-                ((PressFeedbackDrawable) purgeFeedback).setContent(content);
-            } else {
-                purgeFeedback = Style.pressable(content, this, Style.RADIUS_DP - 8, pressColor);
-                purgeBtn.setBackground(purgeFeedback);
-            }
-        }
+        int accent = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
+        if (accent == 0) accent = Style.ACCENT;
         purgeBtn.setImageResource(open ? R.drawable.ic_window_raise : R.drawable.ic_window_lower);
-        purgeBtn.setColorFilter(open ? Style.onFill(Style.ACCENT) : Style.TEXT);
+        purgeBtn.setColorFilter(open ? Style.onFill(accent) : Style.TEXT);
+        purgeBtn.setBackground(open ? Style.card(accent, this, Style.RADIUS_DP - 8) : Style.tile(this));
     }
 
     // Icon showing current state: car+loop icon lit while recirculating,
@@ -2046,17 +2024,10 @@ public class ComfortActivity extends Activity {
 
         // The static icon at rest: ic_hvac_cycle_off while on, ic_hvac_cycle_on while off.
         int staticIcon = on ? R.drawable.ic_hvac_cycle_off : R.drawable.ic_hvac_cycle_on;
-        int colorFilter = on ? Style.onFill(Style.ACCENT) : Style.TEXT;
-        if (recircFeedback == null || stateChanged) {
-            android.graphics.drawable.Drawable content = on
-                ? Style.card(Style.ACCENT, this, Style.RADIUS_DP - 8) : Style.tile(this);
-            if (recircFeedback instanceof PressFeedbackDrawable) {
-                ((PressFeedbackDrawable) recircFeedback).setContent(content);
-            } else {
-                recircFeedback = Style.pressable(content, this, Style.RADIUS_DP - 8, pressColor);
-            }
-        }
-        android.graphics.drawable.Drawable bgDrawable = recircFeedback;
+        int accent = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
+        if (accent == 0) accent = Style.ACCENT;
+        int colorFilter = on ? Style.onFill(accent) : Style.TEXT;
+        android.graphics.drawable.Drawable bgDrawable = on ? Style.card(accent, this, Style.RADIUS_DP - 8) : Style.tile(this);
 
         if (stateChanged && recircBtn.getDrawable() != null) {
             // State changed: play the opposite state's animation, then settle
