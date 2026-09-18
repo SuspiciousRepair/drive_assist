@@ -318,7 +318,7 @@ adb shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.geely.driv
 
 Drive Assist welcomes contributions from automotive software developers and the Geely community!
 
-- **Contributing Guidelines**: Review [CONTRIBUTING.md](CONTRIBUTING.md) for branching policy (`dev` vs. `master`), Conventional Commits conventions, local test pipeline (`./gradlew test jacocoTestReport`), and vehicle safety rules.
+- **Contributing Guidelines**: Review [CONTRIBUTING.md](CONTRIBUTING.md) for the public `next` / release-branch workflow, pre-push PII checks, Conventional Commits, local validation, and vehicle safety rules.
 - **Release Readiness & Audits**: See [docs/RELEASE-READINESS-MATRIX.md](docs/RELEASE-READINESS-MATRIX.md) for the objective release assessment matrix, [docs/ARCHITECTURE-SAFETY-AUDIT.md](docs/ARCHITECTURE-SAFETY-AUDIT.md) for vehicle safety invariant analyses, and [docs/CODE-QUALITY-REPORT.md](docs/CODE-QUALITY-REPORT.md) for test coverage and static analysis findings.
 - **Changelog**: See [CHANGELOG.md](CHANGELOG.md) for release notes across all versions and unreleased staging features.
 - **License**: Drive Assist is licensed under the [GNU General Public License v3.0](LICENSE). Any distributed modified version must also stay open source under GPLv3.

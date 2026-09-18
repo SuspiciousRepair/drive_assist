@@ -6,17 +6,47 @@ Because Drive Assist interfaces directly with physical vehicle hardware, vehicle
 
 ---
 
-## 1. Branching Strategy
+## 1. Public contribution and release model
 
-We follow a structured Git branching model:
+`master` is the public, curated release history. Each published version is a
+validated release tree with an immutable `vX.Y.Z` tag.
 
-* **`dev` (Default & Integration Branch)**:
-  - All feature branches, bug fixes, refactoring, and documentation improvements must branch off and target `dev`.
-  - Feature branches should be named descriptively: `feat/<feature-name>`, `fix/<issue-name>`, or `docs/<topic>`.
-* **`master` (Protected Release Branch)**:
-  - Reserved exclusively for validated, stable releases.
-  - Merges into `master` are strictly gated on end-to-end vehicle hardware validation and release readiness audits.
-  - **Do not open pull requests directly against `master`**.
+`next` is the public integration and nightly-candidate branch. Short-lived
+`feat/<name>`, `fix/<name>`, and `docs/<name>` branches are public and target
+`next`. A `release/vX.Y` branch is cut from `next` only to stabilize one
+version; it accepts release-blocking fixes, tests, documentation, and
+validation work—not unrelated new features.
+
+### External pull requests
+
+Open public PRs against `next` as self-contained proposals. A maintainer may
+squash-merge accepted work to keep the integration history readable while
+preserving contributor credit through GitHub's PR record and a `Co-authored-by`
+trailer where the contributor has agreed to it.
+
+- Keep each PR narrow: one bug fix, feature slice, test improvement, or docs
+  correction. Do not combine dashboard redesigns, vehicle behavior changes,
+  and dashcam architecture in one request.
+- Run `./tools/check-pii.sh --staged` before every public push. Use neutral
+  commit messages and PR text. Never include personal journeys,
+  vehicle identifiers, home-network details, screenshots with sensitive data,
+  credentials, or unpublished reverse-engineering notes.
+- Install the optional local backstop once per clone:
+  `./tools/install-git-hooks.sh`. Its pre-push hook scans the exact commits
+  being sent; CI repeats the check after receipt.
+- A PR being mergeable does not mean it is validated for a vehicle or accepted
+  for release.
+
+### Maintainer release path
+
+1. Integrate reviewed work on `next`; every push creates a downloadable
+   candidate artifact, never an automatic OTA.
+2. Cut `release/vX.Y` from `next` when feature work is complete.
+3. Validate its exact clean source SHA: `./tools/validate-release.sh release/vX.Y`.
+4. Complete applicable vehicle checks in [the device validation checklist](docs/DEVICE-VALIDATION.md).
+5. Publish the vetted tree only: `./tools/push-release.sh vX.Y.Z "summary" release/vX.Y`.
+6. Publish an OTA separately with `./build.sh`; a public release never
+   automatically installs anything on a vehicle.
 
 ---
 
@@ -60,7 +90,7 @@ Before opening a Pull Request, all contributors must execute the complete verifi
 ```bash
 ./tools/verify.sh
 ```
-* **Requirement**: All unit tests must pass (currently 164 tests across 22 suites).
+* **Requirement**: All unit tests must pass.
 * Generates HTML report at `drivemem/build/reports/jacoco/test/html/index.html`.
 * Produces lint, Checkstyle, SpotBugs, and release-assembly results too.
 * Coverage for calculation, state, and storage code must not regress; do not use
@@ -151,7 +181,8 @@ Modifications interacting with vehicle systems must strictly respect the followi
 ## 6. Pull Request Submission Checklist
 
 When opening a Pull Request, confirm that:
-- [ ] Target branch is `dev`.
+- [ ] Target branch is `next` (or the explicitly announced `release/vX.Y`
+  branch for a release-blocking fix).
 - [ ] Commit messages follow Conventional Commits format.
 - [ ] `./tools/verify.sh` passes (all tests, reports, and release assembly).
 - [ ] `./gradlew :drivemem:assembleRelease` builds successfully.

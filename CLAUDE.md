@@ -45,15 +45,25 @@ If the guard blocks a publish, it prints the missing commits and the exact `git 
 
 ---
 
-## Branching & Release Workflow (Granular `dev` -> Squashed `master`)
+## Branching & Release Workflow (Public `next` -> Curated `master`)
 
-* **`dev` (Local Development)**: Work on `dev`. All granular commits, experimental WIPs, and local history are kept here.
-* **`master` (Public Release)**: Tracks `origin/master`. Only clean, squashed release commits are pushed to the public remote.
+* **`feat/*`, `fix/*`, `docs/*` (Public Feature Work)**: Branch from `next`,
+  keep scope narrow, run `./tools/check-pii.sh --staged` before every push,
+  and open PRs into `next`. A one-time `./tools/install-git-hooks.sh` setup
+  adds the same guard to every push in this checkout.
+* **`next` (Public Integration)**: Receives reviewed public feature/fix PRs and
+  produces downloadable nightly candidate artifacts. Never deploys an OTA.
+* **`release/vX.Y` (Public Stabilization)**: Cut from `next` when a version is
+  feature-complete; only release-blocking fixes and validation work belong here.
+* **`master` (Public Release)**: Tracks `origin/master`. Only clean, curated
+  release commits and immutable version tags are pushed here.
 * **To publish a new public release**:
   ```bash
-  ./tools/push-release.sh "feat: release vX.Y.Z - summary of changes"
+  ./tools/validate-release.sh release/vX.Y
+  ./tools/push-release.sh vX.Y.Z "summary of changes" release/vX.Y
   ```
-  This creates a pristine squashed commit on `master` matching the current tree of `dev` and pushes it to `origin/master`.
+  This creates a curated commit on `master` matching the validated release
+  branch tree, adds an immutable tag, and pushes both to `origin`.
 
 ---
 

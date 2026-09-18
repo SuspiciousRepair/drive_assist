@@ -5,7 +5,7 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 [--staged | --base <git-revision>]" >&2
+  echo "Usage: $0 [--staged | --base <git-revision> | --range <base> <head>]" >&2
   exit 2
 }
 
@@ -16,6 +16,10 @@ case "${1:-}" in
   --base)
     [[ $# -eq 2 ]] || usage
     diff_args=("$2"...HEAD)
+    ;;
+  --range)
+    [[ $# -eq 3 ]] || usage
+    diff_args=("$2" "$3")
     ;;
   *) usage ;;
 esac

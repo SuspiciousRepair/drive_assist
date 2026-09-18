@@ -20,6 +20,10 @@ mqtt-certs/
 # Credenciais do MQTT para o anuncio de OTA (nao versionar)
 .ota-env
 
+# Local, SHA-bound release-validation evidence. It records a maintainer's
+# machine-local validation decision, not source or vehicle data.
+.release/
+
 # R.java gerado pelo aapt2 a cada build (ver build.sh, flag --java)
 drivemem/gen/
 

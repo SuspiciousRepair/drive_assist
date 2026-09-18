@@ -2,10 +2,8 @@ name: Build Drive Assist APKs
 
 on:
   push:
-    branches: [ master ]
+    branches: [next, 'release/**']
     tags: [ 'v*' ]
-  pull_request:
-    branches: [ master ]
   workflow_dispatch:
 
 jobs:
