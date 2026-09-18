@@ -3,6 +3,8 @@
 # deploy, install, connect to a car, or run any hardware action.
 set -euo pipefail
 
+./tools/check-active-locales.sh
+
 exec ./gradlew \
   :drivemem:testDebugUnitTest \
   :drivemem:jacocoTestReport \

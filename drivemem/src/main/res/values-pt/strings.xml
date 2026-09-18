@@ -204,6 +204,7 @@
     <string name="cfg_adas_header">Assistência ao motorista</string>
     <string name="cfg_aeb_label">AEB (frenagem automática de emergência)</string>
     <string name="cfg_avas_label">AVAS (som de alerta a pedestres)</string>
+    <string name="cfg_park_monitor_label">Monitoramento em estacionamento</string>
     <string name="cfg_aeb_confirm_title">Desativar a frenagem automática de emergência?</string>
     <string name="cfg_aeb_confirm_body">Desativar o AEB interrompe a frenagem automática quando o carro detecta risco de colisão frontal. Diferente do menu do próprio carro, isto permanece desativado após reiniciar, até você reativar por aqui.</string>
     <string name="cfg_aeb_confirm_turn_off">Desativar</string>
@@ -382,6 +383,7 @@
     <string name="charge_curve_power_label">Potência (kW)</string>
     <string name="charge_curve_temp_label">Temp. externa (°C)</string>
     <string name="charge_curve_batt_temp_label">Temp. da bateria (°C)</string>
+    <string name="charge_curve_no_batt_temp">Temperatura da bateria indisponível (OBD2 desconectado)</string>
     <string name="charge_completed_title">Recarga concluída</string>
     <string name="charge_cost_label">Custo</string>
     <string name="charge_cost_input_title">Custo da Recarga</string>

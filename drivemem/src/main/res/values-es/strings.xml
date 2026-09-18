@@ -224,7 +224,6 @@
     <string name="clips_recording">grabando</string>
     <string name="clips_orphan">sin cerrar — recuperable</string>
     <string name="clips_record">Grabar</string>
-    <string name="clips_stop">Detener</string>
     <string name="clips_limit_label">Límite de grabación (GB)</string>
     <string name="clips_limit_save">Guardar</string>
     <string name="cfg_nav_clips">Dashcam</string>
@@ -281,9 +280,6 @@
     <string name="cfg_update_url_label">URL de actualización (HTTPS)</string>
     <string name="cfg_btn_check_update">Buscar e instalar actualización</string>
     <!-- touch & maintenance -->
-    <string name="cfg_touch_header">Controles táctiles y bloqueo</string>
-    <string name="cfg_cooldown_label">Bloqueo del interruptor</string>
-    <string name="cfg_cooldown_hint">Duración del bloqueo temporal tras pulsar un interruptor para evitar toques dobles accidentales durante la conducción.</string>
     <string name="cfg_maintenance_header">Mantenimiento</string>
     <!-- mqtt & telemetry -->
     <string name="cfg_mqtt_enable_label">Activar telemetría MQTT</string>
