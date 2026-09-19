@@ -650,4 +650,27 @@
     <string name="dash_preview_stopping">กำลังหยุดบันทึก…</string>
     <string name="dash_usb_filesystems">ใช้ FAT32 และ exFAT ได้เมื่อจอรถรองรับ Android ต้องอ่านไดรฟ์ได้ และต้องเขียนข้อมูลได้จึงจะบันทึกคลิปได้</string>
     <string name="dash_read_only">พื้นที่เก็บข้อมูลอ่านได้อย่างเดียว · เปิดดูคลิปได้</string>
+    <string name="windows_title">กระจก</string>
+    <string name="windows_hint">เลือกทีละบานหรือเป็นคู่ ซ้าย–ขวาอ้างอิงจากตำแหน่งที่นั่งในรถ</string>
+    <string name="windows_front_left">หน้าซ้าย</string>
+    <string name="windows_front_right">หน้าขวา</string>
+    <string name="windows_rear_left">หลังซ้าย</string>
+    <string name="windows_rear_right">หลังขวา</string>
+    <string name="windows_groups">ควบคุมพร้อมกัน</string>
+    <string name="windows_front_pair">คู่หน้า</string>
+    <string name="windows_rear_pair">คู่หลัง</string>
+    <string name="windows_all">ทั้ง 4 บาน</string>
+    <string name="windows_close">ปิด</string>
+    <string name="windows_half">ครึ่งหนึ่ง</string>
+    <string name="windows_full">เปิดสุด</string>
+    <string name="windows_done">เสร็จสิ้น</string>
+    <string name="windows_reading">กำลังอ่านตำแหน่ง…</string>
+    <string name="windows_closed">ปิดสนิท</string>
+    <string name="windows_position">เปิด %1$d%%</string>
+    <string name="windows_sending">กำลังส่งคำสั่ง…</string>
+    <string name="windows_requested">สั่งไปที่ %1$d%% · รอยืนยันตำแหน่ง</string>
+    <string name="windows_unavailable">อ่านตำแหน่งไม่ได้</string>
+    <string name="windows_rejected">ส่งคำสั่งไม่สำเร็จ ลองอีกครั้ง</string>
+    <string name="windows_unconfirmed">ยังไม่ยืนยันตำแหน่ง กรุณาตรวจดูกระจก</string>
+    <string name="windows_feedback_note">แสดงตำแหน่งที่อ่านจากรถ ปุ่มควบคุมเป็นกลุ่มจะสั่งเฉพาะบานที่อ่านค่าได้</string>
 </resources>

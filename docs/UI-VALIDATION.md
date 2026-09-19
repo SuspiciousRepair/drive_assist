@@ -131,6 +131,45 @@ The dashboard observations below were recorded before the dashcam adaptation.
   live preview, or USB/exFAT compatibility. The public review copy removes the
   source location metadata and obscures the instrument-cluster QR sticker.
 
+## Individual and grouped window controls
+
+- Home's Windows tile opens a 2×2 layout for Front left, Front right, Rear left
+  and Rear right, followed by Front pair, Rear pair and All windows controls.
+  Every pane/group offers 0%, 50% and 100% targets. Left/right refers to physical
+  seating position, including on right-hand-drive vehicles.
+- Commands read each selected pane first and skip unavailable/invalid readings.
+  Accepted writes remain pending until vehicle readback reaches the target;
+  after eight seconds without confirmation the UI asks the user to check the
+  glass. A later matching reading clears that message. Targets are never saved
+  or replayed. Dismissing the popup cancels pending reads before submission and
+  unsubscribes/stops its 750 ms fallback read loop; it does not undo an already
+  submitted command or stop glass already moving.
+- The complete unit-test run passed **238 tests**, including **17 window command
+  tests** for exact pane/property routing, preset validation, disconnected or
+  unreadable panes, unchanged positions, rejected writes, front/rear isolation,
+  partial failures and cancellation before/during a read. Debug and release
+  APKs assembled successfully. All **620 translatable default strings** have
+  Thai counterparts; new window placeholders match.
+- The popup was inspected at 1920×1080 / 160 dpi in English/light and Thai/dark.
+  All 21 command buttons are at least 64 dp high. With unavailable vehicle
+  readings all are disabled, without fabricated positions. Thai at 1.3× font
+  scale remained scrollable with the Done action accessible; animations were
+  disabled for that check.
+- A temporary Android instrumentation APK exercised the actual dialog and its
+  buttons against a fake CarAccess on the automotive emulator. All seven checks
+  passed: front/rear/single-pane routing, requested versus measured positions,
+  push confirmation, late confirmation after timeout, partial availability and
+  dismissal during a blocked read. The last check exposed asynchronous dismiss
+  cleanup; cancellation now runs synchronously before Dialog.dismiss(). The
+  harness was removed and its target process stopped afterward. It performed no
+  real VHAL writes and is not evidence of physical glass movement.
+- Screenshots: [English/light](screenshots/window-controls-english-light.png)
+  and [Thai/dark](screenshots/window-controls-thai-dark.png). These show the
+  emulator's unavailable-window state, not physical window movement.
+- Physical window motion, calibration, anti-pinch and OEM child-lock behavior
+  have not been validated on the owner's car. No automatic movement or
+  child-lock override was introduced.
+
 ## Limits of the checks
 
 The emulator's vehicle stubs return values such as 0% battery, 0 km range and

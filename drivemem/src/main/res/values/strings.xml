@@ -671,4 +671,27 @@
     <string name="dash_preview_stopping">Stopping the recorder…</string>
     <string name="dash_usb_filesystems">FAT32 and exFAT work when supported by the head unit. Android must mount the drive; recording requires write access.</string>
     <string name="dash_read_only">Read-only storage · playback available</string>
+    <string name="windows_title">Windows</string>
+    <string name="windows_hint">Choose a window or a pair. Left and right follow the seats in the car.</string>
+    <string name="windows_front_left">Front left</string>
+    <string name="windows_front_right">Front right</string>
+    <string name="windows_rear_left">Rear left</string>
+    <string name="windows_rear_right">Rear right</string>
+    <string name="windows_groups">Control together</string>
+    <string name="windows_front_pair">Front pair</string>
+    <string name="windows_rear_pair">Rear pair</string>
+    <string name="windows_all">All windows</string>
+    <string name="windows_close">Close</string>
+    <string name="windows_half">Half open</string>
+    <string name="windows_full">Fully open</string>
+    <string name="windows_done">Done</string>
+    <string name="windows_reading">Reading position…</string>
+    <string name="windows_closed">Closed</string>
+    <string name="windows_position">Open %1$d%%</string>
+    <string name="windows_sending">Sending request…</string>
+    <string name="windows_requested">Requested %1$d%% · awaiting position</string>
+    <string name="windows_unavailable">Position unavailable</string>
+    <string name="windows_rejected">Request failed. Try again.</string>
+    <string name="windows_unconfirmed">Target position not confirmed. Check the window.</string>
+    <string name="windows_feedback_note">Positions come from the car. Group controls move only windows that can be read.</string>
 </resources>

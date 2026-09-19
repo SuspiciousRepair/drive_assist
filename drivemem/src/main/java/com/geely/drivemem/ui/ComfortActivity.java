@@ -101,9 +101,9 @@ public class ComfortActivity extends LocalizedActivity {
     private ChargeStatsView chargeStatsView;
     private FrameLayout chargeStatsContainer;
     private FrameLayout konamiZone;
-    // purge: one button, both directions. The Purge object holds where each pane
-    // was before it moved, so closing puts them back rather than shutting them.
+    // The home tile opens per-pane and grouped window controls.
     private android.widget.ImageView purgeBtn;
+    private android.app.AlertDialog windowDialog;
     // Real per-area readings, kept only to answer "is ANY window still open"
     // without re-reading the car — filled by car.window_pos pushes.
     private final java.util.Map<Integer, Integer> windowPos = new java.util.HashMap<>();
@@ -548,31 +548,11 @@ public class ComfortActivity extends LocalizedActivity {
         switchRow.addView(labeledControl(recircBtn, R.string.ac_recirc_label), tileLp(108, 0));
         purgeBtn = iconSwitchTile(R.drawable.ic_window_lower, 7);
         purgeBtn.setOnClickListener(v -> {
-            purgeBtn.setEnabled(false);      // the glass takes seconds; one press is one move
-            CarActor.get(this).runOnCarThread(() -> {
-                CarAccess pc = CarActor.get(this).rawAccess();
-                // WHICH WAY THE BUTTON ACTS IS READ, NOT REMEMBERED. A hand can
-                // move a window, and the car shuts them all on lock, so a stored
-                // flag would be wrong exactly when it mattered.
-                final Boolean was = purge.anyOpen(pc);
-                final int moved = (was == null) ? 0
-                                : was ? purge.close(pc) : purge.open(pc);
-                ui.post(() -> {
-                    hint.setText(was == null ? getString(R.string.purge_unreadable)
-                        : moved == 0 ? getString(R.string.purge_nothing)
-                        : was ? getString(R.string.purge_closing)
-                              : getString(R.string.purge_opening));
-                    purgeBtn.setEnabled(true);
-                    // The icon itself updates from car.window_pos pushes
-                    // (windowPosListener) the instant the glass actually
-                    // crosses the open/shut line — not this click, not a
-                    // timer. That is the real "the car senses it faster"
-                    // answer: the old delay was the ~10s ambient poll being
-                    // the only thing that ever re-read the property.
-                });
-            });
+            if (windowDialog == null || !windowDialog.isShowing()) {
+                windowDialog = WindowControlsDialog.show(this);
+            }
         });
-        switchRow.addView(labeledControl(purgeBtn, R.string.purge_label), tileLp(108, 14));
+        switchRow.addView(labeledControl(purgeBtn, R.string.windows_title), tileLp(108, 14));
         LinearLayout.LayoutParams switchesLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         switchesLp.leftMargin = Style.dp(this, 14);
         strip.addView(switchRow, switchesLp);
@@ -2068,6 +2048,10 @@ public class ComfortActivity extends LocalizedActivity {
 
     @Override protected void onPause() {
         super.onPause();
+        if (windowDialog != null) {
+            windowDialog.dismiss();
+            windowDialog = null;
+        }
         if (homeVehicleControls != null) homeVehicleControls.stop();
         if (homeEnergy != null) homeEnergy.stop();
         EntityBus.unsubscribe("charge.cost_updated", chargeBusListener);
@@ -2105,8 +2089,7 @@ public class ComfortActivity extends LocalizedActivity {
         ComfortHub.removeListener(rulerListener);
     }
 
-    // Same lit/unlit language as recirculation, and the same reason: the button
-    // says what it will DO next, so it has to know what the glass is doing now.
+    // The tile is lit while a window is open; tapping always opens the controls.
     // Reads on a worker thread — WINDOW_POS is a car property, not a local flag,
     // and it answers unavailable with the car asleep.
     private void refreshPurge() {
@@ -2118,18 +2101,16 @@ public class ComfortActivity extends LocalizedActivity {
         });
     }
 
-    // Icon showing intended action: open arrow when closed, close arrow
-    // when open. Window position has no natural state drawing, so the
-    // icon indicates the next action.
+    // Highlight real window state without changing the popup entry point.
     private void setPurge(boolean open) {
         purgeOpen = open;
         if (purgeBtn == null) return;
-        purgeBtn.setContentDescription(getString(open ? R.string.purge_close_label : R.string.purge_label));
+        purgeBtn.setContentDescription(getString(R.string.windows_title));
         int accent = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
         if (accent == 0) accent = Style.ACCENT;
-        purgeBtn.setImageResource(open ? R.drawable.ic_window_raise : R.drawable.ic_window_lower);
+        purgeBtn.setImageResource(R.drawable.ic_window_lower);
         purgeBtn.setColorFilter(open ? Style.onFill(accent) : Style.TEXT);
-        updateControlCaption(purgeBtn, open ? R.string.purge_close_label : R.string.purge_label, open ? Style.onFill(accent) : Style.TEXT);
+        updateControlCaption(purgeBtn, R.string.windows_title, open ? Style.onFill(accent) : Style.TEXT);
         controlSurface(purgeBtn).setBackground(open ? Style.card(accent, this, Style.RADIUS_DP - 8) : Style.tile(this));
     }
 
