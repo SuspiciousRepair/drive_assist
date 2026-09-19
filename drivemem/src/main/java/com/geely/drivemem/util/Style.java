@@ -34,20 +34,35 @@ import java.util.List;
  * alone maintains visual distinction between themes.
  */
 public class Style {
+    private static volatile Typeface latinFont;
+    private static volatile Typeface thaiFont;
+
+    /** Resolve the face from the app locale, including custom Canvas labels. */
+    public static Typeface font(Context context) {
+        boolean thai = "th".equals(AppLanguage.locale(context).getLanguage());
+        Typeface face = thai ? thaiFont : latinFont;
+        if (face == null) {
+            face = context.getResources().getFont(thai ? R.font.noto_sans_thai : R.font.unitext_regular);
+            if (thai) thaiFont = face;
+            else latinFont = face;
+        }
+        return face;
+    }
+
     // ---- active palette (default: Geely) ----
-    public static int BG_TOP    = 0xFF303640;  // background gradient (top)
-    public static int BG_BOTTOM = 0xFF171B21;  // background gradient (bottom)
-    public static int CARD      = 0xFF2E333B;  // card
-    public static int CARD_HI   = 0xFF3A4048;  // lighter card / track
-    public static int CARD_ON   = 0xFF1E6FFF;  // selected
+    public static int BG_TOP    = 0xFF111214;  // background gradient (top)
+    public static int BG_BOTTOM = 0xFF111214;  // background gradient (bottom)
+    public static int CARD      = 0xFF1C1E21;  // card
+    public static int CARD_HI   = 0xFF292C30;  // lighter card / track
+    public static int CARD_ON   = 0xFF454A50;  // selected
     public static int TEXT      = 0xFFECEFF3;  // primary text
-    public static int TEXT_DIM  = 0xFF8A93A0;  // secondary text / label
+    public static int TEXT_DIM  = 0xFFB6BAC1;  // secondary text / label
     public static int TEXT_ON   = 0xFFECEFF3;  // text OVER a coloured fill
-    public static int ACCENT    = 0xFF1E6FFF;  // accent
-    public static int COOL      = 0xFF2196F3;  // cool semantics
-    public static int HEAT      = 0xFFFF9800;  // heat semantics
-    public static int GOOD      = 0xFF43A047;  // positive/green semantics (e.g. DC fast charging)
-    public static int PURPLE    = 0xFF8E24AA;  // regen energy (Balanço de Energia chart)
+    public static int ACCENT    = 0xFFB3BDC8;  // accent
+    public static int COOL      = 0xFF97ACBA;  // cool semantics
+    public static int HEAT      = 0xFFCBA78B;  // heat semantics
+    public static int GOOD      = 0xFF91B8A1;  // positive/green semantics (e.g. DC fast charging)
+    public static int PURPLE    = 0xFFB2A1B9;  // regen energy (Balanço de Energia chart)
 
     // ---- active shape ----
     public static int  RADIUS_DP    = 14;
@@ -111,16 +126,15 @@ public class Style {
     }
 
     public static final Theme[] THEMES = new Theme[] {
-        // Default: gunmetal grey with blue at night (car's native tone) or
-        // cool off-white for bright daylight. Appearance setting switches between them.
-        new Theme("geely", "Default", R.string.theme_geely_blurb,
-            new Palette(0xFF303640, 0xFF171B21, 0xFF2E333B, 0xFF3A4048, 0xFF1E6FFF,
-                0xFFECEFF3, 0xFF8A93A0, 0xFFECEFF3, 0xFF1E6FFF, 0xFF2196F3, 0xFFFF9800,
-                30, 1, 0x22FFFFFF, false, false, true, ART_SKYLINE),
-            // Light variant: cool off-white palette matched to instrument cluster appearance.
-            new Palette(0xFFEEF1F4, 0xFFDBE0E5, 0xFFFFFFFF, 0xFFE7EAEE, 0xFF1668E3,
-                0xFF1B1F24, 0xFF62697A, 0xFFFFFFFF, 0xFF1668E3, 0xFF0277BD, 0xFFE65100,
-                34, 1, 0x1A000000, false, true, true, ART_SKYLINE)),
+        // Minimal automotive surfaces: matte charcoal at night, white/grey by day.
+        // Keep the saved id so existing installations receive the refreshed design.
+        new Theme("geely", "Minimal", R.string.theme_geely_blurb,
+            new Palette(0xFF111214, 0xFF111214, 0xFF1C1E21, 0xFF292C30, 0xFF454A50,
+                0xFFECEFF3, 0xFFB6BAC1, 0xFFECEFF3, 0xFFB3BDC8, 0xFF97ACBA, 0xFFCBA78B,
+                16, 1, 0xFF383C42, false, false, false, ART_SKYLINE),
+            new Palette(0xFFF4F4F4, 0xFFF4F4F4, 0xFFFFFFFF, 0xFFE8EAED, 0xFF24272C,
+                0xFF171A20, 0xFF626973, 0xFFFFFFFF, 0xFF3766D5, 0xFF3273C6, 0xFFC35B36,
+                16, 0, 0x00000000, false, true, false, ART_SKYLINE)),
 
         // true black + amber: driving at night without taking blue light in the
         // face. Ignores the cabin light — if the car is violet, the app stays
@@ -132,13 +146,6 @@ public class Style {
                 22, 1, 0x1AFFFFFF, false, false, false, ART_VAPOR),
             null),
 
-        // hollow card with a lit outline, very round corner, cyan/magenta — one
-        // fixed scheme, same reasoning as Noturno: Appearance does not apply.
-        new Theme("neon", "Neon", R.string.theme_neon_blurb,
-            new Palette(0xFF10143A, 0xFF04050D, 0xFF0C1030, 0xFF1B2358, 0xFF0B4C5E,
-                0xFFE6FBFF, 0xFF7C8FB8, 0xFFE6FBFF, 0xFF00E5FF, 0xFF00E5FF, 0xFFFF2D95,
-                46, 2, 0x5500E5FF, true, false, true, ART_SKYLINE),
-            null),
     };
 
     private static Theme current = THEMES[0];
@@ -173,7 +180,7 @@ public class Style {
     /** Returns the saved appearance setting (Light/Dark/Auto). */
     public static String appearance(Context c) {
         return c.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
-                .getString("appearance", APPEARANCE_DARK);
+                .getString("appearance", APPEARANCE_LIGHT);
     }
 
     /** Saves and applies an appearance setting (Light/Dark/Auto). */
@@ -211,6 +218,11 @@ public class Style {
             p.edit().putString("theme", THEMES[0].id).putString("appearance", APPEARANCE_LIGHT).apply();
             savedTheme = THEMES[0].id;
         }
+        if ("neon".equals(savedTheme)) {
+            // Retire the glowing theme without turning an existing night UI bright.
+            p.edit().putString("theme", THEMES[0].id).putString("appearance", APPEARANCE_DARK).apply();
+            savedTheme = THEMES[0].id;
+        }
         apply(c, byId(transientId != null ? transientId : savedTheme));
     }
 
@@ -236,6 +248,9 @@ public class Style {
         CARD = pal.card; CARD_HI = pal.cardHi; CARD_ON = pal.cardOn;
         TEXT = pal.text; TEXT_DIM = pal.textDim; TEXT_ON = pal.textOn;
         ACCENT = pal.accent; COOL = pal.cool; HEAT = pal.heat;
+        boolean matteDark = "geely".equals(t.id) && !pal.light;
+        GOOD = matteDark ? 0xFF91B8A1 : 0xFF43A047;
+        PURPLE = matteDark ? 0xFFB2A1B9 : 0xFF8E24AA;
         RADIUS_DP = pal.radiusDp; STROKE_DP = pal.strokeDp; STROKE_COLOR = pal.strokeColor;
         OUTLINE = pal.outline; LIGHT = pal.light; FOLLOW_AMBIENT = pal.followAmbient;
         ART = pal.art;
@@ -279,7 +294,8 @@ public class Style {
 
     /** Returns the appropriate text color for content on top of a filled background. */
     public static int onFill(int fill) {
-        return (fill == CARD || fill == CARD_HI) ? TEXT : TEXT_ON;
+        return fill == CARD_ON ? TEXT_ON : (fill == CARD || fill == CARD_HI) ? TEXT
+            : (Color.luminance(fill | 0xFF000000) > 0.20 ? 0xFF171A20 : 0xFFFFFFFF);
     }
 
     /** Creates a vertical gradient background drawable. */
@@ -366,7 +382,7 @@ public class Style {
     /** Creates a large title text view. */
     public static TextView title(Context c, String s) {
         TextView t = new TextView(c);
-        t.setText(s); t.setTextColor(TEXT); t.setTextSize(26);
+        t.setText(s); t.setTextColor(TEXT); t.setTextSize(32);
         t.setPadding(0, 0, 0, dp(c, 4));
         return t;
     }
@@ -374,10 +390,10 @@ public class Style {
     /** Creates a section header text view. */
     public static TextView header(Context c, String s) {
         TextView t = new TextView(c);
-        t.setText(s.toUpperCase()); t.setTextColor(blend(TEXT_DIM, TEXT, 0.45f)); t.setTextSize(17);
-        t.setLetterSpacing(0.06f);
-        t.setTypeface(null, android.graphics.Typeface.BOLD);
-        t.setPadding(0, dp(c, 16), 0, dp(c, 6));
+        t.setText(s); t.setTextColor(TEXT); t.setTextSize(30);
+        t.setLetterSpacing(0f);
+        t.setTypeface(t.getTypeface(), android.graphics.Typeface.BOLD);
+        t.setPadding(0, dp(c, 24), 0, dp(c, 14));
         return t;
     }
 
@@ -439,7 +455,7 @@ public class Style {
     public static TextView label(Context c, String s) {
         TextView t = new TextView(c);
         t.setText(s); t.setTextColor(TEXT); t.setTextSize(22);
-        t.setTypeface(null, android.graphics.Typeface.BOLD);
+        t.setTypeface(font(c));
         return t;
     }
 
@@ -479,6 +495,7 @@ public class Style {
         cv.drawPath(head, p);
 
         android.widget.ImageView iv = new android.widget.ImageView(c);
+        iv.setContentDescription(c.getString(com.geely.drivemem.R.string.ui_back));
         iv.setImageBitmap(bmp);
         int pad = dp(c, 10);
         iv.setPadding(pad, pad, pad, pad);
@@ -489,40 +506,17 @@ public class Style {
 
     /** Creates a settings/cog button. */
     public static android.widget.ImageView cogButton(Context c, Runnable onClick) {
-        int px = dp(c, 34);
-        android.graphics.Bitmap bmp =
-            android.graphics.Bitmap.createBitmap(px, px, android.graphics.Bitmap.Config.ARGB_8888);
-        android.graphics.Canvas cv = new android.graphics.Canvas(bmp);
-        android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
-        p.setColor(TEXT_DIM);
-        p.setStyle(android.graphics.Paint.Style.STROKE);
-        p.setStrokeWidth(px * 0.075f);
-        p.setStrokeCap(android.graphics.Paint.Cap.ROUND);
-
-        float cx = px / 2f, cy = px / 2f;
-        float rIn = px * 0.16f;    // the centre hole
-        float rMid = px * 0.30f;   // the body
-        float rOut = px * 0.42f;   // the tip of the teeth
-        cv.drawCircle(cx, cy, rIn, p);
-        cv.drawCircle(cx, cy, rMid, p);
-        // 8 radial teeth
-        for (int i = 0; i < 8; i++) {
-            double a = Math.PI * 2 * i / 8.0;
-            float sx = cx + (float) Math.cos(a) * rMid;
-            float sy = cy + (float) Math.sin(a) * rMid;
-            float ex = cx + (float) Math.cos(a) * rOut;
-            float ey = cy + (float) Math.sin(a) * rOut;
-            cv.drawLine(sx, sy, ex, ey, p);
-        }
-
-        android.widget.ImageView iv = new android.widget.ImageView(c);
-        iv.setImageBitmap(bmp);
-        int pad = dp(c, 10);
-        iv.setPadding(pad, pad, pad, pad);
-        // a touch area that is comfortable for a car screen, without calling attention
-        iv.setBackground(card(0x00000000, c));
-        if (onClick != null) iv.setOnClickListener(v -> onClick.run());
-        return iv;
+        android.widget.ImageView icon = new android.widget.ImageView(c);
+        icon.setImageResource(R.drawable.ic_tesla_controls);
+        icon.setColorFilter(TEXT);
+        icon.setContentDescription(c.getString(R.string.ui_settings));
+        icon.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        int pad = dp(c, 8);
+        icon.setPadding(pad, pad, pad, pad);
+        icon.setLayoutParams(new LinearLayout.LayoutParams(dp(c, 62), dp(c, 62)));
+        icon.setBackground(card(0x00000000, c));
+        if (onClick != null) icon.setOnClickListener(v -> onClick.run());
+        return icon;
     }
 
     /** Creates the effort scale (11 pills from C5 to W5) showing HVAC level. */
@@ -673,6 +667,7 @@ public class Style {
 
         if (durationLabel != null && !durationLabel.isEmpty()) {
             android.graphics.Paint tp = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            tp.setTypeface(font(c));
             tp.setColor(onFill(fill));
             tp.setTextSize(h * 0.45f);
             tp.setTextAlign(android.graphics.Paint.Align.CENTER);

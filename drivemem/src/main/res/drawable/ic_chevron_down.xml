@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adapted from cppqtdev/Tesla-Dashboard-UI-3: other_icons/Icon=chevron down, Color=white.svg. See docs/UI-REFERENCES.md. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="28dp" android:height="28dp" android:viewportWidth="49" android:viewportHeight="48">
+    <path android:pathData="M32.1719 20.25L24.6719 27.75L17.1719 20.25" android:fillColor="#00000000" android:strokeColor="#FFFFFFFF" android:strokeWidth="3.125" android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>

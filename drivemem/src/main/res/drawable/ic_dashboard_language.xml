@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adapted from cppqtdev/professional-vehicle-dashboard/icons/globe.svg; see docs/UI-REFERENCES.md. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="28dp" android:height="28dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M3.0,12.0 a9.0,9.0 0,1 0,18.0,0 a9.0,9.0 0,1 0,-18.0,0 Z" android:fillColor="#00000000" android:fillType="evenOdd" android:strokeColor="#FFFFFFFF" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M3 12h18" android:fillColor="#00000000" android:fillType="evenOdd" android:strokeColor="#FFFFFFFF" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18" android:fillColor="#00000000" android:fillType="evenOdd" android:strokeColor="#FFFFFFFF" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>

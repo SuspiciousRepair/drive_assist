@@ -5,27 +5,28 @@ import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.media.MediaMuxer;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Looper;
+import android.os.ResultReceiver;
 import android.os.Environment;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.Surface;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.Locale;
 
-/** Dashcam recorder: direct encode of the DVR camera view (2x2 of all four cameras)
- * without GL pipeline. Encodes directly to MediaCodec, bypassing unnecessary
- * transformations. See docs/DASHCAM.md and docs/EVS-CAMERA.md. */
+/** Records the full DVR camera composite through one EVS/EGL input shared with
+ * an optional live preview. Encoding lives in the foreground helper and continues
+ * when the preview Activity closes. See docs/DASHCAM.md and docs/EVS-CAMERA.md. */
 public final class DashRecorder {
     static final String TAG = "ModeHelper";
 
@@ -35,7 +36,6 @@ public final class DashRecorder {
     // roughly inversely proportional (10 GB holds ~1.4 hours at this rate).
     static final int  BITRATE = 16_000_000;
     static final int  IFRAME_SEC = 1;
-    static final long SEGMENT_MS = 5 * 60 * 1000L;
     // Default ring-buffer size; the owner can override it from Drive Assist's
     // Recordings panel (SET_MODE's "dashcam_limit_gb" extra, read fresh in
     // enforceBudget() below rather than cached, so a change takes effect on
@@ -66,7 +66,8 @@ public final class DashRecorder {
     private LocationManager lm;
     private LocationListener gps;
     private final EvsClient evs = new EvsClient();
-    private volatile boolean running;
+    private final DashcamRunState runState = new DashcamRunState();
+    private final DashcamPreviewController previewController = new DashcamPreviewController(this::isRunning);
     private volatile Seg activeSegment;
     private volatile boolean rotateRequested;
     private Thread thread;
@@ -115,21 +116,34 @@ public final class DashRecorder {
         return ROSE[i] + " " + Math.round(deg) + "\u00B0";
     }
 
-    public boolean isRunning() { return running; }
+    public boolean isRunning() { return runState.isRecording(); }
+
+    public void preview(String session, Surface ownedSurface, ResultReceiver status) {
+        previewController.accept(session, ownedSurface, status);
+    }
+
+    public void closePreview() { previewController.close(); }
 
     public synchronized void start() {
-        if (running) return;
-        running = true;
+        if (runState.requestStart()) launch();
+    }
+
+    /** Called under this recorder's lock, after runState grants sole ownership. */
+    private void launch() {
+        rotateRequested = false;
+        status("starting", "");
+        previewController.starting();
         startGps();
         thread = new Thread(this::loop, "dashcam");
-        thread.start();
         sampler = new Thread(this::sample, "dashcam-tele");
         sampler.start();
+        thread.start();
         Log.i(TAG, "dashcam: starting");
     }
 
     public synchronized void stop() {
-        running = false;
+        runState.requestStop();
+        if (sampler != null) sampler.interrupt();
         Log.i(TAG, "dashcam: stop requested");
     }
 
@@ -165,10 +179,27 @@ public final class DashRecorder {
         return d;
     }
 
+    private File nextDirectory(String preferred) throws IOException {
+        return DashcamStorage.resolve(preferred, new File(CLIP_DIR), new File("/storage"),
+            volume -> {
+                try {
+                    return Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState(volume))
+                        && Environment.isExternalStorageRemovable(volume) && volume.canWrite();
+                } catch (IllegalArgumentException | SecurityException unavailable) {
+                    return false;
+                }
+            });
+    }
+
+    private void status(String state, String error) {
+        ctx.getSharedPreferences("modehelper", Context.MODE_PRIVATE).edit()
+            .putString("dashcam_state", state).putString("dashcam_error", error).apply();
+    }
+
     // ------------------------------------------------------------ telemetry
 
     private void sample() {
-        while (running) {
+        while (runState.isRecording() && !Thread.currentThread().isInterrupted()) {
             try {
                 if (car.isReady()) {
                     boolean valet = new File(dir(), "valet.active").exists();
@@ -215,10 +246,12 @@ public final class DashRecorder {
     private void loop() {
         MediaCodec codec = null;
         Surface input = null;
+        EvsFrameFanout fanout = null;
         Seg seg = null;
+        Throwable failure = null;
         try {
-            if (!evs.connect()) { Log.w(TAG, "dashcam: no engine, giving up"); running = false; return; }
-            evs.openCamera(EvsClient.CAMERA_AVM);
+            if (!evs.connect()) throw new IOException("Camera engine unavailable");
+            if (!evs.openCamera(EvsClient.CAMERA_AVM)) throw new IOException("Camera open refused");
 
             MediaFormat fmt = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, W, H);
             fmt.setInteger(MediaFormat.KEY_COLOR_FORMAT,
@@ -232,12 +265,13 @@ public final class DashRecorder {
             input = codec.createInputSurface();
             codec.start();
 
-            // The engine renders straight into the encoder. Same IGraphicBufferProducer
-            // trick as any other surface — MediaCodec's input surface is no different.
-            if (!evs.attach(input, EvsClient.TYPE_DVR, EvsClient.CAMERA_AVM)) {
-                Log.w(TAG, "dashcam: attach refused");
-                running = false;
-                return;
+            // One camera consumer feeds both outputs. Preview attach/detach never
+            // touches EVS and never stops this encoder/background worker.
+            fanout = new EvsFrameFanout(input, W, H);
+            fanout.start();
+            previewController.bind(fanout);
+            if (!evs.attach(fanout.inputSurface(), EvsClient.TYPE_DVR, EvsClient.CAMERA_AVM)) {
+                throw new IOException("Camera attachment refused");
             }
 
             MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
@@ -245,71 +279,131 @@ public final class DashRecorder {
             boolean rotateArmed = false;
             long lastCue = -1;
 
-            while (running) {
+            while (runState.isRecording()) {
+                fanout.checkHealth();
                 int idx = codec.dequeueOutputBuffer(info, 20000);
                 if (idx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     outFmt = codec.getOutputFormat();
                     seg = new Seg(outFmt);
                     activeSegment = seg;
+                    status("recording", "");
                     continue;
                 }
                 if (idx < 0) continue;
 
-                ByteBuffer buf = codec.getOutputBuffer(idx);
-                boolean config = (info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0;
-                boolean key    = (info.flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0;
+                try {
+                    ByteBuffer buf = codec.getOutputBuffer(idx);
+                    boolean config = (info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0;
+                    boolean key    = (info.flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0;
 
-                // csd lives in the output format, which the muxer already took;
-                // writing it as a sample as well produces a file some players
-                // refuse.
-                if (config || seg == null || buf == null) { codec.releaseOutputBuffer(idx, false); continue; }
+                    // csd lives in the output format, which the muxer already took;
+                    // writing it as a sample as well produces a file some players
+                    // refuse.
+                    if (config || seg == null || buf == null) continue;
 
-                // Rotate segment at a key frame: segments must start seekable.
-                if (rotateArmed && key) {
-                    seg.finish();
-                    enforceBudget(ctx);
-                    seg = new Seg(outFmt);
-                    activeSegment = seg;
-                    rotateArmed = false;
-                    lastCue = -1;
-                }
+                    // Rotate segment at a key frame: segments must start seekable.
+                    if (rotateArmed && key) {
+                        if (!seg.finish()) throw new IOException("Could not finalize dashcam segment");
+                        enforceBudget(ctx, seg.directory);
+                        activeSegment = null;
+                        seg = new Seg(outFmt);
+                        activeSegment = seg;
+                        rotateArmed = false;
+                        lastCue = -1;
+                    }
 
-                // Use segment-relative clock: encoder timestamps are untrusted; this
-                // ensures monotonic PTS and sync with subtitle timing.
-                long pts = seg.ptsUs();
-                info.presentationTimeUs = pts;
-                seg.write(buf, info);
+                    // Use segment-relative clock: encoder timestamps are untrusted;
+                    // this ensures monotonic PTS and sync with subtitle timing.
+                    long pts = seg.ptsUs();
+                    info.presentationTimeUs = pts;
+                    seg.write(buf, info);
 
-                // Snap cue to the whole second: ensures each subtitle covers a full
-                // second and stays synchronized despite frame timing variations.
-                long sec = (pts / CUE_US) * CUE_US;
-                if (sec > lastCue) {
-                    seg.cue(sec, sec + CUE_US, tele);
-                    lastCue = sec;
-                }
+                    // Snap cue to the whole second: ensures each subtitle covers a
+                    // full second despite frame timing variations.
+                    long sec = (pts / CUE_US) * CUE_US;
+                    if (sec > lastCue) {
+                        seg.cue(sec, sec + CUE_US, tele);
+                        lastCue = sec;
+                    }
 
-                codec.releaseOutputBuffer(idx, false);
-
-                if (!rotateArmed && (seg.ageMs() >= SEGMENT_MS || valetEdge || rotateRequested)) {
-                    valetEdge = false;
-                    rotateRequested = false;
-                    Bundle b = new Bundle();
-                    b.putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0);
-                    codec.setParameters(b);
-                    rotateArmed = true;
+                    if (!rotateArmed && (seg.ageMs() >= seg.durationMs || valetEdge || rotateRequested)) {
+                        valetEdge = false;
+                        rotateRequested = false;
+                        Bundle b = new Bundle();
+                        b.putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0);
+                        codec.setParameters(b);
+                        rotateArmed = true;
+                    }
+                } finally {
+                    codec.releaseOutputBuffer(idx, false);
                 }
             }
         } catch (Throwable t) {
+            failure = t;
             Log.w(TAG, "dashcam: " + t, t);
         } finally {
-            running = false;
-            if (seg != null) seg.finish();
+            runState.workerStopping();
+            if (sampler != null) sampler.interrupt();
+            if (fanout != null) {
+                fanout.requestStop();
+                // EGL encoder swap can wait for a free codec buffer. Continue
+                // draining while GL shuts down; joining GL first would deadlock.
+                if (codec != null) {
+                    long until = SystemClock.uptimeMillis() + 3000L;
+                    boolean eosSent = false;
+                    MediaCodec.BufferInfo closing = new MediaCodec.BufferInfo();
+                    try {
+                        while (SystemClock.uptimeMillis() < until) {
+                            if (fanout.isStopped() && !eosSent) {
+                                codec.signalEndOfInputStream(); eosSent = true;
+                            }
+                            int index = codec.dequeueOutputBuffer(closing, 20_000);
+                            if (index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED && seg == null)
+                                seg = new Seg(codec.getOutputFormat());
+                            if (index < 0) continue;
+                            try {
+                                ByteBuffer buffer = codec.getOutputBuffer(index);
+                                if (seg != null && buffer != null && closing.size > 0
+                                        && (closing.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) == 0) {
+                                    closing.presentationTimeUs = seg.ptsUs();
+                                    seg.write(buffer, closing);
+                                }
+                            } finally { codec.releaseOutputBuffer(index, false); }
+                            if ((closing.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) break;
+                        }
+                    } catch (Throwable problem) { if (failure == null) failure = problem; }
+                }
+            }
+            // A stalled GL swap can also be released by stopping its codec. Keep
+            // the camera owner reserved until both GL threads have actually exited.
+            try { if (codec != null) codec.stop(); } catch (Throwable ignored) { }
+            if (fanout != null) {
+                if (!fanout.awaitStopped(10_000L)) {
+                    if (failure == null) failure = new IOException("Camera renderer shutdown delayed");
+                    status("error", "RendererShutdown");
+                    while (!fanout.awaitStopped(1000L)) {
+                        // No retry or second EVS owner while an old output still
+                        // owns resources. Main's dead-screen lease releases its UI.
+                        if (Thread.currentThread().isInterrupted()) break;
+                    }
+                }
+            }
+            if (seg != null && !seg.finish() && failure == null)
+                failure = new IOException("Could not finalize dashcam segment");
+            if (fanout == null || fanout.isStopped()) previewController.unbind(fanout, failure != null);
             activeSegment = null;
-            try { if (codec != null) { codec.stop(); codec.release(); } } catch (Throwable ignored) { }
+            try { if (codec != null) codec.release(); } catch (Throwable ignored) { }
             try { if (input != null) input.release(); } catch (Throwable ignored) { }
-            enforceBudget(ctx);
+            if (seg != null) enforceBudget(ctx, seg.directory);
             stopGps();
+            status(failure == null ? "stopped" : "error",
+                failure == null ? "" : failure.getClass().getSimpleName());
             Log.i(TAG, "dashcam: stopped");
+            synchronized (this) {
+                // An explicit On received during teardown waits here; a later
+                // Off cancels it. Never attach a second encoder concurrently.
+                if ((fanout == null || fanout.isStopped()) && runState.workerFinished()) launch();
+            }
         }
     }
 
@@ -319,9 +413,11 @@ public final class DashRecorder {
     // never mistaken for a whole one — by the ring buffer, by a player, or by
     // whatever eventually uploads them.
     private final class Seg {
+        final File directory;
+        final long durationMs;
         final File mp4, vtt, mp4Tmp, vttTmp, raw, jpg, hold;
-        final MediaMuxer muxer;
-        final int track;
+        MediaMuxer muxer;
+        int track;
         // Use uptimeMillis, not elapsedRealtime: suspension doesn't interrupt the
         // timeline. Ensures video duration reflects actual recording time.
         final long startMs = SystemClock.uptimeMillis();
@@ -329,11 +425,30 @@ public final class DashRecorder {
         java.io.FileOutputStream rawOut;
         long lastPts = -1;
         boolean done;
+        boolean failed;
+        boolean finalized;
 
         Seg(MediaFormat f) throws Exception {
-            String stem = "dash_" + NAME.format(new Date())
+            // Snapshot the options for this clip. Changing preferences
+            // affects the next segment, never the deadline/path of this one.
+            SharedPreferences preferences = ctx.getSharedPreferences("modehelper", Context.MODE_PRIVATE);
+            durationMs = DashcamOptions.segmentMinutes(preferences.getInt(
+                DashcamOptions.SEGMENT_MINUTES, DashcamOptions.DEFAULT_SEGMENT_MINUTES)) * 60_000L;
+            String preferred = DashcamOptions.storage(preferences.getString(
+                DashcamOptions.STORAGE, DashcamOptions.INTERNAL));
+            directory = nextDirectory(preferred);
+            String actual = directory.equals(new File(CLIP_DIR)) ? DashcamOptions.INTERNAL : preferred;
+            preferences.edit().putString("dashcam_active_storage", actual).apply();
+            if (!actual.equals(preferred)) Log.w(TAG, "dashcam: USB unavailable, using internal storage");
+            enforceBudget(ctx, directory);
+            String base = "dash_" + NAME.format(new Date())
                 + (new File(dir(), "valet.active").exists() ? "_valet" : "");
-            File d = dir();
+            String stem = base;
+            // A stop/start or event can happen within one second. Never overwrite
+            // an older clip (including protected/recovery files) with that name.
+            int duplicate = 1;
+            while (stemExists(directory, stem)) stem = base + "_" + (++duplicate);
+            File d = directory;
             mp4 = new File(d, stem + ".mp4");
             vtt = new File(d, stem + ".vtt");
             mp4Tmp = new File(d, stem + ".mp4.tmp");
@@ -341,11 +456,6 @@ public final class DashRecorder {
             raw    = new File(d, stem + ".h264");
             jpg    = new File(d, stem + ".jpg");
             hold   = new File(d, stem + ".hold");
-            muxer = new MediaMuxer(mp4Tmp.getAbsolutePath(), MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
-            track = muxer.addTrack(f);
-            muxer.start();
-            try { sub = new Vtt(vttTmp); } catch (Throwable t) { sub = null; }
-
             // The write-ahead stream, and the reason it exists.
             //
             // MP4 keeps its index in a moov atom that MediaMuxer only writes on
@@ -359,11 +469,20 @@ public final class DashRecorder {
             // close it is deleted, so the cost is 2x disk for the CURRENT segment
             // only, never for the archive.
             try {
+                muxer = new MediaMuxer(mp4Tmp.getAbsolutePath(), MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+                track = muxer.addTrack(f);
+                muxer.start();
+                sub = new Vtt(vttTmp);
                 rawOut = new java.io.FileOutputStream(raw);
                 writeCsd(f);
-            } catch (Throwable t) { rawOut = null; }
+            } catch (Exception failure) {
+                failed = true;
+                finish();
+                throw failure;
+            }
 
-            Log.i(TAG, "dashcam: segment " + mp4.getName());
+            Log.i(TAG, "dashcam: segment " + mp4.getName() + " storage=" + actual
+                + " minutes=" + durationMs / 60_000L);
         }
 
         long ageMs() { return SystemClock.uptimeMillis() - startMs; }
@@ -389,26 +508,28 @@ public final class DashRecorder {
             }
         }
 
-        void write(ByteBuffer b, MediaCodec.BufferInfo i) {
-            if (rawOut != null) {
-                try {
-                    int pos = b.position(), lim = b.limit();
-                    byte[] a = new byte[i.size];
-                    b.position(i.offset);
-                    b.limit(i.offset + i.size);
-                    b.get(a);
-                    rawOut.write(a);
-                    b.position(pos);
-                    b.limit(lim);
-                } catch (Throwable t) { Log.w(TAG, "dashcam: raw write: " + t); rawOut = null; }
+        void write(ByteBuffer b, MediaCodec.BufferInfo i) throws IOException {
+            try {
+                ByteBuffer sample = b.duplicate();
+                sample.position(i.offset);
+                sample.limit(i.offset + i.size);
+                byte[] a = new byte[i.size];
+                sample.get(a);
+                rawOut.write(a);
+                muxer.writeSampleData(track, b, i);
+            } catch (Exception failure) {
+                failed = true;
+                throw new IOException("Dashcam video write failed", failure);
             }
-            try { muxer.writeSampleData(track, b, i); }
-            catch (Throwable t) { Log.w(TAG, "dashcam: writeSampleData: " + t); }
         }
 
-        void cue(long fromUs, long toUs, String text) {
+        void cue(long fromUs, long toUs, String text) throws IOException {
             if (sub == null || text == null || text.isEmpty()) return;
-            try { sub.cue(fromUs, toUs, text); } catch (Throwable ignored) { }
+            try { sub.cue(fromUs, toUs, text); }
+            catch (IOException failure) {
+                failed = true;
+                throw new IOException("Dashcam subtitle write failed", failure);
+            }
         }
 
         void markHeld() {
@@ -416,23 +537,29 @@ public final class DashRecorder {
             catch (Throwable t) { Log.w(TAG, "dashcam: could not mark event segment", t); }
         }
 
-        void finish() {
-            if (done) return;
+        boolean finish() {
+            if (done) return finalized;
             done = true;
-            try { muxer.stop(); } catch (Throwable ignored) { }
-            try { muxer.release(); } catch (Throwable ignored) { }
+            boolean closed = !failed;
+            try { if (muxer != null) muxer.stop(); else closed = false; }
+            catch (Throwable failure) { closed = false; Log.w(TAG, "dashcam: muxer close failed", failure); }
+            try { if (muxer != null) muxer.release(); } catch (Throwable ignored) { }
             if (sub != null) sub.close();
+            try { if (rawOut != null) rawOut.close(); }
+            catch (IOException failure) { closed = false; Log.w(TAG, "dashcam: raw close failed", failure); }
             // The mp4 is renamed FIRST: a .vtt with no clip beside it is litter,
             // but a clip with no subtitles is still footage.
-            if (mp4Tmp.exists() && mp4Tmp.length() > 0) mp4Tmp.renameTo(mp4); else mp4Tmp.delete();
-            if (vttTmp.exists()) { if (mp4.exists()) vttTmp.renameTo(vtt); else vttTmp.delete(); }
+            finalized = closed && mp4Tmp.exists() && mp4Tmp.length() > 0
+                && !mp4.exists() && mp4Tmp.renameTo(mp4);
+            if (finalized && vttTmp.exists() && !vttTmp.renameTo(vtt))
+                Log.w(TAG, "dashcam: subtitle sidecar could not be finalized");
             // The write-ahead stream is a safety net for a segment that never
-            // closed. This one closed, so it goes — otherwise it would double the
-            // archive for nothing.
-            try { if (rawOut != null) rawOut.close(); } catch (Throwable ignored) { }
-            if (mp4.exists()) { raw.delete(); thumbnail(); }
+            // closed. Only discard it after a successful muxer stop AND rename;
+            // a failed close must never masquerade as a complete MP4.
+            if (finalized) { raw.delete(); thumbnail(); }
             else Log.w(TAG, "dashcam: kept " + raw.getName() + " — the mp4 never closed");
             Log.i(TAG, "dashcam: closed " + mp4.getName() + " " + (mp4.length() / 1024) + " KB");
+            return finalized;
         }
 
         // ONE THUMBNAIL PER SEGMENT, made here at close rather than by the
@@ -470,45 +597,29 @@ public final class DashRecorder {
 
     // ------------------------------------------------------------ ring buffer
 
-    // Oldest first against a byte budget — the same shape as DualDashcam's
-    // ClipStore.enforceBudget, which is the one part of that app worth copying
-    // outright. Run after every finished segment.
+    // Oldest first against a byte budget, applied to the actual segment volume.
+    // Run before opening and after finishing a segment.
     //
-    // Held clips still cannot be evicted — keepDir() is never in the
-    // candidate list below — but they DO count against the budget, so
+    // Held clips cannot be evicted (including pending .hold markers), but they
+    // DO count against the budget, so
     // holding more leaves less room for new recording instead of being free
     // storage on top of it.
-    static void enforceBudget(Context ctx) {
+    static void enforceBudget(Context ctx, File directory) {
         try {
             int gb = ctx.getSharedPreferences("modehelper", Context.MODE_PRIVATE)
                 .getInt("dashcam_limit_gb", DEFAULT_BUDGET_GB);
             long budgetBytes = Math.max(1, gb) * 1024L * 1024 * 1024;
-            File[] all = dir().listFiles();
-            if (all == null) return;
-            File[] clips = Arrays.stream(all)
-                .filter(f -> f.isFile() && f.getName().endsWith(".mp4"))
-                .sorted(Comparator.comparingLong(File::lastModified))
-                .toArray(File[]::new);
-            long used = 0;
-            for (File f : all) if (f.isFile()) used += Math.max(0, f.length());
-            File[] held = keepDir().listFiles();
-            if (held != null) for (File f : held) if (f.isFile()) used += Math.max(0, f.length());
-            if (used <= budgetBytes) return;
-            for (File f : clips) {
-                if (used <= budgetBytes) return;
-                String stem = f.getName().substring(0, f.getName().length() - 4);
-                File side = new File(f.getParentFile(), stem + ".vtt");
-                File th   = new File(f.getParentFile(), stem + ".jpg");
-                long freed = Math.max(0, f.length())
-                           + (side.exists() ? Math.max(0, side.length()) : 0)
-                           + (th.exists()   ? Math.max(0, th.length())   : 0);
-                if (f.delete()) {
-                    side.delete();
-                    th.delete();
-                    used -= freed;
-                    Log.i(TAG, "dashcam: budget dropped " + f.getName());
-                }
-            }
+            DashcamBudget.enforce(directory, budgetBytes);
         } catch (Throwable t) { Log.w(TAG, "dashcam: budget: " + t); }
+    }
+
+    private static boolean stemExists(File directory, String stem) throws IOException {
+        for (File location : new File[]{directory, new File(directory, "keep")}) {
+            for (String suffix : new String[]{".mp4", ".mp4.tmp", ".vtt", ".vtt.tmp", ".h264", ".jpg", ".hold"}) {
+                File file = new File(location, stem + suffix);
+                if (file.exists() || !DashcamStorage.directChild(location, file)) return true;
+            }
+        }
+        return false;
     }
 }

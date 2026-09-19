@@ -1,6 +1,7 @@
 package com.geely.drivemem.net;
 
 import com.geely.drivemem.car.CarAccess;
+import com.geely.drivemem.R;
 
 import android.content.Context;
 import android.os.Handler;
@@ -85,12 +86,25 @@ public final class CertImporter {
         public final boolean passwordRequired;
         public final String message;
         public final CertInfo certInfo;
+        private final int messageResource;
+        private final Object[] messageArgs;
 
         public ImportResult(boolean success, boolean passwordRequired, String message, CertInfo certInfo) {
+            this(success, passwordRequired, message, certInfo, 0);
+        }
+
+        private ImportResult(boolean success, boolean passwordRequired, String message, CertInfo certInfo,
+                             int messageResource, Object... messageArgs) {
+            this.messageResource = messageResource;
+            this.messageArgs = messageArgs;
             this.success = success;
             this.passwordRequired = passwordRequired;
             this.message = message;
             this.certInfo = certInfo;
+        }
+
+        public String localizedMessage(Context context) {
+            return messageResource == 0 ? message : context.getString(messageResource, messageArgs);
         }
     }
 
@@ -271,14 +285,14 @@ public final class CertImporter {
      * whether it should be installed as client certificate (mTLS) or custom CA certificate.
      */
     public static ImportResult importData(Context ctx, byte[] rawData, String password) {
-        if (ctx == null) return new ImportResult(false, false, "Invalid context", null);
+        if (ctx == null) return new ImportResult(false, false, "Invalid context", null, R.string.ui_cert_bad_context);
         return importData(ctx.getFilesDir(), rawData, password);
     }
 
     public static ImportResult importData(File filesDir, byte[] rawData, String password) {
-        if (filesDir == null) return new ImportResult(false, false, "Invalid storage directory", null);
+        if (filesDir == null) return new ImportResult(false, false, "Invalid storage directory", null, R.string.ui_cert_bad_context);
         if (rawData == null || rawData.length == 0) {
-            return new ImportResult(false, false, "No certificate data provided", null);
+            return new ImportResult(false, false, "No certificate data provided", null, R.string.ui_cert_empty);
         }
 
         String asText = null;
@@ -309,7 +323,7 @@ public final class CertImporter {
             CertificateFactory cf = CertificateFactory.getInstance("X.509");
             Collection<? extends Certificate> certs = cf.generateCertificates(new ByteArrayInputStream(rawData));
             if (certs == null || certs.isEmpty()) {
-                return new ImportResult(false, false, "No valid X.509 certificates found in PEM", null);
+                return new ImportResult(false, false, "No valid X.509 certificates found in PEM", null, R.string.ui_cert_no_pem);
             }
 
             List<Certificate> certList = new ArrayList<>(certs);
@@ -321,7 +335,7 @@ public final class CertImporter {
                 }
             }
             if (firstX509 == null) {
-                return new ImportResult(false, false, "No valid X509Certificate in chain", null);
+                return new ImportResult(false, false, "No valid X509Certificate in chain", null, R.string.ui_cert_no_chain);
             }
 
             // Check if PEM contains a private key
@@ -345,7 +359,7 @@ public final class CertImporter {
                 CertInfo info = new CertInfo("client", firstX509.getSubjectX500Principal().getName(),
                         firstX509.getIssuerX500Principal().getName(),
                         firstX509.getNotBefore(), firstX509.getNotAfter(), true, certList.size());
-                return new ImportResult(true, false, "Client certificate installed: " + info.getCommonName(), info);
+                return new ImportResult(true, false, "Client certificate installed: " + info.getCommonName(), info, R.string.ui_cert_client_installed, info.getCommonName());
             } else {
                 // CA certificate (trust root only, no private key)
                 File out = new File(filesDir, MqttTls.CUSTOM_CA_CRT);
@@ -361,11 +375,11 @@ public final class CertImporter {
                 CertInfo info = new CertInfo("custom_ca", firstX509.getSubjectX500Principal().getName(),
                         firstX509.getIssuerX500Principal().getName(),
                         firstX509.getNotBefore(), firstX509.getNotAfter(), false, certList.size());
-                return new ImportResult(true, false, "CA certificate installed: " + info.getCommonName(), info);
+                return new ImportResult(true, false, "CA certificate installed: " + info.getCommonName(), info, R.string.ui_cert_ca_installed, info.getCommonName());
             }
         } catch (Throwable t) {
             logW("cert: error parsing PEM: " + t, t);
-            return new ImportResult(false, false, "PEM parsing failed: " + t.getMessage(), null);
+            return new ImportResult(false, false, "PEM parsing failed: " + t.getMessage(), null, R.string.ui_cert_parse_failed, t.getMessage());
         }
     }
 
@@ -378,9 +392,9 @@ public final class CertImporter {
         } catch (Exception e) {
             // Check if password required or incorrect
             if (password == null || password.isEmpty()) {
-                return new ImportResult(false, true, "Certificate is password-protected", null);
+                return new ImportResult(false, true, "Certificate is password-protected", null, R.string.ui_cert_password_required);
             } else {
-                return new ImportResult(false, false, "Incorrect password or invalid PKCS#12 file", null);
+                return new ImportResult(false, false, "Incorrect password or invalid PKCS#12 file", null, R.string.ui_cert_invalid_password);
             }
         }
 
@@ -423,7 +437,7 @@ public final class CertImporter {
                 CertInfo info = (x != null) ? new CertInfo("client", x.getSubjectX500Principal().getName(),
                         x.getIssuerX500Principal().getName(), x.getNotBefore(), x.getNotAfter(), true, chain.length)
                         : new CertInfo("client", "Client Cert", "Unknown", null, null, true, 1);
-                return new ImportResult(true, false, "Client certificate installed: " + info.getCommonName(), info);
+                return new ImportResult(true, false, "Client certificate installed: " + info.getCommonName(), info, R.string.ui_cert_client_installed, info.getCommonName());
             } else {
                 // Keystore contains certificates only (CA bundle)
                 List<Certificate> certList = new ArrayList<>();
@@ -434,7 +448,7 @@ public final class CertImporter {
                 }
 
                 if (certList.isEmpty()) {
-                    return new ImportResult(false, false, "PKCS#12 keystore contains no keys or certificates", null);
+                    return new ImportResult(false, false, "PKCS#12 keystore contains no keys or certificates", null, R.string.ui_cert_empty_store);
                 }
 
                 // Write certificates in PEM format to custom CA
@@ -457,11 +471,11 @@ public final class CertImporter {
                 CertInfo info = (x != null) ? new CertInfo("custom_ca", x.getSubjectX500Principal().getName(),
                         x.getIssuerX500Principal().getName(), x.getNotBefore(), x.getNotAfter(), false, certList.size())
                         : new CertInfo("custom_ca", "CA Cert", "Unknown", null, null, false, certList.size());
-                return new ImportResult(true, false, "CA certificate installed: " + info.getCommonName(), info);
+                return new ImportResult(true, false, "CA certificate installed: " + info.getCommonName(), info, R.string.ui_cert_ca_installed, info.getCommonName());
             }
         } catch (Throwable t) {
             logW("cert: error saving PKCS#12: " + t, t);
-            return new ImportResult(false, false, "Failed to save certificate: " + t.getMessage(), null);
+            return new ImportResult(false, false, "Failed to save certificate: " + t.getMessage(), null, R.string.ui_cert_save_failed, t.getMessage());
         }
     }
 
@@ -624,7 +638,7 @@ public final class CertImporter {
             SSLSocket sslSocket = null;
             try {
                 if (targetUri == null || targetUri.trim().isEmpty()) {
-                    main.post(() -> cb.onResult(false, "Nenhum endereço de broker informado"));
+                    main.post(() -> cb.onResult(false, ctx.getString(R.string.ui_tls_no_broker)));
                     return;
                 }
                 // Handle multi-target inputs: split on newlines, commas, or whitespace
@@ -667,13 +681,13 @@ public final class CertImporter {
                 if (isPlainTcp && port == 1883) {
                     final String failUri = chosen;
                     main.post(() -> cb.onResult(false,
-                        "URI '" + failUri + "' é texto plano (porta 1883). O teste TLS requer ssl:// ou porta 8883."));
+                        ctx.getString(R.string.ui_tls_plain, failUri)));
                     return;
                 }
 
                 SSLSocketFactory sf = MqttTls.build(ctx);
                 if (sf == null) {
-                    main.post(() -> cb.onResult(false, "Could not build TLS socket factory (missing CA)"));
+                    main.post(() -> cb.onResult(false, ctx.getString(R.string.ui_tls_no_ca)));
                     return;
                 }
 
@@ -707,9 +721,7 @@ public final class CertImporter {
                 String cipher = sslSocket.getSession().getCipherSuite();
                 String proto = sslSocket.getSession().getProtocol();
 
-                final String successMsg = "TLS handshake OK: " + host + ":" + port +
-                        "\nProtocol: " + proto + " (" + cipher + ")" +
-                        "\nBroker CN: " + peerCn;
+                final String successMsg = ctx.getString(R.string.ui_tls_success, host, port, proto, cipher, peerCn);
                 main.post(() -> cb.onResult(true, successMsg));
             } catch (Throwable t) {
                 logW("cert: TLS handshake test failed: " + t, t);
@@ -718,11 +730,11 @@ public final class CertImporter {
                 String diag = "";
                 String full = t.toString();
                 if (full.contains("certificate_required") || full.contains("CERTIFICATE_REQUIRED")) {
-                    diag = "\n(Broker exige mTLS / certificado de cliente. Verifique mqtt_client.p12)";
+                    diag = ctx.getString(R.string.ui_tls_client_required);
                 } else if (full.contains("CertPathValidatorException") || full.contains("Trust anchor")) {
-                    diag = "\n(Certificado da CA não confiável pelo Android. Verifique mqtt_ca.crt)";
+                    diag = ctx.getString(R.string.ui_tls_ca_untrusted);
                 }
-                final String errMsg = "TLS handshake failed: " + msg + diag;
+                final String errMsg = ctx.getString(R.string.ui_tls_failed, msg, diag);
                 main.post(() -> cb.onResult(false, errMsg));
             } finally {
                 if (sslSocket != null) { try { sslSocket.close(); } catch (Throwable ignored) {} }

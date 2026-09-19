@@ -4,7 +4,6 @@ import com.geely.drivemem.R;
 
 import com.geely.drivemem.util.SpotifyClient;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -13,7 +12,7 @@ import android.widget.Toast;
 /** Spotify authentication via browser redirect. Handles two flows:
  * (1) Starting login with PKCE, sending authorization URL to browser.
  * (2) Handling the redirect callback to exchange code for token. */
-public class SpotifyAuthActivity extends Activity {
+public class SpotifyAuthActivity extends LocalizedActivity {
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);

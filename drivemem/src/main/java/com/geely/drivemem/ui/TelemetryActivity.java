@@ -26,13 +26,12 @@ import com.geely.drivemem.services.SocIconService;
 import com.geely.drivemem.services.TelemetryService;
 import com.geely.drivemem.services.WifiIconService;
 import com.geely.drivemem.state.ChargeSession;
-import com.geely.drivemem.util.Clips;
+import com.geely.drivemem.util.AppLanguage;
 import com.geely.drivemem.util.Modes;
 import com.geely.drivemem.util.SpotifyClient;
 import com.geely.drivemem.util.Style;
 import com.geely.drivemem.util.UsbExport;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
@@ -54,17 +53,19 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 // Drive Assist's settings, in the style of the native ones: the left sidebar picks the
 // section and the right-hand panel swaps in-place (no screen change).
 //   MQTT | Drive Mode | Menu bar
-public class TelemetryActivity extends Activity {
+public class TelemetryActivity extends LocalizedActivity {
+    private android.widget.PopupWindow languagePopup;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private SharedPreferences prefs;
 
+    private android.widget.FrameLayout rightPanel;
+    private ScrollView settingsScroll;
+    private DashcamPanel dashcamPanel;
     private LinearLayout content;             // right-hand panel (swapped per section)
     // THE ORDER OF THE NAV LIVES HERE AND NOWHERE ELSE. The index is not just a
     // position: it is passed through the "section" intent extra to survive the
@@ -95,6 +96,7 @@ public class TelemetryActivity extends Activity {
     // bottom with no section of its own — same rule again.
     private static final int SEC_SPOTIFY = 9;
     private static final int SEC_SYSTEM = 10;
+    private static final int SEC_LANGUAGE = 11;
 
     private final List<TextView> navItems = new ArrayList<>();
     private TextView status;                  // recreated by each panel that needs it
@@ -114,58 +116,16 @@ public class TelemetryActivity extends Activity {
     private LinearLayout mqttConfigContainer;
     private EditText fSpotifyClientId;
     private EditText fTurbo;
+    private boolean normalizingTurboDuration;
     private EditText fSkylineSeed;
     private TextView spotifyStatus;
-    // Drive mode. Two separate ideas, kept in separate fields on purpose —
-    // conflating them into one used to mean a car that answered late (or
-    // wrong, right after boot) silently overwrote the user's saved standard
-    // in memory, so pressing "Salvar padrão" saved whatever the car
-    // happened to currently be in, not what the user actually picked.
-    //   selDrive/selRegen  — your standard: starts from prefs, changes only
-    //                        when you tap a card. This is what "Salvar
-    //                        padrão" persists. Always known (falls back to
-    //                        Modes.DRIVE_ECO/REGEN_MID like before).
-    //   liveDrive/liveRegen — what the car reports right now. Only
-    //                        meaningful once driveKnown/regenKnown is true;
-    //                        never written to by a tap or by saveDefault.
-    private int selDrive, selRegen;
-    private int liveDrive, liveRegen;
-    private boolean driveKnown, regenKnown;   // is the LIVE value known — not the standard, which always is
-
-    // Keeps liveDrive/liveRegen actually LIVE. Without this the border was a
-    // one-time snapshot (taken on screen-open or right after Apply) that went
-    // stale the moment the car changed on its own — reported live: saved
-    // Sport, watched the car settle back to Eco a few seconds later, and the
-    // card kept showing Sport with fill AND border because nothing was
-    // listening. Event, not poll — CarActor's own "car.drive_mode"/
-    // "car.regen_mode" watch (registered once, in its constructor) now,
-    // not a CarPropertyManager callback this screen registers itself —
-    // that used to leak a duplicate watch every time the Drive section was
-    // re-visited, since it was only ever unregistered in onDestroy().
-    // carActorSubscribed below is what fixes that: subscribe once, ever.
-    private final EntityBus.Listener driveListener = (key, reading) -> {
-        if (reading.status == CarActor.Reading.Status.OK && reading.value instanceof Integer) {
-            liveDrive = (Integer) reading.value; driveKnown = true;
-            ui.post(() -> { highlight(); updateCurrentStatus(); });
-        }
-    };
-    private final EntityBus.Listener regenListener = (key, reading) -> {
-        if (reading.status == CarActor.Reading.Status.OK && reading.value instanceof Integer) {
-            liveRegen = (Integer) reading.value; regenKnown = true;
-            ui.post(() -> { highlight(); updateCurrentStatus(); });
-        }
-    };
-    private final Map<Integer, LinearLayout> driveCards = new HashMap<>();
-    private final Map<Integer, LinearLayout> regenCards = new HashMap<>();
-    private boolean carActorSubscribed = false;
+    private VehicleControlsView vehicleControls;
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
         Style.load(this);                 // before any View
         prefs = getSharedPreferences("drivemem", MODE_PRIVATE);
         section = getIntent().getIntExtra("section", SEC_DRIVE);   // come back to the same section on recreate
-        selDrive = prefs.getInt("drive", Modes.DRIVE_ECO);
-        selRegen = prefs.getInt("regen", Modes.REGEN_MID);
 
         Style.edgeToEdge(this);
         LinearLayout outer = new LinearLayout(this);
@@ -175,7 +135,7 @@ public class TelemetryActivity extends Activity {
         // ---- sidebar ----
         LinearLayout side = new LinearLayout(this);
         side.setOrientation(LinearLayout.VERTICAL);
-        side.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(this, 240), ViewGroup.LayoutParams.MATCH_PARENT));
+        side.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(this, 300), ViewGroup.LayoutParams.MATCH_PARENT));
         int sp = Style.dp(this, 16);
         side.setPadding(sp, Style.dp(this, 22) + Style.statusBarHeight(this), sp, sp);
 
@@ -184,7 +144,7 @@ public class TelemetryActivity extends Activity {
         head.setGravity(Gravity.CENTER_VERTICAL);
         head.addView(Style.backButton(this, this::finish));
         TextView title = Style.title(this, getString(R.string.cfg_title));
-        title.setTextSize(20);
+        title.setTextSize(30);
         LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         tlp.leftMargin = Style.dp(this, 12);
@@ -219,6 +179,7 @@ public class TelemetryActivity extends Activity {
         nav.addView(sideGroupLabel(getString(R.string.cfg_group_display)));
         nav.addView(navItem(getString(R.string.cfg_nav_bar),   SEC_BAR));
         nav.addView(navItem(getString(R.string.cfg_nav_look),  SEC_LOOK));
+        nav.addView(navItem(getString(R.string.cfg_nav_language), SEC_LANGUAGE));
 
         nav.addView(sideGroupLabel(getString(R.string.cfg_group_integrations)));
         nav.addView(navItem(getString(R.string.cfg_nav_mqtt),  SEC_MQTT));
@@ -229,14 +190,17 @@ public class TelemetryActivity extends Activity {
         outer.addView(side);
 
         // ---- right-hand panel (scrollable) ----
-        ScrollView scroll = new ScrollView(this);
-        scroll.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        rightPanel = new android.widget.FrameLayout(this);
+        rightPanel.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        settingsScroll = new ScrollView(this);
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        int cp = Style.dp(this, 22);
+        int cp = Style.dp(this, 36);
         content.setPadding(cp, cp + Style.statusBarHeight(this), cp, cp);
-        scroll.addView(content);
-        outer.addView(scroll);
+        settingsScroll.addView(content);
+        rightPanel.addView(settingsScroll, new android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        outer.addView(rightPanel);
 
         setContentView(outer);
         selectSection(section);
@@ -250,9 +214,9 @@ public class TelemetryActivity extends Activity {
         TextView t = new TextView(this);
         t.setText(label.toUpperCase(java.util.Locale.getDefault()));
         t.setTextColor(Style.blend(Style.TEXT_DIM, Style.TEXT, 0.3f));
-        t.setTextSize(12);
-        t.setLetterSpacing(0.05f);
-        t.setTypeface(null, android.graphics.Typeface.BOLD);
+        t.setTextSize(24);
+        t.setLetterSpacing(0.02f);
+        t.setTypeface(t.getTypeface(), android.graphics.Typeface.BOLD);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.topMargin = Style.dp(this, 14);
@@ -261,28 +225,37 @@ public class TelemetryActivity extends Activity {
         return t;
     }
 
-    // Selected sidebar row: a thin accent bar on the left edge plus a faint
-    // tinted row background, matching this car's own OEM settings menu
-    // (thin blue rail + tinted label, sharp -- no glow) instead of the
-    // solid filled pill this used before.
+    // Rounded selected surface shared with the dashboard's menu cards.
     private android.graphics.drawable.Drawable selectedNavBg() {
-        android.graphics.drawable.GradientDrawable row = new android.graphics.drawable.GradientDrawable();
-        row.setColor(Style.blend(Style.ACCENT, Style.cardFillColor(), 0.88f));
-        android.graphics.drawable.GradientDrawable bar = new android.graphics.drawable.GradientDrawable();
-        bar.setColor(Style.ACCENT);
-        android.graphics.drawable.LayerDrawable ld = new android.graphics.drawable.LayerDrawable(
-            new android.graphics.drawable.Drawable[]{row, bar});
-        ld.setLayerGravity(1, Gravity.LEFT | Gravity.FILL_VERTICAL);
-        ld.setLayerWidth(1, Style.dp(this, 3));
-        return ld;
+        return Style.card(Style.CARD, this, 12);
     }
 
     // sidebar item: stays highlighted while it is the selected one
     private TextView navItem(String label, final int idx) {
         TextView t = new TextView(this);
-        t.setText(label); t.setTextSize(18);
+        t.setText(label); t.setTextSize(20);
+        int iconRes = 0;
+        switch (idx) {
+            case SEC_DRIVE: iconRes = R.drawable.ic_tesla_steering; break;
+            case SEC_DOORS: iconRes = R.drawable.ic_tesla_lock; break;
+            case SEC_CLIPS: iconRes = R.drawable.ic_tesla_recording; break;
+            case SEC_BAR: iconRes = R.drawable.ic_tesla_controls; break;
+            case SEC_LOOK: iconRes = R.drawable.ic_tesla_display; break;
+            case SEC_LANGUAGE: iconRes = R.drawable.ic_dashboard_language; break;
+            case SEC_MQTT: iconRes = R.drawable.ic_tesla_wifi; break;
+            case SEC_OBD: iconRes = R.drawable.ic_bluetooth; break;
+            case SEC_SPOTIFY: iconRes = R.drawable.ic_tesla_spotify; break;
+            case SEC_SYSTEM: iconRes = R.drawable.ic_tesla_software; break;
+            default: break;
+        }
+        if (iconRes != 0) {
+            android.graphics.drawable.Drawable icon = getDrawable(iconRes).mutate();
+            icon.setBounds(0, 0, Style.dp(this, 32), Style.dp(this, 32));
+            t.setCompoundDrawablesRelative(icon, null, null, null);
+            t.setCompoundDrawablePadding(Style.dp(this, 12));
+        }
         t.setGravity(Gravity.CENTER_VERTICAL);
-        t.setMinHeight(Style.dp(this, 60));   // taller buttons, easy to hit
+        t.setMinHeight(Style.dp(this, 68));   // taller buttons, easy to hit
         t.setPadding(Style.dp(this, 16), Style.dp(this, 16), Style.dp(this, 16), Style.dp(this, 16));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -299,12 +272,23 @@ public class TelemetryActivity extends Activity {
     }
 
     private void selectSection(int idx) {
+        saveTurboDuration(true);
+        fTurbo = null;
         section = idx;
+        if (dashcamPanel != null) {
+            dashcamPanel.stop();
+            rightPanel.removeView(dashcamPanel);
+            dashcamPanel = null;
+        }
+        settingsScroll.setVisibility(idx == SEC_CLIPS ? View.GONE : View.VISIBLE);
         for (TextView t : navItems) {
             boolean sel = ((Integer) t.getTag() == idx);
             t.setBackground(sel ? selectedNavBg() : null);
-            t.setTextColor(sel ? Style.ACCENT : Style.TEXT_DIM);
-            t.setTypeface(null, sel ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+            t.setTextColor(sel ? Style.TEXT : Style.TEXT_DIM);
+            for (android.graphics.drawable.Drawable icon : t.getCompoundDrawablesRelative()) {
+                if (icon != null) icon.setTint(sel ? Style.TEXT : Style.TEXT_DIM);
+            }
+            t.setTypeface(android.graphics.Typeface.create(Style.font(this), sel ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL));
         }
         content.removeAllViews();
         switch (idx) {
@@ -317,6 +301,7 @@ public class TelemetryActivity extends Activity {
             case SEC_OBD: buildObd(); break;
             case SEC_SPOTIFY: buildSpotify(); break;
             case SEC_SYSTEM: buildSystem(); break;
+            case SEC_LANGUAGE: buildLanguage(); break;
             default:       buildDrive(); break;   // SEC_DRIVE, and the landing page
         }
     }
@@ -328,204 +313,16 @@ public class TelemetryActivity extends Activity {
     // process and can close a segment or evict one at any moment, so anything
     // held here would be a guess about another app's directory.
     private void buildClips() {
-        content.addView(Style.header(this, getString(R.string.clips_title)));
-
-        List<Clips.Clip> clips = Clips.list(this);
-        boolean on = Clips.recording(this);
-
-        // A real toggle, not a momentary button: modehelper now persists
-        // whatever is sent here ("dashcam_on") and checks it before
-        // auto-starting on the next boot too — see ModeHelperService's own
-        // comment on maybeAutoStart(). Displayed state is the live directory
-        // read (Clips.recording()), the same honest-over-cached approach as
-        // the AVAS toggle, not a locally-remembered guess.
-        LinearLayout recordRow = toggleRow(getString(R.string.clips_record), on, wantOn -> {
-            // Drive Assist does not record — modehelper does. Ask over the same
-            // broadcast adb uses, then re-read the directory rather than
-            // assuming: a segment file takes a moment to appear.
-            sendBroadcast(new Intent("com.geely.modehelper.DASHCAM")
-                .setClassName("com.geely.modehelper", "com.geely.modehelper.DashReceiver")
-                .putExtra("on", wantOn ? 1 : 0));
-            content.postDelayed(() -> { if (section == SEC_CLIPS) selectSection(SEC_CLIPS); }, 1500);
-        });
-        content.addView(recordRow);
-
-        // A GB count is a couple of digits, not a URL -- a field and a
-        // button that both stretch to the full row width (field()'s and
-        // cardButton()'s usual shape, right for every OTHER field on this
-        // screen) just leaves both looking like empty bars with their
-        // content stranded in a corner. One compact row instead.
-        TextView limitLbl = new TextView(this);
-        limitLbl.setText(getString(R.string.clips_limit_label));
-        limitLbl.setTextColor(Style.TEXT_DIM);
-        limitLbl.setTextSize(14);
-        limitLbl.setPadding(0, Style.dp(this, 10), 0, Style.dp(this, 2));
-        content.addView(limitLbl);
-
-        LinearLayout limitRow = new LinearLayout(this);
-        limitRow.setOrientation(LinearLayout.HORIZONTAL);
-        limitRow.setGravity(Gravity.CENTER_VERTICAL);
-        // Explicit bottom margin: previously this gap came from button()'s
-        // own stray top margin (removed below, see saveBtn), which was
-        // incidental spacing, not a deliberate one.
-        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        rowLp.bottomMargin = Style.dp(this, 10);
-        limitRow.setLayoutParams(rowLp);
-        content.addView(limitRow);
-
-        final EditText fDashLimit = new EditText(this);
-        fDashLimit.setText(String.valueOf(prefs.getInt("dashcam_limit_gb", 10)));
-        fDashLimit.setInputType(InputType.TYPE_CLASS_NUMBER);
-        fDashLimit.setTextColor(Style.TEXT);
-        fDashLimit.setTextSize(17);
-        fDashLimit.setBackground(Style.card(Style.CARD, this));
-        int fp = Style.dp(this, 12);
-        fDashLimit.setPadding(fp, fp, fp, fp);
-        LinearLayout.LayoutParams fLp = new LinearLayout.LayoutParams(
-            Style.dp(this, 120), ViewGroup.LayoutParams.WRAP_CONTENT);
-        fLp.setMarginEnd(Style.dp(this, 12));
-        fDashLimit.setLayoutParams(fLp);
-        limitRow.addView(fDashLimit);
-
-        TextView saveBtn = button(getString(R.string.clips_limit_save), Style.ACCENT, () -> {
-            int gb;
-            try { gb = Integer.parseInt(fDashLimit.getText().toString().trim()); }
-            catch (NumberFormatException e) { gb = -1; }
-            if (gb < 1) { fDashLimit.setText(String.valueOf(prefs.getInt("dashcam_limit_gb", 10))); return; }
-            gb = Math.min(gb, 500); // storage is real; a typo shouldn't ask for the whole disk
-            prefs.edit().putInt("dashcam_limit_gb", gb).apply();
-            Intent i = new Intent("com.geely.modehelper.SET_MODE").setPackage("com.geely.modehelper");
-            i.putExtra("dashcam_limit_gb", gb);
-            sendBroadcast(i);
-            Toast.makeText(this, getString(R.string.cfg_saved), Toast.LENGTH_SHORT).show();
-        });
-        // button() bakes in an 8dp TOP margin (meant for buttons stacked
-        // vertically with a gap between them) and no bottom margin. In this
-        // horizontal, CENTER_VERTICAL row that margin just pushes the
-        // button down and out of limitRow's own measured height -- not a
-        // rendering artifact, an actual position bug: it was overlapping
-        // (getting drawn under) the Park monitoring row right below.
-        LinearLayout.LayoutParams sLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        saveBtn.setLayoutParams(sLp);
-        limitRow.addView(saveBtn);
-
-        LinearLayout parkedMonitor = toggleRow(getString(R.string.cfg_park_monitor_label),
-            prefs.getBoolean("parked_monitoring", false), enabled -> {
-                prefs.edit().putBoolean("parked_monitoring", enabled).apply();
-                sendBroadcast(new Intent("com.geely.modehelper.PARKED_MONITORING")
-                    .setClassName("com.geely.modehelper",
-                        "com.geely.modehelper.ParkedMonitoringReceiver")
-                    .putExtra("on", enabled ? 1 : 0));
-            });
-        content.addView(parkedMonitor);
-
-        // Settings end here, the clip list starts below -- a divider and its
-        // own header so the two don't read as one long undifferentiated
-        // column, same problem the compact limit-field row above just fixed
-        // for the field/button pair.
-        View divider = new View(this);
-        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 1));
-        divLp.topMargin = Style.dp(this, 18);
-        divLp.bottomMargin = Style.dp(this, 10);
-        divider.setLayoutParams(divLp);
-        divider.setBackgroundColor(Style.blend(Style.cardFillColor(), Style.TEXT_DIM, 0.18f));
-        content.addView(divider);
-        content.addView(sectionLabel(getString(R.string.clips_list_header)));
-        // Count/size is a fact about the clip list below, not the settings
-        // above it -- moved down here to sit with what it describes.
-        content.addView(Style.label(this, getString(R.string.clips_usage,
-            clips.size(), Clips.mb(Clips.usedBytes(this)), Clips.mb(Clips.heldBytes(this)),
-            Clips.mb(new android.os.StatFs(Clips.dir(this).getAbsolutePath()).getAvailableBytes()))));
-        Style.gap(content, this, 8);
-
-        if (clips.isEmpty()) { content.addView(Style.label(this, getString(R.string.clips_none))); return; }
-        for (Clips.Clip c : clips) content.addView(clipRow(c));
-    }
-
-    private View clipRow(final Clips.Clip c) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.HORIZONTAL);
-        card.setGravity(Gravity.CENTER_VERTICAL);
-        // Held clips are outlined in the accent: the point of holding is seeing
-        // at a glance which ones survive the ring buffer.
-        card.setBackground(c.held ? Style.outlinedCard(Style.ACCENT, this)
-                                  : Style.card(Style.CARD, this));
-        int p = Style.dp(this, 14);
-        card.setPadding(p, p, p, p);
-        // Capped, not MATCH_PARENT: a thumbnail, a couple of text lines, and
-        // two or three small buttons don't need the whole content width --
-        // stretched that far, every clip read as an empty bar with its
-        // content stranded on one side.
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-            Style.dp(this, 820), ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = Style.dp(this, 10);
-        card.setLayoutParams(lp);
-
-        if (c.thumb.exists()) {
-            android.widget.ImageView shot = new android.widget.ImageView(this);
-            shot.setImageBitmap(android.graphics.BitmapFactory.decodeFile(c.thumb.getAbsolutePath()));
-            shot.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
-            LinearLayout.LayoutParams ip =
-                new LinearLayout.LayoutParams(Style.dp(this, 150), Style.dp(this, 62));
-            ip.rightMargin = Style.dp(this, 14);
-            shot.setLayoutParams(ip);
-            card.addView(shot);
-        }
-
-        LinearLayout text = new LinearLayout(this);
-        text.setOrientation(LinearLayout.VERTICAL);
-        text.setLayoutParams(new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        boolean pendingHold = c.kind == Clips.Kind.RECORDING && Clips.isPending(this, c);
-        String tag = c.kind == Clips.Kind.RECORDING
-                         ? "  ● " + getString(R.string.clips_recording) + (pendingHold ? "  ★" : "")
-                   : c.kind == Clips.Kind.ORPHAN ? "  ⚠ " + getString(R.string.clips_orphan)
-                   : c.held ? "  ★" : "";
-        text.addView(Style.header(this, c.title() + tag));
-        text.addView(Style.label(this, c.subtitle()));
-        card.addView(text);
-
-        // Play only for a finished clip: a live one has no moov atom and an
-        // orphan needs remuxing before anything can open it. Hold works on
-        // both a finished clip (moves it right away) and a recording one
-        // (Clips.markPending — see its own comment for why a live file can't
-        // just be moved; it gets swept into keep/ once the segment closes).
-        if (c.playable()) {
-            card.addView(Style.cardButton(this, getString(R.string.clips_play), false,
-                () -> startActivity(new Intent(this, ClipPlayerActivity.class)
-                        .putExtra(ClipPlayerActivity.EXTRA_PATH, c.mp4.getAbsolutePath()))));
-            card.addView(Style.cardButton(this,
-                getString(c.held ? R.string.clips_release : R.string.clips_hold), c.held,
-                () -> { Clips.hold(this, c, !c.held); selectSection(SEC_CLIPS); }));
-        } else if (c.kind == Clips.Kind.RECORDING) {
-            final boolean pending = pendingHold;
-            card.addView(Style.cardButton(this,
-                getString(pending ? R.string.clips_release : R.string.clips_hold), pending,
-                () -> {
-                    if (pending) Clips.clearPending(this, c); else Clips.markPending(this, c);
-                    selectSection(SEC_CLIPS);
-                }));
-        }
-        if (c.kind != Clips.Kind.RECORDING) {
-            card.addView(Style.cardButton(this, getString(R.string.clips_delete), false, () ->
-                new android.app.AlertDialog.Builder(this)
-                    .setTitle(getString(R.string.clips_delete_q, c.title()))
-                    .setMessage(c.subtitle())
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .setPositiveButton(R.string.clips_delete,
-                        (d, w) -> { Clips.delete(c); selectSection(SEC_CLIPS); })
-                    .show()));
-        }
-        return card;
+        dashcamPanel = new DashcamPanel(this);
+        rightPanel.addView(dashcamPanel, new android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
     // =====================================================================
     // Charging history
     // =====================================================================
     private void buildCharge() {
+        addVehicleTabs(SEC_CHARGE);
         content.addView(Style.header(this, getString(R.string.charge_title)));
 
         List<ChargeSession.Summary> sessions = ChargeSession.readLog(this);
@@ -622,7 +419,7 @@ public class TelemetryActivity extends Activity {
         t.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         TextView v = new TextView(this);
         v.setText(value); v.setTextColor(Style.TEXT); v.setTextSize(34);
-        v.setTypeface(null, android.graphics.Typeface.BOLD);
+        v.setTypeface(v.getTypeface(), android.graphics.Typeface.BOLD);
         v.setGravity(Gravity.CENTER_HORIZONTAL);
         t.addView(v);
         TextView l = new TextView(this);
@@ -642,7 +439,7 @@ public class TelemetryActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.topMargin = Style.dp(this, 10);
         card.setLayoutParams(lp);
-        card.addView(Style.header(this, s.title()));   // date + time range
+        card.addView(Style.header(this, AppLanguage.date(this, s.startWallMs, "MMMdHm") + " → " + AppLanguage.date(this, s.endWallMs, "Hm")));   // date + time range
 
         final android.widget.ImageView bar = new android.widget.ImageView(this);
         LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(
@@ -709,7 +506,7 @@ public class TelemetryActivity extends Activity {
 
         TextView obdStatus = new TextView(this);
         obdStatus.setTextColor(Style.TEXT); obdStatus.setTextSize(16);
-        obdStatus.setTypeface(null, android.graphics.Typeface.BOLD);
+        obdStatus.setTypeface(obdStatus.getTypeface(), android.graphics.Typeface.BOLD);
         left.addView(obdStatus);
 
         // Was a 2s self-rescheduling poll of Obd2Reader.isConnected() — a
@@ -829,11 +626,11 @@ public class TelemetryActivity extends Activity {
             java.util.List<String> obdLines = new java.util.ArrayList<>();
             obdLines.add(getString(R.string.abrp_debug_connected,
                 getString(Obd2Reader.isConnected() ? R.string.abrp_debug_yes : R.string.abrp_debug_no)));
-            obdLines.add(fieldLine("SOC", Obd2Reader.freshSoc(600_000), "%"));
-            obdLines.add(fieldLine("Voltage", Obd2Reader.freshVoltage(600_000), "V"));
-            obdLines.add(fieldLine("Current", Obd2Reader.freshCurrent(600_000), "A"));
-            obdLines.add(fieldLine("Power", Obd2Reader.freshPowerKw(600_000), "kW"));
-            obdLines.add(fieldLine("Battery temp", Obd2Reader.freshBattTempC(600_000), "°C"));
+            obdLines.add(fieldLine(getString(R.string.ui_battery_level), Obd2Reader.freshSoc(600_000), "%"));
+            obdLines.add(fieldLine(getString(R.string.ui_voltage), Obd2Reader.freshVoltage(600_000), "V"));
+            obdLines.add(fieldLine(getString(R.string.ui_current), Obd2Reader.freshCurrent(600_000), "A"));
+            obdLines.add(fieldLine(getString(R.string.ui_power), Obd2Reader.freshPowerKw(600_000), "kW"));
+            obdLines.add(fieldLine(getString(R.string.ui_battery_temp), Obd2Reader.freshBattTempC(600_000), "°C"));
             setDebugLines(obdFields, obdLines);
         };
 
@@ -904,8 +701,8 @@ public class TelemetryActivity extends Activity {
 
     private TextView sectionLabel(String text) {
         TextView t = new TextView(this);
-        t.setTextColor(Style.TEXT_DIM); t.setTextSize(13);
-        t.setTypeface(null, android.graphics.Typeface.BOLD);
+        t.setTextColor(Style.TEXT); t.setTextSize(26);
+        t.setTypeface(t.getTypeface(), android.graphics.Typeface.BOLD);
         t.setText(text);
         return t;
     }
@@ -932,7 +729,7 @@ public class TelemetryActivity extends Activity {
         content.addView(Style.header(this, getString(R.string.cfg_mqtt_header)));
         status = new TextView(this);
         status.setTextColor(Style.TEXT); status.setTextSize(16);
-        status.setTypeface(null, android.graphics.Typeface.BOLD);
+        status.setTypeface(status.getTypeface(), android.graphics.Typeface.BOLD);
         boolean teleOn = prefs.getBoolean("tele_enabled", false);
         status.setText(teleOn
             ? getString(R.string.cfg_sending_every, prefs.getInt("tele_interval_s", 10))
@@ -962,7 +759,7 @@ public class TelemetryActivity extends Activity {
                 if (mqttConfigContainer != null) {
                     mqttConfigContainer.setVisibility(on ? View.VISIBLE : View.GONE);
                 }
-                logMqtt("MASTER", on ? "Telemetria MQTT HABILITADA" : "Telemetria MQTT DESABILITADA");
+                logMqtt("MASTER", on ? getString(R.string.ui_mqtt_enabled) : getString(R.string.ui_mqtt_disabled));
             }));
 
         TextView teleHint = new TextView(this);
@@ -984,7 +781,7 @@ public class TelemetryActivity extends Activity {
                 prefs.edit().putBoolean("commands_enabled", allow).apply();
                 Intent svc = new Intent(this, TelemetryService.class);
                 if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(svc); else startService(svc);
-                logMqtt("SECURITY", allow ? "Comandos remotos do HA HABILITADOS" : "Comandos remotos BLOQUEADOS");
+                logMqtt("SECURITY", allow ? getString(R.string.ui_remote_enabled) : getString(R.string.ui_remote_disabled));
             }));
 
         TextView cmdHint = new TextView(this);
@@ -1093,7 +890,7 @@ public class TelemetryActivity extends Activity {
                     logMqtt("ADB", getString(R.string.cfg_adb_no_helper));
                     return;
                 }
-                logMqtt("ADB", on ? "ADB habilitado por " + AdbGate.DEFAULT_MINUTES + " min" : "ADB desabilitado");
+                logMqtt("ADB", on ? getString(R.string.ui_adb_enabled, AdbGate.DEFAULT_MINUTES) : getString(R.string.ui_adb_disabled));
                 adbHint.postDelayed(() -> adbHint.setText(getString(
                     AdbGate.isEnabled(this)
                         ? R.string.cfg_adb_on : R.string.cfg_adb_off,
@@ -1120,7 +917,7 @@ public class TelemetryActivity extends Activity {
                 fTrustedSsid.setText(current);
                 AdbGate.setTrustedWifi(this, current);
                 Toast.makeText(this, getString(R.string.cfg_trusted_wifi_saved), Toast.LENGTH_SHORT).show();
-                logMqtt("WIFI", "Wi-Fi Privilegiado salvo: " + current);
+                logMqtt("WIFI", getString(R.string.ui_wifi_saved, current));
             }
         }));
         left.addView(wifiBtnRow);
@@ -1174,7 +971,7 @@ public class TelemetryActivity extends Activity {
         mqttLogScroll.addView(mqttLogView);
         right.addView(mqttLogScroll);
 
-        logMqtt("INIT", "Painel MQTT inicializado. ID: " + MqttReporter.getClientId());
+        logMqtt("INIT", getString(R.string.ui_mqtt_initialized, MqttReporter.getClientId()));
     }
 
     // =====================================================================
@@ -1263,7 +1060,7 @@ public class TelemetryActivity extends Activity {
             clientCertStatus.setTextColor(clientInfo.isExpired ? 0xFFE57373 : Style.TEXT);
             clientCertStatus.setText(getString(R.string.cfg_cert_status_installed,
                     clientInfo.getCommonName(), clientInfo.getFormattedExpiry()) +
-                    (clientInfo.isExpired ? " [EXPIRED]" : ""));
+                    (clientInfo.isExpired ? getString(R.string.ui_cert_expired) : ""));
             clientBtnRow.addView(button(getString(R.string.cfg_btn_import_cert), Style.ACCENT, () -> showImportDialog(false)));
             clientBtnRow.addView(button(getString(R.string.cfg_btn_remove_cert), 0xFF8A3A3A, this::confirmRemoveClientCert));
         } else {
@@ -1339,7 +1136,7 @@ public class TelemetryActivity extends Activity {
                             byte[] bytes = CertImporter.readFileBytes(chosen);
                             tryImportBytes(bytes, null);
                         } catch (Throwable t) {
-                            showErrorDialog("Erro: " + t.getMessage());
+                            showErrorDialog(getString(R.string.ui_error_detail, t.getMessage()));
                         }
                     })
                     .setNegativeButton(android.R.string.cancel, null)
@@ -1362,13 +1159,13 @@ public class TelemetryActivity extends Activity {
             .setPositiveButton(android.R.string.ok, (dialog, which) -> {
                 String url = input.getText().toString().trim();
                 if (url.isEmpty()) return;
-                status.setText("Baixando certificado...");
+                status.setText(getString(R.string.ui_cert_downloading));
                 CertImporter.fetchUrl(url, (ok, data, error) -> {
                     status.setText("");
                     if (ok && data != null) {
                         tryImportBytes(data, null);
                     } else {
-                        showErrorDialog("Download falhou: " + (error != null ? error : "desconhecido"));
+                        showErrorDialog(getString(R.string.ui_download_failed, error != null ? error : getString(R.string.ui_unknown)));
                     }
                 });
             })
@@ -1383,7 +1180,7 @@ public class TelemetryActivity extends Activity {
             intent.addCategory(Intent.CATEGORY_OPENABLE);
             startActivityForResult(Intent.createChooser(intent, getString(R.string.cfg_cert_import_file)), REQ_CODE_PICK_CERT);
         } catch (Throwable t) {
-            showErrorDialog("Não foi possível abrir o seletor de arquivos: " + t.getMessage());
+            showErrorDialog(getString(R.string.ui_file_picker_failed, t.getMessage()));
         }
     }
 
@@ -1408,7 +1205,7 @@ public class TelemetryActivity extends Activity {
                 try {
                     tryImportBytes(text.getBytes("UTF-8"), null);
                 } catch (Throwable t) {
-                    showErrorDialog("Erro: " + t.getMessage());
+                    showErrorDialog(getString(R.string.ui_error_detail, t.getMessage()));
                 }
             })
             .setNegativeButton(android.R.string.cancel, null)
@@ -1425,17 +1222,16 @@ public class TelemetryActivity extends Activity {
         if (res.success) {
             refreshCertUi();
             String details = res.certInfo != null ?
-                "\n\nNome: " + res.certInfo.getCommonName() +
-                "\nEmissor: " + CertImporter.extractCN(res.certInfo.issuer) +
-                "\nVálido até: " + res.certInfo.getFormattedExpiry() : "";
+                getString(R.string.ui_cert_details, res.certInfo.getCommonName(),
+                    CertImporter.extractCN(res.certInfo.issuer), res.certInfo.getFormattedExpiry()) : "";
             new android.app.AlertDialog.Builder(this)
                 .setTitle(getString(R.string.cfg_certs_header))
-                .setMessage(res.message + details)
+                .setMessage(res.localizedMessage(this) + details)
                 .setPositiveButton(android.R.string.ok, null)
                 .setNeutralButton(getString(R.string.cfg_btn_test_tls), (d, w) -> testTlsHandshake())
                 .show();
         } else {
-            showErrorDialog(res.message);
+            showErrorDialog(res.localizedMessage(this));
         }
     }
 
@@ -1518,11 +1314,11 @@ public class TelemetryActivity extends Activity {
         tlsTestStatus.setTextColor(Style.TEXT_DIM);
         tlsTestStatus.setText(getString(R.string.cfg_cert_testing_tls) + " (" + target + ")...");
 
-        logMqtt("TLS", "Testando handshake TLS para: " + target);
+        logMqtt("TLS", getString(R.string.ui_tls_testing, target));
         CertImporter.testTls(this, target, (ok, msg) -> {
             tlsTestStatus.setTextColor(ok ? 0xFF81C784 : 0xFFE57373);
             tlsTestStatus.setText(msg);
-            logMqtt("TLS", (ok ? "SUCESSO: " : "ERRO: ") + msg);
+            logMqtt("TLS", getString(ok ? R.string.ui_result_success : R.string.ui_result_error, msg));
         });
     }
 
@@ -1541,7 +1337,7 @@ public class TelemetryActivity extends Activity {
         content.addView(Style.header(this, getString(R.string.cfg_spotify_header)));
         spotifyStatus = new TextView(this);
         spotifyStatus.setTextColor(Style.TEXT); spotifyStatus.setTextSize(16);
-        spotifyStatus.setTypeface(null, android.graphics.Typeface.BOLD);
+        spotifyStatus.setTypeface(spotifyStatus.getTypeface(), android.graphics.Typeface.BOLD);
         spotifyStatus.setText(getString(SpotifyClient.connected(this)
             ? R.string.cfg_spotify_status_on : R.string.cfg_spotify_status_off));
         content.addView(spotifyStatus);
@@ -1613,11 +1409,11 @@ public class TelemetryActivity extends Activity {
         verView.setText(getString(R.string.cfg_version_label, verName, verCode));
         verView.setTextColor(Style.TEXT);
         verView.setTextSize(15);
-        verView.setTypeface(null, android.graphics.Typeface.BOLD);
+        verView.setTypeface(verView.getTypeface(), android.graphics.Typeface.BOLD);
         infoCard.addView(verView);
 
         TextView devIdView = new TextView(this);
-        devIdView.setText("Device ID: " + MqttReporter.getDevId());
+        devIdView.setText(getString(R.string.ui_device_id, MqttReporter.getDevId()));
         devIdView.setTextColor(Style.TEXT_DIM);
         devIdView.setTextSize(13);
         devIdView.setPadding(0, Style.dp(this, 4), 0, 0);
@@ -1763,7 +1559,7 @@ public class TelemetryActivity extends Activity {
             activeBrokerView.setTextColor(Style.TEXT_DIM);
         } else if (svcRunning && svc.isConnected()) {
             String broker = svc.getConnectedBroker();
-            activeBrokerView.setText(getString(R.string.cfg_active_broker, (broker != null ? broker : "Online")));
+            activeBrokerView.setText(getString(R.string.cfg_active_broker, (broker != null ? broker : getString(R.string.ui_online))));
             activeBrokerView.setTextColor(0xFF81C784);
         } else if (svcRunning) {
             activeBrokerView.setText(getString(R.string.cfg_active_broker, getString(R.string.cfg_connecting)));
@@ -1832,27 +1628,27 @@ public class TelemetryActivity extends Activity {
 
         updateStatusCard();
         Toast.makeText(this, getString(R.string.cfg_saved), Toast.LENGTH_SHORT).show();
-        logMqtt("CONFIG", "Configurações salvas e aplicadas.");
+        logMqtt("CONFIG", getString(R.string.ui_settings_applied));
     }
 
     private void updateCheck() {
-        logMqtt("UPDATE", "Verificando atualização OTA...");
+        logMqtt("UPDATE", getString(R.string.ui_checking_update));
         if (status != null) status.setText(getString(R.string.update_checking));
         Updater.check(getApplicationContext(), null, new Updater.CheckCallback() {
             @Override
             public void onUpdateAvailable(Updater.UpdateInfo info) {
                 ui.post(() -> {
                     if (status != null) status.setText("");
-                    logMqtt("UPDATE", "Atualização encontrada: " + info.versionName);
+                    logMqtt("UPDATE", getString(R.string.ui_update_found, info.versionName));
                     if (!com.geely.drivemem.state.CarState.isParked()) {
-                        logMqtt("UPDATE", "Veículo em movimento / fora de Park. Atualização bloqueada por segurança.");
+                        logMqtt("UPDATE", getString(R.string.ui_update_park_required));
                         if (status != null) status.setText(getString(R.string.update_not_parked));
                         Toast.makeText(TelemetryActivity.this, getString(R.string.update_not_parked), Toast.LENGTH_LONG).show();
                         return;
                     }
                     UpdateDialog.show(TelemetryActivity.this, info, () -> {
                         if (status != null) status.setText(getString(R.string.update_downloading, info.versionName));
-                        logMqtt("UPDATE", "Atualização aceita pelo usuário. Baixando e instalando...");
+                        logMqtt("UPDATE", getString(R.string.ui_update_installing));
                         Updater.update(getApplicationContext(), info.apkUrl, s -> ui.post(() -> {
                             if (status != null) status.setText(s);
                             logMqtt("UPDATE", s);
@@ -1865,7 +1661,7 @@ public class TelemetryActivity extends Activity {
             public void onAlreadyUpToDate(String currentVer) {
                 ui.post(() -> {
                     if (status != null) status.setText(getString(R.string.update_up_to_date, currentVer));
-                    logMqtt("UPDATE", "Aplicativo já está na versão mais recente: " + currentVer);
+                    logMqtt("UPDATE", getString(R.string.ui_latest_version, currentVer));
                 });
             }
 
@@ -1873,7 +1669,7 @@ public class TelemetryActivity extends Activity {
             public void onError(String error) {
                 ui.post(() -> {
                     if (status != null) status.setText(getString(R.string.update_check_failed, error));
-                    logMqtt("UPDATE", "Erro na verificação: " + error);
+                    logMqtt("UPDATE", getString(R.string.ui_update_check_error, error));
                 });
             }
         });
@@ -1897,13 +1693,13 @@ public class TelemetryActivity extends Activity {
             @Override
             public void onUpdateAvailable(Updater.UpdateInfo info) {
                 ui.post(() -> {
-                    logMqtt("UPDATE", "Atualização do ModeHelper encontrada: " + info.versionName);
+                    logMqtt("UPDATE", getString(R.string.ui_helper_update_found, info.versionName));
                     if (!com.geely.drivemem.state.CarState.isParked()) {
-                        logMqtt("UPDATE", "ModeHelper: veículo em movimento, atualização bloqueada.");
+                        logMqtt("UPDATE", getString(R.string.ui_helper_park_required));
                         return;
                     }
                     UpdateDialog.show(TelemetryActivity.this, info, () -> {
-                        logMqtt("UPDATE", "Atualização do ModeHelper aceita. Baixando e instalando...");
+                        logMqtt("UPDATE", getString(R.string.ui_helper_installing));
                         Updater.updateHelper(getApplicationContext(), info.apkUrl,
                             s -> ui.post(() -> logMqtt("UPDATE", "ModeHelper: " + s)));
                     });
@@ -1912,13 +1708,13 @@ public class TelemetryActivity extends Activity {
 
             @Override
             public void onAlreadyUpToDate(String currentVer) {
-                ui.post(() -> logMqtt("UPDATE", "ModeHelper já está na versão mais recente: " + currentVer));
+                ui.post(() -> logMqtt("UPDATE", getString(R.string.ui_helper_latest, currentVer)));
             }
 
             @Override
             public void onError(String error) {
                 ui.post(() -> {
-                    logMqtt("UPDATE", "ModeHelper: erro na verificação: " + error);
+                    logMqtt("UPDATE", getString(R.string.ui_helper_check_error, error));
                     if (error != null && error.contains("predates self-update")) {
                         Toast.makeText(TelemetryActivity.this, error, Toast.LENGTH_LONG).show();
                     }
@@ -1936,26 +1732,26 @@ public class TelemetryActivity extends Activity {
         String[] targets = uri.split("[,\\s]+");
         final String firstTarget = (targets.length > 0 && !targets[0].isEmpty()) ? targets[0] : uri;
 
-        logMqtt("TEST", "Iniciando teste de conexão para: " + firstTarget);
-        logMqtt("TEST", "Lendo dados dos sensores do veículo...");
+        logMqtt("TEST", getString(R.string.ui_connection_testing, firstTarget));
+        logMqtt("TEST", getString(R.string.ui_reading_sensors));
 
         CarActor.get(this).runOnCarThread(() -> {
             CarAccess c = CarActor.get(this).rawAccess();
             boolean carOk = c.isReady() || c.connect(getApplicationContext());
             java.util.LinkedHashMap<String, Object> data =
                 carOk ? Telemetry.read(c) : new java.util.LinkedHashMap<>();
-            logMqtt("TEST", "Sensores lidos: " + data.size() + " campos (CarAccess ok=" + carOk + ")");
-            logMqtt("TEST", "Publicando em '" + MqttReporter.getBaseTopic() + "/state'...");
+            logMqtt("TEST", getString(R.string.ui_sensor_fields, data.size(), getString(carOk ? R.string.abrp_debug_yes : R.string.abrp_debug_no)));
+            logMqtt("TEST", getString(R.string.ui_mqtt_publishing, MqttReporter.getBaseTopic() + "/state"));
 
             final MqttReporter r = new MqttReporter(uri, "", u, pw, getApplicationContext());
             r.testConnection(data, (ok, detail) -> {
                 ui.post(() -> {
                     status.setText(detail);
                     if (ok) {
-                        logMqtt("TEST", "SUCESSO: " + detail);
-                        logMqtt("TEST", "Tópico de estado atualizado no broker!");
+                        logMqtt("TEST", getString(R.string.ui_result_success, detail));
+                        logMqtt("TEST", getString(R.string.ui_broker_updated));
                     } else {
-                        logMqtt("TEST", "ERRO: " + detail);
+                        logMqtt("TEST", getString(R.string.ui_result_error, detail));
                     }
                     updateStatusCard();
                 });
@@ -1986,17 +1782,17 @@ public class TelemetryActivity extends Activity {
     private void forceDiscoveryNow() {
         saveAll(prefs.getBoolean("tele_enabled", false));
         status.setText(getString(R.string.cfg_discovery_sending));
-        logMqtt("DISCOVERY", "Solicitando envio de descoberta MQTT (47 entidades)...");
+        logMqtt("DISCOVERY", getString(R.string.ui_discovery_requested));
         TelemetryService svc = TelemetryService.getInstance();
         if (svc != null && svc.isRunning()) {
             svc.triggerDiscovery((ok, detail) -> ui.post(() -> {
                 String msg = ok ? getString(R.string.cfg_discovery_ok) : getString(R.string.cfg_discovery_failed, detail);
                 status.setText(msg);
                 if (ok) {
-                    logMqtt("DISCOVERY", "SUCESSO: " + detail);
-                    logMqtt("DISCOVERY", "Entidades recriadas em 'homeassistant/.../" + MqttReporter.getDevId() + "/...'");
+                    logMqtt("DISCOVERY", getString(R.string.ui_result_success, detail));
+                    logMqtt("DISCOVERY", getString(R.string.ui_discovery_recreated, "homeassistant/.../" + MqttReporter.getDevId() + "/..."));
                 } else {
-                    logMqtt("DISCOVERY", "FALHA: " + detail);
+                    logMqtt("DISCOVERY", getString(R.string.ui_result_error, detail));
                 }
                 Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
                 updateStatusCard();
@@ -2006,7 +1802,7 @@ public class TelemetryActivity extends Activity {
         final String uri = (fUri != null) ? fUri.getText().toString().trim() : prefs.getString("mqtt_uri", "");
         final String u = (fUser != null) ? fUser.getText().toString().trim() : prefs.getString("mqtt_user", "");
         final String pw = (fPass != null) ? fPass.getText().toString() : prefs.getString("mqtt_pass", "");
-        logMqtt("DISCOVERY", "Conectando cliente direto para publicar descoberta...");
+        logMqtt("DISCOVERY", getString(R.string.ui_discovery_connecting));
         CarActor.get(this).runOnCarThread(() -> {
             final MqttReporter r = new MqttReporter(uri, "", u, pw, getApplicationContext());
             r.forceDiscovery((ok, detail) -> {
@@ -2014,9 +1810,9 @@ public class TelemetryActivity extends Activity {
                     String msg = ok ? getString(R.string.cfg_discovery_ok) : getString(R.string.cfg_discovery_failed, detail);
                     status.setText(msg);
                     if (ok) {
-                        logMqtt("DISCOVERY", "SUCESSO: " + detail);
+                        logMqtt("DISCOVERY", getString(R.string.ui_result_success, detail));
                     } else {
-                        logMqtt("DISCOVERY", "FALHA: " + detail);
+                        logMqtt("DISCOVERY", getString(R.string.ui_result_error, detail));
                     }
                     Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
                     updateStatusCard();
@@ -2056,39 +1852,11 @@ public class TelemetryActivity extends Activity {
     }
 
     private void buildDrive() {
-        driveCards.clear(); regenCards.clear();
-        content.addView(Style.header(this, getString(R.string.cfg_drive_header)));
-        status = new TextView(this);
-        status.setTextColor(Style.TEXT); status.setTextSize(16);
-        status.setTypeface(null, android.graphics.Typeface.BOLD);
-        status.setText(getString(R.string.cfg_connecting));
-        content.addView(status);
-
-        // the glyphs "🍃 ☁ ⚡ ◦ ◉ ●" are icons, not text: they do not get translated
-        //
-        // Capped width, not MATCH_PARENT: content is the whole right-hand
-        // panel (screen width minus the 240dp sidebar), and small tiles/
-        // fields/rows stretched across all of it turn into oversized slabs.
-        // Half the screen keeps everything on this page a sane, consistent
-        // size regardless of how wide the panel is -- applied to every row
-        // below (drive, regen, turbo, actions), not just the mode cards.
-        int pageWidth = Style.dp(this, 960);
-        LinearLayout driveRow = new LinearLayout(this);
-        driveRow.setOrientation(LinearLayout.HORIZONTAL);
-        driveRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        driveRow.addView(modeCard("🍃", getString(R.string.cfg_mode_eco), Modes.DRIVE_ECO, driveCards, () -> setDrive(Modes.DRIVE_ECO)));
-        driveRow.addView(modeCard("☁", getString(R.string.cfg_mode_comfort), Modes.DRIVE_COMFORT, driveCards, () -> setDrive(Modes.DRIVE_COMFORT)));
-        driveRow.addView(modeCard("⚡", getString(R.string.cfg_mode_sport), Modes.DRIVE_SPORT, driveCards, () -> setDrive(Modes.DRIVE_SPORT)));
-        content.addView(driveRow);
-
-        content.addView(Style.header(this, getString(R.string.cfg_regen_header)));
-        LinearLayout regenRow = new LinearLayout(this);
-        regenRow.setOrientation(LinearLayout.HORIZONTAL);
-        regenRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        regenRow.addView(modeCard("◦", getString(R.string.cfg_regen_low), Modes.REGEN_LOW, regenCards, () -> setRegen(Modes.REGEN_LOW)));
-        regenRow.addView(modeCard("◉", getString(R.string.cfg_regen_mid), Modes.REGEN_MID, regenCards, () -> setRegen(Modes.REGEN_MID)));
-        regenRow.addView(modeCard("●", getString(R.string.cfg_regen_high), Modes.REGEN_HIGH, regenCards, () -> setRegen(Modes.REGEN_HIGH)));
-        content.addView(regenRow);
+        content.addView(Style.header(this, getString(R.string.ui_vehicle_controls)));
+        addVehicleTabs(SEC_DRIVE);
+        vehicleControls = new VehicleControlsView(this);
+        content.addView(vehicleControls);
+        int pageWidth = Math.min(Style.dp(this, 960), getResources().getDisplayMetrics().widthPixels - Style.dp(this, 372));
 
         content.addView(Style.header(this, getString(R.string.turbo_header)));
         LinearLayout turboToggle = toggleRow(getString(R.string.turbo_enable_label),
@@ -2100,16 +1868,29 @@ public class TelemetryActivity extends Activity {
             String.valueOf(prefs.getInt("turbo_duration_s", TurboMode.DEFAULT_DURATION_S)),
             InputType.TYPE_CLASS_NUMBER);
         fTurbo.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        // Saved by "Salvar padrão" below, not on blur or every keystroke —
-        // blur never reliably fired here (dismissing the on-screen number pad
-        // hides the IME but does not necessarily move focus off the
-        // EditText, so a save-on-blur listener could go the whole session
-        // without firing once — reported as "edited it, it reverted to 30",
-        // which was really "it never saved at all"). "Salvar padrão" already
-        // means "persist my settings on this screen" for drive/regen mode;
-        // Turbo's duration is just one more field it sweeps up on the same
-        // press, with the same one clear save moment instead of a listener
-        // whose firing conditions are easy to get wrong twice.
+        // Persist valid input immediately without clamping intermediate keystrokes
+        // (typing 30 starts with 3). Final editing events normalize the field.
+        fTurbo.setSingleLine(true);
+        fTurbo.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+            | android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI);
+        fTurbo.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(android.text.Editable text) {
+                if (!normalizingTurboDuration) saveTurboDuration(false);
+            }
+        });
+        fTurbo.setOnEditorActionListener((view, action, event) -> {
+            if (action != android.view.inputmethod.EditorInfo.IME_ACTION_DONE) return false;
+            saveTurboDuration(true);
+            android.view.inputmethod.InputMethodManager keyboard =
+                (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            if (keyboard != null) keyboard.hideSoftInputFromWindow(view.getWindowToken(), 0);
+            return true;
+        });
+        fTurbo.setOnFocusChangeListener((view, hasFocus) -> {
+            if (!hasFocus) saveTurboDuration(true);
+        });
 
         content.addView(Style.header(this, getString(R.string.cfg_adas_header)));
 
@@ -2120,7 +1901,7 @@ public class TelemetryActivity extends Activity {
         // listener can hold a reference to its own switch, to revert it
         // silently on cancel/not-parked without rebuilding the whole screen.
         LinearLayout aebRow = toggleRow(getString(R.string.cfg_aeb_label), prefs.getBoolean("aeb_on", true), null);
-        GeelySwitch aebSwitch = (GeelySwitch) aebRow.getChildAt(0);
+        GeelySwitch aebSwitch = (GeelySwitch) aebRow.getChildAt(1);
         aebSwitch.setOnToggle(on -> {
             if (!on) {
                 // No Park requirement, by design: applies in any condition,
@@ -2155,7 +1936,7 @@ public class TelemetryActivity extends Activity {
         // owner picks a different sound in OEM Settings. Reading the car
         // directly on every screen entry is what keeps this switch honest.
         LinearLayout avasRow = toggleRow(getString(R.string.cfg_avas_label), prefs.getBoolean("avas_on", true), null);
-        GeelySwitch avasSwitch = (GeelySwitch) avasRow.getChildAt(0);
+        GeelySwitch avasSwitch = (GeelySwitch) avasRow.getChildAt(1);
         avasSwitch.setOnToggle(on -> {
             prefs.edit().putBoolean("avas_on", on).apply();
             sendAdasPreference("avas", on);
@@ -2164,126 +1945,56 @@ public class TelemetryActivity extends Activity {
         content.addView(avasRow);
         refreshAvasFromCar(avasSwitch);
 
-        content.addView(Style.header(this, getString(R.string.cfg_actions_header)));
-        LinearLayout actionRow = new LinearLayout(this);
-        actionRow.setOrientation(LinearLayout.HORIZONTAL);
-        actionRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        actionRow.addView(action(getString(R.string.cfg_btn_apply), Style.ACCENT, this::applyNow));
-        actionRow.addView(action(getString(R.string.cfg_btn_save_default), 0xFF6A4CFF, this::saveDefault));
-        content.addView(actionRow);
-
-        highlight();
-        if (!carActorSubscribed) {
-            carActorSubscribed = true;
-            EntityBus.subscribe("car.drive_mode", driveListener);
-            EntityBus.subscribe("car.regen_mode", regenListener);
-        }
-        refresh();
     }
 
-    private LinearLayout modeCard(String symbol, String label, int key,
-                                  Map<Integer, LinearLayout> reg, Runnable onClick) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setGravity(Gravity.CENTER);
-        int pad = Style.dp(this, 8);
-        card.setPadding(pad, pad, pad, pad);
-        TextView ic = new TextView(this);
-        ic.setText(symbol); ic.setTextColor(Style.TEXT); ic.setTextSize(38);
-        ic.setGravity(Gravity.CENTER);
-        card.addView(ic);
-        TextView lb = new TextView(this);
-        lb.setText(label); lb.setTextColor(Style.TEXT); lb.setTextSize(19);
-        lb.setTypeface(null, android.graphics.Typeface.BOLD);
-        lb.setGravity(Gravity.CENTER);
-        lb.setPadding(0, Style.dp(this, 8), 0, 0);
-        card.addView(lb);
-        card.setOnClickListener(v -> onClick.run());
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Style.dp(this, 120), 1f);
-        int m = Style.dp(this, 4);
-        lp.setMargins(m, Style.dp(this, 8), m, 0);
-        card.setLayoutParams(lp);
-        reg.put(key, card);
-        return card;
-    }
-
-    private void setDrive(int v) { selDrive = v; highlight(); }
-    private void setRegen(int v) { selRegen = v; highlight(); }
-
-    // Fill = your standard (selDrive/selRegen, always known). Border = what
-    // the car reports right now (liveDrive/liveRegen, only once driveKnown/
-    // regenKnown). A card can carry both, one, or neither — that overlap (or
-    // lack of it) is the whole point: it is what makes "car booted into
-    // something other than your standard" visible instead of silent.
-    private void highlight() {
-        for (Map.Entry<Integer, LinearLayout> e : driveCards.entrySet())
-            paintCard(e.getValue(), e.getKey() == selDrive, driveKnown && e.getKey() == liveDrive);
-        for (Map.Entry<Integer, LinearLayout> e : regenCards.entrySet())
-            paintCard(e.getValue(), e.getKey() == selRegen, regenKnown && e.getKey() == liveRegen);
-    }
-
-    // card background + text: on the light theme the selected fill is dark blue,
-    // so the text has to turn light (otherwise it disappears). "isLive" adds a
-    // thicker accent-coloured stroke on top, independent of the fill.
-    private void paintCard(LinearLayout card, boolean selected, boolean isLive) {
-        int fill = selected ? Style.CARD_ON : Style.CARD;
-        android.graphics.drawable.GradientDrawable g = Style.card(fill, this);
-        if (isLive) g.setStroke(Style.dp(this, Style.STROKE_DP + 2), Style.ACCENT);
-        card.setBackground(g);
-        int fg = Style.onFill(fill);
-        for (int i = 0; i < card.getChildCount(); i++) {
-            View ch = card.getChildAt(i);
-            if (ch instanceof TextView) ((TextView) ch).setTextColor(fg);
-        }
-    }
-
-    private void applyNow() {
-        final int d = selDrive, r = selRegen;
-        // A boost in progress owns drive_mode until it reverts on its own —
-        // the Config picker must not undercut it mid-countdown. Regen has no
-        // such conflict, so it still applies either way.
-        boolean turboActive = TurboMode.get(this).active();
-        if (!turboActive) CarActor.get(this).cast("drive_mode", d);
-        CarActor.get(this).cast("regen_mode", r);
-        // Trusted as sent, not waited on — see CarActor's own comment for
-        // why a cast doesn't block here.
-        liveRegen = r; regenKnown = true;
-        if (!turboActive) { liveDrive = d; driveKnown = true; }
-        highlight();
-        status.setText(turboActive
-            ? getString(R.string.cfg_applied_turbo_active, Modes.regenName(r))
-            : getString(R.string.cfg_applied, Modes.driveName(d), Modes.regenName(r)));
-    }
-
-    private void saveDefault() {
-        prefs.edit().putInt("drive", selDrive).putInt("regen", selRegen).apply();
-        // tell the system helper (com.geely.modehelper) about the new default — it
-        // is the one that, running as uid system, re-applies it when the car wakes
-        // (here, as a normal app, we do not survive the suspend).
+    private void saveTurboDuration(boolean normalize) {
+        if (fTurbo == null || normalizingTurboDuration) return;
+        String text = fTurbo.getText().toString().trim();
+        int previous = prefs.getInt("turbo_duration_s", TurboMode.DEFAULT_DURATION_S);
+        int turboSec;
         try {
-            android.content.Intent i = new android.content.Intent("com.geely.modehelper.SET_MODE");
-            i.setPackage("com.geely.modehelper");
-            i.putExtra("drive", selDrive).putExtra("regen", selRegen);
-            sendBroadcast(i);
-        } catch (Throwable ignored) {}
-        // Turbo duration rides along here — same "persist my settings on
-        // this screen" action, not a separate button. Clamped 5..120s (under
-        // 5 is not a "boost", and TurboMode has no cap of its own to lean
-        // on), and the field is rewritten to the clamped value so pressing
-        // Save is also the confirmation that it took.
-        if (fTurbo != null) {
-            int turboSec;
-            try { turboSec = Integer.parseInt(fTurbo.getText().toString().trim()); }
-            catch (NumberFormatException e) { turboSec = TurboMode.DEFAULT_DURATION_S; }
-            turboSec = Math.max(5, Math.min(120, turboSec));
-            prefs.edit().putInt("turbo_duration_s", turboSec).apply();
-            fTurbo.setText(String.valueOf(turboSec));
+            java.math.BigInteger parsed = new java.math.BigInteger(text);
+            if (!normalize && (parsed.compareTo(java.math.BigInteger.valueOf(5)) < 0
+                || parsed.compareTo(java.math.BigInteger.valueOf(120)) > 0)) return;
+            turboSec = parsed.max(java.math.BigInteger.valueOf(5))
+                .min(java.math.BigInteger.valueOf(120)).intValue();
+        } catch (NumberFormatException e) {
+            if (!normalize) return;
+            turboSec = Math.max(5, Math.min(120, previous));
         }
-        status.setText(getString(R.string.cfg_startup_default,
-            Modes.driveName(selDrive), Modes.regenName(selRegen)));
+        if (turboSec != previous) prefs.edit().putInt("turbo_duration_s", turboSec).apply();
+        String normalized = String.valueOf(turboSec);
+        if (normalize && !normalized.equals(fTurbo.getText().toString())) {
+            normalizingTurboDuration = true;
+            try {
+                fTurbo.setText(normalized);
+                fTurbo.setSelection(normalized.length());
+            } finally {
+                normalizingTurboDuration = false;
+            }
+        }
     }
 
-    // Same SET_MODE broadcast saveDefault() sends for drive/regen, but for
+    /** Controls / energy / display tabs route to the app's existing panels. */
+    private void addVehicleTabs(int activeSection) {
+        LinearLayout tabs = new LinearLayout(this);
+        tabs.setOrientation(LinearLayout.HORIZONTAL);
+        int[] sections = {SEC_DRIVE, SEC_CHARGE, SEC_BAR};
+        int[] labels = {R.string.ui_controls_tab, R.string.ui_energy_tab, R.string.ui_settings_tab};
+        for (int i = 0; i < sections.length; i++) {
+            final int target = sections[i];
+            boolean selected = target == activeSection;
+            TextView tab = Style.cardButton(this, getString(labels[i]), selected, () -> selectSection(target));
+            tab.setTextSize(22);
+            tab.setSelected(selected);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Style.dp(this, 190), Style.dp(this, 64));
+            lp.setMargins(0, 0, Style.dp(this, 14), Style.dp(this, 24));
+            tabs.addView(tab, lp);
+        }
+        content.addView(tabs);
+    }
+
+    // Same SET_MODE broadcast used for drive/regen changes, but for
     // one AEB/AVAS preference at a time — modehelper's receiver treats each
     // extra as independent and optional, so this never touches the other
     // three. Drive Assist cannot write either property itself (confirmed for
@@ -2301,84 +2012,133 @@ public class TelemetryActivity extends Activity {
         } catch (Throwable ignored) {}
     }
 
-    // A fresh read (CarActor.read -> CarDataHub), not a cache lookup — this
-    // is the one seed value the screen needs the instant it opens, and the
-    // discrete watch above may not have delivered its first event yet.
-    // NEVER touches selDrive/selRegen — that field is the user's standard,
-    // and a stale/failed/booting-into-factory-default read here must not be
-    // able to overwrite it. See the field comment.
-    private void refresh() {
-        CarActor a = CarActor.get(this);
-        a.read("drive_mode", d -> {
-            if (d instanceof Integer) { liveDrive = (Integer) d; driveKnown = true; }
-            ui.post(this::afterRefresh);
-        });
-        a.read("regen_mode", r -> {
-            if (r instanceof Integer) { liveRegen = (Integer) r; regenKnown = true; }
-            ui.post(this::afterRefresh);
-        });
-    }
-
-    private void afterRefresh() {
-        highlight();
-        if (!driveKnown || !regenKnown) status.setText(getString(R.string.cfg_mode_unknown));
-        else updateCurrentStatus();
-    }
-
-    // Shared by refresh() and the live watch callbacks — one place that
-    // knows how to render "what the car reports now" as text.
-    private void updateCurrentStatus() {
-        if (status == null || !driveKnown || !regenKnown) return;
-        status.setText(getString(R.string.cfg_current, Modes.driveName(liveDrive), Modes.regenName(liveRegen)));
-    }
-
     // =====================================================================
     // Menu bar panel (the toggles that moved out of the AC screen)
     // =====================================================================
     private void buildBar() {
+        addVehicleTabs(SEC_BAR);
         content.addView(Style.header(this, getString(R.string.cfg_bar_header)));
-
         content.addView(Style.header(this, getString(R.string.cfg_bar_topbar_header)));
-
-        content.addView(toggleRow(getString(R.string.cfg_bar_outtemp),
-            prefs.getBoolean("outtemp_on", false), on -> {
-                prefs.edit().putBoolean("outtemp_on", on).apply();
-                Intent svc = new Intent(this, OutTempService.class);
-                if (on) startService(svc); else stopService(svc);
-            }));
-
-        content.addView(toggleRow(getString(R.string.cfg_bar_wifi),
-            prefs.getBoolean("wifiicon_on", false), on -> {
-                prefs.edit().putBoolean("wifiicon_on", on).apply();
-                Intent svc = new Intent(this, WifiIconService.class);
-                if (on) {
-                    if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(svc); else startService(svc);
-                } else stopService(svc);
-            }));
-
-        content.addView(toggleRow(getString(R.string.cfg_bar_soc),
-            prefs.getBoolean("soc_on", false), on -> {
-                prefs.edit().putBoolean("soc_on", on).apply();
-                Intent svc = new Intent(this, SocIconService.class);
-                if (on) {
-                    if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(svc); else startService(svc);
-                } else stopService(svc);
-            }));
+        addSettingTiles(
+            settingTile(R.drawable.ic_weather_sunny, R.string.cfg_bar_outtemp,
+                prefs.getBoolean("outtemp_on", false), on -> {
+                    prefs.edit().putBoolean("outtemp_on", on).apply();
+                    Intent svc = new Intent(this, OutTempService.class);
+                    if (on) startService(svc); else stopService(svc);
+                }),
+            settingTile(R.drawable.ic_tesla_wifi, R.string.cfg_bar_wifi,
+                prefs.getBoolean("wifiicon_on", false), on -> {
+                    prefs.edit().putBoolean("wifiicon_on", on).apply();
+                    Intent svc = new Intent(this, WifiIconService.class);
+                    if (on) {
+                        if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(svc); else startService(svc);
+                    } else stopService(svc);
+                }),
+            settingTile(R.drawable.ic_tesla_power, R.string.cfg_bar_soc,
+                prefs.getBoolean("soc_on", false), on -> {
+                    prefs.edit().putBoolean("soc_on", on).apply();
+                    Intent svc = new Intent(this, SocIconService.class);
+                    if (on) {
+                        if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(svc); else startService(svc);
+                    } else stopService(svc);
+                }));
 
         content.addView(Style.header(this, getString(R.string.cfg_bar_home_header)));
+        addSettingTiles(
+            settingTile(R.drawable.ic_tesla_trip, R.string.cfg_drive_card,
+                prefs.getBoolean("drive_card_enabled", true), on ->
+                    prefs.edit().putBoolean("drive_card_enabled", on).apply()),
+            settingTile(R.drawable.ic_tesla_display, R.string.cfg_overlay_label,
+                prefs.getBoolean("overlay_on", false), on -> {
+                    prefs.edit().putBoolean("overlay_on", on).apply();
+                    Intent svc = new Intent(this, com.geely.drivemem.services.OverlayService.class);
+                    if (on) {
+                        if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(svc); else startService(svc);
+                    } else stopService(svc);
+                }));
+    }
 
-        content.addView(toggleRow(getString(R.string.cfg_drive_card),
-            prefs.getBoolean("drive_card_enabled", true), on ->
-                prefs.edit().putBoolean("drive_card_enabled", on).apply()));
+    // =====================================================================
+    // App language — native names stay recognizable in every selected language.
+    // =====================================================================
+    private void buildLanguage() {
+        content.addView(Style.header(this, getString(R.string.cfg_language_header)));
+        TextView note = Style.label(this, getString(R.string.cfg_language_note));
+        note.setTextColor(Style.TEXT_DIM);
+        note.setTextSize(20);
+        content.addView(note);
+        Style.gap(content, this, 28);
 
-        content.addView(toggleRow(getString(R.string.cfg_overlay_label),
-            prefs.getBoolean("overlay_on", false), on -> {
-                prefs.edit().putBoolean("overlay_on", on).apply();
-                Intent svc = new Intent(this, com.geely.drivemem.services.OverlayService.class);
-                if (on) {
-                    if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(svc); else startService(svc);
-                } else stopService(svc);
-            }));
+        String[] languages = {AppLanguage.SYSTEM, AppLanguage.ENGLISH, AppLanguage.THAI};
+        int[] labels = {R.string.cfg_language_system, R.string.cfg_language_english,
+            R.string.cfg_language_thai};
+        String selected = AppLanguage.selected(this);
+        int selectedIndex = 0;
+        for (int i = 0; i < languages.length; i++) {
+            if (languages[i].equals(selected)) selectedIndex = i;
+        }
+        android.widget.Button trigger = new android.widget.Button(this);
+        trigger.setAllCaps(false);
+        trigger.setText(getString(labels[selectedIndex]));
+        trigger.setTextSize(24);
+        trigger.setTextColor(Style.TEXT);
+        trigger.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
+        trigger.setPadding(Style.dp(this, 24), Style.dp(this, 18), Style.dp(this, 24), Style.dp(this, 18));
+        trigger.setBackground(new android.graphics.drawable.RippleDrawable(
+            android.content.res.ColorStateList.valueOf(Style.CARD_HI),
+            Style.card(Style.CARD, this), null));
+        trigger.setStateListAnimator(null);
+        android.graphics.drawable.Drawable chevron = getDrawable(R.drawable.ic_chevron_down);
+        chevron.setTint(Style.TEXT_DIM);
+        trigger.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, chevron, null);
+        trigger.setMinHeight(Style.dp(this, 80));
+        trigger.setContentDescription(getString(R.string.ui_language_current, getString(labels[selectedIndex])));
+        content.addView(trigger, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        trigger.post(() -> {
+            ViewGroup.LayoutParams size = trigger.getLayoutParams();
+            size.width = Math.min(content.getWidth(), Style.dp(this, 720));
+            trigger.setLayoutParams(size);
+        });
+        trigger.setOnClickListener(v -> {
+            LinearLayout menu = new LinearLayout(this);
+            menu.setOrientation(LinearLayout.VERTICAL);
+            menu.setPadding(Style.dp(this, 8), Style.dp(this, 8), Style.dp(this, 8), Style.dp(this, 8));
+            menu.setBackground(Style.card(Style.CARD, this));
+            android.widget.PopupWindow popup = new android.widget.PopupWindow(menu,
+                trigger.getWidth(), ViewGroup.LayoutParams.WRAP_CONTENT, true);
+            languagePopup = popup;
+            popup.setOnDismissListener(() -> languagePopup = null);
+            popup.setBackgroundDrawable(Style.card(Style.CARD, this));
+            popup.setOutsideTouchable(true);
+            popup.setElevation(Style.dp(this, 12));
+            for (int i = 0; i < languages.length; i++) {
+                String language = languages[i];
+                android.widget.CheckedTextView row = new android.widget.CheckedTextView(this);
+                row.setText(labels[i]);
+                row.setTextSize(23);
+                row.setTextColor(Style.TEXT);
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                row.setCheckMarkDrawable(R.drawable.ic_language_check);
+                row.setCheckMarkTintList(android.content.res.ColorStateList.valueOf(
+                    language.equals(selected) ? Style.GOOD : android.graphics.Color.TRANSPARENT));
+                row.setChecked(language.equals(selected));
+                row.setMinHeight(Style.dp(this, 76));
+                row.setPadding(Style.dp(this, 20), Style.dp(this, 16), Style.dp(this, 20), Style.dp(this, 16));
+                row.setBackground(new android.graphics.drawable.RippleDrawable(
+                    android.content.res.ColorStateList.valueOf(Style.CARD_HI),
+                    Style.card(language.equals(selected) ? Style.CARD_HI : Style.CARD, this, 10), null));
+                menu.addView(row);
+                row.setOnClickListener(item -> {
+                    popup.dismiss();
+                    if (language.equals(AppLanguage.selected(this))) return;
+                    AppLanguage.save(this, language);
+                    getIntent().putExtra("section", SEC_LANGUAGE);
+                    recreate();
+                });
+            }
+            popup.showAsDropDown(trigger, 0, Style.dp(this, 8));
+        });
     }
 
     // =====================================================================
@@ -2396,6 +2156,7 @@ public class TelemetryActivity extends Activity {
         // the seed config below must appear/disappear with it, not just sit
         // there disabled -- "the config for it" goes away along with the
         // skyline itself, not just the art.
+        if (!"geely".equals(Style.current().id)) {
         content.addView(Style.header(this, getString(R.string.cfg_skyline_header)));
         boolean skylineEnabled = prefs.getBoolean("skyline_enabled", true);
         LinearLayout skylineToggle = toggleRow(getString(R.string.cfg_skyline_label),
@@ -2454,26 +2215,47 @@ public class TelemetryActivity extends Activity {
             content.addView(randomToggle);
         }
 
+        }
+
         content.addView(Style.header(this, getString(R.string.cfg_theme_header)));
-        content.addView(sectionLabel(getString(R.string.cfg_dark_mode_header)));
+        LinearLayout studio = new LinearLayout(this);
+        studio.setOrientation(LinearLayout.HORIZONTAL);
+        studio.setGravity(Gravity.CENTER_VERTICAL);
+        content.addView(studio);
+
+        LinearLayout preview = new LinearLayout(this);
+        preview.setOrientation(LinearLayout.VERTICAL);
+        preview.setPadding(Style.dp(this, 24), Style.dp(this, 20), Style.dp(this, 24), Style.dp(this, 20));
+        preview.setBackground(Style.card(Style.CARD, this, 24));
+        TextView previewTitle = Style.title(this, getString(R.string.ui_theme_preview));
+        previewTitle.setTextSize(28);
+        preview.addView(previewTitle);
+        preview.addView(new com.geely.drivemem.art.VehicleArtView(this, true),
+            new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 220)));
+        LinearLayout.LayoutParams previewLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.4f);
+        previewLp.rightMargin = Style.dp(this, 24);
+        studio.addView(preview, previewLp);
+
+        LinearLayout settings = new LinearLayout(this);
+        settings.setOrientation(LinearLayout.VERTICAL);
+        settings.setPadding(Style.dp(this, 24), Style.dp(this, 20), Style.dp(this, 24), Style.dp(this, 20));
+        settings.setBackground(Style.card(Style.CARD, this, 24));
+        TextView modeTitle = Style.title(this, getString(R.string.cfg_dark_mode_header));
+        modeTitle.setTextSize(28);
+        settings.addView(modeTitle);
         LinearLayout appRow = new LinearLayout(this);
         appRow.setOrientation(LinearLayout.HORIZONTAL);
-        appRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
         appRow.addView(appearanceTile(Style.APPEARANCE_LIGHT, getString(R.string.cfg_appearance_light)));
-        appRow.addView(appearanceTile(Style.APPEARANCE_DARK,  getString(R.string.cfg_appearance_dark)));
-        appRow.addView(appearanceTile(Style.APPEARANCE_AUTO,  getString(R.string.cfg_appearance_auto)));
-        content.addView(appRow);
+        appRow.addView(appearanceTile(Style.APPEARANCE_DARK, getString(R.string.cfg_appearance_dark)));
+        appRow.addView(appearanceTile(Style.APPEARANCE_AUTO, getString(R.string.cfg_appearance_auto)));
+        settings.addView(appRow);
         TextView appNote = new TextView(this);
-        appNote.setTextColor(Style.TEXT_DIM); appNote.setTextSize(13);
-        appNote.setPadding(0, Style.dp(this, 8), 0, Style.dp(this, 12));
+        appNote.setTextColor(Style.TEXT_DIM); appNote.setTextSize(18);
+        appNote.setPadding(0, Style.dp(this, 20), 0, Style.dp(this, 12));
         appNote.setText(getString(R.string.cfg_appearance_note));
-        content.addView(appNote);
-
-        content.addView(sectionLabel(getString(R.string.cfg_theme_selection_header)));
-        TextView sub = new TextView(this);
-        sub.setTextColor(Style.TEXT_DIM); sub.setTextSize(14);
-        sub.setText(getString(R.string.cfg_theme_sub));
-        content.addView(sub);
+        settings.addView(appNote);
+        studio.addView(settings, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.6f));
+        Style.gap(content, this, 20);
 
         // A secret theme still gets a tile while it is the SAVED choice. That is
         // not a loophole in the secret: without it, someone who chose Noturno
@@ -2484,6 +2266,15 @@ public class TelemetryActivity extends Activity {
         List<Style.Theme> shown = new ArrayList<>();
         for (Style.Theme t : Style.THEMES)
             if (!Style.secret(t.id) || t.id.equals(Style.savedId(this))) shown.add(t);
+
+        // Light/Dark/Auto are the everyday appearance choices. Keep the theme
+        // picker only when needed to leave or describe the hidden night theme.
+        if (shown.size() == 1 && !Style.isTransient()) return;
+        content.addView(sectionLabel(getString(R.string.cfg_theme_selection_header)));
+        TextView sub = new TextView(this);
+        sub.setTextColor(Style.TEXT_DIM); sub.setTextSize(18);
+        sub.setText(getString(R.string.cfg_theme_sub));
+        content.addView(sub);
 
         LinearLayout row = null;
         for (int i = 0; i < shown.size(); i++) {
@@ -2502,7 +2293,7 @@ public class TelemetryActivity extends Activity {
         }
 
         TextView note = new TextView(this);
-        note.setTextColor(Style.TEXT_DIM); note.setTextSize(13);
+        note.setTextColor(Style.TEXT_DIM); note.setTextSize(18);
         note.setPadding(0, Style.dp(this, 14), 0, 0);
         note.setText(getString(Style.FOLLOW_AMBIENT
             ? R.string.cfg_theme_ambient_on : R.string.cfg_theme_ambient_off));
@@ -2532,15 +2323,17 @@ public class TelemetryActivity extends Activity {
 
         TextView name = new TextView(this);
         // t.name is a proper name ("Geely", "Noturno"…): not translated, it only gets the selected marker
-        name.setText(sel ? getString(R.string.cfg_theme_selected, t.name) : t.name);
-        name.setTextColor(sel ? Style.ACCENT : Style.TEXT); name.setTextSize(18);
-        name.setTypeface(null, android.graphics.Typeface.BOLD);
+        String themeName = getString("geely".equals(t.id) ? R.string.ui_theme_minimal
+            : R.string.ui_theme_night);
+        name.setText(sel ? getString(R.string.cfg_theme_selected, themeName) : themeName);
+        name.setTextColor(sel ? Style.ACCENT : Style.TEXT); name.setTextSize(24);
+        name.setTypeface(name.getTypeface(), android.graphics.Typeface.BOLD);
         name.setPadding(0, Style.dp(this, 8), 0, 0);
         col.addView(name);
 
         TextView blurb = new TextView(this);
         blurb.setText(getString(t.blurbRes));
-        blurb.setTextColor(Style.TEXT_DIM); blurb.setTextSize(13);
+        blurb.setTextColor(Style.TEXT_DIM); blurb.setTextSize(18);
         col.addView(blurb);
 
         col.setOnClickListener(v -> pickTheme(t));
@@ -2574,6 +2367,16 @@ public class TelemetryActivity extends Activity {
             getIntent().putExtra("section", SEC_LOOK);
             recreate();
         });
+        int iconRes = Style.APPEARANCE_LIGHT.equals(mode) ? R.drawable.ic_weather_sunny
+            : Style.APPEARANCE_DARK.equals(mode) ? R.drawable.ic_dashboard_moon : R.drawable.ic_tesla_display;
+        android.graphics.drawable.Drawable icon = getDrawable(iconRes).mutate();
+        icon.setTint(sel ? Style.onFill(Style.CARD_ON) : Style.TEXT);
+        icon.setBounds(0, 0, Style.dp(this, 28), Style.dp(this, 28));
+        b.setCompoundDrawablesRelative(null, icon, null, null);
+        b.setCompoundDrawablePadding(Style.dp(this, 8));
+        b.setTextSize(22);
+        b.setMinHeight(Style.dp(this, 104));
+        b.setSelected(sel);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
             0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         int m = Style.dp(this, 5);
@@ -2586,19 +2389,60 @@ public class TelemetryActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, Style.dp(this, 8), 0, Style.dp(this, 8));
+        row.setPadding(Style.dp(this, 22), Style.dp(this, 12), Style.dp(this, 16), Style.dp(this, 12));
+        row.setBackground(Style.card(Style.CARD, this, 20));
+        row.setMinimumHeight(Style.dp(this, 88));
+        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        rowLp.bottomMargin = Style.dp(this, 12);
+        row.setLayoutParams(rowLp);
         GeelySwitch sw = new GeelySwitch(this);
         sw.setLockSeconds(prefs.getInt("switch_lock_s", GeelySwitch.DEFAULT_LOCK_S));
         sw.setCheckedSilently(on);
         sw.setOnToggle(cb);
-        row.addView(sw);
+        sw.setContentDescription(label);
         TextView lbl = Style.label(this, label);
+        lbl.setTextSize(21);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.leftMargin = Style.dp(this, 14);
-        lbl.setLayoutParams(lp);
-        row.addView(lbl);
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        lp.rightMargin = Style.dp(this, 24);
+        row.addView(lbl, lp);
+        row.addView(sw);
         return row;
+    }
+
+    private View settingTile(int iconRes, int labelRes, boolean on, GeelySwitch.OnToggle cb) {
+        LinearLayout row = toggleRow(getString(labelRes), on, cb);
+        TextView label = (TextView) row.getChildAt(0);
+        android.graphics.drawable.Drawable icon = getDrawable(iconRes).mutate();
+        icon.setTint(Style.TEXT);
+        icon.setBounds(0, 0, Style.dp(this, 30), Style.dp(this, 30));
+        label.setCompoundDrawablesRelative(icon, null, null, null);
+        label.setCompoundDrawablePadding(Style.dp(this, 16));
+        return row;
+    }
+
+    /** Two-column settings grid, falling back to a list on narrower head units. */
+    private void addSettingTiles(View... tiles) {
+        float availableDp = getResources().getDisplayMetrics().widthPixels
+            / getResources().getDisplayMetrics().density - 372;
+        int columns = availableDp >= 900 ? 2 : 1;
+        LinearLayout row = null;
+        for (int i = 0; i < tiles.length; i++) {
+            if (i % columns == 0) {
+                row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                content.addView(row);
+            }
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            lp.setMargins(0, 0, i % columns == 0 && columns == 2 ? Style.dp(this, 16) : 0,
+                Style.dp(this, 14));
+            row.addView(tiles[i], lp);
+        }
+        if (columns == 2 && tiles.length % 2 != 0 && row != null) {
+            row.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
+        }
     }
 
     // =====================================================================
@@ -2620,7 +2464,7 @@ public class TelemetryActivity extends Activity {
     private TextView action(String label, int color, Runnable onClick) {
         TextView t = new TextView(this);
         t.setText(label); t.setTextColor(Style.onFill(color)); t.setTextSize(18);
-        t.setTypeface(null, android.graphics.Typeface.BOLD);
+        t.setTypeface(t.getTypeface(), android.graphics.Typeface.BOLD);
         t.setGravity(Gravity.CENTER);
         t.setBackground(Style.card(color, this));
         int pv = Style.dp(this, 16);
@@ -2636,7 +2480,7 @@ public class TelemetryActivity extends Activity {
     private TextView button(String label, int color, Runnable onClick) {
         TextView t = new TextView(this);
         t.setText(label); t.setTextColor(Style.onFill(color)); t.setTextSize(15);
-        t.setTypeface(null, android.graphics.Typeface.BOLD);
+        t.setTypeface(t.getTypeface(), android.graphics.Typeface.BOLD);
         t.setGravity(Gravity.CENTER);
         t.setBackground(Style.card(color, this));
         int ph = Style.dp(this, 18);
@@ -2661,7 +2505,7 @@ public class TelemetryActivity extends Activity {
                     tryImportBytes(bytes, null);
                 }
             } catch (Throwable t) {
-                showErrorDialog("Erro ao carregar arquivo selecionado: " + t.getMessage());
+                showErrorDialog(getString(R.string.ui_file_load_failed, t.getMessage()));
             }
         }
     }
@@ -2669,6 +2513,10 @@ public class TelemetryActivity extends Activity {
     // Refreshes status lines after returning from external activities
     @Override protected void onResume() {
         super.onResume();
+        if (dashcamPanel != null) {
+            dashcamPanel.start();
+        }
+        if (vehicleControls != null && vehicleControls.isAttachedToWindow()) vehicleControls.start();
         if (spotifyStatus != null) {
             spotifyStatus.setText(getString(SpotifyClient.connected(this)
                 ? R.string.cfg_spotify_status_on : R.string.cfg_spotify_status_off));
@@ -2676,12 +2524,22 @@ public class TelemetryActivity extends Activity {
         refreshCertUi();
     }
 
-    @Override protected void onDestroy() {
-        super.onDestroy();
-        if (carActorSubscribed) {
-            EntityBus.unsubscribe("car.drive_mode", driveListener);
-            EntityBus.unsubscribe("car.regen_mode", regenListener);
+    @Override protected void onPause() {
+        saveTurboDuration(true);
+        if (dashcamPanel != null) {
+            dashcamPanel.stop();
         }
+        if (vehicleControls != null) vehicleControls.stop();
+        super.onPause();
+    }
+
+    @Override protected void onDestroy() {
+        if (languagePopup != null) languagePopup.dismiss();
+        if (dashcamPanel != null) {
+            dashcamPanel.stop();
+        }
+        super.onDestroy();
+        if (vehicleControls != null) vehicleControls.stop();
         if (obdListener != null) Obd2Reader.unsubscribe(obdListener);
         if (obdDebugListener != null) Obd2Reader.unsubscribe(obdDebugListener);
         if (abrpDebugListener != null) AbrpUploader.unsubscribe(abrpDebugListener);

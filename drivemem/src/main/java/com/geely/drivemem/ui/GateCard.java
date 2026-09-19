@@ -69,12 +69,12 @@ public class GateCard extends LinearLayout {
         title.setText(context.getString(R.string.gate_title));
         title.setTextColor(Style.TEXT);
         title.setTextSize(28);
-        title.setTypeface(null, Typeface.BOLD);
+        title.setTypeface(title.getTypeface(), Typeface.BOLD);
         addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         gateStatusView = new TextView(context);
         gateStatusView.setTextSize(22);
-        gateStatusView.setTypeface(null, Typeface.BOLD);
+        gateStatusView.setTypeface(gateStatusView.getTypeface(), Typeface.BOLD);
         gateStatusView.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
         addView(gateStatusView, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));

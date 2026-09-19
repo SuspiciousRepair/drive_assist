@@ -101,6 +101,13 @@ android {
         buildConfig true
     }
 
+    // Keep every language available offline when switching inside the app.
+    bundle {
+        language {
+            enableSplit false
+        }
+    }
+
     signingConfigs {
         release {
             // Prefer the configured release identity. The local debug key is

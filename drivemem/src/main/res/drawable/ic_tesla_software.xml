@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adapted from cppqtdev/Tesla-Dashboard-UI-3: other_icons/Icon=software, Color=white.svg. See docs/UI-REFERENCES.md. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="28dp" android:height="28dp" android:viewportWidth="49" android:viewportHeight="48">
+    <path android:pathData="M35.3387 22L33.4587 20.12L26.0054 27.56V11.3334H23.3387V27.56L15.8987 20.1067L14.0054 22L24.672 32.6667L35.3387 22Z" android:fillColor="#FFFFFFFF" />
+    <path android:pathData="M35.3387 36.6667L14.0054 36.6667L14.0054 34L35.3387 34V36.6667Z" android:fillColor="#FFFFFFFF" android:fillType="evenOdd" />
+</vector>

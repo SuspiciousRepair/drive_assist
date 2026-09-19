@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adapted from cppqtdev/Tesla-Dashboard-UI-3: other_icons/Icon=power, Color=white.svg. See docs/UI-REFERENCES.md. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="28dp" android:height="28dp" android:viewportWidth="49" android:viewportHeight="48">
+    <path android:pathData="M24.9152 19.6153V5L15.7493 27.0001C15.4749 27.6587 15.9589 28.3847 16.6724 28.3847H24.428V43L33.5939 20.9999C33.8683 20.3413 33.3844 19.6153 32.6708 19.6153H24.9152Z" android:fillColor="#FFFFFFFF" android:fillType="evenOdd" />
+</vector>

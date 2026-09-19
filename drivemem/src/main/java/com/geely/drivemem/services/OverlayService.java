@@ -334,7 +334,7 @@ public final class OverlayService extends Service {
         btn.setText(getString(R.string.overlay_open_app));
         btn.setTextColor(Style.TEXT);
         btn.setTextSize(16);
-        btn.setTypeface(null, android.graphics.Typeface.BOLD);
+        btn.setTypeface(btn.getTypeface(), android.graphics.Typeface.BOLD);
         btn.setGravity(Gravity.CENTER);
         int padV = Style.dp(this, 16);
         btn.setPadding(0, padV, 0, padV);

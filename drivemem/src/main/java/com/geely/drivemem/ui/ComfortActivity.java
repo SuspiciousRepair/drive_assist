@@ -36,7 +36,6 @@ import com.geely.drivemem.util.SpotifyClient;
 import com.geely.drivemem.net.Updater;
 import com.geely.drivemem.util.Style;
 
-import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -59,7 +58,7 @@ import java.util.Locale;
 /** Main climate control screen with CarPlay-style card layout. Displays
  * HVAC controls (temperature, fan, recirculation), window purge, turbo/regen
  * mode, music playback, charging status, gate access, and HA context cards. */
-public class ComfortActivity extends Activity {
+public class ComfortActivity extends LocalizedActivity {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private SharedPreferences prefs;
     private TextView hint;
@@ -88,7 +87,12 @@ public class ComfortActivity extends Activity {
     private static final int MODE_CARDS = 0;
     private static final int MODE_DRIVING_STATS = 1;
     private static final int MODE_CHARGE_STATS = 2;
-    private int mainViewMode = MODE_CARDS;
+    private static final int MODE_VEHICLE_CONTROLS = 3;
+    private int mainViewMode = -1;
+    private LinearLayout vehicleHomeContainer;
+    private VehicleControlsView homeVehicleControls;
+    private VehicleEnergyView homeEnergy;
+    private android.widget.ImageView vehicleDockIcon;
 
     private android.widget.ImageView haStatusIcon, abrpStatusIcon, obd2StatusIcon;
     private android.widget.ImageView cardsDockIcon, statsDockIcon, chargeDockIcon;
@@ -97,9 +101,9 @@ public class ComfortActivity extends Activity {
     private ChargeStatsView chargeStatsView;
     private FrameLayout chargeStatsContainer;
     private FrameLayout konamiZone;
-    // purge: one button, both directions. The Purge object holds where each pane
-    // was before it moved, so closing puts them back rather than shutting them.
+    // The home tile opens per-pane and grouped window controls.
     private android.widget.ImageView purgeBtn;
+    private android.app.AlertDialog windowDialog;
     // Real per-area readings, kept only to answer "is ANY window still open"
     // without re-reading the car — filled by car.window_pos pushes.
     private final java.util.Map<Integer, Integer> windowPos = new java.util.HashMap<>();
@@ -189,7 +193,9 @@ public class ComfortActivity extends Activity {
         // -- the toggle only ever hides the skyline other themes use.
         boolean noturno = Style.ART == Style.ART_VAPOR;
         boolean showSkyline = noturno || prefs.getBoolean("skyline_enabled", true);
-        art = noturno ? new VaporArtView(this) : (showSkyline ? new SkylineArtView(this) : null);
+        art = noturno ? new VaporArtView(this)
+            : ("geely".equals(Style.current().id) ? new com.geely.drivemem.art.VehicleArtView(this)
+                : (showSkyline ? new SkylineArtView(this) : null));
         fullBleed = art != null && art.fullBleed();
 
         Style.edgeToEdge(this);
@@ -245,7 +251,7 @@ public class ComfortActivity extends Activity {
         // Portão's visibility changes, allowing Turbo to reclaim its slot
         // when Portão is hidden. This reflowing avoids leaving gaps.
         cards = new java.util.ArrayList<>();
-        cards.add(climaCard());
+        LinearLayout homeClimate = climateBar();
         gateCard = new GateCard(this);
         gateCard.setOnHintListener(msg -> hint.setText(msg));
         lastGateAvailable = gateVisible();
@@ -270,6 +276,49 @@ public class ComfortActivity extends Activity {
 
         repackColumns();
         screen.addView(band, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        // Home gives driving controls the larger left column and Energy the
+        // right column. The climate strip stays fixed below both cards.
+        vehicleHomeContainer = new LinearLayout(this);
+        vehicleHomeContainer.setOrientation(LinearLayout.VERTICAL);
+        vehicleHomeContainer.setPadding(sidebarClearance, padTop + Style.statusBarHeight(this), padH, padV);
+        android.widget.ScrollView vehicleScroll = new android.widget.ScrollView(this);
+        vehicleScroll.setFillViewport(false);
+        vehicleScroll.setVerticalScrollBarEnabled(false);
+        LinearLayout vehiclePage = new LinearLayout(this);
+        vehiclePage.setOrientation(LinearLayout.VERTICAL);
+        TextView vehicleTitle = Style.title(this, getString(R.string.ui_vehicle_controls));
+        vehicleTitle.setPadding(0, Style.dp(this, 6), 0, Style.dp(this, 12));
+        vehiclePage.addView(vehicleTitle);
+        boolean sideBySide = getResources().getDisplayMetrics().widthPixels - sidebarClearance - padH
+            >= Style.dp(this, 1480);
+        LinearLayout vehicleColumns = new LinearLayout(this);
+        vehicleColumns.setOrientation(sideBySide ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+        vehicleColumns.setGravity(Gravity.TOP);
+        vehiclePage.addView(vehicleColumns);
+        homeVehicleControls = new VehicleControlsView(this);
+        int controlInset = Style.dp(this, 20);
+        homeVehicleControls.setPadding(controlInset, controlInset, controlInset, controlInset);
+        homeVehicleControls.setBackground(Style.card(Style.CARD, this, 24));
+        vehicleColumns.addView(homeVehicleControls, sideBySide
+            ? new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.68f)
+            : new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        homeEnergy = new VehicleEnergyView(this);
+        LinearLayout.LayoutParams energyLp = sideBySide
+            ? new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 0.32f)
+            : new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        if (sideBySide) energyLp.leftMargin = Style.dp(this, 20);
+        else energyLp.topMargin = Style.dp(this, 20);
+        vehicleColumns.addView(homeEnergy, energyLp);
+        vehicleScroll.addView(vehiclePage);
+        vehicleHomeContainer.addView(vehicleScroll, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        LinearLayout.LayoutParams climateLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        climateLp.topMargin = Style.dp(this, 16);
+        vehicleHomeContainer.addView(homeClimate, climateLp);
+        screen.addView(vehicleHomeContainer, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         // Daily Statistics view on home screen (swappable with band cards)
@@ -346,6 +395,8 @@ public class ComfortActivity extends Activity {
             sizeKonamiZone(konamiZone);
         }
 
+        setMainViewMode(b == null ? MODE_VEHICLE_CONTROLS
+            : b.getInt("main_view_mode", MODE_VEHICLE_CONTROLS));
         setContentView(screen);
 
         CarActor.get(this).runOnCarThread(() -> {
@@ -373,6 +424,7 @@ public class ComfortActivity extends Activity {
     // repackColumns() retries via post(). Runs once; the zone's width never
     // needs to change again after that (it does not track cards at all).
     private void sizeKonamiZone(FrameLayout zone) {
+        if (band.getVisibility() == View.GONE) return;
         int w = columnWidth();
         if (w <= 0) { band.post(() -> sizeKonamiZone(zone)); return; }
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) zone.getLayoutParams();
@@ -396,6 +448,7 @@ public class ComfortActivity extends Activity {
     // retrying via post() until that's actually available (band has no
     // real width on the very first onCreate pass).
     private void repackColumns() {
+        if (band.getVisibility() == View.GONE) return;
         int availH = columns.getHeight();
         int colW = columnWidth();
         if (availH <= 0 || colW <= 0) {
@@ -405,26 +458,43 @@ public class ComfortActivity extends Activity {
         Style.packIntoColumns(this, columns, cards, colW, availH);
     }
 
-    // The Clima card: title, outside temp, the effort scale, the two ask tiles
-    // (cooler/warmer) and the two switch tiles (recirculate/purge), the cog to
-    // Config. See the handoff README, "Clima card", for every number here.
-    private LinearLayout climaCard() {
+    // Home climate strip: outside temperature, the effort scale, and four
+    // labelled controls. Vehicle reads/writes are shared with the former card.
+    private LinearLayout climateBar() {
         LinearLayout c = new LinearLayout(this);
         c.setOrientation(LinearLayout.VERTICAL);
         // 26, not the handoff's 38 — see the ScrollView comment in onCreate:
         // with Turbo added, 38 everywhere left no room before the car's own
         // bottom bar without scrolling. This trims "air" (padding, gaps), not
         // the ❄/☀ and switch tiles — those are touch targets, not whitespace.
-        int pad = Style.dp(this, 26);
+        int pad = Style.dp(this, 18);
         c.setPadding(pad, pad, pad, pad);
         c.setBackground(Style.card(Style.cardFillColor(), this));
 
+        LinearLayout strip = new LinearLayout(this);
+        strip.setOrientation(LinearLayout.HORIZONTAL);
+        strip.setGravity(Gravity.CENTER_VERTICAL);
+        c.addView(strip);
+        LinearLayout temperature = new LinearLayout(this);
+        temperature.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams temperatureLp = new LinearLayout.LayoutParams(
+            Style.dp(this, 280), ViewGroup.LayoutParams.WRAP_CONTENT);
+        temperatureLp.rightMargin = Style.dp(this, 18);
+        strip.addView(temperature, temperatureLp);
+
         // The outside reading up front: it is the only thermometer this car has.
+        TextView climateTitle = new TextView(this);
+        climateTitle.setText(R.string.ac_title);
+        climateTitle.setTextSize(26);
+        climateTitle.setTextColor(Style.TEXT);
+        climateTitle.setTypeface(Style.font(this));
+        temperature.addView(climateTitle);
+        Style.gap(temperature, this, 4);
         LinearLayout tempRow = new LinearLayout(this);
         tempRow.setOrientation(LinearLayout.HORIZONTAL);
         tempRow.setGravity(Gravity.BOTTOM);       // approximates the mock's baseline align
         bigOutside = new TextView(this);
-        bigOutside.setTextColor(Style.TEXT); bigOutside.setTextSize(112);
+        bigOutside.setTextColor(Style.TEXT); bigOutside.setTextSize(42);
         bigOutside.setLetterSpacing(-0.04f);
         // "--" (no reading) and "°" do NOT go to strings.xml: they are a marker
         // and a unit, the same in any language — and the "--" is already born
@@ -432,21 +502,20 @@ public class ComfortActivity extends Activity {
         bigOutside.setText("--°");
         tempRow.addView(bigOutside);
         TextView outsideLbl = new TextView(this);
-        outsideLbl.setTextColor(Style.TEXT_DIM); outsideLbl.setTextSize(26);
+        outsideLbl.setTextColor(Style.TEXT_DIM); outsideLbl.setTextSize(18);
         outsideLbl.setText(getString(R.string.ac_outside_label));
-        outsideLbl.setPadding(Style.dp(this, 16), 0, 0, Style.dp(this, 16));
+        outsideLbl.setPadding(Style.dp(this, 10), 0, 0, Style.dp(this, 8));
         tempRow.addView(outsideLbl);
-        c.addView(tempRow);
-        Style.gap(c, this, 18);
+        temperature.addView(tempRow);
 
         // The effort scale: drawn into a Bitmap, same idiom as the old ruler —
         // needs the width already measured, redrawn only when something in it
         // actually changed (see redrawScale()).
         scaleView = new android.widget.ImageView(this);
+        scaleView.addOnLayoutChangeListener((changedView, newLeft, newTop, newRight, newBottom, oldLeft, oldTop, oldRight, oldBottom) -> redrawScale());
         scaleView.setLayoutParams(new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 15)));
-        c.addView(scaleView);
-        Style.gap(c, this, 18);
+        temperature.addView(scaleView);
 
         // Ask row: glyph only, no text label, no coloured outline — side carries
         // the direction, icons tinted Style.TEXT to match the other buttons in
@@ -455,10 +524,9 @@ public class ComfortActivity extends Activity {
         // contradictory writes, not delaying the tap (see ComfortRuler).
         LinearLayout askRow = new LinearLayout(this);
         askRow.setOrientation(LinearLayout.HORIZONTAL);
-        askRow.addView(iconTileVector(R.drawable.ic_snowflake, Style.TEXT, +1), tileLp(96, 0));
-        askRow.addView(iconTileVector(R.drawable.ic_weather_sunny, Style.TEXT, -1), tileLp(96, 14));
-        c.addView(askRow);
-        Style.gap(c, this, 18);
+        askRow.addView(labeledControl(iconTileVector(R.drawable.ic_snowflake, Style.TEXT, +1), R.string.ac_cooler), tileLp(108, 0));
+        askRow.addView(labeledControl(iconTileVector(R.drawable.ic_weather_sunny, Style.TEXT, -1), R.string.ac_warmer), tileLp(108, 14));
+        strip.addView(askRow, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         // Switch row: recirculation and the window purge, now living with the
         // climate conversation instead of a separate commands column.
@@ -477,36 +545,17 @@ public class ComfortActivity extends Activity {
                 });
             });
         });
-        switchRow.addView(recircBtn, tileLp(96, 0));
+        switchRow.addView(labeledControl(recircBtn, R.string.ac_recirc_label), tileLp(108, 0));
         purgeBtn = iconSwitchTile(R.drawable.ic_window_lower, 7);
         purgeBtn.setOnClickListener(v -> {
-            purgeBtn.setEnabled(false);      // the glass takes seconds; one press is one move
-            CarActor.get(this).runOnCarThread(() -> {
-                CarAccess pc = CarActor.get(this).rawAccess();
-                // WHICH WAY THE BUTTON ACTS IS READ, NOT REMEMBERED. A hand can
-                // move a window, and the car shuts them all on lock, so a stored
-                // flag would be wrong exactly when it mattered.
-                final Boolean was = purge.anyOpen(pc);
-                final int moved = (was == null) ? 0
-                                : was ? purge.close(pc) : purge.open(pc);
-                ui.post(() -> {
-                    hint.setText(was == null ? getString(R.string.purge_unreadable)
-                        : moved == 0 ? getString(R.string.purge_nothing)
-                        : was ? getString(R.string.purge_closing)
-                              : getString(R.string.purge_opening));
-                    purgeBtn.setEnabled(true);
-                    // The icon itself updates from car.window_pos pushes
-                    // (windowPosListener) the instant the glass actually
-                    // crosses the open/shut line — not this click, not a
-                    // timer. That is the real "the car senses it faster"
-                    // answer: the old delay was the ~10s ambient poll being
-                    // the only thing that ever re-read the property.
-                });
-            });
+            if (windowDialog == null || !windowDialog.isShowing()) {
+                windowDialog = WindowControlsDialog.show(this);
+            }
         });
-        switchRow.addView(purgeBtn, tileLp(96, 14));
-        c.addView(switchRow);
-        Style.gap(c, this, 18);
+        switchRow.addView(labeledControl(purgeBtn, R.string.windows_title), tileLp(108, 14));
+        LinearLayout.LayoutParams switchesLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        switchesLp.leftMargin = Style.dp(this, 14);
+        strip.addView(switchRow, switchesLp);
 
         // Footer: airflow direction, rear defroster, and status hint text
         LinearLayout footer = new LinearLayout(this);
@@ -538,7 +587,7 @@ public class ComfortActivity extends Activity {
         footer.addView(rearDefrostIcon);
 
         hint = new TextView(this);
-        hint.setTextColor(Style.TEXT_DIM); hint.setTextSize(20);
+        hint.setTextColor(Style.TEXT_DIM); hint.setTextSize(18);
         footer.addView(hint);
         c.addView(footer);
 
@@ -591,10 +640,17 @@ public class ComfortActivity extends Activity {
         bar.addView(spacerTop, new LinearLayout.LayoutParams(0, 0, 1f));
 
         // CarPlay-style middle dock with larger icons almost as wide as the bar (84dp)
-        cardsDockIcon = createDockButton(R.drawable.ic_cards_view, () -> setMainViewMode(MODE_CARDS));
-        statsDockIcon = createDockButton(R.drawable.ic_chart_bar, () -> setMainViewMode(MODE_DRIVING_STATS));
-        chargeDockIcon = createDockButton(R.drawable.ic_ev_station, () -> setMainViewMode(MODE_CHARGE_STATS));
+        vehicleDockIcon = createDockButton(R.drawable.ic_tesla_vehicle, () -> setMainViewMode(MODE_VEHICLE_CONTROLS));
+        vehicleDockIcon.setContentDescription(getString(R.string.ui_home));
+        cardsDockIcon = createDockButton(R.drawable.ic_tesla_controls, () -> setMainViewMode(MODE_CARDS));
+        statsDockIcon = createDockButton(R.drawable.ic_tesla_trip, () -> setMainViewMode(MODE_DRIVING_STATS));
+        chargeDockIcon = createDockButton(R.drawable.ic_tesla_power, () -> setMainViewMode(MODE_CHARGE_STATS));
+        cardsDockIcon.setContentDescription(getString(R.string.ui_other_controls));
+        statsDockIcon.setContentDescription(getString(R.string.cfg_nav_stats));
+        chargeDockIcon.setContentDescription(getString(R.string.cfg_nav_charge));
 
+        bar.addView(vehicleDockIcon);
+        Style.gap(bar, this, 14);
         bar.addView(cardsDockIcon);
         Style.gap(bar, this, 14);
         bar.addView(statsDockIcon);
@@ -631,29 +687,31 @@ public class ComfortActivity extends Activity {
     private void setMainViewMode(int mode) {
         if (mainViewMode == mode) return;
         mainViewMode = mode;
-        if (mainViewMode == MODE_DRIVING_STATS) {
-            band.setVisibility(View.GONE);
-            statsContainer.setVisibility(View.VISIBLE);
-            chargeStatsContainer.setVisibility(View.GONE);
-            if (konamiZone != null) konamiZone.setVisibility(View.GONE);
-            if (dailyStatsView != null) dailyStatsView.refresh();
-        } else if (mainViewMode == MODE_CHARGE_STATS) {
-            band.setVisibility(View.GONE);
-            statsContainer.setVisibility(View.GONE);
-            chargeStatsContainer.setVisibility(View.VISIBLE);
-            if (konamiZone != null) konamiZone.setVisibility(View.GONE);
-            if (chargeStatsView != null) chargeStatsView.refresh();
-        } else {
-            statsContainer.setVisibility(View.GONE);
-            chargeStatsContainer.setVisibility(View.GONE);
-            band.setVisibility(View.VISIBLE);
-            if (konamiZone != null) konamiZone.setVisibility(View.VISIBLE);
+        boolean cardsVisible = mode == MODE_CARDS;
+        band.setVisibility(cardsVisible ? View.VISIBLE : View.GONE);
+        if (cardsVisible) {
+            band.post(this::repackColumns);
+            if (konamiZone != null) band.post(() -> sizeKonamiZone(konamiZone));
         }
+        if (art != null) art.setVisibility(cardsVisible ? View.VISIBLE : View.GONE);
+        if (konamiZone != null) konamiZone.setVisibility(cardsVisible ? View.VISIBLE : View.GONE);
+        vehicleHomeContainer.setVisibility(mode == MODE_VEHICLE_CONTROLS ? View.VISIBLE : View.GONE);
+        statsContainer.setVisibility(mode == MODE_DRIVING_STATS ? View.VISIBLE : View.GONE);
+        chargeStatsContainer.setVisibility(mode == MODE_CHARGE_STATS ? View.VISIBLE : View.GONE);
+        if (mode == MODE_DRIVING_STATS && dailyStatsView != null) dailyStatsView.refresh();
+        if (mode == MODE_CHARGE_STATS && chargeStatsView != null) chargeStatsView.refresh();
         updateDockButtons();
+    }
+
+    @Override protected void onSaveInstanceState(Bundle out) {
+        out.putInt("main_view_mode", mainViewMode);
+        super.onSaveInstanceState(out);
     }
 
     private void updateDockButtons() {
         if (cardsDockIcon == null || statsDockIcon == null || chargeDockIcon == null) return;
+        vehicleDockIcon.setBackground(Style.card(mainViewMode == MODE_VEHICLE_CONTROLS ? Style.CARD_ON : 0x00000000, this, 18));
+        vehicleDockIcon.setColorFilter(mainViewMode == MODE_VEHICLE_CONTROLS ? Style.onFill(Style.CARD_ON) : Style.TEXT_DIM);
         cardsDockIcon.setBackground(Style.card(mainViewMode == MODE_CARDS ? Style.CARD_ON : 0x00000000, this, 18));
         cardsDockIcon.setColorFilter(mainViewMode == MODE_CARDS ? Style.onFill(Style.CARD_ON) : Style.TEXT_DIM);
 
@@ -732,7 +790,7 @@ public class ComfortActivity extends Activity {
     private LinearLayout turboCard() {
         LinearLayout t = new LinearLayout(this);
         t.setOrientation(LinearLayout.HORIZONTAL);
-        int pad = Style.dp(this, 26);   // trimmed from the handoff's 38 — see climaCard()
+        int pad = Style.dp(this, 26);
         t.setPadding(pad, pad, pad, pad);
         t.setBackground(Style.card(Style.cardFillColor(), this));
 
@@ -747,15 +805,17 @@ public class ComfortActivity extends Activity {
         TextView title = new TextView(this);
         title.setText(getString(R.string.turbo_title));
         title.setTextColor(Style.TEXT); title.setTextSize(28);
-        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
         row.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView glyph = new TextView(this);
-        // "⚡" is an icon, not prose — same as Sport mode's glyph in Config.
-        glyph.setText("⚡"); glyph.setTextColor(Style.ACCENT); glyph.setTextSize(34);
-        row.addView(glyph);
+        android.widget.ImageView glyph = new android.widget.ImageView(this);
+        glyph.setImageResource(R.drawable.ic_power_plug);
+        glyph.setColorFilter(Style.ACCENT);
+        row.addView(glyph, new LinearLayout.LayoutParams(Style.dp(this, 32), Style.dp(this, 32)));
         left.addView(row);
 
         turboBarView = new android.widget.ImageView(this);
+        turboBarView.addOnLayoutChangeListener((changedView, newLeft, newTop, newRight, newBottom, oldLeft, oldTop, oldRight, oldBottom) ->
+            redrawTurboBar(turboBarFraction < 0 ? 1f : turboBarFraction));
         // ALWAYS visible, fixed height — never GONE. It used to hide while
         // idle, which changed the Turbo card's height at runtime; packColumns()
         // only measures once, at build time, so the card grew taller than its
@@ -794,7 +854,7 @@ public class ComfortActivity extends Activity {
         TextView regenTitle = new TextView(this);
         regenTitle.setText(getString(R.string.regen_boost_title));
         regenTitle.setTextColor(Style.TEXT); regenTitle.setTextSize(28);
-        regenTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        regenTitle.setTypeface(regenTitle.getTypeface(), android.graphics.Typeface.BOLD);
         regenRow.addView(regenTitle, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         TextView regenGlyph = new TextView(this);
         // Same glyph Config's own regen picker uses for High — retinted
@@ -887,7 +947,7 @@ public class ComfortActivity extends Activity {
         textCol.setGravity(Gravity.CENTER_VERTICAL);
         musicTitleView = new TextView(this);
         musicTitleView.setTextColor(Style.TEXT); musicTitleView.setTextSize(25);
-        musicTitleView.setTypeface(null, android.graphics.Typeface.BOLD);
+        musicTitleView.setTypeface(musicTitleView.getTypeface(), android.graphics.Typeface.BOLD);
         musicTitleView.setMaxLines(1);
         musicTitleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         textCol.addView(musicTitleView);
@@ -930,11 +990,12 @@ public class ComfortActivity extends Activity {
         chargeCardTitle = new TextView(this);
         chargeCardTitle.setText(getString(R.string.charge_card_title));
         chargeCardTitle.setTextColor(Style.TEXT); chargeCardTitle.setTextSize(22);
-        chargeCardTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        chargeCardTitle.setTypeface(chargeCardTitle.getTypeface(), android.graphics.Typeface.BOLD);
         row.addView(chargeCardTitle, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView glyph = new TextView(this);
-        glyph.setText("🔋"); glyph.setTextSize(28);
-        row.addView(glyph);
+        android.widget.ImageView glyph = new android.widget.ImageView(this);
+        glyph.setImageResource(R.drawable.ic_ev_station);
+        glyph.setColorFilter(Style.TEXT_DIM);
+        row.addView(glyph, new LinearLayout.LayoutParams(Style.dp(this, 30), Style.dp(this, 30)));
         m.addView(row);
 
         // --- Active charging layout ---
@@ -943,11 +1004,14 @@ public class ComfortActivity extends Activity {
 
         chargeSocView = new TextView(this);
         chargeSocView.setTextColor(Style.TEXT); chargeSocView.setTextSize(52);
-        chargeSocView.setTypeface(null, android.graphics.Typeface.BOLD);
+        chargeSocView.setTypeface(chargeSocView.getTypeface(), android.graphics.Typeface.BOLD);
         chargeSocView.setPadding(0, Style.dp(this, 4), 0, 0);
         chargeActiveLayout.addView(chargeSocView);
 
         chargeBarView = new android.widget.ImageView(this);
+        chargeBarView.addOnLayoutChangeListener((changedView, newLeft, newTop, newRight, newBottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            if (chargeBarStart >= 0) redrawChargeBar(chargeBarStart, chargeBarNow);
+        });
         LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 14));
         barLp.topMargin = Style.dp(this, 10);
@@ -976,7 +1040,7 @@ public class ComfortActivity extends Activity {
         chargeCompletedMetrics = new TextView(this);
         chargeCompletedMetrics.setTextColor(Style.TEXT);
         chargeCompletedMetrics.setTextSize(20);
-        chargeCompletedMetrics.setTypeface(null, android.graphics.Typeface.BOLD);
+        chargeCompletedMetrics.setTypeface(chargeCompletedMetrics.getTypeface(), android.graphics.Typeface.BOLD);
         chargeCompletedMetrics.setPadding(0, Style.dp(this, 12), 0, Style.dp(this, 4));
         chargeCompletedLayout.addView(chargeCompletedMetrics);
 
@@ -1039,7 +1103,7 @@ public class ComfortActivity extends Activity {
         journeyTitle = new TextView(this);
         journeyTitle.setTextColor(Style.TEXT);
         journeyTitle.setTextSize(21);
-        journeyTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        journeyTitle.setTypeface(journeyTitle.getTypeface(), android.graphics.Typeface.BOLD);
         heading.addView(journeyTitle, new LinearLayout.LayoutParams(0,
             ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         journeyDismiss = new TextView(this);
@@ -1057,7 +1121,7 @@ public class ComfortActivity extends Activity {
         journeyPrimary = new TextView(this);
         journeyPrimary.setTextColor(Style.TEXT);
         journeyPrimary.setTextSize(30);
-        journeyPrimary.setTypeface(null, android.graphics.Typeface.BOLD);
+        journeyPrimary.setTypeface(journeyPrimary.getTypeface(), android.graphics.Typeface.BOLD);
         card.addView(journeyPrimary);
         journeySecondary = new TextView(this);
         journeySecondary.setTextColor(Style.TEXT_DIM);
@@ -1154,8 +1218,8 @@ public class ComfortActivity extends Activity {
 
     private String formatElapsed(long ms) {
         long minutes = Math.max(0, ms) / 60_000L;
-        return minutes >= 60 ? String.format(Locale.getDefault(), "%dh %02dmin", minutes / 60, minutes % 60)
-            : String.format(Locale.getDefault(), "%d min", minutes);
+        return minutes >= 60 ? getString(R.string.ui_duration_hours, minutes / 60, minutes % 60)
+            : getString(R.string.ui_duration_minutes, minutes);
     }
 
     private String formatClock(long ms) {
@@ -1217,7 +1281,7 @@ public class ComfortActivity extends Activity {
     private TextView switchTile(String label) {
         TextView t = new TextView(this);
         t.setText(label); t.setTextColor(Style.TEXT); t.setTextSize(25);
-        t.setTypeface(null, android.graphics.Typeface.BOLD);
+        t.setTypeface(t.getTypeface(), android.graphics.Typeface.BOLD);
         t.setGravity(Gravity.CENTER);
         t.setBackground(Style.tile(this));
         return t;
@@ -1228,6 +1292,45 @@ public class ComfortActivity extends Activity {
     // text used to be tinted. FIT_CENTER, not CENTER_INSIDE — see
     // statusIcon()'s comment, same bug made this icon render tiny inside a
     // much bigger tile.
+    // Native icon + label tiles, following the reference climate control layout.
+    private LinearLayout labeledControl(android.widget.ImageView icon, int labelRes) {
+        LinearLayout tile = new LinearLayout(this);
+        tile.setOrientation(LinearLayout.VERTICAL);
+        tile.setGravity(Gravity.CENTER);
+        tile.setBackground(Style.tile(this));
+        tile.setPadding(Style.dp(this, 8), Style.dp(this, 6), Style.dp(this, 8), Style.dp(this, 6));
+        icon.setBackground(null);
+        int pad = Style.dp(this, 10);
+        icon.setPadding(pad, pad, pad, pad);
+        tile.addView(icon, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 62)));
+        TextView label = new TextView(this);
+        label.setText(labelRes);
+        label.setTextSize(20);
+        label.setTextColor(Style.TEXT);
+        label.setGravity(Gravity.CENTER);
+        label.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        tile.addView(label, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        icon.setTag(label);
+        icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        tile.setContentDescription(getString(labelRes));
+        tile.setOnClickListener(v -> { if (icon.isEnabled()) icon.performClick(); });
+        return tile;
+    }
+
+    private View controlSurface(android.widget.ImageView icon) {
+        return icon.getTag() instanceof TextView ? (View) icon.getParent() : icon;
+    }
+
+    private void updateControlCaption(android.widget.ImageView icon, int labelRes, int color) {
+        String label = getString(labelRes);
+        controlSurface(icon).setContentDescription(label);
+        if (icon.getTag() instanceof TextView) {
+            TextView caption = (TextView) icon.getTag();
+            caption.setText(label);
+            caption.setTextColor(color);
+        }
+    }
+
     private android.widget.ImageView iconSwitchTile(int drawableRes, int padDp) {
         android.widget.ImageView v = new android.widget.ImageView(this);
         v.setImageResource(drawableRes);
@@ -1249,6 +1352,7 @@ public class ComfortActivity extends Activity {
         v.setPadding(pad, pad, pad, pad);
         v.setBackground(Style.tile(this));
         v.setColorFilter(color, android.graphics.PorterDuff.Mode.SRC_IN);
+        v.setContentDescription(getString(dir > 0 ? R.string.ac_cooler : R.string.ac_warmer));
         v.setOnClickListener(view -> comfortRuler.tap(dir));
         return v;
     }
@@ -1273,7 +1377,7 @@ public class ComfortActivity extends Activity {
     // the answer to a tap: hint text and scale only, no trip to the car (the
     // 10 s refresh takes care of the real values)
     private void syncRuler() {
-        hint.setText(comfortRuler.status());
+        hint.setText(comfortRuler.status(this));
         redrawScale();
         setWindDirection(comfortRuler.direction());
     }
@@ -1287,7 +1391,7 @@ public class ComfortActivity extends Activity {
     private void redrawScale() {
         if (scaleView == null) return;
         int w = scaleView.getWidth();
-        if (w <= 0) { scaleView.post(this::redrawScale); return; }
+        if (w <= 0) return;
         int level = comfortRuler.pointer();
         boolean approx = comfortRuler.approx();
         boolean defrosting = comfortRuler.defrosting();
@@ -1601,7 +1705,7 @@ public class ComfortActivity extends Activity {
     private void redrawChargeBar(int socStart, int socNow) {
         if (chargeBarView == null) return;
         int w = chargeBarView.getWidth();
-        if (w <= 0) { chargeBarView.post(() -> redrawChargeBar(socStart, socNow)); return; }
+        if (w <= 0) { chargeBarStart = socStart; chargeBarNow = socNow; return; }
         if (w == chargeBarW && socStart == chargeBarStart && socNow == chargeBarNow) return;
         chargeBarW = w; chargeBarStart = socStart; chargeBarNow = socNow;
         int color = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
@@ -1622,7 +1726,7 @@ public class ComfortActivity extends Activity {
     private void redrawTurboBar(float fraction) {
         if (turboBarView == null) return;
         int w = turboBarView.getWidth();
-        if (w <= 0) { turboBarView.post(() -> redrawTurboBar(fraction)); return; }
+        if (w <= 0) { turboBarFraction = fraction; return; }
         // Same ambient-or-fallback accent as recirc/purge — "full colour of the
         // car", not a fixed app colour, ready or draining alike.
         int color = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
@@ -1661,7 +1765,7 @@ public class ComfortActivity extends Activity {
         closeBtn = new TextView(this);
         // "✕" is an icon (close), not prose: the same glyph in any language.
         closeBtn.setText("✕");
-        closeBtn.setTextColor(Style.TEXT_ON); closeBtn.setTextSize(22);
+        closeBtn.setTextColor(Style.TEXT); closeBtn.setTextSize(22);
         closeBtn.setGravity(Gravity.CENTER);
         closeBtn.setBackground(Style.card(Style.LIGHT ? 0x66FFFFFF : 0x66000000, this));
         FrameLayout.LayoutParams xlp = new FrameLayout.LayoutParams(
@@ -1855,6 +1959,8 @@ public class ComfortActivity extends Activity {
             BootReceiver.ensureAll(this);
         } catch (Throwable t) { android.util.Log.w(CarAccess.TAG, "resume ensure: " + t); }
         startCarActorPolls();
+        if (homeVehicleControls != null) homeVehicleControls.start();
+        if (homeEnergy != null) homeEnergy.start();
         ui.removeCallbacks(rulerPoll);
         ui.post(rulerPoll);
         PanelState.setListener(panelListener);
@@ -1942,6 +2048,12 @@ public class ComfortActivity extends Activity {
 
     @Override protected void onPause() {
         super.onPause();
+        if (windowDialog != null) {
+            windowDialog.dismiss();
+            windowDialog = null;
+        }
+        if (homeVehicleControls != null) homeVehicleControls.stop();
+        if (homeEnergy != null) homeEnergy.stop();
         EntityBus.unsubscribe("charge.cost_updated", chargeBusListener);
         EntityBus.unsubscribe("charge.dismissed", chargeBusListener);
         EntityBus.unsubscribe("charge.completed", chargeBusListener);
@@ -1977,8 +2089,7 @@ public class ComfortActivity extends Activity {
         ComfortHub.removeListener(rulerListener);
     }
 
-    // Same lit/unlit language as recirculation, and the same reason: the button
-    // says what it will DO next, so it has to know what the glass is doing now.
+    // The tile is lit while a window is open; tapping always opens the controls.
     // Reads on a worker thread — WINDOW_POS is a car property, not a local flag,
     // and it answers unavailable with the car asleep.
     private void refreshPurge() {
@@ -1990,17 +2101,17 @@ public class ComfortActivity extends Activity {
         });
     }
 
-    // Icon showing intended action: open arrow when closed, close arrow
-    // when open. Window position has no natural state drawing, so the
-    // icon indicates the next action.
+    // Highlight real window state without changing the popup entry point.
     private void setPurge(boolean open) {
         purgeOpen = open;
         if (purgeBtn == null) return;
+        purgeBtn.setContentDescription(getString(R.string.windows_title));
         int accent = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
         if (accent == 0) accent = Style.ACCENT;
-        purgeBtn.setImageResource(open ? R.drawable.ic_window_raise : R.drawable.ic_window_lower);
+        purgeBtn.setImageResource(R.drawable.ic_window_lower);
         purgeBtn.setColorFilter(open ? Style.onFill(accent) : Style.TEXT);
-        purgeBtn.setBackground(open ? Style.card(accent, this, Style.RADIUS_DP - 8) : Style.tile(this));
+        updateControlCaption(purgeBtn, R.string.windows_title, open ? Style.onFill(accent) : Style.TEXT);
+        controlSurface(purgeBtn).setBackground(open ? Style.card(accent, this, Style.RADIUS_DP - 8) : Style.tile(this));
     }
 
     // Icon showing current state: car+loop icon lit while recirculating,
@@ -2008,6 +2119,7 @@ public class ComfortActivity extends Activity {
     // state change; subsequent ambient polls re-tint only.
     private void setRecirc(boolean on) {
         if (recircBtn == null) return;
+        recircBtn.setContentDescription(getString(on ? R.string.ac_recirc_on_label : R.string.ac_recirc_label));
         boolean stateChanged = (on != recircOn);
         recircOn = on;
 
@@ -2017,6 +2129,7 @@ public class ComfortActivity extends Activity {
         // The static icon at rest: ic_hvac_cycle_off while on, ic_hvac_cycle_on while off.
         int staticIcon = on ? R.drawable.ic_hvac_cycle_off : R.drawable.ic_hvac_cycle_on;
         int colorFilter = on ? Style.onFill(accent) : Style.TEXT;
+        updateControlCaption(recircBtn, on ? R.string.ac_recirc_on_label : R.string.ac_recirc_label, colorFilter);
         android.graphics.drawable.Drawable bgDrawable = on ? Style.card(accent, this, Style.RADIUS_DP - 8) : Style.tile(this);
 
         if (stateChanged && recircBtn.getDrawable() != null) {
@@ -2026,7 +2139,7 @@ public class ComfortActivity extends Activity {
             int animRes = on ? R.drawable.recirc_anim_off : R.drawable.recirc_anim_on;
             recircBtn.setImageResource(animRes);
             recircBtn.setColorFilter(colorFilter);
-            recircBtn.setBackground(bgDrawable);
+            controlSurface(recircBtn).setBackground(bgDrawable);
 
             final android.graphics.drawable.Drawable animDrawable = recircBtn.getDrawable();
             if (animDrawable instanceof android.graphics.drawable.AnimatedImageDrawable) {
@@ -2048,7 +2161,7 @@ public class ComfortActivity extends Activity {
             // No state change or first call: set the static icon and re-tint.
             recircBtn.setImageResource(staticIcon);
             recircBtn.setColorFilter(colorFilter);
-            recircBtn.setBackground(bgDrawable);
+            controlSurface(recircBtn).setBackground(bgDrawable);
         }
     }
 

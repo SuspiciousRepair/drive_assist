@@ -39,7 +39,7 @@
         android:name=".DriveMemApplication"
         android:label="Drive Assist"
         android:icon="@mipmap/ic_launcher"
-        android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+        android:theme="@style/AppTheme"
         android:allowBackup="false">
 
         <activity android:name=".ui.ComfortActivity" android:exported="true"
@@ -54,7 +54,9 @@
 
         <activity android:name=".ui.CleanupActivity" android:exported="false" android:label="Drive Assist — Limpeza" />
         <activity android:name=".ui.ClipPlayerActivity" android:exported="false"
-                  android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
+                  android:theme="@style/AppTheme.Fullscreen" />
+        <activity android:name=".ui.DashcamPreviewActivity" android:exported="false"
+                  android:theme="@style/AppTheme.Fullscreen" />
         <activity android:name=".ui.TeleProbe" android:exported="false" />
         <activity android:name=".ui.HvacProbe" android:exported="false" />
         <activity android:name=".ui.HvacSet" android:exported="false" />

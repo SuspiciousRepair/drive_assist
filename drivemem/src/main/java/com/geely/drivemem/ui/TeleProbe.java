@@ -1,10 +1,11 @@
 package com.geely.drivemem.ui;
 
+import com.geely.drivemem.R;
+
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.car.Telemetry;
 
-import android.app.Activity;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -13,7 +14,7 @@ import android.widget.TextView;
 
 /** Diagnostic activity for telemetry properties. Reads and displays available
  * car properties and their types. Runs on CarActor's shared thread. */
-public class TeleProbe extends Activity {
+public class TeleProbe extends LocalizedActivity {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private TextView out;
 
@@ -41,7 +42,7 @@ public class TeleProbe extends Activity {
         super.onCreate(b);
         ScrollView sv = new ScrollView(this);
         out = new TextView(this); out.setTextSize(13); out.setPadding(20,20,20,20);
-        out.setText("Lendo telemetria..."); sv.addView(out); setContentView(sv);
+        out.setText(this.getString(R.string.ui_teleprobe_reading)); sv.addView(out); setContentView(sv);
 
         CarActor.get(this).runOnCarThread(() -> {
             CarAccess car = CarActor.get(this).rawAccess();

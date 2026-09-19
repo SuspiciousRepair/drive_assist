@@ -15,9 +15,11 @@ import com.geely.drivemem.state.ParkingState;
 import com.geely.drivemem.state.TripSession;
 import com.geely.drivemem.state.ValetSession;
 import com.geely.drivemem.util.AppForeground;
+import com.geely.drivemem.util.AppLanguage;
 import com.geely.drivemem.util.DbMigration;
 
 import android.app.Application;
+import android.content.res.Configuration;
 
 /** Only reason this class exists: AppForeground.ensureTracking() has to run
  * before ANY Activity in the process gets a chance to start, or that
@@ -46,6 +48,7 @@ import android.app.Application;
 public final class DriveMemApplication extends Application {
     @Override public void onCreate() {
         super.onCreate();
+        AppLanguage.applyToApplication(this);
         AppForeground.ensureTracking(this);
 
         ComfortHub.get(this);
@@ -63,5 +66,10 @@ public final class DriveMemApplication extends Application {
         Obd2Reader.ensureStarted(this);   // no-ops unless obd2_enabled is set
         AbrpUploader.ensureSubscribed(this);
         CarplayState.ensureSubscribed(this);
+    }
+
+    @Override public void onConfigurationChanged(Configuration config) {
+        super.onConfigurationChanged(config);
+        AppLanguage.applyToApplication(this);
     }
 }

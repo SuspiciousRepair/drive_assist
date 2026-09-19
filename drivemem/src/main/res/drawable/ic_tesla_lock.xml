@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adapted from cppqtdev/Tesla-Dashboard-UI-3: other_icons/Icon=lock, Color=white.svg. See docs/UI-REFERENCES.md. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="28dp" android:height="28dp" android:viewportWidth="49" android:viewportHeight="48">
+    <path android:pathData="M19.6719 22H29.6719V18C29.6719 15.2386 27.4333 13 24.6719 13C21.9105 13 19.6719 15.2386 19.6719 18V22ZM32.6719 22C33.7764 22 34.6719 22.8954 34.6719 24V36C34.6719 37.1046 33.7764 38 32.6719 38H16.6719C15.5673 38 14.6719 37.1046 14.6719 36V24C14.6719 22.8954 15.5673 22 16.6719 22V18C16.6719 13.5817 20.2536 10 24.6719 10C29.0902 10 32.6719 13.5817 32.6719 18V22Z" android:fillColor="#FFFFFFFF" android:fillType="evenOdd" />
+</vector>

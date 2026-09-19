@@ -1,9 +1,10 @@
 package com.geely.drivemem.ui;
 
+import com.geely.drivemem.R;
+
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 
-import android.app.Activity;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -12,7 +13,7 @@ import android.widget.TextView;
 
 /** Diagnostic activity for GPS and location properties. Reads location
  * data from various sources. Runs on CarActor's shared thread. */
-public class GpsProbe extends Activity {
+public class GpsProbe extends LocalizedActivity {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private TextView out;
 
@@ -24,7 +25,7 @@ public class GpsProbe extends Activity {
         super.onCreate(b);
         ScrollView sv = new ScrollView(this);
         out = new TextView(this); out.setTextSize(13); out.setPadding(24,24,24,24);
-        out.setText("Lendo GPS..."); sv.addView(out); setContentView(sv);
+        out.setText(this.getString(R.string.ui_gpsprobe_reading)); sv.addView(out); setContentView(sv);
         CarActor.get(this).runOnCarThread(() -> {
             CarAccess car = CarActor.get(this).rawAccess();
             if (!car.isReady() && !car.connect(getApplicationContext())) { post("sem car"); return; }

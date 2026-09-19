@@ -21,9 +21,8 @@
     <uses-permission android:name="android.car.permission.CAR_ENERGY" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- The dashcam writes clips to /sdcard/dashcam. Not the app's private dir
-         the helper saves files to /sdcard/Movies/dashcam directly and
-         serves them over the LAN later (docs/DASHCAM.md). -->
+    <!-- Recording uses Drive Assist's app-specific external dashcam directory,
+         optionally on a validated mounted removable volume (docs/DASHCAM.md). -->
     <!-- Heading for the dashcam subtitle track. GPS bearing, because there is no
          car property for it and the sensor stack has no compass we can reach.
          Granted by virtue of android.uid.system rather than by asking. -->
@@ -112,6 +111,7 @@
         <receiver android:name=".DashReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="com.geely.modehelper.DASHCAM" />
+                <action android:name="com.geely.modehelper.DASHCAM_PREVIEW" />
             </intent-filter>
         </receiver>
         <receiver android:name=".ParkedMonitoringReceiver" android:exported="true">

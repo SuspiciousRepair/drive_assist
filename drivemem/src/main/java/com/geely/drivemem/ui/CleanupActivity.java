@@ -8,7 +8,6 @@ import com.geely.drivemem.services.WifiIconService;
 import com.geely.drivemem.util.BootReceiver;
 import com.geely.drivemem.util.Style;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
@@ -27,7 +26,7 @@ import android.widget.TextView;
 /** Cleanup screen: undoes Drive Assist's modifications to restore the head unit
  * toward factory state. Both cleanup actions require confirmation. System
  * apps and ADB settings are not touched. */
-public class CleanupActivity extends Activity {
+public class CleanupActivity extends LocalizedActivity {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private TextView log;
     private boolean armed = false;   // demands 2 taps for the destructive actions
@@ -101,7 +100,7 @@ public class CleanupActivity extends Activity {
     private TextView action(String label, int color, Runnable onClick) {
         TextView v = new TextView(this);
         v.setText(label); v.setTextColor(Style.onFill(color)); v.setTextSize(17);
-        v.setTypeface(null, android.graphics.Typeface.BOLD);
+        v.setTypeface(v.getTypeface(), android.graphics.Typeface.BOLD);
         v.setGravity(Gravity.CENTER);
         v.setBackground(Style.card(color, this));
         int p = Style.dp(this, 16); v.setPadding(p, p, p, p);

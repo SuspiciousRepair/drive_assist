@@ -55,6 +55,10 @@ public final class ChargeCurrentCurveDialog {
         } else {
             boolean hasTemp = !curves.outsideTemp.isEmpty() || !curves.batteryTemp.isEmpty();
             LineChart chart = new LineChart(c);
+            chart.getXAxis().setTypeface(Style.font(c));
+            chart.getAxisLeft().setTypeface(Style.font(c));
+            chart.getAxisRight().setTypeface(Style.font(c));
+            chart.getLegend().setTypeface(Style.font(c));
             chart.getDescription().setEnabled(false);
             chart.setScaleEnabled(false);
             chart.setDoubleTapToZoomEnabled(false);

@@ -1,9 +1,10 @@
 package com.geely.drivemem.ui;
 
+import com.geely.drivemem.R;
+
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 
-import android.app.Activity;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -12,7 +13,7 @@ import android.widget.TextView;
 
 /** Diagnostic activity for HVAC properties. Reads temperature and air
  * settings across multiple zones. Runs on CarActor's shared thread. */
-public class HvacProbe extends Activity {
+public class HvacProbe extends LocalizedActivity {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private TextView out;
 
@@ -41,7 +42,7 @@ public class HvacProbe extends Activity {
         out = new TextView(this);
         out.setTextSize(13);
         out.setPadding(24,24,24,24);
-        out.setText("Lendo HVAC...");
+        out.setText(this.getString(R.string.ui_hvacprobe_reading));
         sv.addView(out);
         setContentView(sv);
 

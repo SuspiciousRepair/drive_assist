@@ -15,6 +15,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.geely.drivemem.R;
+import com.geely.drivemem.util.AppLanguage;
 import com.geely.drivemem.car.CarDb;
 import com.geely.drivemem.car.EntityBus;
 import com.geely.drivemem.sensors.DailyStatsProvider;
@@ -127,8 +128,8 @@ public class ChargeStatsView extends LinearLayout {
         listCard.setPadding(cardPad, cardPad, cardPad, cardPad);
         listCard.setBackground(Style.card(Style.cardFillColor(), c));
         TextView listTitle = Style.label(c, c.getString(R.string.charge_sessions_title));
-        listTitle.setTextSize(14);
-        listTitle.setTypeface(null, Typeface.BOLD);
+        listTitle.setTextSize(26);
+        listTitle.setTypeface(listTitle.getTypeface(), Typeface.BOLD);
         listCard.addView(listTitle);
 
         sessionListScroll = new ScrollView(c);
@@ -154,8 +155,8 @@ public class ChargeStatsView extends LinearLayout {
         LinearLayout chartHeading = new LinearLayout(c);
         chartHeading.setGravity(Gravity.CENTER_VERTICAL);
         TextView chartTitle = Style.label(c, c.getString(R.string.charge_soc_chart_title));
-        chartTitle.setTextSize(14);
-        chartTitle.setTypeface(null, Typeface.BOLD);
+        chartTitle.setTextSize(26);
+        chartTitle.setTypeface(chartTitle.getTypeface(), Typeface.BOLD);
         chartHeading.addView(chartTitle, new LinearLayout.LayoutParams(0,
             ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         chartHeading.addView(legend(c, "AC", Style.ACCENT));
@@ -242,7 +243,7 @@ public class ChargeStatsView extends LinearLayout {
         // Unit style guide (2026-09-13): the unit renders smaller/dimmer than
         // its value everywhere -- Style.valueWithUnit, not a plain concatenated string.
         statsRow1.addView(statTile(Style.valueWithUnit(String.format(Locale.US, "%.1f", totalKwh),
-            Style.COOL, "kWh", Style.UNIT_SCALE_HERO), "Energia", Style.COOL));
+            Style.COOL, "kWh", Style.UNIT_SCALE_HERO), getContext().getString(R.string.ui_energy), Style.COOL));
         String costStr = costSessionCount > 0 ? String.format(Locale.getDefault(), "R$ %.2f", totalCost) : "—";
         statsRow1.addView(statTile(costStr, c.getString(R.string.charge_stat_total_cost), Style.TEXT));
         statsCard.addView(statsRow1);
@@ -260,7 +261,7 @@ public class ChargeStatsView extends LinearLayout {
             ? String.format(Locale.getDefault(), "R$ %.2f", (totalCost / kmDriven) * 100) : "—";
         statsRow2.addView(statTile(costPer100kmStr, c.getString(R.string.charge_stat_cost_100km), Style.TEXT));
         statsRow2.addView(statTile(Style.valueWithUnit(String.format(Locale.US, "%.0f", kmDriven),
-            Style.TEXT_DIM, "km", Style.UNIT_SCALE_HERO), "Distância", Style.TEXT_DIM));
+            Style.TEXT_DIM, "km", Style.UNIT_SCALE_HERO), getContext().getString(R.string.ui_distance), Style.TEXT_DIM));
         statsCard.addView(statsRow2);
 
         LinearLayout.LayoutParams statsCardLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 7f);
@@ -392,14 +393,14 @@ public class ChargeStatsView extends LinearLayout {
         v.setText(value);
         v.setTextColor(color);
         v.setTextSize(26);
-        v.setTypeface(null, Typeface.BOLD);
+        v.setTypeface(v.getTypeface(), Typeface.BOLD);
         v.setGravity(Gravity.CENTER_HORIZONTAL);
         t.addView(v);
 
         TextView l = new TextView(getContext());
         l.setText(label);
         l.setTextColor(Style.TEXT_DIM);
-        l.setTextSize(13);
+        l.setTextSize(18);
         l.setGravity(Gravity.CENTER_HORIZONTAL);
         t.addView(l);
         return t;
@@ -463,15 +464,16 @@ public class ChargeStatsView extends LinearLayout {
         timeText.setOrientation(LinearLayout.HORIZONTAL);
         timeText.setGravity(Gravity.CENTER_VERTICAL);
         TextView title = new TextView(c);
-        title.setText(s.title()); // "11 set  13:40 → 14:39"
+        title.setText(AppLanguage.date(c, s.startWallMs, "MMMdHm")
+            + " → " + AppLanguage.date(c, s.endWallMs, "Hm")); // "11 set  13:40 → 14:39"
         title.setTextColor(Style.TEXT);
-        title.setTextSize(17);
-        title.setTypeface(null, Typeface.BOLD);
+        title.setTextSize(22);
+        title.setTypeface(title.getTypeface(), Typeface.BOLD);
         timeText.addView(title);
         TextView durationText = new TextView(c);
         durationText.setText(s.durationLabel());
         durationText.setTextColor(Style.TEXT_DIM);
-        durationText.setTextSize(13);
+        durationText.setTextSize(18);
         LinearLayout.LayoutParams durationLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         durationLp.leftMargin = Style.dp(c, 8);
@@ -499,7 +501,7 @@ public class ChargeStatsView extends LinearLayout {
         socEnergyText.setText(socEnergy);
         socEnergyText.setTextColor(Style.TEXT);
         socEnergyText.setTextSize(19);
-        socEnergyText.setTypeface(null, Typeface.BOLD);
+        socEnergyText.setTypeface(socEnergyText.getTypeface(), Typeface.BOLD);
         socCell.addView(socEnergyText);
         topRow.addView(socCell);
         card.addView(topRow);
@@ -531,10 +533,10 @@ public class ChargeStatsView extends LinearLayout {
         SpannableStringBuilder power = new SpannableStringBuilder();
         power.append(Style.valueWithUnit(String.format(Locale.getDefault(), "%.1f", s.avgPowerW / 1000.0),
             Style.TEXT, "kW", Style.UNIT_SCALE_ROW));
-        Style.appendUnit(power, " méd.", Style.UNIT_SCALE_ROW);
+        Style.appendUnit(power, getContext().getString(R.string.ui_average_suffix), Style.UNIT_SCALE_ROW);
         powerText.setText(power);
         powerText.setTextSize(19);
-        powerText.setTypeface(null, Typeface.BOLD);
+        powerText.setTypeface(powerText.getTypeface(), Typeface.BOLD);
         powerCell.addView(powerText);
 
         // A small icon, not a full button -- a labeled button sitting in the
@@ -577,7 +579,7 @@ public class ChargeStatsView extends LinearLayout {
             costText.setText(costSb);
             costText.setTextColor(Style.ACCENT);
             costText.setTextSize(19);
-            costText.setTypeface(null, Typeface.BOLD);
+            costText.setTypeface(costText.getTypeface(), Typeface.BOLD);
             costText.setOnClickListener(v -> {
                 if (!com.geely.drivemem.state.CarState.isParked()) {
                     Toast.makeText(c, R.string.charge_cost_parked_only, Toast.LENGTH_SHORT).show();

@@ -25,12 +25,13 @@ public class ModeHelperService extends Service {
     static final String TAG = "ModeHelper";
     static final String SET_MODE = "com.geely.modehelper.SET_MODE";
     public static final String ACTION_DASHCAM = "com.geely.modehelper.svc.DASHCAM";
+    public static final String ACTION_DASHCAM_PREVIEW = "com.geely.modehelper.svc.DASHCAM_PREVIEW";
     public static final String ACTION_PARKED_MONITORING = "com.geely.modehelper.svc.PARKED_MONITORING";
     public static final String ACTION_BT_PAIR = "com.geely.modehelper.svc.BT_PAIR";
     private boolean btRxRegistered = false;
     private final CarMode car = new CarMode();
-    // Off unless asked. Recording is not something to start behind somebody's
-    // back, and it is not free: ~6 Mbit/s of disk for as long as it runs.
+    // Restores the owner's saved recording choice (existing default: on).
+    // Recording runs at 16 Mbit/s in this foreground service, independently of UI.
     private DashRecorder dash;
     private volatile boolean running = false;
     private Thread poll;
@@ -42,9 +43,28 @@ public class ModeHelperService extends Service {
 
     @Override public int onStartCommand(Intent i, int flags, int startId) {
         startAsForeground();
+        if (i != null && ACTION_DASHCAM_PREVIEW.equals(i.getAction())) {
+            // A preview/configuration request never opts the owner into recording.
+            if (!running) dashAutoStarted = true;
+            if (dash == null) dash = new DashRecorder(getApplicationContext(), car);
+            dash.preview(i.getStringExtra("preview_session"),
+                (android.view.Surface) i.getParcelableExtra("surface"),
+                (android.os.ResultReceiver) i.getParcelableExtra("preview_status"));
+        }
         if (i != null && ACTION_DASHCAM.equals(i.getAction())) {
             int on = i.getIntExtra("on", -1);
-            if (dash == null) dash = new DashRecorder(getApplicationContext(), car);
+            SharedPreferences.Editor options = getSharedPreferences("modehelper", MODE_PRIVATE).edit();
+            StringBuilder optionsLog = new StringBuilder("dashcam options:");
+            putDashcamOptions(i, options, optionsLog);
+            options.apply();
+            if (on != 0 && on != 1 && !running) {
+                // Configuration can start the service solely to persist options.
+                // Do not let that cold service start indirectly trigger recording
+                // through maybeAutoStart(); an explicit start still works later.
+                dashAutoStarted = true;
+            }
+            if ((on == 0 || on == 1) && dash == null)
+                dash = new DashRecorder(getApplicationContext(), car);
             // The car connection is the poll loop's, and it may not be up yet on
             // a cold start — the recorder tolerates that for telemetry (cues just
             // go quiet) but the ENGINE binder is separate and always available.
@@ -57,7 +77,8 @@ public class ModeHelperService extends Service {
                 getSharedPreferences("modehelper", MODE_PRIVATE).edit()
                     .putBoolean("dashcam_on", on == 1).apply();
             }
-            Log.i(TAG, "dashcam: now " + (dash.isRunning() ? "RUNNING" : "stopped"));
+            Log.i(TAG, optionsLog.toString());
+            Log.i(TAG, "dashcam: now " + (dash != null && dash.isRunning() ? "RUNNING" : "stopped"));
         }
         if (i != null && ACTION_PARKED_MONITORING.equals(i.getAction())) {
             boolean enabled = i.getIntExtra("on", 0) == 1;
@@ -74,13 +95,13 @@ public class ModeHelperService extends Service {
                 @Override public void onReceive(Context c, Intent it) {
                     if (SET_MODE.equals(it.getAction())) {
                         // Each preference is independent and optional — drivemem may
-                        // send drive/regen together (its existing "Save" action) and
+                        // send drive/regen separately on taps or together on reset, and
                         // aeb/avas from a different screen entirely, on its own. Only
                         // touch what's actually present, so one doesn't clobber another.
                         SharedPreferences.Editor e = getSharedPreferences("modehelper", MODE_PRIVATE).edit();
                         StringBuilder log = new StringBuilder("default from drivemem:");
                         if (it.hasExtra("drive")) {
-                            int d = it.getIntExtra("drive", CarMode.DRIVE_ECO);
+                            int d = it.getIntExtra("drive", CarMode.DRIVE_COMFORT);
                             e.putInt("drive", d); log.append(" drive=").append(d);
                         }
                         if (it.hasExtra("regen")) {
@@ -100,11 +121,7 @@ public class ModeHelperService extends Service {
                             e.putBoolean("parked_monitoring", enabled);
                             log.append(" parked_monitoring=").append(enabled);
                         }
-                        if (it.hasExtra("dashcam_limit_gb")) {
-                            int gb = it.getIntExtra("dashcam_limit_gb", DashRecorder.DEFAULT_BUDGET_GB);
-                            e.putInt("dashcam_limit_gb", gb);
-                            log.append(" dashcam_limit_gb=").append(gb);
-                        }
+                        putDashcamOptions(it, e, log);
                         e.apply();
                         Log.i(TAG, log.toString());
                     }
@@ -122,6 +139,26 @@ public class ModeHelperService extends Service {
         cleanupInstaller();
         if (!running) { running = true; poll = new Thread(this::pollLoop, "helper-poll"); poll.start(); }
         return START_STICKY;
+    }
+
+    private static void putDashcamOptions(Intent intent, SharedPreferences.Editor editor,
+                                         StringBuilder log) {
+        if (intent.hasExtra("dashcam_limit_gb")) {
+            int gb = Math.max(1, intent.getIntExtra("dashcam_limit_gb", DashRecorder.DEFAULT_BUDGET_GB));
+            editor.putInt("dashcam_limit_gb", gb);
+            log.append(" dashcam_limit_gb=").append(gb);
+        }
+        if (intent.hasExtra(DashcamOptions.SEGMENT_MINUTES)) {
+            int minutes = DashcamOptions.segmentMinutes(intent.getIntExtra(
+                DashcamOptions.SEGMENT_MINUTES, DashcamOptions.DEFAULT_SEGMENT_MINUTES));
+            editor.putInt(DashcamOptions.SEGMENT_MINUTES, minutes);
+            log.append(" dashcam_segment_minutes=").append(minutes);
+        }
+        if (intent.hasExtra(DashcamOptions.STORAGE)) {
+            String storage = DashcamOptions.storage(intent.getStringExtra(DashcamOptions.STORAGE));
+            editor.putString(DashcamOptions.STORAGE, storage);
+            log.append(" dashcam_storage=").append(storage);
+        }
     }
 
     // How long a just-launched installer gets before it's treated as a
@@ -252,7 +289,7 @@ public class ModeHelperService extends Service {
             parkedMonitor.stop();
             parkedMonitor = null;
         }
-        if (dash != null && dash.isRunning()) {
+        if (dash != null) {
             Log.i(TAG, "dashcam: " + why + " — closing the segment");
             dash.stop();
             // Give the encoder thread a moment to write the moov atom. Not a
@@ -264,7 +301,7 @@ public class ModeHelperService extends Service {
     // PARKED: read the mode and, if it differs from the default, correct it with ONE write.
     private void enforceModeParked() {
         SharedPreferences p = getSharedPreferences("modehelper", MODE_PRIVATE);
-        int drive = p.getInt("drive", CarMode.DRIVE_ECO);
+        int drive = p.getInt("drive", CarMode.DRIVE_COMFORT);
         int regen = p.getInt("regen", CarMode.REGEN_MID);
         Integer cd = car.readDrive(), cr = car.readRegen();
         if (cd != null && cd != drive) { car.writeDrive(drive); Log.i(TAG, "modo: drive " + cd + " -> " + drive); }
@@ -457,6 +494,7 @@ public class ModeHelperService extends Service {
 
     @Override public void onDestroy() {
         stopForShutdown("service destroyed");
+        if (dash != null) dash.closePreview();
         running = false;
         if (rx != null) { try { unregisterReceiver(rx); } catch (Throwable ignored) {} rx = null; }
         car.disconnect();

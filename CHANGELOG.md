@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Home window-control popup with individual panes, front/rear pairs, and all-window controls. Each supports close, half-open and fully-open positions, English/Thai labels, light/dark appearance and live position feedback. Unavailable panes are not commanded; requested positions are confirmed from vehicle readings.
+
 ### Changed
 - **Bluetooth OBD2 PIN fix is no longer part of installation.** `install.sh`
   used to automatically flip the head unit's Bluetooth pairing PIN from

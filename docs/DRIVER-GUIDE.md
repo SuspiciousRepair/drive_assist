@@ -43,6 +43,26 @@ Settings that affect the vehicle are applied through the small ModeHelper
 companion installed with Drive Assist. The main dashboard and the privileged
 helper remain separate for safety and reliability.
 
+### Choose the app language
+
+Open Settings using the gear icon, then select
+**Language** (or **ภาษา** when using Thai) in the Display group. Open the dropdown and choose
+**English**, **ไทย** (Thai), or **Follow system**. The selection is saved automatically and the settings
+screen refreshes immediately, with no gear or parking restriction. The dashboard
+also refreshes when you return to it.
+Your choice is remembered after closing and reopening Drive Assist; it does not
+change the language of the car's own menus. Follow system is the default for
+existing and new installations.
+
+English uses Unitext Regular; Thai uses Noto Sans Thai. The font changes with
+the app language, including after a restart. Both fonts are bundled for offline use.
+
+The default Minimal theme uses white and grey surfaces in Light mode, and matte
+charcoal cards with soft text and muted colours in Dark mode. Select
+**Settings → Appearance** to choose Light, Dark, or Auto. New installations start
+in Light mode. The former Neon theme is retired; a saved Neon choice switches
+to Minimal in Dark mode automatically. Other appearance preferences are preserved.
+
 ## Understand each day, not just the odometer
 
 ![Daily statistics in dark mode](screenshots/daily-statistics-live.png)
@@ -98,10 +118,25 @@ can provide more precise battery-management data. See the [ABRP guide](ABRP.md).
 
 ### Dashcam
 
-The optional dashcam uses the car's existing cameras and can add time, position,
-and speed information to recordings. Clips can be exported to USB. Read the
-[dashcam guide](DASHCAM.md) before enabling it, because storage and local recording
-rules vary by region.
+The optional dashcam uses the car's existing cameras and can add time, speed,
+gear, temperature, and heading information when available. In Settings →
+Recordings, choose 1, 3, 5, or 10 minutes per clip and a storage budget.
+Recording continues through successive clips; when the budget is exceeded,
+the oldest unprotected clips are deleted. Hold protects a clip until you
+release or delete it. Protected clips still use space, so a full drive can
+stop recording.
+
+Choose head unit storage or a connected USB/removable drive from the dropdown.
+Duration and destination changes save immediately and apply to the next clip;
+old recordings stay on their original drive. Open a completed clip, select an
+individual camera, and use Adjust view to change its playback framing.
+Live preview opens the current four-camera view. If recording is off, use
+Start recording explicitly. Returning Home or switching to another app closes
+the preview while ModeHelper continues recording in the background. Stop
+recording is a separate action; recording still depends on the head unit
+remaining awake, the camera engine, and available storage.
+Both Drive Assist and ModeHelper need the matching update. See the
+[dashcam guide](DASHCAM.md) for storage, recovery, and hardware limitations.
 
 ## What Drive Assist can control
 
@@ -131,3 +166,54 @@ command-by-command reference is further down that page.
 - [Connect ABRP](ABRP.md)
 - [Read the safety and privacy explanation](WELCOME.md)
 - [Browse the technical discoveries](README.md#technical-library)
+
+### Vehicle controls and appearance
+
+The app opens directly on Vehicle Control. The same controls are also available
+in Settings → Driving mode. The Geely EX2 image
+is an offline preview: tap it to cycle immediately through the five Thai EX2 MAX
+colours (Moon White, Star Silver, Comet Gray, Nebula Beige, Aurora Green, all with
+a black roof). The last colour is saved automatically and follows the preview
+into Settings. Eco is green, Comfort is yellow, and Sport is red. Dark mode uses
+softer versions of these colours while keeping each mode easy to distinguish.
+
+Tap the vehicle heading or its pencil icon above the car on Home or in
+Settings → Driving mode. Choose **Geely EX2** or **Geely EX2 Max** using the
+two side-by-side model buttons, then enter a nickname of up to 40 characters. The model stays
+on the first line, with your nickname on the line below. Tap **Save** to update
+both immediately and remember them after reopening the app. **Cancel** keeps
+the previous model and nickname. A blank nickname keeps the selected model
+and shows the add-nickname prompt. Both are independent of the app language
+and vehicle colour.
+
+A filled button is the saved choice; an outline indicates the mode reported
+by the vehicle. Tap any driving or regeneration mode to send the change and
+save it automatically for the next startup. **Restore defaults** selects
+**Comfort** with **Medium** regeneration and applies both. A brief popup with a
+green checkmark and heading says
+**Defaults restored** and lists the saved driving and regeneration choices. It
+closes automatically; the vehicle's reported mode remains separate. Manually
+selecting a driving mode ends an active Turbo boost, so its timer
+cannot later replace your choice. Regeneration changes leave Turbo running. Turbo duration in
+Settings also saves automatically as you edit it.
+
+The Controls / Energy / Display tabs open the corresponding existing app panels.
+Display settings use a two-column card grid on wide head units. Appearance has
+a theme preview and Light / Dark / Auto buttons. Main headings are larger than
+navigation labels and control captions in both English and Thai.
+
+The horizontal climate strip at the bottom of Home provides Cooler, Warmer,
+Recirculate, and Open/Close windows using the existing controls. It stays visible
+while the vehicle controls above it scroll on shorter displays. More controls,
+trip statistics, charging statistics, and Settings remain in the left dock.
+
+Home uses two columns on wide head units: driving controls take about 68% of
+the row on the left, and Battery & energy takes 32% on the right. The larger
+driving card has a larger vehicle preview and mode buttons. Energy remains
+visible without opening a tab; narrower windows stack the cards so labels and
+controls remain readable. It shows battery percentage, estimated remaining range, charging
+power, battery temperature (when OBD2 supplies it), and recovered energy for the
+current trip. The existing telemetry stream refreshes the view automatically;
+missing or invalid values show **—**, not sample data. Charging power uses the
+measured voltage/current and ignores latched current after a known unplug event.
+The energy panel is read-only and does not change charge limits or schedules.

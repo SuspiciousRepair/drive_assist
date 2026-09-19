@@ -29,11 +29,11 @@ public class GeelySwitch extends Switch {
         // Track and thumb colors for checked/unchecked states.
         int[][] states = new int[][]{ new int[]{ android.R.attr.state_checked }, new int[]{} };
         setTrackTintList(new ColorStateList(states, new int[]{ Style.ACCENT, off }));
-        setThumbTintList(new ColorStateList(states, new int[]{ knob, knob }));
+        setThumbTintList(new ColorStateList(states, new int[]{ Style.onFill(Style.ACCENT), knob }));
         // Extended track makes thumb movement clearly visible.
         setSwitchMinWidth(dp(c, 64));
         setSwitchPadding(dp(c, 8));
-        setScaleX(1.6f); setScaleY(1.6f);   // Scaled for car screen interaction.
+        setMinHeight(dp(c, 64));   // Large touch area without scaling outside layout bounds.
         setPadding(dp(c, 18), 0, dp(c, 12), 0);
         setShowText(false);
 
@@ -52,6 +52,7 @@ public class GeelySwitch extends Switch {
         int on = 0xFF000000 | (rgb & 0xFFFFFF);
         int[][] states = new int[][]{ new int[]{ android.R.attr.state_checked }, new int[]{} };
         setTrackTintList(new ColorStateList(states, new int[]{ on, off }));
+        setThumbTintList(new ColorStateList(states, new int[]{ Style.onFill(on), knob }));
     }
 
     /** Sets the checked state without notifying listeners. */
