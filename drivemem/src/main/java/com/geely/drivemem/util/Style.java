@@ -48,6 +48,8 @@ public class Style {
     public static int HEAT      = 0xFFFF9800;  // heat semantics
     public static int GOOD      = 0xFF43A047;  // positive/green semantics (e.g. DC fast charging)
     public static int PURPLE    = 0xFF8E24AA;  // regen energy (Balanço de Energia chart)
+    public static int WARN      = 0xFFFFB300;  // caution/amber semantics (e.g. Comfort drive mode)
+    public static int DANGER    = 0xFFE53935;  // urgent/red semantics (e.g. Sport drive mode)
 
     // ---- active shape ----
     public static int  RADIUS_DP    = 14;

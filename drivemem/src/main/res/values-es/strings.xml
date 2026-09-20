@@ -123,12 +123,10 @@
     <string name="cfg_aeb_confirm_title">¿Desactivar el frenado automático de emergencia?</string>
     <string name="cfg_aeb_confirm_body">Desactiva el frenado automático de emergencia. Se mantiene al reiniciar el vehículo.</string>
     <string name="cfg_aeb_confirm_turn_off">Desactivar</string>
-    <string name="cfg_btn_apply">Aplicar ahora</string>
-    <string name="cfg_btn_save_default">Guardar como predeterminado</string>
+    <string name="cfg_btn_restore_defaults">Restaurar valores predeterminados</string>
     <string name="cfg_car_connect_fail">No se pudo conectar con el coche</string>
     <string name="cfg_applied">Aplicado: %1$s + %2$s</string>
-    <string name="cfg_applied_turbo_active">Aplicado: %1$s. Conducción sin cambios — Turbo está activo.</string>
-    <string name="cfg_startup_default">Predeterminado de arranque: %1$s + %2$s</string>
+    <string name="cfg_restored_defaults">Valores predeterminados restaurados: %1$s + %2$s</string>
     <string name="cfg_mode_unknown">Modo actual desconocido — elige uno para aplicar</string>
     <string name="cfg_current">Actual: %1$s + %2$s</string>
     <string name="cfg_bar_header">Datos en la barra de menú</string>

@@ -220,12 +220,10 @@
     <string name="cfg_aeb_confirm_title">Turn off automatic emergency braking?</string>
     <string name="cfg_aeb_confirm_body">Disables automatic emergency braking. Persists across vehicle restarts.</string>
     <string name="cfg_aeb_confirm_turn_off">Turn off</string>
-    <string name="cfg_btn_apply">Apply now</string>
-    <string name="cfg_btn_save_default">Save as default</string>
+    <string name="cfg_btn_restore_defaults">Restore defaults</string>
     <string name="cfg_car_connect_fail">Could not connect to the car</string>
     <string name="cfg_applied">Applied: %1$s + %2$s</string>
-    <string name="cfg_applied_turbo_active">Applied: %1$s. Drive kept as-is — Turbo is active.</string>
-    <string name="cfg_startup_default">Startup default: %1$s + %2$s</string>
+    <string name="cfg_restored_defaults">Restored defaults: %1$s + %2$s</string>
     <string name="cfg_mode_unknown">Current mode unknown — pick one to apply</string>
     <string name="cfg_current">Current: %1$s + %2$s</string>
     <string name="cfg_bar_header">Elements</string>
