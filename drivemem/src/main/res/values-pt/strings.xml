@@ -204,6 +204,7 @@
     <string name="cfg_adas_header">Assistência ao motorista</string>
     <string name="cfg_aeb_label">AEB (frenagem automática de emergência)</string>
     <string name="cfg_avas_label">AVAS (som de alerta a pedestres)</string>
+    <string name="cfg_park_monitor_label">Monitoramento em estacionamento</string>
     <string name="cfg_aeb_confirm_title">Desativar a frenagem automática de emergência?</string>
     <string name="cfg_aeb_confirm_body">Desativar o AEB interrompe a frenagem automática quando o carro detecta risco de colisão frontal. Diferente do menu do próprio carro, isto permanece desativado após reiniciar, até você reativar por aqui.</string>
     <string name="cfg_aeb_confirm_turn_off">Desativar</string>
