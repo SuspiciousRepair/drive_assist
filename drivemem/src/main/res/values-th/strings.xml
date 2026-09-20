@@ -208,12 +208,10 @@
     <string name="turbo_header">เทอร์โบ</string>
     <string name="turbo_enable_label">แสดงการ์ดเทอร์โบ</string>
     <string name="turbo_duration_label">ระยะเวลา (วินาที)</string>
-    <string name="cfg_btn_apply">นำไปใช้</string>
-    <string name="cfg_btn_save_default">บันทึกเป็นค่าเริ่มต้น</string>
+    <string name="cfg_btn_restore_defaults">คืนค่าเริ่มต้น</string>
     <string name="cfg_car_connect_fail">เชื่อมต่อกับรถไม่ได้</string>
     <string name="cfg_applied">ใช้แล้ว: %1$s + %2$s</string>
-    <string name="cfg_applied_turbo_active">ใช้แล้ว: %1$s โหมดการขับขี่ไม่เปลี่ยนแปลง — เทอร์โบทำงานอยู่</string>
-    <string name="cfg_startup_default">ค่าเริ่มต้นเมื่อเริ่มระบบ: %1$s + %2$s</string>
+    <string name="cfg_restored_defaults">คืนค่าเริ่มต้นแล้ว: %1$s + %2$s</string>
     <string name="cfg_mode_unknown">ไม่ทราบโหมดปัจจุบัน — เลือกโหมดหนึ่งเพื่อใช้งาน</string>
     <string name="cfg_current">ปัจจุบัน: %1$s + %2$s</string>
     <string name="cfg_bar_header">การแสดงผลในแถบเมนู</string>

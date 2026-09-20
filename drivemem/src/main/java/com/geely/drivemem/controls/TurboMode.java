@@ -39,6 +39,11 @@ public final class TurboMode {
     private final Context ctx;
     private final Handler h;                                  // Turbo thread for countdown; car I/O via CarActor.
     private final Handler ui = new Handler(Looper.getMainLooper());
+    // Guards state + the order car writes enqueue in. A manual pick bumps
+    // this so a read or tick from the boost it interrupted can recognize
+    // it's stale and drop out instead of clobbering the new selection.
+    private final Object stateLock = new Object();
+    private long generation;
     private volatile boolean active = false;
     private volatile float fraction = 0f;   // 1.0 = just started, 0.0 = idle/done
     private volatile Listener listener;
@@ -66,40 +71,72 @@ public final class TurboMode {
         android.content.SharedPreferences p =
             ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
         if (!p.getBoolean("turbo_enabled", true)) return;   // Config: card off
-        durationMs = Math.max(1, p.getInt("turbo_duration_s", DEFAULT_DURATION_S)) * 1000L;
-        if (active) {
-            startMs = System.currentTimeMillis();
+        synchronized (stateLock) {
+            // Clamped here, not at input time: the Config field saves its raw
+            // typed value on every keystroke (never rewritten under the
+            // cursor), so an in-progress edit or an old out-of-range save
+            // must not be able to start a boost shorter than 5s or longer
+            // than 120s.
+            durationMs = Math.max(5, Math.min(120, p.getInt("turbo_duration_s", DEFAULT_DURATION_S))) * 1000L;
+            if (active) {
+                startMs = System.currentTimeMillis();
+                fraction = 1f;
+                notifyUi();
+                return;
+            }
+            final long boost = ++generation;
+            active = true;
             fraction = 1f;
             notifyUi();
-            return;
+            // Read current drive mode; use saved default if unavailable.
+            // Both read and write go through CarActor for serialized access.
+            // The read can outlive this boost (a manual pick or a fresh
+            // start() may land first), so it must recheck the generation
+            // before touching state or writing to the car.
+            CarActor.get(ctx).read("drive_mode", cur -> {
+                synchronized (stateLock) {
+                    if (!active || boost != generation) return;
+                    previousDrive = (cur instanceof Integer) ? (Integer) cur : p.getInt("drive", Modes.DRIVE_ECO);
+                    CarActor.get(ctx).cast("drive_mode", Modes.DRIVE_SPORT);
+                    startMs = System.currentTimeMillis();
+                    h.post(() -> tick(boost));
+                }
+            });
         }
-        active = true;
-        fraction = 1f;
-        notifyUi();
-        // Read current drive mode; use saved default if unavailable.
-        // Both read and write go through CarActor for serialized access.
-        CarActor.get(ctx).read("drive_mode", cur -> {
-            previousDrive = (cur instanceof Integer) ? (Integer) cur : p.getInt("drive", Modes.DRIVE_ECO);
-            CarActor.get(ctx).cast("drive_mode", Modes.DRIVE_SPORT);
-            startMs = System.currentTimeMillis();
-            h.post(this::tick);
-        });
+    }
+
+    /** Ends an active boost, if any, without restoring its previous mode, and
+     * writes the explicit choice in its place. The Config screen calls this
+     * on every tap so a manual pick always wins over a boost in progress —
+     * see the "manual selection ends Turbo" note in TelemetryActivity. */
+    public void selectDriveMode(int mode) {
+        synchronized (stateLock) {
+            ++generation;
+            active = false;
+            fraction = 0f;
+            h.removeCallbacksAndMessages(null);
+            CarActor.get(ctx).cast("drive_mode", mode);
+            notifyUi();
+        }
     }
 
     // Reads startMs fresh each call (not a captured parameter) so a refresh
     // from start() takes effect on the next tick already in flight.
-    private void tick() {
-        long elapsed = System.currentTimeMillis() - startMs;
-        if (elapsed >= durationMs) {
-            CarActor.get(ctx).cast("drive_mode", previousDrive);
-            active = false;
-            fraction = 0f;
+    private void tick(long boost) {
+        synchronized (stateLock) {
+            if (!active || boost != generation) return;
+            long elapsed = System.currentTimeMillis() - startMs;
+            if (elapsed >= durationMs) {
+                CarActor.get(ctx).cast("drive_mode", previousDrive);
+                active = false;
+                fraction = 0f;
+                notifyUi();
+                return;
+            }
+            fraction = 1f - (elapsed / (float) durationMs);
             notifyUi();
-            return;
+            h.postDelayed(() -> tick(boost), TICK_MS);
         }
-        fraction = 1f - (elapsed / (float) durationMs);
-        notifyUi();
-        h.postDelayed(this::tick, TICK_MS);
     }
 
     private void notifyUi() {
