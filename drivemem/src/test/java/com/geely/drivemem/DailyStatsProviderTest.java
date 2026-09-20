@@ -124,4 +124,71 @@ public class DailyStatsProviderTest {
         assertEquals("2026-09-01", month.get(0));
         assertEquals("2026-09-30", month.get(29));
     }
+
+    // Regression coverage for the 2026-09-16 bug: getStatsDetail's Month/Week
+    // card fetched its speed-bucket chart with the aggregate DayOverview's
+    // own `.date`, which for a period is a display label ("Setembro de
+    // 2026"), not a real date -- it failed to parse and silently fell back to
+    // today, so "Month" quietly rendered a single day. datesForGranularity is
+    // the fix's pure core: DAY must return exactly the anchor date, never
+    // anything derived from a label, and WEEK/MONTH must match the same
+    // weekDates()/monthDates() the nav-bar window already uses.
+    @Test public void dayGranularityReturnsExactlyTheAnchorDateNotADerivedLabel() {
+        List<String> dates = DailyStatsProvider.datesForGranularity(
+            DailyStatsProvider.Granularity.DAY, "2026-09-16");
+        assertEquals(asList("2026-09-16"), dates);
+    }
+
+    @Test public void weekGranularityMatchesWeekDates() {
+        List<String> dates = DailyStatsProvider.datesForGranularity(
+            DailyStatsProvider.Granularity.WEEK, "2026-09-16");
+        assertEquals(DailyStatsProvider.weekDates("2026-09-16"), dates);
+    }
+
+    @Test public void monthGranularityMatchesMonthDates() {
+        List<String> dates = DailyStatsProvider.datesForGranularity(
+            DailyStatsProvider.Granularity.MONTH, "2026-09-16");
+        assertEquals(DailyStatsProvider.monthDates("2026-09-16"), dates);
+    }
+
+    // getEnergyBalanceDays' pure half: how much of a charge session's
+    // wall-clock duration falls inside one calendar day, used to split its
+    // kWh across the days it spans.
+    @Test public void overlapFractionIsZeroWhenSessionDoesNotTouchTheDay() {
+        assertEquals(0.0, DailyStatsProvider.overlapFraction(1_000, 2_000, 2_000, 3_000), 1e-9);
+        assertEquals(0.0, DailyStatsProvider.overlapFraction(1_000, 2_000, 0, 1_000), 1e-9);
+    }
+
+    @Test public void overlapFractionIsOneWhenSessionIsFullyInsideTheDay() {
+        assertEquals(1.0, DailyStatsProvider.overlapFraction(0, 10_000, 1_000, 2_000), 1e-9);
+    }
+
+    @Test public void overlapFractionSplitsASessionThatSpansMidnight() {
+        // A 4-hour session, 2 hours before midnight and 2 after: each day
+        // gets exactly half.
+        long hour = 3_600_000L;
+        long midnight = 100 * 24 * hour;
+        long start = midnight - 2 * hour, end = midnight + 2 * hour;
+        assertEquals(0.5, DailyStatsProvider.overlapFraction(midnight - 24 * hour, midnight, start, end), 1e-9);
+        assertEquals(0.5, DailyStatsProvider.overlapFraction(midnight, midnight + 24 * hour, start, end), 1e-9);
+    }
+
+    @Test public void overlapFractionIsZeroForAZeroOrNegativeDurationSession() {
+        assertEquals(0.0, DailyStatsProvider.overlapFraction(0, 10_000, 1_000, 1_000), 1e-9);
+        assertEquals(0.0, DailyStatsProvider.overlapFraction(0, 10_000, 2_000, 1_000), 1e-9);
+    }
+
+    // aggregate() combines each input day's energySource via EnergySource.combine() --
+    // one MEASURED day and one ESTIMATED day must combine to MIXED, same as the
+    // pure combine() logic itself already proves in EnergySourceTest.
+    @Test public void aggregateCombinesEnergySourceAcrossDays() {
+        DailyStatsProvider.DayOverview a = day("2026-09-01", 10, 2.0, 0.5, 0, 0, 20, 0, 0, -1, -1, -1, -1, 0);
+        a.energySource = com.geely.drivemem.sensors.EnergySource.MEASURED;
+        DailyStatsProvider.DayOverview b = day("2026-09-02", 20, 3.0, 1.0, 0, 0, 30, 0, 0, -1, -1, -1, -1, 0);
+        b.energySource = com.geely.drivemem.sensors.EnergySource.ESTIMATED;
+
+        DailyStatsProvider.DayOverview total = DailyStatsProvider.aggregate(asList(a, b), "label");
+
+        assertEquals(com.geely.drivemem.sensors.EnergySource.MIXED, total.energySource);
+    }
 }

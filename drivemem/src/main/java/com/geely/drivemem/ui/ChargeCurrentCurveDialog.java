@@ -156,6 +156,16 @@ public final class ChargeCurrentCurveDialog {
             chart.setData(new LineData(sets));
             root.addView(chart, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 330)));
+            // battery_temp_c is the one genuinely OBD2-exclusive column here
+            // (charge_a/charge_v, despite the name, are plain VHAL fields,
+            // always available) -- say so explicitly instead of just letting
+            // the curve silently not exist.
+            if (curves.batteryTemp.isEmpty()) {
+                TextView noBattTemp = Style.label(c, c.getString(R.string.charge_curve_no_batt_temp));
+                noBattTemp.setTextSize(12.5f);
+                noBattTemp.setPadding(0, Style.dp(c, 8), 0, 0);
+                root.addView(noBattTemp);
+            }
         }
         dialog.setContentView(root);
         android.view.Window window = dialog.getWindow();

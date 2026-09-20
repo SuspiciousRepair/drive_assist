@@ -382,6 +382,7 @@
     <string name="charge_curve_power_label">Potência (kW)</string>
     <string name="charge_curve_temp_label">Temp. externa (°C)</string>
     <string name="charge_curve_batt_temp_label">Temp. da bateria (°C)</string>
+    <string name="charge_curve_no_batt_temp">Sem dados de temperatura da bateria nesta recarga — o adaptador OBD2 não estava conectado.</string>
     <string name="charge_completed_title">Recarga concluída</string>
     <string name="charge_cost_label">Custo</string>
     <string name="charge_cost_input_title">Custo da Recarga</string>

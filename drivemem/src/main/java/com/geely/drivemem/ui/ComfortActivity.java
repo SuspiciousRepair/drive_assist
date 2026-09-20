@@ -19,8 +19,7 @@ import com.geely.drivemem.hvac.EffortTable;
 import com.geely.drivemem.net.AbrpUploader;
 import com.geely.drivemem.net.MqttReporter;
 import com.geely.drivemem.sensors.Obd2Reader;
-import com.geely.drivemem.sensors.DrivingConsumption;
-import com.geely.drivemem.sensors.EnergyIntegrator;
+import com.geely.drivemem.sensors.DailyStatsProvider;
 import com.geely.drivemem.services.TelemetryService;
 import com.geely.drivemem.state.CarState;
 import com.geely.drivemem.state.ChargeSession;
@@ -1105,31 +1104,45 @@ public class ComfortActivity extends Activity {
                 formatElapsed(System.currentTimeMillis() - s.startMs), power));
             journeyAction.setText(R.string.valet_end);
         } else if (driving) {
-            EnergyIntegrator.TripSnapshot energy = EnergyIntegrator.currentTrip();
-            double odoStart = TripSession.getActiveTripStartOdoKm();
-            Number odoNow = cachedNumber("telemetry.odometer");
-            double km = odoNow != null && odoStart >= 0 ? Math.max(0, odoNow.doubleValue() - odoStart) : 0;
-            // Same formula the daily stats page uses for this exact still-driving
-            // trip (DailyStatsProvider.queryDaySessions' active-trip branch) --
-            // this card used to net spentKwh alone, overstating consumption on
-            // any trip with real regen braking. See DrivingConsumption
-            // .efficiencyKwh100km's own header for the fuller history.
-            double eff = DrivingConsumption.efficiencyKwh100km(km, energy.spentKwh, energy.regenKwh);
+            // Same accounting the daily stats page uses for this exact still-driving
+            // trip (DailyStatsProvider.getActiveDriveSession, shared with
+            // queryDaySessions' own active-trip branch) -- including the real
+            // measured/mixed/estimated classification, not just "any OBD2 sample
+            // at all this trip?" which used to hide a mostly-estimated trip behind
+            // one lucky reading. See DrivingConsumption.efficiencyKwh100km's own
+            // header for the fuller history on the netting-vs-spentKwh-alone fix.
+            DailyStatsProvider.DriveSession session = DailyStatsProvider.getActiveDriveSession(this);
             journeyTitle.setText(R.string.drive_card_title);
-            // Smaller/dimmer units, same look as a daily-stats session row
-            // (Style.valueWithUnit), instead of plain concatenated strings.
             SpannableStringBuilder primary = new SpannableStringBuilder();
-            primary.append(eff > 0
-                ? Style.valueWithUnit(String.format(Locale.getDefault(), "%.1f", eff),
-                    null, "kWh/100 km", Style.UNIT_SCALE_HERO)
-                : getString(R.string.value_calculating));
-            primary.append("  ·  ");
-            primary.append(Style.valueWithUnit(String.format(Locale.getDefault(), "%.2f", energy.netKwh),
-                null, "kWh", Style.UNIT_SCALE_HERO));
-            journeyPrimary.setText(primary);
-            journeySecondary.setText(getString(R.string.drive_card_detail, km,
-                formatElapsed(TripSession.getDrivingDurationMs()), formatClock(TripSession.getActiveTripStartMs()),
-                energy.regenKwh));
+            if (session == null) {
+                primary.append(getString(R.string.value_calculating));
+                journeyPrimary.setText(primary);
+                journeySecondary.setText(getString(R.string.drive_card_detail, 0.0,
+                    formatElapsed(TripSession.getDrivingDurationMs()), formatClock(TripSession.getActiveTripStartMs()),
+                    0.0));
+            } else {
+                double km = session.distanceKm;
+                double eff = session.efficiencyKwh100km;
+                double netKwh = session.energyKwh;
+                // Smaller/dimmer units, same look as a daily-stats session row
+                // (Style.valueWithUnit), instead of plain concatenated strings.
+                primary.append(eff > 0
+                    ? Style.valueWithUnit(String.format(Locale.getDefault(), "%.1f", eff),
+                        null, "kWh/100 km", Style.UNIT_SCALE_HERO)
+                    : getString(R.string.value_calculating));
+                primary.append("  ·  ");
+                primary.append(Style.valueWithUnit(String.format(Locale.getDefault(), "%.2f", netKwh),
+                    null, "kWh", Style.UNIT_SCALE_HERO));
+                journeyPrimary.setText(DailyStatsView.withEnergySourceMark(primary, session.energySource));
+                // recovered X kWh is the last thing in this string -- the mark
+                // reads naturally right after it, same convention as every
+                // other estimated number in the app.
+                journeySecondary.setText(DailyStatsView.withEnergySourceMark(
+                    getString(R.string.drive_card_detail, km,
+                        formatElapsed(TripSession.getDrivingDurationMs()), formatClock(TripSession.getActiveTripStartMs()),
+                        session.regenKwh),
+                    session.energySource));
+            }
         } else {
             ParkingState.Snapshot s = ParkingState.snapshot(this);
             journeyTitle.setText(R.string.parked_card_title);
@@ -1355,21 +1368,21 @@ public class ComfortActivity extends Activity {
 
     private void applyAmbient(int rgb) {
         int raw = 0xFF000000 | (rgb & 0xFFFFFF);
-        int c = Style.FOLLOW_AMBIENT ? raw : Style.ACCENT;
         // The art always receives the REAL cabin colour and decides what to do
         // with it: Noturno does not let the cabin rule the CONTROLS (no blue in
         // your face at night), but the panel's city does follow the car's RGB.
         // (Both arts already filter a repeated colour, so this does not redraw.)
         if (art != null) art.setAmbient(raw);
-        // Skip repaints of the same color: setBackgroundColor and setTextColor
-        // invalidate even with identical values, and this 4s poll would otherwise
-        // request frames unnecessarily.
+        // Skip repeat work: the sensor often reports the same reading back to
+        // back, and setColorFilter/RippleDrawable.setColor invalidate even
+        // when the value is identical.
+        int c = Style.FOLLOW_AMBIENT ? raw : Style.ACCENT;
         if (c == lastAmbient) return;
         lastAmbient = c;
         if (card != null) card.setAccent(c);
-        setRecirc(recircOn);      // re-tint: lit means the ambient accent
+        setRecirc(recircOn);
         setPurge(purgeOpen);
-        redrawTurboBar(turboBarFraction < 0 ? 1f : turboBarFraction);   // re-tint, same fraction
+        redrawTurboBar(turboBarFraction < 0 ? 1f : turboBarFraction);
         if (gateCard != null) gateCard.setAccent(c);
         if (windDirIcon != null && currentWindDir != 0) {
             windDirIcon.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
@@ -1623,8 +1636,6 @@ public class ComfortActivity extends Activity {
         if (turboBarView == null) return;
         int w = turboBarView.getWidth();
         if (w <= 0) { turboBarView.post(() -> redrawTurboBar(fraction)); return; }
-        // Same ambient-or-fallback accent as recirc/purge — "full colour of the
-        // car", not a fixed app colour, ready or draining alike.
         int color = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
         if (color == 0) color = Style.ACCENT;
         if (fraction == turboBarFraction && w == turboBarW && color == turboBarColor) return;
@@ -2011,11 +2022,10 @@ public class ComfortActivity extends Activity {
         boolean stateChanged = (on != recircOn);
         recircOn = on;
 
-        int accent = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
-        if (accent == 0) accent = Style.ACCENT;
-
         // The static icon at rest: ic_hvac_cycle_off while on, ic_hvac_cycle_on while off.
         int staticIcon = on ? R.drawable.ic_hvac_cycle_off : R.drawable.ic_hvac_cycle_on;
+        int accent = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
+        if (accent == 0) accent = Style.ACCENT;
         int colorFilter = on ? Style.onFill(accent) : Style.TEXT;
         android.graphics.drawable.Drawable bgDrawable = on ? Style.card(accent, this, Style.RADIUS_DP - 8) : Style.tile(this);
 

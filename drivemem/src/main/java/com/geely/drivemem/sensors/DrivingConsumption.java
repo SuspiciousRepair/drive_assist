@@ -9,6 +9,13 @@ public final class DrivingConsumption {
     double totalRegen;
     private double previousOdo = Double.NaN;
     private long previousLegacyTs = -1;
+    long measuredSamples;
+    long estimatedSamples;
+
+    /** Whether the energy tallied so far came from OBD2, the VHAL SoC-delta
+     * estimate, a mix, or no samples with a known source at all (e.g. rows
+     * from before the energy_measured column existed). */
+    public EnergySource energySource() { return EnergySource.resolve(measuredSamples, estimatedSamples); }
 
     /** Missing gear only qualifies when speed proves movement; zero speed alone is ambiguous.
      * Gear wins over the charging flag whenever gear is actually known: is_charging is
@@ -28,6 +35,14 @@ public final class DrivingConsumption {
 
     void add(long ts, double odo, double speed, Integer gear, boolean charging,
              double spentKwh, double regenKwh, double powerKw) {
+        add(ts, odo, speed, gear, charging, spentKwh, regenKwh, powerKw, null);
+    }
+
+    /** Same as the 8-arg add(), plus a per-row measured/estimated tally.
+     * energyMeasured mirrors telemetry_sample.energy_measured: 1 = OBD2,
+     * 0 = VHAL SoC-delta estimate, null = unknown (e.g. a pre-migration row). */
+    void add(long ts, double odo, double speed, Integer gear, boolean charging,
+             double spentKwh, double regenKwh, double powerKw, Integer energyMeasured) {
         boolean driving = isDriving(gear, speed, charging);
         boolean direct = Double.isFinite(spentKwh) && Double.isFinite(regenKwh);
         boolean legacy = !direct && Double.isFinite(powerKw);
@@ -46,6 +61,10 @@ public final class DrivingConsumption {
         if (driving && hasEnergy) {
             totalSpent += spentKwh;
             totalRegen += regenKwh;
+            if (energyMeasured != null) {
+                if (energyMeasured != 0) measuredSamples++;
+                else estimatedSamples++;
+            }
             if (Double.isFinite(speed) && speed >= 0) {
                 int bucket = speed < 40 ? 0 : speed < 80 ? 1 : speed < 120 ? 2 : 3;
                 double delta = odo - previousOdo;

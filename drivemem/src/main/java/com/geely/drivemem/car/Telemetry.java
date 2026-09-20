@@ -10,9 +10,11 @@ public class Telemetry {
     // Battery nameplate capacity (39.6 kWh). Power window for SOC-delta
     // estimates; matches common third-party implementations. Only accessed
     // from CarActor's thread (read() is only called from there).
-    private static final double CAPACITY_WH = 39600;
+    /** Nameplate capacity used only for explicitly-labelled SoC estimates. */
+    public static final double BATTERY_CAPACITY_KWH = 39.6;
+    private static final double CAPACITY_WH = BATTERY_CAPACITY_KWH * 1000.0;
     private static final long POWER_WINDOW_MS = 30_000;
-    private static Integer lastPowerSoc = null;
+    private static Double lastPowerSoc = null;
     private static long lastPowerSocAtMs = 0;
 
     /** Metadata for a telemetry field: property ID, type, scaling divisor, and display information. */
@@ -139,25 +141,34 @@ public class Telemetry {
         // 3. Regen (energy recovered: kW and kWh >= 0)
         Float obdPower = Obd2Reader.freshPowerKw(POWER_WINDOW_MS / 2);
         Float fallbackSocPower = null;
-        if (obdPower == null) {
-            Object socObj = out.get("battery");
-            if (socObj instanceof Integer) {
-                int socNow = (Integer) socObj;
-                long now = System.currentTimeMillis();
-                if (lastPowerSoc != null) {
-                    long elapsedMs = now - lastPowerSocAtMs;
-                    if (elapsedMs >= POWER_WINDOW_MS) {
-                        double deltaFrac = (lastPowerSoc - socNow) / 100.0;
-                        double hours = elapsedMs / 3_600_000.0;
-                        double watts = (deltaFrac * CAPACITY_WH) / hours;
-                        fallbackSocPower = (float) (watts / 1000.0);
-                        lastPowerSoc = socNow;
-                        lastPowerSocAtMs = now;
-                    }
-                } else {
+        double fallbackWindowHours = 0;
+        // Tracked always, not only when OBD2 is absent -- so a mid-trip
+        // disconnect doesn't cold-start this estimate (the SoC tracker was
+        // already warm), and every window has a recorded estimate alongside
+        // whatever the "best available" (OBD-priority) energy turned out to
+        // be. See EnergySource / CarDb v21.
+        // battery_raw_pct, not "battery": that's the rounded-to-integer value
+        // published for display/HA, and a 30s SoC delta is frequently well
+        // under half a percent -- reading the rounded field made this estimate
+        // see "no change" most windows, then a whole 1% jump the next.
+        Object socObj = out.get("battery_raw_pct");
+        if (socObj instanceof Float) {
+            double socNow = (Float) socObj;
+            long now = System.currentTimeMillis();
+            if (lastPowerSoc != null) {
+                long elapsedMs = now - lastPowerSocAtMs;
+                if (elapsedMs >= POWER_WINDOW_MS) {
+                    double deltaFrac = (lastPowerSoc - socNow) / 100.0;
+                    double hours = elapsedMs / 3_600_000.0;
+                    double watts = (deltaFrac * CAPACITY_WH) / hours;
+                    fallbackSocPower = (float) (watts / 1000.0);
+                    fallbackWindowHours = hours;
                     lastPowerSoc = socNow;
                     lastPowerSocAtMs = now;
                 }
+            } else {
+                lastPowerSoc = socNow;
+                lastPowerSocAtMs = now;
             }
         }
 
@@ -176,6 +187,22 @@ public class Telemetry {
         out.put("energy_spent_kwh", (float) snap.spentKwh);
         out.put("energy_regen_kwh", (float) snap.regenKwh);
         out.put("energy_net_kwh", (float) snap.netKwh);
+        out.put("energy_measured", snap.sampleCount > 0 ? 1 : 0);
+        // Human-readable twin of energy_measured, for HA: surfaced as a
+        // json_attr_t attribute on the energy sensors (see MqttReporter) so
+        // this window's spent/regen/net numbers carry the same "is this a
+        // real reading or a guess" signal the app's own UI already shows via
+        // the "~" mark (see EnergySource / DailyStatsView.withEnergySourceMark).
+        out.put("energy_quality", snap.sampleCount > 0 ? "measured"
+            : (fallbackSocPower != null ? "estimated" : "no_data"));
+        // Always-recorded SoC-delta estimate, independent of whether OBD2
+        // backed this window's "best available" energy above.
+        if (fallbackSocPower != null) {
+            out.put("energy_spent_est_kwh",
+                fallbackSocPower >= 0 ? (float) (fallbackSocPower * fallbackWindowHours) : 0f);
+            out.put("energy_regen_est_kwh",
+                fallbackSocPower < 0 ? (float) (-fallbackSocPower * fallbackWindowHours) : 0f);
+        }
 
         // Parking Mode (0 = off; otherwise the low byte is the chosen duration)
         Integer pm = car.readParkMode();

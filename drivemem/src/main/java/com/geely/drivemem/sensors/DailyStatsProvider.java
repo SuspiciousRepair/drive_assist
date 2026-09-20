@@ -78,10 +78,11 @@ public final class DailyStatsProvider {
         public final double spentKwh;       // 2. Power spent (gross kWh consumed >= 0)
         public final double energyKwh;      // 1. Power as a whole (net kWh = spent - regen)
         public final double efficiencyKwh100km;
+        public final EnergySource energySource;
 
         public DriveSession(long tripId, long startMs, long endMs, double distanceKm,
                             int socStart, int socEnd, double ascentDPlusM, double descentDMinusM,
-                            double regenKwh, double spentKwh, double energyKwh, double efficiencyKwh100km) {
+                            double regenKwh, double spentKwh, double energyKwh, double efficiencyKwh100km, EnergySource energySource) {
             super(startMs, endMs);
             this.tripId = tripId;
             this.distanceKm = distanceKm;
@@ -93,13 +94,14 @@ public final class DailyStatsProvider {
             this.spentKwh = spentKwh;
             this.energyKwh = energyKwh;
             this.efficiencyKwh100km = efficiencyKwh100km;
+            this.energySource = energySource;
         }
 
         public DriveSession(long tripId, long startMs, long endMs, double distanceKm,
                             int socStart, int socEnd, double ascentDPlusM, double descentDMinusM,
                             double regenKwh, double energyKwh, double efficiencyKwh100km) {
             this(tripId, startMs, endMs, distanceKm, socStart, socEnd, ascentDPlusM, descentDMinusM,
-                 regenKwh, energyKwh + regenKwh, energyKwh, efficiencyKwh100km);
+                 regenKwh, energyKwh + regenKwh, energyKwh, efficiencyKwh100km, EnergySource.MEASURED);
         }
 
         @Override public boolean isTrip() { return true; }
@@ -183,6 +185,10 @@ public final class DailyStatsProvider {
         // until the 2026-09-13 period-views work. Same after-construction
         // pattern as maxAltitudeM, for the same reason.
         public double chargeCost;
+        // Was this day's discharge/regen energy measured (OBD2), estimated
+        // (VHAL SoC-delta), a mix, or is there no telemetry at all -- same
+        // after-construction idiom as maxAltitudeM/chargeCost above.
+        public EnergySource energySource = EnergySource.NO_DATA;
 
         public DayOverview(String date, String displayDate, double distanceKm, double dischargeKwh,
                            double regenKwh, double netKwh,
@@ -262,8 +268,10 @@ public final class DailyStatsProvider {
         double tempSum = 0; int tempDays = 0;
         double maxAlt = 0;
         List<DaySession> allSessions = new ArrayList<>();
+        List<EnergySource> sources = new ArrayList<>(days.size());
 
         for (DayOverview d : days) {
+            sources.add(d.energySource);
             distanceKm += d.distanceKm;
             dischargeKwh += d.dischargeKwh;
             regenKwh += d.regenKwh;
@@ -293,6 +301,7 @@ public final class DailyStatsProvider {
             minBatt, maxBatt, drivingMin, avgSpeed, avgTemp, chargeCount, chargeKwh, allSessions);
         total.chargeCost = chargeCost;
         total.maxAltitudeM = maxAlt;
+        total.energySource = EnergySource.combine(sources);
         return total;
     }
 
@@ -415,6 +424,68 @@ public final class DailyStatsProvider {
         return new PeriodOverview(aggregate(days, label), days, label);
     }
 
+    /** Which grain of the stats screen is being shown -- the whole reason
+     * {@link #getStatsDetail} exists: the view passes one of these plus an
+     * anchor date and gets back everything it needs to render, instead of
+     * building date ranges or picking between per-day/per-period query
+     * overloads itself. */
+    public enum Granularity { DAY, WEEK, MONTH }
+
+    /** Everything the stats screen needs to render one period's detail cards
+     * and charts, for any {@link Granularity}: the summed totals, the day(s)
+     * making it up, the nav label, and the two charts that used to be
+     * fetched separately by view code deciding which date(s) to pass. Day is
+     * simply the one-day-long period -- not a special case -- so there is
+     * exactly one path from "what period is on screen" to "what data does it
+     * need," instead of one for Day and a different one for Week/Month.
+     *
+     * That split is what caused the 2026-09-16 bug: the Month card's speed
+     * chart was fetched with the aggregate's own `.date`, which for a period
+     * is a display label ("Setembro de 2026"), not a real date -- it failed
+     * to parse and silently fell back to today, so "Month" quietly showed
+     * one day. Centralizing the date bookkeeping here removes the chance for
+     * a view to reach for the wrong field. */
+    public static final class StatsDetail {
+        public final PeriodOverview overview;
+        public final HourlySpeedData hourly;
+        public final SpeedBucket[] speedBuckets;
+
+        StatsDetail(PeriodOverview overview, HourlySpeedData hourly, SpeedBucket[] speedBuckets) {
+            this.overview = overview;
+            this.hourly = hourly;
+            this.speedBuckets = speedBuckets;
+        }
+    }
+
+    /** The dates a period covers, oldest first -- the exact decision that used
+     * to live (wrongly) in the view. Package-visible, no DB access, so the
+     * 2026-09-16 bug's fix is directly testable: DAY must return exactly
+     * `[anchorDate]`, never something derived from a label. */
+    public static List<String> datesForGranularity(Granularity granularity, String anchorDate) {
+        switch (granularity) {
+            case WEEK: return weekDates(anchorDate);
+            case MONTH: return monthDates(anchorDate);
+            default: return java.util.Collections.singletonList(anchorDate);
+        }
+    }
+
+    private static String labelForGranularity(Granularity granularity, String anchorDate, List<String> dates) {
+        switch (granularity) {
+            case WEEK: return weekLabel(dates);
+            case MONTH: return monthLabel(anchorDate);
+            default: return formatDisplayDate(anchorDate);
+        }
+    }
+
+    public static StatsDetail getStatsDetail(Context ctx, Granularity granularity, String anchorDate) {
+        List<String> dates = datesForGranularity(granularity, anchorDate);
+        String label = labelForGranularity(granularity, anchorDate, dates);
+        PeriodOverview overview = buildPeriodOverview(ctx, dates, label);
+        return new StatsDetail(overview,
+                getHourlySpeedData(ctx, dates),
+                getSpeedBucketEfficiency(ctx, dates));
+    }
+
     /** Average efficiency (kWh/100km) grouped by driving speed for a day. */
     public static final class SpeedBucket {
         public final double kwh100km;   // 0 when there's no qualifying distance in this bucket
@@ -521,8 +592,31 @@ public final class DailyStatsProvider {
      * understating that bucket's kWh/100km.
      */
     public static SpeedBucket[] getSpeedBucketEfficiency(Context ctx, String dateStr) {
+        return getSpeedBucketEfficiency(ctx, dayBoundsMs(dateStr));
+    }
+
+    /** Same speed-bucket breakdown, over the full period spanned by `dates`
+     * (oldest first, as returned by {@link #weekDates} / {@link #monthDates})
+     * instead of a single day. `dates` is always contiguous, so unlike
+     * {@link #getHourlySpeedData(Context, List)} this doesn't need a per-day
+     * loop -- one range query from the first date's start to the last date's
+     * end covers the whole period.
+     *
+     * Fixes a bug where the Week/Month cards called the single-day overload
+     * with the period's aggregate DayOverview -- whose `date` is a display
+     * label like "Setembro de 2026", not a real date -- which failed to
+     * parse and silently fell back to today (see dayCalendar()), so the
+     * chart showed only today's single day of driving under a "Month"
+     * label. */
+    public static SpeedBucket[] getSpeedBucketEfficiency(Context ctx, List<String> dates) {
+        if (dates.isEmpty()) return getSpeedBucketEfficiency(ctx, todayDateStr());
+        long startMs = dayBoundsMs(dates.get(0))[0];
+        long endMs = dayBoundsMs(dates.get(dates.size() - 1))[1];
+        return getSpeedBucketEfficiency(ctx, new long[]{startMs, endMs});
+    }
+
+    private static SpeedBucket[] getSpeedBucketEfficiency(Context ctx, long[] bounds) {
         SQLiteDatabase db = CarDb.get(ctx).db();
-        long[] bounds = dayBoundsMs(dateStr);
         DrivingConsumption totals = queryDrivingConsumption(db,
             "ts_ms >= ? AND ts_ms < ?",
             new String[]{String.valueOf(bounds[0]), String.valueOf(bounds[1])});
@@ -536,6 +630,79 @@ public final class DailyStatsProvider {
         return out;
     }
 
+    /** One calendar day's driving energy (while not charging) plus any AC/DC
+     * charging apportioned to it, for the rolling energy-balance chart. */
+    public static final class DayEnergyBalance {
+        public final String date;   // 'YYYY-MM-DD'
+        public double spentKwh, regenKwh, acKwh, dcKwh;
+        public EnergySource energySource = EnergySource.NO_DATA;
+        DayEnergyBalance(String date) { this.date = date; }
+    }
+
+    /** Rolling calendar-day energy balance for the last `days` days ending
+     * `days`-1 ago (i.e. yesterday for days=30) -- same window ChargeStatsView
+     * used to build itself, moved here. Charging sessions are apportioned
+     * across the calendar days their wall-clock start/end overlaps, same as
+     * before; only the per-day driving-energy query changed.
+     *
+     * That query used to be `date(ts_ms/1000,'unixepoch','localtime') = ?`,
+     * run once per day in a loop. SQLite can't use idx_sample_ts for a date()
+     * expression wrapped around the column -- see dayBoundsMs()'s own comment
+     * above -- so this was a full table scan of telemetry_sample, paid `days`
+     * times (30, by ChargeStatsView's own call), on every chart render.
+     * Rewritten to the same indexed `ts_ms >= ? AND ts_ms < ?` range form
+     * every other per-day query in this file already uses. */
+    public static List<DayEnergyBalance> getEnergyBalanceDays(
+            Context ctx, List<com.geely.drivemem.state.ChargeSession.Summary> sessions, int days) {
+        List<DayEnergyBalance> out = new ArrayList<>(days);
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(System.currentTimeMillis() - days * 24L * 3600 * 1000);
+        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0);
+
+        SQLiteDatabase db = CarDb.get(ctx).db();
+        for (int i = 0; i < days; i++) {
+            long start = cal.getTimeInMillis();
+            cal.add(Calendar.DAY_OF_MONTH, 1);
+            long end = cal.getTimeInMillis();
+
+            DayEnergyBalance item = new DayEnergyBalance(DAY_FMT.format(new Date(start)));
+            Cursor c = db.rawQuery(
+                "SELECT COALESCE(SUM(energy_spent_kwh),0), COALESCE(SUM(energy_regen_kwh),0), "
+              + "       SUM(CASE WHEN energy_measured=1 THEN 1 ELSE 0 END), "
+              + "       SUM(CASE WHEN energy_measured=0 THEN 1 ELSE 0 END) "
+              + "FROM telemetry_sample WHERE ts_ms >= ? AND ts_ms < ? "
+              + "AND (is_charging IS NULL OR is_charging = 0)",
+                new String[]{String.valueOf(start), String.valueOf(end)});
+            try {
+                if (c.moveToFirst()) {
+                    item.spentKwh = c.getDouble(0); item.regenKwh = c.getDouble(1);
+                    item.energySource = EnergySource.resolve(c.getLong(2), c.getLong(3));
+                }
+            } finally { c.close(); }
+
+            for (com.geely.drivemem.state.ChargeSession.Summary s : sessions) {
+                double share = overlapFraction(start, end, s.startWallMs, s.endWallMs);
+                if (s.isDcfc()) item.dcKwh += s.kwh * share;
+                else item.acKwh += s.kwh * share;
+            }
+            out.add(item);
+        }
+        return out;
+    }
+
+    /** Fraction of a charge session's wall-clock duration that falls within
+     * [dayStart, dayEnd) -- how getEnergyBalanceDays splits one session's kWh
+     * across the calendar days it spans. 0 for a session with no overlap, or
+     * one with zero/negative duration (can't take a fraction of nothing). */
+    public static double overlapFraction(long dayStart, long dayEnd, long sessionStart, long sessionEnd) {
+        if (sessionEnd <= sessionStart) return 0;
+        long overlapStart = Math.max(dayStart, sessionStart);
+        long overlapEnd = Math.min(dayEnd, sessionEnd);
+        if (overlapEnd <= overlapStart) return 0;
+        return (overlapEnd - overlapStart) / (double) (sessionEnd - sessionStart);
+    }
+
     /** Reads every row in the interval so a Park or charging row can reset legacy
      * integration. Filtering those rows in SQL would incorrectly bridge energy
      * across short parked gaps. Zero-speed rows in a driving gear remain included. */
@@ -544,7 +711,7 @@ public final class DailyStatsProvider {
         DrivingConsumption totals = new DrivingConsumption();
         Cursor c = db.rawQuery(
             "SELECT ts_ms, odo_km, speed_kmh, gear, is_charging, "
-          + "       energy_spent_kwh, energy_regen_kwh, instant_power_kw_est "
+          + "       energy_spent_kwh, energy_regen_kwh, instant_power_kw_est, energy_measured "
           + "FROM telemetry_sample WHERE " + where + " ORDER BY ts_ms ASC, id ASC", args);
         try {
             while (c.moveToNext()) {
@@ -556,7 +723,8 @@ public final class DailyStatsProvider {
                 double spent = c.isNull(5) ? Double.NaN : c.getDouble(5);
                 double regen = c.isNull(6) ? Double.NaN : c.getDouble(6);
                 double power = c.isNull(7) ? Double.NaN : c.getDouble(7);
-                totals.add(ts, odo, speed, gear, charging, spent, regen, power);
+                Integer measured = c.isNull(8) ? null : c.getInt(8);
+                totals.add(ts, odo, speed, gear, charging, spent, regen, power, measured);
             }
         } finally { c.close(); }
         return totals;
@@ -641,6 +809,24 @@ public final class DailyStatsProvider {
     }
 
     /** Returns the comprehensive overview and session log for a selected day. */
+    /** Parses a daily_stat.energy_source value, tolerant of null/unrecognized
+     * (older rows frozen before this column existed). */
+    private static EnergySource parseEnergySource(String s) {
+        if (s == null) return EnergySource.NO_DATA;
+        try { return EnergySource.valueOf(s); }
+        catch (IllegalArgumentException e) { return EnergySource.NO_DATA; }
+    }
+
+    /** Parses a trip.energy_source value ("OBD_MEASURED"/"MIXED"/"SOC_ESTIMATED",
+     * a different vocabulary from daily_stat's plain enum names -- see
+     * TripSession.finalizeTrip()). Null covers legacy pre-v19 trips, which
+     * predate any estimate mechanism and were always fully measured. */
+    private static EnergySource parseTripEnergySource(String s) {
+        if ("SOC_ESTIMATED".equals(s)) return EnergySource.ESTIMATED;
+        if ("MIXED".equals(s)) return EnergySource.MIXED;
+        return EnergySource.MEASURED;
+    }
+
     public static DayOverview getDayOverview(Context ctx, String dateStr) {
         SQLiteDatabase db = CarDb.get(ctx).db();
         String displayDate = formatDisplayDate(dateStr);
@@ -653,6 +839,7 @@ public final class DailyStatsProvider {
         int firstBatt = -1, lastBatt = -1, minBatt = -1, maxBatt = -1;
         double drivingMin = 0, avgSpeed = 0, avgTemp = 0;
         int chargeCount = 0; double chargeKwh = 0; double chargeCost = 0;
+        EnergySource daySource = EnergySource.NO_DATA;
 
         String today = todayDateStr();
         boolean isToday = dateStr.equals(today);
@@ -669,7 +856,7 @@ public final class DailyStatsProvider {
                 "SELECT first_odo_km, last_odo_km, first_battery_pct, last_battery_pct, "
               + "       min_battery_pct, max_battery_pct, avg_speed_kmh, avg_temp_c, "
               + "       ascent_m, descent_m, driving_minutes, charge_count, charge_kwh, "
-              + "       discharge_kwh, regen_kwh, net_kwh, charge_cost "
+              + "       discharge_kwh, regen_kwh, net_kwh, charge_cost, energy_source "
               + "FROM daily_stat WHERE date = ?", new String[]{dateStr});
             try {
                 if (c.moveToFirst()) {
@@ -690,6 +877,7 @@ public final class DailyStatsProvider {
                     regenKwh = c.isNull(14) ? 0 : c.getDouble(14);
                     netKwh = c.isNull(15) ? (dischargeKwh - regenKwh) : c.getDouble(15);
                     chargeCost = c.getDouble(16);
+                    daySource = parseEnergySource(c.isNull(17) ? null : c.getString(17));
                 }
             } finally { c.close(); }
         }
@@ -831,6 +1019,7 @@ public final class DailyStatsProvider {
             dischargeKwh = energy.totalSpent;
             regenKwh = energy.totalRegen;
             netKwh = dischargeKwh - regenKwh;
+            daySource = energy.energySource();
         } // end if (!foundInStat)
 
         double efficiencyKwh100km = DrivingConsumption.efficiencyKwh100km(distKm, dischargeKwh, regenKwh);
@@ -843,6 +1032,7 @@ public final class DailyStatsProvider {
                 efficiencyKwh100km, ascentDPlus, descentDMinus, netElevation, firstBatt, lastBatt,
                 minBatt, maxBatt, drivingMin, avgSpeed, avgTemp, chargeCount, chargeKwh, sessions);
         ov.chargeCost = chargeCost;
+        ov.energySource = daySource;
 
         // Trivial point lookup against raw telemetry_sample -- works for both
         // today and already-frozen days, since freezing only summarizes into
@@ -863,6 +1053,90 @@ public final class DailyStatsProvider {
         return ov;
     }
 
+    /** The still-open trip's live stats right now, or null if not currently driving
+     * (parked, no active trip, or in Valet). Same accounting queryDaySessions' own
+     * in-progress branch used to inline, so the home-screen journey card and the
+     * daily-stats "session in progress" row can never disagree. */
+    public static DriveSession getActiveDriveSession(Context ctx, SQLiteDatabase db) {
+        if (!com.geely.drivemem.state.TripSession.isTripActive()
+                || com.geely.drivemem.state.ValetSession.isActive(ctx)) {
+            return null;
+        }
+        long startMs = com.geely.drivemem.state.TripSession.getActiveTripStartMs();
+        long startSampleId = com.geely.drivemem.state.TripSession.getActiveTripStartSampleId();
+        double odoStart = com.geely.drivemem.state.TripSession.getActiveTripStartOdoKm();
+        int socStart = com.geely.drivemem.state.TripSession.getActiveTripStartSoc();
+
+        if (odoStart < 0 || socStart < 0) {
+            if (startSampleId > 0) {
+                Cursor sc = db.rawQuery(
+                    "SELECT odo_km, battery_pct FROM telemetry_sample WHERE id = ?",
+                    new String[]{String.valueOf(startSampleId)});
+                try {
+                    if (sc.moveToFirst()) {
+                        if (odoStart < 0 && !sc.isNull(0)) odoStart = sc.getDouble(0);
+                        if (socStart < 0 && !sc.isNull(1)) socStart = sc.getInt(1);
+                    }
+                } finally { sc.close(); }
+            }
+            if ((odoStart < 0 || socStart < 0) && startMs > 0) {
+                Cursor sc = db.rawQuery(
+                    "SELECT odo_km, battery_pct FROM telemetry_sample WHERE ts_ms >= ? ORDER BY id ASC LIMIT 1",
+                    new String[]{String.valueOf(startMs)});
+                try {
+                    if (sc.moveToFirst()) {
+                        if (odoStart < 0 && !sc.isNull(0)) odoStart = sc.getDouble(0);
+                        if (socStart < 0 && !sc.isNull(1)) socStart = sc.getInt(1);
+                    }
+                } finally { sc.close(); }
+            }
+        }
+
+        double odoEnd = -1;
+        int socEnd = -1;
+        com.geely.drivemem.car.CarActor.Reading odoR = com.geely.drivemem.car.CarActor.get(ctx).get("telemetry.odometer");
+        if (odoR.status == com.geely.drivemem.car.CarActor.Reading.Status.OK && odoR.value instanceof Number) {
+            odoEnd = ((Number) odoR.value).doubleValue();
+        }
+        com.geely.drivemem.car.CarActor.Reading battR = com.geely.drivemem.car.CarActor.get(ctx).get("telemetry.battery");
+        if (battR.status == com.geely.drivemem.car.CarActor.Reading.Status.OK && battR.value instanceof Integer) {
+            socEnd = (Integer) battR.value;
+        }
+
+        if (odoEnd < 0 || socEnd < 0) {
+            Cursor lastC = db.rawQuery(
+                "SELECT odo_km, battery_pct FROM telemetry_sample ORDER BY id DESC LIMIT 1", null);
+            try {
+                if (lastC.moveToFirst()) {
+                    if (odoEnd < 0 && !lastC.isNull(0)) odoEnd = lastC.getDouble(0);
+                    if (socEnd < 0 && !lastC.isNull(1)) socEnd = lastC.getInt(1);
+                }
+            } finally { lastC.close(); }
+        }
+
+        double distanceKm = (odoStart > 0 && odoEnd >= odoStart) ? (odoEnd - odoStart) : 0;
+        double ascent = com.geely.drivemem.state.TripSession.getActiveTripAscentM();
+        double descent = com.geely.drivemem.state.TripSession.getActiveTripDescentM();
+        // Recompute from timestamped rows instead of EnergyIntegrator's live
+        // trip accumulator. The trip remains open during the Park grace period,
+        // while its displayed driving energy must stop immediately in Park.
+        DrivingConsumption activeEnergy = queryDrivingConsumption(db,
+            "ts_ms >= ?", new String[]{String.valueOf(startMs)});
+        double spent = activeEnergy.totalSpent;
+        double regen = activeEnergy.totalRegen;
+        double net = spent - regen;
+        double eff = DrivingConsumption.efficiencyKwh100km(distanceKm, spent, regen);
+
+        // endMs = 0 indicates active session ("em andamento")
+        return new DriveSession(0, startMs, 0, distanceKm, socStart, socEnd,
+                ascent, descent, regen, spent, net, eff, activeEnergy.energySource());
+    }
+
+    /** Convenience overload for callers without an already-open db handle. */
+    public static DriveSession getActiveDriveSession(Context ctx) {
+        return getActiveDriveSession(ctx, CarDb.get(ctx).db());
+    }
+
     private static List<DaySession> queryDaySessions(Context ctx, SQLiteDatabase db, String dateStr) {
         List<DaySession> out = new ArrayList<>();
         long[] bounds = dayBoundsMs(dateStr);
@@ -872,7 +1146,7 @@ public final class DailyStatsProvider {
         Cursor tc = db.rawQuery(
             "SELECT t.id, t.start_ms, t.end_ms, t.ascent_m, t.descent_m, t.regen_kwh, "
           + "       s1.odo_km, s2.odo_km, s1.battery_pct, s2.battery_pct, "
-          + "       t.spent_kwh, t.net_kwh FROM trip t "
+          + "       t.spent_kwh, t.net_kwh, t.energy_source, t.estimated_net_kwh FROM trip t "
           + "LEFT JOIN telemetry_sample s1 ON t.start_sample_id = s1.id "
           + "LEFT JOIN telemetry_sample s2 ON t.end_sample_id = s2.id "
           + "WHERE t.start_ms >= ? AND t.start_ms < ? "
@@ -891,6 +1165,8 @@ public final class DailyStatsProvider {
                 double odoEnd = tc.isNull(7) ? -1 : tc.getDouble(7);
                 int socStart = tc.isNull(8) ? -1 : tc.getInt(8);
                 int socEnd = tc.isNull(9) ? -1 : tc.getInt(9);
+                EnergySource tripSource = parseTripEnergySource(tc.isNull(12) ? null : tc.getString(12));
+                double storedEstimate = tc.isNull(13) ? Double.NaN : tc.getDouble(13);
                 // trip.spent_kwh is NOT used for display — always recompute from
                 // telemetry_sample so every trip is consistent regardless of era:
                 //   • Legacy trips (pre-v8): spent_kwh = NULL, energy only in instant_power_kw_est
@@ -901,7 +1177,11 @@ public final class DailyStatsProvider {
                 double tripSpent = 0, tripNet = 0;
                 double distanceKm = (odoStart > 0 && odoEnd >= odoStart) ? (odoEnd - odoStart) : 0;
 
-                if (endMs > startMs) {
+                if (tripSource == EnergySource.ESTIMATED && Double.isFinite(storedEstimate)) {
+                    tripNet = storedEstimate;
+                    tripSpent = 0;
+                    regen = 0;
+                } else if (endMs > startMs) {
                     DrivingConsumption energy = queryDrivingConsumption(db,
                         "ts_ms BETWEEN ? AND ?",
                         new String[]{String.valueOf(startMs), String.valueOf(endMs)});
@@ -910,84 +1190,19 @@ public final class DailyStatsProvider {
                     tripNet = tripSpent - regen;
                 }
 
-                double eff = DrivingConsumption.efficiencyKwh100km(distanceKm, tripSpent, regen);
+                double eff = tripSource == EnergySource.ESTIMATED
+                    ? (distanceKm > 0.2 ? Math.max(0, tripNet) * 100 / distanceKm : 0)
+                    : DrivingConsumption.efficiencyKwh100km(distanceKm, tripSpent, regen);
                 out.add(new DriveSession(id, startMs, endMs, distanceKm, socStart, socEnd,
-                        ascent, descent, regen, tripSpent, tripNet, eff));
+                        ascent, descent, regen, tripSpent, tripNet, eff, tripSource));
             }
         } finally { tc.close(); }
 
         // 2. Active in-progress trip (if driving today)
         String today = todayDateStr();
-        if (dateStr.equals(today) && com.geely.drivemem.state.TripSession.isTripActive()
-                && !com.geely.drivemem.state.ValetSession.isActive(ctx)) {
-            long startMs = com.geely.drivemem.state.TripSession.getActiveTripStartMs();
-            long startSampleId = com.geely.drivemem.state.TripSession.getActiveTripStartSampleId();
-            double odoStart = com.geely.drivemem.state.TripSession.getActiveTripStartOdoKm();
-            int socStart = com.geely.drivemem.state.TripSession.getActiveTripStartSoc();
-
-            if (odoStart < 0 || socStart < 0) {
-                if (startSampleId > 0) {
-                    Cursor sc = db.rawQuery(
-                        "SELECT odo_km, battery_pct FROM telemetry_sample WHERE id = ?",
-                        new String[]{String.valueOf(startSampleId)});
-                    try {
-                        if (sc.moveToFirst()) {
-                            if (odoStart < 0 && !sc.isNull(0)) odoStart = sc.getDouble(0);
-                            if (socStart < 0 && !sc.isNull(1)) socStart = sc.getInt(1);
-                        }
-                    } finally { sc.close(); }
-                }
-                if ((odoStart < 0 || socStart < 0) && startMs > 0) {
-                    Cursor sc = db.rawQuery(
-                        "SELECT odo_km, battery_pct FROM telemetry_sample WHERE ts_ms >= ? ORDER BY id ASC LIMIT 1",
-                        new String[]{String.valueOf(startMs)});
-                    try {
-                        if (sc.moveToFirst()) {
-                            if (odoStart < 0 && !sc.isNull(0)) odoStart = sc.getDouble(0);
-                            if (socStart < 0 && !sc.isNull(1)) socStart = sc.getInt(1);
-                        }
-                    } finally { sc.close(); }
-                }
-            }
-
-            double odoEnd = -1;
-            int socEnd = -1;
-            com.geely.drivemem.car.CarActor.Reading odoR = com.geely.drivemem.car.CarActor.get(ctx).get("telemetry.odometer");
-            if (odoR.status == com.geely.drivemem.car.CarActor.Reading.Status.OK && odoR.value instanceof Number) {
-                odoEnd = ((Number) odoR.value).doubleValue();
-            }
-            com.geely.drivemem.car.CarActor.Reading battR = com.geely.drivemem.car.CarActor.get(ctx).get("telemetry.battery");
-            if (battR.status == com.geely.drivemem.car.CarActor.Reading.Status.OK && battR.value instanceof Integer) {
-                socEnd = (Integer) battR.value;
-            }
-
-            if (odoEnd < 0 || socEnd < 0) {
-                Cursor lastC = db.rawQuery(
-                    "SELECT odo_km, battery_pct FROM telemetry_sample ORDER BY id DESC LIMIT 1", null);
-                try {
-                    if (lastC.moveToFirst()) {
-                        if (odoEnd < 0 && !lastC.isNull(0)) odoEnd = lastC.getDouble(0);
-                        if (socEnd < 0 && !lastC.isNull(1)) socEnd = lastC.getInt(1);
-                    }
-                } finally { lastC.close(); }
-            }
-
-            double distanceKm = (odoStart > 0 && odoEnd >= odoStart) ? (odoEnd - odoStart) : 0;
-            double ascent = com.geely.drivemem.state.TripSession.getActiveTripAscentM();
-            double descent = com.geely.drivemem.state.TripSession.getActiveTripDescentM();
-            // Recompute from timestamped rows instead of EnergyIntegrator's live
-            // trip accumulator. The trip remains open during the Park grace period,
-            // while its displayed driving energy must stop immediately in Park.
-            DrivingConsumption activeEnergy = queryDrivingConsumption(db,
-                "ts_ms >= ?", new String[]{String.valueOf(startMs)});
-            double spent = activeEnergy.totalSpent;
-            double regen = activeEnergy.totalRegen;
-            double net = spent - regen;
-            double eff = DrivingConsumption.efficiencyKwh100km(distanceKm, spent, regen);
-
-            // endMs = 0 indicates active session ("em andamento")
-            out.add(new DriveSession(0, startMs, 0, distanceKm, socStart, socEnd,
-                    ascent, descent, regen, spent, net, eff));
+        if (dateStr.equals(today)) {
+            DriveSession active = getActiveDriveSession(ctx, db);
+            if (active != null) out.add(active);
         }
 
         // 3. Explicit Valet intervals. Their original trips remain in the DB,
