@@ -813,6 +813,21 @@ public final class Obd2Reader {
         if (newTemp != null) battTempC = newTemp;
         if (newSpeed != null) reportedSpeedKmh = newSpeed;
         if (newVolt != null && newCurr != null) powerKw = (newVolt * newCurr) / 1000.0;
+        // Reported once per bad round, not once per bad PID -- a session
+        // that never gets one clean volt+curr round in a row logs one line
+        // every ~2s, which is still legible (unlike a 5-line-per-round
+        // dump). powerKw is the one thing energy_measured actually depends
+        // on (EnergyIntegrator only ever sees a reading via r.powerKw), so a
+        // report of "OBD2 shows connected but the app never counts it as
+        // measured" is diagnosed from these lines, not the connect/session
+        // ones above -- this is the one place that distinction can be seen
+        // at all: the round reached the dongle (any true, below) but the
+        // specific pair this needs didn't both come back parseable.
+        if (newVolt == null || newCurr == null) {
+            Log.w(TAG, "obd2: power PID incomplete this round -- volt="
+                + (newVolt != null) + " (\"" + voltResp + "\") curr="
+                + (newCurr != null) + " (\"" + currResp + "\")");
+        }
 
         boolean any = newSoc != null || newVolt != null || newCurr != null;
         if (any) { lastReadingAtMs = System.currentTimeMillis(); notifyReading(); }
