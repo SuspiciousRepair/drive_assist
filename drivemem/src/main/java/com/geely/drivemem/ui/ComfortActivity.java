@@ -30,6 +30,7 @@ import com.geely.drivemem.state.ParkingState;
 import com.geely.drivemem.state.TripSession;
 import com.geely.drivemem.state.ValetSession;
 import com.geely.drivemem.util.BootReceiver;
+import com.geely.drivemem.util.LayoutWait;
 import com.geely.drivemem.util.Modes;
 import com.geely.drivemem.util.SpotifyClient;
 import com.geely.drivemem.net.Updater;
@@ -373,11 +374,11 @@ public class ComfortActivity extends Activity {
     }
 
     // band has no real width on the very first onCreate pass — same reason
-    // repackColumns() retries via post(). Runs once; the zone's width never
-    // needs to change again after that (it does not track cards at all).
+    // repackColumns() waits via LayoutWait. Runs once; the zone's width
+    // never needs to change again after that (it does not track cards at all).
     private void sizeKonamiZone(FrameLayout zone) {
         int w = columnWidth();
-        if (w <= 0) { band.post(() -> sizeKonamiZone(zone)); return; }
+        if (w <= 0) { LayoutWait.onNextLayout(band, () -> sizeKonamiZone(zone)); return; }
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) zone.getLayoutParams();
         lp.width = w;
         zone.setLayoutParams(lp);
@@ -396,13 +397,20 @@ public class ComfortActivity extends Activity {
     // same "flow like HTML columns" behavior has a standard view to reuse
     // instead of copying this). This wrapper only owns what's specific to
     // ComfortActivity: reading `columns`'/`band`'s real measured size, and
-    // retrying via post() until that's actually available (band has no
-    // real width on the very first onCreate pass).
+    // waiting via LayoutWait until that's actually available (band has no
+    // real width on the very first onCreate pass; blindly reposting on
+    // `columns` instead of waiting for a real layout pass spun the main
+    // thread at 100% CPU whenever this screen itself was backgrounded --
+    // GitHub issue #5).
     private void repackColumns() {
         int availH = columns.getHeight();
         int colW = columnWidth();
         if (availH <= 0 || colW <= 0) {
-            columns.post(this::repackColumns);
+            // Wait on whichever one isn't ready -- columnWidth() depends on
+            // band, so if that's the zero one, columns' own height being
+            // fine doesn't help; only wait on columns when band already has
+            // a real width and columns' own height is the actual blocker.
+            LayoutWait.onNextLayout(colW <= 0 ? band : columns, this::repackColumns);
             return;
         }
         Style.packIntoColumns(this, columns, cards, colW, availH);
@@ -1304,7 +1312,7 @@ public class ComfortActivity extends Activity {
     private void redrawScale() {
         if (scaleView == null) return;
         int w = scaleView.getWidth();
-        if (w <= 0) { scaleView.post(this::redrawScale); return; }
+        if (w <= 0) { LayoutWait.onNextLayout(scaleView, this::redrawScale); return; }
         int level = comfortRuler.pointer();
         boolean approx = comfortRuler.approx();
         boolean defrosting = comfortRuler.defrosting();
@@ -1625,7 +1633,7 @@ public class ComfortActivity extends Activity {
     private void redrawChargeBar(int socStart, int socNow) {
         if (chargeBarView == null) return;
         int w = chargeBarView.getWidth();
-        if (w <= 0) { chargeBarView.post(() -> redrawChargeBar(socStart, socNow)); return; }
+        if (w <= 0) { LayoutWait.onNextLayout(chargeBarView, () -> redrawChargeBar(socStart, socNow)); return; }
         if (w == chargeBarW && socStart == chargeBarStart && socNow == chargeBarNow) return;
         chargeBarW = w; chargeBarStart = socStart; chargeBarNow = socNow;
         int color = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
@@ -1646,7 +1654,7 @@ public class ComfortActivity extends Activity {
     private void redrawTurboBar(float fraction) {
         if (turboBarView == null) return;
         int w = turboBarView.getWidth();
-        if (w <= 0) { turboBarView.post(() -> redrawTurboBar(fraction)); return; }
+        if (w <= 0) { LayoutWait.onNextLayout(turboBarView, () -> redrawTurboBar(fraction)); return; }
         int color = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
         if (color == 0) color = Style.ACCENT;
         if (fraction == turboBarFraction && w == turboBarW && color == turboBarColor) return;
