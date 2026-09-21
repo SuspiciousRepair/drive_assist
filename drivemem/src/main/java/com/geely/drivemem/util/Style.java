@@ -48,6 +48,8 @@ public class Style {
     public static int HEAT      = 0xFFFF9800;  // heat semantics
     public static int GOOD      = 0xFF43A047;  // positive/green semantics (e.g. DC fast charging)
     public static int PURPLE    = 0xFF8E24AA;  // regen energy (Balanço de Energia chart)
+    public static int WARN      = 0xFFFFB300;  // caution/amber semantics (e.g. Comfort drive mode)
+    public static int DANGER    = 0xFFE53935;  // urgent/red semantics (e.g. Sport drive mode)
 
     // ---- active shape ----
     public static int  RADIUS_DP    = 14;
@@ -117,8 +119,11 @@ public class Style {
             new Palette(0xFF303640, 0xFF171B21, 0xFF2E333B, 0xFF3A4048, 0xFF1E6FFF,
                 0xFFECEFF3, 0xFF8A93A0, 0xFFECEFF3, 0xFF1E6FFF, 0xFF2196F3, 0xFFFF9800,
                 30, 1, 0x22FFFFFF, false, false, true, ART_SKYLINE),
-            // Light variant: cool off-white palette matched to instrument cluster appearance.
-            new Palette(0xFFEEF1F4, 0xFFDBE0E5, 0xFFFFFFFF, 0xFFE7EAEE, 0xFF1668E3,
+            // Light variant: flat background color measured directly from the
+            // OEM's own day render (config_bg_day.webp, RGB 211/219/229 --
+            // 2026-09-21), not an approximation -- this IS the instrument
+            // cluster's own off-white, not just "matched" to it.
+            new Palette(0xFFD3DBE5, 0xFFD3DBE5, 0xFFFFFFFF, 0xFFE7EAEE, 0xFF1668E3,
                 0xFF1B1F24, 0xFF62697A, 0xFFFFFFFF, 0xFF1668E3, 0xFF0277BD, 0xFFE65100,
                 34, 1, 0x1A000000, false, true, true, ART_SKYLINE)),
 
@@ -286,6 +291,29 @@ public class Style {
     public static GradientDrawable screenBg() {
         return new GradientDrawable(
             GradientDrawable.Orientation.TOP_BOTTOM, new int[]{BG_TOP, BG_BOTTOM});
+    }
+
+    /** Config screen's background for the sections the OEM render suits
+     * (Driving mode / Doors / Elements): the day/night render for the
+     * Default theme (day/night picked the same way any other palette choice
+     * is, via resolvedLight()), or the plain gradient for every other theme
+     * -- Neon and Noturno have their own distinct identity, and this
+     * specific OEM scene wouldn't match either of them. Exact-pixel asset
+     * (1920x1080, matching this panel's own resolution at density 1.0), so
+     * no scaling happens here. */
+    public static android.graphics.drawable.Drawable configScreenBg(Context c) {
+        if (!"geely".equals(current.id)) return screenBg();
+        int res = resolvedLight(c, current) ? R.drawable.config_bg_day : R.drawable.config_bg_night;
+        return c.getResources().getDrawable(res, c.getTheme());
+    }
+
+    /** Config screen's background for every OTHER section: a flat fill of
+     * the theme's own primary tone, not the two-stop gradient -- those
+     * sections have nothing that needs the extra depth, and a flat fill
+     * reads as deliberately plainer next to the sections that carry the
+     * OEM render. */
+    public static android.graphics.drawable.Drawable configScreenBgSolid() {
+        return new android.graphics.drawable.ColorDrawable(BG_TOP);
     }
 
     /** Creates a card drawable in the theme's current shape. */

@@ -4,7 +4,9 @@ import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.car.CarDb;
 import com.geely.drivemem.car.EntityBus;
+import com.geely.drivemem.car.Telemetry;
 import com.geely.drivemem.sensors.EnergyIntegrator;
+import com.geely.drivemem.sensors.EnergySource;
 import com.geely.drivemem.sensors.GpsReader;
 import com.geely.drivemem.util.Modes;
 
@@ -85,6 +87,10 @@ public final class TripSession {
     private static volatile long startSampleId = -1;
     private static volatile double startOdoKm = -1;
     private static volatile int startSoc = -1;
+    // Centralized no-OBD fallback state. This is deliberately a start-to-now
+    // net-energy estimate, never an invented instantaneous power reading.
+    private static volatile double startSocRaw = Double.NaN;
+    private static volatile double currentSocRaw = Double.NaN;
     private static volatile Double lastAltitude = null;
     private static volatile double ascentM = 0;
     private static volatile double descentM = 0;
@@ -143,6 +149,10 @@ public final class TripSession {
                     startOdoKm = -1;
                     startSoc = -1;
                 }
+                CarActor.Reading rawSocR = ctx != null ? CarActor.get(ctx).get("telemetry.battery_raw_pct") : null;
+                startSocRaw = (rawSocR != null && rawSocR.status == CarActor.Reading.Status.OK
+                    && rawSocR.value instanceof Number) ? ((Number) rawSocR.value).doubleValue() : Double.NaN;
+                currentSocRaw = startSocRaw;
                 EnergyIntegrator.startTrip();
                 if (ctx != null) persistOpenTrip(ctx);
             }
@@ -174,6 +184,12 @@ public final class TripSession {
             Object b = data.get("battery");
             if (b instanceof Integer) { startSoc = (Integer) b; backfilled = true; }
         }
+        Object raw = data.get("battery_raw_pct");
+        boolean charging = data.get("is_charging") instanceof Integer && (Integer) data.get("is_charging") != 0;
+        if (!wasParked && !charging && raw instanceof Number) {
+            currentSocRaw = ((Number) raw).doubleValue();
+            if (!Double.isFinite(startSocRaw)) startSocRaw = currentSocRaw;
+        }
         // Re-persist once the identity fields are actually known — a restart
         // right after trip start but before the first odometer/SoC reading
         // arrived would otherwise recover a marker with startOdoKm still -1.
@@ -189,6 +205,13 @@ public final class TripSession {
             else return; // within noise band — don't move the reference point either
         }
         lastAltitude = alt;
+    }
+
+    /** Net energy since the trip began from raw dashboard SoC; NaN until both
+     * endpoints exist. Used only when direct OBD integration has no samples. */
+    public static double currentSocEstimatedNetKwh() {
+        if (!tripActive || !Double.isFinite(startSocRaw) || !Double.isFinite(currentSocRaw)) return Double.NaN;
+        return (startSocRaw - currentSocRaw) * Telemetry.BATTERY_CAPACITY_KWH / 100.0;
     }
 
     public static boolean finalizeTrip(Context ctx) {
@@ -211,6 +234,7 @@ public final class TripSession {
         }
 
         final EnergyIntegrator.TripSnapshot ts = EnergyIntegrator.endTrip();
+        final double socEstimatedNetKwh = currentSocEstimatedNetKwh();
 
         double currentOdoKm = -1;
         if (testCurrentOdoKm != null) {
@@ -242,6 +266,7 @@ public final class TripSession {
             if (startSampleId >= 0 && ctx != null) {
                 final long endMs = now;
                 final long endSampleId = CarDb.get(ctx).latestSampleId();
+                final EnergySource tripSource = classifyTripEnergySource(ctx, startMs, endMs, ts);
                 final ContentValues v = new ContentValues();
                 v.put("start_ms", startMs);
                 v.put("end_ms", endMs);
@@ -252,6 +277,11 @@ public final class TripSession {
                 v.put("spent_kwh", ts.spentKwh);
                 v.put("regen_kwh", ts.regenKwh);
                 v.put("net_kwh", ts.netKwh);
+                v.put("energy_source", tripSource == EnergySource.ESTIMATED ? "SOC_ESTIMATED"
+                    : tripSource == EnergySource.MIXED ? "MIXED" : "OBD_MEASURED");
+                if (tripSource == EnergySource.ESTIMATED && Double.isFinite(socEstimatedNetKwh)) {
+                    v.put("estimated_net_kwh", socEstimatedNetKwh);
+                }
                 CarDb.get(ctx).write(() -> {
                     try {
                         CarDb.get(ctx).db().insert("trip", null, v);
@@ -423,6 +453,40 @@ public final class TripSession {
         return new double[]{0, 0, 0};
     }
 
+    /** Classifies a finished trip's energy as measured/mixed/estimated by
+     * counting how many of its own telemetry_sample rows were OBD2-backed
+     * vs SoC-delta-estimated -- replaces the old sampleCount>0 binary check,
+     * which tagged a trip fully "measured" even if only one brief window out
+     * of an hour-long drive had a real OBD2 reading. Uses the same gear<>4/
+     * not-charging filter as sumEnergySince() above, so the label describes
+     * exactly the rows that produced this trip's own spent_kwh/net_kwh --
+     * not a plain unfiltered scan, which could let a parked trailing tail
+     * (Park grace period) skew the ratio away from what actually happened
+     * while driving. */
+    private static EnergySource classifyTripEnergySource(
+            Context ctx, long startMs, long endMs, EnergyIntegrator.TripSnapshot ts) {
+        try {
+            Cursor c = CarDb.get(ctx).db().rawQuery(
+                "SELECT SUM(CASE WHEN energy_measured=1 THEN 1 ELSE 0 END), "
+              + "       SUM(CASE WHEN energy_measured=0 THEN 1 ELSE 0 END) "
+              + "FROM telemetry_sample WHERE ts_ms BETWEEN ? AND ? "
+              + "AND (CASE WHEN gear IS NOT NULL THEN gear <> 4 "
+              + "     ELSE (is_charging IS NULL OR is_charging = 0) END)",
+                new String[]{String.valueOf(startMs), String.valueOf(endMs)});
+            try {
+                if (c.moveToFirst()) {
+                    EnergySource s = EnergySource.resolve(c.getLong(0), c.getLong(1));
+                    if (s != EnergySource.NO_DATA) return s;
+                }
+            } finally { c.close(); }
+        } catch (Throwable t) {
+            Log.w(TAG, "trip energy classification: " + t);
+        }
+        // Rollout edge case: this trip's rows predate the energy_measured
+        // column. Fall back to the old any-vs-none signal.
+        return ts.sampleCount > 0 ? EnergySource.MEASURED : EnergySource.ESTIMATED;
+    }
+
     public static boolean isQualified(double distanceKm, long drivingDurationMs) {
         return (distanceKm >= MIN_TRIP_DISTANCE_KM) || (drivingDurationMs >= MIN_TRIP_DRIVE_DURATION_MS);
     }
@@ -497,6 +561,13 @@ public final class TripSession {
 
     public static void setTestCurrentOdoKm(Double odo) {
         testCurrentOdoKm = odo;
+    }
+
+    /** Test-only injection for the centralized raw-SoC estimator. */
+    public static void setSocEstimateForTesting(double startPct, double currentPct) {
+        tripActive = true;
+        startSocRaw = startPct;
+        currentSocRaw = currentPct;
     }
 
     public static void resetForTesting() {

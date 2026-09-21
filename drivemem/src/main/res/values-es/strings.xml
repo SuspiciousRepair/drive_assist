@@ -5,18 +5,18 @@
     <string name="ac_title">Aire acondicionado</string>
 
     <!-- comfort -->
-    <string name="ac_outside_label">fuera</string>
-    <string name="ac_reading">Leyendo...</string>
+    <string name="ac_outside_label">Exterior</string>
+    <string name="ac_reading">Leyendo…</string>
     <string name="ac_adjust_header">¿Qué ajustar?</string>
     <string name="ac_cooler">Más frío</string>
     <string name="ac_warmer">Más calor</string>
     <string name="ac_recirc_label">Recircular</string>
     <string name="ac_recirc_on_label">Aire exterior</string>
-    <string name="ac_recirc_refused">Recirculación: el coche la rechazó</string>
-    <string name="ac_recirc_on">Recirculando — entrada de aire exterior cerrada</string>
-    <string name="ac_recirc_off">Entrada de aire exterior abierta</string>
+    <string name="ac_recirc_refused">Recirculación no disponible</string>
+    <string name="ac_recirc_on">Recirculando</string>
+    <string name="ac_recirc_off">Aire exterior</string>
     <string name="ac_connect_failed">No se pudo conectar con el coche</string>
-    <string name="clima_title">Clima</string>
+    <string name="clima_title">Climatización</string>
     <string name="turbo_title">Turbo</string>
     <string name="ac_readout">"Aire %1$s °C   ·   ventilador %2$s"</string>
     <string name="ac_readout_recirc">"%1$s   ·   recirculando"</string>
@@ -32,13 +32,13 @@
     <string name="cleanup_action_uninstall_self">Desinstalar Drive Assist</string>
     <string name="cleanup_log_idle">Nada hecho todavía.\nCada botón pide confirmación (toca dos veces).</string>
     <string name="cleanup_confirm_prompt">Toca \"%1$s\" otra vez para confirmar.</string>
-    <string name="cleanup_stopping">Deteniendo servicios...</string>
+    <string name="cleanup_stopping">Deteniendo servicios…</string>
     <string name="cleanup_wiped">Servicios detenidos, iconos eliminados, alarma cancelada y datos borrados.\nDrive Assist sigue instalado, pero inactivo.</string>
     <string name="cleanup_uninstall_header">Solicitando desinstalar:</string>
     <string name="cleanup_uninstall_item_failed">falló: %1$s</string>
     <string name="cleanup_uninstall_footer">Confirma cada diálogo del sistema. Uno a la vez.</string>
     <string name="cleanup_none_found">No se encontraron apps personalizadas.</string>
-    <string name="cleanup_removing_self">Solicitando la eliminación de Drive Assist...</string>
+    <string name="cleanup_removing_self">Solicitando la eliminación de Drive Assist…</string>
     <string name="cleanup_failed">Falló: %1$s</string>
     <string name="notif_tele_channel">Telemetría</string>
     <string name="notif_tele_title">Drive Assist — telemetría</string>
@@ -53,8 +53,8 @@
     <string name="notif_wifi_title">Wi-Fi</string>
     <string name="notif_wifi_disconnected">desconectado</string>
     <string name="notif_wifi_no_network">sin red</string>
-    <string name="notif_soc_channel">Batería %</string>
-    <string name="notif_soc_fg_text">batería %</string>
+    <string name="notif_soc_channel">Batería %%</string>
+    <string name="notif_soc_fg_text">batería %%</string>
     <string name="notif_soc_title">Batería</string>
     <string name="notif_soc_unavailable">no disponible</string>
     <string name="notif_soc_value">%1$s%%</string>
@@ -74,7 +74,7 @@
     <string name="cfg_field_hosts">Direcciones (una por línea)</string>
     <string name="cfg_field_user">Usuario</string>
     <string name="cfg_field_pass">Contraseña</string>
-    <string name="cfg_field_interval">Intervalo (s)</string>
+    <string name="cfg_field_interval">Intervalo</string>
     <string name="cfg_spotify_header">Spotify</string>
     <string name="cfg_spotify_client_id">Client ID</string>
     <string name="cfg_spotify_connect">Conectar</string>
@@ -85,14 +85,14 @@
     <string name="spotify_connected">Spotify conectado</string>
     <string name="spotify_connect_failed">Spotify: no se pudo conectar</string>
     <string name="cfg_security_header">Seguridad</string>
-    <string name="cfg_commands_label">Aceptar comandos de HA</string>
-    <string name="cfg_commands_on">Aceptando comandos de HA</string>
-    <string name="cfg_commands_off">Comandos BLOQUEADOS — solo telemetría</string>
+    <string name="cfg_commands_label">Aceptar comandos de Home Assistant</string>
+    <string name="cfg_commands_on">Aceptando comandos de Home Assistant</string>
+    <string name="cfg_commands_off">Comandos bloqueados — solo telemetría</string>
     <string name="cfg_commands_hint">Si está desactivado, el coche ignora los comandos de carga y de luz que llegan desde Home Assistant.</string>
-    <string name="cfg_adb_label">adb</string>
+    <string name="cfg_adb_label">ADB</string>
     <string name="cfg_adb_off">Cerrado. Mientras esté abierto, cualquiera en la misma red obtiene una shell root en esta unidad.</string>
     <string name="cfg_adb_on">Abierto — se cierra solo en %1$d min.</string>
-    <string name="cfg_adb_no_helper">modehelper no está instalado, así que nada aquí puede activar ni desactivar adb.</string>
+    <string name="cfg_adb_no_helper">ModeHelper no está instalado, por lo que no se puede activar ni desactivar ADB.</string>
     <string name="cfg_doors_header">Puertas</string>
     <string name="cfg_window_on_door">Bajar un poco la ventanilla al abrir la puerta</string>
     <string name="cfg_window_on_door_hint">Baja ~1 cm la ventanilla de esa puerta para que cierre sin pelear con la cabina sellada, y la sube de nuevo al cerrar la puerta. Solo cierra una ventanilla que ella misma abrió, y no toca ninguna que hayas movido tú.</string>
@@ -101,7 +101,7 @@
     <string name="cfg_btn_off">Apagar</string>
     <string name="cfg_btn_test">Probar</string>
     <string name="cfg_btn_update">Actualizar</string>
-    <string name="cfg_testing">Probando...</string>
+    <string name="cfg_testing">Probando…</string>
     <string name="cfg_cleanup">Limpieza y eliminación…</string>
     <string name="cfg_drive_header">Modo de conducción</string>
     <string name="cfg_connecting">Conectando…</string>
@@ -115,28 +115,62 @@
     <string name="turbo_header">Turbo</string>
     <string name="turbo_enable_label">Mostrar la tarjeta Turbo</string>
     <string name="turbo_duration_label">Duración (s)</string>
-    <string name="cfg_btn_apply">Aplicar ahora</string>
-    <string name="cfg_btn_save_default">Guardar como predeterminado</string>
+    <!-- driver assistance (ADAS) -->
+    <string name="cfg_adas_header">Asistencia a la conducción</string>
+    <string name="cfg_aeb_label">AEB (frenado automático de emergencia)</string>
+    <string name="cfg_avas_label">AVAS (aviso acústico de peatones)</string>
+    <string name="cfg_park_monitor_label">Vigilancia en estacionamiento</string>
+    <string name="cfg_aeb_confirm_title">¿Desactivar el frenado automático de emergencia?</string>
+    <string name="cfg_aeb_confirm_body">Desactiva el frenado automático de emergencia. Se mantiene al reiniciar el vehículo.</string>
+    <string name="cfg_aeb_confirm_turn_off">Desactivar</string>
+    <string name="cfg_btn_restore_defaults">Restaurar valores predeterminados</string>
     <string name="cfg_car_connect_fail">No se pudo conectar con el coche</string>
     <string name="cfg_applied">Aplicado: %1$s + %2$s</string>
-    <string name="cfg_applied_turbo_active">Aplicado: %1$s. Conducción sin cambios — Turbo está activo.</string>
-    <string name="cfg_startup_default">Predeterminado de arranque: %1$s + %2$s</string>
+    <string name="cfg_restored_defaults">Valores predeterminados restaurados: %1$s + %2$s</string>
     <string name="cfg_mode_unknown">Modo actual desconocido — elige uno para aplicar</string>
     <string name="cfg_current">Actual: %1$s + %2$s</string>
     <string name="cfg_bar_header">Datos en la barra de menú</string>
+    <string name="cfg_drive_card">Mostrar tarjeta del trayecto actual</string>
+    <string name="drive_card_title">Trayecto actual</string>
+    <string name="drive_card_detail">%1$.1f km · %2$s · desde %3$s · recuperados %4$.2f kWh</string>
+    <string name="parked_card_title">Estacionado</string>
+    <string name="parked_card_detail">Batería %1$s · temperatura %2$s</string>
+    <string name="valet_start">Iniciar modo Valet</string>
+    <string name="valet_end">Finalizar modo Valet</string>
+    <string name="valet_active_title">Modo Valet activo</string>
+    <string name="valet_active_detail">Activo durante %1$s · potencia máx. %2$s</string>
+    <string name="value_unavailable">No disponible</string>
+    <string name="value_calculating">Calculando…</string>
     <string name="cfg_bar_outtemp">Temperatura exterior en la barra</string>
     <string name="cfg_bar_wifi">Wi-Fi en la barra (abre ajustes)</string>
-    <string name="cfg_bar_soc">Batería % en la barra</string>
+    <string name="cfg_bar_topbar_header">Barra de estado</string>
+    <string name="cfg_bar_soc">Batería %% en la barra</string>
+    <string name="cfg_bar_home_header">Pantalla principal</string>
+    <string name="cfg_overlay_label">Botón flotante de acceso rápido</string>
+    <string name="overlay_climate_label">Climatización</string>
+    <string name="overlay_open_app">Abrir app</string>
+    <string name="notif_overlay_channel">Botón flotante de acceso rápido</string>
+    <string name="notif_overlay_fg_text">Botón flotante de acceso rápido</string>
     <string name="cfg_appearance_header">Apariencia</string>
     <string name="cfg_appearance_light">Claro</string>
     <string name="cfg_appearance_dark">Oscuro</string>
     <string name="cfg_appearance_auto">Automático</string>
     <string name="cfg_appearance_note">Automático sigue el propio ajuste de día/noche de esta unidad. Neon y Noturno siempre usan su único esquema de color fijo, sea cual sea este ajuste.</string>
+    <!-- skyline art -->
+    <string name="cfg_skyline_label">Mostrar silueta urbana</string>
+    <string name="cfg_skyline_header">Skyline</string>
+    <string name="cfg_skyline_seed_header">Semilla de skyline</string>
+    <string name="cfg_skyline_seed_label">Semilla</string>
+    <string name="cfg_skyline_seed_save">Guardar</string>
+    <string name="cfg_skyline_cycle">Cambiar</string>
+    <string name="cfg_skyline_random_per_drive_label">Aleatorio en cada trayecto</string>
     <string name="cfg_theme_header">Tema</string>
+    <string name="cfg_dark_mode_header">Modo oscuro</string>
+    <string name="cfg_theme_selection_header">Selección de tema</string>
     <string name="cfg_theme_sub">Se aplica a todas las pantallas de Drive Assist. La miniatura muestra el color y la forma de las tarjetas — el cambio es inmediato.</string>
     <string name="cfg_theme_selected">%1$s  ✓</string>
-    <string name="cfg_theme_ambient_on">Este tema deja que la luz ambiental de la cabina controle el color de acento.</string>
-    <string name="cfg_theme_ambient_off">Este tema ignora la luz de la cabina a propósito — el acento se mantiene ámbar.</string>
+    <string name="cfg_theme_ambient_on">Al pulsar un botón, parpadea con el color de la luz ambiental de la cabina.</string>
+    <string name="cfg_theme_ambient_off">Este tema ignora la luz de la cabina a propósito: las pulsaciones parpadean en ámbar.</string>
     <string name="theme_geely_blurb">Gris grafito de noche, marfil de día</string>
     <string name="theme_noturno_blurb">Negro y ámbar · panel vaporwave</string>
     <string name="theme_neon_blurb">Contorno iluminado, cian y magenta</string>
@@ -177,6 +211,7 @@
     <!-- dashcam gallery -->
     <string name="clips_title">Grabaciones</string>
     <string name="clips_usage">%1$d clips · %2$s usados · %3$s retenidos · %4$s libres</string>
+    <string name="clips_list_header">Clips</string>
     <string name="clips_none">Todavía no hay nada grabado.</string>
     <string name="clips_play">Reproducir</string>
     <string name="clips_hold">Retener</string>
@@ -187,7 +222,8 @@
     <string name="clips_recording">grabando</string>
     <string name="clips_orphan">sin cerrar — recuperable</string>
     <string name="clips_record">Grabar</string>
-    <string name="clips_stop">Detener</string>
+    <string name="clips_limit_label">Límite de grabación (GB)</string>
+    <string name="clips_limit_save">Guardar</string>
     <string name="cfg_nav_clips">Dashcam</string>
     <string name="clips_back">← Volver</string>
     <string name="cam_all">Todas</string>
@@ -236,14 +272,12 @@
     <string name="cfg_system_header">Sistema</string>
     <string name="cfg_app_info_header">Información de la aplicación</string>
     <string name="cfg_version_label">Versión: %1$s (compilación %2$d)</string>
+    <string name="cfg_ip_label">Dirección IP Wi-Fi: %1$s</string>
     <string name="cfg_sha_label">SHA-256 del APK</string>
     <string name="cfg_update_header">Actualización de software</string>
     <string name="cfg_update_url_label">URL de actualización (HTTPS)</string>
     <string name="cfg_btn_check_update">Buscar e instalar actualización</string>
     <!-- touch & maintenance -->
-    <string name="cfg_touch_header">Controles táctiles y bloqueo</string>
-    <string name="cfg_cooldown_label">Bloqueo del interruptor</string>
-    <string name="cfg_cooldown_hint">Duración del bloqueo temporal tras pulsar un interruptor para evitar toques dobles accidentales durante la conducción.</string>
     <string name="cfg_maintenance_header">Mantenimiento</string>
     <!-- mqtt & telemetry -->
     <string name="cfg_mqtt_enable_label">Activar telemetría MQTT</string>
@@ -285,18 +319,18 @@
     <string name="cfg_cert_import_success">Certificado instalado correctamente: %1$s</string>
     <string name="cfg_cert_import_failed">Error al importar el certificado: %1$s</string>
     <string name="cfg_cert_remove_confirm">¿Eliminar el certificado %1$s?</string>
-    <string name="cfg_cert_testing_tls">Probando enlace TLS...</string>
+    <string name="cfg_cert_testing_tls">Probando enlace TLS…</string>
     <!-- lock, privileged wifi & discovery -->
     <string name="cfg_lock_label">Duración del bloqueo del interruptor (s), tras cada pulsación</string>
     <string name="cfg_trusted_wifi_label">Wi-Fi privilegiada (SSID)</string>
     <string name="cfg_trusted_wifi_hint">Al conectarse a esta red, ADB permanece abierto indefinidamente y un WakeLock evita que la unidad se suspenda.</string>
     <string name="cfg_btn_use_current_wifi">Usar Wi-Fi actual</string>
     <string name="cfg_trusted_wifi_saved">Wi-Fi privilegiada guardada</string>
-    <string name="cfg_btn_discovery">Detección MQTT</string>
+    <string name="cfg_btn_discovery">Descubrimiento MQTT</string>
     <string name="cfg_btn_save">Guardar</string>
-    <string name="cfg_discovery_sending">Enviando detección MQTT…</string>
-    <string name="cfg_discovery_ok">Detección MQTT enviada correctamente</string>
-    <string name="cfg_discovery_failed">Error en la detección: %1$s</string>
+    <string name="cfg_discovery_sending">Enviando descubrimiento MQTT…</string>
+    <string name="cfg_discovery_ok">Descubrimiento MQTT enviado correctamente</string>
+    <string name="cfg_discovery_failed">Error en el descubrimiento: %1$s</string>
     <string name="cfg_discovery_svc_inactive">El servicio de telemetría no se está ejecutando</string>
     <string name="cfg_discovery_no_client">Cliente MQTT no inicializado</string>
     <!-- climate readout extra -->
@@ -328,6 +362,15 @@
     <string name="abrp_debug_no">no</string>
     <!-- charge stats & cost -->
     <string name="charge_stats_title">Estadísticas de carga</string>
+    <!-- charging power curve dialog -->
+    <string name="charge_sessions_title">Sesiones de carga · más recientes primero</string>
+    <string name="charge_soc_chart_title">Nivel de batería · cronológico</string>
+    <string name="charge_curve_title">Potencia de carga en el tiempo</string>
+    <string name="charge_curve_unavailable">Muestras no disponibles para esta sesión.</string>
+    <string name="charge_curve_power_label">Potencia (kW)</string>
+    <string name="charge_curve_temp_label">Temp. exterior (°C)</string>
+    <string name="charge_curve_batt_temp_label">Temp. de la batería (°C)</string>
+    <string name="charge_curve_no_batt_temp">Temperatura de la batería no disponible (OBD2 desconectado)</string>
     <string name="charge_completed_title">Carga completada</string>
     <string name="charge_cost_label">Coste</string>
     <string name="charge_cost_input_title">Coste de la carga</string>
@@ -335,6 +378,7 @@
     <string name="charge_cost_btn_input">Introducir coste</string>
     <string name="charge_cost_btn_edit">Editar</string>
     <string name="charge_cost_btn_save">Guardar</string>
+    <string name="charge_cost_btn_per_kwh">× kWh</string>
     <string name="charge_cost_btn_dismiss">Descartar</string>
     <string name="charge_cost_not_set">Coste no especificado</string>
     <string name="charge_cost_invalid">Valor de coste no válido</string>
@@ -342,18 +386,30 @@
     <string name="charge_stat_total_cost">Coste total</string>
     <string name="charge_stat_avg_cost_kwh">Coste / kWh</string>
     <string name="charge_stat_cost_100km">Coste / 100 km</string>
+
+    <!-- energy balance chart -->
+    <string name="charge_balance_title">Balance de energía</string>
+    <string name="charge_balance_hint">Toca una barra para ver detalles</string>
+    <string name="charge_balance_spent">Consumo</string>
+    <string name="charge_balance_regen">Regeneración</string>
     <!-- software update dialog -->
     <string name="update_dialog_title">Actualización de software disponible</string>
-    <string name="update_dialog_version_comp">Versión: %1$s   ➔   %2$s</string>
+    <string name="update_dialog_title_target">Actualización %1$s disponible</string>
+    <string name="update_dialog_version_comp">Versión: %1$s   →   %2$s</string>
     <string name="update_dialog_current_ver">Versión actual: %1$s</string>
     <string name="update_dialog_new_ver">Nueva versión: %1$s</string>
     <string name="update_dialog_changelog_header">Novedades:</string>
     <string name="update_dialog_accept">Aceptar y actualizar</string>
     <string name="update_dialog_decline">Más tarde</string>
+    <string name="update_dialog_skip">Omitir esta versión</string>
     <string name="update_checking">Buscando actualizaciones…</string>
     <string name="update_up_to_date">Drive Assist está actualizado (%1$s)</string>
     <string name="update_check_failed">No se pudieron comprobar las actualizaciones: %1$s</string>
     <string name="update_downloading">Descargando actualización (%1$s) …</string>
     <string name="update_installing">Transfiriendo a ModeHelper para la instalación…</string>
     <string name="update_not_parked">Las actualizaciones solo se pueden revisar e instalar con el vehículo estacionado.</string>
+
+    <!-- daily stats day navigator -->
+    <string name="daily_stats_prev_day">Anterior</string>
+    <string name="daily_stats_next_day">Siguiente</string>
 </resources>

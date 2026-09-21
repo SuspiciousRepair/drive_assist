@@ -5,6 +5,7 @@ import com.geely.drivemem.controls.TurboMode;
 import com.geely.drivemem.hvac.ComfortHub;
 import com.geely.drivemem.hvac.ComfortRuler;
 import com.geely.drivemem.util.AppForeground;
+import com.geely.drivemem.util.LayoutWait;
 import com.geely.drivemem.util.Style;
 
 import android.app.Notification;
@@ -405,12 +406,15 @@ public final class OverlayService extends Service {
     }
 
     // Same idiom ComfortActivity's redrawScale() uses: the bitmap needs the
-    // view's real, already-measured width, so a first call before layout
-    // finishes just reposts itself once via View.post().
+    // view's real, already-measured width. Waits for a real layout pass
+    // (LayoutWait) rather than reposting blindly -- scaleView lives in the
+    // expanded panel, which is View.GONE (never measured) for as long as
+    // the overlay tab sits collapsed, i.e. almost always; blindly reposting
+    // there spun the main thread at 100% CPU (GitHub issue #5).
     private void refreshClimate() {
         if (scaleView == null || ruler == null) return;
         int w = scaleView.getWidth();
-        if (w <= 0) { scaleView.post(this::refreshClimate); return; }
+        if (w <= 0) { LayoutWait.onNextLayout(scaleView, this::refreshClimate); return; }
         scaleView.setImageBitmap(Style.effortScale(this, w, scaleView.getHeight(),
             ruler.pointer(), ruler.approx(), ruler.defrosting()));
     }

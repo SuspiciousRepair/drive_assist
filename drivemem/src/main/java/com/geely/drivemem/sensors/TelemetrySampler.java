@@ -63,6 +63,9 @@ public final class TelemetrySampler {
         putIfPresent(v, "energy_spent_kwh", data.get("energy_spent_kwh"));
         putIfPresent(v, "energy_regen_kwh", data.get("energy_regen_kwh"));
         putIfPresent(v, "energy_net_kwh", data.get("energy_net_kwh"));
+        putIfPresent(v, "energy_measured", data.get("energy_measured"));
+        putIfPresent(v, "energy_spent_est_kwh", data.get("energy_spent_est_kwh"));
+        putIfPresent(v, "energy_regen_est_kwh", data.get("energy_regen_est_kwh"));
         // Battery temperature: only available through the optional OBD2
         // dongle (Obd2Reader), not any VHAL property -- null (and the column
         // stays empty) whenever the dongle isn't connected or enabled. 30s

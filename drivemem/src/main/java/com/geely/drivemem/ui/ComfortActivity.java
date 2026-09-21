@@ -19,8 +19,7 @@ import com.geely.drivemem.hvac.EffortTable;
 import com.geely.drivemem.net.AbrpUploader;
 import com.geely.drivemem.net.MqttReporter;
 import com.geely.drivemem.sensors.Obd2Reader;
-import com.geely.drivemem.sensors.DrivingConsumption;
-import com.geely.drivemem.sensors.EnergyIntegrator;
+import com.geely.drivemem.sensors.DailyStatsProvider;
 import com.geely.drivemem.services.TelemetryService;
 import com.geely.drivemem.state.CarState;
 import com.geely.drivemem.state.ChargeSession;
@@ -31,6 +30,7 @@ import com.geely.drivemem.state.ParkingState;
 import com.geely.drivemem.state.TripSession;
 import com.geely.drivemem.state.ValetSession;
 import com.geely.drivemem.util.BootReceiver;
+import com.geely.drivemem.util.LayoutWait;
 import com.geely.drivemem.util.Modes;
 import com.geely.drivemem.util.SpotifyClient;
 import com.geely.drivemem.net.Updater;
@@ -115,6 +115,7 @@ public class ComfortActivity extends Activity {
      * TurboMode itself is process-wide (see its header comment). */
     private android.widget.ImageView turboBarView;
     private LinearLayout turboCardView;   // visibility gated on CarState — driving only, see the listener below
+    private boolean lastTurboVisible = false;   // same "did it actually change" tracking as gate/music, see onResume
     private boolean turboEnabledAtBuild;   // so onResume can notice a Config change and recreate()
     private boolean skylineEnabledAtBuild; // same idea, for "Show skyline art"
     private long skylineSeedAtBuild;       // and for the fixed/chosen seed
@@ -251,7 +252,10 @@ public class ComfortActivity extends Activity {
         lastGateAvailable = gateVisible();
         gateCard.setVisibility(lastGateAvailable ? View.VISIBLE : View.GONE);
         cards.add(gateCard);
-        if (turboEnabledAtBuild) cards.add(turboCard());
+        if (turboEnabledAtBuild) {
+            cards.add(turboCard());
+            lastTurboVisible = turboCardView.getVisibility() == View.VISIBLE;
+        }
         driveCardEnabledAtBuild = prefs.getBoolean("drive_card_enabled", true);
         journeyCard = journeyCard();
         cards.add(journeyCard);
@@ -370,11 +374,11 @@ public class ComfortActivity extends Activity {
     }
 
     // band has no real width on the very first onCreate pass — same reason
-    // repackColumns() retries via post(). Runs once; the zone's width never
-    // needs to change again after that (it does not track cards at all).
+    // repackColumns() waits via LayoutWait. Runs once; the zone's width
+    // never needs to change again after that (it does not track cards at all).
     private void sizeKonamiZone(FrameLayout zone) {
         int w = columnWidth();
-        if (w <= 0) { band.post(() -> sizeKonamiZone(zone)); return; }
+        if (w <= 0) { LayoutWait.onNextLayout(band, () -> sizeKonamiZone(zone)); return; }
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) zone.getLayoutParams();
         lp.width = w;
         zone.setLayoutParams(lp);
@@ -393,13 +397,20 @@ public class ComfortActivity extends Activity {
     // same "flow like HTML columns" behavior has a standard view to reuse
     // instead of copying this). This wrapper only owns what's specific to
     // ComfortActivity: reading `columns`'/`band`'s real measured size, and
-    // retrying via post() until that's actually available (band has no
-    // real width on the very first onCreate pass).
+    // waiting via LayoutWait until that's actually available (band has no
+    // real width on the very first onCreate pass; blindly reposting on
+    // `columns` instead of waiting for a real layout pass spun the main
+    // thread at 100% CPU whenever this screen itself was backgrounded --
+    // GitHub issue #5).
     private void repackColumns() {
         int availH = columns.getHeight();
         int colW = columnWidth();
         if (availH <= 0 || colW <= 0) {
-            columns.post(this::repackColumns);
+            // Wait on whichever one isn't ready -- columnWidth() depends on
+            // band, so if that's the zero one, columns' own height being
+            // fine doesn't help; only wait on columns when band already has
+            // a real width and columns' own height is the actual blocker.
+            LayoutWait.onNextLayout(colW <= 0 ? band : columns, this::repackColumns);
             return;
         }
         Style.packIntoColumns(this, columns, cards, colW, availH);
@@ -1105,31 +1116,45 @@ public class ComfortActivity extends Activity {
                 formatElapsed(System.currentTimeMillis() - s.startMs), power));
             journeyAction.setText(R.string.valet_end);
         } else if (driving) {
-            EnergyIntegrator.TripSnapshot energy = EnergyIntegrator.currentTrip();
-            double odoStart = TripSession.getActiveTripStartOdoKm();
-            Number odoNow = cachedNumber("telemetry.odometer");
-            double km = odoNow != null && odoStart >= 0 ? Math.max(0, odoNow.doubleValue() - odoStart) : 0;
-            // Same formula the daily stats page uses for this exact still-driving
-            // trip (DailyStatsProvider.queryDaySessions' active-trip branch) --
-            // this card used to net spentKwh alone, overstating consumption on
-            // any trip with real regen braking. See DrivingConsumption
-            // .efficiencyKwh100km's own header for the fuller history.
-            double eff = DrivingConsumption.efficiencyKwh100km(km, energy.spentKwh, energy.regenKwh);
+            // Same accounting the daily stats page uses for this exact still-driving
+            // trip (DailyStatsProvider.getActiveDriveSession, shared with
+            // queryDaySessions' own active-trip branch) -- including the real
+            // measured/mixed/estimated classification, not just "any OBD2 sample
+            // at all this trip?" which used to hide a mostly-estimated trip behind
+            // one lucky reading. See DrivingConsumption.efficiencyKwh100km's own
+            // header for the fuller history on the netting-vs-spentKwh-alone fix.
+            DailyStatsProvider.DriveSession session = DailyStatsProvider.getActiveDriveSession(this);
             journeyTitle.setText(R.string.drive_card_title);
-            // Smaller/dimmer units, same look as a daily-stats session row
-            // (Style.valueWithUnit), instead of plain concatenated strings.
             SpannableStringBuilder primary = new SpannableStringBuilder();
-            primary.append(eff > 0
-                ? Style.valueWithUnit(String.format(Locale.getDefault(), "%.1f", eff),
-                    null, "kWh/100 km", Style.UNIT_SCALE_HERO)
-                : getString(R.string.value_calculating));
-            primary.append("  ·  ");
-            primary.append(Style.valueWithUnit(String.format(Locale.getDefault(), "%.2f", energy.netKwh),
-                null, "kWh", Style.UNIT_SCALE_HERO));
-            journeyPrimary.setText(primary);
-            journeySecondary.setText(getString(R.string.drive_card_detail, km,
-                formatElapsed(TripSession.getDrivingDurationMs()), formatClock(TripSession.getActiveTripStartMs()),
-                energy.regenKwh));
+            if (session == null) {
+                primary.append(getString(R.string.value_calculating));
+                journeyPrimary.setText(primary);
+                journeySecondary.setText(getString(R.string.drive_card_detail, 0.0,
+                    formatElapsed(TripSession.getDrivingDurationMs()), formatClock(TripSession.getActiveTripStartMs()),
+                    0.0));
+            } else {
+                double km = session.distanceKm;
+                double eff = session.efficiencyKwh100km;
+                double netKwh = session.energyKwh;
+                // Smaller/dimmer units, same look as a daily-stats session row
+                // (Style.valueWithUnit), instead of plain concatenated strings.
+                primary.append(eff > 0
+                    ? Style.valueWithUnit(String.format(Locale.getDefault(), "%.1f", eff),
+                        null, "kWh/100 km", Style.UNIT_SCALE_HERO)
+                    : getString(R.string.value_calculating));
+                primary.append("  ·  ");
+                primary.append(Style.valueWithUnit(String.format(Locale.getDefault(), "%.2f", netKwh),
+                    null, "kWh", Style.UNIT_SCALE_HERO));
+                journeyPrimary.setText(DailyStatsView.withEnergySourceMark(primary, session.energySource));
+                // recovered X kWh is the last thing in this string -- the mark
+                // reads naturally right after it, same convention as every
+                // other estimated number in the app.
+                journeySecondary.setText(DailyStatsView.withEnergySourceMark(
+                    getString(R.string.drive_card_detail, km,
+                        formatElapsed(TripSession.getDrivingDurationMs()), formatClock(TripSession.getActiveTripStartMs()),
+                        session.regenKwh),
+                    session.energySource));
+            }
         } else {
             ParkingState.Snapshot s = ParkingState.snapshot(this);
             journeyTitle.setText(R.string.parked_card_title);
@@ -1287,7 +1312,7 @@ public class ComfortActivity extends Activity {
     private void redrawScale() {
         if (scaleView == null) return;
         int w = scaleView.getWidth();
-        if (w <= 0) { scaleView.post(this::redrawScale); return; }
+        if (w <= 0) { LayoutWait.onNextLayout(scaleView, this::redrawScale); return; }
         int level = comfortRuler.pointer();
         boolean approx = comfortRuler.approx();
         boolean defrosting = comfortRuler.defrosting();
@@ -1355,21 +1380,21 @@ public class ComfortActivity extends Activity {
 
     private void applyAmbient(int rgb) {
         int raw = 0xFF000000 | (rgb & 0xFFFFFF);
-        int c = Style.FOLLOW_AMBIENT ? raw : Style.ACCENT;
         // The art always receives the REAL cabin colour and decides what to do
         // with it: Noturno does not let the cabin rule the CONTROLS (no blue in
         // your face at night), but the panel's city does follow the car's RGB.
         // (Both arts already filter a repeated colour, so this does not redraw.)
         if (art != null) art.setAmbient(raw);
-        // Skip repaints of the same color: setBackgroundColor and setTextColor
-        // invalidate even with identical values, and this 4s poll would otherwise
-        // request frames unnecessarily.
+        // Skip repeat work: the sensor often reports the same reading back to
+        // back, and setColorFilter/RippleDrawable.setColor invalidate even
+        // when the value is identical.
+        int c = Style.FOLLOW_AMBIENT ? raw : Style.ACCENT;
         if (c == lastAmbient) return;
         lastAmbient = c;
         if (card != null) card.setAccent(c);
-        setRecirc(recircOn);      // re-tint: lit means the ambient accent
+        setRecirc(recircOn);
         setPurge(purgeOpen);
-        redrawTurboBar(turboBarFraction < 0 ? 1f : turboBarFraction);   // re-tint, same fraction
+        redrawTurboBar(turboBarFraction < 0 ? 1f : turboBarFraction);
         if (gateCard != null) gateCard.setAccent(c);
         if (windDirIcon != null && currentWindDir != 0) {
             windDirIcon.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
@@ -1460,11 +1485,17 @@ public class ComfortActivity extends Activity {
             pendingUpdate = null;
             activeUpdateDialog = null;
             Updater.Progress step = s -> android.util.Log.i("ComfortActivity", "Update step: " + s);
-            if (info.targetLabel != null) {
-                Updater.updateHelper(getApplicationContext(), info.apkUrl, step);
-            } else {
-                Updater.update(getApplicationContext(), info.apkUrl, step);
-            }
+            // Always the bundled installer, never the plain self-update: build.sh
+            // ships drive_assist and modehelper together with matching versions,
+            // so autoCheckIfDue() finds BOTH "available" at once almost every
+            // time. Accepting a plain self-update only installed drivemem,
+            // leaving modehelper's own separately-detected update to surface
+            // again right after -- reported live as "the update pops up twice"
+            // (2026-09-21). updateHelper()'s installer refreshes both apps in
+            // one shot regardless of which target's dialog the driver actually
+            // saw, so the other one's re-check comes back already-up-to-date
+            // instead of prompting again.
+            Updater.updateHelper(getApplicationContext(), info.apkUrl, step);
         }, () -> {
             // Driver declined/dismissed
             pendingUpdate = null;
@@ -1480,6 +1511,7 @@ public class ComfortActivity extends Activity {
             boolean visible = turboEnabledAtBuild && !parked;
             if ((turboCardView.getVisibility() == View.VISIBLE) != visible) {
                 turboCardView.setVisibility(visible ? View.VISIBLE : View.GONE);
+                lastTurboVisible = visible;
                 if (columns != null) repackColumns();
             }
         }
@@ -1601,7 +1633,7 @@ public class ComfortActivity extends Activity {
     private void redrawChargeBar(int socStart, int socNow) {
         if (chargeBarView == null) return;
         int w = chargeBarView.getWidth();
-        if (w <= 0) { chargeBarView.post(() -> redrawChargeBar(socStart, socNow)); return; }
+        if (w <= 0) { LayoutWait.onNextLayout(chargeBarView, () -> redrawChargeBar(socStart, socNow)); return; }
         if (w == chargeBarW && socStart == chargeBarStart && socNow == chargeBarNow) return;
         chargeBarW = w; chargeBarStart = socStart; chargeBarNow = socNow;
         int color = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
@@ -1622,9 +1654,7 @@ public class ComfortActivity extends Activity {
     private void redrawTurboBar(float fraction) {
         if (turboBarView == null) return;
         int w = turboBarView.getWidth();
-        if (w <= 0) { turboBarView.post(() -> redrawTurboBar(fraction)); return; }
-        // Same ambient-or-fallback accent as recirc/purge — "full colour of the
-        // car", not a fixed app colour, ready or draining alike.
+        if (w <= 0) { LayoutWait.onNextLayout(turboBarView, () -> redrawTurboBar(fraction)); return; }
         int color = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
         if (color == 0) color = Style.ACCENT;
         if (fraction == turboBarFraction && w == turboBarW && color == turboBarColor) return;
@@ -1904,9 +1934,22 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe("valet.changed", journeyBusListener);
         EntityBus.subscribe("valet.progress", journeyBusListener);
         EntityBus.subscribe("parking.changed", journeyBusListener);
+        // Same "did it actually change while this screen was away" re-check
+        // as the gate and music cards just above, and the same reason: a
+        // park↔drive edge (and therefore Turbo's own visibility) can happen
+        // while Config was open. carStateListener already reacts to that
+        // edge live, but only while this screen is actually subscribed and
+        // the edge fires cleanly; missing a repack here left Turbo visible
+        // but never packed back into columns, showing with no margin around
+        // it (reported 2026-09-21: parked -> opened Config -> car started
+        // driving -> back to Home, Portão/Turbo had no gap between them).
         if (turboCardView != null) {
             boolean turboVisible = turboEnabledAtBuild && !CarState.isParked();
-            turboCardView.setVisibility(turboVisible ? View.VISIBLE : View.GONE);
+            if (turboVisible != lastTurboVisible) {
+                lastTurboVisible = turboVisible;
+                turboCardView.setVisibility(turboVisible ? View.VISIBLE : View.GONE);
+                if (columns != null) repackColumns();
+            }
         }
         refreshJourneyCard();
         // Screen-scoped, not process-wide like Turbo/the gate: nothing bad
@@ -2011,11 +2054,10 @@ public class ComfortActivity extends Activity {
         boolean stateChanged = (on != recircOn);
         recircOn = on;
 
-        int accent = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
-        if (accent == 0) accent = Style.ACCENT;
-
         // The static icon at rest: ic_hvac_cycle_off while on, ic_hvac_cycle_on while off.
         int staticIcon = on ? R.drawable.ic_hvac_cycle_off : R.drawable.ic_hvac_cycle_on;
+        int accent = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
+        if (accent == 0) accent = Style.ACCENT;
         int colorFilter = on ? Style.onFill(accent) : Style.TEXT;
         android.graphics.drawable.Drawable bgDrawable = on ? Style.card(accent, this, Style.RADIUS_DP - 8) : Style.tile(this);
 

@@ -204,15 +204,14 @@
     <string name="cfg_adas_header">Assistência ao motorista</string>
     <string name="cfg_aeb_label">AEB (frenagem automática de emergência)</string>
     <string name="cfg_avas_label">AVAS (som de alerta a pedestres)</string>
+    <string name="cfg_park_monitor_label">Monitoramento em estacionamento</string>
     <string name="cfg_aeb_confirm_title">Desativar a frenagem automática de emergência?</string>
     <string name="cfg_aeb_confirm_body">Desativar o AEB interrompe a frenagem automática quando o carro detecta risco de colisão frontal. Diferente do menu do próprio carro, isto permanece desativado após reiniciar, até você reativar por aqui.</string>
     <string name="cfg_aeb_confirm_turn_off">Desativar</string>
-    <string name="cfg_btn_apply">Aplicar agora</string>
-    <string name="cfg_btn_save_default">Salvar padrão</string>
+    <string name="cfg_btn_restore_defaults">Restaurar padrão</string>
     <string name="cfg_car_connect_fail">Falha ao conectar ao carro</string>
     <string name="cfg_applied">Aplicado: %1$s + %2$s</string>
-    <string name="cfg_applied_turbo_active">Aplicado: %1$s. Modo de condução mantido — Turbo ativo.</string>
-    <string name="cfg_startup_default">Padrão de partida: %1$s + %2$s</string>
+    <string name="cfg_restored_defaults">Padrão restaurado: %1$s + %2$s</string>
     <string name="cfg_mode_unknown">Modo atual desconhecido — escolha para aplicar</string>
     <string name="cfg_current">Atual: %1$s + %2$s</string>
     <string name="cfg_bar_header">Elementos</string>
@@ -382,6 +381,7 @@
     <string name="charge_curve_power_label">Potência (kW)</string>
     <string name="charge_curve_temp_label">Temp. externa (°C)</string>
     <string name="charge_curve_batt_temp_label">Temp. da bateria (°C)</string>
+    <string name="charge_curve_no_batt_temp">Sem dados de temperatura da bateria nesta recarga — o adaptador OBD2 não estava conectado.</string>
     <string name="charge_completed_title">Recarga concluída</string>
     <string name="charge_cost_label">Custo</string>
     <string name="charge_cost_input_title">Custo da Recarga</string>

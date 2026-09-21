@@ -5,10 +5,9 @@
     <string name="ac_title">เครื่องปรับอากาศ</string>
 
     <!-- comfort -->
-    <!-- ComfortActivity: tela do ar-condicionado. ac_title ja existe, nao repetir. -->
     <string name="ac_outside_label">ข้างนอก</string>
     <string name="ac_reading">กำลังอ่าน...</string>
-    <string name="ac_adjust_header">จะปรับอะไร?</string>
+    <string name="ac_adjust_header">เลือกรายการที่ต้องการปรับ</string>
     <string name="ac_cooler">เย็นขึ้น</string>
     <string name="ac_warmer">อุ่นขึ้น</string>
     <string name="ac_recirc_label">หมุนเวียนอากาศ</string>
@@ -17,16 +16,16 @@
     <string name="ac_recirc_on">กำลังหมุนเวียนอากาศ — ปิดช่องรับอากาศภายนอก</string>
     <string name="ac_recirc_off">เปิดช่องรับอากาศภายนอก</string>
     <string name="ac_connect_failed">เชื่อมต่อกับรถไม่ได้</string>
-    <string name="clima_title">สภาพอากาศ</string>
+    <string name="clima_title">ระบบปรับอากาศ</string>
     <!-- Turbo card: 30s Sport-mode boost, then back to whatever mode was running before -->
     <string name="turbo_title">เทอร์โบ</string>
     <string name="regen_boost_title">การคืนพลังงาน</string>
-    <!-- Linha de verdade dos atuadores. %1$s = setpoint, %2$s = ventoinha.
-    As aspas preservam os espacos multiplos (o aapt colapsaria). -->
+    <!-- Actuator readout line. %1$s = setpoint, %2$s = fan.
+    Quotes preserve multiple spaces (aapt would otherwise collapse them). -->
     <string name="ac_readout">"อากาศ %1$s °C   ·   พัดลม %2$s"</string>
-    <!-- %1$s = a linha ate aqui; a clausula inteira volta traduzida -->
+    <!-- %1$s = the line above; the whole clause comes back translated -->
     <string name="ac_readout_recirc">"%1$s   ·   หมุนเวียนอากาศ"</string>
-    <!-- %1$s = a linha ate aqui, %2$s = status da regua de conforto -->
+    <!-- %1$s = the line above, %2$s = comfort ruler status -->
     <string name="ac_readout_status">"%1$s   —   %2$s"</string>
 
     <!-- misc -->
@@ -60,11 +59,18 @@
     <string name="notif_wifi_title">Wi-Fi</string>
     <string name="notif_wifi_disconnected">ตัดการเชื่อมต่อ</string>
     <string name="notif_wifi_no_network">ไม่มีเครือข่าย</string>
-    <string name="notif_soc_channel">แบตเตอรี่ %</string>
-    <string name="notif_soc_fg_text">แบตเตอรี่ %</string>
+    <string name="notif_soc_channel">แบตเตอรี่ %%</string>
+    <string name="notif_soc_fg_text">แบตเตอรี่ %%</string>
     <string name="notif_soc_title">แบตเตอรี่</string>
     <string name="notif_soc_unavailable">ไม่พร้อมใช้งาน</string>
     <string name="notif_soc_value">%1$s%%</string>
+
+    <!-- overlay: floating quick-access button -->
+    <string name="cfg_overlay_label">ปุ่มลอยเข้าถึงด่วน</string>
+    <string name="notif_overlay_channel">ปุ่มลอย</string>
+    <string name="notif_overlay_fg_text">ปุ่มเข้าถึงด่วน</string>
+    <string name="overlay_climate_label">ระบบปรับอากาศ</string>
+    <string name="overlay_open_app">เปิดแอป</string>
 
     <!-- config -->
     <string name="cfg_title">การตั้งค่า</string>
@@ -84,12 +90,10 @@
     <string name="cfg_app_info_header">ข้อมูลแอปพลิเคชัน</string>
     <string name="cfg_version_label">เวอร์ชัน: %1$s (บิลด์ %2$d)</string>
     <string name="cfg_sha_label">APK SHA-256</string>
+    <string name="cfg_ip_label">ที่อยู่ IP Wi-Fi: %1$s</string>
     <string name="cfg_update_header">อัปเดตซอฟต์แวร์</string>
     <string name="cfg_update_url_label">URL การอัปเดต (HTTPS)</string>
     <string name="cfg_btn_check_update">ตรวจสอบและติดตั้งการอัปเดต</string>
-    <string name="cfg_touch_header">การควบคุมแบบสัมผัสและคูลดาวน์</string>
-    <string name="cfg_cooldown_label">คูลดาวน์สวิตช์</string>
-    <string name="cfg_cooldown_hint">ระยะเวลาล็อกชั่วคราวหลังจากแตะสวิตช์ เพื่อป้องกันการแตะซ้ำโดยไม่ตั้งใจขณะขับขี่</string>
     <string name="cfg_maintenance_header">การบำรุงรักษา</string>
     <string name="cfg_mqtt_header">การส่งไปยัง Home Assistant</string>
     <string name="cfg_mqtt_enable_label">เปิดใช้งานการวัดระยะไกล MQTT</string>
@@ -101,7 +105,7 @@
     <string name="cfg_field_hosts">ที่อยู่ (บรรทัดละหนึ่งรายการ)</string>
     <string name="cfg_field_user">ชื่อผู้ใช้</string>
     <string name="cfg_field_pass">รหัสผ่าน</string>
-    <string name="cfg_field_interval">ช่วงเวลา (วินาที)</string>
+    <string name="cfg_field_interval">ช่วงเวลา</string>
     <string name="cfg_seconds_suffix">วินาที</string>
     <string name="cfg_lock_short_label">ล็อกสวิตช์</string>
     <string name="cfg_saved">บันทึกการตั้งค่าแล้ว</string>
@@ -123,7 +127,7 @@
     <string name="cfg_btn_import_cert">นำเข้า</string>
     <string name="cfg_btn_remove_cert">ลบออก</string>
     <string name="cfg_btn_reset_default">รีเซ็ตเป็นค่าเริ่มต้น</string>
-    <string name="cfg_btn_test_tls">ทดสอบการจับมือ TLS</string>
+    <string name="cfg_btn_test_tls">ทดสอบการเชื่อมต่อ TLS</string>
     <string name="cfg_tls_test_target_label">ที่อยู่โบรกเกอร์ TLS ที่ต้องการทดสอบ</string>
     <string name="cfg_cert_import_title">นำเข้าใบรับรอง</string>
     <string name="cfg_cert_import_usb">ไดรฟ์ USB</string>
@@ -140,7 +144,7 @@
     <string name="cfg_cert_import_success">ติดตั้งใบรับรองสำเร็จแล้ว: %1$s</string>
     <string name="cfg_cert_import_failed">นำเข้าใบรับรองไม่สำเร็จ: %1$s</string>
     <string name="cfg_cert_remove_confirm">ต้องการลบใบรับรอง %1$s หรือไม่?</string>
-    <string name="cfg_cert_testing_tls">กำลังทดสอบการจับมือ TLS…</string>
+    <string name="cfg_cert_testing_tls">กำลังทดสอบการเชื่อมต่อ TLS…</string>
 
     <string name="cfg_spotify_header">Spotify</string>
     <string name="cfg_spotify_client_id">Client ID</string>
@@ -165,6 +169,16 @@
     <string name="cfg_trusted_wifi_hint">ขณะเชื่อมต่อกับเครือข่ายนี้ ADB จะเปิดอยู่เสมอ และ WakeLock จะป้องกันไม่ให้ระบบเข้าสู่โหมดสลีป</string>
     <string name="cfg_btn_use_current_wifi">ใช้ Wi-Fi ปัจจุบัน</string>
     <string name="cfg_trusted_wifi_saved">บันทึก Wi-Fi ที่ได้รับสิทธิ์แล้ว</string>
+
+    <!-- driver assistance (ADAS) -->
+    <string name="cfg_adas_header">ระบบช่วยขับขี่</string>
+    <string name="cfg_aeb_label">AEB (ระบบเบรกฉุกเฉินอัตโนมัติ)</string>
+    <string name="cfg_aeb_confirm_title">ปิดระบบเบรกฉุกเฉินอัตโนมัติหรือไม่?</string>
+    <string name="cfg_aeb_confirm_body">การปิด AEB จะทำให้รถไม่เบรกเองโดยอัตโนมัติเมื่อตรวจพบความเสี่ยงชนด้านหน้า การตั้งค่านี้จะยังคงปิดอยู่แม้สตาร์ทรถใหม่ จนกว่าคุณจะเปิดใช้งานอีกครั้งที่นี่</string>
+    <string name="cfg_aeb_confirm_turn_off">ปิดใช้งาน</string>
+    <string name="cfg_avas_label">AVAS (เสียงเตือนคนเดินถนน)</string>
+    <string name="cfg_park_monitor_label">ระบบเฝ้าระวังขณะจอด</string>
+
     <string name="cfg_doors_header">ประตู</string>
     <string name="cfg_window_on_door">เปิดกระจกเล็กน้อยเมื่อเปิดประตู</string>
     <string name="cfg_window_on_door_hint">ลดกระจกของประตูนั้นลง ~1 ซม. เพื่อให้ประตูปิดได้โดยไม่ต้องต่อสู้กับห้องโดยสารที่ปิดสนิท และคืนกลับเมื่อประตูปิด มันจะปิดเฉพาะกระจกที่มันเปิดเองเท่านั้น และจะไม่แตะกระจกที่คุณเลื่อนเอง</string>
@@ -172,12 +186,12 @@
     <string name="cfg_btn_on">เปิด</string>
     <string name="cfg_btn_off">ปิด</string>
     <string name="cfg_btn_test">ทดสอบ</string>
-    <string name="cfg_btn_discovery">การค้นหา MQTT</string>
+    <string name="cfg_btn_discovery">ส่งข้อมูลค้นหา MQTT</string>
     <string name="cfg_btn_update">อัปเดต</string>
     <string name="cfg_btn_save">บันทึก</string>
     <string name="cfg_testing">กำลังทดสอบ...</string>
-    <string name="cfg_discovery_sending">กำลังส่งการค้นหา MQTT…</string>
-    <string name="cfg_discovery_ok">ส่งการค้นหา MQTT สำเร็จแล้ว</string>
+    <string name="cfg_discovery_sending">กำลังส่งข้อมูลค้นหา MQTT…</string>
+    <string name="cfg_discovery_ok">ส่งข้อมูลค้นหา MQTT สำเร็จแล้ว</string>
     <string name="cfg_discovery_failed">การค้นหาล้มเหลว: %1$s</string>
     <string name="cfg_discovery_svc_inactive">บริการวัดระยะไกลไม่ได้ทำงาน</string>
     <string name="cfg_discovery_no_client">ไคลเอ็นต์ MQTT ยังไม่ได้เริ่มต้น</string>
@@ -187,38 +201,50 @@
     <string name="cfg_mode_eco">Eco</string>
     <string name="cfg_mode_comfort">Comfort</string>
     <string name="cfg_mode_sport">Sport</string>
-    <string name="cfg_regen_header">การนำพลังงานกลับมาใช้</string>
+    <string name="cfg_regen_header">การคืนพลังงาน</string>
     <string name="cfg_regen_low">ต่ำ</string>
     <string name="cfg_regen_mid">ปานกลาง</string>
     <string name="cfg_regen_high">สูง</string>
     <string name="turbo_header">เทอร์โบ</string>
     <string name="turbo_enable_label">แสดงการ์ดเทอร์โบ</string>
     <string name="turbo_duration_label">ระยะเวลา (วินาที)</string>
-    <string name="cfg_btn_apply">ใช้เดี๋ยวนี้</string>
-    <string name="cfg_btn_save_default">บันทึกเป็นค่าเริ่มต้น</string>
+    <string name="cfg_btn_restore_defaults">คืนค่าเริ่มต้น</string>
     <string name="cfg_car_connect_fail">เชื่อมต่อกับรถไม่ได้</string>
     <string name="cfg_applied">ใช้แล้ว: %1$s + %2$s</string>
-    <string name="cfg_applied_turbo_active">ใช้แล้ว: %1$s โหมดการขับขี่ไม่เปลี่ยนแปลง — เทอร์โบทำงานอยู่</string>
-    <string name="cfg_startup_default">ค่าเริ่มต้นเมื่อเริ่มระบบ: %1$s + %2$s</string>
+    <string name="cfg_restored_defaults">คืนค่าเริ่มต้นแล้ว: %1$s + %2$s</string>
     <string name="cfg_mode_unknown">ไม่ทราบโหมดปัจจุบัน — เลือกโหมดหนึ่งเพื่อใช้งาน</string>
     <string name="cfg_current">ปัจจุบัน: %1$s + %2$s</string>
     <string name="cfg_bar_header">การแสดงผลในแถบเมนู</string>
     <string name="cfg_bar_outtemp">อุณหภูมิภายนอกในแถบ</string>
     <string name="cfg_bar_wifi">Wi-Fi ในแถบ (เปิดการตั้งค่า)</string>
-    <string name="cfg_bar_soc">แบตเตอรี่ % ในแถบ</string>
+    <string name="cfg_bar_soc">แบตเตอรี่ %% ในแถบ</string>
+    <string name="cfg_bar_topbar_header">แถบสถานะ</string>
+    <string name="cfg_bar_home_header">หน้าจอหลัก</string>
+    <string name="cfg_drive_card">แสดงการ์ดการขับขี่ปัจจุบัน</string>
     <string name="cfg_appearance_header">ลักษณะที่ปรากฏ</string>
+    <string name="cfg_dark_mode_header">โหมดมืด</string>
     <string name="cfg_appearance_light">สว่าง</string>
     <string name="cfg_appearance_dark">มืด</string>
     <string name="cfg_appearance_auto">อัตโนมัติ</string>
     <string name="cfg_appearance_note">อัตโนมัติจะทำตามการตั้งค่ากลางวัน/กลางคืนของยูนิตนี้เอง Neon และ Noturno จะใช้โทนสีคงที่เพียงหนึ่งเดียวของตัวเองเสมอ ไม่ว่าการตั้งค่านี้จะเป็นอย่างไร</string>
     <string name="cfg_theme_header">ธีม</string>
+    <string name="cfg_theme_selection_header">เลือกธีม</string>
     <string name="cfg_theme_sub">มีผลกับทุกหน้าจอของ Drive Assist ภาพขนาดย่อจะแสดงสีและรูปทรงของการ์ด — การเปลี่ยนแปลงจะเกิดขึ้นทันที</string>
     <string name="cfg_theme_selected">%1$s  ✓</string>
-    <string name="cfg_theme_ambient_on">ธีมนี้ปล่อยให้แสงแวดล้อมในห้องโดยสารควบคุมสีเน้น</string>
-    <string name="cfg_theme_ambient_off">ธีมนี้จงใจไม่สนใจแสงในห้องโดยสาร — สีเน้นยังคงเป็นสีอำพัน</string>
-    <string name="theme_geely_blurb">สีเทาเหล็กปืนตอนกลางคืน สีงาช้างตอนกลางวัน</string>
+    <string name="cfg_theme_ambient_on">ธีมนี้จะกะพริบสีตามไฟห้องโดยสารเมื่อแตะปุ่ม</string>
+    <string name="cfg_theme_ambient_off">ธีมนี้ไม่ใช้ไฟห้องโดยสาร — ปุ่มจะกะพริบเป็นสีอำพันแทน</string>
+    <string name="theme_geely_blurb">สีเทาเข้มตอนกลางคืน สีงาช้างตอนกลางวัน</string>
     <string name="theme_noturno_blurb">สีดำและสีอำพัน · แผงสไตล์ vaporwave</string>
     <string name="theme_neon_blurb">เส้นขอบเรืองแสง สีฟ้าอมเขียวและสีชมพูอมม่วง</string>
+
+    <!-- skyline art -->
+    <string name="cfg_skyline_header">สกายไลน์</string>
+    <string name="cfg_skyline_label">แสดงภาพสกายไลน์</string>
+    <string name="cfg_skyline_random_per_drive_label">สุ่มใหม่ทุกการขับขี่</string>
+    <string name="cfg_skyline_cycle">เปลี่ยนแบบ</string>
+    <string name="cfg_skyline_seed_header">ค่าซี้ดสกายไลน์</string>
+    <string name="cfg_skyline_seed_label">ค่าซี้ด</string>
+    <string name="cfg_skyline_seed_save">บันทึก</string>
 
     <!-- ruler -->
     <!-- Two different faults, and telling them apart is not cosmetic: one
@@ -229,7 +255,7 @@
     <string name="ruler_defrosting">กำลังละลายฝ้า</string>
     <string name="ruler_at_limit">%1$s · ถึงขีดจำกัด</string>
     <string name="ruler_car_refused">รถไม่ยอมรับ %1$d°</string>
-    <string name="ruler_committed">บันทึกความสบายแล้ว</string>
+    <string name="ruler_committed">บันทึกการตั้งค่าแล้ว</string>
     <string name="ruler_steady">คงที่</string>
     <string name="ruler_level">%1$s · ระดับ %2$d</string>
     <string name="ruler_src_cold">กำลังทำความเย็น</string>
@@ -252,6 +278,12 @@
     <string name="gate_opening">กำลังเปิด…</string>
     <string name="gate_closing">กำลังปิด…</string>
 
+    <!-- valet -->
+    <string name="valet_start">เริ่มโหมด Valet</string>
+    <string name="valet_end">สิ้นสุดโหมด Valet</string>
+    <string name="valet_active_title">โหมด Valet กำลังทำงาน</string>
+    <string name="valet_active_detail">ทำงานมาแล้ว %1$s · กำลังสูงสุด %2$s</string>
+
     <!-- purge: drop every window half way, press again to put them back -->
     <string name="purge_label">เปิดกระจก</string>
     <string name="purge_close_label">ปิดกระจก</string>
@@ -261,18 +293,20 @@
     <string name="purge_unreadable">อ่านสถานะกระจกไม่ได้ — รถตื่นอยู่หรือไม่?</string>
     <!-- dashcam gallery -->
     <string name="clips_title">การบันทึก</string>
+    <string name="clips_list_header">รายการคลิป</string>
+    <string name="clips_limit_label">ขีดจำกัดการบันทึก (GB)</string>
+    <string name="clips_limit_save">บันทึก</string>
     <string name="clips_usage">%1$d คลิป · ใช้ไป %2$s · เก็บไว้ %3$s · ว่าง %4$s</string>
     <string name="clips_none">ยังไม่มีการบันทึกใดๆ</string>
     <string name="clips_play">เล่น</string>
-    <string name="clips_hold">เก็บไว้</string>
-    <string name="clips_release">ปล่อย</string>
+    <string name="clips_hold">ล็อกคลิป</string>
+    <string name="clips_release">ปลดล็อก</string>
     <string name="clips_delete">ลบ</string>
     <string name="clips_delete_q">ลบ %1$s หรือไม่?</string>
     <string name="clip_play_failed">เล่นคลิปนี้ไม่ได้ (%1$d/%2$d)</string>
     <string name="clips_recording">กำลังบันทึก</string>
-    <string name="clips_orphan">ยังไม่ปิด — สามารถกู้คืนได้</string>
+    <string name="clips_orphan">ไฟล์ไม่สมบูรณ์ — กู้คืนได้</string>
     <string name="clips_record">บันทึก</string>
-    <string name="clips_stop">หยุด</string>
     <string name="cfg_nav_clips">Dashcam</string>
     <string name="clips_back">← กลับ</string>
     <string name="cam_all">ทั้งหมด</string>
@@ -280,22 +314,26 @@
     <string name="cam_rear">หลัง</string>
     <string name="cam_left">ซ้าย</string>
     <string name="cam_right">ขวา</string>
-    <string name="cam_orbit">หมุนรอบ</string>
+    <string name="cam_orbit">หมุนรอบคัน</string>
     <!-- charging history -->
     <string name="cfg_nav_charge">การชาร์จ</string>
     <string name="charge_title">ประวัติการชาร์จ</string>
+    <string name="charge_sessions_title">ประวัติการชาร์จ · ล่าสุดก่อน</string>
+    <string name="charge_soc_chart_title">ระดับแบตเตอรี่ · ตามลำดับเวลา</string>
     <string name="charge_summary">ชาร์จ %1$d ครั้ง · รวม %2$.1f kWh</string>
     <string name="charge_ltm_title">12 เดือนล่าสุด</string>
     <string name="charge_period_30d">30 วันล่าสุด</string>
     <string name="charge_ltm_count_label">ครั้ง</string>
     <string name="charge_row_subtitle">SoC %1$d%%→%2$d%% · %3$.1f kWh · %4$.1f kW</string>
-    <string name="charge_none">ยังไม่มีการบันทึกเซสชันการชาร์จ</string>
+    <string name="charge_none">ยังไม่มีประวัติการชาร์จ</string>
     <!-- stats -->
     <string name="cfg_nav_stats">สถิติ</string>
     <string name="stats_title">สถิติการขับขี่</string>
     <string name="stats_driving_header">สัปดาห์นี้</string>
     <string name="stats_trips_label">การเดินทาง</string>
     <string name="stats_chart_header">กม. ต่อวัน</string>
+    <string name="daily_stats_prev_day">ก่อนหน้า</string>
+    <string name="daily_stats_next_day">ถัดไป</string>
     <!-- OBD2 + ABRP -->
     <string name="cfg_nav_obd">OBD2 / ABRP</string>
     <string name="obd_title">ดองเกิล OBD2 และ ABRP</string>
@@ -312,7 +350,7 @@
     <string name="abrp_test_sending">กำลังส่งการทดสอบ ping ไปยัง ABRP…</string>
     <string name="abrp_test_ok">ส่งแล้ว — ตรวจสอบแอป/เว็บไซต์ของ ABRP เพื่อยืนยันว่าเชื่อมต่อแล้ว</string>
     <string name="abrp_test_fail">ล้มเหลว: %1$s</string>
-    <string name="abrp_debug_header">การดีบักสด</string>
+    <string name="abrp_debug_header">ดีบักแบบเรียลไทม์</string>
     <string name="abrp_debug_sent_header">ส่งไปยัง ABRP แล้ว</string>
     <string name="abrp_debug_no_data">ยังไม่มีข้อมูล</string>
     <string name="abrp_debug_last_ok">ส่งล่าสุด: %1$s — เรียบร้อย</string>
@@ -334,6 +372,14 @@
     <string name="charge_card_ready">พร้อม</string>
     <string name="charge_card_unknown">ไม่ทราบ</string>
 
+    <!-- home screen cards (current drive / parked) -->
+    <string name="drive_card_title">การขับขี่ปัจจุบัน</string>
+    <string name="drive_card_detail">%1$.1f กม. · %2$s · ตั้งแต่ %3$s · คืนพลังงาน %4$.2f kWh</string>
+    <string name="parked_card_title">จอดอยู่</string>
+    <string name="parked_card_detail">แบตเตอรี่ %1$s · อุณหภูมิ %2$s</string>
+    <string name="value_calculating">กำลังคำนวณ…</string>
+    <string name="value_unavailable">ไม่พร้อมใช้งาน</string>
+
     <!-- charge stats & cost tracking -->
     <string name="charge_stats_title">สถิติการชาร์จ</string>
     <string name="charge_completed_title">การชาร์จเสร็จสมบูรณ์</string>
@@ -342,6 +388,7 @@
     <string name="charge_cost_input_hint">ค่าใช้จ่ายทั้งหมด (เช่น 45.00)</string>
     <string name="charge_cost_btn_input">ป้อนค่าใช้จ่าย</string>
     <string name="charge_cost_btn_edit">แก้ไข</string>
+    <string name="charge_cost_btn_per_kwh">× kWh</string>
     <string name="charge_cost_btn_save">บันทึก</string>
     <string name="charge_cost_btn_dismiss">ปิด</string>
     <string name="charge_cost_not_set">ยังไม่ได้ตั้งค่าใช้จ่าย</string>
@@ -351,14 +398,30 @@
     <string name="charge_stat_avg_cost_kwh">ค่าใช้จ่าย / kWh</string>
     <string name="charge_stat_cost_100km">ค่าใช้จ่าย / 100 กม.</string>
 
+    <!-- charging power curve dialog -->
+    <string name="charge_curve_title">กำลังการชาร์จตามเวลา</string>
+    <string name="charge_curve_power_label">กำลังไฟฟ้า (kW)</string>
+    <string name="charge_curve_temp_label">อุณหภูมิภายนอก (°C)</string>
+    <string name="charge_curve_batt_temp_label">อุณหภูมิแบตเตอรี่ (°C)</string>
+    <string name="charge_curve_no_batt_temp">ไม่มีข้อมูลอุณหภูมิแบตเตอรี่สำหรับการชาร์จนี้ — ไม่ได้เชื่อมต่อดองเกิล OBD2</string>
+    <string name="charge_curve_unavailable">ไม่มีข้อมูลตัวอย่างสำหรับการชาร์จนี้แล้ว</string>
+
+    <!-- energy balance chart -->
+    <string name="charge_balance_title">สมดุลพลังงาน</string>
+    <string name="charge_balance_hint">แตะที่แถบเพื่อดูรายละเอียด</string>
+    <string name="charge_balance_spent">ใช้ไป</string>
+    <string name="charge_balance_regen">คืนพลังงาน</string>
+
     <!-- software update dialog & prompt -->
     <string name="update_dialog_title">มีการอัปเดตซอฟต์แวร์</string>
-    <string name="update_dialog_version_comp">Version: %1$s   ➔   %2$s</string>
+    <string name="update_dialog_title_target">มีการอัปเดต %1$s</string>
+    <string name="update_dialog_version_comp">เวอร์ชัน: %1$s   ➔   %2$s</string>
     <string name="update_dialog_current_ver">เวอร์ชันปัจจุบัน: %1$s</string>
     <string name="update_dialog_new_ver">เวอร์ชันใหม่: %1$s</string>
     <string name="update_dialog_changelog_header">มีอะไรใหม่:</string>
     <string name="update_dialog_accept">ยอมรับและอัปเดต</string>
     <string name="update_dialog_decline">ไว้ภายหลัง</string>
+    <string name="update_dialog_skip">ข้ามเวอร์ชันนี้</string>
     <string name="update_checking">กำลังตรวจสอบการอัปเดต…</string>
     <string name="update_up_to_date">Drive Assist เป็นเวอร์ชันล่าสุดแล้ว (%1$s)</string>
     <string name="update_check_failed">ไม่สามารถตรวจสอบการอัปเดตได้: %1$s</string>

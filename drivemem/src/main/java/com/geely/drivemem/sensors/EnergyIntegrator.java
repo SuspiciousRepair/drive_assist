@@ -221,8 +221,8 @@ public final class EnergyIntegrator {
     /** Drains and resets the rolling window accumulators using an explicit timestamp. */
     public static WindowSnapshot drainWindow(long nowMono, Float fallbackPowerKw) {
         synchronized (LOCK) {
-            long elapsedWindowMs = (windowStartMonoMs > 0) ? (nowMono - windowStartMonoMs) : 15_000;
-            if (elapsedWindowMs <= 0) elapsedWindowMs = 15_000;
+            long elapsedWindowMs = (windowStartMonoMs > 0) ? (nowMono - windowStartMonoMs) : 30_000;
+            if (elapsedWindowMs <= 0) elapsedWindowMs = 30_000;
 
             Double instantKw = lastPowerKw;
             if (instantKw == null && fallbackPowerKw != null) {
@@ -237,8 +237,14 @@ public final class EnergyIntegrator {
             double outNet = windowNetKwh;
             int count = windowSampleCount;
 
-            // Fallback integration if OBD2 was unavailable during this entire window
-            if (count == 0 && fallbackPowerKw != null && elapsedWindowMs <= MAX_GAP_MS * 3) {
+            // Fallback integration if OBD2 was unavailable during this entire window.
+            // *4, not *3: the tick that feeds this (CarActor.TICK_INTERVAL_MS) now
+            // runs at the same 30s cadence this fallback's own SoC delta is sampled
+            // at, so elapsedWindowMs normally sits right at that boundary -- *3
+            // (30s) would reject a real window on nothing more than ordinary
+            // scheduling jitter pushing it a few ms over. *4 keeps real multi-tick
+            // gaps (a suspend, a dropped tick) rejected without also punishing jitter.
+            if (count == 0 && fallbackPowerKw != null && elapsedWindowMs <= MAX_GAP_MS * 4) {
                 double hours = elapsedWindowMs / 3_600_000.0;
                 double kw = fallbackPowerKw;
                 if (kw >= 0) {

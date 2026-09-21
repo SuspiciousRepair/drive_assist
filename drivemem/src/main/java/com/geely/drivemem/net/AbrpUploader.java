@@ -385,8 +385,10 @@ public final class AbrpUploader {
             if (obdSoc != null) tlm.put("soc", obdSoc);
             else if (battery != null) tlm.put("soc", battery);
 
+            // The VHAL fallback is a SoC-delta energy estimate over a time
+            // window, not a measured instantaneous power reading. Never send
+            // it to ABRP as calibration data.
             Float power = (obdFresh && obd.powerKw != null) ? obd.powerKw.floatValue() : null;
-            if (power == null) power = asFloat(data.get("instant_power_kw_est"));
             if (power != null) tlm.put("power", power);
 
             Float speed = asFloat(data.get("speed"));

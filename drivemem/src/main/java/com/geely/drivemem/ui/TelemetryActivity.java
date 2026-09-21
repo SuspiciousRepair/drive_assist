@@ -44,6 +44,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -66,6 +67,7 @@ public class TelemetryActivity extends Activity {
     private SharedPreferences prefs;
 
     private LinearLayout content;             // right-hand panel (swapped per section)
+    private LinearLayout outer;               // whole-screen root -- background swapped per section, see selectSection()
     // THE ORDER OF THE NAV LIVES HERE AND NOWHERE ELSE. The index is not just a
     // position: it is passed through the "section" intent extra to survive the
     // recreate() a theme change causes, so a renumber done in one place and not
@@ -119,15 +121,17 @@ public class TelemetryActivity extends Activity {
     // Drive mode. Two separate ideas, kept in separate fields on purpose —
     // conflating them into one used to mean a car that answered late (or
     // wrong, right after boot) silently overwrote the user's saved standard
-    // in memory, so pressing "Salvar padrão" saved whatever the car
+    // in memory, so the next tap applied on top of whatever the car
     // happened to currently be in, not what the user actually picked.
     //   selDrive/selRegen  — your standard: starts from prefs, changes only
-    //                        when you tap a card. This is what "Salvar
-    //                        padrão" persists. Always known (falls back to
-    //                        Modes.DRIVE_ECO/REGEN_MID like before).
+    //                        when you tap a card, and is applied AND saved
+    //                        in that same tap (pickDrive/pickRegen). Always
+    //                        known (falls back to Modes.DRIVE_ECO/REGEN_MID
+    //                        like before).
     //   liveDrive/liveRegen — what the car reports right now. Only
     //                        meaningful once driveKnown/regenKnown is true;
-    //                        never written to by a tap or by saveDefault.
+    //                        set optimistically by a tap, then confirmed or
+    //                        corrected by the car's own watch.
     private int selDrive, selRegen;
     private int liveDrive, liveRegen;
     private boolean driveKnown, regenKnown;   // is the LIVE value known — not the standard, which always is
@@ -168,9 +172,10 @@ public class TelemetryActivity extends Activity {
         selRegen = prefs.getInt("regen", Modes.REGEN_MID);
 
         Style.edgeToEdge(this);
-        LinearLayout outer = new LinearLayout(this);
+        outer = new LinearLayout(this);
         outer.setOrientation(LinearLayout.HORIZONTAL);
-        outer.setBackground(Style.screenBg());
+        // Background itself is set per-section in selectSection(), once the
+        // initial section is known -- not here.
 
         // ---- sidebar ----
         LinearLayout side = new LinearLayout(this);
@@ -298,8 +303,17 @@ public class TelemetryActivity extends Activity {
         return t;
     }
 
+    // Only these three sections get the OEM car render as their background
+    // (see Style.configScreenBg) -- everything else gets a flat fill
+    // (Style.configScreenBgSolid), per the owner's explicit choice of which
+    // pages should carry it.
+    private boolean sectionHasCarBg(int idx) {
+        return idx == SEC_DRIVE || idx == SEC_DOORS || idx == SEC_BAR;
+    }
+
     private void selectSection(int idx) {
         section = idx;
+        outer.setBackground(sectionHasCarBg(idx) ? Style.configScreenBg(this) : Style.configScreenBgSolid());
         for (TextView t : navItems) {
             boolean sel = ((Integer) t.getTag() == idx);
             t.setBackground(sel ? selectedNavBg() : null);
@@ -2057,61 +2071,101 @@ public class TelemetryActivity extends Activity {
 
     private void buildDrive() {
         driveCards.clear(); regenCards.clear();
-        content.addView(Style.header(this, getString(R.string.cfg_drive_header)));
+
+        // Everything for this page builds into `left` (still capped at
+        // pageWidth, same as before) instead of straight into `content`.
+        // content is the whole right-hand panel, and half of that panel
+        // was empty behind this page's rows -- left sits beside a car
+        // render filling that space instead, added to content once at the
+        // very end as a single [left | car] row.
+        LinearLayout left = new LinearLayout(this);
+        left.setOrientation(LinearLayout.VERTICAL);
+
+        left.addView(Style.header(this, getString(R.string.cfg_drive_header)));
         status = new TextView(this);
         status.setTextColor(Style.TEXT); status.setTextSize(16);
         status.setTypeface(null, android.graphics.Typeface.BOLD);
         status.setText(getString(R.string.cfg_connecting));
-        content.addView(status);
+        left.addView(status);
 
         // the glyphs "🍃 ☁ ⚡ ◦ ◉ ●" are icons, not text: they do not get translated
         //
-        // Capped width, not MATCH_PARENT: content is the whole right-hand
-        // panel (screen width minus the 240dp sidebar), and small tiles/
-        // fields/rows stretched across all of it turn into oversized slabs.
-        // Half the screen keeps everything on this page a sane, consistent
-        // size regardless of how wide the panel is -- applied to every row
-        // below (drive, regen, turbo, actions), not just the mode cards.
+        // Capped width, not MATCH_PARENT: small tiles/fields/rows stretched
+        // across the whole panel turn into oversized slabs. pageWidth keeps
+        // everything on this page a sane, consistent size -- applied to
+        // every row below (drive, regen, turbo, actions), not just the mode
+        // cards.
         int pageWidth = Style.dp(this, 960);
         LinearLayout driveRow = new LinearLayout(this);
         driveRow.setOrientation(LinearLayout.HORIZONTAL);
         driveRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        driveRow.addView(modeCard("🍃", getString(R.string.cfg_mode_eco), Modes.DRIVE_ECO, driveCards, () -> setDrive(Modes.DRIVE_ECO)));
-        driveRow.addView(modeCard("☁", getString(R.string.cfg_mode_comfort), Modes.DRIVE_COMFORT, driveCards, () -> setDrive(Modes.DRIVE_COMFORT)));
-        driveRow.addView(modeCard("⚡", getString(R.string.cfg_mode_sport), Modes.DRIVE_SPORT, driveCards, () -> setDrive(Modes.DRIVE_SPORT)));
-        content.addView(driveRow);
+        driveRow.addView(modeCard(R.drawable.ic_mode_eco, getString(R.string.cfg_mode_eco), Modes.DRIVE_ECO, Style.GOOD, driveCards, () -> pickDrive(Modes.DRIVE_ECO)));
+        driveRow.addView(modeCard(R.drawable.ic_mode_comfort, getString(R.string.cfg_mode_comfort), Modes.DRIVE_COMFORT, Style.WARN, driveCards, () -> pickDrive(Modes.DRIVE_COMFORT)));
+        driveRow.addView(modeCard(R.drawable.ic_mode_sport, getString(R.string.cfg_mode_sport), Modes.DRIVE_SPORT, Style.DANGER, driveCards, () -> pickDrive(Modes.DRIVE_SPORT)));
+        left.addView(driveRow);
 
-        content.addView(Style.header(this, getString(R.string.cfg_regen_header)));
+        left.addView(Style.header(this, getString(R.string.cfg_regen_header)));
         LinearLayout regenRow = new LinearLayout(this);
         regenRow.setOrientation(LinearLayout.HORIZONTAL);
         regenRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        regenRow.addView(modeCard("◦", getString(R.string.cfg_regen_low), Modes.REGEN_LOW, regenCards, () -> setRegen(Modes.REGEN_LOW)));
-        regenRow.addView(modeCard("◉", getString(R.string.cfg_regen_mid), Modes.REGEN_MID, regenCards, () -> setRegen(Modes.REGEN_MID)));
-        regenRow.addView(modeCard("●", getString(R.string.cfg_regen_high), Modes.REGEN_HIGH, regenCards, () -> setRegen(Modes.REGEN_HIGH)));
-        content.addView(regenRow);
+        regenRow.addView(modeCard("◦", getString(R.string.cfg_regen_low), Modes.REGEN_LOW, Style.CARD_ON, regenCards, () -> pickRegen(Modes.REGEN_LOW)));
+        regenRow.addView(modeCard("◉", getString(R.string.cfg_regen_mid), Modes.REGEN_MID, Style.CARD_ON, regenCards, () -> pickRegen(Modes.REGEN_MID)));
+        regenRow.addView(modeCard("●", getString(R.string.cfg_regen_high), Modes.REGEN_HIGH, Style.CARD_ON, regenCards, () -> pickRegen(Modes.REGEN_HIGH)));
+        left.addView(regenRow);
 
-        content.addView(Style.header(this, getString(R.string.turbo_header)));
+        left.addView(Style.header(this, getString(R.string.turbo_header)));
+        // Toggle and duration side by side, not the toggle then a
+        // full-pageWidth field below it -- a 3-digit seconds value never
+        // needed the same width as the mode-card rows above it.
+        LinearLayout turboRow = new LinearLayout(this);
+        turboRow.setOrientation(LinearLayout.HORIZONTAL);
+        turboRow.setGravity(Gravity.CENTER_VERTICAL);
+        turboRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
         LinearLayout turboToggle = toggleRow(getString(R.string.turbo_enable_label),
             prefs.getBoolean("turbo_enabled", true),
             on -> prefs.edit().putBoolean("turbo_enabled", on).apply());
-        turboToggle.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        content.addView(turboToggle);
-        fTurbo = field(content, getString(R.string.turbo_duration_label),
-            String.valueOf(prefs.getInt("turbo_duration_s", TurboMode.DEFAULT_DURATION_S)),
-            InputType.TYPE_CLASS_NUMBER);
-        fTurbo.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        // Saved by "Salvar padrão" below, not on blur or every keystroke —
-        // blur never reliably fired here (dismissing the on-screen number pad
-        // hides the IME but does not necessarily move focus off the
-        // EditText, so a save-on-blur listener could go the whole session
-        // without firing once — reported as "edited it, it reverted to 30",
-        // which was really "it never saved at all"). "Salvar padrão" already
-        // means "persist my settings on this screen" for drive/regen mode;
-        // Turbo's duration is just one more field it sweeps up on the same
-        // press, with the same one clear save moment instead of a listener
-        // whose firing conditions are easy to get wrong twice.
+        turboRow.addView(turboToggle);
 
-        content.addView(Style.header(this, getString(R.string.cfg_adas_header)));
+        TextView durLbl = new TextView(this);
+        durLbl.setText(getString(R.string.turbo_duration_label));
+        durLbl.setTextColor(Style.TEXT_DIM); durLbl.setTextSize(14);
+        LinearLayout.LayoutParams durLblLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        durLblLp.leftMargin = Style.dp(this, 28);
+        durLbl.setLayoutParams(durLblLp);
+        turboRow.addView(durLbl);
+
+        fTurbo = new EditText(this);
+        fTurbo.setText(String.valueOf(prefs.getInt("turbo_duration_s", TurboMode.DEFAULT_DURATION_S)));
+        fTurbo.setInputType(InputType.TYPE_CLASS_NUMBER);
+        fTurbo.setTextColor(Style.TEXT); fTurbo.setTextSize(17);
+        fTurbo.setBackground(Style.card(Style.CARD, this));
+        int fPad = Style.dp(this, 12);
+        fTurbo.setPadding(fPad, fPad, fPad, fPad);
+        LinearLayout.LayoutParams fTurboLp = new LinearLayout.LayoutParams(
+            Style.dp(this, 90), ViewGroup.LayoutParams.WRAP_CONTENT);
+        fTurboLp.leftMargin = Style.dp(this, 10);
+        fTurbo.setLayoutParams(fTurboLp);
+        turboRow.addView(fTurbo);
+        left.addView(turboRow);
+        // Saves on every keystroke that parses, not on blur — blur never
+        // reliably fired here (dismissing the on-screen number pad hides the
+        // IME but does not necessarily move focus off the EditText, so a
+        // save-on-blur listener could go the whole session without firing
+        // once — reported as "edited it, it reverted to 30", which was
+        // really "it never saved at all"). Raw value is saved as typed,
+        // never rewritten under the cursor; TurboMode.start() clamps
+        // 5..120s at the moment it's actually read.
+        fTurbo.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                try { prefs.edit().putInt("turbo_duration_s", Integer.parseInt(s.toString().trim())).apply(); }
+                catch (NumberFormatException ignored) {}
+            }
+        });
+
+        left.addView(Style.header(this, getString(R.string.cfg_adas_header)));
 
         // AEB: needs Park + its own confirmation, since writing this property
         // directly (via modehelper) skips the OEM's own warning dialog entirely
@@ -2141,7 +2195,7 @@ public class TelemetryActivity extends Activity {
             }
         });
         aebRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        content.addView(aebRow);
+        left.addView(aebRow);
 
         // AVAS mute: no Park-gate, no confirmation — much lower stakes (a
         // pedestrian-warning chime, not braking), matching a "quick per-drive
@@ -2161,16 +2215,22 @@ public class TelemetryActivity extends Activity {
             sendAdasPreference("avas", on);
         });
         avasRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        content.addView(avasRow);
+        left.addView(avasRow);
         refreshAvasFromCar(avasSwitch);
 
-        content.addView(Style.header(this, getString(R.string.cfg_actions_header)));
+        left.addView(Style.header(this, getString(R.string.cfg_actions_header)));
         LinearLayout actionRow = new LinearLayout(this);
         actionRow.setOrientation(LinearLayout.HORIZONTAL);
         actionRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        actionRow.addView(action(getString(R.string.cfg_btn_apply), Style.ACCENT, this::applyNow));
-        actionRow.addView(action(getString(R.string.cfg_btn_save_default), 0xFF6A4CFF, this::saveDefault));
-        content.addView(actionRow);
+        actionRow.addView(action(getString(R.string.cfg_btn_restore_defaults), Style.ACCENT, this::restoreDriveDefaults));
+        left.addView(actionRow);
+
+        // No separate car cutout here any more -- the whole Config screen's
+        // background is now the OEM day/night render (see Style.configScreenBg,
+        // wired in onCreate), which already puts a (larger) car in this same
+        // empty region. A second, smaller one floating on top of it would
+        // have doubled up instead of filling anything.
+        content.addView(left);
 
         highlight();
         if (!carActorSubscribed) {
@@ -2181,34 +2241,63 @@ public class TelemetryActivity extends Activity {
         refresh();
     }
 
-    private LinearLayout modeCard(String symbol, String label, int key,
+    // Regen (Fraca/Média/Forte) has no real icon set -- these three dots are
+    // a plain geometric affordance, not a brand/style pastiche in need of a
+    // license, so they stay a plain glyph.
+    private LinearLayout modeCard(String symbol, String label, int key, int onColor,
                                   Map<Integer, LinearLayout> reg, Runnable onClick) {
+        LinearLayout card = modeCardShell(label, key, onColor, reg, onClick);
+        TextView ic = new TextView(this);
+        ic.setText(symbol); ic.setTextColor(Style.TEXT); ic.setTextSize(34);
+        ic.setGravity(Gravity.CENTER);
+        card.addView(ic, 0);
+        return card;
+    }
+
+    // Eco/Comfort/Sport get a real vector icon (Google Material Symbols,
+    // Apache-2.0 -- see the drawable files' own header comments) instead of
+    // an emoji glyph, tinted the same way the label already is so selection
+    // recolors both together (see paintCard()).
+    private LinearLayout modeCard(int iconRes, String label, int key, int onColor,
+                                  Map<Integer, LinearLayout> reg, Runnable onClick) {
+        LinearLayout card = modeCardShell(label, key, onColor, reg, onClick);
+        ImageView ic = new ImageView(this);
+        ic.setImageResource(iconRes);
+        ic.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
+        LinearLayout.LayoutParams icLp = new LinearLayout.LayoutParams(Style.dp(this, 34), Style.dp(this, 34));
+        ic.setLayoutParams(icLp);
+        card.addView(ic, 0);
+        return card;
+    }
+
+    // Shared shell: padding, label, click, sizing/tag/registration -- the
+    // two overloads above differ only in how the icon view itself is built,
+    // so that's the only thing each adds, at index 0 (before the label).
+    private LinearLayout modeCardShell(String label, int key, int onColor,
+                                       Map<Integer, LinearLayout> reg, Runnable onClick) {
         LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
+        // Icon inline with its label, not stacked -- a horizontal card has
+        // room to let both read as a single, decently large lockup instead
+        // of two smaller lines competing for the same narrow column.
+        card.setOrientation(LinearLayout.HORIZONTAL);
         card.setGravity(Gravity.CENTER);
         int pad = Style.dp(this, 8);
         card.setPadding(pad, pad, pad, pad);
-        TextView ic = new TextView(this);
-        ic.setText(symbol); ic.setTextColor(Style.TEXT); ic.setTextSize(38);
-        ic.setGravity(Gravity.CENTER);
-        card.addView(ic);
         TextView lb = new TextView(this);
-        lb.setText(label); lb.setTextColor(Style.TEXT); lb.setTextSize(19);
+        lb.setText(label); lb.setTextColor(Style.TEXT); lb.setTextSize(21);
         lb.setTypeface(null, android.graphics.Typeface.BOLD);
         lb.setGravity(Gravity.CENTER);
-        lb.setPadding(0, Style.dp(this, 8), 0, 0);
+        lb.setPadding(Style.dp(this, 10), 0, 0, 0);
         card.addView(lb);
         card.setOnClickListener(v -> onClick.run());
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Style.dp(this, 120), 1f);
         int m = Style.dp(this, 4);
         lp.setMargins(m, Style.dp(this, 8), m, 0);
         card.setLayoutParams(lp);
+        card.setTag(onColor);
         reg.put(key, card);
         return card;
     }
-
-    private void setDrive(int v) { selDrive = v; highlight(); }
-    private void setRegen(int v) { selRegen = v; highlight(); }
 
     // Fill = your standard (selDrive/selRegen, always known). Border = what
     // the car reports right now (liveDrive/liveRegen, only once driveKnown/
@@ -2224,9 +2313,13 @@ public class TelemetryActivity extends Activity {
 
     // card background + text: on the light theme the selected fill is dark blue,
     // so the text has to turn light (otherwise it disappears). "isLive" adds a
-    // thicker accent-coloured stroke on top, independent of the fill.
+    // thicker accent-coloured stroke on top, independent of the fill. Each
+    // card's own onColor (set at build time, in modeCard's tag) replaces the
+    // one shared CARD_ON fill so Eco/Comfort/Sport read as green/amber/red at
+    // a glance instead of only by their label.
     private void paintCard(LinearLayout card, boolean selected, boolean isLive) {
-        int fill = selected ? Style.CARD_ON : Style.CARD;
+        int onColor = (card.getTag() instanceof Integer) ? (Integer) card.getTag() : Style.CARD_ON;
+        int fill = selected ? onColor : Style.CARD;
         android.graphics.drawable.GradientDrawable g = Style.card(fill, this);
         if (isLive) g.setStroke(Style.dp(this, Style.STROKE_DP + 2), Style.ACCENT);
         card.setBackground(g);
@@ -2234,57 +2327,61 @@ public class TelemetryActivity extends Activity {
         for (int i = 0; i < card.getChildCount(); i++) {
             View ch = card.getChildAt(i);
             if (ch instanceof TextView) ((TextView) ch).setTextColor(fg);
+            else if (ch instanceof ImageView) ((ImageView) ch).setColorFilter(fg, android.graphics.PorterDuff.Mode.SRC_IN);
         }
     }
 
-    private void applyNow() {
-        final int d = selDrive, r = selRegen;
-        // A boost in progress owns drive_mode until it reverts on its own —
-        // the Config picker must not undercut it mid-countdown. Regen has no
-        // such conflict, so it still applies either way.
-        boolean turboActive = TurboMode.get(this).active();
-        if (!turboActive) CarActor.get(this).cast("drive_mode", d);
-        CarActor.get(this).cast("regen_mode", r);
+    // Applies to the car AND saves as the startup standard in the same tap —
+    // no separate Apply / Salvar padrão step to remember. A boost in
+    // progress no longer owns drive_mode past a manual pick: it ends right
+    // here (TurboMode.selectDriveMode), so the tap always reflects on the
+    // car immediately.
+    private void pickDrive(int v) {
+        selDrive = v;
+        prefs.edit().putInt("drive", v).apply();
+        notifyHelperDefault();
+        if (TurboMode.get(this).active()) TurboMode.get(this).selectDriveMode(v);
+        else CarActor.get(this).cast("drive_mode", v);
         // Trusted as sent, not waited on — see CarActor's own comment for
         // why a cast doesn't block here.
-        liveRegen = r; regenKnown = true;
-        if (!turboActive) { liveDrive = d; driveKnown = true; }
+        liveDrive = v; driveKnown = true;
         highlight();
-        status.setText(turboActive
-            ? getString(R.string.cfg_applied_turbo_active, Modes.regenName(r))
-            : getString(R.string.cfg_applied, Modes.driveName(d), Modes.regenName(r)));
+        status.setText(getString(R.string.cfg_applied, Modes.driveName(selDrive), Modes.regenName(selRegen)));
     }
 
-    private void saveDefault() {
-        prefs.edit().putInt("drive", selDrive).putInt("regen", selRegen).apply();
-        // tell the system helper (com.geely.modehelper) about the new default — it
-        // is the one that, running as uid system, re-applies it when the car wakes
-        // (here, as a normal app, we do not survive the suspend).
+    private void pickRegen(int v) {
+        selRegen = v;
+        prefs.edit().putInt("regen", v).apply();
+        notifyHelperDefault();
+        CarActor.get(this).cast("regen_mode", v);
+        liveRegen = v; regenKnown = true;
+        highlight();
+        status.setText(getString(R.string.cfg_applied, Modes.driveName(selDrive), Modes.regenName(selRegen)));
+    }
+
+    // Tells the system helper (com.geely.modehelper) about the new startup
+    // default — it is the one that, running as uid system, re-applies it
+    // when the car wakes (here, as a normal app, we do not survive suspend).
+    private void notifyHelperDefault() {
         try {
             android.content.Intent i = new android.content.Intent("com.geely.modehelper.SET_MODE");
             i.setPackage("com.geely.modehelper");
             i.putExtra("drive", selDrive).putExtra("regen", selRegen);
             sendBroadcast(i);
         } catch (Throwable ignored) {}
-        // Turbo duration rides along here — same "persist my settings on
-        // this screen" action, not a separate button. Clamped 5..120s (under
-        // 5 is not a "boost", and TurboMode has no cap of its own to lean
-        // on), and the field is rewritten to the clamped value so pressing
-        // Save is also the confirmation that it took.
-        if (fTurbo != null) {
-            int turboSec;
-            try { turboSec = Integer.parseInt(fTurbo.getText().toString().trim()); }
-            catch (NumberFormatException e) { turboSec = TurboMode.DEFAULT_DURATION_S; }
-            turboSec = Math.max(5, Math.min(120, turboSec));
-            prefs.edit().putInt("turbo_duration_s", turboSec).apply();
-            fTurbo.setText(String.valueOf(turboSec));
-        }
-        status.setText(getString(R.string.cfg_startup_default,
-            Modes.driveName(selDrive), Modes.regenName(selRegen)));
     }
 
-    // Same SET_MODE broadcast saveDefault() sends for drive/regen, but for
-    // one AEB/AVAS preference at a time — modehelper's receiver treats each
+    // Single explicit reset for both pickers, to Eco + Mid regen — the same
+    // pair this screen starts from on a fresh install and modehelper falls
+    // back to on its own (ModeHelperService, CarMode.DRIVE_ECO/REGEN_MID).
+    private void restoreDriveDefaults() {
+        pickDrive(Modes.DRIVE_ECO);
+        pickRegen(Modes.REGEN_MID);
+        status.setText(getString(R.string.cfg_restored_defaults));
+    }
+
+    // Same SET_MODE broadcast notifyHelperDefault() sends for drive/regen,
+    // but for one AEB/AVAS preference at a time — modehelper's receiver treats each
     // extra as independent and optional, so this never touches the other
     // three. Drive Assist cannot write either property itself (confirmed for
     // AVAS, expected for AEB — see plan/ADAS-CONTROLS-ROADMAP.md); this only

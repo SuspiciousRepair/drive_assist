@@ -190,6 +190,7 @@ public final class TelemetryRollup {
             v.put("discharge_kwh", es != null ? es.spentKwh : 0.0);
             v.put("regen_kwh", es != null ? es.regenKwh : 0.0);
             v.put("net_kwh", es != null ? es.netKwh : 0.0);
+            v.put("energy_source", (es != null ? es.energySource : EnergySource.NO_DATA).name());
 
             db.insertWithOnConflict("daily_stat", null, v, SQLiteDatabase.CONFLICT_IGNORE);
         }
@@ -219,8 +220,10 @@ public final class TelemetryRollup {
         final double spentKwh;
         final double regenKwh;
         final double netKwh;
-        EnergyStats(double spentKwh, double regenKwh, double netKwh) {
+        final EnergySource energySource;
+        EnergyStats(double spentKwh, double regenKwh, double netKwh, EnergySource energySource) {
             this.spentKwh = spentKwh; this.regenKwh = regenKwh; this.netKwh = netKwh;
+            this.energySource = energySource;
         }
     }
 
@@ -253,7 +256,7 @@ public final class TelemetryRollup {
         Cursor c = db.rawQuery(
             "SELECT date(ts_ms/1000,'unixepoch','localtime') AS day, "
           + "       ts_ms, odo_km, speed_kmh, gear, is_charging, "
-          + "       energy_spent_kwh, energy_regen_kwh, instant_power_kw_est "
+          + "       energy_spent_kwh, energy_regen_kwh, instant_power_kw_est, energy_measured "
           + "FROM telemetry_sample "
           + "WHERE ts_ms >= ? AND ts_ms < ? "
           + "ORDER BY day ASC, ts_ms ASC, id ASC", new String[]{rangeStart, rangeEnd});
@@ -270,14 +273,15 @@ public final class TelemetryRollup {
                 double spent = c.isNull(6) ? Double.NaN : c.getDouble(6);
                 double regen = c.isNull(7) ? Double.NaN : c.getDouble(7);
                 double power = c.isNull(8) ? Double.NaN : c.getDouble(8);
-                a.add(ts, odo, speed, gear, charging, spent, regen, power);
+                Integer measured = c.isNull(9) ? null : c.getInt(9);
+                a.add(ts, odo, speed, gear, charging, spent, regen, power, measured);
             }
         } finally { c.close(); }
 
         for (Map.Entry<String, DrivingConsumption> e : acc.entrySet()) {
             double spent = e.getValue().totalSpent;
             double regen = e.getValue().totalRegen;
-            out.put(e.getKey(), new EnergyStats(spent, regen, spent - regen));
+            out.put(e.getKey(), new EnergyStats(spent, regen, spent - regen, e.getValue().energySource()));
         }
         return out;
     }

@@ -1,5 +1,28 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- **Bluetooth OBD2 PIN fix is no longer part of installation.** `install.sh`
+  used to automatically flip the head unit's Bluetooth pairing PIN from
+  `0000` to `1234` on every install. It's now a separate, optional step you
+  run yourself only if you're pairing an OBD2 dongle
+  (`bt-pin-fix/apply-pin-1234.sh`). The docs now also point out that the PIN
+  only needs to be changed for the pairing itself — once a dongle is paired
+  the car remembers it by a stored bond key, not the PIN — so
+  `bt-pin-fix/revert-pin-0000.sh` should be run right after pairing instead
+  of leaving the PIN changed indefinitely.
+
+### Docs
+- Added an Open-source Head-unit Software Review
+  (`docs/OPEN-SOURCE-HEAD-UNIT-REVIEW.md`), linked from the README, covering
+  maintainability, architecture, performance, safety, and community
+  recommendations for rooted sideloaded deployment.
+- Called out clearly, in `docs/WELCOME.md` and `docs/INSTALL-GUIDE.md`, that
+  the Bluetooth PIN change is the one change in the project that survives an
+  uninstall or factory reset, since it lives under `/system` rather than
+  `/data`.
+
 ## [v0.2.0] — 2026-09-15
 
 ### ⚠️ Upgrade note for existing installs

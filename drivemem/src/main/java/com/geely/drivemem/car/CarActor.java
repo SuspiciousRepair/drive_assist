@@ -81,23 +81,39 @@ public final class CarActor {
 
         // Charging status from current flow (faster than main telemetry tick)
         // for ChargeSession card responsiveness.
+        //
+        // charge_a (605291008) is known to latch at its last non-zero reading
+        // and never return to 0 on its own (2026-09-14: 245V/11.4A held
+        // steady for hours after the plug was physically pulled; and
+        // 2026-09-18: a real 30-minute DC fast charge was missed almost
+        // entirely because is_charging never produced a fresh 0->1 edge —
+        // it had been stuck reporting 1 since a much earlier charge). A
+        // second, no-relation VHAL pair (DCHA_CHARGE_ACDC_*, see CarAccess)
+        // was investigated as a non-latching replacement and turned out to
+        // alias the exact same underlying functionId — no better raw source
+        // exists. car.plug_connected below is a genuinely different,
+        // connector-engagement property, so it's cross-checked HERE, in the
+        // same poll tick, rather than left to each consumer to guard against
+        // separately (ChargeSession used to be the only place that did) —
+        // every subscriber of car.is_charging gets the corrected value for
+        // free, including the ones that don't know this sensor is unreliable.
         registerPoll("car.is_charging", 2000, c -> {
-            // TODO: should we use CarAccess.isCharging() instead? It reads the same raw prop (605291008) but applies a 0.5A threshold.
-            // TODO: should we name codes with meaningul constants instead of magic numbers? 605291008 is Telemetry.FIELDS.charge_a.prop.
             String v = c.readAny(605291008, 0, 'f');   // charge_a — same raw prop Telemetry.FIELDS reads
             if (v == null) return Reading.error("no reading");
-            float a = Float.parseFloat(v);
-            return Reading.ok((a > 0.5f) ? 1 : 0);
+            float a;
+            try { a = Float.parseFloat(v); } catch (NumberFormatException e) { return Reading.error("bad value: " + v); }
+            String plugV = c.readAny(557887621, 0, 'i');   // same prop car.plug_connected reads, below
+            boolean plugged = plugV != null && !"0".equals(plugV);
+            return Reading.ok((a > 0.5f && plugged) ? 1 : 0);
         });
 
         // Ground truth for "is a cable physically in the port" — a real
         // connector-engagement property, not derived from current flow like
-        // car.is_charging above. Needed because 605291008 (charge_a) has been
-        // observed to latch at its last non-zero reading and never return to
-        // 0 on its own (2026-09-14: 245V/11.4A held steady for hours after
-        // the plug was physically pulled) — car.is_charging inherits that
-        // staleness since it reads the very same property. ChargeSession uses
-        // this one to know when to stop believing it.
+        // car.is_charging above (which now cross-checks this same read
+        // itself, see its own comment). Still published on its own too:
+        // ChargeSession also uses this directly, to force-close a session
+        // the moment the plug is pulled rather than waiting for the next
+        // is_charging tick.
         registerPoll("car.plug_connected", 2000, c -> {
             String v = c.readAny(557887621, 0, 'i');   // same prop Telemetry.java's plug_connected reads
             if (v == null) return Reading.error("no reading");
@@ -131,8 +147,12 @@ public final class CarActor {
             Reading.ok(CarplayState.connected() ? 1 : 0));
     }
 
-    // Main heartbeat: reads all Telemetry.FIELDS on cadence.
-    private static final int TICK_INTERVAL_MS = 15000;
+    // Main heartbeat: reads all Telemetry.FIELDS on cadence. 30s, not faster:
+    // the no-OBD2 battery estimate (Telemetry.POWER_WINDOW_MS) only has a
+    // fresh SoC delta every 30s -- ticking faster than that just meant every
+    // other tick's fallback energy calc used a mismatched (half-length)
+    // duration against a reading that hadn't actually changed yet.
+    private static final int TICK_INTERVAL_MS = 30000;
     private long lastTelemetryMs = -1;
 
     /** Callback for a registered periodic property poll. Runs on actor's thread. */

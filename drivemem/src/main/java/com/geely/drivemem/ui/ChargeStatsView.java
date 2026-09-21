@@ -7,7 +7,6 @@ import android.text.SpannableStringBuilder;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.database.Cursor;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -25,9 +24,7 @@ import com.geely.drivemem.util.UsbExport;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Collections;
-import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -290,9 +287,15 @@ public class ChargeStatsView extends LinearLayout {
         // Always render the complete rolling calendar, including days with
         // driving energy but no recharge. Overnight sessions are apportioned
         // by their overlap with each calendar day.
-        final int chartPeriodDays = 30;
-        long chartCutoff = System.currentTimeMillis() - chartPeriodDays * 24L * 3600 * 1000;
-        List<EnergyBalanceChart.Day> chartDays = buildBalanceDays(c, allSessions, chartCutoff, chartPeriodDays);
+        List<DailyStatsProvider.DayEnergyBalance> balance =
+                DailyStatsProvider.getEnergyBalanceDays(c, allSessions, 30);
+        List<EnergyBalanceChart.Day> chartDays = new ArrayList<>(balance.size());
+        for (DailyStatsProvider.DayEnergyBalance b : balance) {
+            EnergyBalanceChart.Day day = new EnergyBalanceChart.Day(shortDayLabel(b.date));
+            day.spent = b.spentKwh; day.regen = b.regenKwh; day.ac = b.acKwh; day.dc = b.dcKwh;
+            day.energySource = b.energySource;
+            chartDays.add(day);
+        }
         energyBalanceChart.setDays(chartDays);
         energyBalanceChart.setVisibility(VISIBLE);
 
@@ -329,43 +332,11 @@ public class ChargeStatsView extends LinearLayout {
         chargeSocChart.select(selectedSessionId, true);
     }
 
-    private List<EnergyBalanceChart.Day> buildBalanceDays(Context c,
-            List<ChargeSession.Summary> sessions, long cutoff, int days) {
-        List<EnergyBalanceChart.Day> out = new ArrayList<>();
-        Calendar day = Calendar.getInstance();
-        day.setTimeInMillis(cutoff);
-        day.set(Calendar.HOUR_OF_DAY, 0); day.set(Calendar.MINUTE, 0);
-        day.set(Calendar.SECOND, 0); day.set(Calendar.MILLISECOND, 0);
-        for (int i = 0; i < days; i++) {
-            long start = day.getTimeInMillis();
-            long end = start + 24L * 3600_000L;
-            String key = DAY_FMT.format(new Date(start));
-            EnergyBalanceChart.Day item = new EnergyBalanceChart.Day(SHORT_DAY_FMT.format(new Date(start)));
-            double[] energy = rawEnergyForDay(c, key);
-            item.spent = energy[0]; item.regen = energy[1];
-            for (ChargeSession.Summary s : sessions) {
-                long overlapStart = Math.max(start, s.startWallMs);
-                long overlapEnd = Math.min(end, s.endWallMs);
-                if (overlapEnd <= overlapStart || s.endWallMs <= s.startWallMs) continue;
-                double share = (overlapEnd - overlapStart) / (double) (s.endWallMs - s.startWallMs);
-                if (s.isDcfc()) item.dc += s.kwh * share;
-                else item.ac += s.kwh * share;
-            }
-            out.add(item);
-            day.add(Calendar.DATE, 1);
-        }
-        return out;
-    }
-
-    /** Chart deliberately includes parked HVAC use; this is separate from driving efficiency. */
-    private double[] rawEnergyForDay(Context c, String date) {
-        Cursor cursor = CarDb.get(c).db().rawQuery(
-                "SELECT COALESCE(SUM(energy_spent_kwh),0), COALESCE(SUM(energy_regen_kwh),0) "
-              + "FROM telemetry_sample WHERE date(ts_ms/1000,'unixepoch','localtime') = ? "
-              + "AND (is_charging IS NULL OR is_charging = 0)", new String[]{date});
-        try {
-            return cursor.moveToFirst() ? new double[]{cursor.getDouble(0), cursor.getDouble(1)} : new double[]{0, 0};
-        } finally { cursor.close(); }
+    /** 'YYYY-MM-DD' -> 'd/M' for the balance chart's x-axis; display
+     * formatting only, not the date-range math DailyStatsProvider now owns. */
+    static String shortDayLabel(String isoDate) {
+        try { return SHORT_DAY_FMT.format(DAY_FMT.parse(isoDate)); }
+        catch (Exception e) { return isoDate; }
     }
 
     /** A period-toggle button sized for the narrow controls column -- full
