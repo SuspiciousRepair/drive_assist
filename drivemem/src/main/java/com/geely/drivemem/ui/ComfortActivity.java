@@ -114,6 +114,7 @@ public class ComfortActivity extends Activity {
      * TurboMode itself is process-wide (see its header comment). */
     private android.widget.ImageView turboBarView;
     private LinearLayout turboCardView;   // visibility gated on CarState — driving only, see the listener below
+    private boolean lastTurboVisible = false;   // same "did it actually change" tracking as gate/music, see onResume
     private boolean turboEnabledAtBuild;   // so onResume can notice a Config change and recreate()
     private boolean skylineEnabledAtBuild; // same idea, for "Show skyline art"
     private long skylineSeedAtBuild;       // and for the fixed/chosen seed
@@ -250,7 +251,10 @@ public class ComfortActivity extends Activity {
         lastGateAvailable = gateVisible();
         gateCard.setVisibility(lastGateAvailable ? View.VISIBLE : View.GONE);
         cards.add(gateCard);
-        if (turboEnabledAtBuild) cards.add(turboCard());
+        if (turboEnabledAtBuild) {
+            cards.add(turboCard());
+            lastTurboVisible = turboCardView.getVisibility() == View.VISIBLE;
+        }
         driveCardEnabledAtBuild = prefs.getBoolean("drive_card_enabled", true);
         journeyCard = journeyCard();
         cards.add(journeyCard);
@@ -1493,6 +1497,7 @@ public class ComfortActivity extends Activity {
             boolean visible = turboEnabledAtBuild && !parked;
             if ((turboCardView.getVisibility() == View.VISIBLE) != visible) {
                 turboCardView.setVisibility(visible ? View.VISIBLE : View.GONE);
+                lastTurboVisible = visible;
                 if (columns != null) repackColumns();
             }
         }
@@ -1915,9 +1920,22 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe("valet.changed", journeyBusListener);
         EntityBus.subscribe("valet.progress", journeyBusListener);
         EntityBus.subscribe("parking.changed", journeyBusListener);
+        // Same "did it actually change while this screen was away" re-check
+        // as the gate and music cards just above, and the same reason: a
+        // park↔drive edge (and therefore Turbo's own visibility) can happen
+        // while Config was open. carStateListener already reacts to that
+        // edge live, but only while this screen is actually subscribed and
+        // the edge fires cleanly; missing a repack here left Turbo visible
+        // but never packed back into columns, showing with no margin around
+        // it (reported 2026-09-21: parked -> opened Config -> car started
+        // driving -> back to Home, Portão/Turbo had no gap between them).
         if (turboCardView != null) {
             boolean turboVisible = turboEnabledAtBuild && !CarState.isParked();
-            turboCardView.setVisibility(turboVisible ? View.VISIBLE : View.GONE);
+            if (turboVisible != lastTurboVisible) {
+                lastTurboVisible = turboVisible;
+                turboCardView.setVisibility(turboVisible ? View.VISIBLE : View.GONE);
+                if (columns != null) repackColumns();
+            }
         }
         refreshJourneyCard();
         // Screen-scoped, not process-wide like Turbo/the gate: nothing bad
