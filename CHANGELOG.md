@@ -2,7 +2,58 @@
 
 ## [Unreleased]
 
+## [v0.3.0] — 2026-09-21
+
+### Fixed
+- **A stuck charging-current sensor could hide most of a real fast charge.**
+  `car.is_charging` is derived from the current sensor, which can latch at
+  its last non-zero reading and never return to 0 on its own — so once a
+  session had already been open, a genuinely new charge could start
+  without producing the edge the app was waiting for. A real 30-minute,
+  16.5 kWh DC fast charge was recorded as 2 minutes and 0.6 kWh this way.
+  Fixed at the source: `is_charging` now cross-checks the car's own
+  connector-engagement signal in the same poll tick, so every consumer —
+  charging history, the MQTT/Home Assistant status, anything else — gets
+  the corrected signal, not just charging tracking.
+- **The main thread could spin at ~100% CPU indefinitely**, badly enough to
+  get Spotify killed by the system (`Input dispatching timed out`). Six
+  places waited for a view's real layout size by reposting themselves
+  until `getWidth()` was nonzero — which never happens for a view inside a
+  `View.GONE` container, since a `GONE` view is never measured. Each
+  affected site now waits on a real layout pass instead of reposting
+  blindly. Measured on-device: main thread CPU went from 93.5%, stuck
+  Running, to ~0.4% average, Sleeping. (Reported as GitHub issue #5, with
+  exceptionally clear thread-dump evidence — thank you.)
+- **The update-available prompt could appear twice in a row.** Drive
+  Assist and ModeHelper are always built and shipped together with
+  matching versions, but the app checked each one for updates separately
+  and only installed whichever one you accepted — leaving the other to
+  prompt again right after. Accepting either prompt now installs both.
+- **Weekly reports no longer split a weekend across two different weeks.**
+  The week view started on Sunday, so a normal Saturday/Sunday always
+  landed in two separate report cards instead of one. Weeks now start
+  Monday and end Sunday, keeping a weekend joined to the workdays right
+  before it.
+- **A week's worth of driving (Sept 10–17) was mislabeled as
+  "estimated," despite OBD2 being connected the whole time** — a data
+  migration bug set the wrong flag on real, OBD2-measured samples. The
+  underlying energy numbers were always correct; only the label was
+  wrong. Historical data repaired in place.
+- The Home screen's Turbo/Regen card could lose its spacing from the card
+  above it if the car went from parked to driving while Config was open,
+  then you came back to Home — a missed "did this actually change"
+  check meant the screen never repacked to account for it.
+
 ### Changed
+- The Config screen's Driving mode / Doors / Elements sections now show
+  the OEM's own day/night vehicle render as their background instead of a
+  plain gradient; every other section keeps a flat fill of the current
+  theme's own color. The Default theme's light background color was also
+  recalibrated to the exact tone measured from that render.
+- The driving-mode cards (Eco/Comfort/Sport) now use real vector icons
+  instead of emoji, laid out inline with their label instead of stacked,
+  and the Turbo card's toggle and duration field now sit on one line
+  instead of the duration field being a full-width box underneath.
 - **Bluetooth OBD2 PIN fix is no longer part of installation.** `install.sh`
   used to automatically flip the head unit's Bluetooth pairing PIN from
   `0000` to `1234` on every install. It's now a separate, optional step you
