@@ -67,6 +67,7 @@ public class TelemetryActivity extends Activity {
     private SharedPreferences prefs;
 
     private LinearLayout content;             // right-hand panel (swapped per section)
+    private LinearLayout outer;               // whole-screen root -- background swapped per section, see selectSection()
     // THE ORDER OF THE NAV LIVES HERE AND NOWHERE ELSE. The index is not just a
     // position: it is passed through the "section" intent extra to survive the
     // recreate() a theme change causes, so a renumber done in one place and not
@@ -171,9 +172,10 @@ public class TelemetryActivity extends Activity {
         selRegen = prefs.getInt("regen", Modes.REGEN_MID);
 
         Style.edgeToEdge(this);
-        LinearLayout outer = new LinearLayout(this);
+        outer = new LinearLayout(this);
         outer.setOrientation(LinearLayout.HORIZONTAL);
-        outer.setBackground(Style.screenBg());
+        // Background itself is set per-section in selectSection(), once the
+        // initial section is known -- not here.
 
         // ---- sidebar ----
         LinearLayout side = new LinearLayout(this);
@@ -301,8 +303,17 @@ public class TelemetryActivity extends Activity {
         return t;
     }
 
+    // Only these three sections get the OEM car render as their background
+    // (see Style.configScreenBg) -- everything else gets a flat fill
+    // (Style.configScreenBgSolid), per the owner's explicit choice of which
+    // pages should carry it.
+    private boolean sectionHasCarBg(int idx) {
+        return idx == SEC_DRIVE || idx == SEC_DOORS || idx == SEC_BAR;
+    }
+
     private void selectSection(int idx) {
         section = idx;
+        outer.setBackground(sectionHasCarBg(idx) ? Style.configScreenBg(this) : Style.configScreenBgSolid());
         for (TextView t : navItems) {
             boolean sel = ((Integer) t.getTag() == idx);
             t.setBackground(sel ? selectedNavBg() : null);
@@ -2214,30 +2225,12 @@ public class TelemetryActivity extends Activity {
         actionRow.addView(action(getString(R.string.cfg_btn_restore_defaults), Style.ACCENT, this::restoreDriveDefaults));
         left.addView(actionRow);
 
-        // The car render fills what used to be empty space beside `left` --
-        // width 0 + weight so it takes exactly what pageWidth doesn't, height
-        // MATCH_PARENT so it centers against left's full height (which is
-        // whatever left's own content resolves to; LinearLayout handles a
-        // WRAP_CONTENT row with one MATCH_PARENT and one WRAP_CONTENT child
-        // in one measure pass, no manual sizing needed). The asset is
-        // pre-cropped/sized close to its natural display size already, so
-        // FIT_CENTER here is a safety margin, not a real downscale.
-        LinearLayout driveSection = new LinearLayout(this);
-        driveSection.setOrientation(LinearLayout.HORIZONTAL);
-        driveSection.setLayoutParams(new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        driveSection.addView(left, new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        ImageView carArt = new ImageView(this);
-        carArt.setImageResource(R.drawable.car_ex5);
-        carArt.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        carArt.setAdjustViewBounds(true);
-        LinearLayout.LayoutParams carLp = new LinearLayout.LayoutParams(
-            0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-        carLp.leftMargin = Style.dp(this, 24);
-        carArt.setLayoutParams(carLp);
-        driveSection.addView(carArt);
-        content.addView(driveSection);
+        // No separate car cutout here any more -- the whole Config screen's
+        // background is now the OEM day/night render (see Style.configScreenBg,
+        // wired in onCreate), which already puts a (larger) car in this same
+        // empty region. A second, smaller one floating on top of it would
+        // have doubled up instead of filling anything.
+        content.addView(left);
 
         highlight();
         if (!carActorSubscribed) {
