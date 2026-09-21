@@ -305,11 +305,15 @@ public final class DailyStatsProvider {
         return total;
     }
 
-    /** Sunday-start calendar week containing dateStr, oldest first. */
+    /** Monday-start calendar week containing dateStr, oldest first -- a
+     * Sunday-start week always splits a weekend across two different weeks
+     * (Saturday in one, Sunday in the next), making a normal weekend's trips
+     * harder to see as one thing. Monday-start keeps a weekend whole, joined
+     * to the workdays right before it (2026-09-21). */
     public static List<String> weekDates(String dateStr) {
         Calendar cal = dayCalendar(dateStr);
-        cal.setFirstDayOfWeek(Calendar.SUNDAY);
-        cal.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY);
+        cal.setFirstDayOfWeek(Calendar.MONDAY);
+        cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
         List<String> out = new ArrayList<>(7);
         for (int i = 0; i < 7; i++) {
             out.add(DAY_FMT.format(cal.getTime()));
@@ -384,7 +388,7 @@ public final class DailyStatsProvider {
         return s.substring(0, 1).toUpperCase(new Locale("pt", "BR")) + s.substring(1);
     }
 
-    /** The most recent `count` calendar weeks (Sunday-start), oldest first,
+    /** The most recent `count` calendar weeks (Monday-start), oldest first,
      * the last one containing anchorDate -- one bar per week, not one bar per
      * day of a single week (2026-09-13: "aggregate of the months: Aug, Sep,
      * Oct..." -- Week mode is the same idea one grain finer). Each entry

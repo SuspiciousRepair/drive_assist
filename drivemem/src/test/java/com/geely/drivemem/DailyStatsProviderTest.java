@@ -110,12 +110,15 @@ public class DailyStatsProviderTest {
         assertEquals(450, total.maxAltitudeM, 1e-9);
     }
 
-    @Test public void weekDatesReturnsSevenConsecutiveDaysStartingSunday() {
-        // 2026-09-13 is a Sunday; 2026-09-16 (a Wednesday) falls in that week.
+    @Test public void weekDatesReturnsSevenConsecutiveDaysStartingMonday() {
+        // 2026-09-14 is a Monday; 2026-09-16 (a Wednesday) falls in that week.
+        // Monday-start (not Sunday-start) keeps a weekend whole instead of
+        // splitting it across two different weeks -- see weekDates()'s own
+        // comment.
         List<String> week = DailyStatsProvider.weekDates("2026-09-16");
         assertEquals(7, week.size());
-        assertEquals("2026-09-13", week.get(0));
-        assertEquals("2026-09-19", week.get(6));
+        assertEquals("2026-09-14", week.get(0));
+        assertEquals("2026-09-20", week.get(6));
     }
 
     @Test public void monthDatesReturnsEveryDayOfTheCalendarMonth() {
