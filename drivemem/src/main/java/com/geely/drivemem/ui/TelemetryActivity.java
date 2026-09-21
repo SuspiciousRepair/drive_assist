@@ -44,6 +44,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -2059,49 +2060,83 @@ public class TelemetryActivity extends Activity {
 
     private void buildDrive() {
         driveCards.clear(); regenCards.clear();
-        content.addView(Style.header(this, getString(R.string.cfg_drive_header)));
+
+        // Everything for this page builds into `left` (still capped at
+        // pageWidth, same as before) instead of straight into `content`.
+        // content is the whole right-hand panel, and half of that panel
+        // was empty behind this page's rows -- left sits beside a car
+        // render filling that space instead, added to content once at the
+        // very end as a single [left | car] row.
+        LinearLayout left = new LinearLayout(this);
+        left.setOrientation(LinearLayout.VERTICAL);
+
+        left.addView(Style.header(this, getString(R.string.cfg_drive_header)));
         status = new TextView(this);
         status.setTextColor(Style.TEXT); status.setTextSize(16);
         status.setTypeface(null, android.graphics.Typeface.BOLD);
         status.setText(getString(R.string.cfg_connecting));
-        content.addView(status);
+        left.addView(status);
 
         // the glyphs "🍃 ☁ ⚡ ◦ ◉ ●" are icons, not text: they do not get translated
         //
-        // Capped width, not MATCH_PARENT: content is the whole right-hand
-        // panel (screen width minus the 240dp sidebar), and small tiles/
-        // fields/rows stretched across all of it turn into oversized slabs.
-        // Half the screen keeps everything on this page a sane, consistent
-        // size regardless of how wide the panel is -- applied to every row
-        // below (drive, regen, turbo, actions), not just the mode cards.
+        // Capped width, not MATCH_PARENT: small tiles/fields/rows stretched
+        // across the whole panel turn into oversized slabs. pageWidth keeps
+        // everything on this page a sane, consistent size -- applied to
+        // every row below (drive, regen, turbo, actions), not just the mode
+        // cards.
         int pageWidth = Style.dp(this, 960);
         LinearLayout driveRow = new LinearLayout(this);
         driveRow.setOrientation(LinearLayout.HORIZONTAL);
         driveRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        driveRow.addView(modeCard("🍃", getString(R.string.cfg_mode_eco), Modes.DRIVE_ECO, Style.GOOD, driveCards, () -> pickDrive(Modes.DRIVE_ECO)));
-        driveRow.addView(modeCard("☁", getString(R.string.cfg_mode_comfort), Modes.DRIVE_COMFORT, Style.WARN, driveCards, () -> pickDrive(Modes.DRIVE_COMFORT)));
-        driveRow.addView(modeCard("⚡", getString(R.string.cfg_mode_sport), Modes.DRIVE_SPORT, Style.DANGER, driveCards, () -> pickDrive(Modes.DRIVE_SPORT)));
-        content.addView(driveRow);
+        driveRow.addView(modeCard(R.drawable.ic_mode_eco, getString(R.string.cfg_mode_eco), Modes.DRIVE_ECO, Style.GOOD, driveCards, () -> pickDrive(Modes.DRIVE_ECO)));
+        driveRow.addView(modeCard(R.drawable.ic_mode_comfort, getString(R.string.cfg_mode_comfort), Modes.DRIVE_COMFORT, Style.WARN, driveCards, () -> pickDrive(Modes.DRIVE_COMFORT)));
+        driveRow.addView(modeCard(R.drawable.ic_mode_sport, getString(R.string.cfg_mode_sport), Modes.DRIVE_SPORT, Style.DANGER, driveCards, () -> pickDrive(Modes.DRIVE_SPORT)));
+        left.addView(driveRow);
 
-        content.addView(Style.header(this, getString(R.string.cfg_regen_header)));
+        left.addView(Style.header(this, getString(R.string.cfg_regen_header)));
         LinearLayout regenRow = new LinearLayout(this);
         regenRow.setOrientation(LinearLayout.HORIZONTAL);
         regenRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
         regenRow.addView(modeCard("◦", getString(R.string.cfg_regen_low), Modes.REGEN_LOW, Style.CARD_ON, regenCards, () -> pickRegen(Modes.REGEN_LOW)));
         regenRow.addView(modeCard("◉", getString(R.string.cfg_regen_mid), Modes.REGEN_MID, Style.CARD_ON, regenCards, () -> pickRegen(Modes.REGEN_MID)));
         regenRow.addView(modeCard("●", getString(R.string.cfg_regen_high), Modes.REGEN_HIGH, Style.CARD_ON, regenCards, () -> pickRegen(Modes.REGEN_HIGH)));
-        content.addView(regenRow);
+        left.addView(regenRow);
 
-        content.addView(Style.header(this, getString(R.string.turbo_header)));
+        left.addView(Style.header(this, getString(R.string.turbo_header)));
+        // Toggle and duration side by side, not the toggle then a
+        // full-pageWidth field below it -- a 3-digit seconds value never
+        // needed the same width as the mode-card rows above it.
+        LinearLayout turboRow = new LinearLayout(this);
+        turboRow.setOrientation(LinearLayout.HORIZONTAL);
+        turboRow.setGravity(Gravity.CENTER_VERTICAL);
+        turboRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
         LinearLayout turboToggle = toggleRow(getString(R.string.turbo_enable_label),
             prefs.getBoolean("turbo_enabled", true),
             on -> prefs.edit().putBoolean("turbo_enabled", on).apply());
-        turboToggle.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        content.addView(turboToggle);
-        fTurbo = field(content, getString(R.string.turbo_duration_label),
-            String.valueOf(prefs.getInt("turbo_duration_s", TurboMode.DEFAULT_DURATION_S)),
-            InputType.TYPE_CLASS_NUMBER);
-        fTurbo.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
+        turboRow.addView(turboToggle);
+
+        TextView durLbl = new TextView(this);
+        durLbl.setText(getString(R.string.turbo_duration_label));
+        durLbl.setTextColor(Style.TEXT_DIM); durLbl.setTextSize(14);
+        LinearLayout.LayoutParams durLblLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        durLblLp.leftMargin = Style.dp(this, 28);
+        durLbl.setLayoutParams(durLblLp);
+        turboRow.addView(durLbl);
+
+        fTurbo = new EditText(this);
+        fTurbo.setText(String.valueOf(prefs.getInt("turbo_duration_s", TurboMode.DEFAULT_DURATION_S)));
+        fTurbo.setInputType(InputType.TYPE_CLASS_NUMBER);
+        fTurbo.setTextColor(Style.TEXT); fTurbo.setTextSize(17);
+        fTurbo.setBackground(Style.card(Style.CARD, this));
+        int fPad = Style.dp(this, 12);
+        fTurbo.setPadding(fPad, fPad, fPad, fPad);
+        LinearLayout.LayoutParams fTurboLp = new LinearLayout.LayoutParams(
+            Style.dp(this, 90), ViewGroup.LayoutParams.WRAP_CONTENT);
+        fTurboLp.leftMargin = Style.dp(this, 10);
+        fTurbo.setLayoutParams(fTurboLp);
+        turboRow.addView(fTurbo);
+        left.addView(turboRow);
         // Saves on every keystroke that parses, not on blur — blur never
         // reliably fired here (dismissing the on-screen number pad hides the
         // IME but does not necessarily move focus off the EditText, so a
@@ -2119,7 +2154,7 @@ public class TelemetryActivity extends Activity {
             }
         });
 
-        content.addView(Style.header(this, getString(R.string.cfg_adas_header)));
+        left.addView(Style.header(this, getString(R.string.cfg_adas_header)));
 
         // AEB: needs Park + its own confirmation, since writing this property
         // directly (via modehelper) skips the OEM's own warning dialog entirely
@@ -2149,7 +2184,7 @@ public class TelemetryActivity extends Activity {
             }
         });
         aebRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        content.addView(aebRow);
+        left.addView(aebRow);
 
         // AVAS mute: no Park-gate, no confirmation — much lower stakes (a
         // pedestrian-warning chime, not braking), matching a "quick per-drive
@@ -2169,15 +2204,40 @@ public class TelemetryActivity extends Activity {
             sendAdasPreference("avas", on);
         });
         avasRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        content.addView(avasRow);
+        left.addView(avasRow);
         refreshAvasFromCar(avasSwitch);
 
-        content.addView(Style.header(this, getString(R.string.cfg_actions_header)));
+        left.addView(Style.header(this, getString(R.string.cfg_actions_header)));
         LinearLayout actionRow = new LinearLayout(this);
         actionRow.setOrientation(LinearLayout.HORIZONTAL);
         actionRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
         actionRow.addView(action(getString(R.string.cfg_btn_restore_defaults), Style.ACCENT, this::restoreDriveDefaults));
-        content.addView(actionRow);
+        left.addView(actionRow);
+
+        // The car render fills what used to be empty space beside `left` --
+        // width 0 + weight so it takes exactly what pageWidth doesn't, height
+        // MATCH_PARENT so it centers against left's full height (which is
+        // whatever left's own content resolves to; LinearLayout handles a
+        // WRAP_CONTENT row with one MATCH_PARENT and one WRAP_CONTENT child
+        // in one measure pass, no manual sizing needed). The asset is
+        // pre-cropped/sized close to its natural display size already, so
+        // FIT_CENTER here is a safety margin, not a real downscale.
+        LinearLayout driveSection = new LinearLayout(this);
+        driveSection.setOrientation(LinearLayout.HORIZONTAL);
+        driveSection.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        driveSection.addView(left, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        ImageView carArt = new ImageView(this);
+        carArt.setImageResource(R.drawable.car_ex5);
+        carArt.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        carArt.setAdjustViewBounds(true);
+        LinearLayout.LayoutParams carLp = new LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+        carLp.leftMargin = Style.dp(this, 24);
+        carArt.setLayoutParams(carLp);
+        driveSection.addView(carArt);
+        content.addView(driveSection);
 
         highlight();
         if (!carActorSubscribed) {
@@ -2188,22 +2248,53 @@ public class TelemetryActivity extends Activity {
         refresh();
     }
 
+    // Regen (Fraca/Média/Forte) has no real icon set -- these three dots are
+    // a plain geometric affordance, not a brand/style pastiche in need of a
+    // license, so they stay a plain glyph.
     private LinearLayout modeCard(String symbol, String label, int key, int onColor,
                                   Map<Integer, LinearLayout> reg, Runnable onClick) {
+        LinearLayout card = modeCardShell(label, key, onColor, reg, onClick);
+        TextView ic = new TextView(this);
+        ic.setText(symbol); ic.setTextColor(Style.TEXT); ic.setTextSize(34);
+        ic.setGravity(Gravity.CENTER);
+        card.addView(ic, 0);
+        return card;
+    }
+
+    // Eco/Comfort/Sport get a real vector icon (Google Material Symbols,
+    // Apache-2.0 -- see the drawable files' own header comments) instead of
+    // an emoji glyph, tinted the same way the label already is so selection
+    // recolors both together (see paintCard()).
+    private LinearLayout modeCard(int iconRes, String label, int key, int onColor,
+                                  Map<Integer, LinearLayout> reg, Runnable onClick) {
+        LinearLayout card = modeCardShell(label, key, onColor, reg, onClick);
+        ImageView ic = new ImageView(this);
+        ic.setImageResource(iconRes);
+        ic.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
+        LinearLayout.LayoutParams icLp = new LinearLayout.LayoutParams(Style.dp(this, 34), Style.dp(this, 34));
+        ic.setLayoutParams(icLp);
+        card.addView(ic, 0);
+        return card;
+    }
+
+    // Shared shell: padding, label, click, sizing/tag/registration -- the
+    // two overloads above differ only in how the icon view itself is built,
+    // so that's the only thing each adds, at index 0 (before the label).
+    private LinearLayout modeCardShell(String label, int key, int onColor,
+                                       Map<Integer, LinearLayout> reg, Runnable onClick) {
         LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
+        // Icon inline with its label, not stacked -- a horizontal card has
+        // room to let both read as a single, decently large lockup instead
+        // of two smaller lines competing for the same narrow column.
+        card.setOrientation(LinearLayout.HORIZONTAL);
         card.setGravity(Gravity.CENTER);
         int pad = Style.dp(this, 8);
         card.setPadding(pad, pad, pad, pad);
-        TextView ic = new TextView(this);
-        ic.setText(symbol); ic.setTextColor(Style.TEXT); ic.setTextSize(38);
-        ic.setGravity(Gravity.CENTER);
-        card.addView(ic);
         TextView lb = new TextView(this);
-        lb.setText(label); lb.setTextColor(Style.TEXT); lb.setTextSize(19);
+        lb.setText(label); lb.setTextColor(Style.TEXT); lb.setTextSize(21);
         lb.setTypeface(null, android.graphics.Typeface.BOLD);
         lb.setGravity(Gravity.CENTER);
-        lb.setPadding(0, Style.dp(this, 8), 0, 0);
+        lb.setPadding(Style.dp(this, 10), 0, 0, 0);
         card.addView(lb);
         card.setOnClickListener(v -> onClick.run());
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Style.dp(this, 120), 1f);
@@ -2243,6 +2334,7 @@ public class TelemetryActivity extends Activity {
         for (int i = 0; i < card.getChildCount(); i++) {
             View ch = card.getChildAt(i);
             if (ch instanceof TextView) ((TextView) ch).setTextColor(fg);
+            else if (ch instanceof ImageView) ((ImageView) ch).setColorFilter(fg, android.graphics.PorterDuff.Mode.SRC_IN);
         }
     }
 
