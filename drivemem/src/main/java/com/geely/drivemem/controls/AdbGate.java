@@ -32,7 +32,7 @@ public final class AdbGate {
     // adaptation when the network changes without requiring an app rebuild.
     // TODO: consider adding a UI to set this, in order to make this app public. home Wifi/network should be a user choice, not a hardcoded value.
     static final String KEY_HOME_GW = "adb_home_gw";
-    static final String DEFAULT_HOME_GW = "192.168.0.1";
+    static final String DEFAULT_HOME_GW = "192.168.0.1";  // most common router default, not a specific network -- pii: allow
 
     private AdbGate() {}
 

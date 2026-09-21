@@ -4,7 +4,7 @@
 #
 # Usage:
 #   ./revert-pin-0000.sh [CAR_IP]
-#   Example: ./revert-pin-0000.sh 192.168.0.150
+#   Example: ./revert-pin-0000.sh <CAR_IP>
 set -e
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,7 +20,6 @@ else
   if ! adb get-state >/dev/null 2>&1; then
     echo "Error: No car IP supplied and no active ADB connection found."
     echo "Usage: $0 <CAR_IP>"
-    echo "Example: $0 192.168.0.150"
     exit 1
   fi
 fi

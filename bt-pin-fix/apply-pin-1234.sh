@@ -5,7 +5,7 @@
 #
 # Usage:
 #   ./apply-pin-1234.sh [CAR_IP]
-#   Example: ./apply-pin-1234.sh 192.168.0.150
+#   Example: ./apply-pin-1234.sh <CAR_IP>
 #
 # Reversible: run revert-pin-0000.sh (same folder) to restore the original.
 set -e
@@ -23,7 +23,6 @@ else
   if ! adb get-state >/dev/null 2>&1; then
     echo "Error: No car IP supplied and no active ADB connection found."
     echo "Usage: $0 <CAR_IP>"
-    echo "Example: $0 192.168.0.150"
     exit 1
   fi
 fi

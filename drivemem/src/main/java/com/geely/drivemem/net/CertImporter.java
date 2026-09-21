@@ -467,11 +467,11 @@ public final class CertImporter {
 
     public static PrivateKey extractPrivateKeyFromPem(String pem) {
         try {
-            // Check standard PKCS#8: -----BEGIN PRIVATE KEY-----
-            int start = pem.indexOf("-----BEGIN PRIVATE KEY-----");
+            // Check standard PKCS#8: -----BEGIN PRIVATE KEY-----  // pii: allow, parsing anchor, not a real key
+            int start = pem.indexOf("-----BEGIN PRIVATE KEY-----");  // pii: allow, parsing anchor
             int end = pem.indexOf("-----END PRIVATE KEY-----");
             if (start != -1 && end != -1) {
-                String b64 = pem.substring(start + "-----BEGIN PRIVATE KEY-----".length(), end);
+                String b64 = pem.substring(start + "-----BEGIN PRIVATE KEY-----".length(), end);  // pii: allow, parsing anchor
                 byte[] decoded = decodeBase64(b64);
                 if (decoded != null) {
                     PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(decoded);
@@ -483,11 +483,11 @@ public final class CertImporter {
                 }
             }
 
-            // Check RSA PKCS#1: -----BEGIN RSA PRIVATE KEY-----
-            start = pem.indexOf("-----BEGIN RSA PRIVATE KEY-----");
+            // Check RSA PKCS#1: -----BEGIN RSA PRIVATE KEY-----  // pii: allow, parsing anchor, not a real key
+            start = pem.indexOf("-----BEGIN RSA PRIVATE KEY-----");  // pii: allow, parsing anchor
             end = pem.indexOf("-----END RSA PRIVATE KEY-----");
             if (start != -1 && end != -1) {
-                String b64 = pem.substring(start + "-----BEGIN RSA PRIVATE KEY-----".length(), end);
+                String b64 = pem.substring(start + "-----BEGIN RSA PRIVATE KEY-----".length(), end);  // pii: allow, parsing anchor
                 byte[] pkcs1Bytes = decodeBase64(b64);
                 if (pkcs1Bytes != null) {
                     byte[] pkcs8Bytes = wrapPkcs1ToPkcs8(pkcs1Bytes);

@@ -10,7 +10,12 @@
 # h2 is Phase B of docs/historical/hvac-auto-test.md. Phase A (the 20-min AUTO log)
 # is NOT here: it needs a long window and a hot cabin, not a brief one.
 
-D=${D:-192.168.0.150:5555}
+D=${D:-${CAR_IP:-}}
+if [ -z "$D" ]; then
+  echo "Usage: CAR_IP=<CAR_IP> $0   (or D=<CAR_IP>:5555 $0)" >&2
+  exit 1
+fi
+[[ "$D" == *":"* ]] || D="${D}:5555"
 T=8   # seconds each adb call gets before we assume the car is gone
 OUT=~/dev/geely/window-$(date +%Y%m%d-%H%M%S)
 mkdir -p "$OUT"
