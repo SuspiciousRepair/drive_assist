@@ -1477,11 +1477,17 @@ public class ComfortActivity extends Activity {
             pendingUpdate = null;
             activeUpdateDialog = null;
             Updater.Progress step = s -> android.util.Log.i("ComfortActivity", "Update step: " + s);
-            if (info.targetLabel != null) {
-                Updater.updateHelper(getApplicationContext(), info.apkUrl, step);
-            } else {
-                Updater.update(getApplicationContext(), info.apkUrl, step);
-            }
+            // Always the bundled installer, never the plain self-update: build.sh
+            // ships drive_assist and modehelper together with matching versions,
+            // so autoCheckIfDue() finds BOTH "available" at once almost every
+            // time. Accepting a plain self-update only installed drivemem,
+            // leaving modehelper's own separately-detected update to surface
+            // again right after -- reported live as "the update pops up twice"
+            // (2026-09-21). updateHelper()'s installer refreshes both apps in
+            // one shot regardless of which target's dialog the driver actually
+            // saw, so the other one's re-check comes back already-up-to-date
+            // instead of prompting again.
+            Updater.updateHelper(getApplicationContext(), info.apkUrl, step);
         }, () -> {
             // Driver declined/dismissed
             pendingUpdate = null;
