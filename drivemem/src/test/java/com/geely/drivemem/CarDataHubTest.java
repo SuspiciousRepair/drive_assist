@@ -44,4 +44,25 @@ public class CarDataHubTest {
         CarDataHub.ValueSet v = CarDataHub.ValueSet.of("off", 0, "sport", 1);
         assertNull(v.resolve(99));
     }
+
+    @Test public void applyRejectsANonNumericRangeValue() {
+        CarDataHub.WriteResult result = CarDataHub.apply(null, "ambient_brightness", "bright");
+
+        assertFalse(result.applied);
+        assertTrue(result.error.contains("expected a number"));
+    }
+
+    @Test public void applyRejectsANonFiniteRangeValue() {
+        CarDataHub.WriteResult result = CarDataHub.apply(null, "charge_current_limit", Double.NaN);
+
+        assertFalse(result.applied);
+        assertTrue(result.error.contains("expected a finite number"));
+    }
+
+    @Test public void applyContainsAnUncheckedEntityWriterCast() {
+        CarDataHub.WriteResult result = CarDataHub.apply(null, "ambient_color", "blue");
+
+        assertFalse(result.applied);
+        assertTrue(result.error.startsWith("write failed for ambient_color"));
+    }
 }
