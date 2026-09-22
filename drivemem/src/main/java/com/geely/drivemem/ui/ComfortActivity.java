@@ -960,15 +960,27 @@ public class ComfortActivity extends Activity {
             }
         });
 
+        // WRAP_CONTENT, not a fixed dp height: CENTER_CROP into a fixed box
+        // was cropping non-square art (a promo photo, not the usual square
+        // cover) down to whatever the box's aspect happened to be. adjustViewBounds
+        // below makes musicArtView size itself to the real bitmap's own
+        // aspect ratio at the card's width instead, so the whole picture
+        // shows -- reported live, "increase the card size to fit the whole
+        // artwork".
         FrameLayout artFrame = new FrameLayout(this);
         artFrame.setLayoutParams(new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 260)));
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         musicArtView = new android.widget.ImageView(this);
-        musicArtView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+        musicArtView.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        musicArtView.setAdjustViewBounds(true);
+        // Before real art loads (or if adjustViewBounds has nothing to
+        // measure yet, since the placeholder is a background, not a real
+        // drawable) the frame would otherwise collapse to near-zero height.
+        musicArtView.setMinimumHeight(Style.dp(this, 200));
         musicArtView.setBackground(Style.tile(this));   // placeholder fill until art loads
         artFrame.addView(musicArtView, new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         View scrim = new View(this);
         // TOP_BOTTOM, not BOTTOM_TOP: GradientDrawable draws colors[0] at
@@ -998,8 +1010,17 @@ public class ComfortActivity extends Activity {
 
         LinearLayout caption = new LinearLayout(this);
         caption.setOrientation(LinearLayout.VERTICAL);
+        // Solid backing of its own, not just relying on wherever it happens
+        // to land in the scrim's gradient -- reported live, still
+        // unreadable even after the front-loaded 5-stop fade above. That
+        // depended on the caption's exact height landing far enough down
+        // the ramp; this instead guarantees the same strong contrast no
+        // matter how tall a one-line vs. two-line caption turns out to be.
+        // The scrim above still does its job of fading the art smoothly
+        // INTO this plate rather than the plate just appearing.
+        caption.setBackgroundColor(0xE6000000);
         int capPad = Style.dp(this, 22);
-        caption.setPadding(capPad, 0, capPad, Style.dp(this, 18));
+        caption.setPadding(capPad, Style.dp(this, 10), capPad, Style.dp(this, 18));
         FrameLayout.LayoutParams capLp = new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         capLp.gravity = Gravity.BOTTOM;
