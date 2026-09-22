@@ -118,7 +118,6 @@ public class TelemetryService extends Service {
                 @SuppressWarnings("unchecked")
                 java.util.Map<String, Object> data = (java.util.Map<String, Object>) r.value;
                 mqtt.publish(data);
-                Log.i(TAG, "tele published: " + data);
                 double[] loc = GpsReader.read(getApplicationContext());
                 if (loc != null) mqtt.publishLocation(loc);
             }

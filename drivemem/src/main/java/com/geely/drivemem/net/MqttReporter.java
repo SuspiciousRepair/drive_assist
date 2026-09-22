@@ -1163,7 +1163,6 @@ public class MqttReporter {
             + ",\"gps_accuracy\":" + loc[5] + ",\"altitude\":" + loc[2]
             + ",\"course\":" + loc[3] + ",\"speed\":" + loc[4] + "}";
         pub(TRACKER_ATTR_TOPIC, j, true);
-        Log.i(TAG, "gps published: " + loc[0] + "," + loc[1]);
     }
 
     // Publishes the REAL state read from the car, not the requested value:
