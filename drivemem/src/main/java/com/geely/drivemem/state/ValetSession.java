@@ -81,6 +81,15 @@ public final class ValetSession {
     public static synchronized boolean stop(Context c) {
         Snapshot s = snapshot(c);
         if (!s.active) return false;
+        // Close the trip that happened under Valet before reopening the road
+        // to normal ones. Without this, stopping while parked inside
+        // TripSession's 75 s Park grace lets the drive that follows merge
+        // backward into this one -- and since the daily view hides any trip
+        // whose start_ms falls inside a valet_session interval, that merge
+        // doesn't just mislabel the drive that follows, it makes it vanish
+        // entirely. Mirrors the same finalize start() already does when
+        // Valet begins, for the same reason in the other direction.
+        if (TripSession.isTripActive()) TripSession.finalizeTrip(c);
         SharedPreferences p = prefs(c);
         final long endMs = System.currentTimeMillis();
         final double startOdo = p.contains(START_ODO) ? p.getFloat(START_ODO, 0) : -1;
