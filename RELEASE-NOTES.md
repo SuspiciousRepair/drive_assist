@@ -12,6 +12,15 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.3.1 — 2026-09-22
+
+- New: a large Spotify card, with full album art and big Play/Skip
+  buttons. Pick it in Settings > Spotify.
+- New: each window can now open to its own amount when you crack all
+  four at once, instead of all four opening the same amount.
+- Fixed: a rare case where a driving trip could get mislabeled as
+  "estimated" even though it was measured by the car.
+
 ## v0.3.0 — 2026-09-21
 
 - Fixed: a fast charge could show up in your history as barely any
