@@ -78,7 +78,7 @@ Open **Settings** on the car's screen and select the **MQTT** tab.
 * **Endereços (Hosts)**: Enter your MQTT broker URL(s), one per line. Multiple lines provide **automatic fallback**.
   ```text
   tls://homeassistant.example.com:8883
-  tcp://192.168.1.100:1883
+  tcp://<broker-ip>:1883
   ```
   * `tls://` or `ssl://`: Encrypted connection (port 8883 recommended).
   * `tcp://`: Plain unencrypted connection (port 1883, only for trusted home LAN).

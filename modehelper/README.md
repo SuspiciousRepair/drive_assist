@@ -178,7 +178,7 @@ cd modehelper
 ### Install to Vehicle via ADB
 
 ```bash
-adb connect 192.168.0.150:5555
+adb connect <CAR_IP>:5555
 adb install -r modehelper/modehelper.apk
 ```
 

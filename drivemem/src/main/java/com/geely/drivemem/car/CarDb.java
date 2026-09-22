@@ -367,6 +367,19 @@ public final class CarDb extends SQLiteOpenHelper {
         // whether OBD2 was available that tick, so a mid-trip disconnect
         // doesn't cold-start the estimate and any period can be
         // reconstructed on a consistent all-estimated basis later.
+        //
+        // NOT FULLY UNRECOVERABLE, THOUGH -- for a row dated on/after
+        // 2026-09-13 (when telemetry_sample.battery_temp_c was added, v16
+        // below), that column is itself proof OBD2 was connected: it is the
+        // one column ChargeCurrentCurveDialog documents as "genuinely
+        // OBD2-exclusive" -- VHAL never fills it. So if a user reports the
+        // same "really measured, shown as estimated" bug for data from that
+        // window, a targeted migration can reclassify any row where
+        // energy_source says estimated but battery_temp_c IS NOT NULL,
+        // instead of telling them it's gone. Rows before 2026-09-13 still
+        // have nothing to cross-check against -- those genuinely are gone.
+        // Not written as a migration here because nobody has hit it a
+        // second time yet; do this only in response to an actual report.
         if (oldVersion < 21) {
             db.execSQL("ALTER TABLE telemetry_sample ADD COLUMN energy_measured INTEGER");
             db.execSQL("ALTER TABLE telemetry_sample ADD COLUMN energy_spent_est_kwh REAL");

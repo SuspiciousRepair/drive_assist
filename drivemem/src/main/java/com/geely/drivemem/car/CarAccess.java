@@ -327,7 +327,6 @@ public class CarAccess {
         try {
             int raw = cpm.getIntProperty(Modes.AC_AMBIENT_TEMP, 0);
             float c = (raw - 80) / 2.0f;
-            Log.i(TAG, "outside temp raw=" + raw + " -> " + c + " C");
             if (c < -60f || c > 90f) return null; // sanity check
             return c;
         } catch (Throwable t) { Log.i(TAG, "outside temp failed: " + t); return null; }

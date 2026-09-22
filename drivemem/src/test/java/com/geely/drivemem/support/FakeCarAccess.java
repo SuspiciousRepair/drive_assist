@@ -32,4 +32,21 @@ public class FakeCarAccess extends CarAccess {
         @Override public boolean setAmbientBrightness(int level) { lastSetAmbientBrightness = level; return writeShouldSucceed; }
         @Override public boolean setCharging(int adaptedValue) { lastSetCharging = adaptedValue; return writeShouldSucceed; }
         @Override public int setChargeCurrentLimit(int amps) { lastSetChargeLimit = amps; return writeShouldSucceed ? amps : 0; }
+
+        // Raw int property store, keyed by "prop@area" -- generic enough for
+        // any raw-property consumer (Purge, window/door controls) to use
+        // without adding a dedicated field per property the way the other
+        // setters above do.
+        private final java.util.Map<String, Integer> rawInts = new java.util.HashMap<>();
+        private static String rawKey(int prop, int area) { return prop + "@" + area; }
+        /** Seeds a raw property's value as if the car reported it. */
+        public void seedIntRaw(int prop, int area, int val) { rawInts.put(rawKey(prop, area), val); }
+        @Override public Integer readIntRaw(int prop, int area) {
+            return connected ? rawInts.get(rawKey(prop, area)) : null;
+        }
+        @Override public boolean setIntRaw(int prop, int area, int val) {
+            if (!writeShouldSucceed) return false;
+            rawInts.put(rawKey(prop, area), val);
+            return true;
+        }
 }

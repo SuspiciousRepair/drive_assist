@@ -35,6 +35,11 @@ public class WifiIconService extends Service {
 
     private HandlerThread thread; private Handler h;
     private volatile boolean running = false;
+    // The status bar does not need a new bitmap-backed Notification every 20s
+    // when Wi-Fi is unchanged. Keep the last rendered state so the periodic
+    // check stays cheap while still updating immediately on signal/SSID change.
+    private int lastLevel = -1;
+    private String lastSsid;
 
     @Override public int onStartCommand(Intent i, int flags, int startId) {
         ensureForeground();               // mandatory before the early-return (see OutTempService)
@@ -92,6 +97,10 @@ public class WifiIconService extends Service {
     private void postIcon() {
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         int lvl = level();
+        String network = lvl == 0 ? null : ssid();
+        if (lvl == lastLevel && java.util.Objects.equals(network, lastSsid)) return;
+        lastLevel = lvl;
+        lastSsid = network;
         Icon icon = Icon.createWithBitmap(drawWifi(lvl));
 
         // tapping the icon opens the NATIVE Wi-Fi screen
@@ -104,7 +113,7 @@ public class WifiIconService extends Service {
         Notification n = new Notification.Builder(this, CH)
             .setSmallIcon(icon)
             .setContentTitle(getString(R.string.notif_wifi_title))
-            .setContentText(lvl == 0 ? getString(R.string.notif_wifi_disconnected) : ssid())
+            .setContentText(lvl == 0 ? getString(R.string.notif_wifi_disconnected) : network)
             .setContentIntent(pi)
             .setOngoing(true).setShowWhen(false)
             .build();

@@ -15,13 +15,17 @@ public final class CarDataHub {
     public interface Read { Object read(CarAccess car); }
     public interface Write { boolean write(CarAccess car, Object value); }
 
-    /** Numeric range validator: out-of-range requests are clamped to min/max,
-     * never rejected, so sliders remain in sync with applied values. */
+    /** Numeric range validator: finite out-of-range requests are clamped to
+     * min/max, so sliders remain in sync with applied values. */
     public static final class Range {
         public final double min, max;
         public Range(double min, double max) { this.min = min; this.max = max; }
         public Object clamp(Object requested) {
+            if (!(requested instanceof Number))
+                throw new IllegalArgumentException("expected a number");
             double d = ((Number) requested).doubleValue();
+            if (Double.isNaN(d) || Double.isInfinite(d))
+                throw new IllegalArgumentException("expected a finite number");
             if (d < min) d = min;
             if (d > max) d = max;
             return d;
@@ -144,19 +148,30 @@ public final class CarDataHub {
         if (e == null) return WriteResult.rejected("unknown entity: " + key);
         if (e.write == null) return WriteResult.rejected("read-only entity: " + key);
 
-        Object toWrite;
-        if (e.range != null) {
-            toWrite = e.range.clamp(requested);
-        } else if (e.valueSet != null) {
-            Integer resolved = e.valueSet.resolve(requested);
-            if (resolved == null) return WriteResult.rejected("value not in closed set: " + requested);
-            toWrite = resolved;
-        } else {
-            toWrite = requested;
+        final Object toWrite;
+        try {
+            if (e.range != null) {
+                toWrite = e.range.clamp(requested);
+            } else if (e.valueSet != null) {
+                Integer resolved = e.valueSet.resolve(requested);
+                if (resolved == null) return WriteResult.rejected("value not in closed set: " + requested);
+                toWrite = resolved;
+            } else {
+                toWrite = requested;
+            }
+        } catch (RuntimeException e1) {
+            return WriteResult.rejected("invalid value for " + key + ": " + e1.getMessage());
         }
 
-        boolean ok = e.write.write(car, toWrite);
-        return ok ? WriteResult.ok(toWrite) : WriteResult.rejected("write failed");
+        try {
+            boolean ok = e.write.write(car, toWrite);
+            return ok ? WriteResult.ok(toWrite) : WriteResult.rejected("write failed");
+        } catch (RuntimeException e1) {
+            // This is the last boundary before work reaches CarActor's only
+            // thread. A malformed MQTT/debug command must be a rejected
+            // request, never an uncaught exception that stops car I/O.
+            return WriteResult.rejected("write failed for " + key + ": " + e1.getMessage());
+        }
     }
 
     private static Map<String, Entity> buildRegistry() {

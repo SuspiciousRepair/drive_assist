@@ -102,11 +102,10 @@ public class SocIconService extends Service {
         try { nm.notify(NID_ICON, n); } catch (Throwable ignored) {}
     }
 
-    // draws a big "NN" + a wireframe battery glyph beside it, filled to the
-    // charge fraction — same layout as OutTempService's drawTemp(), the "%"
-    // text swapped for a shape so the level reads at a glance, the way a
-    // phone's own status bar does it. Unknown (pct == null) draws an empty
-    // outline: nothing to fill, not a guess at zero.
+    // Draws a big "NN" + a battery silhouette beside it. The complete battery
+    // is the same white shape at low opacity, then current charge rises in
+    // solid white from the bottom. Unknown (pct == null) keeps the faint
+    // shape without implying zero.
     // WHITE on purpose, not the theme's text colour — see
     // OutTempService.drawTemp()'s comment, same reasoning.
     private Bitmap drawSoc(String num, Float pct) {
@@ -121,7 +120,6 @@ public class SocIconService extends Service {
         // kind. Fills bottom-up to match.
         float bodyW = h * 0.20f, bodyH = h * 0.42f;
         float nubW = h * 0.09f, nubH = h * 0.045f;
-        float stroke = h * 0.032f;   // thinner outline than the first pass
         float iconW = bodyW;
         float iconH = bodyH + nubH;
 
@@ -135,28 +133,28 @@ public class SocIconService extends Service {
         float bx = 2 + wNum + gap;
         float assemblyTop = h / 2f - iconH / 2f;
         float nubTop = assemblyTop, by = assemblyTop + nubH;
-        Paint outline = new Paint(Paint.ANTI_ALIAS_FLAG);
-        outline.setColor(Color.WHITE);
-        outline.setStyle(Paint.Style.STROKE);
-        outline.setStrokeWidth(stroke);
+        Paint shadow = new Paint(Paint.ANTI_ALIAS_FLAG);
+        // A translucent white reads as a soft iOS-style shadow against any
+        // SystemUI background; opaque gray looked like a second battery.
+        shadow.setColor(Color.argb(80, 255, 255, 255));
+        shadow.setStyle(Paint.Style.FILL);
         float r = bodyW * 0.22f;
         android.graphics.RectF body = new android.graphics.RectF(bx, by, bx + bodyW, by + bodyH);
-        cv.drawRoundRect(body, r, r, outline);
+        cv.drawRoundRect(body, r, r, shadow);
         cv.drawRect(bx + bodyW / 2f - nubW / 2f, nubTop,
-                    bx + bodyW / 2f + nubW / 2f, by, outline);
+                    bx + bodyW / 2f + nubW / 2f, by, shadow);
 
         if (pct != null) {
             Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
             fill.setColor(Color.WHITE);
             fill.setStyle(Paint.Style.FILL);
-            float inset = stroke * 0.9f;
             float frac = Math.max(0f, Math.min(1f, pct / 100f));
             android.graphics.RectF full = new android.graphics.RectF(
-                bx + inset, by + inset, bx + bodyW - inset, by + bodyH - inset);
+                bx, by, bx + bodyW, by + bodyH);
             float fillH = full.height() * frac;
             android.graphics.RectF filled = new android.graphics.RectF(
                 full.left, full.bottom - fillH, full.right, full.bottom);
-            float fr = Math.max(0f, r - inset);
+            float fr = Math.min(r, fillH / 2f);
             cv.drawRoundRect(filled, fr, fr, fill);
         }
         return bmp;

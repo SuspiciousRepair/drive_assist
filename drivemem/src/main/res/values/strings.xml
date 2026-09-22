@@ -170,6 +170,10 @@
     <string name="cfg_spotify_need_id">Enter the Client ID first</string>
     <string name="spotify_connected">Spotify connected</string>
     <string name="spotify_connect_failed">Spotify: could not connect</string>
+    <string name="cfg_spotify_large_card">Large card</string>
+    <string name="cfg_spotify_large_card_hint">Album art fills the card, with a big Play/Skip band underneath. Off shows the smaller card with the art beside the title.</string>
+    <string name="spotify_play_label">Play</string>
+    <string name="spotify_skip_label">Skip</string>
     <string name="cfg_security_header">Security</string>
     <string name="cfg_commands_label">Accept commands from Home Assistant</string>
     <string name="cfg_commands_on">Accepting commands from Home Assistant</string>
@@ -187,6 +191,12 @@
     <string name="cfg_doors_header">Doors</string>
     <string name="cfg_window_on_door">Crack the window when the door opens</string>
     <string name="cfg_window_on_door_hint">Lowers window slightly when door opens to ease closing, then raises it when shut.</string>
+    <string name="cfg_purge_open_header">Crack-all-windows target (0–100)</string>
+    <string name="cfg_purge_open_hint">How far each window lowers when you press the crack-windows button. 0 = closed, 100 = fully open. The same number doesn\'t move every window the same real amount — tune each one to match what you actually see.</string>
+    <string name="cfg_purge_open_fl">Front left</string>
+    <string name="cfg_purge_open_fr">Front right</string>
+    <string name="cfg_purge_open_rl">Rear left</string>
+    <string name="cfg_purge_open_rr">Rear right</string>
     <string name="cfg_actions_header">Actions</string>
     <string name="cfg_btn_on">Turn on</string>
     <string name="cfg_btn_off">Turn off</string>

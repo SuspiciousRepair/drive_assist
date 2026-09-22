@@ -127,9 +127,11 @@ public class ComfortActivity extends Activity {
     // repackColumns() trigger on a real change (see the listener below).
     private LinearLayout musicCard;
     private android.widget.ImageView musicArtView;
+    private android.widget.ImageView musicArtBgView;   // large card only -- blurred backdrop, see loadMusicArt()
     private TextView musicTitleView, musicArtistView;
     private boolean lastMusicAvailable = false;
     private String lastMusicArtUrl = null;   // avoids re-fetching the same art on every state ping
+    private boolean musicLargeCardAtBuild;   // Config > Spotify: "Large card" -- read once like turboEnabledAtBuild
 
     // Charge card: active session progress or retained completed charge with cost input.
     private LinearLayout chargeCard;
@@ -172,6 +174,7 @@ public class ComfortActivity extends Activity {
         themeLight = Style.LIGHT;
         prefs = getSharedPreferences("drivemem", MODE_PRIVATE);
         turboEnabledAtBuild = prefs.getBoolean("turbo_enabled", true);
+        musicLargeCardAtBuild = prefs.getBoolean("spotify_large_card", false);
         skylineEnabledAtBuild = prefs.getBoolean("skyline_enabled", true);
         skylineSeedAtBuild = prefs.getLong("skyline_seed", com.geely.drivemem.art.Skyline.DEFAULT_SEED);
         dismissedHash = prefs.getInt("panel_dismissed", 0);   // the dismissal survives a restart
@@ -499,7 +502,7 @@ public class ComfortActivity extends Activity {
                 // flag would be wrong exactly when it mattered.
                 final Boolean was = purge.anyOpen(pc);
                 final int moved = (was == null) ? 0
-                                : was ? purge.close(pc) : purge.open(pc);
+                                : was ? purge.close(pc) : purge.open(pc, Purge.targetsFromPrefs(prefs));
                 ui.post(() -> {
                     hint.setText(was == null ? getString(R.string.purge_unreadable)
                         : moved == 0 ? getString(R.string.purge_nothing)
@@ -865,9 +868,21 @@ public class ComfortActivity extends Activity {
     }
 
     // Music card: album art + title/artist, then skip/play-pause tiles. Starts
-    // GONE — nothing to show until the first drivemem/geely/media/state arrives —
-    // same as Portão, and packed the same re-flowing way (see repackColumns()).
+    // GONE — nothing to show until SpotifyClient's own polling of Spotify's
+    // Web API (not MQTT/Home Assistant -- there is no such path, despite
+    // what this comment used to claim) delivers the first real state via
+    // MusicState -- same as Portão, and packed the same re-flowing way
+    // (see repackColumns()).
+    // Two layouts, chosen once at build time by Config > Spotify's "Large
+    // card" toggle (musicLargeCardAtBuild) -- both wire up the same
+    // musicArtView/musicTitleView/musicArtistView fields and musicCard
+    // reference, so every other call site (loadMusicArt, the listener,
+    // visibility toggling) works unchanged regardless of which was built.
     private LinearLayout musicCard() {
+        return musicLargeCardAtBuild ? musicCardLarge() : musicCardSmall();
+    }
+
+    private LinearLayout musicCardSmall() {
         LinearLayout m = new LinearLayout(this);
         m.setOrientation(LinearLayout.VERTICAL);
         int pad = Style.dp(this, 26);
@@ -924,6 +939,207 @@ public class ComfortActivity extends Activity {
 
         musicCard = m;
         return m;
+    }
+
+    // Large variant: album art fills the top, title/artist sit on it over a
+    // scrim, and a Turbo-card-shaped band (two large tap zones split by a
+    // divider -- see turboCard()) is appended directly below, no gap. The
+    // outer container clips itself to one rounded rect (setClipToOutline +
+    // a matching outline provider), which is what makes the art's top
+    // corners and the band's bottom corners round together as one shape
+    // instead of the art needing its own separate rounding.
+    private LinearLayout musicCardLarge() {
+        LinearLayout m = new LinearLayout(this);
+        m.setOrientation(LinearLayout.VERTICAL);
+        m.setBackground(Style.card(Style.cardFillColor(), this));
+        m.setVisibility(View.GONE);
+        m.setClipToOutline(true);
+        final int outerRadius = Style.dp(this, Style.RADIUS_DP);
+        m.setOutlineProvider(new android.view.ViewOutlineProvider() {
+            @Override public void getOutline(View v, android.graphics.Outline outline) {
+                outline.setRoundRect(0, 0, v.getWidth(), v.getHeight(), outerRadius);
+            }
+        });
+
+        // WRAP_CONTENT, not a fixed dp height: CENTER_CROP into a fixed box
+        // was cropping non-square art (a promo photo, not the usual square
+        // cover) down to whatever the box's aspect happened to be. adjustViewBounds
+        // below makes musicArtView size itself to the real bitmap's own
+        // aspect ratio at the card's width instead, so the whole picture
+        // shows -- reported live, "increase the card size to fit the whole
+        // artwork".
+        FrameLayout artFrame = new FrameLayout(this);
+        artFrame.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        // Blurred, cropped-to-fill copy of the same art, sitting behind the
+        // sharp letterboxed foreground -- fills the side/top-bottom margins
+        // adjustViewBounds leaves empty (plain white on the light theme)
+        // with a soft wash of the cover's own colors instead. CENTER_CROP
+        // here is fine/desired, unlike the foreground: nobody notices a
+        // blurred backdrop is cropped.
+        musicArtBgView = new android.widget.ImageView(this);
+        musicArtBgView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+        // Fixed starting height, NOT MATCH_PARENT: a MATCH_PARENT sibling
+        // inside this WRAP_CONTENT FrameLayout measures against the *outer*
+        // available space, not against musicArtView's own capped height --
+        // that blew the card back up past the 280dp cap (reported live,
+        // "back too large" right after this backdrop was added). Corrected
+        // to musicArtView's real height below, once it's known.
+        artFrame.addView(musicArtBgView, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 200)));
+
+        // Dims the blurred backdrop toward black so the sharp foreground art
+        // and the white/light-theme caption text both still read clearly
+        // over it -- plain alpha on musicArtBgView would blend toward
+        // artFrame's own background instead, which is the card fill color
+        // (white on the light theme), defeating the point.
+        View bgDim = new View(this);
+        bgDim.setBackgroundColor(0x66000000);
+        artFrame.addView(bgDim, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 200)));
+
+        musicArtView = new android.widget.ImageView(this);
+        musicArtView.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        musicArtView.setAdjustViewBounds(true);
+        // Before real art loads (or if adjustViewBounds has nothing to
+        // measure yet, since the placeholder is a background, not a real
+        // drawable) the frame would otherwise collapse to near-zero height.
+        musicArtView.setMinimumHeight(Style.dp(this, 200));
+        // Capped, not unbounded: reported live -- a tall promo-style cover
+        // (portrait, not the usual square) made the whole card oversized,
+        // since WRAP_CONTENT + adjustViewBounds alone has no ceiling.
+        // setMaxHeight combined with adjustViewBounds still fits the whole
+        // image with no crop, just letterboxed (empty side margins) if a
+        // cover is tall enough to hit this cap -- a real tradeoff, but a
+        // bounded card beats one whose height swings wildly per track.
+        musicArtView.setMaxHeight(Style.dp(this, 280));
+        musicArtView.setBackground(Style.tile(this));   // placeholder fill until art loads
+        artFrame.addView(musicArtView, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        // Keeps the backdrop and its dim layer exactly as tall as the real
+        // foreground image (200-280dp, whatever adjustViewBounds+maxHeight
+        // settled on for THIS track's aspect ratio) instead of the fixed
+        // 200dp they start at above.
+        final View bgDimRef = bgDim;
+        musicArtView.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or_, ob) -> {
+            int h = b - t;
+            if (h <= 0) return;
+            ViewGroup.LayoutParams bgLp = musicArtBgView.getLayoutParams();
+            if (bgLp.height != h) { bgLp.height = h; musicArtBgView.setLayoutParams(bgLp); }
+            ViewGroup.LayoutParams dimLp = bgDimRef.getLayoutParams();
+            if (dimLp.height != h) { dimLp.height = h; bgDimRef.setLayoutParams(dimLp); }
+        });
+
+        View scrim = new View(this);
+        // TOP_BOTTOM, not BOTTOM_TOP: GradientDrawable draws colors[0] at
+        // the START of its named axis -- BOTTOM_TOP puts colors[0] (the
+        // transparent end) at the bottom, which is backwards from what a
+        // fade-into-the-caption needs and showed up live as a hard seam
+        // partway down the art instead of a smooth fade.
+        //
+        // Front-loaded, not a plain 2-stop linear fade: a straight
+        // transparent->dark ramp over 150dp put the title (which sits
+        // near the TOP of this View, caption is short) at only ~35%
+        // opacity -- barely darkened at all, so bold white text on a
+        // busy, brightly-colored album cover read as unreadable, live
+        // and confirmed by screenshot. These 5 stops are already at ~80%
+        // opacity a quarter of the way down, so the text -- wherever a
+        // short vs. long two-line caption actually lands -- sits on a
+        // solidly dark backing rather than depending on exactly where in
+        // a slow ramp it happens to fall.
+        android.graphics.drawable.GradientDrawable scrimBg = new android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+            new int[]{0x00000000, 0x80000000, 0xD0000000, 0xF0000000, 0xF7000000});
+        scrim.setBackground(scrimBg);
+        FrameLayout.LayoutParams scrimLp = new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 170));
+        scrimLp.gravity = Gravity.BOTTOM;
+        artFrame.addView(scrim, scrimLp);
+
+        LinearLayout caption = new LinearLayout(this);
+        caption.setOrientation(LinearLayout.VERTICAL);
+        // Solid backing of its own, not just relying on wherever it happens
+        // to land in the scrim's gradient -- reported live, still
+        // unreadable even after the front-loaded 5-stop fade above. That
+        // depended on the caption's exact height landing far enough down
+        // the ramp; this instead guarantees the same strong contrast no
+        // matter how tall a one-line vs. two-line caption turns out to be.
+        // The scrim above still does its job of fading the art smoothly
+        // INTO this plate rather than the plate just appearing.
+        caption.setBackgroundColor(0xE6000000);
+        int capPad = Style.dp(this, 22);
+        caption.setPadding(capPad, Style.dp(this, 10), capPad, Style.dp(this, 18));
+        FrameLayout.LayoutParams capLp = new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        capLp.gravity = Gravity.BOTTOM;
+        // Fixed light colors, NOT Style.TEXT/TEXT_DIM: reported live on the
+        // light theme -- Style.TEXT there is 0xFF1B1F24, near-black, tuned
+        // for that theme's own white cards. caption's backing above is
+        // ALWAYS dark (it's an album-art plate, not a normal theme card),
+        // in every theme, so its text needs to always be light too, same
+        // exception the small card doesn't need since IT sits on a normal
+        // theme-colored card background.
+        musicTitleView = new TextView(this);
+        musicTitleView.setTextColor(0xFFFFFFFF); musicTitleView.setTextSize(25);
+        musicTitleView.setTypeface(null, android.graphics.Typeface.BOLD);
+        musicTitleView.setMaxLines(1);
+        musicTitleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        caption.addView(musicTitleView);
+        musicArtistView = new TextView(this);
+        musicArtistView.setTextColor(0xFFC7CCD1); musicArtistView.setTextSize(18);
+        musicArtistView.setMaxLines(1);
+        musicArtistView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        musicArtistView.setPadding(0, Style.dp(this, 4), 0, 0);
+        caption.addView(musicArtistView);
+        artFrame.addView(caption, capLp);
+
+        m.addView(artFrame);
+
+        LinearLayout btnBand = new LinearLayout(this);
+        btnBand.setOrientation(LinearLayout.HORIZONTAL);
+        btnBand.addView(turboStyleHalf(getString(R.string.spotify_play_label), "⏯", MusicState::playPause),
+            new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        View divider = new View(this);
+        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(Style.dp(this, 1), ViewGroup.LayoutParams.MATCH_PARENT);
+        divLp.topMargin = Style.dp(this, 14); divLp.bottomMargin = Style.dp(this, 14);
+        divider.setBackgroundColor(Style.TEXT_DIM);
+        divider.getBackground().setAlpha(60);
+        btnBand.addView(divider, divLp);
+        btnBand.addView(turboStyleHalf(getString(R.string.spotify_skip_label), "⏭", MusicState::next),
+            new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        m.addView(btnBand);
+
+        musicCard = m;
+        return m;
+    }
+
+    // One half of musicCardLarge()'s button band -- same visual signature as
+    // turboCard()'s two halves (big glyph, full-half tap target), plus a
+    // small uppercase label since Play/Skip aren't as self-evident out of
+    // context as Turbo/Regen's own glyphs are.
+    private LinearLayout turboStyleHalf(String label, String glyph, Runnable onClick) {
+        LinearLayout half = new LinearLayout(this);
+        half.setOrientation(LinearLayout.VERTICAL);
+        half.setGravity(Gravity.CENTER);
+        int vPad = Style.dp(this, 22);
+        half.setPadding(0, vPad, 0, vPad);
+        half.setOnClickListener(v -> onClick.run());
+
+        TextView glyphView = new TextView(this);
+        glyphView.setText(glyph); glyphView.setTextColor(Style.TEXT); glyphView.setTextSize(32);
+        glyphView.setGravity(Gravity.CENTER);
+        half.addView(glyphView);
+
+        TextView labelView = new TextView(this);
+        labelView.setText(label);
+        labelView.setTextColor(Style.TEXT_DIM); labelView.setTextSize(12);
+        labelView.setTypeface(null, android.graphics.Typeface.BOLD);
+        labelView.setGravity(Gravity.CENTER);
+        labelView.setPadding(0, Style.dp(this, 4), 0, 0);
+        half.addView(labelView);
+        return half;
     }
 
     // Charge card: active session progress or retained completed charge with cost input.
@@ -1216,13 +1432,35 @@ public class ComfortActivity extends Activity {
                 bmp = android.graphics.BitmapFactory.decodeStream(conn.getInputStream());
             } catch (Throwable t) { android.util.Log.w(CarAccess.TAG, "music art: " + t); }
             final android.graphics.Bitmap fbmp = bmp;
+            // Same fetched bitmap, not a second network request -- blurred
+            // here on the background thread since it's a few extra bitmap
+            // ops, cheap next to the network fetch that already happened.
+            final android.graphics.Bitmap fblur = fbmp != null ? blurredCopy(fbmp) : null;
             // url.equals(lastMusicArtUrl): a newer fetch may have started (and
             // maybe even finished) while this one was in flight — do not let a
             // slow, stale request stomp a fresher picture that already landed.
             if (fbmp != null) ui.post(() -> {
-                if (musicArtView != null && url.equals(lastMusicArtUrl)) musicArtView.setImageBitmap(fbmp);
+                if (!url.equals(lastMusicArtUrl)) return;
+                if (musicArtView != null) musicArtView.setImageBitmap(fbmp);
+                if (musicArtBgView != null) musicArtBgView.setImageBitmap(fblur);
             });
         }, "music-art").start();
+    }
+
+    // Cheap dependency-free blur: downscale then upscale twice, throwing away
+    // most of the detail on the way down and letting bilinear filtering
+    // smear what's left back out. Not Android's RenderEffect blur -- that's
+    // API 31+, this app's minSdk is 28 -- and not worth pulling in
+    // RenderScript (deprecated) for one occasional small ambient backdrop.
+    private static android.graphics.Bitmap blurredCopy(android.graphics.Bitmap src) {
+        try {
+            int w = Math.max(1, src.getWidth() / 16);
+            int h = Math.max(1, src.getHeight() / 16);
+            android.graphics.Bitmap small = android.graphics.Bitmap.createScaledBitmap(src, w, h, true);
+            return android.graphics.Bitmap.createScaledBitmap(small, src.getWidth(), src.getHeight(), true);
+        } catch (Throwable t) {
+            return src;
+        }
     }
 
     // Glyph-only ask tile: fainter fill than the card, a 1dp hairline, colour
@@ -1866,6 +2104,11 @@ public class ComfortActivity extends Activity {
         // build of this screen, same as a theme change
         if (prefs.getBoolean("turbo_enabled", true) != turboEnabledAtBuild) { recreate(); return; }
         if (prefs.getBoolean("drive_card_enabled", true) != driveCardEnabledAtBuild) { recreate(); return; }
+        // Same mistake as the skyline comment above describes, made fresh:
+        // musicLargeCardAtBuild was read once at onCreate with no onResume
+        // check, so toggling Config > Spotify > "Large card" and coming
+        // back to Home did nothing -- reported live. Same fix, same pattern.
+        if (prefs.getBoolean("spotify_large_card", false) != musicLargeCardAtBuild) { recreate(); return; }
         // Same again for the skyline settings. This was previously missing
         // the "skyline_enabled" half entirely -- the toggle saved fine but
         // nothing ever told this already-running screen to rebuild art, so

@@ -155,6 +155,10 @@
     <string name="cfg_spotify_need_id">กรอก Client ID ก่อน</string>
     <string name="spotify_connected">Spotify เชื่อมต่อแล้ว</string>
     <string name="spotify_connect_failed">Spotify: เชื่อมต่อไม่ได้</string>
+    <string name="cfg_spotify_large_card">การ์ดขนาดใหญ่</string>
+    <string name="cfg_spotify_large_card_hint">ปกอัลบั้มเต็มการ์ด พร้อมแถบเล่น/ข้ามขนาดใหญ่ด้านล่าง ปิดไว้จะแสดงการ์ดขนาดเล็กที่ปกอยู่ข้างชื่อเพลง</string>
+    <string name="spotify_play_label">เล่น</string>
+    <string name="spotify_skip_label">ข้าม</string>
     <string name="cfg_security_header">ความปลอดภัย</string>
     <string name="cfg_commands_label">ยอมรับคำสั่งจาก HA</string>
     <string name="cfg_commands_on">กำลังยอมรับคำสั่งจาก HA</string>
@@ -182,6 +186,12 @@
     <string name="cfg_doors_header">ประตู</string>
     <string name="cfg_window_on_door">เปิดกระจกเล็กน้อยเมื่อเปิดประตู</string>
     <string name="cfg_window_on_door_hint">ลดกระจกของประตูนั้นลง ~1 ซม. เพื่อให้ประตูปิดได้โดยไม่ต้องต่อสู้กับห้องโดยสารที่ปิดสนิท และคืนกลับเมื่อประตูปิด มันจะปิดเฉพาะกระจกที่มันเปิดเองเท่านั้น และจะไม่แตะกระจกที่คุณเลื่อนเอง</string>
+    <string name="cfg_purge_open_header">เป้าหมายปุ่มเปิดกระจกทุกบาน (0–100)</string>
+    <string name="cfg_purge_open_hint">กระจกแต่ละบานจะเปิดลงมากแค่ไหนเมื่อกดปุ่มเปิดกระจกทั้งหมด 0 = ปิดสนิท, 100 = เปิดสุด ตัวเลขเดียวกันไม่ได้เปิดกระจกแต่ละบานในระยะจริงเท่ากัน — ปรับแต่ละบานให้ตรงกับสิ่งที่คุณเห็นจริง</string>
+    <string name="cfg_purge_open_fl">หน้าซ้าย</string>
+    <string name="cfg_purge_open_fr">หน้าขวา</string>
+    <string name="cfg_purge_open_rl">หลังซ้าย</string>
+    <string name="cfg_purge_open_rr">หลังขวา</string>
     <string name="cfg_actions_header">การดำเนินการ</string>
     <string name="cfg_btn_on">เปิด</string>
     <string name="cfg_btn_off">ปิด</string>

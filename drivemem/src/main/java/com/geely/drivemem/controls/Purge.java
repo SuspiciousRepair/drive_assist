@@ -2,6 +2,7 @@ package com.geely.drivemem.controls;
 
 import com.geely.drivemem.car.CarAccess;
 
+import android.content.SharedPreferences;
 import android.util.Log;
 
 import java.util.HashMap;
@@ -30,7 +31,32 @@ public final class Purge {
     public static final int[] AREAS = {16, 64, 256, 1024};
 
     // Position values: 0 = shut, increasing values = more open (e.g. 50 = halfway).
+    // OPEN is only the fallback default now -- see targetsFromPrefs(). A single
+    // raw value doesn't open every pane the same real amount: each pane's own
+    // regulator/gearing maps position units to physical travel differently, so
+    // "50" can look like a third of the way down on one pane and two-thirds on
+    // another. Configurable per pane in Config > Doors.
     public static final int OPEN = 50, SHUT = 0;
+
+    // One SharedPreferences key per pane, keyed by its area id so it's
+    // unambiguous which pane a stored value belongs to. "drivemem" prefs,
+    // same file ComfortActivity and TelemetryActivity already share.
+    public static String prefKey(int area) { return "purge_open_" + area; }
+
+    /** Reads each pane's configured open target, defaulting to OPEN (50) for
+     * any pane that was never set -- i.e. behaves exactly like the old fixed
+     * OPEN constant until someone tunes a pane in Config > Doors. Clamped to
+     * WINDOW_POS's own real range (0 = fully closed, 100 = fully open, see
+     * field-catalog.md) here, at the point of use, rather than trusting
+     * whatever a raw pref value happens to hold. */
+    public static Map<Integer, Integer> targetsFromPrefs(SharedPreferences prefs) {
+        Map<Integer, Integer> targets = new LinkedHashMap<>();
+        for (int area : AREAS) {
+            int raw = prefs.getInt(prefKey(area), OPEN);
+            targets.put(area, Math.max(0, Math.min(100, raw)));
+        }
+        return targets;
+    }
 
     // Threshold for counting a pane as open. Uses DoorWindow.MORE_THAN_CRACK to
     // align with door-crack behavior (position 10); panes below this are not
@@ -55,21 +81,31 @@ public final class Purge {
         return readAny ? open : null;
     }
 
-    /** Opens all panes to the target position. Returns count of panes that moved. */
+    /** Opens all panes to OPEN (50), the same target for every pane. Kept for
+     * callers with no configured per-pane targets yet; see the other overload. */
     public int open(CarAccess car) {
+        Map<Integer, Integer> allSame = new LinkedHashMap<>();
+        for (int area : AREAS) allSame.put(area, OPEN);
+        return open(car, allSame);
+    }
+
+    /** Opens each pane to its own target position (see targetsFromPrefs()).
+     * Returns count of panes that moved. */
+    public int open(CarAccess car, Map<Integer, Integer> targets) {
         if (!car.isReady()) return 0;
         int moved = 0;
         for (int area : AREAS) {
+            int target = targets.containsKey(area) ? targets.get(area) : OPEN;
             Integer pos = car.readIntRaw(CarAccess.WINDOW_POS, area);
             if (pos == null) { Log.i(TAG, "purge: window " + area + " unreadable — leaving it"); continue; }
             // Already further down than we would take it: somebody put it there.
-            if (pos >= OPEN) {
+            if (pos >= target) {
                 Log.i(TAG, "purge: window " + area + " already at " + pos + " — not ours to move");
                 continue;
             }
             before.put(area, pos);
-            if (car.setIntRaw(CarAccess.WINDOW_POS, area, OPEN)) moved++;
-            Log.i(TAG, "purge: window " + area + " " + pos + " -> " + OPEN);
+            if (car.setIntRaw(CarAccess.WINDOW_POS, area, target)) moved++;
+            Log.i(TAG, "purge: window " + area + " " + pos + " -> " + target);
         }
         return moved;
     }

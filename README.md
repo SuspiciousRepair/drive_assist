@@ -5,7 +5,7 @@
 **English** · [Português (Brasil)](README.pt-BR.md)
 
 [![CI Build](https://img.shields.io/badge/build-passing-brightgreen.svg)](#building)
-[![JaCoCo Coverage](https://img.shields.io/badge/coverage-14.20%25%20%28194%20tests%29-blue.svg)](docs/CODE-QUALITY-REPORT.md)
+[![JaCoCo Coverage](https://img.shields.io/badge/coverage-15.88%25%20%28236%20tests%29-blue.svg)](docs/CODE-QUALITY-REPORT.md)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Geely%20IHU629G%20%7C%20Android%209-orange.svg)](docs/ARCHITECTURE-SAFETY-AUDIT.md)
 
@@ -103,8 +103,14 @@ Captured directly from the physical vehicle head unit display via ADB (`1920x108
 
 Getting Drive Assist running on your vehicle head unit:
 
-1. **One-Shot Wireless Installation (Recommended)**:
-   Connect your laptop to the same Wi-Fi network as the vehicle and run:
+1. **Standalone USB Installer (`drive_assist_installer.apk`, recommended)**:
+   Copy the single installer APK to a FAT32 USB flash drive, insert it into the
+   vehicle USB port, open the vehicle's File Manager, and tap to install. The
+   installer bundles both packages, installs them with platform privileges, and
+   self-uninstalls on completion.
+
+2. **One-Shot Wireless Installation**:
+   If your laptop is on the same Wi-Fi network as the vehicle, run:
    ```bash
    ./install.sh <CAR_IP>
    ```
@@ -113,11 +119,9 @@ Getting Drive Assist running on your vehicle head unit:
    Bluetooth OBD2 pairing is optional. The separate, temporary PIN workaround is
    documented with its risks in the [installation guide](docs/INSTALL-GUIDE.md).
 
-2. **Standalone USB Installer (`drive_assist_installer.apk`)**:
-   Copy the single installer APK to a FAT32 USB flash drive, insert it into the vehicle USB port, open the vehicle's File Manager, and tap to install. The installer bundles both packages, installs them with platform privileges, and self-uninstalls on completion.
-
 3. **Interactive Configuration Wizard (`configure-car.sh`)**:
-   Configure MQTT broker credentials, mTLS certificates, ABRP tokens, and defaults via interactive terminal:
+   After ADB is available, configure MQTT broker credentials, mTLS certificates,
+   ABRP tokens, and defaults from an interactive terminal:
    ```bash
    ./tools/configure-car.sh
    ```
@@ -145,7 +149,7 @@ Full architectural documentation and reverse-engineering guides are located in t
 - [Release Readiness Matrix](docs/RELEASE-READINESS-MATRIX.md) — Comprehensive Go/No-Go release audit and remediation roadmap
 - [Software Architecture & Vehicle Safety Audit](docs/ARCHITECTURE-SAFETY-AUDIT.md) — Multi-perspective audit of UID separation, Park invariants, and VHAL safety
 - [Open-source Head-unit Software Review](docs/OPEN-SOURCE-HEAD-UNIT-REVIEW.md) — Prioritized maintainability, architecture, performance, safety, and community recommendations for rooted sideloaded deployment
-- [Code Quality & Test Coverage Report](docs/CODE-QUALITY-REPORT.md) — JaCoCo test metrics (5.55% / 131 tests), Lint tuning, Checkstyle, and SpotBugs catalog
+- [Code Quality & Test Coverage Report](docs/CODE-QUALITY-REPORT.md) — JaCoCo test metrics (15.88% scoped instruction coverage / 236 tests), Lint tuning, Checkstyle, and SpotBugs catalog
 - [Contributing Guidelines](CONTRIBUTING.md) — Branching rules (`dev`/`master`), Conventional Commits, and pull request checklist
 - [Changelog](CHANGELOG.md) — Full version history, release notes, and unreleased enhancements
 - [License](LICENSE) — GNU General Public License v3.0 terms

@@ -77,7 +77,12 @@ done
 # Resolve default device if not specified
 if [ -z "$D" ]; then
     CONNECTED=$(adb devices 2>/dev/null | grep -E '\bdevice$' | head -1 | awk '{print $1}' || true)
-    D="${CONNECTED:-192.168.0.150:5555}"
+    D="${CONNECTED:-${CAR_IP:-}}"
+fi
+if [ -z "$D" ]; then
+    echo "Error: no device-ip given, no CAR_IP set, and no adb device already connected." >&2
+    echo "Usage: $0 [device-ip] (or set CAR_IP)" >&2
+    exit 1
 fi
 [[ "$D" != *":"* ]] && D="${D}:5555"
 

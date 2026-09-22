@@ -2,6 +2,37 @@
 
 ## [Unreleased]
 
+## [v0.3.1] — 2026-09-22
+
+### Added
+- **New large Spotify Now Playing card, picked in Config.** Full-bleed
+  album art with a Turbo-card-styled Play/Skip band across the bottom,
+  as an alternative to the existing small card. Art is shown uncropped
+  (letterboxed, not cut off) and capped in height so a tall promo-style
+  cover can't blow the card up; a blurred, dimmed copy of the same art
+  fills the letterbox margins instead of leaving them plain white.
+- **Each window can now open to its own amount when "crack all windows"
+  is used**, instead of every pane opening to the same fixed position.
+  Each pane's regulator maps position differently, so the four panes
+  didn't visibly match at one shared value. New per-window fields in
+  Config > Doors, 0-100, defaulting to the old shared value.
+
+### Fixed
+- **A single missed OBD2 reading could mark real driving data as
+  "estimated" for far longer than the miss itself.** Power was only
+  computed when voltage and current both came back in the exact same
+  poll round; if one dropped a packet while the other kept succeeding,
+  power stayed stuck unset until they happened to land together again
+  -- even though OBD2 was genuinely connected the whole time. Power is
+  now computed from each reading's own latest known value instead of
+  requiring both in lockstep, so a single dropped packet recovers on
+  the very next successful reading of either one.
+
+### Changed
+- The state-of-charge battery indicator now fills as a shadow behind
+  the outline instead of a flat block, matching the rest of the UI's
+  visual treatment.
+
 ## [v0.3.0] — 2026-09-21
 
 ### Fixed

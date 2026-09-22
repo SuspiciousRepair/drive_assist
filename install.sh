@@ -10,7 +10,7 @@
 #   ./install.sh [CAR_IP]
 #
 # Example:
-#   ./install.sh 192.168.0.150
+#   ./install.sh <CAR_IP>
 #
 set -euo pipefail
 
@@ -32,7 +32,6 @@ else
     echo "Error: No car IP supplied and no active ADB device found."
     echo ""
     echo "Usage: $0 <CAR_IP>"
-    echo "Example: $0 192.168.0.150"
     exit 1
   fi
 fi

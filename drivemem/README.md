@@ -125,7 +125,7 @@ To run Gradle directly or run unit tests, execute from the repository root:
 ### Installation
 
 ```bash
-adb connect 192.168.0.150:5555
+adb connect <CAR_IP>:5555
 adb install -r drive_assist.apk
 ```
 

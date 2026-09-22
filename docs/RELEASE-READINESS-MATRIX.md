@@ -156,7 +156,7 @@ These non-blocking items represent architectural recommendations for post-v1.0 i
    - *Roadmap*: Standardize all locale translations to escape `%` as `%%` across all language resource files.
 
 3. **Dynamic Home Gateway Subnet Configuration**:
-   - *Current State*: `AdbGate.isHome()` evaluates `DEFAULT_HOME_GW = "192.168.0.1"`. Users with home subnets on `192.168.1.1` or `10.0.0.1` must modify this constant.
+   - *Current State*: `AdbGate.isHome()` evaluates `DEFAULT_HOME_GW = "192.168.0.1"`. Users with home subnets on `192.168.1.1` or `10.0.0.1` must modify this constant. <!-- pii: allow, generic example subnets -->
    - *Roadmap*: Expose the home gateway IP as a configurable preference in `TelemetryActivity` and `configure-car.sh`.
 
 4. **Incremental Static Analysis Clean-Up**:

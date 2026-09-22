@@ -1568,9 +1568,14 @@ public class TelemetryActivity extends Activity {
             if (hasFocus) return;
             SpotifyClient.setClientId(this, fSpotifyClientId.getText().toString());
         });
+        // button(), not action(): action() stretches to fill half the row
+        // each (weight=1f) which reads as two oversized CTAs for what's
+        // really a pair of small settings actions -- button() (WRAP_CONTENT,
+        // sized to its own label) is what every other action on this screen
+        // already uses (Save, Import cert, Reset default, ...).
         LinearLayout spRow = new LinearLayout(this);
         spRow.setOrientation(LinearLayout.HORIZONTAL);
-        spRow.addView(action(getString(R.string.cfg_spotify_connect), Style.ACCENT, () -> {
+        spRow.addView(button(getString(R.string.cfg_spotify_connect), Style.ACCENT, () -> {
             SpotifyClient.setClientId(this, fSpotifyClientId.getText().toString());
             if (SpotifyClient.clientId(this).isEmpty()) {
                 spotifyStatus.setText(getString(R.string.cfg_spotify_need_id));
@@ -1578,13 +1583,27 @@ public class TelemetryActivity extends Activity {
             }
             startActivity(new Intent(this, SpotifyAuthActivity.class));
         }));
-        spRow.addView(action(getString(R.string.cfg_spotify_disconnect), 0xFF8A3A3A, () -> {
+        spRow.addView(button(getString(R.string.cfg_spotify_disconnect), 0xFF8A3A3A, () -> {
             getSharedPreferences("drivemem", MODE_PRIVATE).edit()
                 .remove("spotify_refresh_token").remove("spotify_access_token")
                 .remove("spotify_token_expiry").apply();
             spotifyStatus.setText(getString(R.string.cfg_spotify_status_off));
         }));
         content.addView(spRow);
+        Style.gap(content, this, 20);
+
+        // Home screen card style -- read once at ComfortActivity's own
+        // onCreate (musicLargeCardAtBuild), same pattern as turbo_enabled
+        // and skyline_enabled, so this only needs the plain pref written
+        // here, no live-update plumbing back to a screen that isn't open.
+        content.addView(toggleRow(getString(R.string.cfg_spotify_large_card),
+            prefs.getBoolean("spotify_large_card", false),
+            on -> prefs.edit().putBoolean("spotify_large_card", on).apply()));
+        TextView largeCardHint = new TextView(this);
+        largeCardHint.setTextColor(Style.TEXT_DIM); largeCardHint.setTextSize(13);
+        largeCardHint.setPadding(0, 0, 0, Style.dp(this, 4));
+        largeCardHint.setText(getString(R.string.cfg_spotify_large_card_hint));
+        content.addView(largeCardHint);
     }
 
     /** Current Wi-Fi IPv4 address, dotted-quad, or "—" if not connected/available. */
@@ -2067,6 +2086,68 @@ public class TelemetryActivity extends Activity {
         winHint.setPadding(0, 0, 0, Style.dp(this, 4));
         winHint.setText(getString(R.string.cfg_window_on_door_hint));
         content.addView(winHint);
+
+        // Per-pane crack-all-windows target. See Purge's own comment: a
+        // single raw position value doesn't open every pane the same real
+        // amount, since each pane's regulator/gearing maps position units
+        // to physical travel differently. One field per pane instead of
+        // one shared value.
+        content.addView(Style.header(this, getString(R.string.cfg_purge_open_header)));
+        TextView purgeHint = new TextView(this);
+        purgeHint.setTextColor(Style.TEXT_DIM); purgeHint.setTextSize(13);
+        purgeHint.setPadding(0, 0, 0, Style.dp(this, 4));
+        purgeHint.setText(getString(R.string.cfg_purge_open_hint));
+        content.addView(purgeHint);
+        content.addView(purgeTargetRow(Purge.AREAS[0], getString(R.string.cfg_purge_open_fl)));
+        content.addView(purgeTargetRow(Purge.AREAS[1], getString(R.string.cfg_purge_open_fr)));
+        content.addView(purgeTargetRow(Purge.AREAS[2], getString(R.string.cfg_purge_open_rl)));
+        content.addView(purgeTargetRow(Purge.AREAS[3], getString(R.string.cfg_purge_open_rr)));
+    }
+
+    // Same field pattern as the Turbo duration field below (buildDrive()):
+    // number-only input, saved on every keystroke that parses rather than
+    // on blur (blur unreliably fires with the on-screen number pad here --
+    // see that field's own comment for the "edited it, it reverted" report
+    // that taught us that), raw text never rewritten under the cursor.
+    // Clamped to WINDOW_POS's real 0..100 range at the point of use
+    // (Purge.targetsFromPrefs), not here -- this just has to reject
+    // non-integer input, not decide what's a sane window position.
+    private LinearLayout purgeTargetRow(int area, String label) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, Style.dp(this, 4), 0, Style.dp(this, 4));
+
+        TextView lbl = new TextView(this);
+        lbl.setText(label);
+        lbl.setTextColor(Style.TEXT); lbl.setTextSize(14);
+        LinearLayout.LayoutParams lblLp = new LinearLayout.LayoutParams(
+            Style.dp(this, 160), ViewGroup.LayoutParams.WRAP_CONTENT);
+        lbl.setLayoutParams(lblLp);
+        row.addView(lbl);
+
+        EditText field = new EditText(this);
+        field.setText(String.valueOf(prefs.getInt(Purge.prefKey(area), Purge.OPEN)));
+        field.setInputType(InputType.TYPE_CLASS_NUMBER);
+        field.setTextColor(Style.TEXT); field.setTextSize(17);
+        field.setBackground(Style.card(Style.CARD, this));
+        int fPad = Style.dp(this, 12);
+        field.setPadding(fPad, fPad, fPad, fPad);
+        LinearLayout.LayoutParams fieldLp = new LinearLayout.LayoutParams(
+            Style.dp(this, 90), ViewGroup.LayoutParams.WRAP_CONTENT);
+        fieldLp.leftMargin = Style.dp(this, 10);
+        field.setLayoutParams(fieldLp);
+        row.addView(field);
+
+        field.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                try { prefs.edit().putInt(Purge.prefKey(area), Integer.parseInt(s.toString().trim())).apply(); }
+                catch (NumberFormatException ignored) {}
+            }
+        });
+        return row;
     }
 
     private void buildDrive() {

@@ -322,7 +322,7 @@ Network ADB disconnects automatically after 15 minutes, or Dashcam background of
 
 #### Root Cause
 * **15-Minute Auto-Off Guard**: `AdbControl.java` in ModeHelper schedules an exact `AlarmManager.ELAPSED_REALTIME_WAKEUP` alarm to disable network ADB after 15 minutes to prevent unauthorized open ports on public networks.
-* **Home Gateway Check**: `AdbGate.java` checks the DHCP gateway address (`DEFAULT_HOME_GW = "192.168.0.1"`, preference key `adb_home_gw`). If your home router uses another subnet (e.g. `192.168.1.1` or `10.0.0.1`), Drive Assist treats the connection as untrusted.
+* **Home Gateway Check**: `AdbGate.java` checks the DHCP gateway address (`DEFAULT_HOME_GW = "192.168.0.1"`, preference key `adb_home_gw`). If your home router uses another subnet (e.g. `192.168.1.1` or `10.0.0.1`), Drive Assist treats the connection as untrusted. <!-- pii: allow, generic example subnets -->
 
 #### Solutions
 1. **Configure Privileged Wi-Fi SSID**:

@@ -79,6 +79,14 @@ public final class Obd2Reader {
     private static volatile Integer reportedSpeedKmh;
     private static volatile long lastReadingAtMs = 0;
 
+    // Test-only: these fields are static (one reader for the whole process,
+    // see the comment above), which means they'd otherwise leak between
+    // test methods in the same JVM run. Package-visible, not public.
+    static void resetForTest() {
+        soc = null; voltage = null; current = null; battTempC = null;
+        powerKw = null; reportedSpeedKmh = null; lastReadingAtMs = 0;
+    }
+
     // Listeners are notified on state change (edge events) rather than by polling
     // (level snapshots), which prevents stale "Connected" states on screen.
     // Notifications are synchronous on this reader thread, independent from
@@ -790,7 +798,10 @@ public final class Obd2Reader {
     // now that a connect-read-disconnect cycle reports "connected" only when
     // this comes back true (see loop()) -- a cycle that reaches the dongle
     // but gets back only echoes/errors/"NO DATA" should not read as success.
-    private static boolean applyReading(String socResp, String voltResp, String currResp,
+    // Package-visible (not private), not public: lets Obd2ReaderTest drive
+    // it directly with synthetic dongle responses to pin down the
+    // split-round recovery behavior, without exposing it as real API.
+    static boolean applyReading(String socResp, String voltResp, String currResp,
                                       String tempResp, String speedResp) {
         int[] socB  = parseDataBytes(socResp,  "4B36", 2);
         int[] voltB = parseDataBytes(voltResp, "4B21", 2);
@@ -812,17 +823,22 @@ public final class Obd2Reader {
         if (newCurr != null) current = newCurr;
         if (newTemp != null) battTempC = newTemp;
         if (newSpeed != null) reportedSpeedKmh = newSpeed;
-        if (newVolt != null && newCurr != null) powerKw = (newVolt * newCurr) / 1000.0;
+        // Recompute from voltage/current's latest known values, not only
+        // when both parse in this exact round. A round where only one of
+        // the pair parses (a dropped BLE packet, one bad byte -- a real,
+        // recoverable blip) used to leave powerKw stuck null until they
+        // happened to land together again, which silently degraded
+        // energy_measured to false for as long as that took -- reported
+        // live: OBD2 genuinely connected the whole time, app still showed
+        // "estimated". voltage/current above already hold "last known
+        // good" independently of each other, so this is just using them.
+        if (voltage != null && current != null) powerKw = (voltage * current) / 1000.0;
         // Reported once per bad round, not once per bad PID -- a session
         // that never gets one clean volt+curr round in a row logs one line
         // every ~2s, which is still legible (unlike a 5-line-per-round
-        // dump). powerKw is the one thing energy_measured actually depends
-        // on (EnergyIntegrator only ever sees a reading via r.powerKw), so a
-        // report of "OBD2 shows connected but the app never counts it as
-        // measured" is diagnosed from these lines, not the connect/session
-        // ones above -- this is the one place that distinction can be seen
-        // at all: the round reached the dongle (any true, below) but the
-        // specific pair this needs didn't both come back parseable.
+        // dump). Not fatal to energy_measured any more (see above), but
+        // still worth seeing: a round this incomplete this often means
+        // the connection itself is flaky, even though power keeps recovering.
         if (newVolt == null || newCurr == null) {
             Log.w(TAG, "obd2: power PID incomplete this round -- volt="
                 + (newVolt != null) + " (\"" + voltResp + "\") curr="

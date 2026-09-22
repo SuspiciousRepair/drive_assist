@@ -18,7 +18,7 @@ public class MqttTlsTest {
         assertTrue(MqttTls.isTls("SSL://EXAMPLE.COM:8883"));
         assertTrue(MqttTls.isTls("  wss://example.com:8443/mqtt  "));
 
-        assertFalse(MqttTls.isTls("tcp://192.168.0.8:1883"));
+        assertFalse(MqttTls.isTls("tcp://broker.example.com:1883"));
         assertFalse(MqttTls.isTls("ws://example.com:1884/mqtt"));
         assertFalse(MqttTls.isTls(""));
         assertFalse(MqttTls.isTls((String) null));
@@ -26,9 +26,9 @@ public class MqttTlsTest {
 
     @Test
     public void testIsTlsUriArray() {
-        assertTrue(MqttTls.isTls(new String[]{"tcp://192.168.0.8:1883", "ssl://remote.com:8883"}));
+        assertTrue(MqttTls.isTls(new String[]{"tcp://broker.example.com:1883", "ssl://remote.com:8883"}));
         assertTrue(MqttTls.isTls(new String[]{"wss://mosquitto.tail8e9bb2.ts.net:8443/mqtt"}));
-        assertFalse(MqttTls.isTls(new String[]{"tcp://192.168.0.8:1883", "tcp://10.0.0.1:1883"}));
+        assertFalse(MqttTls.isTls(new String[]{"tcp://broker.example.com:1883", "tcp://other.example.com:1883"}));
         assertFalse(MqttTls.isTls((String[]) null));
         assertFalse(MqttTls.isTls(new String[0]));
     }
