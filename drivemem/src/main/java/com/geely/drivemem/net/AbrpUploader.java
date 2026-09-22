@@ -84,6 +84,11 @@ public final class AbrpUploader {
     // calibration, and fine-grained enough that the one "live" point per
     // minute (see LIVE_EVERY_N) is never more than 6s stale.
     private static final long SAMPLE_MS = 6_000;
+    // The uploader is initialized with the process even when its optional
+    // integration is off. Polling a disabled integration ten times a minute
+    // needlessly wakes the head unit, so wait longer until a preference or a
+    // fresh telemetry snapshot explicitly wakes us.
+    static final long IDLE_SAMPLE_MS = 60_000;
     // Every Nth sample bypasses the batch queue and goes out immediately,
     // alone, via /send -- see this file's own header for why.
     private static final int LIVE_EVERY_N = 10;
@@ -109,6 +114,7 @@ public final class AbrpUploader {
     // thread reads this every SAMPLE_MS rather than waiting on the tick
     // itself, which is what lets sampling run faster than that ~15s tick.
     private static volatile Map<String, Object> lastData = null;
+    private static final Object samplerWakeLock = new Object();
     // This class's own cached copy of the one thing Obd2Reader pushes --
     // see buildTlm()'s own comment for why this replaced five separate
     // freshXxx() calls.
@@ -225,11 +231,16 @@ public final class AbrpUploader {
         subscribed = true;
         Context app = ctx.getApplicationContext();
         appCtx = app;
+        app.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
+            .registerOnSharedPreferenceChangeListener((prefs, key) -> {
+                if ("abrp_enabled".equals(key) || "abrp_user_token".equals(key)) wakeSampler();
+            });
         EntityBus.subscribe("telemetry.tick", (key, reading) -> {
             if (reading.status == CarActor.Reading.Status.OK) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> data = (Map<String, Object>) reading.value;
                 lastData = data;
+                wakeSampler();
             }
         });
         Obd2Reader.subscribe(new Obd2Reader.Listener() {
@@ -282,8 +293,26 @@ public final class AbrpUploader {
             } catch (Throwable t) {
                 Log.w(TAG, "abrp: sampler: " + t);
             }
-            try { Thread.sleep(SAMPLE_MS); } catch (InterruptedException ignored) {}
+            synchronized (samplerWakeLock) {
+                try { samplerWakeLock.wait(samplerDelayMs(isConfigured(ctx), lastData != null)); }
+                catch (InterruptedException ignored) {}
+            }
         }
+    }
+
+    private static void wakeSampler() {
+        synchronized (samplerWakeLock) { samplerWakeLock.notifyAll(); }
+    }
+
+    // Package-visible for the pure unit test; fresh telemetry wakes the loop
+    // immediately, so the longer startup/disabled wait never delays a real trip.
+    static long samplerDelayMs(boolean configured, boolean hasTelemetry) {
+        return configured && hasTelemetry ? SAMPLE_MS : IDLE_SAMPLE_MS;
+    }
+
+    private static boolean isConfigured(Context ctx) {
+        SharedPreferences p = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
+        return p.getBoolean("abrp_enabled", false) && !p.getString("abrp_user_token", "").isEmpty();
     }
 
     // Builds one reading, or null if there's nothing worth building yet
