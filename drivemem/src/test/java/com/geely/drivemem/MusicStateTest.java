@@ -2,9 +2,11 @@ package com.geely.drivemem;
 
 import com.geely.drivemem.state.MusicState;
 
+import org.junit.Test;
+
 import java.util.ArrayList;
 import java.util.List;
-import org.junit.Test;
+import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.*;
 
 public class MusicStateTest {
@@ -90,5 +92,19 @@ public class MusicStateTest {
         assertFalse(r.calls.get(2).playing);
 
         MusicState.setListener(null);
+    }
+
+    @Test public void unchangedPollResultDoesNotNotifyTheUiAgain() {
+        AtomicInteger calls = new AtomicInteger();
+        MusicState.setListener((playing, title, artist, artUrl) -> calls.incrementAndGet());
+        try {
+            MusicState.set(true, "Test track", "Test artist", "https://example.test/art.png");
+            MusicState.set(true, "Test track", "Test artist", "https://example.test/art.png");
+
+            assertEquals(1, calls.get());
+        } finally {
+            MusicState.setListener(null);
+            MusicState.set(false, null, null, null);
+        }
     }
 }

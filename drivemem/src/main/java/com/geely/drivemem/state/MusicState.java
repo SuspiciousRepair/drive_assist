@@ -16,6 +16,8 @@ public final class MusicState {
 
     /** Updates now-playing state (called by SpotifyClient after each poll). */
     public static void set(boolean p, String t, String a, String u) {
+        if (p == playing && java.util.Objects.equals(t, title)
+                && java.util.Objects.equals(a, artist) && java.util.Objects.equals(u, artUrl)) return;
         playing = p; title = t; artist = a; artUrl = u;
         fire();
     }
