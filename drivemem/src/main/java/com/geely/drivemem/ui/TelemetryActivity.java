@@ -1568,9 +1568,14 @@ public class TelemetryActivity extends Activity {
             if (hasFocus) return;
             SpotifyClient.setClientId(this, fSpotifyClientId.getText().toString());
         });
+        // button(), not action(): action() stretches to fill half the row
+        // each (weight=1f) which reads as two oversized CTAs for what's
+        // really a pair of small settings actions -- button() (WRAP_CONTENT,
+        // sized to its own label) is what every other action on this screen
+        // already uses (Save, Import cert, Reset default, ...).
         LinearLayout spRow = new LinearLayout(this);
         spRow.setOrientation(LinearLayout.HORIZONTAL);
-        spRow.addView(action(getString(R.string.cfg_spotify_connect), Style.ACCENT, () -> {
+        spRow.addView(button(getString(R.string.cfg_spotify_connect), Style.ACCENT, () -> {
             SpotifyClient.setClientId(this, fSpotifyClientId.getText().toString());
             if (SpotifyClient.clientId(this).isEmpty()) {
                 spotifyStatus.setText(getString(R.string.cfg_spotify_need_id));
@@ -1578,13 +1583,14 @@ public class TelemetryActivity extends Activity {
             }
             startActivity(new Intent(this, SpotifyAuthActivity.class));
         }));
-        spRow.addView(action(getString(R.string.cfg_spotify_disconnect), 0xFF8A3A3A, () -> {
+        spRow.addView(button(getString(R.string.cfg_spotify_disconnect), 0xFF8A3A3A, () -> {
             getSharedPreferences("drivemem", MODE_PRIVATE).edit()
                 .remove("spotify_refresh_token").remove("spotify_access_token")
                 .remove("spotify_token_expiry").apply();
             spotifyStatus.setText(getString(R.string.cfg_spotify_status_off));
         }));
         content.addView(spRow);
+        Style.gap(content, this, 20);
 
         // Home screen card style -- read once at ComfortActivity's own
         // onCreate (musicLargeCardAtBuild), same pattern as turbo_enabled
