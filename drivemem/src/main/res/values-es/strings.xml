@@ -84,6 +84,10 @@
     <string name="cfg_spotify_need_id">Introduce primero el Client ID</string>
     <string name="spotify_connected">Spotify conectado</string>
     <string name="spotify_connect_failed">Spotify: no se pudo conectar</string>
+    <string name="cfg_spotify_large_card">Tarjeta grande</string>
+    <string name="cfg_spotify_large_card_hint">La portada del álbum llena la tarjeta, con una banda grande de Reproducir/Siguiente debajo. Desactivado muestra la tarjeta más pequeña, con la portada junto al título.</string>
+    <string name="spotify_play_label">Reproducir</string>
+    <string name="spotify_skip_label">Siguiente</string>
     <string name="cfg_security_header">Seguridad</string>
     <string name="cfg_commands_label">Aceptar comandos de Home Assistant</string>
     <string name="cfg_commands_on">Aceptando comandos de Home Assistant</string>

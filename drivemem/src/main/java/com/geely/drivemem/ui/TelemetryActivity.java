@@ -1585,6 +1585,19 @@ public class TelemetryActivity extends Activity {
             spotifyStatus.setText(getString(R.string.cfg_spotify_status_off));
         }));
         content.addView(spRow);
+
+        // Home screen card style -- read once at ComfortActivity's own
+        // onCreate (musicLargeCardAtBuild), same pattern as turbo_enabled
+        // and skyline_enabled, so this only needs the plain pref written
+        // here, no live-update plumbing back to a screen that isn't open.
+        content.addView(toggleRow(getString(R.string.cfg_spotify_large_card),
+            prefs.getBoolean("spotify_large_card", false),
+            on -> prefs.edit().putBoolean("spotify_large_card", on).apply()));
+        TextView largeCardHint = new TextView(this);
+        largeCardHint.setTextColor(Style.TEXT_DIM); largeCardHint.setTextSize(13);
+        largeCardHint.setPadding(0, 0, 0, Style.dp(this, 4));
+        largeCardHint.setText(getString(R.string.cfg_spotify_large_card_hint));
+        content.addView(largeCardHint);
     }
 
     /** Current Wi-Fi IPv4 address, dotted-quad, or "—" if not connected/available. */

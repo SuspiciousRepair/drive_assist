@@ -155,6 +155,10 @@
     <string name="cfg_spotify_need_id">กรอก Client ID ก่อน</string>
     <string name="spotify_connected">Spotify เชื่อมต่อแล้ว</string>
     <string name="spotify_connect_failed">Spotify: เชื่อมต่อไม่ได้</string>
+    <string name="cfg_spotify_large_card">การ์ดขนาดใหญ่</string>
+    <string name="cfg_spotify_large_card_hint">ปกอัลบั้มเต็มการ์ด พร้อมแถบเล่น/ข้ามขนาดใหญ่ด้านล่าง ปิดไว้จะแสดงการ์ดขนาดเล็กที่ปกอยู่ข้างชื่อเพลง</string>
+    <string name="spotify_play_label">เล่น</string>
+    <string name="spotify_skip_label">ข้าม</string>
     <string name="cfg_security_header">ความปลอดภัย</string>
     <string name="cfg_commands_label">ยอมรับคำสั่งจาก HA</string>
     <string name="cfg_commands_on">กำลังยอมรับคำสั่งจาก HA</string>

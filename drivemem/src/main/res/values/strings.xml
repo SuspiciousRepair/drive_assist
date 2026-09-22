@@ -170,6 +170,10 @@
     <string name="cfg_spotify_need_id">Enter the Client ID first</string>
     <string name="spotify_connected">Spotify connected</string>
     <string name="spotify_connect_failed">Spotify: could not connect</string>
+    <string name="cfg_spotify_large_card">Large card</string>
+    <string name="cfg_spotify_large_card_hint">Album art fills the card, with a big Play/Skip band underneath. Off shows the smaller card with the art beside the title.</string>
+    <string name="spotify_play_label">Play</string>
+    <string name="spotify_skip_label">Skip</string>
     <string name="cfg_security_header">Security</string>
     <string name="cfg_commands_label">Accept commands from Home Assistant</string>
     <string name="cfg_commands_on">Accepting commands from Home Assistant</string>

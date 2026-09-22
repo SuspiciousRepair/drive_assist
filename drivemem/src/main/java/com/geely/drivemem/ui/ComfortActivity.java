@@ -130,6 +130,7 @@ public class ComfortActivity extends Activity {
     private TextView musicTitleView, musicArtistView;
     private boolean lastMusicAvailable = false;
     private String lastMusicArtUrl = null;   // avoids re-fetching the same art on every state ping
+    private boolean musicLargeCardAtBuild;   // Config > Spotify: "Large card" -- read once like turboEnabledAtBuild
 
     // Charge card: active session progress or retained completed charge with cost input.
     private LinearLayout chargeCard;
@@ -172,6 +173,7 @@ public class ComfortActivity extends Activity {
         themeLight = Style.LIGHT;
         prefs = getSharedPreferences("drivemem", MODE_PRIVATE);
         turboEnabledAtBuild = prefs.getBoolean("turbo_enabled", true);
+        musicLargeCardAtBuild = prefs.getBoolean("spotify_large_card", false);
         skylineEnabledAtBuild = prefs.getBoolean("skyline_enabled", true);
         skylineSeedAtBuild = prefs.getLong("skyline_seed", com.geely.drivemem.art.Skyline.DEFAULT_SEED);
         dismissedHash = prefs.getInt("panel_dismissed", 0);   // the dismissal survives a restart
@@ -867,7 +869,16 @@ public class ComfortActivity extends Activity {
     // Music card: album art + title/artist, then skip/play-pause tiles. Starts
     // GONE — nothing to show until the first drivemem/geely/media/state arrives —
     // same as Portão, and packed the same re-flowing way (see repackColumns()).
+    // Two layouts, chosen once at build time by Config > Spotify's "Large
+    // card" toggle (musicLargeCardAtBuild) -- both wire up the same
+    // musicArtView/musicTitleView/musicArtistView fields and musicCard
+    // reference, so every other call site (loadMusicArt, the listener,
+    // visibility toggling) works unchanged regardless of which was built.
     private LinearLayout musicCard() {
+        return musicLargeCardAtBuild ? musicCardLarge() : musicCardSmall();
+    }
+
+    private LinearLayout musicCardSmall() {
         LinearLayout m = new LinearLayout(this);
         m.setOrientation(LinearLayout.VERTICAL);
         int pad = Style.dp(this, 26);
@@ -924,6 +935,114 @@ public class ComfortActivity extends Activity {
 
         musicCard = m;
         return m;
+    }
+
+    // Large variant: album art fills the top, title/artist sit on it over a
+    // scrim, and a Turbo-card-shaped band (two large tap zones split by a
+    // divider -- see turboCard()) is appended directly below, no gap. The
+    // outer container clips itself to one rounded rect (setClipToOutline +
+    // a matching outline provider), which is what makes the art's top
+    // corners and the band's bottom corners round together as one shape
+    // instead of the art needing its own separate rounding.
+    private LinearLayout musicCardLarge() {
+        LinearLayout m = new LinearLayout(this);
+        m.setOrientation(LinearLayout.VERTICAL);
+        m.setBackground(Style.card(Style.cardFillColor(), this));
+        m.setVisibility(View.GONE);
+        m.setClipToOutline(true);
+        final int outerRadius = Style.dp(this, Style.RADIUS_DP);
+        m.setOutlineProvider(new android.view.ViewOutlineProvider() {
+            @Override public void getOutline(View v, android.graphics.Outline outline) {
+                outline.setRoundRect(0, 0, v.getWidth(), v.getHeight(), outerRadius);
+            }
+        });
+
+        FrameLayout artFrame = new FrameLayout(this);
+        artFrame.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 260)));
+
+        musicArtView = new android.widget.ImageView(this);
+        musicArtView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+        musicArtView.setBackground(Style.tile(this));   // placeholder fill until art loads
+        artFrame.addView(musicArtView, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        View scrim = new View(this);
+        android.graphics.drawable.GradientDrawable scrimBg = new android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.BOTTOM_TOP,
+            new int[]{0x00000000, 0xE0000000});
+        scrim.setBackground(scrimBg);
+        FrameLayout.LayoutParams scrimLp = new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 150));
+        scrimLp.gravity = Gravity.BOTTOM;
+        artFrame.addView(scrim, scrimLp);
+
+        LinearLayout caption = new LinearLayout(this);
+        caption.setOrientation(LinearLayout.VERTICAL);
+        int capPad = Style.dp(this, 22);
+        caption.setPadding(capPad, 0, capPad, Style.dp(this, 18));
+        FrameLayout.LayoutParams capLp = new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        capLp.gravity = Gravity.BOTTOM;
+        musicTitleView = new TextView(this);
+        musicTitleView.setTextColor(Style.TEXT); musicTitleView.setTextSize(25);
+        musicTitleView.setTypeface(null, android.graphics.Typeface.BOLD);
+        musicTitleView.setMaxLines(1);
+        musicTitleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        caption.addView(musicTitleView);
+        musicArtistView = new TextView(this);
+        musicArtistView.setTextColor(Style.TEXT_DIM); musicArtistView.setTextSize(18);
+        musicArtistView.setMaxLines(1);
+        musicArtistView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        musicArtistView.setPadding(0, Style.dp(this, 4), 0, 0);
+        caption.addView(musicArtistView);
+        artFrame.addView(caption, capLp);
+
+        m.addView(artFrame);
+
+        LinearLayout btnBand = new LinearLayout(this);
+        btnBand.setOrientation(LinearLayout.HORIZONTAL);
+        btnBand.addView(turboStyleHalf(getString(R.string.spotify_play_label), "⏯", MusicState::playPause),
+            new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        View divider = new View(this);
+        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(Style.dp(this, 1), ViewGroup.LayoutParams.MATCH_PARENT);
+        divLp.topMargin = Style.dp(this, 14); divLp.bottomMargin = Style.dp(this, 14);
+        divider.setBackgroundColor(Style.TEXT_DIM);
+        divider.getBackground().setAlpha(60);
+        btnBand.addView(divider, divLp);
+        btnBand.addView(turboStyleHalf(getString(R.string.spotify_skip_label), "⏭", MusicState::next),
+            new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        m.addView(btnBand);
+
+        musicCard = m;
+        return m;
+    }
+
+    // One half of musicCardLarge()'s button band -- same visual signature as
+    // turboCard()'s two halves (big glyph, full-half tap target), plus a
+    // small uppercase label since Play/Skip aren't as self-evident out of
+    // context as Turbo/Regen's own glyphs are.
+    private LinearLayout turboStyleHalf(String label, String glyph, Runnable onClick) {
+        LinearLayout half = new LinearLayout(this);
+        half.setOrientation(LinearLayout.VERTICAL);
+        half.setGravity(Gravity.CENTER);
+        int vPad = Style.dp(this, 22);
+        half.setPadding(0, vPad, 0, vPad);
+        half.setOnClickListener(v -> onClick.run());
+
+        TextView glyphView = new TextView(this);
+        glyphView.setText(glyph); glyphView.setTextColor(Style.TEXT); glyphView.setTextSize(32);
+        glyphView.setGravity(Gravity.CENTER);
+        half.addView(glyphView);
+
+        TextView labelView = new TextView(this);
+        labelView.setText(label);
+        labelView.setTextColor(Style.TEXT_DIM); labelView.setTextSize(12);
+        labelView.setTypeface(null, android.graphics.Typeface.BOLD);
+        labelView.setGravity(Gravity.CENTER);
+        labelView.setPadding(0, Style.dp(this, 4), 0, 0);
+        half.addView(labelView);
+        return half;
     }
 
     // Charge card: active session progress or retained completed charge with cost input.
