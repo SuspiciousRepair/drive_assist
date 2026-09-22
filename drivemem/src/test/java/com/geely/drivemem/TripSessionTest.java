@@ -93,6 +93,42 @@ public class TripSessionTest {
     }
 
     @Test
+    public void testFinalizingDuringParkGraceStartsFreshNextTrip() {
+        // Guards the fix for a real bug: Valet turned on while parked, then
+        // driven with Valet forgotten on, then a brief stop (inside the 75s
+        // Park grace) to turn Valet back off, then driving continued. Without
+        // ValetSession.stop() finalizing the open trip at that stop, the next
+        // gear-out-of-park below would stitch onto the SAME trip (asserted
+        // in testDrivingDurationAccumulationAcrossSegments) -- and the daily
+        // view hides any trip whose start_ms falls inside the Valet interval,
+        // so the driving done AFTER turning Valet off would vanish too.
+        long t0 = 100_000L;
+        TripSession.onGear(null, Modes.DRIVE_COMFORT, t0);
+        assertTrue(TripSession.isTripActive());
+
+        long t1 = t0 + 25_000L;
+        TripSession.onGear(null, Modes.GEAR_PARK_ADAPTED, t1); // brief stop
+        assertTrue("Trip must still be open during the park grace", TripSession.isTripActive());
+        assertTrue(TripSession.isParkGraceScheduled());
+
+        // ValetSession.stop() now closes the trip right here, before the
+        // grace period would otherwise let it merge with what comes next.
+        TripSession.setTestCurrentOdoKm(1000.5);
+        TripSession.setTripStateForTesting(true, t0, 1000.0, 25_000L, 1L);
+        TripSession.finalizeTrip(null, t1);
+        assertFalse("Trip must be closed, not left open", TripSession.isTripActive());
+        assertFalse(TripSession.isParkGraceScheduled());
+
+        // Driving resumes, still well inside what would have been the old
+        // 75s grace window.
+        long t2 = t1 + 10_000L;
+        TripSession.onGear(null, Modes.DRIVE_SPORT, t2);
+        assertTrue(TripSession.isTripActive());
+        assertEquals("A brand-new trip must start, not reuse the old start time",
+            t2, TripSession.getActiveTripStartMs());
+    }
+
+    @Test
     public void testMicroTripDiscardedBelowThresholds() {
         long t0 = 50_000L;
         // Park -> Drive

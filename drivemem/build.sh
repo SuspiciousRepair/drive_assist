@@ -28,7 +28,7 @@ ROOT="$(cd .. && pwd)"
 # In a git worktree, toolchain files, keystores, and .ota-env may reside only
 # in the primary checkout. Fall back to GEELY_TOOLS if not found locally.
 TOOLS="$ROOT"
-[ -f "$TOOLS/car-stubs/car-stubs.jar" ] || TOOLS="${GEELY_TOOLS:-$HOME/dev/geely}"
+[ -f "$TOOLS/car-stubs/car-stubs.jar" ] && [ -d "$TOOLS/sdk" ] || TOOLS="${GEELY_TOOLS:-$HOME/dev/geely}"
 [ "$TOOLS" = "$ROOT" ] || echo "toolchain -> $TOOLS (worktree mode: using external toolchain)"
 
 : "${ANDROID_SDK:=$TOOLS/sdk}"
