@@ -968,8 +968,13 @@ public class ComfortActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         View scrim = new View(this);
+        // TOP_BOTTOM, not BOTTOM_TOP: GradientDrawable draws colors[0] at
+        // the START of its named axis -- BOTTOM_TOP puts colors[0] (the
+        // transparent end) at the bottom, which is backwards from what a
+        // fade-into-the-caption needs and showed up live as a hard seam
+        // partway down the art instead of a smooth fade.
         android.graphics.drawable.GradientDrawable scrimBg = new android.graphics.drawable.GradientDrawable(
-            android.graphics.drawable.GradientDrawable.Orientation.BOTTOM_TOP,
+            android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
             new int[]{0x00000000, 0xE0000000});
         scrim.setBackground(scrimBg);
         FrameLayout.LayoutParams scrimLp = new FrameLayout.LayoutParams(
@@ -1985,6 +1990,11 @@ public class ComfortActivity extends Activity {
         // build of this screen, same as a theme change
         if (prefs.getBoolean("turbo_enabled", true) != turboEnabledAtBuild) { recreate(); return; }
         if (prefs.getBoolean("drive_card_enabled", true) != driveCardEnabledAtBuild) { recreate(); return; }
+        // Same mistake as the skyline comment above describes, made fresh:
+        // musicLargeCardAtBuild was read once at onCreate with no onResume
+        // check, so toggling Config > Spotify > "Large card" and coming
+        // back to Home did nothing -- reported live. Same fix, same pattern.
+        if (prefs.getBoolean("spotify_large_card", false) != musicLargeCardAtBuild) { recreate(); return; }
         // Same again for the skyline settings. This was previously missing
         // the "skyline_enabled" half entirely -- the toggle saved fine but
         // nothing ever told this already-running screen to rebuild art, so
