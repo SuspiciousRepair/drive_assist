@@ -1024,14 +1024,21 @@ public class ComfortActivity extends Activity {
         FrameLayout.LayoutParams capLp = new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         capLp.gravity = Gravity.BOTTOM;
+        // Fixed light colors, NOT Style.TEXT/TEXT_DIM: reported live on the
+        // light theme -- Style.TEXT there is 0xFF1B1F24, near-black, tuned
+        // for that theme's own white cards. caption's backing above is
+        // ALWAYS dark (it's an album-art plate, not a normal theme card),
+        // in every theme, so its text needs to always be light too, same
+        // exception the small card doesn't need since IT sits on a normal
+        // theme-colored card background.
         musicTitleView = new TextView(this);
-        musicTitleView.setTextColor(Style.TEXT); musicTitleView.setTextSize(25);
+        musicTitleView.setTextColor(0xFFFFFFFF); musicTitleView.setTextSize(25);
         musicTitleView.setTypeface(null, android.graphics.Typeface.BOLD);
         musicTitleView.setMaxLines(1);
         musicTitleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         caption.addView(musicTitleView);
         musicArtistView = new TextView(this);
-        musicArtistView.setTextColor(Style.TEXT_DIM); musicArtistView.setTextSize(18);
+        musicArtistView.setTextColor(0xFFC7CCD1); musicArtistView.setTextSize(18);
         musicArtistView.setMaxLines(1);
         musicArtistView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         musicArtistView.setPadding(0, Style.dp(this, 4), 0, 0);
