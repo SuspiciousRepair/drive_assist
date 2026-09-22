@@ -59,7 +59,12 @@ public class AccelLoggerService extends Service implements SensorEventListener {
     // AccelProbeActivity's live on-screen readout -- a real-time "does
     // this look like near-zero at rest / spike under real motion" sanity
     // check that pulling and post-processing logs can't give you.
-    private static final int GRAVITY_WINDOW = 200;   // ~0.5s at accel.log's ~400Hz
+    // ~0.5s of samples at whatever rate accelerometer is actually
+    // registered at (SENSOR_DELAY_GAME = 50Hz -> 25 samples). Must track
+    // that registration -- this is a sample COUNT, so halving the rate
+    // without halving this would silently double the real-world window
+    // the gravity estimate smooths over.
+    private static final int GRAVITY_WINDOW = 25;
     private final float[] gravityRing = new float[GRAVITY_WINDOW * 3];
     private int gravityRingPos = 0;
     private int gravityRingCount = 0;
@@ -85,13 +90,22 @@ public class AccelLoggerService extends Service implements SensorEventListener {
         linearAccel = find(Sensor.TYPE_LINEAR_ACCELERATION, "TYPE_LINEAR_ACCELERATION");
         light = find(Sensor.TYPE_LIGHT, "TYPE_LIGHT");
 
+        // GAME (50Hz), not FASTEST (~400Hz, what the original discovery
+        // pass used to answer "does this sensor deliver anything real at
+        // all"): that question's answered now, and OBD2 -- everything
+        // this gets correlated against -- only logs once every 2 seconds
+        // (Obd2Reader.POLL_MS). 400Hz was ~8x more resolution than
+        // anything downstream can use, for ~8x the CPU (measured live:
+        // ~20% of one core -> see the same drop reflected in
+        // GRAVITY_WINDOW below). 50Hz still resolves a bump/shake's shape
+        // (well under a second) just fine.
         if (accelerometer != null) {
-            boolean ok = sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_FASTEST);
-            Log.i(TAG, "registerListener(accelerometer, FASTEST) = " + ok);
+            boolean ok = sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_GAME);
+            Log.i(TAG, "registerListener(accelerometer, GAME) = " + ok);
         }
         if (linearAccel != null) {
-            boolean ok = sensorManager.registerListener(this, linearAccel, SensorManager.SENSOR_DELAY_FASTEST);
-            Log.i(TAG, "registerListener(linearAccel, FASTEST) = " + ok);
+            boolean ok = sensorManager.registerListener(this, linearAccel, SensorManager.SENSOR_DELAY_GAME);
+            Log.i(TAG, "registerListener(linearAccel, GAME) = " + ok);
         }
         if (light != null) {
             boolean ok = sensorManager.registerListener(this, light, SensorManager.SENSOR_DELAY_NORMAL);
@@ -204,11 +218,11 @@ public class AccelLoggerService extends Service implements SensorEventListener {
         int unflushed;
     }
     // flush() still calls into the OS on every invocation even with no
-    // fsync -- at accel.log's ~400Hz that's ~400 write()-family
-    // syscalls/sec on its own. Flushing every FLUSH_EVERY samples instead
-    // of every single one trades up to ~50ms of the newest rows on an
-    // unclean kill (fine for a debug tool that's started/stopped by hand)
-    // for a ~20x cut in syscall count.
+    // fsync. Cheaper now that accel.log runs at 50Hz instead of ~400Hz,
+    // but still not free at any rate -- flushing every FLUSH_EVERY
+    // samples instead of every single one trades up to ~400ms of the
+    // newest rows on an unclean kill (fine for a debug tool that's
+    // started/stopped by hand) for a real cut in syscall count.
     private static final int FLUSH_EVERY = 20;
     private final Map<String, OpenLog> openLogs = new HashMap<>();
 
@@ -217,10 +231,12 @@ public class AccelLoggerService extends Service implements SensorEventListener {
         try { w.close(); } catch (Throwable ignored) { }
     }
 
-    // accel.log alone is already up to 400 writeLine() calls/sec at
-    // SENSOR_DELAY_FASTEST -- opening a fresh FileWriter and stat()-ing
-    // the file on every single call (the original code) was a real,
-    // measurable CPU/IO cost at that rate, not just in theory. One
+    // accel.log ran up to 400 writeLine() calls/sec back when this was
+    // registered at SENSOR_DELAY_FASTEST -- opening a fresh FileWriter
+    // and stat()-ing the file on every single call (the original code)
+    // was a real, measurable CPU/IO cost at that rate, not just in
+    // theory, and the fix below is worth keeping even at today's lower
+    // GAME rate. One
     // FileWriter per log file, opened once and reused, with the rotation
     // size tracked in memory instead of re-stat()ing the file every
     // write. Only the actual write (and the rare rotation) still touches

@@ -14,21 +14,43 @@ acceleration magnitude. AccelProbeActivity's TYPE_LINEAR_ACCELERATION
 registers and reports "active" in dumpsys sensorservice but never
 actually delivers an event on this head unit (confirmed live,
 2026-09-22) -- a real MTK sensor HAL dead end, not a bug here. This is
-the standard DIY substitute: estimate gravity as a rolling average of
-the raw accelerometer over WINDOW_ROWS samples (~0.5s at accel.log's
-~400Hz), then subtract it. Measured live over a real drive: `|magnitude
-- 9.8|` (deviation from resting gravity) correlates with OBD2 power at
-only 0.053; lin_magnitude improves that to 0.126 -- still weak (see
-README: the +-1s OBD2 match window dilutes both), but a real,
-reproducible improvement, not noise.
+the standard DIY substitute, same algorithm AccelLoggerService now
+also runs live on-device: estimate gravity as a rolling average of the
+raw accelerometer over the last ~0.5s of samples, then subtract it.
+Measured live over a real drive: `|magnitude - 9.8|` (deviation from
+resting gravity) correlates with OBD2 power at only 0.053;
+lin_magnitude improves that to 0.126 -- still weak (see README: the
++-1s OBD2 match window dilutes both), but a real, reproducible
+improvement, not noise.
+
+The window is sized in SAMPLES, not seconds, and the accelerometer's
+own registered rate has changed over time (SENSOR_DELAY_FASTEST
+~400Hz during initial discovery, SENSOR_DELAY_GAME 50Hz since --
+50Hz is already 8x more than anything downstream, capped at OBD2's
+2-second granularity, can use). A hardcoded sample count would be
+wrong for whichever rate the given accel.log wasn't captured at, so
+this measures the actual rate from the file's own timestamps instead.
 
 Usage: ./correlate.py accel.log obd2-reading.log > correlated.tsv
 """
 import sys
 import bisect
+import statistics
 from datetime import datetime
 
-WINDOW_ROWS = 200
+WINDOW_SECONDS = 0.5
+
+def estimate_window(epoch_ms):
+    """Sample count spanning ~WINDOW_SECONDS, from the log's own median
+    inter-sample gap -- not a hardcoded rate, since this same log format
+    has been captured at both ~400Hz and 50Hz."""
+    if len(epoch_ms) < 2:
+        return 1
+    gaps = [b - a for a, b in zip(epoch_ms, epoch_ms[1:]) if b > a]
+    if not gaps:
+        return 1
+    median_gap_ms = statistics.median(gaps)
+    return max(1, round(WINDOW_SECONDS * 1000 / median_gap_ms))
 
 def linear_magnitudes(xs, ys, zs, window):
     n = len(xs)
@@ -110,9 +132,11 @@ def main():
     if skipped:
         print(f"accel.log: skipped {skipped} unparseable row(s)", file=sys.stderr)
 
+    window = estimate_window([r[1] for r in accel_rows])
+    print(f"accel.log: estimated window = {window} samples (~{WINDOW_SECONDS}s)", file=sys.stderr)
     lin_mags = linear_magnitudes([r[2] for r in accel_rows],
                                   [r[3] for r in accel_rows],
-                                  [r[4] for r in accel_rows], WINDOW_ROWS)
+                                  [r[4] for r in accel_rows], window)
 
     print("wall\tepochMs\tx\ty\tz\tmagnitude\tlin_magnitude\tmatch_dt_ms"
           "\tsoc\tvoltage\tcurrent\tpowerKw\tbattTempC\tspeedKmh")
