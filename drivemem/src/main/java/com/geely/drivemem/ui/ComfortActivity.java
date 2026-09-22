@@ -980,8 +980,14 @@ public class ComfortActivity extends Activity {
         // blurred backdrop is cropped.
         musicArtBgView = new android.widget.ImageView(this);
         musicArtBgView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+        // Fixed starting height, NOT MATCH_PARENT: a MATCH_PARENT sibling
+        // inside this WRAP_CONTENT FrameLayout measures against the *outer*
+        // available space, not against musicArtView's own capped height --
+        // that blew the card back up past the 280dp cap (reported live,
+        // "back too large" right after this backdrop was added). Corrected
+        // to musicArtView's real height below, once it's known.
         artFrame.addView(musicArtBgView, new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 200)));
 
         // Dims the blurred backdrop toward black so the sharp foreground art
         // and the white/light-theme caption text both still read clearly
@@ -991,7 +997,7 @@ public class ComfortActivity extends Activity {
         View bgDim = new View(this);
         bgDim.setBackgroundColor(0x66000000);
         artFrame.addView(bgDim, new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 200)));
 
         musicArtView = new android.widget.ImageView(this);
         musicArtView.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
@@ -1011,6 +1017,20 @@ public class ComfortActivity extends Activity {
         musicArtView.setBackground(Style.tile(this));   // placeholder fill until art loads
         artFrame.addView(musicArtView, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        // Keeps the backdrop and its dim layer exactly as tall as the real
+        // foreground image (200-280dp, whatever adjustViewBounds+maxHeight
+        // settled on for THIS track's aspect ratio) instead of the fixed
+        // 200dp they start at above.
+        final View bgDimRef = bgDim;
+        musicArtView.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or_, ob) -> {
+            int h = b - t;
+            if (h <= 0) return;
+            ViewGroup.LayoutParams bgLp = musicArtBgView.getLayoutParams();
+            if (bgLp.height != h) { bgLp.height = h; musicArtBgView.setLayoutParams(bgLp); }
+            ViewGroup.LayoutParams dimLp = bgDimRef.getLayoutParams();
+            if (dimLp.height != h) { dimLp.height = h; bgDimRef.setLayoutParams(dimLp); }
+        });
 
         View scrim = new View(this);
         // TOP_BOTTOM, not BOTTOM_TOP: GradientDrawable draws colors[0] at
