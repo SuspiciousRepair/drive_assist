@@ -127,6 +127,7 @@ public class ComfortActivity extends Activity {
     // repackColumns() trigger on a real change (see the listener below).
     private LinearLayout musicCard;
     private android.widget.ImageView musicArtView;
+    private android.widget.ImageView musicArtBgView;   // large card only -- blurred backdrop, see loadMusicArt()
     private TextView musicTitleView, musicArtistView;
     private boolean lastMusicAvailable = false;
     private String lastMusicArtUrl = null;   // avoids re-fetching the same art on every state ping
@@ -971,6 +972,27 @@ public class ComfortActivity extends Activity {
         artFrame.setLayoutParams(new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        // Blurred, cropped-to-fill copy of the same art, sitting behind the
+        // sharp letterboxed foreground -- fills the side/top-bottom margins
+        // adjustViewBounds leaves empty (plain white on the light theme)
+        // with a soft wash of the cover's own colors instead. CENTER_CROP
+        // here is fine/desired, unlike the foreground: nobody notices a
+        // blurred backdrop is cropped.
+        musicArtBgView = new android.widget.ImageView(this);
+        musicArtBgView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+        artFrame.addView(musicArtBgView, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        // Dims the blurred backdrop toward black so the sharp foreground art
+        // and the white/light-theme caption text both still read clearly
+        // over it -- plain alpha on musicArtBgView would blend toward
+        // artFrame's own background instead, which is the card fill color
+        // (white on the light theme), defeating the point.
+        View bgDim = new View(this);
+        bgDim.setBackgroundColor(0x66000000);
+        artFrame.addView(bgDim, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
         musicArtView = new android.widget.ImageView(this);
         musicArtView.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
         musicArtView.setAdjustViewBounds(true);
@@ -1390,13 +1412,35 @@ public class ComfortActivity extends Activity {
                 bmp = android.graphics.BitmapFactory.decodeStream(conn.getInputStream());
             } catch (Throwable t) { android.util.Log.w(CarAccess.TAG, "music art: " + t); }
             final android.graphics.Bitmap fbmp = bmp;
+            // Same fetched bitmap, not a second network request -- blurred
+            // here on the background thread since it's a few extra bitmap
+            // ops, cheap next to the network fetch that already happened.
+            final android.graphics.Bitmap fblur = fbmp != null ? blurredCopy(fbmp) : null;
             // url.equals(lastMusicArtUrl): a newer fetch may have started (and
             // maybe even finished) while this one was in flight — do not let a
             // slow, stale request stomp a fresher picture that already landed.
             if (fbmp != null) ui.post(() -> {
-                if (musicArtView != null && url.equals(lastMusicArtUrl)) musicArtView.setImageBitmap(fbmp);
+                if (!url.equals(lastMusicArtUrl)) return;
+                if (musicArtView != null) musicArtView.setImageBitmap(fbmp);
+                if (musicArtBgView != null) musicArtBgView.setImageBitmap(fblur);
             });
         }, "music-art").start();
+    }
+
+    // Cheap dependency-free blur: downscale then upscale twice, throwing away
+    // most of the detail on the way down and letting bilinear filtering
+    // smear what's left back out. Not Android's RenderEffect blur -- that's
+    // API 31+, this app's minSdk is 28 -- and not worth pulling in
+    // RenderScript (deprecated) for one occasional small ambient backdrop.
+    private static android.graphics.Bitmap blurredCopy(android.graphics.Bitmap src) {
+        try {
+            int w = Math.max(1, src.getWidth() / 16);
+            int h = Math.max(1, src.getHeight() / 16);
+            android.graphics.Bitmap small = android.graphics.Bitmap.createScaledBitmap(src, w, h, true);
+            return android.graphics.Bitmap.createScaledBitmap(small, src.getWidth(), src.getHeight(), true);
+        } catch (Throwable t) {
+            return src;
+        }
     }
 
     // Glyph-only ask tile: fainter fill than the card, a 1dp hairline, colour
