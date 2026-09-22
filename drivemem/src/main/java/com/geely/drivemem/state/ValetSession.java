@@ -81,6 +81,7 @@ public final class ValetSession {
     public static synchronized boolean stop(Context c) {
         Snapshot s = snapshot(c);
         if (!s.active) return false;
+        final long endMs = System.currentTimeMillis();
         // Close the trip that happened under Valet before reopening the road
         // to normal ones. Without this, stopping while parked inside
         // TripSession's 75 s Park grace lets the drive that follows merge
@@ -89,9 +90,12 @@ public final class ValetSession {
         // doesn't just mislabel the drive that follows, it makes it vanish
         // entirely. Mirrors the same finalize start() already does when
         // Valet begins, for the same reason in the other direction.
-        if (TripSession.isTripActive()) TripSession.finalizeTrip(c);
+        // Valet can also be turned off while still driving (easy to forget it
+        // was on) -- splitTrip(), not finalizeTrip(), handles that case too:
+        // it immediately reopens a trip for the rest of the drive rather than
+        // leaving TripSession dark until the next Park->Drive edge.
+        if (TripSession.isTripActive()) TripSession.splitTrip(c, endMs);
         SharedPreferences p = prefs(c);
-        final long endMs = System.currentTimeMillis();
         final double startOdo = p.contains(START_ODO) ? p.getFloat(START_ODO, 0) : -1;
         final double endOdo = p.contains(LAST_ODO) ? p.getFloat(LAST_ODO, 0) : -1;
         final int startSoc = p.contains(START_SOC) ? p.getInt(START_SOC, 0) : -1;

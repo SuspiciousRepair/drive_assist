@@ -1292,8 +1292,13 @@ public class ComfortActivity extends Activity {
         journeySecondary.setPadding(0, Style.dp(this, 8), 0, 0);
         card.addView(journeySecondary);
         journeyAction = Style.cardButton(this, getString(R.string.valet_start), true, () -> {
-            if (!CarState.isParked()) return;
-            if (ValetSession.isActive(this)) ValetSession.stop(this); else ValetSession.start(this);
+            // Stop is allowed any time Valet is active, moving or not -- it's
+            // easy to forget Valet is on and pull away, and making the owner
+            // wait for a stop light isn't worth the drive going untracked in
+            // the meantime. Start still requires Park: ValetSession.start()
+            // itself refuses otherwise.
+            if (ValetSession.isActive(this)) ValetSession.stop(this);
+            else if (CarState.isParked()) ValetSession.start(this);
             refreshJourneyCard();
         });
         LinearLayout.LayoutParams actionLp = new LinearLayout.LayoutParams(
@@ -1320,7 +1325,10 @@ public class ComfortActivity extends Activity {
         }
 
         journeyDismiss.setVisibility(driving && !valet ? View.VISIBLE : View.GONE);
-        journeyAction.setVisibility(parked ? View.VISIBLE : View.GONE);
+        // Parked always gets the button (Start or Stop). Driving only gets it
+        // when Valet is the thing showing -- Stop must reach the driver even
+        // mid-drive; there's no Start-while-driving to show instead.
+        journeyAction.setVisibility(parked || valet ? View.VISIBLE : View.GONE);
         if (valet) {
             ValetSession.Snapshot s = ValetSession.snapshot(this);
             journeyTitle.setText(R.string.valet_active_title);

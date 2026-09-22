@@ -126,35 +126,11 @@ public final class TripSession {
                 // Continue existing trip seamlessly (stitch/merge segments)
                 currentDriveSegmentStartMs = now;
             } else {
-                // Start a brand new trip. Any open charge session already got
-                // force-closed by CarState.reportParked() above — its onParkExit
-                // listener runs synchronously, before this line — so there is
-                // nothing to do here for that any more.
-                tripActive = true;
-                startMs = now;
-                currentDriveSegmentStartMs = now;
-                drivingDurationMs = 0;
-                startSampleId = (ctx != null) ? CarDb.get(ctx).latestSampleId() : -1;
-                lastAltitude = null;
-                ascentM = 0;
-                descentM = 0;
-                if (ctx != null) {
-                    CarActor.Reading odoR = CarActor.get(ctx).get("telemetry.odometer");
-                    startOdoKm = (odoR != null && odoR.status == CarActor.Reading.Status.OK && odoR.value instanceof Number)
-                        ? ((Number) odoR.value).doubleValue() : -1;
-                    CarActor.Reading battR = CarActor.get(ctx).get("telemetry.battery");
-                    startSoc = (battR != null && battR.status == CarActor.Reading.Status.OK && battR.value instanceof Integer)
-                        ? (Integer) battR.value : -1;
-                } else {
-                    startOdoKm = -1;
-                    startSoc = -1;
-                }
-                CarActor.Reading rawSocR = ctx != null ? CarActor.get(ctx).get("telemetry.battery_raw_pct") : null;
-                startSocRaw = (rawSocR != null && rawSocR.status == CarActor.Reading.Status.OK
-                    && rawSocR.value instanceof Number) ? ((Number) rawSocR.value).doubleValue() : Double.NaN;
-                currentSocRaw = startSocRaw;
-                EnergyIntegrator.startTrip();
-                if (ctx != null) persistOpenTrip(ctx);
+                // Any open charge session already got force-closed by
+                // CarState.reportParked() above — its onParkExit listener runs
+                // synchronously, before this line — so there is nothing to do
+                // here for that any more.
+                startNewTrip(ctx, now);
             }
         } else {
             // Driving -> parked: enter park grace period
@@ -171,6 +147,51 @@ public final class TripSession {
             }
         }
         wasParked = nowParked;
+    }
+
+    private static void startNewTrip(Context ctx, long now) {
+        tripActive = true;
+        startMs = now;
+        currentDriveSegmentStartMs = now;
+        drivingDurationMs = 0;
+        startSampleId = (ctx != null) ? CarDb.get(ctx).latestSampleId() : -1;
+        lastAltitude = null;
+        ascentM = 0;
+        descentM = 0;
+        if (ctx != null) {
+            CarActor.Reading odoR = CarActor.get(ctx).get("telemetry.odometer");
+            startOdoKm = (odoR != null && odoR.status == CarActor.Reading.Status.OK && odoR.value instanceof Number)
+                ? ((Number) odoR.value).doubleValue() : -1;
+            CarActor.Reading battR = CarActor.get(ctx).get("telemetry.battery");
+            startSoc = (battR != null && battR.status == CarActor.Reading.Status.OK && battR.value instanceof Integer)
+                ? (Integer) battR.value : -1;
+        } else {
+            startOdoKm = -1;
+            startSoc = -1;
+        }
+        CarActor.Reading rawSocR = ctx != null ? CarActor.get(ctx).get("telemetry.battery_raw_pct") : null;
+        startSocRaw = (rawSocR != null && rawSocR.status == CarActor.Reading.Status.OK
+            && rawSocR.value instanceof Number) ? ((Number) rawSocR.value).doubleValue() : Double.NaN;
+        currentSocRaw = startSocRaw;
+        EnergyIntegrator.startTrip();
+        if (ctx != null) persistOpenTrip(ctx);
+    }
+
+    /** Closes the trip open right now and, if still driving, immediately opens
+     * a fresh one so the rest of THIS drive keeps being tracked. For Valet
+     * being turned off mid-drive: unlike the Park-side call to finalizeTrip()
+     * (parkGraceRunnable above), there is no upcoming Park->Drive edge here to
+     * start the next trip -- wasParked is already false and stays false, so
+     * without this, onGear() would never see an edge again until the car
+     * actually parks, and everything driven between "Valet off" and that park
+     * would go completely untracked, not merely mislabeled. A no-op (like
+     * finalizeTrip) if no trip is open. */
+    public static synchronized boolean splitTrip(Context ctx, long now) {
+        if (!tripActive) return false;
+        boolean wasDriving = !wasParked;
+        boolean qualified = finalizeTrip(ctx, now);
+        if (wasDriving) startNewTrip(ctx, now);
+        return qualified;
     }
 
     private static void onTelemetryTick(Context ctx, Map<String, Object> data) {
