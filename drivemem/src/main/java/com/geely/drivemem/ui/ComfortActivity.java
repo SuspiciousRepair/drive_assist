@@ -978,6 +978,14 @@ public class ComfortActivity extends Activity {
         // measure yet, since the placeholder is a background, not a real
         // drawable) the frame would otherwise collapse to near-zero height.
         musicArtView.setMinimumHeight(Style.dp(this, 200));
+        // Capped, not unbounded: reported live -- a tall promo-style cover
+        // (portrait, not the usual square) made the whole card oversized,
+        // since WRAP_CONTENT + adjustViewBounds alone has no ceiling.
+        // setMaxHeight combined with adjustViewBounds still fits the whole
+        // image with no crop, just letterboxed (empty side margins) if a
+        // cover is tall enough to hit this cap -- a real tradeoff, but a
+        // bounded card beats one whose height swings wildly per track.
+        musicArtView.setMaxHeight(Style.dp(this, 280));
         musicArtView.setBackground(Style.tile(this));   // placeholder fill until art loads
         artFrame.addView(musicArtView, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
