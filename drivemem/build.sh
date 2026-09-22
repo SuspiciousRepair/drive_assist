@@ -74,9 +74,25 @@ fi
 # ============================================================================
 # Build & Package (Gradle)
 # ============================================================================
-# Prepare assets (bundled changelog)
+# Prepare assets (bundled changelog) -- driver-facing notes only, not the
+# full dev CHANGELOG.md. See RELEASE-NOTES.md: it must carry an entry for
+# whatever CHANGELOG.md's newest released version is, or this fails rather
+# than bundling something stale (see CHANGELOG.md's own 2026-09-21 fix for
+# what silently bundling stale content looks like).
 mkdir -p "$ROOT/drivemem/src/main/assets"
-[ -f "$ROOT/CHANGELOG.md" ] && cp "$ROOT/CHANGELOG.md" "$ROOT/drivemem/src/main/assets/changelog.txt"
+CL_VER=$(grep -oP '^## \[v\K[0-9.]+(?=\])' "$ROOT/CHANGELOG.md" | head -1)
+[ -n "$CL_VER" ] || { echo "Could not find a released version header in CHANGELOG.md"; exit 1; }
+[ -f "$ROOT/RELEASE-NOTES.md" ] || { echo "Missing $ROOT/RELEASE-NOTES.md -- add driver-facing notes for v$CL_VER before building"; exit 1; }
+RN_VER=$(grep -oP '^## v\K[0-9.]+' "$ROOT/RELEASE-NOTES.md" | head -1)
+[ "$RN_VER" = "$CL_VER" ] || { echo "RELEASE-NOTES.md's newest entry (v${RN_VER:-none}) doesn't match CHANGELOG.md's newest (v$CL_VER) -- add driver-facing notes for v$CL_VER"; exit 1; }
+awk -v ver="$CL_VER" '
+  /^## / {
+    if (insec) exit
+    if ($0 ~ "^## v" ver "([[:space:]]|$)") { insec=1; next }
+    next
+  }
+  insec && NF { print }
+' "$ROOT/RELEASE-NOTES.md" > "$ROOT/drivemem/src/main/assets/changelog.txt"
 
 GEELY_TOOLS="$TOOLS" ANDROID_SDK_ROOT="$ANDROID_SDK" "$ROOT/gradlew" -p "$ROOT" :drivemem:assembleRelease
 GRADLE_APK="$ROOT/drivemem/build/outputs/apk/release/drive_assist.apk"
@@ -201,10 +217,12 @@ for H in "${HA_HOSTS[@]}"; do
       scp -q -P "$HA_PORT" -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new \
         "$ROOT/drive_assist_installer.apk" "$HA_USER@$H:/config/www/drive_assist_installer.apk" 2>/dev/null || true
     fi
-    # Also upload changelog for in-app update review
-    if [ -f "$ROOT/CHANGELOG.md" ]; then
+    # Also upload the driver-facing changelog for in-app update review
+    # (the same generated assets/changelog.txt bundled into the APK above,
+    # not the full dev CHANGELOG.md).
+    if [ -f "$ROOT/drivemem/src/main/assets/changelog.txt" ]; then
       scp -q -P "$HA_PORT" -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new \
-        "$ROOT/CHANGELOG.md" "$HA_USER@$H:/config/www/changelog.txt" 2>/dev/null || true
+        "$ROOT/drivemem/src/main/assets/changelog.txt" "$HA_USER@$H:/config/www/changelog.txt" 2>/dev/null || true
     fi
     # Also upload modehelper.apk, so it can be OTA-updated the same way --
     # built fresh by the installer step above (build-installer.sh always
