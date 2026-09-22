@@ -11,7 +11,8 @@ already control.
 
 ## Start here
 
-You only need four guides for normal use:
+Start with these four essential guides; the fifth link is optional if you want
+to connect another service:
 
 1. **[See what Drive Assist does](DRIVER-GUIDE.md)** — dashboard, climate,
    statistics, charging costs, Home Assistant, ABRP, and dashcam.
