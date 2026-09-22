@@ -3,9 +3,16 @@
 # the main app. See ../accelprobe/README.md for what it's for and how to
 # read the log it produces.
 #
-# Unlike sysprobe, this does NOT need android.uid.system (no platform key,
-# no sharedUserId): reading the accelerometer needs no special privilege.
-# Signs with a throwaway debug key, generated once into ./debug.ks.
+# Signs with a throwaway debug key -- NOT the platform key, no
+# sharedUserId. A system-uid build was tried live on 2026-09-22 to test
+# whether the accelerometer needed elevated privilege to deliver events;
+# `dumpsys sensorservice` proved it didn't -- the sensor was already
+# actively delivering real data (to com.njda.adapter, a system component)
+# the whole time, at ordinary-app privilege. The real bug was in this
+# app's own lifecycle (see AccelProbeActivity's onCreate comment): the
+# car's launcher briefly steals focus right after any launch, firing
+# onPause() before a single sample could arrive. Fixed there, not with
+# privilege -- so this stays at the lowest privilege that works.
 #
 # Does not install or deploy anything. Just builds ./accelprobe.apk.
 #   adb install -r accelprobe.apk

@@ -16,12 +16,15 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-/** Discovery probe: does this head unit have a usable accelerometer? Logs
- * raw TYPE_ACCELEROMETER readings (includes gravity -- this is a first pass,
- * not a calibrated g-force meter) to a plain tab-separated file so they can
- * be lined up offline, by wall-clock second, against drivemem's own
- * obd2-reading.log (same "wall" column format -- see Obd2Reader.LOG_FMT) to
- * see whether accel spikes correspond to real OBD2 power draw. */
+/** Discovery probe: does this head unit have a usable accelerometer and
+ * light sensor, and does the accelerometer correlate with real OBD2 power
+ * draw? Logs raw sensor readings to plain tab-separated files so they can
+ * be lined up offline against drivemem's own obd2-reading.log -- see
+ * correlate.py, and README.md for why that needs a nearest-timestamp join,
+ * not an exact one, and why it's capped at about +-1s either way.
+ *
+ * Accelerometer readings are raw TYPE_ACCELEROMETER (includes gravity) --
+ * this is a first pass, not a calibrated g-force meter. */
 public class AccelProbeActivity extends Activity implements SensorEventListener {
     private static final String TAG = "AccelProbe";
     private static final long LOG_CAP_BYTES = 5L * 1024 * 1024;
@@ -32,7 +35,9 @@ public class AccelProbeActivity extends Activity implements SensorEventListener 
     private TextView tv;
     private SensorManager sensorManager;
     private Sensor accelerometer;
-    private long samples = 0;
+    private Sensor light;
+    private long accelSamples = 0;
+    private long lightSamples = 0;
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -44,73 +49,96 @@ public class AccelProbeActivity extends Activity implements SensorEventListener 
         setContentView(sv);
 
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-        accelerometer = sensorManager != null
-            ? sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) : null;
+        accelerometer = find(Sensor.TYPE_ACCELEROMETER, "TYPE_ACCELEROMETER");
+        light = find(Sensor.TYPE_LIGHT, "TYPE_LIGHT");
 
-        if (accelerometer == null) {
-            line("No TYPE_ACCELEROMETER sensor on this device. Nothing to log.");
-            return;
-        }
-        line("Found: " + accelerometer.getName()
-            + "  maxRange=" + accelerometer.getMaximumRange()
-            + "  resolution=" + accelerometer.getResolution()
-            + "  minDelayUs=" + accelerometer.getMinDelay());
-        line("Logging to " + logFile().getAbsolutePath());
-    }
-
-    @Override protected void onResume() {
-        super.onResume();
+        // Register here, in onCreate, and only unregister in onDestroy --
+        // NOT the usual onResume/onPause pairing. Confirmed live via
+        // `dumpsys sensorservice`: this head unit's launcher briefly steals
+        // focus right after any app launches (com.flyme.auto.launcher),
+        // which fires onPause() a fraction of a second in. The sensor was
+        // never the problem -- dumpsys showed it actively delivering real
+        // data the whole time, to a system component (com.njda.adapter)
+        // that was simply never told to stop. Registering once here means
+        // a transient focus loss can't tear the listener down mid-drive.
         if (accelerometer != null) {
-            sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_GAME);
+            boolean ok = sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_FASTEST);
+            line("registerListener(accelerometer, FASTEST) = " + ok);
+        }
+        if (light != null) {
+            boolean ok = sensorManager.registerListener(this, light, SensorManager.SENSOR_DELAY_NORMAL);
+            line("registerListener(light, NORMAL) = " + ok);
         }
     }
 
-    @Override protected void onPause() {
-        super.onPause();
-        if (accelerometer != null) sensorManager.unregisterListener(this);
+    private Sensor find(int type, String label) {
+        Sensor s = sensorManager != null ? sensorManager.getDefaultSensor(type) : null;
+        if (s == null) {
+            line("No " + label + " sensor on this device.");
+        } else {
+            line("Found " + label + ": " + s.getName()
+                + "  maxRange=" + s.getMaximumRange()
+                + "  resolution=" + s.getResolution()
+                + "  minDelayUs=" + s.getMinDelay());
+        }
+        return s;
+    }
+
+    @Override protected void onDestroy() {
+        super.onDestroy();
+        sensorManager.unregisterListener(this);
     }
 
     @Override public void onSensorChanged(SensorEvent e) {
-        float x = e.values[0], y = e.values[1], z = e.values[2];
-        double mag = Math.sqrt(x * x + y * y + z * z);
-        writeLine(e.timestamp, x, y, z, mag);
-        samples++;
-        if (samples % 20 == 0) {
-            line(String.format(Locale.US, "#%d  x=%.3f y=%.3f z=%.3f |a|=%.3f",
-                samples, x, y, z, mag));
+        if (e.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            float x = e.values[0], y = e.values[1], z = e.values[2];
+            double mag = Math.sqrt(x * x + y * y + z * z);
+            writeLine("accel.log", "wall\tepochMs\tsensorNs\tx\ty\tz\tmagnitude",
+                "" + e.timestamp + '\t' + x + '\t' + y + '\t' + z + '\t' + mag);
+            accelSamples++;
+            if (accelSamples % 20 == 0) {
+                line(String.format(Locale.US, "accel #%d  x=%.3f y=%.3f z=%.3f |a|=%.3f",
+                    accelSamples, x, y, z, mag));
+            }
+        } else if (e.sensor.getType() == Sensor.TYPE_LIGHT) {
+            float lux = e.values[0];
+            writeLine("light.log", "wall\tepochMs\tsensorNs\tlux",
+                "" + e.timestamp + '\t' + lux);
+            lightSamples++;
+            line(String.format(Locale.US, "light #%d  lux=%.1f", lightSamples, lux));
         }
     }
 
     @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {
-        Log.i(TAG, "accuracy -> " + accuracy);
+        Log.i(TAG, sensor.getName() + " accuracy -> " + accuracy);
     }
 
-    private File logFile() {
+    private File dataFile(String name) {
         File dir = getExternalFilesDir(null);
         if (dir == null) dir = getFilesDir();
-        return new File(dir, "accel.log");
+        return new File(dir, name);
     }
 
-    private void writeLine(long sensorTimestampNs, float x, float y, float z, double mag) {
-        String row = LOG_FMT.format(new Date()) + '\t' + System.currentTimeMillis() + '\t'
-            + sensorTimestampNs + '\t' + x + '\t' + y + '\t' + z + '\t' + mag;
+    /** rowTail is everything after the wall/epochMs columns, which this
+     * method always prepends itself so every log file shares the same
+     * first two columns regardless of which sensor wrote it. */
+    private void writeLine(String fileName, String header, String rowTail) {
+        String row = LOG_FMT.format(new Date()) + '\t' + System.currentTimeMillis() + '\t' + rowTail;
         try {
-            File f = logFile();
+            File f = dataFile(fileName);
             if (f.exists() && f.length() > LOG_CAP_BYTES) {
                 f.delete(); // rotate: start over, don't grow forever
             }
             boolean fresh = !f.exists();
             FileWriter w = new FileWriter(f, true);
             try {
-                if (fresh) {
-                    w.write("wall\tepochMs\tsensorNs\tx\ty\tz\tmagnitude\n");
-                }
+                if (fresh) w.write(header + "\n");
                 w.write(row + "\n");
             } finally {
                 w.close();
             }
         } catch (Throwable t) {
-            Log.w(TAG, "log write failed: " + t);
+            Log.w(TAG, fileName + ": log write failed: " + t);
         }
     }
 
