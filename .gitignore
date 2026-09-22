@@ -64,6 +64,14 @@ sysprobe/platkey/
 sysprobe/*.idsig
 sysprobe/sysprobe.apk
 
+# AccelProbe build artefacts (*.apk, *.ks, *.log already covered above/below,
+# listed explicitly anyway for the same discoverability reasoning as sysprobe)
+accelprobe/obj/
+accelprobe/classes.dex
+accelprobe/accelprobe.apk
+accelprobe/*.idsig
+accelprobe/debug.ks
+
 # Claude Code's own local session config — machine-local, not project source.
 .claude/
 

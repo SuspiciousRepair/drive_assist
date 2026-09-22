@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Discovery probe: does the head unit even have an accelerometer, and if
+     so, is it fast/steady enough to be worth anything? Logs raw sensor
+     readings to a plain file so they can be lined up offline against
+     drivemem's own obd2-reading.log (same wall-clock log format, see
+     Obd2Reader.LOG_FMT) to see whether accel spikes line up with real OBD2
+     power draw. Not part of the main app; see accelprobe/README.md. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.geely.accelprobe"
+    android:versionCode="1"
+    android:versionName="1.0">
+
+    <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="28" />
+
+    <application android:label="AccelProbe" android:allowBackup="false">
+        <activity android:name=".AccelProbeActivity" android:exported="true" android:label="AccelProbe">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
