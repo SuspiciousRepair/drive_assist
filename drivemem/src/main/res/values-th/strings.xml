@@ -182,6 +182,12 @@
     <string name="cfg_doors_header">ประตู</string>
     <string name="cfg_window_on_door">เปิดกระจกเล็กน้อยเมื่อเปิดประตู</string>
     <string name="cfg_window_on_door_hint">ลดกระจกของประตูนั้นลง ~1 ซม. เพื่อให้ประตูปิดได้โดยไม่ต้องต่อสู้กับห้องโดยสารที่ปิดสนิท และคืนกลับเมื่อประตูปิด มันจะปิดเฉพาะกระจกที่มันเปิดเองเท่านั้น และจะไม่แตะกระจกที่คุณเลื่อนเอง</string>
+    <string name="cfg_purge_open_header">เป้าหมายปุ่มเปิดกระจกทุกบาน (0–100)</string>
+    <string name="cfg_purge_open_hint">กระจกแต่ละบานจะเปิดลงมากแค่ไหนเมื่อกดปุ่มเปิดกระจกทั้งหมด 0 = ปิดสนิท, 100 = เปิดสุด ตัวเลขเดียวกันไม่ได้เปิดกระจกแต่ละบานในระยะจริงเท่ากัน — ปรับแต่ละบานให้ตรงกับสิ่งที่คุณเห็นจริง</string>
+    <string name="cfg_purge_open_fl">หน้าซ้าย</string>
+    <string name="cfg_purge_open_fr">หน้าขวา</string>
+    <string name="cfg_purge_open_rl">หลังซ้าย</string>
+    <string name="cfg_purge_open_rr">หลังขวา</string>
     <string name="cfg_actions_header">การดำเนินการ</string>
     <string name="cfg_btn_on">เปิด</string>
     <string name="cfg_btn_off">ปิด</string>

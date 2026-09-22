@@ -499,7 +499,7 @@ public class ComfortActivity extends Activity {
                 // flag would be wrong exactly when it mattered.
                 final Boolean was = purge.anyOpen(pc);
                 final int moved = (was == null) ? 0
-                                : was ? purge.close(pc) : purge.open(pc);
+                                : was ? purge.close(pc) : purge.open(pc, Purge.targetsFromPrefs(prefs));
                 ui.post(() -> {
                     hint.setText(was == null ? getString(R.string.purge_unreadable)
                         : moved == 0 ? getString(R.string.purge_nothing)

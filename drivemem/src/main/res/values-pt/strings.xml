@@ -175,6 +175,12 @@
     <string name="cfg_doors_header">Portas</string>
     <string name="cfg_window_on_door">Abrir um dedo o vidro quando a porta abre</string>
     <string name="cfg_window_on_door_hint">Baixa ~1 cm o vidro daquela porta para ela fechar sem brigar com a cabine selada, e devolve ao fechar. So fecha vidro que ele mesmo abriu, e nao mexe em vidro que voce moveu.</string>
+    <string name="cfg_purge_open_header">Alvo do botão de abrir todos os vidros (0–100)</string>
+    <string name="cfg_purge_open_hint">Até onde cada vidro abaixa ao apertar o botão de ventilar. 0 = fechado, 100 = totalmente aberto. O mesmo número não abre todo vidro na mesma quantidade real — ajuste cada um pelo que você realmente vê.</string>
+    <string name="cfg_purge_open_fl">Dianteiro esquerdo</string>
+    <string name="cfg_purge_open_fr">Dianteiro direito</string>
+    <string name="cfg_purge_open_rl">Traseiro esquerdo</string>
+    <string name="cfg_purge_open_rr">Traseiro direito</string>
     <string name="cfg_actions_header">Ações</string>
     <string name="cfg_btn_on">Ligar</string>
     <string name="cfg_btn_off">Desligar</string>

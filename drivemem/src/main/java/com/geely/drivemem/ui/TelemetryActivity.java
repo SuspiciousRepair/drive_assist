@@ -2067,6 +2067,68 @@ public class TelemetryActivity extends Activity {
         winHint.setPadding(0, 0, 0, Style.dp(this, 4));
         winHint.setText(getString(R.string.cfg_window_on_door_hint));
         content.addView(winHint);
+
+        // Per-pane crack-all-windows target. See Purge's own comment: a
+        // single raw position value doesn't open every pane the same real
+        // amount, since each pane's regulator/gearing maps position units
+        // to physical travel differently. One field per pane instead of
+        // one shared value.
+        content.addView(Style.header(this, getString(R.string.cfg_purge_open_header)));
+        TextView purgeHint = new TextView(this);
+        purgeHint.setTextColor(Style.TEXT_DIM); purgeHint.setTextSize(13);
+        purgeHint.setPadding(0, 0, 0, Style.dp(this, 4));
+        purgeHint.setText(getString(R.string.cfg_purge_open_hint));
+        content.addView(purgeHint);
+        content.addView(purgeTargetRow(Purge.AREAS[0], getString(R.string.cfg_purge_open_fl)));
+        content.addView(purgeTargetRow(Purge.AREAS[1], getString(R.string.cfg_purge_open_fr)));
+        content.addView(purgeTargetRow(Purge.AREAS[2], getString(R.string.cfg_purge_open_rl)));
+        content.addView(purgeTargetRow(Purge.AREAS[3], getString(R.string.cfg_purge_open_rr)));
+    }
+
+    // Same field pattern as the Turbo duration field below (buildDrive()):
+    // number-only input, saved on every keystroke that parses rather than
+    // on blur (blur unreliably fires with the on-screen number pad here --
+    // see that field's own comment for the "edited it, it reverted" report
+    // that taught us that), raw text never rewritten under the cursor.
+    // Clamped to WINDOW_POS's real 0..100 range at the point of use
+    // (Purge.targetsFromPrefs), not here -- this just has to reject
+    // non-integer input, not decide what's a sane window position.
+    private LinearLayout purgeTargetRow(int area, String label) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, Style.dp(this, 4), 0, Style.dp(this, 4));
+
+        TextView lbl = new TextView(this);
+        lbl.setText(label);
+        lbl.setTextColor(Style.TEXT); lbl.setTextSize(14);
+        LinearLayout.LayoutParams lblLp = new LinearLayout.LayoutParams(
+            Style.dp(this, 160), ViewGroup.LayoutParams.WRAP_CONTENT);
+        lbl.setLayoutParams(lblLp);
+        row.addView(lbl);
+
+        EditText field = new EditText(this);
+        field.setText(String.valueOf(prefs.getInt(Purge.prefKey(area), Purge.OPEN)));
+        field.setInputType(InputType.TYPE_CLASS_NUMBER);
+        field.setTextColor(Style.TEXT); field.setTextSize(17);
+        field.setBackground(Style.card(Style.CARD, this));
+        int fPad = Style.dp(this, 12);
+        field.setPadding(fPad, fPad, fPad, fPad);
+        LinearLayout.LayoutParams fieldLp = new LinearLayout.LayoutParams(
+            Style.dp(this, 90), ViewGroup.LayoutParams.WRAP_CONTENT);
+        fieldLp.leftMargin = Style.dp(this, 10);
+        field.setLayoutParams(fieldLp);
+        row.addView(field);
+
+        field.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                try { prefs.edit().putInt(Purge.prefKey(area), Integer.parseInt(s.toString().trim())).apply(); }
+                catch (NumberFormatException ignored) {}
+            }
+        });
+        return row;
     }
 
     private void buildDrive() {

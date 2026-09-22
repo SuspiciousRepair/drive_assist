@@ -96,6 +96,12 @@
     <string name="cfg_doors_header">Puertas</string>
     <string name="cfg_window_on_door">Bajar un poco la ventanilla al abrir la puerta</string>
     <string name="cfg_window_on_door_hint">Baja ~1 cm la ventanilla de esa puerta para que cierre sin pelear con la cabina sellada, y la sube de nuevo al cerrar la puerta. Solo cierra una ventanilla que ella misma abrió, y no toca ninguna que hayas movido tú.</string>
+    <string name="cfg_purge_open_header">Objetivo del botón de abrir todas las ventanillas (0–100)</string>
+    <string name="cfg_purge_open_hint">Cuánto baja cada ventanilla al presionar el botón de ventilar. 0 = cerrada, 100 = completamente abierta. El mismo número no abre cada ventanilla la misma cantidad real — ajusta cada una según lo que realmente veas.</string>
+    <string name="cfg_purge_open_fl">Delantera izquierda</string>
+    <string name="cfg_purge_open_fr">Delantera derecha</string>
+    <string name="cfg_purge_open_rl">Trasera izquierda</string>
+    <string name="cfg_purge_open_rr">Trasera derecha</string>
     <string name="cfg_actions_header">Acciones</string>
     <string name="cfg_btn_on">Encender</string>
     <string name="cfg_btn_off">Apagar</string>
