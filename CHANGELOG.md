@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Fixed
+- **A single missed OBD2 reading could mark real driving data as
+  "estimated" for far longer than the miss itself.** Power was only
+  computed when voltage and current both came back in the exact same
+  poll round; if one dropped a packet while the other kept succeeding,
+  power stayed stuck unset until they happened to land together again
+  -- even though OBD2 was genuinely connected the whole time. Power is
+  now computed from each reading's own latest known value instead of
+  requiring both in lockstep, so a single dropped packet recovers on
+  the very next successful reading of either one.
+
 ## [v0.3.0] — 2026-09-21
 
 ### Fixed
