@@ -209,12 +209,20 @@ public final class SpotifyClient {
             org.json.JSONObject album = item.optJSONObject("album");
             if (album != null) {
                 org.json.JSONArray images = album.optJSONArray("images");
-                // Spotify orders images large -> small; the LAST one is the
-                // smallest — plenty for an 80dp card thumbnail, lighter to
-                // pull every 6s than the largest.
+                // Spotify orders images large -> small. Used to deliberately
+                // take the smallest (index length-1) on the reasoning that
+                // it was "plenty for an 80dp card thumbnail" -- true when
+                // that was the only card style, wrong now that the large
+                // card exists: that ~64px image stretched across a ~560dp
+                // card is exactly the blur reported live. The image URL
+                // itself costs nothing extra in this poll either way (a
+                // couple more characters of JSON); only the actual bitmap
+                // download scales with size, and that already only happens
+                // when the art URL changes (see ComfortActivity.loadMusicArt),
+                // not on every 6s poll. Always take the largest.
                 if (images != null && images.length() > 0) {
-                    org.json.JSONObject last = images.optJSONObject(images.length() - 1);
-                    if (last != null) art = last.optString("url", null);
+                    org.json.JSONObject first = images.optJSONObject(0);
+                    if (first != null) art = first.optString("url", null);
                 }
             }
             MusicState.set(isPlaying, title, artist, art);

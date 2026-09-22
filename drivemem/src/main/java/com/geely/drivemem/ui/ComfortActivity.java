@@ -867,8 +867,11 @@ public class ComfortActivity extends Activity {
     }
 
     // Music card: album art + title/artist, then skip/play-pause tiles. Starts
-    // GONE — nothing to show until the first drivemem/geely/media/state arrives —
-    // same as Portão, and packed the same re-flowing way (see repackColumns()).
+    // GONE — nothing to show until SpotifyClient's own polling of Spotify's
+    // Web API (not MQTT/Home Assistant -- there is no such path, despite
+    // what this comment used to claim) delivers the first real state via
+    // MusicState -- same as Portão, and packed the same re-flowing way
+    // (see repackColumns()).
     // Two layouts, chosen once at build time by Config > Spotify's "Large
     // card" toggle (musicLargeCardAtBuild) -- both wire up the same
     // musicArtView/musicTitleView/musicArtistView fields and musicCard
@@ -973,12 +976,23 @@ public class ComfortActivity extends Activity {
         // transparent end) at the bottom, which is backwards from what a
         // fade-into-the-caption needs and showed up live as a hard seam
         // partway down the art instead of a smooth fade.
+        //
+        // Front-loaded, not a plain 2-stop linear fade: a straight
+        // transparent->dark ramp over 150dp put the title (which sits
+        // near the TOP of this View, caption is short) at only ~35%
+        // opacity -- barely darkened at all, so bold white text on a
+        // busy, brightly-colored album cover read as unreadable, live
+        // and confirmed by screenshot. These 5 stops are already at ~80%
+        // opacity a quarter of the way down, so the text -- wherever a
+        // short vs. long two-line caption actually lands -- sits on a
+        // solidly dark backing rather than depending on exactly where in
+        // a slow ramp it happens to fall.
         android.graphics.drawable.GradientDrawable scrimBg = new android.graphics.drawable.GradientDrawable(
             android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-            new int[]{0x00000000, 0xE0000000});
+            new int[]{0x00000000, 0x80000000, 0xD0000000, 0xF0000000, 0xF7000000});
         scrim.setBackground(scrimBg);
         FrameLayout.LayoutParams scrimLp = new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 150));
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 170));
         scrimLp.gravity = Gravity.BOTTOM;
         artFrame.addView(scrim, scrimLp);
 
