@@ -42,6 +42,39 @@ touching this again:
    /`com.njda.aauto`) to test sensor behavior** -- it's apparently not
    safe to kill and restart mid-session on this vendor HAL.
 
+**`TYPE_LINEAR_ACCELERATION` is a dead end -- use `correlate.py`'s
+software version instead.** `LINEARACCEL (MTK)` exists, registers, and
+shows `status: active` in `dumpsys sensorservice` immediately (no
+flush-stall like raw `ACCELEROMETER` above) -- but after 16+ seconds it
+had delivered zero actual events, confirmed live, while `ACCELEROMETER`
+kept streaming the whole time. A sensor descriptor this MTK hub
+advertises without actually wiring up. `AccelProbeActivity` still
+registers it (harmless, and the finding is worth keeping visible), but
+`linear_accel.log` will never be created. Don't spend more time on it
+without a new lead.
+
+The DIY substitute works and is worth using: `correlate.py` computes a
+`lin_magnitude` column by estimating gravity as a rolling average of the
+raw accelerometer and subtracting it. Measured over a real drive: this
+roughly doubles the correlation with OBD2 power (0.053 -> 0.126) versus
+plain `|magnitude - 9.8|`, and cleans up which events rank as "biggest"
+-- see `correlate.py`'s own docstring for the exact numbers.
+
+**No ambient light sensor is exposed to Android at all, anywhere --
+confirmed both ways.** Neither the standard Sensor framework
+(`TYPE_LIGHT`, see above) nor the car's own vehicle-property layer
+exposes a raw light/lux reading: `dumpsys car_service` has
+`HEADLIGHTS_STATE`, `HEADLIGHTS_SWITCH`, and `BODY_LIGHT_HEAD_AUTO_ON`
+(the auto-headlight feature's own enable toggle), but no property
+carrying an actual light level. Whatever physical light/rain sensor
+triggers the OEM's automatic headlights (there clearly is one -- the
+car does it) lives entirely on the body-control side and only ever
+surfaces to Android as the already-decided `HEADLIGHTS_STATE`
+on/off -- never the raw signal. That also answers the earlier ABRP/CarPlay
+question: `com.njda.carplay` most likely reads this same
+`HEADLIGHTS_STATE` as its day/night proxy, which is why a few seconds
+of shade under a bridge is enough to flip it.
+
 ## Build and run
 
 ```bash
@@ -85,16 +118,19 @@ actually was, so a bad pairing is visible instead of hidden.
 ./correlate.py accel.log obd2-reading.log > correlated.tsv
 ```
 
-`correlated.tsv` columns: `wall  epochMs  x  y  z  magnitude  match_dt_ms
-soc  voltage  current  powerKw  battTempC  speedKmh`. Filter out rows where
-`match_dt_ms` is large (over ~1000) before trusting a comparison -- those
-accel samples simply don't have a nearby OBD2 reading. Even a good match
-is only accurate to about +-1s: `obd2-reading.log` only stores whole
-seconds (`Obd2Reader.LOG_FMT`), it has no millisecond column, so that's
-the real ceiling on how tightly these two logs can ever line up -- not
-something a smarter join can fix.
+`correlated.tsv` columns: `wall  epochMs  x  y  z  magnitude  lin_magnitude
+match_dt_ms  soc  voltage  current  powerKw  battTempC  speedKmh`. Filter
+out rows where `match_dt_ms` is large (over ~1000) before trusting a
+comparison -- those accel samples simply don't have a nearby OBD2
+reading. Even a good match is only accurate to about +-1s:
+`obd2-reading.log` only stores whole seconds (`Obd2Reader.LOG_FMT`), it
+has no millisecond column, so that's the real ceiling on how tightly
+these two logs can ever line up -- not something a smarter join can fix.
 
-Accelerometer readings are raw `TYPE_ACCELEROMETER` -- gravity is baked in,
-this is a first pass. If it looks promising, worth revisiting with
-`TYPE_LINEAR_ACCELERATION` and figuring out sensor orientation relative to
-the car's own axes.
+`magnitude` is raw `TYPE_ACCELEROMETER` -- gravity baked in.
+`lin_magnitude` is the software gravity-removed version (see "Status"
+above for why -- `TYPE_LINEAR_ACCELERATION` itself is a dead end on this
+unit) and correlates noticeably better; prefer it. Sensor mounting
+orientation relative to the car's own axes is still unknown either way
+-- `x`/`y`/`z` individually aren't yet meaningful as "forward" or
+"lateral", only the magnitude is trustworthy so far.

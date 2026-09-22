@@ -16,15 +16,17 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-/** Discovery probe: does this head unit have a usable accelerometer and
- * light sensor, and does the accelerometer correlate with real OBD2 power
- * draw? Logs raw sensor readings to plain tab-separated files so they can
- * be lined up offline against drivemem's own obd2-reading.log -- see
- * correlate.py, and README.md for why that needs a nearest-timestamp join,
- * not an exact one, and why it's capped at about +-1s either way.
+/** Discovery probe: does this head unit have usable motion/light sensors,
+ * and does acceleration correlate with real OBD2 power draw? Logs raw
+ * sensor readings to plain tab-separated files so they can be lined up
+ * offline against drivemem's own obd2-reading.log -- see correlate.py,
+ * and README.md for why that needs a nearest-timestamp join, not an exact
+ * one, and why it's capped at about +-1s either way.
  *
- * Accelerometer readings are raw TYPE_ACCELEROMETER (includes gravity) --
- * this is a first pass, not a calibrated g-force meter. */
+ * accel.log is raw TYPE_ACCELEROMETER (includes gravity -- diluted the
+ * first correlation attempt, see README). linear_accel.log is
+ * TYPE_LINEAR_ACCELERATION, which the platform defines as gravity-removed
+ * -- the better candidate for an actual g-force/power correlation. */
 public class AccelProbeActivity extends Activity implements SensorEventListener {
     private static final String TAG = "AccelProbe";
     private static final long LOG_CAP_BYTES = 5L * 1024 * 1024;
@@ -35,8 +37,10 @@ public class AccelProbeActivity extends Activity implements SensorEventListener 
     private TextView tv;
     private SensorManager sensorManager;
     private Sensor accelerometer;
+    private Sensor linearAccel;
     private Sensor light;
     private long accelSamples = 0;
+    private long linearSamples = 0;
     private long lightSamples = 0;
 
     @Override protected void onCreate(Bundle b) {
@@ -50,6 +54,7 @@ public class AccelProbeActivity extends Activity implements SensorEventListener 
 
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         accelerometer = find(Sensor.TYPE_ACCELEROMETER, "TYPE_ACCELEROMETER");
+        linearAccel = find(Sensor.TYPE_LINEAR_ACCELERATION, "TYPE_LINEAR_ACCELERATION");
         light = find(Sensor.TYPE_LIGHT, "TYPE_LIGHT");
 
         // Register here, in onCreate, and only unregister in onDestroy --
@@ -64,6 +69,14 @@ public class AccelProbeActivity extends Activity implements SensorEventListener 
         if (accelerometer != null) {
             boolean ok = sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_FASTEST);
             line("registerListener(accelerometer, FASTEST) = " + ok);
+        }
+        if (linearAccel != null) {
+            // Gravity-free, per its own definition, and "no batching" in
+            // dumpsys sensorservice's Sensor List -- unlike raw
+            // ACCELEROMETER's FIFO, so this may sidestep the whole
+            // "First flush pending" stall entirely. Confirming live.
+            boolean ok = sensorManager.registerListener(this, linearAccel, SensorManager.SENSOR_DELAY_FASTEST);
+            line("registerListener(linearAccel, FASTEST) = " + ok);
         }
         if (light != null) {
             boolean ok = sensorManager.registerListener(this, light, SensorManager.SENSOR_DELAY_NORMAL);
@@ -99,6 +112,16 @@ public class AccelProbeActivity extends Activity implements SensorEventListener 
             if (accelSamples % 20 == 0) {
                 line(String.format(Locale.US, "accel #%d  x=%.3f y=%.3f z=%.3f |a|=%.3f",
                     accelSamples, x, y, z, mag));
+            }
+        } else if (e.sensor.getType() == Sensor.TYPE_LINEAR_ACCELERATION) {
+            float x = e.values[0], y = e.values[1], z = e.values[2];
+            double mag = Math.sqrt(x * x + y * y + z * z);
+            writeLine("linear_accel.log", "wall\tepochMs\tsensorNs\tx\ty\tz\tmagnitude",
+                "" + e.timestamp + '\t' + x + '\t' + y + '\t' + z + '\t' + mag);
+            linearSamples++;
+            if (linearSamples % 20 == 0) {
+                line(String.format(Locale.US, "linear #%d  x=%.3f y=%.3f z=%.3f |a|=%.3f",
+                    linearSamples, x, y, z, mag));
             }
         } else if (e.sensor.getType() == Sensor.TYPE_LIGHT) {
             float lux = e.values[0];

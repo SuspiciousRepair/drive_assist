@@ -71,6 +71,7 @@ accelprobe/classes.dex
 accelprobe/accelprobe.apk
 accelprobe/*.idsig
 accelprobe/debug.ks
+accelprobe/correlated.tsv
 
 # Claude Code's own local session config — machine-local, not project source.
 .claude/
