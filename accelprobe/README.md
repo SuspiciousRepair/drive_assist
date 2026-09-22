@@ -66,16 +66,21 @@ registers it (harmless, and the finding is worth keeping visible), but
 `linear_accel.log` will never be created. Don't spend more time on it
 without a new lead.
 
-The DIY substitute works and is worth using, and now runs two places with
-the same algorithm: `AccelLoggerService` computes it live on-device (same
-`GRAVITY_WINDOW` = 200 samples, ~0.5s at 400Hz) and writes
-`linear_accel_computed.log` directly, so a real
-`TYPE_LINEAR_ACCELERATION`-shaped log exists without a Python
-post-process pass. `correlate.py` still computes its own `lin_magnitude`
-column the same way, useful for re-deriving it from an old `accel.log`
-that predates the on-device version. Both estimate gravity as a rolling
-average of the raw accelerometer and subtract it. Measured over a real
-drive: this roughly doubles the correlation with OBD2 power (0.053 ->
+The DIY substitute works and is worth using: `correlate.py` computes a
+`lin_magnitude` column by estimating gravity as a rolling average of the
+raw accelerometer and subtracting it. `AccelLoggerService` runs the exact
+same algorithm live on-device too (same `GRAVITY_WINDOW` = 200 samples,
+~0.5s at 400Hz) -- but deliberately does NOT log it to its own file.
+Every sample the algorithm needs is already in `accel.log`, so a
+`linear_accel_computed.log` would just be a byte-for-byte-derivable
+duplicate, doubling the accelerometer write rate for zero new
+information (tried it, then reverted -- see the field's own comment on
+`AccelLoggerService.latestLinMag`). The on-device copy exists only to
+back a live readout in `AccelProbeActivity` -- a real-time "does this
+look like near-zero at rest / spike under motion" check that pulling and
+post-processing logs can't give you. Measured over a real drive: the
+post-processed `lin_magnitude` roughly doubles the correlation with OBD2
+power (0.053 ->
 0.126) versus
 plain `|magnitude - 9.8|`, and cleans up which events rank as "biggest"
 -- see `correlate.py`'s own docstring for the exact numbers.

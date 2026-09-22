@@ -46,17 +46,25 @@ public class AccelLoggerService extends Service implements SensorEventListener {
     // linear_magnitudes(): TYPE_LINEAR_ACCELERATION registers "active" in
     // dumpsys sensorservice but never once delivered an event over a full
     // ~9 hour real-drive run (confirmed live, 2026-09-22) -- a dead MTK
-    // sensor HAL path, not a registration bug. This computes the DIY
-    // substitute on-device instead of needing a Python post-process pass:
-    // a simple moving average of the last GRAVITY_WINDOW raw samples
-    // approximates gravity (it changes slowly -- only as the phone/car
-    // tilts), subtracting it from the instantaneous raw reading leaves
-    // the linear (motion) component.
+    // sensor HAL path, not a registration bug.
+    //
+    // In-memory only, NOT logged to its own file: every raw sample this
+    // needs is already in accel.log, so a linear-accel value is fully
+    // recoverable after the fact with zero information loss -- that's
+    // exactly what correlate.py's lin_magnitude column already does.
+    // Writing a second per-sample log here would just be a duplicate of
+    // data already on disk, doubling the accelerometer write rate for
+    // nothing new (tried it, reported live as unnecessary -- "why not
+    // compute in memory?"). Only the LATEST value is kept, for
+    // AccelProbeActivity's live on-screen readout -- a real-time "does
+    // this look like near-zero at rest / spike under real motion" sanity
+    // check that pulling and post-processing logs can't give you.
     private static final int GRAVITY_WINDOW = 200;   // ~0.5s at accel.log's ~400Hz
     private final float[] gravityRing = new float[GRAVITY_WINDOW * 3];
     private int gravityRingPos = 0;
     private int gravityRingCount = 0;
     private double gravitySumX, gravitySumY, gravitySumZ;
+    static volatile double latestLinMag = 0;   // read by AccelProbeActivity's live readout
 
     private SensorManager sensorManager;
     private Sensor accelerometer;
@@ -156,10 +164,6 @@ public class AccelLoggerService extends Service implements SensorEventListener {
     }
 
     @Override public void onSensorChanged(SensorEvent e) {
-        // Formatted once per event, not once per writeLine() call: the
-        // accelerometer branch below writes two log files per sample, and
-        // SimpleDateFormat.format(new Date()) is real, non-trivial work to
-        // duplicate 400 times a second for an identical value.
         String wall = LOG_FMT.format(new Date());
         if (e.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
             float x = e.values[0], y = e.values[1], z = e.values[2];
@@ -169,9 +173,7 @@ public class AccelLoggerService extends Service implements SensorEventListener {
             accelSamples++;
 
             float[] lin = pushAndRemoveGravity(x, y, z);
-            double linMag = Math.sqrt(lin[0] * lin[0] + lin[1] * lin[1] + lin[2] * lin[2]);
-            writeLine(wall, "linear_accel_computed.log", "wall\tepochMs\tsensorNs\tx\ty\tz\tmagnitude",
-                "" + e.timestamp + '\t' + lin[0] + '\t' + lin[1] + '\t' + lin[2] + '\t' + linMag);
+            latestLinMag = Math.sqrt(lin[0] * lin[0] + lin[1] * lin[1] + lin[2] * lin[2]);
         } else if (e.sensor.getType() == Sensor.TYPE_LINEAR_ACCELERATION) {
             float x = e.values[0], y = e.values[1], z = e.values[2];
             double mag = Math.sqrt(x * x + y * y + z * z);
@@ -202,12 +204,11 @@ public class AccelLoggerService extends Service implements SensorEventListener {
         int unflushed;
     }
     // flush() still calls into the OS on every invocation even with no
-    // fsync -- at 400Hz across 2 log files that's ~800 write()-family
-    // syscalls/sec, measured live to cost real CPU (top: ~30-35% of one
-    // core). Flushing every FLUSH_EVERY samples instead of every single
-    // one trades up to ~50ms of the newest rows on an unclean kill (fine
-    // for a debug tool that's started/stopped by hand) for a ~20x cut in
-    // syscall count.
+    // fsync -- at accel.log's ~400Hz that's ~400 write()-family
+    // syscalls/sec on its own. Flushing every FLUSH_EVERY samples instead
+    // of every single one trades up to ~50ms of the newest rows on an
+    // unclean kill (fine for a debug tool that's started/stopped by hand)
+    // for a ~20x cut in syscall count.
     private static final int FLUSH_EVERY = 20;
     private final Map<String, OpenLog> openLogs = new HashMap<>();
 
@@ -216,14 +217,14 @@ public class AccelLoggerService extends Service implements SensorEventListener {
         try { w.close(); } catch (Throwable ignored) { }
     }
 
-    // Adding the computed linear-accel log doubled writeLine() calls per
-    // accelerometer sample (up to 400Hz -> 800 calls/s across the two
-    // files) -- opening a fresh FileWriter and stat()-ing the file on
-    // every single call was already wasteful at 400Hz alone, and would
-    // have been genuinely a CPU/IO hog doubled. Now: one FileWriter per
-    // log file, opened once and reused, with the rotation size tracked
-    // in memory instead of re-stat()ing the file every write. Only the
-    // actual write (and the rare rotation) still touches the filesystem.
+    // accel.log alone is already up to 400 writeLine() calls/sec at
+    // SENSOR_DELAY_FASTEST -- opening a fresh FileWriter and stat()-ing
+    // the file on every single call (the original code) was a real,
+    // measurable CPU/IO cost at that rate, not just in theory. One
+    // FileWriter per log file, opened once and reused, with the rotation
+    // size tracked in memory instead of re-stat()ing the file every
+    // write. Only the actual write (and the rare rotation) still touches
+    // the filesystem.
     private void writeLine(String wall, String fileName, String header, String rowTail) {
         String row = wall + '\t' + System.currentTimeMillis() + '\t' + rowTail;
         OpenLog log = openLogs.get(fileName);
