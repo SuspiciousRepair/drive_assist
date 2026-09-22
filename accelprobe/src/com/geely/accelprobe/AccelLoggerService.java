@@ -16,7 +16,9 @@ import java.io.File;
 import java.io.FileWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 /** Does the actual sensor logging, independent of AccelProbeActivity's
  * lifecycle -- a foreground Service, not an Activity, because the fix
@@ -38,6 +40,23 @@ public class AccelLoggerService extends Service implements SensorEventListener {
     private static final long LOG_CAP_BYTES = 5L * 1024 * 1024;
     private static final SimpleDateFormat LOG_FMT =
         new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+
+    // Rolling-average gravity estimate over the raw accelerometer, same
+    // constant and same math already proven in correlate.py's
+    // linear_magnitudes(): TYPE_LINEAR_ACCELERATION registers "active" in
+    // dumpsys sensorservice but never once delivered an event over a full
+    // ~9 hour real-drive run (confirmed live, 2026-09-22) -- a dead MTK
+    // sensor HAL path, not a registration bug. This computes the DIY
+    // substitute on-device instead of needing a Python post-process pass:
+    // a simple moving average of the last GRAVITY_WINDOW raw samples
+    // approximates gravity (it changes slowly -- only as the phone/car
+    // tilts), subtracting it from the instantaneous raw reading leaves
+    // the linear (motion) component.
+    private static final int GRAVITY_WINDOW = 200;   // ~0.5s at accel.log's ~400Hz
+    private final float[] gravityRing = new float[GRAVITY_WINDOW * 3];
+    private int gravityRingPos = 0;
+    private int gravityRingCount = 0;
+    private double gravitySumX, gravitySumY, gravitySumZ;
 
     private SensorManager sensorManager;
     private Sensor accelerometer;
@@ -106,24 +125,62 @@ public class AccelLoggerService extends Service implements SensorEventListener {
     @Override public void onDestroy() {
         super.onDestroy();
         if (sensorManager != null) sensorManager.unregisterListener(this);
+        for (OpenLog log : openLogs.values()) closeQuietly(log.writer);
+        openLogs.clear();
+    }
+
+    /** Updates the rolling gravity estimate with a new raw sample, and
+     * returns the linear (gravity-removed) component of THAT sample.
+     * Same running-sum-over-a-ring approach as correlate.py's
+     * linear_magnitudes(): O(1) per sample rather than re-averaging the
+     * whole window every time. */
+    private float[] pushAndRemoveGravity(float x, float y, float z) {
+        int slot = gravityRingPos * 3;
+        if (gravityRingCount == GRAVITY_WINDOW) {
+            // Ring is full: evict the sample this write is about to
+            // overwrite from the running sums before adding the new one.
+            gravitySumX -= gravityRing[slot];
+            gravitySumY -= gravityRing[slot + 1];
+            gravitySumZ -= gravityRing[slot + 2];
+        } else {
+            gravityRingCount++;
+        }
+        gravityRing[slot] = x; gravityRing[slot + 1] = y; gravityRing[slot + 2] = z;
+        gravitySumX += x; gravitySumY += y; gravitySumZ += z;
+        gravityRingPos = (gravityRingPos + 1) % GRAVITY_WINDOW;
+
+        float gx = (float) (gravitySumX / gravityRingCount);
+        float gy = (float) (gravitySumY / gravityRingCount);
+        float gz = (float) (gravitySumZ / gravityRingCount);
+        return new float[]{x - gx, y - gy, z - gz};
     }
 
     @Override public void onSensorChanged(SensorEvent e) {
+        // Formatted once per event, not once per writeLine() call: the
+        // accelerometer branch below writes two log files per sample, and
+        // SimpleDateFormat.format(new Date()) is real, non-trivial work to
+        // duplicate 400 times a second for an identical value.
+        String wall = LOG_FMT.format(new Date());
         if (e.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
             float x = e.values[0], y = e.values[1], z = e.values[2];
             double mag = Math.sqrt(x * x + y * y + z * z);
-            writeLine("accel.log", "wall\tepochMs\tsensorNs\tx\ty\tz\tmagnitude",
+            writeLine(wall, "accel.log", "wall\tepochMs\tsensorNs\tx\ty\tz\tmagnitude",
                 "" + e.timestamp + '\t' + x + '\t' + y + '\t' + z + '\t' + mag);
             accelSamples++;
+
+            float[] lin = pushAndRemoveGravity(x, y, z);
+            double linMag = Math.sqrt(lin[0] * lin[0] + lin[1] * lin[1] + lin[2] * lin[2]);
+            writeLine(wall, "linear_accel_computed.log", "wall\tepochMs\tsensorNs\tx\ty\tz\tmagnitude",
+                "" + e.timestamp + '\t' + lin[0] + '\t' + lin[1] + '\t' + lin[2] + '\t' + linMag);
         } else if (e.sensor.getType() == Sensor.TYPE_LINEAR_ACCELERATION) {
             float x = e.values[0], y = e.values[1], z = e.values[2];
             double mag = Math.sqrt(x * x + y * y + z * z);
-            writeLine("linear_accel.log", "wall\tepochMs\tsensorNs\tx\ty\tz\tmagnitude",
+            writeLine(wall, "linear_accel.log", "wall\tepochMs\tsensorNs\tx\ty\tz\tmagnitude",
                 "" + e.timestamp + '\t' + x + '\t' + y + '\t' + z + '\t' + mag);
             linearSamples++;
         } else if (e.sensor.getType() == Sensor.TYPE_LIGHT) {
             float lux = e.values[0];
-            writeLine("light.log", "wall\tepochMs\tsensorNs\tlux", "" + e.timestamp + '\t' + lux);
+            writeLine(wall, "light.log", "wall\tepochMs\tsensorNs\tlux", "" + e.timestamp + '\t' + lux);
             lightSamples++;
         }
     }
@@ -136,23 +193,82 @@ public class AccelLoggerService extends Service implements SensorEventListener {
         return new File(dir, name);
     }
 
-    private void writeLine(String fileName, String header, String rowTail) {
-        String row = LOG_FMT.format(new Date()) + '\t' + System.currentTimeMillis() + '\t' + rowTail;
+    /** One cached, held-open FileWriter per log, plus an in-memory running
+     * byte count so rotation doesn't need to stat() the file every sample. */
+    private static final class OpenLog {
+        FileWriter writer;
+        long bytes;
+        File file;
+        int unflushed;
+    }
+    // flush() still calls into the OS on every invocation even with no
+    // fsync -- at 400Hz across 2 log files that's ~800 write()-family
+    // syscalls/sec, measured live to cost real CPU (top: ~30-35% of one
+    // core). Flushing every FLUSH_EVERY samples instead of every single
+    // one trades up to ~50ms of the newest rows on an unclean kill (fine
+    // for a debug tool that's started/stopped by hand) for a ~20x cut in
+    // syscall count.
+    private static final int FLUSH_EVERY = 20;
+    private final Map<String, OpenLog> openLogs = new HashMap<>();
+
+    private static void closeQuietly(FileWriter w) {
+        if (w == null) return;
+        try { w.close(); } catch (Throwable ignored) { }
+    }
+
+    // Adding the computed linear-accel log doubled writeLine() calls per
+    // accelerometer sample (up to 400Hz -> 800 calls/s across the two
+    // files) -- opening a fresh FileWriter and stat()-ing the file on
+    // every single call was already wasteful at 400Hz alone, and would
+    // have been genuinely a CPU/IO hog doubled. Now: one FileWriter per
+    // log file, opened once and reused, with the rotation size tracked
+    // in memory instead of re-stat()ing the file every write. Only the
+    // actual write (and the rare rotation) still touches the filesystem.
+    private void writeLine(String wall, String fileName, String header, String rowTail) {
+        String row = wall + '\t' + System.currentTimeMillis() + '\t' + rowTail;
+        OpenLog log = openLogs.get(fileName);
+        if (log == null) {
+            log = new OpenLog();
+            openLogs.put(fileName, log);
+        }
         try {
-            File f = dataFile(fileName);
-            if (f.exists() && f.length() > LOG_CAP_BYTES) {
-                f.delete(); // rotate: start over, don't grow forever
+            if (log.file == null) log.file = dataFile(fileName);   // path resolved once, ever
+            if (log.writer == null) {
+                boolean fresh = !log.file.exists();
+                log.writer = new FileWriter(log.file, true);
+                log.bytes = fresh ? 0 : log.file.length();
+                if (fresh) {
+                    log.writer.write(header + "\n");
+                    log.bytes += header.length() + 1;
+                }
             }
-            boolean fresh = !f.exists();
-            FileWriter w = new FileWriter(f, true);
-            try {
-                if (fresh) w.write(header + "\n");
-                w.write(row + "\n");
-            } finally {
-                w.close();
+            String line = row + "\n";
+            log.writer.write(line);
+            if (++log.unflushed >= FLUSH_EVERY) {
+                log.writer.flush();
+                log.unflushed = 0;
+            }
+            log.bytes += line.length();
+            if (log.bytes > LOG_CAP_BYTES) {
+                closeQuietly(log.writer);
+                log.writer = null;   // rotate: delete and reopen fresh on the next sample
+                log.file.delete();
             }
         } catch (Throwable t) {
-            Log.w(TAG, fileName + ": log write failed: " + t);
+            // Self-heal, don't stay broken forever: the original code
+            // reopened from scratch on every single call, so an external
+            // deletion or storage hiccup was invisible -- next call just
+            // worked. Caching the FileWriter across calls (for the CPU/IO
+            // win above) reintroduced that failure mode: a held-open
+            // FileWriter whose underlying file got deleted out from under
+            // it (confirmed live -- `adb shell rm` on accel.log while this
+            // service was running) throws on every subsequent write
+            // forever, since nothing ever nulled it back out. Closing and
+            // clearing it here means the very next sample reopens fresh,
+            // matching the old behavior's resilience.
+            closeQuietly(log.writer);
+            log.writer = null;
+            Log.w(TAG, fileName + ": log write failed, will reopen next sample: " + t);
         }
     }
 }

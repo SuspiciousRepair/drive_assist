@@ -42,21 +42,41 @@ touching this again:
    /`com.njda.aauto`) to test sensor behavior** -- it's apparently not
    safe to kill and restart mid-session on this vendor HAL.
 
-**`TYPE_LINEAR_ACCELERATION` is a dead end -- use `correlate.py`'s
-software version instead.** `LINEARACCEL (MTK)` exists, registers, and
-shows `status: active` in `dumpsys sensorservice` immediately (no
-flush-stall like raw `ACCELEROMETER` above) -- but after 16+ seconds it
-had delivered zero actual events, confirmed live, while `ACCELEROMETER`
-kept streaming the whole time. A sensor descriptor this MTK hub
+4. **Leaving the service running for hours silently destroys its own
+   data.** `writeLine()` rotates (deletes and restarts) any log file
+   once it crosses 5MB -- fine for a bounded test drive, fatal for a
+   service left running afterward: a real ~1 hour drive test
+   (2026-09-22, `AccelLoggerService` survived the whole drive without
+   being killed, confirming the foreground-service fix works) was left
+   running another ~8 hours unattended and rotated itself dozens of
+   times over, destroying the drive's own `accel.log` and leaving only
+   the last couple minutes of stationary noise. Stop the service (`adb
+   shell am stopservice -n com.geely.accelprobe/.AccelLoggerService`)
+   as soon as the drive/test is over, not "whenever I get back to it."
+
+**`TYPE_LINEAR_ACCELERATION` is a dead end -- confirmed for real, not
+just a quick test: registered `active` for the full ~9 hour run above
+and never delivered one single event.** `LINEARACCEL (MTK)` exists,
+registers, and shows `status: active` in `dumpsys sensorservice`
+immediately (no flush-stall like raw `ACCELEROMETER` above) -- but after
+16+ seconds it had delivered zero actual events, confirmed live, while
+`ACCELEROMETER` kept streaming the whole time. A sensor descriptor this MTK hub
 advertises without actually wiring up. `AccelProbeActivity` still
 registers it (harmless, and the finding is worth keeping visible), but
 `linear_accel.log` will never be created. Don't spend more time on it
 without a new lead.
 
-The DIY substitute works and is worth using: `correlate.py` computes a
-`lin_magnitude` column by estimating gravity as a rolling average of the
-raw accelerometer and subtracting it. Measured over a real drive: this
-roughly doubles the correlation with OBD2 power (0.053 -> 0.126) versus
+The DIY substitute works and is worth using, and now runs two places with
+the same algorithm: `AccelLoggerService` computes it live on-device (same
+`GRAVITY_WINDOW` = 200 samples, ~0.5s at 400Hz) and writes
+`linear_accel_computed.log` directly, so a real
+`TYPE_LINEAR_ACCELERATION`-shaped log exists without a Python
+post-process pass. `correlate.py` still computes its own `lin_magnitude`
+column the same way, useful for re-deriving it from an old `accel.log`
+that predates the on-device version. Both estimate gravity as a rolling
+average of the raw accelerometer and subtract it. Measured over a real
+drive: this roughly doubles the correlation with OBD2 power (0.053 ->
+0.126) versus
 plain `|magnitude - 9.8|`, and cleans up which events rank as "biggest"
 -- see `correlate.py`'s own docstring for the exact numbers.
 
