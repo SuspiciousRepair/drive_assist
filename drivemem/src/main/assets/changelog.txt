@@ -1,6 +1,13 @@
-- New: a large Spotify card, with full album art and big Play/Skip
-  buttons. Pick it in Settings > Spotify.
-- New: each window can now open to its own amount when you crack all
-  four at once, instead of all four opening the same amount.
-- Fixed: a rare case where a driving trip could get mislabeled as
-  "estimated" even though it was measured by the car.
+- Fixed: a fast charge could show up in your history as barely any
+  charge at all. Charging tracking now double-checks the car's real
+  charging state instead of trusting one sensor.
+- Fixed: the app could slow the whole system down, sometimes stopping
+  your music.
+- Fixed: the update popup no longer asks you to update twice in a row.
+- Fixed: weekly driving reports now start on Monday, so a weekend stays
+  together on one report instead of split across two.
+- Fixed: a week of driving data (Sept 10-17) was wrongly labeled as
+  estimated. It's now correctly shown as measured.
+- New: the Driving Mode, Doors, and Elements screens now show real car
+  artwork instead of a plain background.
+- New: the Eco/Comfort/Sport cards have a cleaner look with real icons.
