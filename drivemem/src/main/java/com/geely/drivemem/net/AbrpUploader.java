@@ -9,6 +9,7 @@ import com.geely.drivemem.hvac.ComfortRuler;
 import com.geely.drivemem.sensors.GpsReader;
 import com.geely.drivemem.sensors.Obd2Reader;
 import com.geely.drivemem.state.CarState;
+import com.geely.drivemem.state.ChargeSession;
 import com.geely.drivemem.state.ParkSession;
 import com.geely.drivemem.state.TripSession;
 import com.geely.drivemem.util.Modes;
@@ -138,6 +139,7 @@ public final class AbrpUploader {
     public static void unsubscribe(Listener l) { listeners.remove(l); }
 
     public static JSONObject lastTlmSent() { return lastTlm; }
+    public static void setLastObdReadingForTesting(Obd2Reader.Reading r) { lastObdReading = r; }
     public static long lastAttemptAtMs() { return lastAttemptAtMs; }
     public static boolean lastAttemptOk() { return lastOk; }
     public static String lastErrorDetail() { return lastError; }
@@ -439,15 +441,13 @@ public final class AbrpUploader {
             Object gear = data.get("gear");
             if (gear instanceof Integer) tlm.put("is_parked", (Integer) gear == Modes.GEAR_PARK_ADAPTED ? 1 : 0);
 
-            // is_dcfc: use voltage, not current or power, to distinguish modes.
-            // The voltage divider reads AC mains side during AC charging (~240V)
-            // but the DC pack side during DC fast charging (~400V). Power is
-            // unreliable because DCFC tapers near full charge but remains on the
-            // DC pack at high voltage. 250V threshold safely separates the two.
+            // is_dcfc: use the vehicle's charge port voltage (charge_v), NOT OBD2
+            // pack voltage. Port voltage reads AC mains (~240V) during AC charging
+            // and DC pack (~400V) during DC fast charging, whereas OBD2 pack voltage
+            // is always ~400V even on AC.
             if (charging) {
-                Float voltsForDcfc = (obdFresh && obd.voltage != null) ? obd.voltage.floatValue() : null;
-                if (voltsForDcfc == null) voltsForDcfc = asFloat(data.get("charge_v"));
-                if (voltsForDcfc != null) tlm.put("is_dcfc", voltsForDcfc > 250f ? 1 : 0);
+                Float chargeV = asFloat(data.get("charge_v"));
+                if (chargeV != null) tlm.put("is_dcfc", ChargeSession.isDcfc(chargeV) ? 1 : 0);
             }
 
             Float odo = asFloat(data.get("odometer"));

@@ -115,8 +115,8 @@ public final class ChargeSession {
             this.dismissed = dismissed;
         }
 
-        /** Pack voltage is the authoritative charging-type discriminator. */
-        public boolean isDcfc() { return !Double.isNaN(maxChargeV) && maxChargeV >= 250.0; }
+        /** Port voltage is the authoritative charging-type discriminator (~240V AC vs ~400V DC). */
+        public boolean isDcfc() { return ChargeSession.isDcfc(maxChargeV); }
         public boolean hasChargeVoltage() { return !Double.isNaN(maxChargeV) && maxChargeV > 0; }
 
         public long durationS() { return Math.max(0, (endWallMs - startWallMs) / 1000); }
@@ -228,6 +228,11 @@ public final class ChargeSession {
     private static Runnable chargeGraceRunnable = null;
 
     private ChargeSession() {}
+
+    /** Distinguishes AC charging (~240V mains) from DC fast charging (~400V pack) by port voltage. */
+    public static boolean isDcfc(double chargeV) {
+        return !Double.isNaN(chargeV) && chargeV >= 250.0;
+    }
 
     /** Returns whether charging current is actively flowing right now. */
     public static boolean isCharging() { return wasCharging; }

@@ -1265,7 +1265,7 @@ public final class DailyStatsProvider {
                 double kwh = cc.getDouble(5);
                 double avgPowerKw = cc.getDouble(6) / 1000.0;
                 Float v = cc.isNull(7) ? null : cc.getFloat(7);
-                boolean isDcfc = v != null && v >= 250f;
+                boolean isDcfc = v != null && com.geely.drivemem.state.ChargeSession.isDcfc(v);
                 Double cost = cc.isNull(8) ? null : cc.getDouble(8);
                 out.add(new ChargeSessionItem(id, startMs, endMs, socStart, socEnd, kwh, avgPowerKw, isDcfc, cost));
             }
@@ -1284,7 +1284,7 @@ public final class DailyStatsProvider {
             if (vR.status == com.geely.drivemem.car.CarActor.Reading.Status.OK && vR.value instanceof Float) {
                 v = (Float) vR.value;
             }
-            boolean isDcfc = v != null && v >= 250f;
+            boolean isDcfc = v != null && com.geely.drivemem.state.ChargeSession.isDcfc(v);
             out.add(new ChargeSessionItem(0, startMs, 0, socStart, socEnd, kwh, avgPowerKw, isDcfc));
         }
 

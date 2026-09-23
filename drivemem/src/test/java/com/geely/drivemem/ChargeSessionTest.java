@@ -31,6 +31,26 @@ public class ChargeSessionTest {
         assertFalse(legacyUnknown.hasChargeVoltage());
     }
 
+    @Test public void isDcfcDistinguishesAcFromDcByVoltageThreshold() {
+        // AC mains voltages (110V - 240V nominal)
+        assertFalse(ChargeSession.isDcfc(110.0));
+        assertFalse(ChargeSession.isDcfc(220.0));
+        assertFalse(ChargeSession.isDcfc(230.0));
+        assertFalse(ChargeSession.isDcfc(240.0));
+        assertFalse(ChargeSession.isDcfc(249.9));
+
+        // DC fast charging voltages (>= 250V)
+        assertTrue(ChargeSession.isDcfc(250.0));
+        assertTrue(ChargeSession.isDcfc(380.0));
+        assertTrue(ChargeSession.isDcfc(400.0));
+        assertTrue(ChargeSession.isDcfc(450.0));
+
+        // Zero, negative, and NaN inputs
+        assertFalse(ChargeSession.isDcfc(0.0));
+        assertFalse(ChargeSession.isDcfc(-1.0));
+        assertFalse(ChargeSession.isDcfc(Double.NaN));
+    }
+
     @Test public void durationLabelUnderAnHour() {
         ChargeSession.Summary s = new ChargeSession.Summary(
             0, 45 * 60 * 1000L, 30, 80, 20.0, 4000, 90, -1);

@@ -110,7 +110,7 @@ public final class Obd2Reader {
         public final Double powerKw;
         public final Integer speedKmh;
         public final long atMs;
-        Reading(Double soc, Double voltage, Double current, Double battTempC,
+        public Reading(Double soc, Double voltage, Double current, Double battTempC,
                 Double powerKw, Integer speedKmh, long atMs) {
             this.soc = soc;
             this.voltage = voltage;
