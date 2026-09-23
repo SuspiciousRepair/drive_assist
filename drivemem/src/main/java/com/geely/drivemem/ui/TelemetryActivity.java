@@ -114,10 +114,9 @@ public class TelemetryActivity extends Activity {
     private ScrollView mqttLogScroll;
     private TextView activeBrokerView, activeClientView, activeLastSentView;
     private LinearLayout mqttConfigContainer;
-    private EditText fSpotifyClientId;
+    private TelemetrySpotifySection spotifySection;
     private EditText fTurbo;
     private EditText fSkylineSeed;
-    private TextView spotifyStatus;
     // Drive mode. Two separate ideas, kept in separate fields on purpose —
     // conflating them into one used to mean a car that answered late (or
     // wrong, right after boot) silently overwrote the user's saved standard
@@ -324,11 +323,14 @@ public class TelemetryActivity extends Activity {
             case SEC_BAR:   buildBar();   break;
             case SEC_LOOK:  buildLook();  break;
             case SEC_MQTT:  buildMqtt();  break;
-            case SEC_DOORS: buildDoors(); break;
+            case SEC_DOORS: content.addView(new TelemetryDoorsSection(this)); break;
             case SEC_CLIPS: buildClips(); break;
             case SEC_CHARGE: buildCharge(); break;
             case SEC_OBD: buildObd(); break;
-            case SEC_SPOTIFY: buildSpotify(); break;
+            case SEC_SPOTIFY:
+                spotifySection = new TelemetrySpotifySection(this);
+                content.addView(spotifySection);
+                break;
             case SEC_SYSTEM: buildSystem(); break;
             default:       buildDrive(); break;   // SEC_DRIVE, and the landing page
         }
@@ -1537,72 +1539,6 @@ public class TelemetryActivity extends Activity {
         });
     }
 
-    // =====================================================================
-    // Spotify panel — used to just be appended at the bottom of the MQTT
-    // screen with no section of its own; pulled out as part of grouping
-    // every section into CAR / DISPLAY / INTEGRATIONS. Separate from the
-    // MQTT/HA link by nature, not just by screen: this one talks to
-    // Spotify's own Web API straight from the car, no broker, no Home
-    // Assistant involved (see SpotifyClient's header for why: the App
-    // Remote SDK needs a Spotify app on THIS device, which the car does
-    // not have — CarPlay plays through the phone. The Web API just
-    // reflects the account, whichever device is actually making sound).
-    // =====================================================================
-    private void buildSpotify() {
-        content.addView(Style.header(this, getString(R.string.cfg_spotify_header)));
-        spotifyStatus = new TextView(this);
-        spotifyStatus.setTextColor(Style.TEXT); spotifyStatus.setTextSize(16);
-        spotifyStatus.setTypeface(null, android.graphics.Typeface.BOLD);
-        spotifyStatus.setText(getString(SpotifyClient.connected(this)
-            ? R.string.cfg_spotify_status_on : R.string.cfg_spotify_status_off));
-        content.addView(spotifyStatus);
-        fSpotifyClientId = field(content, getString(R.string.cfg_spotify_client_id),
-            SpotifyClient.clientId(this), InputType.TYPE_CLASS_TEXT);
-        // Saved on blur — the Connect button below reads it fresh from prefs,
-        // not from the field directly, so it always uses whatever was last
-        // actually saved.
-        fSpotifyClientId.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus) return;
-            SpotifyClient.setClientId(this, fSpotifyClientId.getText().toString());
-        });
-        // button(), not action(): action() stretches to fill half the row
-        // each (weight=1f) which reads as two oversized CTAs for what's
-        // really a pair of small settings actions -- button() (WRAP_CONTENT,
-        // sized to its own label) is what every other action on this screen
-        // already uses (Save, Import cert, Reset default, ...).
-        LinearLayout spRow = new LinearLayout(this);
-        spRow.setOrientation(LinearLayout.HORIZONTAL);
-        spRow.addView(button(getString(R.string.cfg_spotify_connect), Style.ACCENT, () -> {
-            SpotifyClient.setClientId(this, fSpotifyClientId.getText().toString());
-            if (SpotifyClient.clientId(this).isEmpty()) {
-                spotifyStatus.setText(getString(R.string.cfg_spotify_need_id));
-                return;
-            }
-            startActivity(new Intent(this, SpotifyAuthActivity.class));
-        }));
-        spRow.addView(button(getString(R.string.cfg_spotify_disconnect), 0xFF8A3A3A, () -> {
-            Prefs.file(this).edit()
-                .remove("spotify_refresh_token").remove("spotify_access_token")
-                .remove("spotify_token_expiry").apply();
-            spotifyStatus.setText(getString(R.string.cfg_spotify_status_off));
-        }));
-        content.addView(spRow);
-        Style.gap(content, this, 20);
-
-        // Home screen card style -- read once at ComfortActivity's own
-        // onCreate (musicLargeCardAtBuild), same pattern as turbo_enabled
-        // and skyline_enabled, so this only needs the plain pref written
-        // here, no live-update plumbing back to a screen that isn't open.
-        content.addView(toggleRow(getString(R.string.cfg_spotify_large_card),
-            Prefs.getSpotifyLargeCard(this),
-            on -> Prefs.setSpotifyLargeCard(this, on)));
-        TextView largeCardHint = new TextView(this);
-        largeCardHint.setTextColor(Style.TEXT_DIM); largeCardHint.setTextSize(13);
-        largeCardHint.setPadding(0, 0, 0, Style.dp(this, 4));
-        largeCardHint.setText(getString(R.string.cfg_spotify_large_card_hint));
-        content.addView(largeCardHint);
-    }
-
     /** Current Wi-Fi IPv4 address, dotted-quad, or "—" if not connected/available. */
     private String wifiIpAddress() {
         try {
@@ -2058,94 +1994,6 @@ public class TelemetryActivity extends Activity {
     // =====================================================================
     // Drive Mode panel (ported from the old TestActivity)
     // =====================================================================
-    // DOORS AND GLASS. Its own section because everything in it moves part of the
-    // car, sometimes while nobody is looking at the screen — which is a different
-    // promise from anything else in Config, and it deserves a page rather than a
-    // heading somebody scrolls past on the way to the MQTT host.
-    //
-    // Everything here stays OFF by default. See DoorWindow and Purge: the window
-    // lock cannot be read on this car and is not enforced against our writes, so
-    // nothing on this page is protected by it.
-    private void buildDoors() {
-        content.addView(Style.header(this, getString(R.string.cfg_doors_header)));
-        content.addView(toggleRow(getString(R.string.cfg_window_on_door),
-            DoorWindow.enabled(this), on -> {
-                Prefs.setWindowOnDoor(this, on);
-                // The watch itself is always registered; the pref only decides
-                // whether an event acts. So nothing has to be started or stopped
-                // here, and flipping it mid-session cannot make the next door
-                // event look like the first one.
-                ComfortHub.get(this);
-            }));
-        TextView winHint = new TextView(this);
-        winHint.setTextColor(Style.TEXT_DIM); winHint.setTextSize(13);
-        winHint.setPadding(0, 0, 0, Style.dp(this, 4));
-        winHint.setText(getString(R.string.cfg_window_on_door_hint));
-        content.addView(winHint);
-
-        // Per-pane crack-all-windows target. See Purge's own comment: a
-        // single raw position value doesn't open every pane the same real
-        // amount, since each pane's regulator/gearing maps position units
-        // to physical travel differently. One field per pane instead of
-        // one shared value.
-        content.addView(Style.header(this, getString(R.string.cfg_purge_open_header)));
-        TextView purgeHint = new TextView(this);
-        purgeHint.setTextColor(Style.TEXT_DIM); purgeHint.setTextSize(13);
-        purgeHint.setPadding(0, 0, 0, Style.dp(this, 4));
-        purgeHint.setText(getString(R.string.cfg_purge_open_hint));
-        content.addView(purgeHint);
-        content.addView(purgeTargetRow(Purge.AREAS[0], getString(R.string.cfg_purge_open_fl)));
-        content.addView(purgeTargetRow(Purge.AREAS[1], getString(R.string.cfg_purge_open_fr)));
-        content.addView(purgeTargetRow(Purge.AREAS[2], getString(R.string.cfg_purge_open_rl)));
-        content.addView(purgeTargetRow(Purge.AREAS[3], getString(R.string.cfg_purge_open_rr)));
-    }
-
-    // Same field pattern as the Turbo duration field below (buildDrive()):
-    // number-only input, saved on every keystroke that parses rather than
-    // on blur (blur unreliably fires with the on-screen number pad here --
-    // see that field's own comment for the "edited it, it reverted" report
-    // that taught us that), raw text never rewritten under the cursor.
-    // Clamped to WINDOW_POS's real 0..100 range at the point of use
-    // (Purge.targetsFromPrefs), not here -- this just has to reject
-    // non-integer input, not decide what's a sane window position.
-    private LinearLayout purgeTargetRow(int area, String label) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, Style.dp(this, 4), 0, Style.dp(this, 4));
-
-        TextView lbl = new TextView(this);
-        lbl.setText(label);
-        lbl.setTextColor(Style.TEXT); lbl.setTextSize(14);
-        LinearLayout.LayoutParams lblLp = new LinearLayout.LayoutParams(
-            Style.dp(this, 160), ViewGroup.LayoutParams.WRAP_CONTENT);
-        lbl.setLayoutParams(lblLp);
-        row.addView(lbl);
-
-        EditText field = new EditText(this);
-        field.setText(String.valueOf(Prefs.file(this).getInt(Purge.prefKey(area), Purge.OPEN)));
-        field.setInputType(InputType.TYPE_CLASS_NUMBER);
-        field.setTextColor(Style.TEXT); field.setTextSize(17);
-        field.setBackground(Style.card(Style.CARD, this));
-        int fPad = Style.dp(this, 12);
-        field.setPadding(fPad, fPad, fPad, fPad);
-        LinearLayout.LayoutParams fieldLp = new LinearLayout.LayoutParams(
-            Style.dp(this, 90), ViewGroup.LayoutParams.WRAP_CONTENT);
-        fieldLp.leftMargin = Style.dp(this, 10);
-        field.setLayoutParams(fieldLp);
-        row.addView(field);
-
-        field.addTextChangedListener(new android.text.TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
-            @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
-            @Override public void afterTextChanged(android.text.Editable s) {
-                try { Prefs.file(TelemetryActivity.this).edit().putInt(Purge.prefKey(area), Integer.parseInt(s.toString().trim())).apply(); }
-                catch (NumberFormatException ignored) {}
-            }
-        });
-        return row;
-    }
-
     private void buildDrive() {
         driveCards.clear(); regenCards.clear();
 
@@ -2843,9 +2691,8 @@ public class TelemetryActivity extends Activity {
     // Refreshes status lines after returning from external activities
     @Override protected void onResume() {
         super.onResume();
-        if (spotifyStatus != null) {
-            spotifyStatus.setText(getString(SpotifyClient.connected(this)
-                ? R.string.cfg_spotify_status_on : R.string.cfg_spotify_status_off));
+        if (spotifySection != null) {
+            spotifySection.refreshStatus(this);
         }
         refreshCertUi();
     }
