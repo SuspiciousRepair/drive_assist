@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Fixed
+- A drive that started under Valet, briefly paused, then continued after
+  Valet was turned off could merge into one trip and vanish from trip
+  history entirely — not just get grouped under Valet.
+
+### Changed
+- Valet can now be turned off while driving, not only while parked.
+
 ## [v0.3.1] — 2026-09-22
 
 ### Added
