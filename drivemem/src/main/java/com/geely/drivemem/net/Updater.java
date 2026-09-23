@@ -339,7 +339,6 @@ public class Updater {
         }
     }
 
-    private static final String AUTO_CHECK_PREF = "auto_update_last_check_ms";
     public static final long AUTO_CHECK_INTERVAL_MS = 24L * 3600 * 1000;
 
     /** Unattended update check against whatever URL is configured -- for
@@ -355,11 +354,10 @@ public class Updater {
      * effect, if any, is the same Park-gated UpdateDialog a manual check
      * or MQTT command already produces. */
     public static void autoCheckIfDue(final Context ctx) {
-        android.content.SharedPreferences pf = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-        long last = pf.getLong(AUTO_CHECK_PREF, 0);
+        long last = Prefs.getAutoUpdateLastCheckMs(ctx);
         long now = System.currentTimeMillis();
         if (now - last < AUTO_CHECK_INTERVAL_MS) return;
-        pf.edit().putLong(AUTO_CHECK_PREF, now).apply();
+        Prefs.setAutoUpdateLastCheckMs(ctx, now);
 
         check(ctx, null, new CheckCallback() {
             @Override public void onUpdateAvailable(UpdateInfo info) { broadcastAvailable(ctx, info); }

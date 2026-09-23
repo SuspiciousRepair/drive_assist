@@ -762,8 +762,8 @@ public class TelemetryActivity extends Activity {
             on -> Prefs.setAbrpEnabled(this, on)));
 
         left.addView(toggleRow(getString(R.string.abrp_location_label),
-            Prefs.file(this).getBoolean(AbrpUploader.PREF_SEND_LOCATION, true),
-            on -> Prefs.file(this).edit().putBoolean(AbrpUploader.PREF_SEND_LOCATION, on).apply()));
+            Prefs.getAbrpSendLocation(this),
+            on -> Prefs.setAbrpSendLocation(this, on)));
 
         TextView abrpLocHint = new TextView(this);
         abrpLocHint.setTextColor(Style.TEXT_DIM); abrpLocHint.setTextSize(13);

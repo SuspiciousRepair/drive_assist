@@ -26,6 +26,8 @@ public final class Prefs {
     public static void setAbrpEnabled(Context ctx, boolean v) { file(ctx).edit().putBoolean("abrp_enabled", v).apply(); }
     public static String getAbrpUserToken(Context ctx) { return file(ctx).getString("abrp_user_token", ""); }
     public static void setAbrpUserToken(Context ctx, String v) { file(ctx).edit().putString("abrp_user_token", v).apply(); }
+    public static boolean getAbrpSendLocation(Context ctx) { return file(ctx).getBoolean("abrp_send_location", true); }
+    public static void setAbrpSendLocation(Context ctx, boolean v) { file(ctx).edit().putBoolean("abrp_send_location", v).apply(); }
 
     // --- Driver assistance toggles ---
     public static boolean getAebOn(Context ctx) { return file(ctx).getBoolean("aeb_on", true); }
@@ -140,6 +142,10 @@ public final class Prefs {
     public static void setAppearance(Context ctx, String v) { file(ctx).edit().putString("appearance", v).apply(); }
     public static String getTheme(Context ctx, String def) { return file(ctx).getString("theme", def); }
     public static void setTheme(Context ctx, String v) { file(ctx).edit().putString("theme", v).apply(); }
+
+    // --- Auto update check throttle ---
+    public static long getAutoUpdateLastCheckMs(Context ctx) { return file(ctx).getLong("auto_update_last_check_ms", 0); }
+    public static void setAutoUpdateLastCheckMs(Context ctx, long v) { file(ctx).edit().putLong("auto_update_last_check_ms", v).apply(); }
 
     // --- Updates ---
     public static String getUpdateUrl(Context ctx, String def) { return file(ctx).getString("update_url", def); }

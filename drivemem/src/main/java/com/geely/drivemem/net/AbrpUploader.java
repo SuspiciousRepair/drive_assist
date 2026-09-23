@@ -102,8 +102,7 @@ public final class AbrpUploader {
 
     public static boolean isLocationEnabled(Context ctx) {
         if (ctx == null) return false;
-        return ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
-                  .getBoolean(PREF_SEND_LOCATION, true);
+        return Prefs.getAbrpSendLocation(ctx);
     }
 
     private static volatile boolean subscribed = false;
