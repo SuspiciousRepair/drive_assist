@@ -488,8 +488,13 @@ public final class TripSession {
             Context ctx, long startMs, long endMs, EnergyIntegrator.TripSnapshot ts) {
         try {
             Cursor c = CarDb.get(ctx).db().rawQuery(
-                "SELECT SUM(CASE WHEN energy_measured=1 THEN 1 ELSE 0 END), "
-              + "       SUM(CASE WHEN energy_measured=0 THEN 1 ELSE 0 END) "
+                // battery_temp_c is OBD2-exclusive (see CarDb's v22 migration
+                // comment) -- checked directly here, not just via the stored
+                // energy_measured flag, so a live-path bug self-heals for every
+                // trip finalized from here on, not only rows a one-time
+                // migration happened to already reach.
+                "SELECT SUM(CASE WHEN energy_measured=1 OR battery_temp_c IS NOT NULL THEN 1 ELSE 0 END), "
+              + "       SUM(CASE WHEN energy_measured=0 AND battery_temp_c IS NULL THEN 1 ELSE 0 END) "
               + "FROM telemetry_sample WHERE ts_ms BETWEEN ? AND ? "
               + "AND (CASE WHEN gear IS NOT NULL THEN gear <> 4 "
               + "     ELSE (is_charging IS NULL OR is_charging = 0) END)",
