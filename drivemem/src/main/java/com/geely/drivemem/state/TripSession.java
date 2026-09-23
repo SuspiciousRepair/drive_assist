@@ -39,16 +39,9 @@ public final class TripSession {
     public static final double MIN_TRIP_DISTANCE_KM = 0.1;
     public static final long MIN_TRIP_DRIVE_DURATION_MS = 45_000L;
 
-    // A trip in progress lives ONLY in the static fields below — nothing about
-    // it touches disk until finalizeTrip() writes the summary row. That's fine
-    // for a normal park-to-park drive, but a process restart mid-trip (an app
-    // reinstall during a brief Park is what actually happened, on 2026-09-12:
-    // ~34 minutes and 12km of driving before the install were never written,
-    // because the whole in-progress trip lived only in these fields) wipes
-    // every one of them with nothing to show for the drive already underway.
-    // These prefs are the fix: just enough of the trip's IDENTITY (not its
-    // accumulators) to find it again in telemetry_sample after a restart.
-    // See persistOpenTrip/recoverOpenTrip below.
+    // Rule: persist open trip identity to SharedPreferences on start; recover from telemetry_sample on boot.
+    // Invariant: in-progress trip data survives process restarts mid-drive (e.g. app updates).
+    // See docs/incidents.md#2026-09-12-trip-restart-loss
     private static final String PREFS = "drivemem";
     private static final String PREF_OPEN_START_MS = "trip_open_start_ms";
     private static final String PREF_OPEN_START_SAMPLE_ID = "trip_open_start_sample_id";
@@ -365,16 +358,9 @@ public final class TripSession {
     // ALSO happens to restart mid-trip — is an acceptable gap for how rare it
     // is, versus the complexity of replaying per-sample gear timings too.
     private static void recoverOpenTrip(Context ctx) {
-        // Runs unconditionally on every app start, before anything else --
-        // there is no safe fallback path above this in the call chain
-        // (TelemetryService.onStartCommand has none either). Learned the hard
-        // way on 2026-09-12: this whole method used to run bare, and a
-        // completely unrelated DB problem (a schema-downgrade refusal) turned
-        // into an uncaught SQLiteException here, which crashed the service,
-        // which got the whole app killed and backed off for an hour. Recovery
-        // is a best-effort convenience, not something worth ever bringing the
-        // app down over -- any failure here should cost the recovered trip's
-        // ascent/descent/energy accuracy at worst, never app startup.
+        // Rule: trip recovery must be wrapped in try/catch and never throw.
+        // Invariant: recovery is best-effort and must never crash service or app startup.
+        // See docs/incidents.md#2026-09-12-sqlite-downgrade-rejection
         try {
             recoverOpenTripUnsafe(ctx);
         } catch (Throwable t) {

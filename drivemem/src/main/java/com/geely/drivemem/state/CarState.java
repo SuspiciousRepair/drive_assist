@@ -1,18 +1,10 @@
 package com.geely.drivemem.state;
 
-/** Parked state, broadcast-only: TripSession is the one place car.gear gets
- * turned into "parked or not" — it already has to (grace periods, segment
- * stitching, its own test suite) — so this class does not read car.gear
- * itself any more. Two independent subscriptions to the same raw property,
- * each keeping its own latch, is exactly how they drifted apart on
- * 2026-09-14: a charge session outlived a trip start because this class's
- * old observe() only compared against ITS OWN last value, and never saw the
- * edge TripSession had already caught. Now there is one detector
- * (TripSession.onGear) and this is purely the PubSub relay other consumers
- * (Turbo, Charging, Valet, Gate) subscribe to or read — reportParked() is
- * called only from there, right at the edge, so the two can no longer
- * disagree about whether or when one happened.
+/** Parked state, broadcast-only: TripSession.onGear() is the single source of
+ * truth for parked state transitions; CarState acts solely as the PubSub relay.
+ * Invariant: prevents multiple gear subscribers from drifting out of sync.
  * Gates cards that apply only when driving (Turbo) or parked (Charging).
+ * See docs/incidents.md#2026-09-14-carstate-gear-desync
  * Parked defaults to true; becomes false on the first real report. */
 public final class CarState {
     public interface Listener { void onParked(boolean parked); }

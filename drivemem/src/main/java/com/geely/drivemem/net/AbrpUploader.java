@@ -112,7 +112,7 @@ public final class AbrpUploader {
 
     // The latest telemetry.tick snapshot, cheap to cache -- the sampler
     // thread reads this every SAMPLE_MS rather than waiting on the tick
-    // itself, which is what lets sampling run faster than that ~15s tick.
+    // itself, which is what lets sampling run faster than the CarActor.TICK_INTERVAL_MS tick.
     private static volatile Map<String, Object> lastData = null;
     private static final Object samplerWakeLock = new Object();
     // This class's own cached copy of the one thing Obd2Reader pushes --

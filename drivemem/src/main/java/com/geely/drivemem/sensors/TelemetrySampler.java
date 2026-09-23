@@ -11,7 +11,7 @@ import android.util.Log;
 
 import java.util.Map;
 
-/** Persists telemetry snapshots at regular intervals (~15s) to the database.
+/** Persists telemetry snapshots at regular intervals (CarActor.TICK_INTERVAL_MS) to the database.
  *
  * Subscribes to telemetry.tick events and writes each tick to telemetry_sample.
  * This granular time-series data supports detailed analysis that summary-only

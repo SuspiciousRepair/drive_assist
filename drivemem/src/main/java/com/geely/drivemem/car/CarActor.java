@@ -130,24 +130,12 @@ public final class CarActor {
         h = new Handler(t.getLooper());
         h.post(this::tick);
 
-        // Charging status from current flow (faster than main telemetry tick)
-        // for ChargeSession card responsiveness.
-        //
-        // charge_a (605291008) is known to latch at its last non-zero reading
-        // and never return to 0 on its own (2026-09-14: 245V/11.4A held
-        // steady for hours after the plug was physically pulled; and
-        // 2026-09-18: a real 30-minute DC fast charge was missed almost
-        // entirely because is_charging never produced a fresh 0->1 edge —
-        // it had been stuck reporting 1 since a much earlier charge). A
-        // second, no-relation VHAL pair (DCHA_CHARGE_ACDC_*, see CarAccess)
-        // was investigated as a non-latching replacement and turned out to
-        // alias the exact same underlying functionId — no better raw source
-        // exists. car.plug_connected below is a genuinely different,
-        // connector-engagement property, so it's cross-checked HERE, in the
-        // same poll tick, rather than left to each consumer to guard against
-        // separately (ChargeSession used to be the only place that did) —
-        // every subscriber of car.is_charging gets the corrected value for
-        // free, including the ones that don't know this sensor is unreliable.
+        // Charging status: 2s poll for ChargeSession card responsiveness.
+        // Rule: car.is_charging requires both current flow (charge_a > 0.5A) AND
+        // physical connector engagement (plug_connected == 1).
+        // Invariant: prevents a latched current sensor from falsely reporting active
+        // charging and missing fresh 0->1 edges on subsequent charges.
+        // See docs/incidents.md#2026-09-18-charge-latch
         registerPoll("car.is_charging", 2000, c -> {
             String v = c.readAny(605291008, 0, 'f');   // charge_a — same raw prop Telemetry.FIELDS reads
             if (v == null) return Reading.error("no reading");

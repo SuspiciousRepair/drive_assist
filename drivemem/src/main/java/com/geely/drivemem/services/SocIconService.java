@@ -32,8 +32,8 @@ public class SocIconService extends Service {
     private volatile boolean running = false;
 
     // Fed by CarActor's regular telemetry tick — "battery" is already read
-    // there every 15s for MQTT, so this was pure duplicate work (its own
-    // CarAccess, its own 30s poll of the exact same property) before.
+    // there on each tick (CarActor.TICK_INTERVAL_MS) for MQTT, so this was pure duplicate work (its own
+    // CarAccess, its own poll of the exact same property) before.
     private final EntityBus.Listener battListener = (key, reading) -> {
         Float pct = (reading.status == CarActor.Reading.Status.OK && reading.value instanceof Integer)
             ? ((Integer) reading.value).floatValue() : null;

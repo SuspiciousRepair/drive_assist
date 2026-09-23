@@ -282,7 +282,8 @@ public final class ChargeSession {
     }
 
     // Fast edge detection — from CarActor's dedicated "car.is_charging"
-    // poll (2s, current-derived, independent of the 15s telemetry cadence).
+    // poll (2s, cross-checking current and plug state, independent of the
+    // CarActor.TICK_INTERVAL_MS telemetry cadence).
     // Handles session start/stop bookkeeping and the onProgress/onIdle/
     // onSession notifications that make the live card show/hide promptly.
     public static void onChargingEdge(Context ctx, boolean charging) {
@@ -500,9 +501,9 @@ public final class ChargeSession {
         resetSessionState();
     }
 
-    // Periodic sampling — from the regular 15s telemetry tick, only while
-    // a session is active per the fast edge above. Self-corrects against
-    // state drift by cross-checking CarActor's current cached is_charging.
+    // Periodic sampling — from the regular telemetry tick (CarActor.TICK_INTERVAL_MS),
+    // only while a session is active per the fast edge above. Self-corrects
+    // against state drift by cross-checking CarActor's current cached is_charging.
     public static void onTelemetryTick(Map<String, Object> data) {
         onTelemetryTick(null, data);
     }
