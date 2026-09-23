@@ -47,6 +47,14 @@ public final class CarActor {
         public static Reading error(String msg) { return new Reading(Status.ERROR, null, msg); }
     }
 
+    /** Extracts a plain Boolean from a "car.is_charging" Reading — null when
+     * that poll hasn't produced an OK reading yet. The single conversion
+     * point so every caller of Telemetry.read() passes the same answer. */
+    public static Boolean chargingFrom(Reading r) {
+        return (r.status == Reading.Status.OK && r.value instanceof Integer)
+            ? ((Integer) r.value == 1) : null;
+    }
+
     // Per-key cached state and change-detection deadband.
     private static final class Cached {
         volatile Reading reading = Reading.LOADING;
@@ -202,7 +210,8 @@ public final class CarActor {
             long now = android.os.SystemClock.elapsedRealtime();
             if (lastTelemetryMs < 0 || now - lastTelemetryMs >= TICK_INTERVAL_MS) {
                 lastTelemetryMs = now;
-                java.util.LinkedHashMap<String, Object> data = Telemetry.read(car);
+                java.util.LinkedHashMap<String, Object> data =
+                    Telemetry.read(car, chargingFrom(get("car.is_charging")));
                 if (!data.isEmpty()) {
                     for (Map.Entry<String, Object> e : data.entrySet())
                         ingest("telemetry." + e.getKey(), Reading.ok(e.getValue()));

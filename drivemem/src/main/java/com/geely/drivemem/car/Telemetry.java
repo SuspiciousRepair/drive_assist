@@ -67,8 +67,12 @@ public class Telemetry {
     }
 
     /** Reads all declared telemetry fields from the car. Returns a map of
-     * key -> value (Float or Integer); fields that fail to read are skipped. */
-    public static java.util.LinkedHashMap<String, Object> read(CarAccess car) {
+     * key -> value (Float or Integer); fields that fail to read are skipped.
+     * authoritativeCharging must come from CarActor's own "car.is_charging"
+     * poll (see its comment) — the one place that decides charging state.
+     * Null means that poll hasn't produced a reading yet (e.g. cold start);
+     * treated as "not charging", never guessed from charge_a here. */
+    public static java.util.LinkedHashMap<String, Object> read(CarAccess car, Boolean authoritativeCharging) {
         java.util.LinkedHashMap<String, Object> out = new java.util.LinkedHashMap<>();
         for (Field f : FIELDS) {
             for (int a : new int[]{0, 1, 16777216}) {
@@ -104,31 +108,35 @@ public class Telemetry {
         Object g = out.get("gear");
         if (g instanceof Integer) out.put("gear_label", gearLabel((Integer) g));
 
-        // "is_charging" is derived from charge_a (actual current flow, >0.5A
-        // to ignore idle-line noise) rather than CHARGE_SWITCH, which can read
-        // stale values — including a nonzero idle-sense voltage/current with
-        // the cable plugged in but no session active. When not charging, both
-        // are zeroed so HA doesn't show a residual reading. Named
-        // "is_charging" rather than "charging" because CarDataHub already
-        // uses "charging" for the write-side on/off switch entity.
-        Object ca = out.get("charge_a");
-        Float chargeA = (ca instanceof Float) ? (Float) ca : null;
-        boolean charging = (chargeA != null && chargeA > 0.5f);
-        out.put("is_charging", charging ? 1 : 0);
-        if (!charging) {
-            if (out.containsKey("charge_a")) out.put("charge_a", 0f);
-            if (out.containsKey("charge_v")) out.put("charge_v", 0f);
-        }
-
         // Plug/port connected — independent of active charging. The cable can
         // remain plugged in after a session completes, which is useful for
         // "unplug me" reminders. Property 557887621 reads 3 (connected) or 0 (not).
         // Derived here rather than declared as a Field since the raw value
-        // is not a plain bool/float.
+        // is not a plain bool/float. Plain passthrough of the raw prop — not
+        // a state decision, so it stays here unlike is_charging below.
         String plugRaw = car.readAny(557887621, 0, 'i');
         if (plugRaw != null) {
             try { out.put("plug_connected", Integer.parseInt(plugRaw) != 0 ? 1 : 0); }
             catch (NumberFormatException ignored) {}
+        }
+
+        // "is_charging" is NOT computed here. It used to be re-derived from
+        // charge_a (current > 0.5A) independently of CarActor's own
+        // "car.is_charging" poll, which already does this — and does it
+        // correctly, cross-checked against the plug (see that poll's
+        // comment). Two places computing the same fact drifted apart:
+        // charge_a is known to latch at its last non-zero reading and never
+        // fall back to 0 on its own, and this copy had no plug cross-check
+        // to catch that — so it kept reporting "charging" while actually
+        // driving with nothing plugged in (seen live 2026-09-23, ABRP/HA
+        // payload: is_charging=1, is_dcfc=1, speed=64.6 km/h, current=-7.7A/
+        // discharging). Now this method only asks for the one answer
+        // CarActor already computed and relays it — see authoritativeCharging.
+        boolean charging = authoritativeCharging != null && authoritativeCharging;
+        out.put("is_charging", charging ? 1 : 0);
+        if (!charging) {
+            if (out.containsKey("charge_a")) out.put("charge_a", 0f);
+            if (out.containsKey("charge_v")) out.put("charge_v", 0f);
         }
 
         // Instant power and continuous energy integration.
