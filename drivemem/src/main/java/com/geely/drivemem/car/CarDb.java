@@ -1,6 +1,8 @@
 package com.geely.drivemem.car;
 
 import com.geely.drivemem.hvac.ComfortEvents;
+import com.geely.drivemem.sensors.DrivingConsumption;
+import com.geely.drivemem.sensors.EnergySource;
 import com.geely.drivemem.sensors.OdoStats;
 import com.geely.drivemem.sensors.TelemetryRollup;
 import com.geely.drivemem.sensors.TelemetrySampler;
@@ -10,6 +12,7 @@ import com.geely.drivemem.state.TripSession;
 import com.geely.drivemem.util.DbMigration;
 
 import android.content.Context;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Handler;
@@ -29,7 +32,7 @@ public final class CarDb extends SQLiteOpenHelper {
     // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
     // every write failed until this was bumped past 14. See the v15 entry in
     // onUpgrade below for what v15 itself actually does.
-    private static final int VERSION = 21;
+    private static final int VERSION = 22;
 
     private static volatile CarDb instance;
 
@@ -385,6 +388,78 @@ public final class CarDb extends SQLiteOpenHelper {
             db.execSQL("ALTER TABLE telemetry_sample ADD COLUMN energy_spent_est_kwh REAL");
             db.execSQL("ALTER TABLE telemetry_sample ADD COLUMN energy_regen_est_kwh REAL");
             db.execSQL("ALTER TABLE daily_stat ADD COLUMN energy_source TEXT");
+        }
+        // v21 -> v22: makes good on the "NOT FULLY UNRECOVERABLE" comment
+        // above -- a user reported the exact "OBD2 connected, shown as
+        // estimated" bug for real, on data young enough for the
+        // battery_temp_c cross-check to apply. See repairEstimatedFlag().
+        if (oldVersion < 22) repairEstimatedFlag(db);
+    }
+
+    // Fixes telemetry_sample rows mislabeled "estimated" despite OBD2
+    // actually being connected, and the already-frozen daily_stat.energy_source
+    // values that were computed from them before the label was fixed --
+    // daily_stat is otherwise permanent/never-recomputed (see its own class
+    // comment), so this migration is the only chance those days get.
+    //
+    // Two-step, deliberately in this order:
+    // 1. Fix the raw flag: any row with battery_temp_c set (OBD2-exclusive,
+    //    see the v21 comment) but energy_measured=0 was really measured.
+    //    Unconditional and immediately useful even where step 2 can't
+    //    reach -- battery_temp_c didn't exist before 2026-09-13, and
+    //    telemetry_sample itself only keeps ~90 days raw (see
+    //    TelemetryRollup.RETAIN_DAYS) before a day is pruned down to just
+    //    its daily_stat row, so this can only recompute days whose raw
+    //    rows are still here. Rows/days it can't reach are left exactly as
+    //    they were -- not touched, not guessed at.
+    // 2. Recompute daily_stat.energy_source for every date that still has
+    //    raw telemetry_sample rows, reusing DrivingConsumption -- the exact
+    //    same driving/hasEnergy accumulation TelemetryRollup itself uses --
+    //    rather than a second copy of that logic in SQL. Spent/regen/net
+    //    kWh are left untouched: per the original bug report, those numbers
+    //    were already correct; only the measured/estimated label was wrong.
+    private static void repairEstimatedFlag(SQLiteDatabase db) {
+        db.execSQL("UPDATE telemetry_sample SET energy_measured = 1 "
+            + "WHERE energy_measured = 0 AND battery_temp_c IS NOT NULL");
+
+        Cursor days = db.rawQuery(
+            "SELECT DISTINCT date(ts_ms/1000,'unixepoch','localtime') FROM telemetry_sample "
+            + "WHERE date(ts_ms/1000,'unixepoch','localtime') IN (SELECT date FROM daily_stat)", null);
+        java.util.List<String> dates = new java.util.ArrayList<>();
+        try { while (days.moveToNext()) dates.add(days.getString(0)); } finally { days.close(); }
+        if (dates.isEmpty()) return;
+
+        java.util.Map<String, DrivingConsumption> acc = new java.util.HashMap<>();
+        for (String d : dates) acc.put(d, new DrivingConsumption());
+        String placeholders = String.join(",", java.util.Collections.nCopies(dates.size(), "?"));
+        Cursor c = db.rawQuery(
+            "SELECT date(ts_ms/1000,'unixepoch','localtime') AS day, "
+          + "       ts_ms, odo_km, speed_kmh, gear, is_charging, "
+          + "       energy_spent_kwh, energy_regen_kwh, instant_power_kw_est, energy_measured "
+          + "FROM telemetry_sample "
+          + "WHERE date(ts_ms/1000,'unixepoch','localtime') IN (" + placeholders + ") "
+          + "ORDER BY day ASC, ts_ms ASC, id ASC", dates.toArray(new String[0]));
+        try {
+            while (c.moveToNext()) {
+                DrivingConsumption a = acc.get(c.getString(0));
+                if (a == null) continue;
+                long ts = c.getLong(1);
+                double odo = c.isNull(2) ? Double.NaN : c.getDouble(2);
+                double speed = c.isNull(3) ? Double.NaN : c.getDouble(3);
+                Integer gear = c.isNull(4) ? null : c.getInt(4);
+                boolean charging = !c.isNull(5) && c.getInt(5) != 0;
+                double spent = c.isNull(6) ? Double.NaN : c.getDouble(6);
+                double regen = c.isNull(7) ? Double.NaN : c.getDouble(7);
+                double power = c.isNull(8) ? Double.NaN : c.getDouble(8);
+                Integer measured = c.isNull(9) ? null : c.getInt(9);
+                a.add(ts, odo, speed, gear, charging, spent, regen, power, measured);
+            }
+        } finally { c.close(); }
+
+        for (java.util.Map.Entry<String, DrivingConsumption> e : acc.entrySet()) {
+            EnergySource resolved = e.getValue().energySource();
+            db.execSQL("UPDATE daily_stat SET energy_source = ? WHERE date = ?",
+                new Object[]{resolved.name(), e.getKey()});
         }
     }
 
