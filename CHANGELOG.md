@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [v0.3.2] — 2026-09-22
+
+### Fixed
+- A drive that started under Valet, briefly paused, then continued after
+  Valet was turned off could merge into one trip and vanish from trip
+  history entirely — not just get grouped under Valet.
+- Recurrence of the "OBD2 connected, shown as estimated" bug, this time
+  on data young enough for the battery_temp_c cross-check to apply.
+  Repaired in place via a v22 migration (raw flag, then affected
+  daily_stat rows).
+
+### Changed
+- Valet can now be turned off while driving, not only while parked.
+
 ## [v0.3.1] — 2026-09-22
 
 ### Added

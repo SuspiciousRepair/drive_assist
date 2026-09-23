@@ -93,6 +93,71 @@ public class TripSessionTest {
     }
 
     @Test
+    public void testSplitTripDuringParkGraceStartsFreshNextTripOnNextEdge() {
+        // Guards the fix for a real bug: Valet turned on while parked, then
+        // driven with Valet forgotten on, then a brief stop (inside the 75s
+        // Park grace) to turn Valet back off, then driving continued. Without
+        // ValetSession.stop() splitting the open trip at that stop, the next
+        // gear-out-of-park below would stitch onto the SAME trip (asserted
+        // in testDrivingDurationAccumulationAcrossSegments) -- and the daily
+        // view hides any trip whose start_ms falls inside the Valet interval,
+        // so the driving done AFTER turning Valet off would vanish too.
+        long t0 = 100_000L;
+        TripSession.onGear(null, Modes.DRIVE_COMFORT, t0);
+        assertTrue(TripSession.isTripActive());
+
+        long t1 = t0 + 25_000L;
+        TripSession.onGear(null, Modes.GEAR_PARK_ADAPTED, t1); // brief stop
+        assertTrue("Trip must still be open during the park grace", TripSession.isTripActive());
+        assertTrue(TripSession.isParkGraceScheduled());
+
+        // ValetSession.stop() calls splitTrip() right here, before the grace
+        // period would otherwise let it merge with what comes next. Parked at
+        // this instant, so -- unlike the still-driving case below -- no new
+        // trip should open immediately; the next Park->Drive edge does that.
+        TripSession.setTestCurrentOdoKm(1000.5);
+        TripSession.setTripStateForTesting(true, t0, 1000.0, 25_000L, 1L);
+        TripSession.splitTrip(null, t1);
+        assertFalse("Trip must be closed, not left open", TripSession.isTripActive());
+        assertFalse(TripSession.isParkGraceScheduled());
+
+        // Driving resumes, still well inside what would have been the old
+        // 75s grace window.
+        long t2 = t1 + 10_000L;
+        TripSession.onGear(null, Modes.DRIVE_SPORT, t2);
+        assertTrue(TripSession.isTripActive());
+        assertEquals("A brand-new trip must start, not reuse the old start time",
+            t2, TripSession.getActiveTripStartMs());
+    }
+
+    @Test
+    public void testSplitTripWhileDrivingOpensFreshTripImmediately() {
+        // Valet can also be turned off while genuinely still driving (easy to
+        // forget it was left on). Here there is no upcoming Park->Drive edge
+        // to start the next trip -- unlike the park-grace case above, splitTrip()
+        // must open the new trip itself, right away, or the rest of the drive
+        // goes completely untracked until the car eventually parks.
+        long t0 = 200_000L;
+        TripSession.onGear(null, Modes.DRIVE_COMFORT, t0);
+        assertTrue(TripSession.isTripActive());
+
+        long t1 = t0 + 40_000L; // still driving, no Park edge in between
+        TripSession.setTestCurrentOdoKm(2000.4);
+        TripSession.setTripStateForTesting(true, t0, 2000.0, 40_000L, 1L);
+        boolean qualified = TripSession.splitTrip(null, t1);
+        assertTrue("40s/0.4km leg must qualify and be written out", qualified);
+
+        assertTrue("A fresh trip must open immediately -- still driving, "
+            + "no gear edge will ever arrive to do it", TripSession.isTripActive());
+        assertEquals(t1, TripSession.getActiveTripStartMs());
+        assertEquals(0L, TripSession.getDrivingDurationMs(t1));
+
+        // Driving continues to accumulate normally on the new trip.
+        long t2 = t1 + 15_000L;
+        assertEquals(15_000L, TripSession.getDrivingDurationMs(t2));
+    }
+
+    @Test
     public void testMicroTripDiscardedBelowThresholds() {
         long t0 = 50_000L;
         // Park -> Drive

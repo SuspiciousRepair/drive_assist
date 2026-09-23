@@ -40,8 +40,13 @@ public final class DrivingConsumption {
 
     /** Same as the 8-arg add(), plus a per-row measured/estimated tally.
      * energyMeasured mirrors telemetry_sample.energy_measured: 1 = OBD2,
-     * 0 = VHAL SoC-delta estimate, null = unknown (e.g. a pre-migration row). */
-    void add(long ts, double odo, double speed, Integer gear, boolean charging,
+     * 0 = VHAL SoC-delta estimate, null = unknown (e.g. a pre-migration row).
+     * Public (not package-private) so CarDb's v22 migration can reuse the
+     * exact same driving/hasEnergy accumulation TelemetryRollup uses,
+     * instead of a second, drifting copy of that logic in raw SQL, when
+     * repairing an already-frozen daily_stat.energy_source after fixing
+     * mislabeled telemetry_sample rows. */
+    public void add(long ts, double odo, double speed, Integer gear, boolean charging,
              double spentKwh, double regenKwh, double powerKw, Integer energyMeasured) {
         boolean driving = isDriving(gear, speed, charging);
         boolean direct = Double.isFinite(spentKwh) && Double.isFinite(regenKwh);
