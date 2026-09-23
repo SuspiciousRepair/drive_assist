@@ -99,17 +99,56 @@ public class EnergyIntegratorTest {
     }
 
     @Test
-    public void testGapRejection() {
-        // Gap > MAX_GAP_MS (10s): e.g. 15s between samples
+    public void testGapRejectionStillCreditsTheFreshReadingFlat() {
+        // Gap > MAX_GAP_MS (10s): e.g. 15s between samples. The STEP across
+        // the gap is still rejected -- no trapezoid spanning an unknown 15s
+        // of driving. But the second reading is a genuine, fresh OBD sample
+        // in its own right, so it's held flat across the window instead of
+        // silently reporting zero energy for the whole window (see
+        // drainWindow's count==0 && lastPowerKw != null branch -- the fix for
+        // a trip getting marked "estimated" despite OBD2 never disconnecting,
+        // reported live 2026-09-23).
         EnergyIntegrator.onPowerReading(10_000, 50.0);
-        EnergyIntegrator.onPowerReading(25_000, 50.0); // 15s later -> gap!
+        EnergyIntegrator.onPowerReading(25_000, 50.0); // 15s later -> gap, step rejected
+
+        // windowStartMonoMs defaults to 0 after resetForTesting(), so
+        // drainWindow falls back to its own 30s default elapsed-window.
+        // Drains 2s after the last reading -- within MAX_GAP_MS of it, so
+        // it still counts as fresh.
+        EnergyIntegrator.WindowSnapshot snap = EnergyIntegrator.drainWindow(27_000, null);
+        double expected = 50.0 * (30_000 / 3_600_000.0);
+        assertEquals("A real reading, even an isolated one, must count as measured", 1, snap.sampleCount);
+        assertEquals(expected, snap.spentKwh, EPSILON);
+        assertEquals(0.0, snap.regenKwh, EPSILON);
+        assertEquals(expected, snap.netKwh, EPSILON);
+    }
+
+    @Test
+    public void testIsolatedReadingWithNoPredecessorCountsAsMeasured() {
+        // The exact real-world shape of the reported bug: right after a
+        // reset (a reconnect, the parked+charging guard, or app start),
+        // lastSampleMonoMs is 0 -- so the very FIRST reading that arrives has
+        // no predecessor to pair with at all, not just a gap. A short trip's
+        // opening window can drain before a second reading ever arrives.
+        // That single reading is still genuinely OBD2-sourced and must not
+        // be discarded down to "estimated."
+        EnergyIntegrator.onPowerReading(10_000, 25.0);
 
         EnergyIntegrator.WindowSnapshot snap = EnergyIntegrator.drainWindow(15_000, null);
-        // The gap sample must NOT be integrated into energy
-        assertEquals(0, snap.sampleCount);
-        assertEquals(0.0, snap.spentKwh, EPSILON);
+        double expected = 25.0 * (30_000 / 3_600_000.0);
+        assertEquals(1, snap.sampleCount);
+        assertEquals(expected, snap.spentKwh, EPSILON);
         assertEquals(0.0, snap.regenKwh, EPSILON);
-        assertEquals(0.0, snap.netKwh, EPSILON);
+    }
+
+    @Test
+    public void testFallbackStillUsedWhenNoRealReadingArrivedAtAll() {
+        // The one case that must still fall all the way back to the cruder
+        // VHAL SoC-delta guess: zero OBD readings this window, period.
+        EnergyIntegrator.WindowSnapshot snap = EnergyIntegrator.drainWindow(15_000, 10.0f);
+        assertEquals("No real OBD reading arrived -- this window is a guess, not measured",
+            0, snap.sampleCount);
+        assertTrue("The VHAL fallback must still produce a number", snap.spentKwh > 0);
     }
 
     @Test

@@ -237,14 +237,45 @@ public final class EnergyIntegrator {
             double outNet = windowNetKwh;
             int count = windowSampleCount;
 
-            // Fallback integration if OBD2 was unavailable during this entire window.
-            // *4, not *3: the tick that feeds this (CarActor.TICK_INTERVAL_MS) now
-            // runs at the same 30s cadence this fallback's own SoC delta is sampled
-            // at, so elapsedWindowMs normally sits right at that boundary -- *3
-            // (30s) would reject a real window on nothing more than ordinary
-            // scheduling jitter pushing it a few ms over. *4 keeps real multi-tick
-            // gaps (a suspend, a dropped tick) rejected without also punishing jitter.
-            if (count == 0 && fallbackPowerKw != null && elapsedWindowMs <= MAX_GAP_MS * 4) {
+            // count==0 means no full trapezoid step landed this window -- which
+            // isn't only "OBD2 was unavailable." It's also what a single
+            // isolated OBD reading with no predecessor to pair against looks
+            // like: right after onObd2ConnectedChanged(true), right after the
+            // parked+charging guard above resets lastPowerKw, or right after
+            // app start. That reading is genuinely OBD2-sourced -- reaching
+            // past it for the cruder VHAL SoC-delta guess just because it
+            // arrived alone is exactly the "one miss taints everything"
+            // behavior reported live 2026-09-23: a short trip's first window,
+            // one reading in, got "estimated" though OBD2 never disconnected.
+            // Prefer this single real reading (held flat across the window)
+            // over the fallback, and count the window as measured -- only
+            // reach for the fallback when we have NO real OBD reading at all.
+            // Bounded by MAX_GAP_MS so a reading that's actually gone stale
+            // (OBD2 died without a formal disconnect event, or the window
+            // itself sat idle a long time) can't get held flat forever --
+            // that's a real gap, not a single missed poll.
+            if (count == 0 && lastPowerKw != null
+                    && nowMono >= lastSampleMonoMs && (nowMono - lastSampleMonoMs) <= MAX_GAP_MS) {
+                double hours = elapsedWindowMs / 3_600_000.0;
+                double kw = lastPowerKw;
+                if (kw >= 0) {
+                    outSpent = kw * hours;
+                    outRegen = 0.0;
+                } else {
+                    outSpent = 0.0;
+                    outRegen = -kw * hours;
+                }
+                outNet = outSpent - outRegen;
+                count = 1;
+            } else if (count == 0 && fallbackPowerKw != null && elapsedWindowMs <= MAX_GAP_MS * 4) {
+                // Fallback integration: OBD2 gave us nothing at all this window.
+                // *4, not *3: the tick that feeds this (CarActor.TICK_INTERVAL_MS)
+                // now runs at the same 30s cadence this fallback's own SoC delta
+                // is sampled at, so elapsedWindowMs normally sits right at that
+                // boundary -- *3 (30s) would reject a real window on nothing more
+                // than ordinary scheduling jitter pushing it a few ms over. *4
+                // keeps real multi-tick gaps (a suspend, a dropped tick) rejected
+                // without also punishing jitter.
                 double hours = elapsedWindowMs / 3_600_000.0;
                 double kw = fallbackPowerKw;
                 if (kw >= 0) {
