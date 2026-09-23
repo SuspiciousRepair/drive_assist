@@ -70,8 +70,11 @@ public class Telemetry {
      * key -> value (Float or Integer); fields that fail to read are skipped.
      * authoritativeCharging must come from CarActor's own "car.is_charging"
      * poll (see its comment) — the one place that decides charging state.
-     * Null means that poll hasn't produced a reading yet (e.g. cold start);
-     * treated as "not charging", never guessed from charge_a here. */
+     * Null means that poll hasn't produced a reading yet (e.g. cold start):
+     * "is_charging" is then left OUT of the returned map entirely, the same
+     * "not available" convention every other field here already uses on a
+     * failed read — never collapsed into a guessed 0, which would just be
+     * this method making its own assumption again. */
     public static java.util.LinkedHashMap<String, Object> read(CarAccess car, Boolean authoritativeCharging) {
         java.util.LinkedHashMap<String, Object> out = new java.util.LinkedHashMap<>();
         for (Field f : FIELDS) {
@@ -132,11 +135,20 @@ public class Telemetry {
         // payload: is_charging=1, is_dcfc=1, speed=64.6 km/h, current=-7.7A/
         // discharging). Now this method only asks for the one answer
         // CarActor already computed and relays it — see authoritativeCharging.
-        boolean charging = authoritativeCharging != null && authoritativeCharging;
-        out.put("is_charging", charging ? 1 : 0);
-        if (!charging) {
-            if (out.containsKey("charge_a")) out.put("charge_a", 0f);
-            if (out.containsKey("charge_v")) out.put("charge_v", 0f);
+        //
+        // Unknown (null) is a real state, not "assume not charging" — that
+        // would just move the guessing back in here under a different name.
+        // Left out of the map on unknown; every consumer of "is_charging"
+        // already treats a missing key as "don't know", not false
+        // (TelemetrySampler.putIfPresent, TripSession's instanceof check,
+        // AbrpUploader's asInt() null check).
+        if (authoritativeCharging != null) {
+            boolean charging = authoritativeCharging;
+            out.put("is_charging", charging ? 1 : 0);
+            if (!charging) {
+                if (out.containsKey("charge_a")) out.put("charge_a", 0f);
+                if (out.containsKey("charge_v")) out.put("charge_v", 0f);
+            }
         }
 
         // Instant power and continuous energy integration.

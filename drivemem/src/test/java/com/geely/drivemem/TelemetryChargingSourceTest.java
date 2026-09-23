@@ -42,10 +42,15 @@ public class TelemetryChargingSourceTest {
         assertEquals(11.4f, (Float) data.get("charge_a"), 0.001f);
     }
 
-    @Test public void unknownAuthorityDefaultsToNotCharging() {
-        // Cold start: CarActor's poll hasn't produced a reading yet.
+    @Test public void unknownAuthorityIsLeftOutNotGuessed() {
+        // Cold start: CarActor's poll hasn't produced a reading yet. Unknown
+        // must stay unknown -- not collapsed into a guessed "not charging",
+        // which is the same mistake this fix removes, just relocated.
         Map<String, Object> data = Telemetry.read(new FakeCar(11.4f), null);
-        assertEquals(0, data.get("is_charging"));
-        assertEquals(0f, (Float) data.get("charge_a"), 0.001f);
+        assertFalse("is_charging must be absent, not defaulted, when unknown",
+            data.containsKey("is_charging"));
+        // Raw sensor reading is still reported as-is -- only the derived
+        // is_charging claim is withheld, not the underlying data.
+        assertEquals(11.4f, (Float) data.get("charge_a"), 0.001f);
     }
 }
