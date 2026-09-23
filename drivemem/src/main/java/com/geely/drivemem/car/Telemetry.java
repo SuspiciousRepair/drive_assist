@@ -66,8 +66,9 @@ public class Telemetry {
         return null;
     }
 
-    /** Reads all declared telemetry fields from the car. Returns a map of
-     * key -> value (Float or Integer); fields that fail to read are skipped.
+    /** Reads current vehicle property values into a map. Side-effect-free: does not
+     * drain energy accumulators or advance the SoC-delta tracking window.
+     * For display, test, and debug purposes.
      * authoritativeCharging must come from CarActor's own "car.is_charging"
      * poll (see its comment) — the one place that decides charging state.
      * Null means that poll hasn't produced a reading yet (e.g. cold start):
@@ -75,7 +76,7 @@ public class Telemetry {
      * "not available" convention every other field here already uses on a
      * failed read — never collapsed into a guessed 0, which would just be
      * this method making its own assumption again. */
-    public static java.util.LinkedHashMap<String, Object> read(CarAccess car, Boolean authoritativeCharging) {
+    public static java.util.LinkedHashMap<String, Object> snapshot(CarAccess car, Boolean authoritativeCharging) {
         java.util.LinkedHashMap<String, Object> out = new java.util.LinkedHashMap<>();
         for (Field f : FIELDS) {
             for (int a : new int[]{0, 1, 16777216}) {
@@ -151,6 +152,21 @@ public class Telemetry {
             }
         }
 
+        // Parking Mode (0 = off; otherwise the low byte is the chosen duration)
+        Integer pm = car.readParkMode();
+        if (pm != null) {
+            out.put("park_mode", (pm != 0) ? 1 : 0);
+            out.put("park_timer", (pm != 0) ? parkTimerLabel(pm) : "—");
+        }
+        return out;
+    }
+
+    /** Periodic telemetry tick: reads snapshot values and integrates energy over the
+     * window (CarActor.TICK_INTERVAL_MS). Drains and resets EnergyIntegrator's window
+     * accumulators and advances the SoC-delta tracking window. */
+    public static java.util.LinkedHashMap<String, Object> tick(CarAccess car, Boolean authoritativeCharging) {
+        java.util.LinkedHashMap<String, Object> out = snapshot(car, authoritativeCharging);
+
         // Instant power and continuous energy integration.
         // Direct BMS measurement via Obd2Reader takes priority; falls back
         // to SOC delta over a rolling window if OBD2 is unavailable.
@@ -223,15 +239,21 @@ public class Telemetry {
             out.put("energy_regen_est_kwh",
                 fallbackSocPower < 0 ? (float) (-fallbackSocPower * fallbackWindowHours) : 0f);
         }
-
-        // Parking Mode (0 = off; otherwise the low byte is the chosen duration)
-        Integer pm = car.readParkMode();
-        if (pm != null) {
-            out.put("park_mode", (pm != 0) ? 1 : 0);
-            out.put("park_timer", (pm != 0) ? parkTimerLabel(pm) : "—");
-        }
         return out;
     }
+
+    /** Legacy alias for {@link #tick(CarAccess, Boolean)}. */
+    public static java.util.LinkedHashMap<String, Object> read(CarAccess car, Boolean authoritativeCharging) {
+        return tick(car, authoritativeCharging);
+    }
+
+    public static void resetForTesting() {
+        lastPowerSoc = null;
+        lastPowerSocAtMs = 0;
+    }
+
+    public static Double getLastPowerSocForTesting() { return lastPowerSoc; }
+    public static long getLastPowerSocAtMsForTesting() { return lastPowerSocAtMs; }
 
     /** Decodes parking mode duration from the low byte to a human-readable
      * label (e.g., "1 h", "Ilimitado"). Thin wrapper: CarDataHub.PARK_DURATIONS

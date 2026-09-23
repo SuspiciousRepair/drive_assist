@@ -53,4 +53,18 @@ public class TelemetryChargingSourceTest {
         // is_charging claim is withheld, not the underlying data.
         assertEquals(11.4f, (Float) data.get("charge_a"), 0.001f);
     }
+
+    @Test public void snapshotRespectsAuthoritativeCharging() {
+        Map<String, Object> notCharging = Telemetry.snapshot(new FakeCar(11.4f), false);
+        assertEquals(0, notCharging.get("is_charging"));
+        assertEquals(0f, (Float) notCharging.get("charge_a"), 0.001f);
+
+        Map<String, Object> charging = Telemetry.snapshot(new FakeCar(11.4f), true);
+        assertEquals(1, charging.get("is_charging"));
+        assertEquals(11.4f, (Float) charging.get("charge_a"), 0.001f);
+
+        Map<String, Object> unknown = Telemetry.snapshot(new FakeCar(11.4f), null);
+        assertFalse(unknown.containsKey("is_charging"));
+        assertEquals(11.4f, (Float) unknown.get("charge_a"), 0.001f);
+    }
 }

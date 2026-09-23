@@ -1977,7 +1977,7 @@ public class TelemetryActivity extends Activity {
             CarAccess c = actor.rawAccess();
             boolean carOk = c.isReady() || c.connect(getApplicationContext());
             java.util.LinkedHashMap<String, Object> data = carOk
-                ? Telemetry.read(c, CarActor.chargingFrom(actor.get("car.is_charging")))
+                ? Telemetry.snapshot(c, CarActor.chargingFrom(actor.get("car.is_charging")))
                 : new java.util.LinkedHashMap<>();
             logMqtt("TEST", "Sensores lidos: " + data.size() + " campos (CarAccess ok=" + carOk + ")");
             logMqtt("TEST", "Publicando em '" + MqttReporter.getBaseTopic() + "/state'...");
