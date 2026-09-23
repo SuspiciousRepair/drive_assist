@@ -112,6 +112,18 @@ public class Updater {
         return u;
     }
 
+    /** CloudFlare caches /local with 31-day max-age. Appends a timestamp
+     * query to force a MISS at the edge, unless the URL already carries a
+     * query of its own (an announced "?v=<code>" URL is meant to be stable
+     * — see build.sh and check()'s own remoteVc parsing below, which needs
+     * that param left alone). The one place this decision is made — check()
+     * and update() both call it, so a manually-typed bare URL (the
+     * "update_url" field in Config) is protected the same way in both,
+     * instead of only at install time like before. */
+    public static String cacheBust(String u) {
+        return (u.indexOf('?') < 0) ? u + "?t=" + System.currentTimeMillis() : u;
+    }
+
     public static void check(final Context ctx, final String url, final String targetPkg, final CheckCallback cb) {
         new Thread(() -> {
             try {
@@ -120,6 +132,7 @@ public class Updater {
                     if (cb != null) cb.onError("URL must start with https://");
                     return;
                 }
+                u = cacheBust(u);
 
                 int curVc;
                 String curVn;
@@ -400,10 +413,7 @@ public class Updater {
                     return;
                 }
 
-                // CloudFlare caches /local with 31-day max-age. Append a
-                // timestamp query to force a MISS at the edge, unless the URL
-                // already carries a query (versioned URLs are meant to be stable).
-                if (u.indexOf('?') < 0) u = u + "?t=" + System.currentTimeMillis();
+                u = cacheBust(u);
 
                 // Has this URL already been applied? Retained MQTT commands are
                 // redelivered on every reconnect, so this check avoids repeated
