@@ -34,6 +34,40 @@ public final class CarDb extends SQLiteOpenHelper {
     // onUpgrade below for what v15 itself actually does.
     private static final int VERSION = 22;
 
+    /** SQL predicate for telemetry rows representing driving: gear is not Park (4),
+     * or if gear is missing, car is not charging. */
+    public static final String DRIVING_ROW_SQL =
+        "(CASE WHEN gear IS NOT NULL THEN gear <> 4 "
+      + "     ELSE (is_charging IS NULL OR is_charging = 0) END)";
+
+    /** SQL predicate for telemetry rows with measured (OBD2) energy data:
+     * energy_measured flag is set, or battery_temp_c is present (OBD2-exclusive). */
+    public static final String MEASURED_ROW_SQL =
+        "(energy_measured = 1 OR battery_temp_c IS NOT NULL)";
+
+    /** SQL predicate for telemetry rows with estimated energy data:
+     * energy_measured flag is 0 and battery_temp_c is absent. */
+    public static final String ESTIMATED_ROW_SQL =
+        "(energy_measured = 0 AND battery_temp_c IS NULL)";
+
+    /** An estimated row that actually moved energy: what the day and trip
+     * "estimated" counts use. A row with no OBD2 AND no energy delta
+     * (parked, idle, nothing to measure) is not an estimate of anything;
+     * counting it made a mostly idle but fully measured day read as MIXED
+     * (caught 2026-09-24: 619 measured / 0 real-estimated / 218 idle-zero).
+     * Same gate DrivingConsumption.add() applies. */
+    public static final String ESTIMATED_ENERGY_ROW_SQL =
+        "(" + ESTIMATED_ROW_SQL
+      + " AND (IFNULL(energy_spent_kwh,0) != 0 OR IFNULL(energy_regen_kwh,0) != 0))";
+
+    public static boolean isRowMeasured(Integer energyMeasured, Double batteryTempC) {
+        return (energyMeasured != null && energyMeasured == 1) || batteryTempC != null;
+    }
+
+    public static boolean isRowEstimated(Integer energyMeasured, Double batteryTempC) {
+        return (energyMeasured != null && energyMeasured == 0) && batteryTempC == null;
+    }
+
     private static volatile CarDb instance;
 
     /** Returns the singleton CarDb instance, creating it if necessary. */
@@ -420,7 +454,7 @@ public final class CarDb extends SQLiteOpenHelper {
     //    were already correct; only the measured/estimated label was wrong.
     private static void repairEstimatedFlag(SQLiteDatabase db) {
         db.execSQL("UPDATE telemetry_sample SET energy_measured = 1 "
-            + "WHERE energy_measured = 0 AND battery_temp_c IS NOT NULL");
+            + "WHERE energy_measured = 0 AND " + MEASURED_ROW_SQL);
 
         Cursor days = db.rawQuery(
             "SELECT DISTINCT date(ts_ms/1000,'unixepoch','localtime') FROM telemetry_sample "

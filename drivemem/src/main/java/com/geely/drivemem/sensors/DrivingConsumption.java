@@ -33,6 +33,18 @@ public final class DrivingConsumption {
         return speed > 0;
     }
 
+    /** Pure row-level driving predicate matching {@link com.geely.drivemem.car.CarDb#DRIVING_ROW_SQL}.
+     * Gear wins over is_charging whenever gear is known (gear != 4 is driving,
+     * gear == 4 is parked). When gear is missing, not charging indicates driving. */
+    public static boolean isDriving(Integer gear, Boolean charging) {
+        if (gear != null) return gear != 4;
+        return charging == null || !charging;
+    }
+
+    public static boolean isDriving(Integer gear, boolean charging) {
+        return isDriving(gear, Boolean.valueOf(charging));
+    }
+
     void add(long ts, double odo, double speed, Integer gear, boolean charging,
              double spentKwh, double regenKwh, double powerKw) {
         add(ts, odo, speed, gear, charging, spentKwh, regenKwh, powerKw, null);
