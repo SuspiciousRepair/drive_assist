@@ -124,6 +124,27 @@ public class Updater {
         return (u.indexOf('?') < 0) ? u + "?t=" + System.currentTimeMillis() : u;
     }
 
+    /** Whether update() must refuse to install right now, and the Portuguese
+     * status string to report if so; null means safe to proceed. force
+     * bypasses both checks (an explicit, opt-in override -- same as it
+     * already bypassed the motion check alone before this).
+     *
+     * Installing replaces the app process mid-run (see CLAUDE.md's notes on
+     * what that already does to the app's own alarms/watchdog) -- while a
+     * real charge is in progress, that disruption reached the vehicle's own
+     * charging session too: a public DCFC station's own receipt showed a
+     * session stopped at ~12 minutes, mid-charge, right after an OTA
+     * install landed (2026-09-23). Blocked the same way "vehicle in
+     * motion" already was. ChargeSession.isCharging() is the single place
+     * that already knows charging state correctly (see its own
+     * is_charging derivation for why it's the one to trust here too). */
+    public static String installBlockedReason(boolean force) {
+        if (force) return null;
+        if (!com.geely.drivemem.state.CarState.isParked()) return "bloqueado: veículo em movimento";
+        if (com.geely.drivemem.state.ChargeSession.isCharging()) return "bloqueado: veículo carregando";
+        return null;
+    }
+
     public static void check(final Context ctx, final String url, final String targetPkg, final CheckCallback cb) {
         new Thread(() -> {
             try {
@@ -407,9 +428,10 @@ public class Updater {
                 if (!u.startsWith("https://")) { p.step("erro: URL precisa ser https"); return; }
 
                 boolean force = url != null && url.toLowerCase(java.util.Locale.US).contains("force");
-                if (!force && !com.geely.drivemem.state.CarState.isParked()) {
-                    if (p != null) p.step("bloqueado: veículo em movimento");
-                    Log.w(TAG, "Update blocked: vehicle is not parked");
+                String blocked = installBlockedReason(force);
+                if (blocked != null) {
+                    if (p != null) p.step(blocked);
+                    Log.w(TAG, "Update blocked: " + blocked);
                     return;
                 }
 
