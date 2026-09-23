@@ -204,6 +204,7 @@ dependencies {
     testImplementation files(carStubsJar)
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.json:json:20231013"
+    testImplementation "org.xerial:sqlite-jdbc:3.44.0.0"
 }
 
 // --- Checkstyle -------------------------------------------------------------
