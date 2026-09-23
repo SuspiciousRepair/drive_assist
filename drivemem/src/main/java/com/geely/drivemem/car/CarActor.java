@@ -37,6 +37,16 @@ public final class CarActor {
     public interface ReadCallback { void onRead(Object value); }
     public interface BoolCallback { void onResult(boolean ok); }
 
+    // For testing: an interface that both Handler and TestHandler can satisfy.
+    interface HandlerLike {
+        void post(Runnable action);
+        void postDelayed(Runnable action, long delayMillis);
+        void removeCallbacks(Runnable action);
+        // Null is a valid answer (e.g. a test double with no real thread) --
+        // assertCarThread() already treats a null looper as "can't check, skip it".
+        Looper getLooper();
+    }
+
     /** Cached reading with explicit status (not_available/loading/ok/error). */
     public static final class Reading {
         public enum Status { NOT_AVAILABLE, LOADING, OK, ERROR }
@@ -98,7 +108,8 @@ public final class CarActor {
 
     public CarActor(Handler h) {
         this.ctx = null;
-        this.h = h;
+        this.car = null;
+        this.h = (h != null) ? new HandlerAdapter(h) : null;
     }
 
     public static void setInstanceForTesting(CarActor a) {
@@ -134,14 +145,29 @@ public final class CarActor {
     }
 
     private final Context ctx;
-    private final CarAccess car = new CarAccess();
-    private final Handler h;
+    private final CarAccess car;
+    private final HandlerLike h;
 
     private CarActor(Context ctx) {
+        this(ctx, null, null);
+    }
+
+    // Package-private testing constructor for dependency injection.
+    CarActor(Context ctx, HandlerLike testHandler, CarAccess testCar) {
+        try {
         this.ctx = ctx;
-        HandlerThread t = new HandlerThread("car-actor");
-        t.start();
-        h = new Handler(t.getLooper());
+        if (testCar != null) {
+            car = testCar;
+        } else {
+            car = new CarAccess();
+        }
+        if (testHandler != null) {
+            h = testHandler;
+        } else {
+            HandlerThread t = new HandlerThread("car-actor");
+            t.start();
+            h = new HandlerAdapter(new Handler(t.getLooper()));
+        }
         h.post(this::tick);
 
         // Raw charging current: 2s poll. Input for car.is_charging derivation.
@@ -201,6 +227,10 @@ public final class CarActor {
         // This just puts its state on the same bus everything else reads from.
         registerPoll("car.carplay_connected", 4000, c ->
             Reading.ok(CarplayState.connected() ? 1 : 0));
+        } catch (Throwable t) {
+            Log.w(CarAccess.TAG, "car actor init failed: " + t, t);
+            throw t;
+        }
     }
 
     // Main heartbeat: reads all Telemetry.FIELDS on cadence. 30s, not faster:
@@ -209,7 +239,7 @@ public final class CarActor {
     // other tick's fallback energy calc used a mismatched (half-length)
     // duration against a reading that hadn't actually changed yet.
     private static final int TICK_INTERVAL_MS = 30000;
-    private long lastTelemetryMs = -1;
+    volatile long lastTelemetryMs = -1;
 
     /** Callback for a registered periodic property poll. Runs on actor's thread. */
     public interface Poller { Reading poll(CarAccess car); }
@@ -396,6 +426,14 @@ public final class CarActor {
     /** Returns direct access to the shared CarAccess (for use only on actor's thread). */
     public CarAccess rawAccess() { return car; }
 
+    // Testing seams (package-private).
+    void resetTimingForTesting() {
+        lastTelemetryMs = -1;
+        for (PollEntry p : polls) p.lastRunMs = -1;
+    }
+    java.util.List<PollEntry> getRegisteredPollsForTesting() { return new java.util.ArrayList<>(polls); }
+    void tickNowForTesting() { tick(); }
+
     /** Returns the cached reading for a key, or NOT_AVAILABLE if never registered. */
     public Reading get(String key) {
         Cached c = state.get(key);
@@ -517,5 +555,15 @@ public final class CarActor {
         watchRaw("car.hvac_recirc", CarAccess.HVAC_RECIRC_ON, 75);
         watchRaw("car.hvac_direction", 557846560, 0);
         watchRaw("car.hvac_rear_defrost", CarAccess.HVAC_ELECTRIC_DEFROSTER_ON, 2);
+    }
+
+    // Adapter from real Handler to HandlerLike interface (production code path).
+    private static class HandlerAdapter implements HandlerLike {
+        final Handler delegate;
+        HandlerAdapter(Handler h) { delegate = h; }
+        public void post(Runnable action) { delegate.post(action); }
+        public void postDelayed(Runnable action, long delayMillis) { delegate.postDelayed(action, delayMillis); }
+        public void removeCallbacks(Runnable action) { delegate.removeCallbacks(action); }
+        public Looper getLooper() { return delegate.getLooper(); }
     }
 }

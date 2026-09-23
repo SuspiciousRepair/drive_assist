@@ -189,6 +189,9 @@ dependencies {
     // provided by the OS on the actual head unit. Bundling them would be
     // wrong, same as build.sh's CARJAR usage today.
     compileOnly files(carStubsJar)
+    // Also needed at test runtime for tests that mock CarAccess (e.g.,
+    // CarActorTestHarness) which inherit from classes that import CarPropertyManager.
+    testImplementation files(carStubsJar)
 
     // MQTT client (WebSocket included) — ships inside the APK. AGP merges
     // its .properties/META-INF/services into the final apk as part of
