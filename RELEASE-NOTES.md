@@ -12,6 +12,15 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.3.2 — 2026-09-22
+
+- Fixed: a drive right after turning off Valet mode could disappear from
+  your trip history instead of showing up.
+- Fixed: another case of a driving trip mislabeled as "estimated" when
+  it was really measured by the car.
+- Changed: you can now turn off Valet mode while driving, not just while
+  parked.
+
 ## v0.3.1 — 2026-09-22
 
 - New: a large Spotify card, with full album art and big Play/Skip
