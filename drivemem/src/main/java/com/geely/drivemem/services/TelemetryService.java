@@ -6,10 +6,10 @@ import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.net.MqttReporter;
 import com.geely.drivemem.sensors.GpsReader;
 import com.geely.drivemem.util.Beat;
+import com.geely.drivemem.util.Prefs;
 
 import android.app.Service;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -73,23 +73,22 @@ public class TelemetryService extends Service {
         // force-restarted four times in one evening, 2026-09-14). Nothing
         // below this point is anything but the MQTT-to-HA publishing this
         // service is actually named for.
-        SharedPreferences p = getSharedPreferences("drivemem", MODE_PRIVATE);
-        if (!p.getBoolean("tele_enabled", false)) { stopSelf(); return START_NOT_STICKY; }
-        String uri = p.getString("mqtt_uri", "");
+        if (!Prefs.getTeleEnabled(this)) { stopSelf(); return START_NOT_STICKY; }
+        String uri = Prefs.getMqttUri(this, "");
         if (uri.isEmpty()) { Log.w(TAG, "tele: no mqtt_uri"); stopSelf(); return START_NOT_STICKY; }
-        publishIntervalMs = Math.max(5, p.getInt("tele_interval_s", 10)) * 1000;
+        publishIntervalMs = Math.max(5, Prefs.getTeleIntervalS(this)) * 1000;
 
         if (running) {
             // service already running. If the broker changed (address/credentials),
             // rebuild the client ON THE LOOP'S OWN THREAD (the same one that uses
             // `mqtt`, so no race); otherwise just re-apply the commands lock.
-            final String newCfg = cfgSig(p);
-            final boolean cmds = p.getBoolean("commands_enabled", true);
+            final String newCfg = cfgSig(this);
+            final boolean cmds = Prefs.getCommandsEnabled(this);
             h.post(() -> {
                 if (!newCfg.equals(mqttCfg)) {
                     Log.i(TAG, "tele: broker config changed — reconnecting");
                     if (mqtt != null) mqtt.close();
-                    mqtt = buildReporter(p);
+                    mqtt = buildReporter(this);
                 } else if (mqtt != null) {
                     mqtt.setCommandsEnabled(cmds);
                 }
@@ -99,7 +98,7 @@ public class TelemetryService extends Service {
         running = true;
         thread = new HandlerThread("tele"); thread.start();   // GPS listener delivery only
         h = new Handler(thread.getLooper());
-        mqtt = buildReporter(p);
+        mqtt = buildReporter(this);
         registerGps();
         h.post(this::publishTick);
         Log.i(TAG, "TelemetryService started, publish " + publishIntervalMs + "ms");
@@ -158,17 +157,17 @@ public class TelemetryService extends Service {
     }
 
     // signature of the config that matters for the connection (excludes interval/toggles)
-    private static String cfgSig(SharedPreferences p) {
-        return p.getString("mqtt_uri", "") + "\n" + p.getString("mqtt_uri_alt", "")
-             + "\n" + p.getString("mqtt_user", "") + "\n" + p.getString("mqtt_pass", "");
+    private String cfgSig(Service ctx) {
+        return Prefs.getMqttUri(ctx, "") + "\n" + Prefs.getMqttUriAlt(ctx)
+             + "\n" + Prefs.getMqttUser(ctx, "") + "\n" + Prefs.getMqttPass(ctx);
     }
 
     // creates the reporter, applies the commands lock and records the current signature
-    private MqttReporter buildReporter(SharedPreferences p) {
-        MqttReporter r = new MqttReporter(p.getString("mqtt_uri", ""), p.getString("mqtt_uri_alt", ""),
-                p.getString("mqtt_user", ""), p.getString("mqtt_pass", ""), this);
-        r.setCommandsEnabled(p.getBoolean("commands_enabled", true));
-        mqttCfg = cfgSig(p);
+    private MqttReporter buildReporter(Service ctx) {
+        MqttReporter r = new MqttReporter(Prefs.getMqttUri(ctx, ""), Prefs.getMqttUriAlt(ctx),
+                Prefs.getMqttUser(ctx, ""), Prefs.getMqttPass(ctx), ctx);
+        r.setCommandsEnabled(Prefs.getCommandsEnabled(ctx));
+        mqttCfg = cfgSig(ctx);
         return r;
     }
 

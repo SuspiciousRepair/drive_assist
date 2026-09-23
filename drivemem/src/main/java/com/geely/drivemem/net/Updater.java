@@ -7,6 +7,7 @@ import android.content.pm.PackageManager;
 import android.util.Log;
 
 import com.geely.drivemem.BuildConfig;
+import com.geely.drivemem.util.Prefs;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -104,9 +105,7 @@ public class Updater {
     public static String resolveUrl(Context ctx, String url) {
         String u = (url == null) ? "" : url.trim();
         if (u.isEmpty() || u.equalsIgnoreCase("go")) {
-            android.content.SharedPreferences pfUrl =
-                ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-            u = pfUrl.getString("update_url", DEFAULT_URL);
+            u = Prefs.getUpdateUrl(ctx, DEFAULT_URL);
             if (u.trim().isEmpty()) u = DEFAULT_URL;
         }
         return u;
@@ -197,8 +196,7 @@ public class Updater {
                 // curVc/curVn, untouched) still shows what's REALLY installed,
                 // not what was last skipped. A newer release than the skipped
                 // one still prompts normally.
-                String skipKey = (targetLabel != null) ? "skip_update_vc_modehelper" : "skip_update_vc";
-                int skippedVc = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE).getInt(skipKey, 0);
+                int skippedVc = Prefs.getSkipUpdateVc(ctx, targetLabel != null);
                 int effectiveVc = Math.max(curVc, skippedVc);
 
                 // 1. Check if the URL carries a version query parameter (?v=...)
@@ -425,9 +423,7 @@ public class Updater {
             try {
                 String u = (url == null) ? "" : url.trim();
                 if (u.isEmpty() || u.equalsIgnoreCase("go")) {
-                    android.content.SharedPreferences pfUrl =
-                        ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-                    u = pfUrl.getString("update_url", DEFAULT_URL);
+                    u = Prefs.getUpdateUrl(ctx, DEFAULT_URL);
                     if (u.trim().isEmpty()) u = DEFAULT_URL;
                 }
                 if (!u.startsWith("https://")) { p.step("erro: URL precisa ser https"); return; }
@@ -445,9 +441,7 @@ public class Updater {
                 // Has this URL already been applied? Retained MQTT commands are
                 // redelivered on every reconnect, so this check avoids repeated
                 // downloads/installs of the same APK.
-                android.content.SharedPreferences pf =
-                    ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-                if (u.equals(pf.getString("update_last_url", ""))) {
+                if (u.equals(Prefs.getUpdateLastUrl(ctx))) {
                     p.step("já aplicado"); return;
                 }
 
@@ -461,7 +455,7 @@ public class Updater {
                 if (helperPresent(ctx)) {
                     // Recorded BEFORE handing over, not after: a successful
                     // install kills this process mid-call.
-                    pf.edit().putString("update_last_url", u).apply();
+                    Prefs.setUpdateLastUrl(ctx, u);
                     p.step("entregue ao helper de sistema");
                     Intent i = new Intent(HELPER_INSTALL).setPackage(HELPER_PKG);
                     i.putExtra("url", u);
@@ -493,7 +487,7 @@ public class Updater {
                 String mine = sha256(new File(ctx.getPackageCodePath()));
                 String got  = sha256(out);
                 if (mine != null && mine.equals(got)) {
-                    pf.edit().putString("update_last_url", u).apply();
+                    Prefs.setUpdateLastUrl(ctx, u);
                     p.step("já instalado (" + got.substring(0, 8) + ")");
                     return;
                 }
@@ -505,7 +499,7 @@ public class Updater {
                 pr.waitFor();
                 Log.i(TAG, "update pm install: " + res);
                 boolean ok = res.toLowerCase().contains("success");
-                if (ok) pf.edit().putString("update_last_url", u).apply();
+                if (ok) Prefs.setUpdateLastUrl(ctx, u);
                 p.step(ok ? "OK — atualizado" : "erro: " + res.trim());
             } catch (Throwable t) { Log.w(TAG, "update error: " + t); p.step("erro: " + t); }
         }, "updater").start();

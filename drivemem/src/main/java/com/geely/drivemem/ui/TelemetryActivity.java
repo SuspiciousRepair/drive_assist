@@ -28,6 +28,7 @@ import com.geely.drivemem.services.WifiIconService;
 import com.geely.drivemem.state.ChargeSession;
 import com.geely.drivemem.util.Clips;
 import com.geely.drivemem.util.Modes;
+import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.SpotifyClient;
 import com.geely.drivemem.util.Style;
 import com.geely.drivemem.util.UsbExport;
@@ -64,7 +65,6 @@ import java.util.Map;
 //   MQTT | Drive Mode | Menu bar
 public class TelemetryActivity extends Activity {
     private final Handler ui = new Handler(Looper.getMainLooper());
-    private SharedPreferences prefs;
 
     private LinearLayout content;             // right-hand panel (swapped per section)
     private LinearLayout outer;               // whole-screen root -- background swapped per section, see selectSection()
@@ -166,10 +166,9 @@ public class TelemetryActivity extends Activity {
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
         Style.load(this);                 // before any View
-        prefs = getSharedPreferences("drivemem", MODE_PRIVATE);
         section = getIntent().getIntExtra("section", SEC_DRIVE);   // come back to the same section on recreate
-        selDrive = prefs.getInt("drive", Modes.DRIVE_ECO);
-        selRegen = prefs.getInt("regen", Modes.REGEN_MID);
+        selDrive = Prefs.getDriveMode(this, Modes.DRIVE_ECO);
+        selRegen = Prefs.getRegen(this, Modes.REGEN_MID);
 
         Style.edgeToEdge(this);
         outer = new LinearLayout(this);
@@ -389,7 +388,7 @@ public class TelemetryActivity extends Activity {
         content.addView(limitRow);
 
         final EditText fDashLimit = new EditText(this);
-        fDashLimit.setText(String.valueOf(prefs.getInt("dashcam_limit_gb", 10)));
+        fDashLimit.setText(String.valueOf(Prefs.getDashcamLimitGb(this)));
         fDashLimit.setInputType(InputType.TYPE_CLASS_NUMBER);
         fDashLimit.setTextColor(Style.TEXT);
         fDashLimit.setTextSize(17);
@@ -406,9 +405,9 @@ public class TelemetryActivity extends Activity {
             int gb;
             try { gb = Integer.parseInt(fDashLimit.getText().toString().trim()); }
             catch (NumberFormatException e) { gb = -1; }
-            if (gb < 1) { fDashLimit.setText(String.valueOf(prefs.getInt("dashcam_limit_gb", 10))); return; }
+            if (gb < 1) { fDashLimit.setText(String.valueOf(Prefs.getDashcamLimitGb(this))); return; }
             gb = Math.min(gb, 500); // storage is real; a typo shouldn't ask for the whole disk
-            prefs.edit().putInt("dashcam_limit_gb", gb).apply();
+            Prefs.setDashcamLimitGb(this, gb);
             Intent i = new Intent("com.geely.modehelper.SET_MODE").setPackage("com.geely.modehelper");
             i.putExtra("dashcam_limit_gb", gb);
             sendBroadcast(i);
@@ -426,8 +425,8 @@ public class TelemetryActivity extends Activity {
         limitRow.addView(saveBtn);
 
         LinearLayout parkedMonitor = toggleRow(getString(R.string.cfg_park_monitor_label),
-            prefs.getBoolean("parked_monitoring", false), enabled -> {
-                prefs.edit().putBoolean("parked_monitoring", enabled).apply();
+            Prefs.getParkedMonitoring(this), enabled -> {
+                Prefs.setParkedMonitoring(this, enabled);
                 sendBroadcast(new Intent("com.geely.modehelper.PARKED_MONITORING")
                     .setClassName("com.geely.modehelper",
                         "com.geely.modehelper.ParkedMonitoringReceiver")
@@ -736,7 +735,7 @@ public class TelemetryActivity extends Activity {
         // polled.
         if (obdListener != null) Obd2Reader.unsubscribe(obdListener);
         Runnable updateStatus = () -> {
-            boolean enabled = prefs.getBoolean("obd2_enabled", false);
+            boolean enabled = Prefs.getObd2Enabled(this);
             obdStatus.setText(getString(!enabled ? R.string.obd_status_off
                 : Obd2Reader.isConnected() ? R.string.obd_status_connected
                 : R.string.obd_status_searching));
@@ -746,7 +745,7 @@ public class TelemetryActivity extends Activity {
         updateStatus.run();
 
         left.addView(toggleRow(getString(R.string.obd_enable_label),
-            prefs.getBoolean("obd2_enabled", false), on -> {
+            Prefs.getObd2Enabled(this), on -> {
                 Obd2Reader.setEnabled(this, on);
                 obdStatus.setText(getString(on
                     ? R.string.obd_status_searching : R.string.obd_status_off));
@@ -759,12 +758,12 @@ public class TelemetryActivity extends Activity {
 
         left.addView(Style.header(this, getString(R.string.abrp_header)));
         left.addView(toggleRow(getString(R.string.abrp_enable_label),
-            prefs.getBoolean("abrp_enabled", false),
-            on -> prefs.edit().putBoolean("abrp_enabled", on).apply()));
+            Prefs.getAbrpEnabled(this),
+            on -> Prefs.setAbrpEnabled(this, on)));
 
         left.addView(toggleRow(getString(R.string.abrp_location_label),
-            prefs.getBoolean(AbrpUploader.PREF_SEND_LOCATION, true),
-            on -> prefs.edit().putBoolean(AbrpUploader.PREF_SEND_LOCATION, on).apply()));
+            Prefs.file(this).getBoolean(AbrpUploader.PREF_SEND_LOCATION, true),
+            on -> Prefs.file(this).edit().putBoolean(AbrpUploader.PREF_SEND_LOCATION, on).apply()));
 
         TextView abrpLocHint = new TextView(this);
         abrpLocHint.setTextColor(Style.TEXT_DIM); abrpLocHint.setTextSize(13);
@@ -773,7 +772,7 @@ public class TelemetryActivity extends Activity {
         left.addView(abrpLocHint);
 
         fAbrpToken = field(left, getString(R.string.abrp_field_user_token),
-            prefs.getString("abrp_user_token", ""), InputType.TYPE_CLASS_TEXT);
+            Prefs.getAbrpUserToken(this), InputType.TYPE_CLASS_TEXT);
 
         TextView abrpStatus = new TextView(this);
         abrpStatus.setTextColor(Style.TEXT_DIM); abrpStatus.setTextSize(13);
@@ -784,9 +783,7 @@ public class TelemetryActivity extends Activity {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setPadding(0, Style.dp(this, 4), 0, 0);
         row.addView(action(getString(R.string.cfg_btn_save), Style.ACCENT, () -> {
-            prefs.edit()
-                .putString("abrp_user_token", fAbrpToken.getText().toString().trim())
-                .apply();
+            Prefs.setAbrpUserToken(this, fAbrpToken.getText().toString().trim());
             // Saving is the moment to actually PROVE the credentials work,
             // not wait for a real drive/charge -- see AbrpUploader
             // .testConnect()'s own header for why ABRP's token page looked
@@ -947,9 +944,9 @@ public class TelemetryActivity extends Activity {
         status = new TextView(this);
         status.setTextColor(Style.TEXT); status.setTextSize(16);
         status.setTypeface(null, android.graphics.Typeface.BOLD);
-        boolean teleOn = prefs.getBoolean("tele_enabled", false);
+        boolean teleOn = Prefs.getTeleEnabled(this);
         status.setText(teleOn
-            ? getString(R.string.cfg_sending_every, prefs.getInt("tele_interval_s", 10))
+            ? getString(R.string.cfg_sending_every, Prefs.getTeleIntervalS(this))
             : getString(R.string.cfg_status_off));
         status.setPadding(0, 0, 0, Style.dp(this, 8));
         content.addView(status);
@@ -992,10 +989,10 @@ public class TelemetryActivity extends Activity {
         rightToggle.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         rightToggle.setPadding(Style.dp(this, 8), 0, 0, 0);
 
-        boolean cmdsOn = prefs.getBoolean("commands_enabled", true);
+        boolean cmdsOn = Prefs.getCommandsEnabled(this);
         rightToggle.addView(toggleRow(getString(R.string.cfg_commands_label),
             cmdsOn, allow -> {
-                prefs.edit().putBoolean("commands_enabled", allow).apply();
+                Prefs.setCommandsEnabled(this, allow);
                 Intent svc = new Intent(this, TelemetryService.class);
                 if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(svc); else startService(svc);
                 logMqtt("SECURITY", allow ? "Comandos remotos do HA HABILITADOS" : "Comandos remotos BLOQUEADOS");
@@ -1034,8 +1031,8 @@ public class TelemetryActivity extends Activity {
 
         // ---- Left Column: Broker & Controls ----
         left.addView(Style.header(this, getString(R.string.cfg_broker_header)));
-        String hosts = prefs.getString("mqtt_uri", "tcp://homeassistant.local:1883");
-        String legacyAlt = prefs.getString("mqtt_uri_alt", "");
+        String hosts = Prefs.getMqttUri(this, "tcp://homeassistant.local:1883");
+        String legacyAlt = Prefs.getMqttUriAlt(this);
         if (!legacyAlt.isEmpty()) hosts = hosts + "\n" + legacyAlt;
         fUri = field(left, getString(R.string.cfg_field_hosts), hosts,
                 InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_CLASS_TEXT);
@@ -1049,14 +1046,14 @@ public class TelemetryActivity extends Activity {
         userCol.setOrientation(LinearLayout.VERTICAL);
         userCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         userCol.setPadding(0, 0, Style.dp(this, 6), 0);
-        fUser = field(userCol, getString(R.string.cfg_field_user), prefs.getString("mqtt_user", "mosquitto"), InputType.TYPE_CLASS_TEXT);
+        fUser = field(userCol, getString(R.string.cfg_field_user), Prefs.getMqttUser(this, "mosquitto"), InputType.TYPE_CLASS_TEXT);
         userPassRow.addView(userCol);
 
         LinearLayout passCol = new LinearLayout(this);
         passCol.setOrientation(LinearLayout.VERTICAL);
         passCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         passCol.setPadding(Style.dp(this, 6), 0, 0, 0);
-        fPass = field(passCol, getString(R.string.cfg_field_pass), prefs.getString("mqtt_pass", ""),
+        fPass = field(passCol, getString(R.string.cfg_field_pass), Prefs.getMqttPass(this),
                 InputType.TYPE_TEXT_VARIATION_PASSWORD | InputType.TYPE_CLASS_TEXT);
         userPassRow.addView(passCol);
         left.addView(userPassRow);
@@ -1071,7 +1068,7 @@ public class TelemetryActivity extends Activity {
         intervalRow.addView(ivLbl);
 
         fInterval = new EditText(this);
-        fInterval.setText(String.valueOf(prefs.getInt("tele_interval_s", 10)));
+        fInterval.setText(String.valueOf(Prefs.getTeleIntervalS(this)));
         fInterval.setInputType(InputType.TYPE_CLASS_NUMBER);
         fInterval.setTextColor(Style.TEXT);
         fInterval.setTextSize(16);
@@ -1503,10 +1500,10 @@ public class TelemetryActivity extends Activity {
     }
 
     private String getTlsTestTarget() {
-        String saved = prefs.getString("mqtt_tls_test_target", "");
+        String saved = Prefs.getMqttTlsTestTarget(this);
         if (!saved.trim().isEmpty()) return saved.trim();
 
-        String all = (fUri != null) ? fUri.getText().toString().trim() : prefs.getString("mqtt_uri", "");
+        String all = (fUri != null) ? fUri.getText().toString().trim() : Prefs.getMqttUri(this, "");
         if (!all.isEmpty()) {
             String[] tokens = all.split("[,\\s\n]+");
             for (String t : tokens) {
@@ -1526,7 +1523,7 @@ public class TelemetryActivity extends Activity {
         if (target.isEmpty()) target = getTlsTestTarget();
         if (target.isEmpty()) return;
 
-        prefs.edit().putString("mqtt_tls_test_target", target).apply();
+        Prefs.setMqttTlsTestTarget(this, target);
 
         tlsTestStatus.setVisibility(View.VISIBLE);
         tlsTestStatus.setTextColor(Style.TEXT_DIM);
@@ -1584,7 +1581,7 @@ public class TelemetryActivity extends Activity {
             startActivity(new Intent(this, SpotifyAuthActivity.class));
         }));
         spRow.addView(button(getString(R.string.cfg_spotify_disconnect), 0xFF8A3A3A, () -> {
-            getSharedPreferences("drivemem", MODE_PRIVATE).edit()
+            Prefs.file(this).edit()
                 .remove("spotify_refresh_token").remove("spotify_access_token")
                 .remove("spotify_token_expiry").apply();
             spotifyStatus.setText(getString(R.string.cfg_spotify_status_off));
@@ -1597,8 +1594,8 @@ public class TelemetryActivity extends Activity {
         // and skyline_enabled, so this only needs the plain pref written
         // here, no live-update plumbing back to a screen that isn't open.
         content.addView(toggleRow(getString(R.string.cfg_spotify_large_card),
-            prefs.getBoolean("spotify_large_card", false),
-            on -> prefs.edit().putBoolean("spotify_large_card", on).apply()));
+            Prefs.getSpotifyLargeCard(this),
+            on -> Prefs.setSpotifyLargeCard(this, on)));
         TextView largeCardHint = new TextView(this);
         largeCardHint.setTextColor(Style.TEXT_DIM); largeCardHint.setTextSize(13);
         largeCardHint.setPadding(0, 0, 0, Style.dp(this, 4));
@@ -1703,7 +1700,7 @@ public class TelemetryActivity extends Activity {
         updateCard.addView(urlLbl);
 
         EditText fUpdateUrl = new EditText(this);
-        fUpdateUrl.setText(prefs.getString("update_url", Updater.DEFAULT_URL));
+        fUpdateUrl.setText(Prefs.getUpdateUrl(this, Updater.DEFAULT_URL));
         fUpdateUrl.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         fUpdateUrl.setHint(Updater.DEFAULT_URL);
         fUpdateUrl.setTextColor(Style.TEXT);
@@ -1717,12 +1714,12 @@ public class TelemetryActivity extends Activity {
         urlBtnRow.addView(button(getString(R.string.cfg_btn_save), Style.ACCENT, () -> {
             String u = fUpdateUrl.getText().toString().trim();
             if (u.isEmpty()) { u = Updater.DEFAULT_URL; fUpdateUrl.setText(u); }
-            prefs.edit().putString("update_url", u).apply();
+            Prefs.setUpdateUrl(this, u);
             Toast.makeText(this, getString(R.string.cfg_saved), Toast.LENGTH_SHORT).show();
         }));
         urlBtnRow.addView(button(getString(R.string.cfg_btn_reset_default), 0xFF3A5A7A, () -> {
             fUpdateUrl.setText(Updater.DEFAULT_URL);
-            prefs.edit().putString("update_url", Updater.DEFAULT_URL).apply();
+            Prefs.setUpdateUrl(this, Updater.DEFAULT_URL);
             Toast.makeText(this, getString(R.string.cfg_btn_reset_default), Toast.LENGTH_SHORT).show();
         }));
         updateCard.addView(urlBtnRow);
@@ -1734,7 +1731,7 @@ public class TelemetryActivity extends Activity {
         actRow.addView(action(getString(R.string.cfg_btn_check_update), Style.ACCENT, () -> {
             String u = fUpdateUrl.getText().toString().trim();
             if (u.isEmpty()) { u = Updater.DEFAULT_URL; fUpdateUrl.setText(u); }
-            prefs.edit().putString("update_url", u).apply();
+            Prefs.setUpdateUrl(this, u);
             updateCheck();
         }));
         updateCard.addView(actRow);
@@ -1789,7 +1786,7 @@ public class TelemetryActivity extends Activity {
         if (activeBrokerView == null || activeClientView == null || activeLastSentView == null) return;
         TelemetryService svc = TelemetryService.getInstance();
         boolean svcRunning = svc != null && svc.isRunning();
-        boolean teleOn = prefs.getBoolean("tele_enabled", false);
+        boolean teleOn = Prefs.getTeleEnabled(this);
 
         if (!teleOn) {
             activeBrokerView.setText(getString(R.string.cfg_active_broker, getString(R.string.cfg_status_off)));
@@ -1807,7 +1804,7 @@ public class TelemetryActivity extends Activity {
         }
 
         activeClientView.setText(getString(R.string.cfg_client_id, MqttReporter.getClientId()));
-        int iv = prefs.getInt("tele_interval_s", 10);
+        int iv = Prefs.getTeleIntervalS(this);
         activeLastSentView.setText(teleOn
             ? getString(R.string.cfg_sending_every, iv)
             : getString(R.string.cfg_status_off));
@@ -1818,37 +1815,34 @@ public class TelemetryActivity extends Activity {
     }
 
     private void saveAll(boolean enable) {
-        int iv = prefs.getInt("tele_interval_s", 10);
+        int iv = Prefs.getTeleIntervalS(this);
         if (fInterval != null && fInterval.getText() != null) {
             try { iv = Integer.parseInt(fInterval.getText().toString().trim()); } catch (Exception ignored) {}
             iv = Math.max(5, iv);
         }
 
-        SharedPreferences.Editor ed = prefs.edit()
-            .putBoolean("tele_enabled", enable)
-            .putInt("tele_interval_s", iv);
+        Prefs.setTeleEnabled(this, enable);
+        Prefs.setTeleIntervalS(this, iv);
 
         if (fUri != null && fUri.getText() != null) {
-            ed.putString("mqtt_uri", fUri.getText().toString().trim());
-            ed.putString("mqtt_uri_alt", "");
+            Prefs.setMqttUri(this, fUri.getText().toString().trim());
+            Prefs.setMqttUriAlt(this, "");
         }
         if (fUser != null && fUser.getText() != null) {
-            ed.putString("mqtt_user", fUser.getText().toString().trim());
+            Prefs.setMqttUser(this, fUser.getText().toString().trim());
         }
         if (fPass != null && fPass.getText() != null) {
-            ed.putString("mqtt_pass", fPass.getText().toString());
+            Prefs.setMqttPass(this, fPass.getText().toString());
         }
         if (fTlsTarget != null && fTlsTarget.getText() != null) {
             String val = fTlsTarget.getText().toString().trim();
-            if (!val.isEmpty()) ed.putString("mqtt_tls_test_target", val);
+            if (!val.isEmpty()) Prefs.setMqttTlsTestTarget(this, val);
         }
 
         if (fTrustedSsid != null && fTrustedSsid.getText() != null) {
             String val = fTrustedSsid.getText().toString().trim();
             AdbGate.setTrustedWifi(this, val);
         }
-
-        ed.apply();
 
         Intent svc = new Intent(this, TelemetryService.class);
         if (enable) {
@@ -1961,11 +1955,11 @@ public class TelemetryActivity extends Activity {
     }
 
     private void testOnce() {
-        saveAll(prefs.getBoolean("tele_enabled", false));
+        saveAll(Prefs.getTeleEnabled(this));
         status.setText(getString(R.string.cfg_testing));
-        final String uri = (fUri != null) ? fUri.getText().toString().trim() : prefs.getString("mqtt_uri", "");
-        final String u = (fUser != null) ? fUser.getText().toString().trim() : prefs.getString("mqtt_user", "");
-        final String pw = (fPass != null) ? fPass.getText().toString() : prefs.getString("mqtt_pass", "");
+        final String uri = (fUri != null) ? fUri.getText().toString().trim() : Prefs.getMqttUri(this, "");
+        final String u = (fUser != null) ? fUser.getText().toString().trim() : Prefs.getMqttUser(this, "");
+        final String pw = (fPass != null) ? fPass.getText().toString() : Prefs.getMqttPass(this);
         String[] targets = uri.split("[,\\s]+");
         final String firstTarget = (targets.length > 0 && !targets[0].isEmpty()) ? targets[0] : uri;
 
@@ -2012,14 +2006,14 @@ public class TelemetryActivity extends Activity {
             if (!(mode instanceof Integer)) return;
             boolean on = ((Integer) mode) != 0;
             ui.post(() -> {
-                prefs.edit().putBoolean("avas_on", on).apply();
+                Prefs.setAvasOn(TelemetryActivity.this, on);
                 sw.setCheckedSilently(on);
             });
         });
     }
 
     private void forceDiscoveryNow() {
-        saveAll(prefs.getBoolean("tele_enabled", false));
+        saveAll(Prefs.getTeleEnabled(this));
         status.setText(getString(R.string.cfg_discovery_sending));
         logMqtt("DISCOVERY", "Solicitando envio de descoberta MQTT (47 entidades)...");
         TelemetryService svc = TelemetryService.getInstance();
@@ -2038,9 +2032,9 @@ public class TelemetryActivity extends Activity {
             }));
             return;
         }
-        final String uri = (fUri != null) ? fUri.getText().toString().trim() : prefs.getString("mqtt_uri", "");
-        final String u = (fUser != null) ? fUser.getText().toString().trim() : prefs.getString("mqtt_user", "");
-        final String pw = (fPass != null) ? fPass.getText().toString() : prefs.getString("mqtt_pass", "");
+        final String uri = (fUri != null) ? fUri.getText().toString().trim() : Prefs.getMqttUri(this, "");
+        final String u = (fUser != null) ? fUser.getText().toString().trim() : Prefs.getMqttUser(this, "");
+        final String pw = (fPass != null) ? fPass.getText().toString() : Prefs.getMqttPass(this);
         logMqtt("DISCOVERY", "Conectando cliente direto para publicar descoberta...");
         CarActor.get(this).runOnCarThread(() -> {
             final MqttReporter r = new MqttReporter(uri, "", u, pw, getApplicationContext());
@@ -2076,7 +2070,7 @@ public class TelemetryActivity extends Activity {
         content.addView(Style.header(this, getString(R.string.cfg_doors_header)));
         content.addView(toggleRow(getString(R.string.cfg_window_on_door),
             DoorWindow.enabled(this), on -> {
-                prefs.edit().putBoolean(DoorWindow.KEY, on).apply();
+                Prefs.setWindowOnDoor(this, on);
                 // The watch itself is always registered; the pref only decides
                 // whether an event acts. So nothing has to be started or stopped
                 // here, and flipping it mid-session cannot make the next door
@@ -2129,7 +2123,7 @@ public class TelemetryActivity extends Activity {
         row.addView(lbl);
 
         EditText field = new EditText(this);
-        field.setText(String.valueOf(prefs.getInt(Purge.prefKey(area), Purge.OPEN)));
+        field.setText(String.valueOf(Prefs.file(this).getInt(Purge.prefKey(area), Purge.OPEN)));
         field.setInputType(InputType.TYPE_CLASS_NUMBER);
         field.setTextColor(Style.TEXT); field.setTextSize(17);
         field.setBackground(Style.card(Style.CARD, this));
@@ -2145,7 +2139,7 @@ public class TelemetryActivity extends Activity {
             @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
             @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
             @Override public void afterTextChanged(android.text.Editable s) {
-                try { prefs.edit().putInt(Purge.prefKey(area), Integer.parseInt(s.toString().trim())).apply(); }
+                try { Prefs.file(TelemetryActivity.this).edit().putInt(Purge.prefKey(area), Integer.parseInt(s.toString().trim())).apply(); }
                 catch (NumberFormatException ignored) {}
             }
         });
@@ -2205,8 +2199,8 @@ public class TelemetryActivity extends Activity {
         turboRow.setGravity(Gravity.CENTER_VERTICAL);
         turboRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
         LinearLayout turboToggle = toggleRow(getString(R.string.turbo_enable_label),
-            prefs.getBoolean("turbo_enabled", true),
-            on -> prefs.edit().putBoolean("turbo_enabled", on).apply());
+            Prefs.getTurboEnabled(this),
+            on -> Prefs.setTurboEnabled(this, on));
         turboRow.addView(turboToggle);
 
         TextView durLbl = new TextView(this);
@@ -2219,7 +2213,7 @@ public class TelemetryActivity extends Activity {
         turboRow.addView(durLbl);
 
         fTurbo = new EditText(this);
-        fTurbo.setText(String.valueOf(prefs.getInt("turbo_duration_s", TurboMode.DEFAULT_DURATION_S)));
+        fTurbo.setText(String.valueOf(Prefs.getTurboDurationS(this, TurboMode.DEFAULT_DURATION_S)));
         fTurbo.setInputType(InputType.TYPE_CLASS_NUMBER);
         fTurbo.setTextColor(Style.TEXT); fTurbo.setTextSize(17);
         fTurbo.setBackground(Style.card(Style.CARD, this));
@@ -2243,7 +2237,7 @@ public class TelemetryActivity extends Activity {
             @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
             @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
             @Override public void afterTextChanged(android.text.Editable s) {
-                try { prefs.edit().putInt("turbo_duration_s", Integer.parseInt(s.toString().trim())).apply(); }
+                try { Prefs.setTurboDurationS(TelemetryActivity.this, Integer.parseInt(s.toString().trim())); }
                 catch (NumberFormatException ignored) {}
             }
         });
@@ -2256,7 +2250,7 @@ public class TelemetryActivity extends Activity {
         // helper's callback param (passed null, overridden below) so the
         // listener can hold a reference to its own switch, to revert it
         // silently on cancel/not-parked without rebuilding the whole screen.
-        LinearLayout aebRow = toggleRow(getString(R.string.cfg_aeb_label), prefs.getBoolean("aeb_on", true), null);
+        LinearLayout aebRow = toggleRow(getString(R.string.cfg_aeb_label), Prefs.getAebOn(this), null);
         GeelySwitch aebSwitch = (GeelySwitch) aebRow.getChildAt(0);
         aebSwitch.setOnToggle(on -> {
             if (!on) {
@@ -2266,14 +2260,14 @@ public class TelemetryActivity extends Activity {
                     .setTitle(getString(R.string.cfg_aeb_confirm_title))
                     .setMessage(getString(R.string.cfg_aeb_confirm_body))
                     .setPositiveButton(getString(R.string.cfg_aeb_confirm_turn_off), (d, w) -> {
-                        prefs.edit().putBoolean("aeb_on", false).apply();
+                        Prefs.setAebOn(this, false);
                         sendAdasPreference("aeb", false);
                     })
                     .setNegativeButton(android.R.string.cancel, (d, w) -> aebSwitch.setCheckedSilently(true))
                     .setOnCancelListener(d -> aebSwitch.setCheckedSilently(true))
                     .show();
             } else {
-                prefs.edit().putBoolean("aeb_on", true).apply();
+                Prefs.setAebOn(this, true);
                 sendAdasPreference("aeb", true);
             }
         });
@@ -2291,10 +2285,10 @@ public class TelemetryActivity extends Activity {
         // Drive Assist's own saved "avas_on" can go stale the moment the
         // owner picks a different sound in OEM Settings. Reading the car
         // directly on every screen entry is what keeps this switch honest.
-        LinearLayout avasRow = toggleRow(getString(R.string.cfg_avas_label), prefs.getBoolean("avas_on", true), null);
+        LinearLayout avasRow = toggleRow(getString(R.string.cfg_avas_label), Prefs.getAvasOn(this), null);
         GeelySwitch avasSwitch = (GeelySwitch) avasRow.getChildAt(0);
         avasSwitch.setOnToggle(on -> {
-            prefs.edit().putBoolean("avas_on", on).apply();
+            Prefs.setAvasOn(this, on);
             sendAdasPreference("avas", on);
         });
         avasRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -2421,7 +2415,7 @@ public class TelemetryActivity extends Activity {
     // car immediately.
     private void pickDrive(int v) {
         selDrive = v;
-        prefs.edit().putInt("drive", v).apply();
+        Prefs.setDriveMode(this, v);
         notifyHelperDefault();
         if (TurboMode.get(this).active()) TurboMode.get(this).selectDriveMode(v);
         else CarActor.get(this).cast("drive_mode", v);
@@ -2434,7 +2428,7 @@ public class TelemetryActivity extends Activity {
 
     private void pickRegen(int v) {
         selRegen = v;
-        prefs.edit().putInt("regen", v).apply();
+        Prefs.setRegen(this, v);
         notifyHelperDefault();
         CarActor.get(this).cast("regen_mode", v);
         liveRegen = v; regenKnown = true;
@@ -2521,15 +2515,15 @@ public class TelemetryActivity extends Activity {
         content.addView(Style.header(this, getString(R.string.cfg_bar_topbar_header)));
 
         content.addView(toggleRow(getString(R.string.cfg_bar_outtemp),
-            prefs.getBoolean("outtemp_on", false), on -> {
-                prefs.edit().putBoolean("outtemp_on", on).apply();
+            Prefs.getOutTempOn(this), on -> {
+                Prefs.setOutTempOn(this, on);
                 Intent svc = new Intent(this, OutTempService.class);
                 if (on) startService(svc); else stopService(svc);
             }));
 
         content.addView(toggleRow(getString(R.string.cfg_bar_wifi),
-            prefs.getBoolean("wifiicon_on", false), on -> {
-                prefs.edit().putBoolean("wifiicon_on", on).apply();
+            Prefs.getWifiIconOn(this), on -> {
+                Prefs.setWifiIconOn(this, on);
                 Intent svc = new Intent(this, WifiIconService.class);
                 if (on) {
                     if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(svc); else startService(svc);
@@ -2537,8 +2531,8 @@ public class TelemetryActivity extends Activity {
             }));
 
         content.addView(toggleRow(getString(R.string.cfg_bar_soc),
-            prefs.getBoolean("soc_on", false), on -> {
-                prefs.edit().putBoolean("soc_on", on).apply();
+            Prefs.getSocOn(this), on -> {
+                Prefs.setSocOn(this, on);
                 Intent svc = new Intent(this, SocIconService.class);
                 if (on) {
                     if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(svc); else startService(svc);
@@ -2548,12 +2542,12 @@ public class TelemetryActivity extends Activity {
         content.addView(Style.header(this, getString(R.string.cfg_bar_home_header)));
 
         content.addView(toggleRow(getString(R.string.cfg_drive_card),
-            prefs.getBoolean("drive_card_enabled", true), on ->
-                prefs.edit().putBoolean("drive_card_enabled", on).apply()));
+            Prefs.getDriveCardEnabled(this), on ->
+                Prefs.setDriveCardEnabled(this, on)));
 
         content.addView(toggleRow(getString(R.string.cfg_overlay_label),
-            prefs.getBoolean("overlay_on", false), on -> {
-                prefs.edit().putBoolean("overlay_on", on).apply();
+            Prefs.getOverlayOn(this), on -> {
+                Prefs.setOverlayOn(this, on);
                 Intent svc = new Intent(this, com.geely.drivemem.services.OverlayService.class);
                 if (on) {
                     if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(svc); else startService(svc);
@@ -2577,11 +2571,11 @@ public class TelemetryActivity extends Activity {
         // there disabled -- "the config for it" goes away along with the
         // skyline itself, not just the art.
         content.addView(Style.header(this, getString(R.string.cfg_skyline_header)));
-        boolean skylineEnabled = prefs.getBoolean("skyline_enabled", true);
+        boolean skylineEnabled = Prefs.getSkylineEnabled(this);
         LinearLayout skylineToggle = toggleRow(getString(R.string.cfg_skyline_label),
             skylineEnabled,
             on -> {
-                prefs.edit().putBoolean("skyline_enabled", on).apply();
+                Prefs.setSkylineEnabled(this, on);
                 getIntent().putExtra("section", SEC_LOOK);
                 recreate();
             });
@@ -2591,10 +2585,10 @@ public class TelemetryActivity extends Activity {
         if (skylineEnabled) {
             content.addView(Style.header(this, getString(R.string.cfg_skyline_seed_header)));
 
-            boolean randomPerDrive = prefs.getBoolean("skyline_random_per_drive", false);
+            boolean randomPerDrive = Prefs.getSkylineRandomPerDrive(this);
 
             fSkylineSeed = field(content, getString(R.string.cfg_skyline_seed_label),
-                String.valueOf(prefs.getLong("skyline_seed", com.geely.drivemem.art.Skyline.DEFAULT_SEED)),
+                String.valueOf(Prefs.getSkylineSeed(this, com.geely.drivemem.art.Skyline.DEFAULT_SEED)),
                 InputType.TYPE_CLASS_NUMBER);
             fSkylineSeed.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
             // Locked while "random every drive" is on: that toggle is the one
@@ -2610,14 +2604,14 @@ public class TelemetryActivity extends Activity {
                 long seed;
                 try { seed = Long.parseLong(fSkylineSeed.getText().toString().trim()); }
                 catch (NumberFormatException e) { seed = com.geely.drivemem.art.Skyline.DEFAULT_SEED; }
-                prefs.edit().putLong("skyline_seed", seed).apply();
+                Prefs.setSkylineSeed(this, seed);
                 fSkylineSeed.setText(String.valueOf(seed));
                 Toast.makeText(this, getString(R.string.cfg_saved), Toast.LENGTH_SHORT).show();
             }));
             skylineBtnRow.addView(action(getString(R.string.cfg_skyline_cycle), 0xFF6A4CFF, () -> {
                 if (fSkylineSeed != null && !fSkylineSeed.isEnabled()) return;
                 long seed = new java.util.Random().nextLong() & Long.MAX_VALUE;
-                prefs.edit().putLong("skyline_seed", seed).apply();
+                Prefs.setSkylineSeed(this, seed);
                 if (fSkylineSeed != null) fSkylineSeed.setText(String.valueOf(seed));
                 Toast.makeText(this, getString(R.string.cfg_saved), Toast.LENGTH_SHORT).show();
             }));
@@ -2626,7 +2620,7 @@ public class TelemetryActivity extends Activity {
             LinearLayout randomToggle = toggleRow(getString(R.string.cfg_skyline_random_per_drive_label),
                 randomPerDrive,
                 on -> {
-                    prefs.edit().putBoolean("skyline_random_per_drive", on).apply();
+                    Prefs.setSkylineRandomPerDrive(this, on);
                     getIntent().putExtra("section", SEC_LOOK);
                     recreate();
                 });
@@ -2768,7 +2762,7 @@ public class TelemetryActivity extends Activity {
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(0, Style.dp(this, 8), 0, Style.dp(this, 8));
         GeelySwitch sw = new GeelySwitch(this);
-        sw.setLockSeconds(prefs.getInt("switch_lock_s", GeelySwitch.DEFAULT_LOCK_S));
+        sw.setLockSeconds(Prefs.getSwitchLockS(this, GeelySwitch.DEFAULT_LOCK_S));
         sw.setCheckedSilently(on);
         sw.setOnToggle(cb);
         row.addView(sw);

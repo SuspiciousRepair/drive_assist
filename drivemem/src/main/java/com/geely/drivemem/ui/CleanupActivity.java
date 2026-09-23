@@ -6,11 +6,11 @@ import com.geely.drivemem.services.OutTempService;
 import com.geely.drivemem.services.TelemetryService;
 import com.geely.drivemem.services.WifiIconService;
 import com.geely.drivemem.util.BootReceiver;
+import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.Style;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -144,8 +144,7 @@ public class CleanupActivity extends Activity {
         } catch (Throwable ignored) {}
         // wipes the preferences (MQTT credentials, saved modes, etc.)
         try {
-            SharedPreferences p = getSharedPreferences("drivemem", MODE_PRIVATE);
-            p.edit().clear().commit();
+            Prefs.clearAll(this);
         } catch (Throwable ignored) {}
         say(getString(R.string.cleanup_wiped));
     }

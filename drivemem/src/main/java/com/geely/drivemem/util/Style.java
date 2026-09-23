@@ -9,7 +9,6 @@ import com.geely.drivemem.ui.ComfortActivity;
 import com.geely.drivemem.ui.TelemetryActivity;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -177,14 +176,12 @@ public class Style {
 
     /** Returns the saved appearance setting (Light/Dark/Auto). */
     public static String appearance(Context c) {
-        return c.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
-                .getString("appearance", APPEARANCE_DARK);
+        return Prefs.getAppearance(c, APPEARANCE_DARK);
     }
 
     /** Saves and applies an appearance setting (Light/Dark/Auto). */
     public static void setAppearance(Context c, String mode) {
-        c.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
-         .edit().putString("appearance", mode).apply();
+        Prefs.setAppearance(c, mode);
     }
 
     // Reads Android's system day/night setting (Configuration.uiMode).
@@ -209,11 +206,11 @@ public class Style {
 
     /** Loads the saved theme (or transient override) and applies it. Called at onCreate start. */
     public static void load(Context c) {
-        SharedPreferences p = c.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-        String savedTheme = p.getString("theme", THEMES[0].id);
+        String savedTheme = Prefs.getTheme(c, THEMES[0].id);
         if ("claro".equals(savedTheme)) {
             // Legacy: Claro theme merged into Default's light Palette; migrate to APPEARANCE_LIGHT.
-            p.edit().putString("theme", THEMES[0].id).putString("appearance", APPEARANCE_LIGHT).apply();
+            Prefs.setTheme(c, THEMES[0].id);
+            Prefs.setAppearance(c, APPEARANCE_LIGHT);
             savedTheme = THEMES[0].id;
         }
         apply(c, byId(transientId != null ? transientId : savedTheme));
@@ -221,15 +218,13 @@ public class Style {
 
     /** Returns the saved theme ID, ignoring any transient override. */
     public static String savedId(Context c) {
-        return c.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
-                .getString("theme", THEMES[0].id);
+        return Prefs.getTheme(c, THEMES[0].id);
     }
 
     /** Saves and applies a theme (caller should recreate the screen). Clears transient overrides. */
     public static void save(Context c, String id) {
         transientId = null;
-        c.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
-         .edit().putString("theme", id).apply();
+        Prefs.setTheme(c, id);
         apply(c, byId(id));
     }
 

@@ -20,6 +20,7 @@ import com.geely.drivemem.BuildConfig;
 import com.geely.drivemem.R;
 import com.geely.drivemem.net.Updater;
 import com.geely.drivemem.state.CarState;
+import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.Style;
 
 /**
@@ -189,9 +190,7 @@ public class UpdateDialog {
             btnSkip.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
             btnSkip.setOnClickListener(v -> {
                 dialog.dismiss();
-                String key = info.targetLabel != null ? "skip_update_vc_modehelper" : "skip_update_vc";
-                activity.getSharedPreferences("drivemem", android.content.Context.MODE_PRIVATE)
-                    .edit().putInt(key, info.versionCode).apply();
+                Prefs.setSkipUpdateVc(activity, info.targetLabel != null, info.versionCode);
                 if (onDecline != null) onDecline.run();
             });
             btnRow.addView(btnSkip);

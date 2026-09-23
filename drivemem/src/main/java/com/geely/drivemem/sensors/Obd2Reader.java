@@ -13,8 +13,9 @@ import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanResult;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.util.Log;
+
+import com.geely.drivemem.util.Prefs;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -188,8 +189,7 @@ public final class Obd2Reader {
 
     /** Starts the reader thread if enabled and not already running (idempotent). */
     public static synchronized void ensureStarted(Context ctx) {
-        SharedPreferences p = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-        enabledWanted = p.getBoolean("obd2_enabled", false);
+        enabledWanted = Prefs.getObd2Enabled(ctx);
         if (enabledWanted && !running) {
             running = true;
             Context app = ctx.getApplicationContext();
@@ -251,7 +251,7 @@ public final class Obd2Reader {
 
     /** Enables or disables OBD2 reading. Disabling does not interrupt an in-flight session. */
     public static void setEnabled(Context ctx, boolean on) {
-        ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE).edit().putBoolean("obd2_enabled", on).apply();
+        Prefs.setObd2Enabled(ctx, on);
         if (on) {
             ensureStarted(ctx);
         } else {

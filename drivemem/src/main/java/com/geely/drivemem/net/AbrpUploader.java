@@ -13,9 +13,9 @@ import com.geely.drivemem.state.ChargeSession;
 import com.geely.drivemem.state.ParkSession;
 import com.geely.drivemem.state.TripSession;
 import com.geely.drivemem.util.Modes;
+import com.geely.drivemem.util.Prefs;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -201,8 +201,7 @@ public final class AbrpUploader {
     public static void testConnect(Context ctx, TestCallback cb) {
         Context app = ctx.getApplicationContext();
         new Thread(() -> {
-            SharedPreferences p = app.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-            String userToken = p.getString("abrp_user_token", "").trim();
+            String userToken = Prefs.getAbrpUserToken(app).trim();
             if (userToken.isEmpty()) {
                 cb.onResult(false, "missing user token");
                 return;
@@ -233,7 +232,7 @@ public final class AbrpUploader {
         subscribed = true;
         Context app = ctx.getApplicationContext();
         appCtx = app;
-        app.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
+        Prefs.file(app)
             .registerOnSharedPreferenceChangeListener((prefs, key) -> {
                 if ("abrp_enabled".equals(key) || "abrp_user_token".equals(key)) wakeSampler();
             });
@@ -313,8 +312,7 @@ public final class AbrpUploader {
     }
 
     private static boolean isConfigured(Context ctx) {
-        SharedPreferences p = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-        return p.getBoolean("abrp_enabled", false) && !p.getString("abrp_user_token", "").isEmpty();
+        return Prefs.getAbrpEnabled(ctx) && !Prefs.getAbrpUserToken(ctx).isEmpty();
     }
 
     // Builds one reading, or null if there's nothing worth building yet
@@ -325,9 +323,8 @@ public final class AbrpUploader {
         Map<String, Object> data = lastData;
         if (data == null) return null;   // no telemetry seen yet
 
-        SharedPreferences p = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-        if (!p.getBoolean("abrp_enabled", false)) return null;
-        String userToken = p.getString("abrp_user_token", "");
+        if (!Prefs.getAbrpEnabled(ctx)) return null;
+        String userToken = Prefs.getAbrpUserToken(ctx);
         if (userToken.isEmpty()) return null;
 
         Integer isCharging = asInt(data.get("is_charging"));
@@ -346,9 +343,8 @@ public final class AbrpUploader {
     private static JSONObject buildParkedMarker(Context ctx) {
         Map<String, Object> data = lastData;
         if (data == null) return null;
-        SharedPreferences p = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-        if (!p.getBoolean("abrp_enabled", false)) return null;
-        if (p.getString("abrp_user_token", "").isEmpty()) return null;
+        if (!Prefs.getAbrpEnabled(ctx)) return null;
+        if (Prefs.getAbrpUserToken(ctx).isEmpty()) return null;
 
         Object gear = data.get("gear");
         boolean parked = gear instanceof Integer && (Integer) gear == Modes.GEAR_PARK_ADAPTED;
@@ -359,8 +355,7 @@ public final class AbrpUploader {
 
     private static void flushQueue(Context ctx) {
         if (queue.isEmpty()) return;
-        SharedPreferences p = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-        String userToken = p.getString("abrp_user_token", "");
+        String userToken = Prefs.getAbrpUserToken(ctx);
         if (userToken.isEmpty()) return;
 
         int n = queue.size();   // captured before any clear() -- that's what's actually going out
@@ -377,8 +372,7 @@ public final class AbrpUploader {
     // see this file's own header for why that matters to ABRP's "online"
     // status specifically, not just data freshness.
     private static void sendLive(Context ctx, JSONObject tlm) {
-        SharedPreferences p = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-        String userToken = p.getString("abrp_user_token", "");
+        String userToken = Prefs.getAbrpUserToken(ctx);
         if (userToken.isEmpty()) return;
 
         boolean ok = postSingle(API_KEY, userToken, tlm);
