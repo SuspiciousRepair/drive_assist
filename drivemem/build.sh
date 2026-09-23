@@ -12,7 +12,8 @@
 #   GEELY_TOOLS    Path to external tools directory (defaults to $HOME/dev/geely)
 #   NO_DEPLOY      Set to 1 to build only (skip HA upload and vehicle install)
 #   NO_GUARD       Set to 1 to bypass git integration and ancestor safety checks
-#   INTEGRATION    Git branch to verify against HEAD (defaults to dev, then main, then master)
+#   SKIP_TESTS     Set to 1 to skip running unit tests before publishing
+#   INTEGRATION    Git branch to verify against HEAD (defaults to next, then dev, main, master)
 #   HA_HOST        Override Home Assistant host address
 #   CAR            Override vehicle ADB target address (host:port)
 #   OTA_TOPIC      Override OTA MQTT topic (defaults to drivemem/geely/update/set)
@@ -94,6 +95,10 @@ awk -v ver="$CL_VER" '
   insec && NF { print }
 ' "$ROOT/RELEASE-NOTES.md" > "$ROOT/drivemem/src/main/assets/changelog.txt"
 
+if [ -z "${SKIP_TESTS:-}" ]; then
+  GEELY_TOOLS="$TOOLS" ANDROID_SDK_ROOT="$ANDROID_SDK" "$ROOT/gradlew" -p "$ROOT" :drivemem:testDebugUnitTest
+fi
+
 GEELY_TOOLS="$TOOLS" ANDROID_SDK_ROOT="$ANDROID_SDK" "$ROOT/gradlew" -p "$ROOT" :drivemem:assembleRelease
 GRADLE_APK="$ROOT/drivemem/build/outputs/apk/release/drive_assist.apk"
 [ -f "$GRADLE_APK" ] || GRADLE_APK="$ROOT/drivemem/build/outputs/apk/release/drivemem-release.apk"
@@ -124,18 +129,18 @@ fi
 # Ensures the current branch has integrated upstream changes and contains the
 # currently deployed commit before releasing, preventing accidental rollbacks.
 #
-# `dev` is checked first: it is this project's actual integration trunk (see
-# CLAUDE.md's two-branch workflow). `master` is a DOWNSTREAM squash target
+# `next` is checked first: it is this project's actual integration trunk (see
+# CLAUDE.md's branching model). `master` is a DOWNSTREAM squash target
 # produced by push-release.sh, which writes a fresh commit with no parent
-# link back to dev -- so master and dev are unrelated histories by design.
-# An ancestor check against master can never pass from dev, and the
+# link back to next -- so master and next are unrelated histories by design.
+# An ancestor check against master can never pass from next, and the
 # "run: git merge master" it would suggest fails with git's own
 # "refusing to merge unrelated histories" -- an unfollowable instruction.
 # `related()` below detects that case and downgrades it to a warning instead
 # of a hard block, for both checks in this section.
 INTEGRATION="${INTEGRATION:-}"
 if [ -z "$INTEGRATION" ]; then
-  for b in dev main master; do
+  for b in next dev main master; do
     git rev-parse --verify "$b" >/dev/null 2>&1 && { INTEGRATION="$b"; break; }
   done
 fi
