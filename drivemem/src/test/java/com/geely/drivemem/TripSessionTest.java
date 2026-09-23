@@ -1,5 +1,6 @@
 package com.geely.drivemem;
 
+import com.geely.drivemem.state.CarState;
 import com.geely.drivemem.state.TripSession;
 import com.geely.drivemem.util.Modes;
 
@@ -10,9 +11,38 @@ import static org.junit.Assert.*;
 
 public class TripSessionTest {
 
+    private static void shiftFromPark(int gear, long now) {
+        TripSession.onGear(null, gear, now);
+        TripSession.onGear(null, gear, now);
+    }
+
     @Before
     public void setUp() {
         TripSession.resetForTesting();
+    }
+
+    @Test
+    public void testParkExitRequiresTwoConsecutiveNonParkGearReadings() {
+        long t0 = 100_000L;
+        // 1. Single non-P gear reading: must NOT exit park or start trip
+        TripSession.onGear(null, Modes.DRIVE_COMFORT, t0);
+        assertFalse("Single non-P gear reading must not start trip", TripSession.isTripActive());
+        assertTrue("Car must remain parked after single non-P reading", CarState.isParked());
+
+        // 2. Glitch returns to Park: counter must reset
+        TripSession.onGear(null, Modes.GEAR_PARK_ADAPTED, t0 + 1000L);
+        assertFalse(TripSession.isTripActive());
+        assertTrue(CarState.isParked());
+
+        // 3. Another single non-P reading: still must not start trip
+        TripSession.onGear(null, Modes.DRIVE_COMFORT, t0 + 2000L);
+        assertFalse("Single non-P reading after park reset must not start trip", TripSession.isTripActive());
+        assertTrue(CarState.isParked());
+
+        // 4. Second consecutive non-P reading: now exits park and starts trip
+        TripSession.onGear(null, Modes.DRIVE_COMFORT, t0 + 2500L);
+        assertTrue("Two consecutive non-P readings must start trip", TripSession.isTripActive());
+        assertFalse("CarState must report driving (not parked)", CarState.isParked());
     }
 
     @Test
@@ -47,7 +77,7 @@ public class TripSessionTest {
     public void testDrivingDurationAccumulationAcrossSegments() {
         long t0 = 100_000L;
         // Shift Park -> Drive: initial trip start
-        TripSession.onGear(null, Modes.DRIVE_COMFORT, t0);
+        shiftFromPark(Modes.DRIVE_COMFORT, t0);
         assertTrue(TripSession.isTripActive());
         assertEquals(t0, TripSession.getActiveTripStartMs());
         assertFalse(TripSession.isParkGraceScheduled());
@@ -68,7 +98,7 @@ public class TripSessionTest {
         assertEquals(25_000L, TripSession.getDrivingDurationMs(t2));
 
         // Shift Park -> Drive within grace period (e.g. gate opened)
-        TripSession.onGear(null, Modes.DRIVE_SPORT, t2);
+        shiftFromPark(Modes.DRIVE_SPORT, t2);
         assertTrue(TripSession.isTripActive());
         assertFalse("Grace timer must be cancelled when shifting back to Drive", TripSession.isParkGraceScheduled());
         assertEquals("Trip start time must be preserved when stitching segments", t0, TripSession.getActiveTripStartMs());
@@ -103,7 +133,7 @@ public class TripSessionTest {
         // view hides any trip whose start_ms falls inside the Valet interval,
         // so the driving done AFTER turning Valet off would vanish too.
         long t0 = 100_000L;
-        TripSession.onGear(null, Modes.DRIVE_COMFORT, t0);
+        shiftFromPark(Modes.DRIVE_COMFORT, t0);
         assertTrue(TripSession.isTripActive());
 
         long t1 = t0 + 25_000L;
@@ -124,7 +154,7 @@ public class TripSessionTest {
         // Driving resumes, still well inside what would have been the old
         // 75s grace window.
         long t2 = t1 + 10_000L;
-        TripSession.onGear(null, Modes.DRIVE_SPORT, t2);
+        shiftFromPark(Modes.DRIVE_SPORT, t2);
         assertTrue(TripSession.isTripActive());
         assertEquals("A brand-new trip must start, not reuse the old start time",
             t2, TripSession.getActiveTripStartMs());
@@ -138,7 +168,7 @@ public class TripSessionTest {
         // must open the new trip itself, right away, or the rest of the drive
         // goes completely untracked until the car eventually parks.
         long t0 = 200_000L;
-        TripSession.onGear(null, Modes.DRIVE_COMFORT, t0);
+        shiftFromPark(Modes.DRIVE_COMFORT, t0);
         assertTrue(TripSession.isTripActive());
 
         long t1 = t0 + 40_000L; // still driving, no Park edge in between
@@ -161,7 +191,7 @@ public class TripSessionTest {
     public void testMicroTripDiscardedBelowThresholds() {
         long t0 = 50_000L;
         // Park -> Drive
-        TripSession.onGear(null, Modes.DRIVE_ECO, t0);
+        shiftFromPark(Modes.DRIVE_ECO, t0);
         assertTrue(TripSession.isTripActive());
 
         // Move vehicle for only 8 seconds (e.g. reparking 5 meters)
@@ -185,7 +215,7 @@ public class TripSessionTest {
     @Test
     public void testShortDriveQualifiesByDistance() {
         long t0 = 10_000L;
-        TripSession.onGear(null, Modes.DRIVE_COMFORT, t0);
+        shiftFromPark(Modes.DRIVE_COMFORT, t0);
 
         // Drive for only 20 seconds, but 300 meters (0.3 km)
         long t1 = t0 + 20_000L;
@@ -204,7 +234,7 @@ public class TripSessionTest {
     public void testManeuveringGearTogglesDoNotTriggerParkEdge() {
         long t0 = 1_000L;
         // Park -> Drive
-        TripSession.onGear(null, Modes.DRIVE_COMFORT, t0);
+        shiftFromPark(Modes.DRIVE_COMFORT, t0);
         assertTrue(TripSession.isTripActive());
 
         // Shift D -> R (gear 3 or anything != Modes.GEAR_PARK_ADAPTED)
@@ -224,7 +254,7 @@ public class TripSessionTest {
     @Test
     public void testNegativeClockJumpClampedToZero() {
         long t0 = 100_000L;
-        TripSession.onGear(null, Modes.DRIVE_COMFORT, t0);
+        shiftFromPark(Modes.DRIVE_COMFORT, t0);
 
         // Clock goes backwards (e.g. NTP sync)
         long tEarlier = t0 - 5_000L;

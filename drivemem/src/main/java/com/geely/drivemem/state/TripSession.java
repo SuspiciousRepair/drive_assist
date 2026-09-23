@@ -82,6 +82,7 @@ public final class TripSession {
     // telemetry.tick are delivered there, one at a time, same discipline
     // ChargeSession's fields already rely on.
     private static boolean wasParked = true; // matches CarState's own default guess
+    private static int consecutiveNonParkGears = 0;
     private static volatile boolean tripActive = false;
     private static volatile long startMs = 0;
     private static volatile long startSampleId = -1;
@@ -105,16 +106,22 @@ public final class TripSession {
     }
 
     public static void onGear(Context ctx, int gear, long now) {
-        boolean nowParked = (gear == Modes.GEAR_PARK_ADAPTED);
-        if (nowParked == wasParked) return; // no edge
+        CarActor.assertCarThread();
+        boolean isPark = (gear == Modes.GEAR_PARK_ADAPTED);
 
-        // The one place car.gear becomes "parked or not" — CarState relays
-        // this to everyone else (ChargeSession included) via its own
-        // listeners, so nothing downstream needs its own gear subscription.
-        CarState.reportParked(nowParked);
+        if (wasParked) {
+            if (isPark) {
+                consecutiveNonParkGears = 0;
+                return; // no edge, still parked
+            }
+            consecutiveNonParkGears++;
+            if (consecutiveNonParkGears < 2) {
+                return; // require two consecutive non-P gear readings before reporting parked-exit edge
+            }
+            consecutiveNonParkGears = 0;
+            wasParked = false;
+            CarState.reportParked(false);
 
-        if (!nowParked) {
-            // Parked -> driving: cancel pending park grace finalizer if any
             if (parkGraceRunnable != null) {
                 if (ctx != null) {
                     CarActor.get(ctx).cancelOnCarThread(parkGraceRunnable);
@@ -123,17 +130,18 @@ public final class TripSession {
             }
 
             if (tripActive) {
-                // Continue existing trip seamlessly (stitch/merge segments)
                 currentDriveSegmentStartMs = now;
             } else {
-                // Any open charge session already got force-closed by
-                // CarState.reportParked() above — its onParkExit listener runs
-                // synchronously, before this line — so there is nothing to do
-                // here for that any more.
                 startNewTrip(ctx, now);
             }
         } else {
-            // Driving -> parked: enter park grace period
+            if (!isPark) {
+                return; // still driving in non-P gear
+            }
+            consecutiveNonParkGears = 0;
+            wasParked = true;
+            CarState.reportParked(true);
+
             if (tripActive) {
                 drivingDurationMs += Math.max(0, now - currentDriveSegmentStartMs);
                 currentDriveSegmentStartMs = 0;
@@ -146,7 +154,6 @@ public final class TripSession {
                 }
             }
         }
-        wasParked = nowParked;
     }
 
     private static void startNewTrip(Context ctx, long now) {
@@ -187,6 +194,7 @@ public final class TripSession {
      * would go completely untracked, not merely mislabeled. A no-op (like
      * finalizeTrip) if no trip is open. */
     public static synchronized boolean splitTrip(Context ctx, long now) {
+        CarActor.assertCarThread();
         if (!tripActive) return false;
         boolean wasDriving = !wasParked;
         boolean qualified = finalizeTrip(ctx, now);
@@ -195,6 +203,7 @@ public final class TripSession {
     }
 
     private static void onTelemetryTick(Context ctx, Map<String, Object> data) {
+        CarActor.assertCarThread();
         if (!tripActive) return; // only track while a trip is actually open
         boolean backfilled = false;
         if (startOdoKm < 0 && data.containsKey("odometer")) {
@@ -240,6 +249,7 @@ public final class TripSession {
     }
 
     public static boolean finalizeTrip(Context ctx, long now) {
+        CarActor.assertCarThread();
         if (parkGraceRunnable != null) {
             if (ctx != null) {
                 CarActor.get(ctx).cancelOnCarThread(parkGraceRunnable);
@@ -390,6 +400,7 @@ public final class TripSession {
         // CarState stays parked too, so anything hanging off it (charging
         // included) never gets the memo that a drive is already under way.
         wasParked = false;
+        consecutiveNonParkGears = 0;
         CarState.reportParked(false);
         startMs = persistedStartMs;
         startSampleId = persistedStartSampleId;
@@ -529,6 +540,7 @@ public final class TripSession {
         lastAltitude = null;
         ascentM = 0;
         descentM = 0;
+        consecutiveNonParkGears = 0;
     }
 
     /** Trip statistics for the last 7 days: count and total driving time. */
@@ -599,6 +611,8 @@ public final class TripSession {
     public static void resetForTesting() {
         resetTripState();
         wasParked = true;
+        consecutiveNonParkGears = 0;
+        CarState.setParkedForTesting(true);
         testCurrentOdoKm = null;
         EnergyIntegrator.resetForTesting();
     }

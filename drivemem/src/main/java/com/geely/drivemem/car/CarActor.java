@@ -17,7 +17,10 @@ import com.geely.drivemem.util.Modes;
 import android.content.Context;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.util.Log;
+
+import com.geely.drivemem.BuildConfig;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -65,15 +68,55 @@ public final class CarActor {
 
     private static volatile CarActor instance;
 
+    public static CarActor get() { return instance; }
+
     public static CarActor get(Context ctx) {
         CarActor i = instance;
         if (i == null) {
             synchronized (CarActor.class) {
-                if (instance == null) instance = new CarActor(ctx.getApplicationContext());
+                if (instance == null && ctx != null) instance = new CarActor(ctx.getApplicationContext());
                 i = instance;
             }
         }
         return i;
+    }
+
+    public Looper getLooper() { return h != null ? h.getLooper() : null; }
+
+    public CarActor(Handler h) {
+        this.ctx = null;
+        this.h = h;
+    }
+
+    public static void setInstanceForTesting(CarActor a) {
+        instance = a;
+    }
+
+    public void putForTesting(String key, Reading reading) {
+        Cached c = state.computeIfAbsent(key, k -> new Cached(0));
+        c.reading = reading;
+    }
+
+    private static volatile boolean strictThreadAssertion = false;
+    public static void setStrictThreadAssertionForTesting(boolean strict) {
+        strictThreadAssertion = strict;
+    }
+
+    public static void assertCarThread() {
+        if (!BuildConfig.DEBUG && !strictThreadAssertion) return;
+        CarActor a = instance;
+        if (a != null && a.h != null) {
+            Looper carLooper = a.h.getLooper();
+            if (carLooper != null && Looper.myLooper() != carLooper) {
+                String msg = "assertCarThread: expected CarActor thread ("
+                    + carLooper.getThread().getName() + ") but called from "
+                    + Thread.currentThread().getName();
+                Log.w(CarAccess.TAG, msg);
+                if (strictThreadAssertion) {
+                    throw new IllegalStateException(msg);
+                }
+            }
+        }
     }
 
     private final Context ctx;
@@ -267,12 +310,20 @@ public final class CarActor {
     // For ordered sequences of I/O (e.g., ComfortRuler). Runs on actor's thread
     // and must never be called from any other thread. No ensureConnected()
     // wrapper: caller is responsible for checking car.isReady() first.
-    public void runOnCarThread(Runnable r) { h.post(r); }
+    public void runOnCarThread(Runnable r) {
+        if (h != null) h.post(r);
+        else r.run();
+    }
     /** Posts a runnable to be executed on the actor's thread after a delay. */
-    public void runOnCarThreadDelayed(Runnable r, long delayMs) { h.postDelayed(r, delayMs); }
+    public void runOnCarThreadDelayed(Runnable r, long delayMs) {
+        if (h != null) h.postDelayed(r, delayMs);
+        else r.run();
+    }
 
     /** Cancels a previously posted runnable. */
-    public void cancelOnCarThread(Runnable r) { h.removeCallbacks(r); }
+    public void cancelOnCarThread(Runnable r) {
+        if (h != null) h.removeCallbacks(r);
+    }
 
     /** Returns direct access to the shared CarAccess (for use only on actor's thread). */
     public CarAccess rawAccess() { return car; }

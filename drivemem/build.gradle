@@ -201,6 +201,7 @@ dependencies {
     // settings.gradle), not Maven Central.
     implementation "com.github.PhilJay:MPAndroidChart:v3.1.0"
 
+    testImplementation files(carStubsJar)
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.json:json:20231013"
 }

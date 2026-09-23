@@ -1,8 +1,18 @@
 package com.geely.drivemem;
 
+import android.content.SharedPreferences;
+
+import com.geely.drivemem.car.CarActor;
+import com.geely.drivemem.car.EntityBus;
 import com.geely.drivemem.state.ChargeSession;
 
 import org.junit.Test;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import static org.junit.Assert.*;
 
 public class ChargeSessionTest {
@@ -251,5 +261,194 @@ public class ChargeSessionTest {
         ChargeSession.onParkExit(null);
         assertFalse("Grace timer must be cancelled immediately on Park exit", ChargeSession.isChargeGraceScheduled());
         assertFalse("Session must be finalized immediately on Park exit", ChargeSession.isSessionActive());
+    }
+
+    @Test public void plugGlitchDoesNotTruncateSession() {
+        ChargeSession.resetForTesting();
+        CarActor testActor = new CarActor(null);
+        testActor.putForTesting("car.is_charging", CarActor.Reading.ok(1));
+        CarActor.setInstanceForTesting(testActor);
+
+        try {
+            long t0 = 1_000_000L;
+            long m0 = 10_000L;
+
+            // 0 -> 1: Session starts normally
+            ChargeSession.onChargingEdge(null, true, t0, m0);
+            assertTrue(ChargeSession.isCharging());
+            assertTrue(ChargeSession.isSessionActive());
+            assertFalse(ChargeSession.isChargeGraceScheduled());
+
+            // Plug glitch: car.plug_connected blips 0.
+            // In the old code, ChargeSession had a separate listener directly on car.plug_connected
+            // that force-closed the session immediately.
+            // In the fixed code, that listener is removed, so publishing 0 to car.plug_connected
+            // must NOT terminate or schedule grace period for the active charge session.
+            EntityBus.publish("car.plug_connected", CarActor.Reading.ok(0));
+
+            assertTrue("Session must remain active despite plug_connected blip", ChargeSession.isSessionActive());
+            assertTrue("Session must remain in charging state", ChargeSession.isCharging());
+            assertFalse("Grace period must not be scheduled by plug glitch", ChargeSession.isChargeGraceScheduled());
+
+            // Telemetry tick arrives while CarActor's cached is_charging is 1.
+            // If wasCharging had drifted to false (e.g. simulated edge drop), onTelemetryTick
+            // self-corrects against CarActor's cached value.
+            ChargeSession.onChargingEdge(null, false, t0 + 10_000L, m0 + 10_000L);
+            assertTrue(ChargeSession.isChargeGraceScheduled()); // drifted into grace
+
+            Map<String, Object> tickData = new HashMap<>();
+            tickData.put("battery", 55);
+            ChargeSession.onTelemetryTick(null, tickData);
+
+            assertTrue("Telemetry tick self-corrects against cached car.is_charging=1", ChargeSession.isCharging());
+            assertTrue("Session remains active after self-correction", ChargeSession.isSessionActive());
+            assertFalse("Grace timer cancelled on drift self-correction", ChargeSession.isChargeGraceScheduled());
+        } finally {
+            CarActor.setInstanceForTesting(null);
+            ChargeSession.resetForTesting();
+        }
+    }
+
+    @Test public void simulatedCrashRecoveryReconstructsSession() {
+        ChargeSession.resetForTesting();
+        FakeSharedPreferences prefs = new FakeSharedPreferences();
+
+        long t0 = 1_500_000L;
+        long m0 = 50_000L;
+
+        // Active charging session before crash:
+        ChargeSession.onChargingEdge(null, true, t0, m0);
+        ChargeSession.setSessionStateForTesting(true, true, t0, 30, 60, 15_000.0, 25);
+        ChargeSession.persistOpenSession(prefs);
+
+        // Verify data was persisted into SharedPreferences
+        assertEquals(t0, prefs.getLong("charge_open_start_ms", 0L));
+        assertEquals(30, prefs.getInt("charge_open_start_soc", -1));
+        assertEquals(60, prefs.getInt("charge_open_soc_end", -1));
+        assertEquals(Double.doubleToRawLongBits(15_000.0), prefs.getLong("charge_open_wh_accum", 0L));
+
+        // Crash occurs: in-memory static state wiped (process death / OTA restart)
+        ChargeSession.resetForTesting();
+        assertFalse("Session state wiped by crash", ChargeSession.isSessionActive());
+        assertFalse(ChargeSession.isCharging());
+        assertEquals(0L, ChargeSession.currentStartWallMs());
+        assertEquals(0.0, ChargeSession.currentKwh(), 0.001);
+
+        // App starts up, recovers open session from preferences
+        boolean recovered = ChargeSession.recoverFromPreferences(prefs, null);
+        assertTrue("Session must be recovered from preferences", recovered);
+
+        assertTrue("Session is active after recovery", ChargeSession.isSessionActive());
+        assertEquals(t0, ChargeSession.currentStartWallMs());
+        assertEquals(30, ChargeSession.currentSocStart());
+        assertEquals(60, ChargeSession.currentSocEnd());
+        assertEquals(15.0, ChargeSession.currentKwh(), 0.001);
+
+        // Once session completes and grace period finalizes, open session in prefs is cleared
+        ChargeSession.clearOpenSession(prefs);
+        assertFalse(prefs.contains("charge_open_start_ms"));
+        assertFalse(prefs.contains("charge_open_wh_accum"));
+    }
+
+    @Test public void replayTelemetryAccumulatesEnergyAndMaxVoltage() {
+        // rows: {ts_ms, charge_a, charge_v, battery_pct}
+        Object[][] rows = {
+            {100_000L, 50.0f, 380.0f, 30},
+            {160_000L, 50.0f, 382.0f, 32}, // 60s at 50A*382V = 19100W * (60/3600h) = 318.33 Wh
+            {220_000L, 50.0f, 405.0f, 35}, // 60s at 50A*405V = 20250W * (60/3600h) = 337.5 Wh
+        };
+        double[] result = ChargeSession.replayTelemetry(rows, 0.0, 0, Double.NaN, 30);
+        assertEquals(655.83, result[0], 1.0);
+        assertEquals(2, (int) result[1]); // 2 intervals
+        assertEquals(405.0, result[2], 0.001); // peak voltage
+        assertEquals(35, (int) result[3]); // latest SoC
+    }
+
+    @Test public void commitOrUpdateSessionCapturesStateBeforeReset() {
+        ChargeSession.resetForTesting();
+        long t0 = 1_000_000L;
+        long endMs = t0 + 1_800_000L; // 30 minutes
+
+        // In-progress session with live fields populated
+        ChargeSession.setSessionStateForTesting(true, true, t0, 20, 80, 25_000.0, 40);
+
+        // commitOrUpdateSession captures a snapshot before posting to the DB thread
+        ChargeSession.SessionSnapshot snap = ChargeSession.captureSnapshot(endMs);
+
+        // Simulate DB write thread racing: resetSessionState runs on main thread before DB worker executes
+        ChargeSession.resetForTesting();
+
+        // Live static fields are now zeroed/reset
+        assertEquals(0L, ChargeSession.currentStartWallMs());
+        assertEquals(-1, ChargeSession.currentSocStart());
+        assertEquals(-1, ChargeSession.currentSocEnd());
+        assertEquals(0.0, ChargeSession.currentKwh(), 0.001);
+        assertFalse(ChargeSession.isSessionActive());
+
+        // Snapshot and resulting Summary MUST still reflect the captured values, immune to live state reset
+        assertEquals(t0, snap.startWallMs);
+        assertEquals(endMs, snap.endWallMs);
+        assertEquals(20, snap.socStart);
+        assertEquals(80, snap.socEnd);
+        assertEquals(25.0, snap.kwh, 0.001);
+        assertEquals(40, snap.sampleCount);
+        assertEquals(50_000.0, snap.avgPowerW, 0.001); // 25 kWh in 0.5 hours = 50 kW
+
+        ChargeSession.Summary summary = snap.toSummary(99L);
+        assertEquals(99L, summary.id);
+        assertEquals(t0, summary.startWallMs);
+        assertEquals(endMs, summary.endWallMs);
+        assertEquals(20, summary.socStart);
+        assertEquals(80, summary.socEnd);
+        assertEquals(25.0, summary.kwh, 0.001);
+    }
+
+    @Test public void assertCarThreadSafeWhenNoLooper() {
+        // When CarActor is null or handler is null, assertCarThread is a safe no-op
+        CarActor.setInstanceForTesting(null);
+        ChargeSession.onParkExit(null); // should not throw
+
+        CarActor testActor = new CarActor(null);
+        CarActor.setInstanceForTesting(testActor);
+        ChargeSession.onParkExit(null); // should not throw
+        CarActor.setInstanceForTesting(null);
+    }
+
+    private static class FakeSharedPreferences implements SharedPreferences {
+        final Map<String, Object> map = new HashMap<>();
+
+        @Override public Map<String, ?> getAll() { return map; }
+        @Override public String getString(String key, String def) { Object v = map.get(key); return v instanceof String ? (String) v : def; }
+        @Override public Set<String> getStringSet(String key, Set<String> def) { return def; }
+        @Override public int getInt(String key, int def) { Object v = map.get(key); return v instanceof Integer ? (Integer) v : def; }
+        @Override public long getLong(String key, long def) { Object v = map.get(key); return v instanceof Long ? (Long) v : def; }
+        @Override public float getFloat(String key, float def) { Object v = map.get(key); return v instanceof Float ? (Float) v : def; }
+        @Override public boolean getBoolean(String key, boolean def) { Object v = map.get(key); return v instanceof Boolean ? (Boolean) v : def; }
+        @Override public boolean contains(String key) { return map.containsKey(key); }
+        @Override public Editor edit() { return new FakeEditor(map); }
+        @Override public void registerOnSharedPreferenceChangeListener(OnSharedPreferenceChangeListener listener) {}
+        @Override public void unregisterOnSharedPreferenceChangeListener(OnSharedPreferenceChangeListener listener) {}
+
+        static class FakeEditor implements Editor {
+            final Map<String, Object> map;
+            final Map<String, Object> pending = new HashMap<>();
+            final Set<String> removals = new HashSet<>();
+
+            FakeEditor(Map<String, Object> map) { this.map = map; }
+
+            @Override public Editor putString(String key, String value) { pending.put(key, value); return this; }
+            @Override public Editor putStringSet(String key, Set<String> values) { return this; }
+            @Override public Editor putInt(String key, int value) { pending.put(key, value); return this; }
+            @Override public Editor putLong(String key, long value) { pending.put(key, value); return this; }
+            @Override public Editor putFloat(String key, float value) { pending.put(key, value); return this; }
+            @Override public Editor putBoolean(String key, boolean value) { pending.put(key, value); return this; }
+            @Override public Editor remove(String key) { removals.add(key); pending.remove(key); return this; }
+            @Override public Editor clear() { map.clear(); pending.clear(); removals.clear(); return this; }
+            @Override public boolean commit() { apply(); return true; }
+            @Override public void apply() {
+                for (String k : removals) map.remove(k);
+                map.putAll(pending);
+            }
+        }
     }
 }
