@@ -5,7 +5,6 @@ import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.car.CarDataHub;
-import com.geely.drivemem.car.CarDb;
 import com.geely.drivemem.car.EntityBus;
 import com.geely.drivemem.car.Telemetry;
 import com.geely.drivemem.controls.AdbGate;
@@ -20,18 +19,14 @@ import com.geely.drivemem.net.MqttReporter;
 import com.geely.drivemem.net.MqttTls;
 import com.geely.drivemem.net.Updater;
 import com.geely.drivemem.sensors.Obd2Reader;
-import com.geely.drivemem.sensors.OdoStats;
 import com.geely.drivemem.services.OutTempService;
 import com.geely.drivemem.services.SocIconService;
 import com.geely.drivemem.services.TelemetryService;
 import com.geely.drivemem.services.WifiIconService;
-import com.geely.drivemem.state.ChargeSession;
-import com.geely.drivemem.util.Clips;
 import com.geely.drivemem.util.Modes;
 import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.SpotifyClient;
 import com.geely.drivemem.util.Style;
-import com.geely.drivemem.util.UsbExport;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -100,9 +95,6 @@ public class TelemetryActivity extends Activity {
 
     private final List<TextView> navItems = new ArrayList<>();
     private TextView status;                  // recreated by each panel that needs it
-    // Charging history window — a screen-local toggle (not persisted): 30 days
-    // is the default, 365 available for the wider view.
-    private int chargePeriodDays = 30;
 
     // MQTT
     private EditText fUri, fUser, fPass, fInterval, fTlsTarget;
@@ -115,6 +107,8 @@ public class TelemetryActivity extends Activity {
     private TextView activeBrokerView, activeClientView, activeLastSentView;
     private LinearLayout mqttConfigContainer;
     private TelemetrySpotifySection spotifySection;
+    private TelemetryClipsSection clipsSection;
+    private TelemetryChargeSection chargeSection;
     private EditText fTurbo;
     private EditText fSkylineSeed;
     // Drive mode. Two separate ideas, kept in separate fields on purpose —
@@ -324,8 +318,14 @@ public class TelemetryActivity extends Activity {
             case SEC_LOOK:  buildLook();  break;
             case SEC_MQTT:  buildMqtt();  break;
             case SEC_DOORS: content.addView(new TelemetryDoorsSection(this)); break;
-            case SEC_CLIPS: buildClips(); break;
-            case SEC_CHARGE: buildCharge(); break;
+            case SEC_CLIPS:
+                clipsSection = new TelemetryClipsSection(this, () -> selectSection(SEC_CLIPS));
+                content.addView(clipsSection);
+                break;
+            case SEC_CHARGE:
+                chargeSection = new TelemetryChargeSection(this);
+                content.addView(chargeSection);
+                break;
             case SEC_OBD: buildObd(); break;
             case SEC_SPOTIFY:
                 spotifySection = new TelemetrySpotifySection(this);
@@ -336,354 +336,7 @@ public class TelemetryActivity extends Activity {
         }
     }
 
-    // =====================================================================
-    // Recordings panel — the dashcam gallery, living in the sidebar
-    // =====================================================================
-    // Rebuilt on every entry rather than cached: the recorder is a different
-    // process and can close a segment or evict one at any moment, so anything
-    // held here would be a guess about another app's directory.
-    private void buildClips() {
-        content.addView(Style.header(this, getString(R.string.clips_title)));
 
-        List<Clips.Clip> clips = Clips.list(this);
-        boolean on = Clips.recording(this);
-
-        // A real toggle, not a momentary button: modehelper now persists
-        // whatever is sent here ("dashcam_on") and checks it before
-        // auto-starting on the next boot too — see ModeHelperService's own
-        // comment on maybeAutoStart(). Displayed state is the live directory
-        // read (Clips.recording()), the same honest-over-cached approach as
-        // the AVAS toggle, not a locally-remembered guess.
-        LinearLayout recordRow = toggleRow(getString(R.string.clips_record), on, wantOn -> {
-            // Drive Assist does not record — modehelper does. Ask over the same
-            // broadcast adb uses, then re-read the directory rather than
-            // assuming: a segment file takes a moment to appear.
-            sendBroadcast(new Intent("com.geely.modehelper.DASHCAM")
-                .setClassName("com.geely.modehelper", "com.geely.modehelper.DashReceiver")
-                .putExtra("on", wantOn ? 1 : 0));
-            content.postDelayed(() -> { if (section == SEC_CLIPS) selectSection(SEC_CLIPS); }, 1500);
-        });
-        content.addView(recordRow);
-
-        // A GB count is a couple of digits, not a URL -- a field and a
-        // button that both stretch to the full row width (field()'s and
-        // cardButton()'s usual shape, right for every OTHER field on this
-        // screen) just leaves both looking like empty bars with their
-        // content stranded in a corner. One compact row instead.
-        TextView limitLbl = new TextView(this);
-        limitLbl.setText(getString(R.string.clips_limit_label));
-        limitLbl.setTextColor(Style.TEXT_DIM);
-        limitLbl.setTextSize(14);
-        limitLbl.setPadding(0, Style.dp(this, 10), 0, Style.dp(this, 2));
-        content.addView(limitLbl);
-
-        LinearLayout limitRow = new LinearLayout(this);
-        limitRow.setOrientation(LinearLayout.HORIZONTAL);
-        limitRow.setGravity(Gravity.CENTER_VERTICAL);
-        // Explicit bottom margin: previously this gap came from button()'s
-        // own stray top margin (removed below, see saveBtn), which was
-        // incidental spacing, not a deliberate one.
-        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        rowLp.bottomMargin = Style.dp(this, 10);
-        limitRow.setLayoutParams(rowLp);
-        content.addView(limitRow);
-
-        final EditText fDashLimit = new EditText(this);
-        fDashLimit.setText(String.valueOf(Prefs.getDashcamLimitGb(this)));
-        fDashLimit.setInputType(InputType.TYPE_CLASS_NUMBER);
-        fDashLimit.setTextColor(Style.TEXT);
-        fDashLimit.setTextSize(17);
-        fDashLimit.setBackground(Style.card(Style.CARD, this));
-        int fp = Style.dp(this, 12);
-        fDashLimit.setPadding(fp, fp, fp, fp);
-        LinearLayout.LayoutParams fLp = new LinearLayout.LayoutParams(
-            Style.dp(this, 120), ViewGroup.LayoutParams.WRAP_CONTENT);
-        fLp.setMarginEnd(Style.dp(this, 12));
-        fDashLimit.setLayoutParams(fLp);
-        limitRow.addView(fDashLimit);
-
-        TextView saveBtn = button(getString(R.string.clips_limit_save), Style.ACCENT, () -> {
-            int gb;
-            try { gb = Integer.parseInt(fDashLimit.getText().toString().trim()); }
-            catch (NumberFormatException e) { gb = -1; }
-            if (gb < 1) { fDashLimit.setText(String.valueOf(Prefs.getDashcamLimitGb(this))); return; }
-            gb = Math.min(gb, 500); // storage is real; a typo shouldn't ask for the whole disk
-            Prefs.setDashcamLimitGb(this, gb);
-            Intent i = new Intent("com.geely.modehelper.SET_MODE").setPackage("com.geely.modehelper");
-            i.putExtra("dashcam_limit_gb", gb);
-            sendBroadcast(i);
-            Toast.makeText(this, getString(R.string.cfg_saved), Toast.LENGTH_SHORT).show();
-        });
-        // button() bakes in an 8dp TOP margin (meant for buttons stacked
-        // vertically with a gap between them) and no bottom margin. In this
-        // horizontal, CENTER_VERTICAL row that margin just pushes the
-        // button down and out of limitRow's own measured height -- not a
-        // rendering artifact, an actual position bug: it was overlapping
-        // (getting drawn under) the Park monitoring row right below.
-        LinearLayout.LayoutParams sLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        saveBtn.setLayoutParams(sLp);
-        limitRow.addView(saveBtn);
-
-        LinearLayout parkedMonitor = toggleRow(getString(R.string.cfg_park_monitor_label),
-            Prefs.getParkedMonitoring(this), enabled -> {
-                Prefs.setParkedMonitoring(this, enabled);
-                sendBroadcast(new Intent("com.geely.modehelper.PARKED_MONITORING")
-                    .setClassName("com.geely.modehelper",
-                        "com.geely.modehelper.ParkedMonitoringReceiver")
-                    .putExtra("on", enabled ? 1 : 0));
-            });
-        content.addView(parkedMonitor);
-
-        // Settings end here, the clip list starts below -- a divider and its
-        // own header so the two don't read as one long undifferentiated
-        // column, same problem the compact limit-field row above just fixed
-        // for the field/button pair.
-        View divider = new View(this);
-        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 1));
-        divLp.topMargin = Style.dp(this, 18);
-        divLp.bottomMargin = Style.dp(this, 10);
-        divider.setLayoutParams(divLp);
-        divider.setBackgroundColor(Style.blend(Style.cardFillColor(), Style.TEXT_DIM, 0.18f));
-        content.addView(divider);
-        content.addView(sectionLabel(getString(R.string.clips_list_header)));
-        // Count/size is a fact about the clip list below, not the settings
-        // above it -- moved down here to sit with what it describes.
-        content.addView(Style.label(this, getString(R.string.clips_usage,
-            clips.size(), Clips.mb(Clips.usedBytes(this)), Clips.mb(Clips.heldBytes(this)),
-            Clips.mb(new android.os.StatFs(Clips.dir(this).getAbsolutePath()).getAvailableBytes()))));
-        Style.gap(content, this, 8);
-
-        if (clips.isEmpty()) { content.addView(Style.label(this, getString(R.string.clips_none))); return; }
-        for (Clips.Clip c : clips) content.addView(clipRow(c));
-    }
-
-    private View clipRow(final Clips.Clip c) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.HORIZONTAL);
-        card.setGravity(Gravity.CENTER_VERTICAL);
-        // Held clips are outlined in the accent: the point of holding is seeing
-        // at a glance which ones survive the ring buffer.
-        card.setBackground(c.held ? Style.outlinedCard(Style.ACCENT, this)
-                                  : Style.card(Style.CARD, this));
-        int p = Style.dp(this, 14);
-        card.setPadding(p, p, p, p);
-        // Capped, not MATCH_PARENT: a thumbnail, a couple of text lines, and
-        // two or three small buttons don't need the whole content width --
-        // stretched that far, every clip read as an empty bar with its
-        // content stranded on one side.
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-            Style.dp(this, 820), ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = Style.dp(this, 10);
-        card.setLayoutParams(lp);
-
-        if (c.thumb.exists()) {
-            android.widget.ImageView shot = new android.widget.ImageView(this);
-            shot.setImageBitmap(android.graphics.BitmapFactory.decodeFile(c.thumb.getAbsolutePath()));
-            shot.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
-            LinearLayout.LayoutParams ip =
-                new LinearLayout.LayoutParams(Style.dp(this, 150), Style.dp(this, 62));
-            ip.rightMargin = Style.dp(this, 14);
-            shot.setLayoutParams(ip);
-            card.addView(shot);
-        }
-
-        LinearLayout text = new LinearLayout(this);
-        text.setOrientation(LinearLayout.VERTICAL);
-        text.setLayoutParams(new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        boolean pendingHold = c.kind == Clips.Kind.RECORDING && Clips.isPending(this, c);
-        String tag = c.kind == Clips.Kind.RECORDING
-                         ? "  ● " + getString(R.string.clips_recording) + (pendingHold ? "  ★" : "")
-                   : c.kind == Clips.Kind.ORPHAN ? "  ⚠ " + getString(R.string.clips_orphan)
-                   : c.held ? "  ★" : "";
-        text.addView(Style.header(this, c.title() + tag));
-        text.addView(Style.label(this, c.subtitle()));
-        card.addView(text);
-
-        // Play only for a finished clip: a live one has no moov atom and an
-        // orphan needs remuxing before anything can open it. Hold works on
-        // both a finished clip (moves it right away) and a recording one
-        // (Clips.markPending — see its own comment for why a live file can't
-        // just be moved; it gets swept into keep/ once the segment closes).
-        if (c.playable()) {
-            card.addView(Style.cardButton(this, getString(R.string.clips_play), false,
-                () -> startActivity(new Intent(this, ClipPlayerActivity.class)
-                        .putExtra(ClipPlayerActivity.EXTRA_PATH, c.mp4.getAbsolutePath()))));
-            card.addView(Style.cardButton(this,
-                getString(c.held ? R.string.clips_release : R.string.clips_hold), c.held,
-                () -> { Clips.hold(this, c, !c.held); selectSection(SEC_CLIPS); }));
-        } else if (c.kind == Clips.Kind.RECORDING) {
-            final boolean pending = pendingHold;
-            card.addView(Style.cardButton(this,
-                getString(pending ? R.string.clips_release : R.string.clips_hold), pending,
-                () -> {
-                    if (pending) Clips.clearPending(this, c); else Clips.markPending(this, c);
-                    selectSection(SEC_CLIPS);
-                }));
-        }
-        if (c.kind != Clips.Kind.RECORDING) {
-            card.addView(Style.cardButton(this, getString(R.string.clips_delete), false, () ->
-                new android.app.AlertDialog.Builder(this)
-                    .setTitle(getString(R.string.clips_delete_q, c.title()))
-                    .setMessage(c.subtitle())
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .setPositiveButton(R.string.clips_delete,
-                        (d, w) -> { Clips.delete(c); selectSection(SEC_CLIPS); })
-                    .show()));
-        }
-        return card;
-    }
-
-    // =====================================================================
-    // Charging history
-    // =====================================================================
-    private void buildCharge() {
-        content.addView(Style.header(this, getString(R.string.charge_title)));
-
-        List<ChargeSession.Summary> sessions = ChargeSession.readLog(this);
-
-        // Last N days/months, as its own card up top — same visual language
-        // as the main page's cards (Clima/Turbo/etc.), not a settings line,
-        // since this is the headline number for the whole screen. km driven
-        // comes from OdoStats's own daily readings, not from charge sessions —
-        // an odometer snapshot taken only when charging starts covers just
-        // the gaps BETWEEN charges, silently missing any driving before the
-        // first or after the last charge in the window. OdoStats has no
-        // history before it started running, so with less than
-        // chargePeriodDays of data on file this reads "since logging began"
-        // rather than a true N-day figure — a smaller number, not a wrong
-        // one, and it grows into accuracy on its own.
-        long ltmCutoff = System.currentTimeMillis() - chargePeriodDays * 24L * 3600 * 1000;
-        int ltmCount = 0; double ltmKwh = 0;
-        for (ChargeSession.Summary s : sessions) {
-            if (s.startWallMs < ltmCutoff) continue;
-            ltmCount++;
-            ltmKwh += s.kwh;
-        }
-        double kmDriven = OdoStats.kmSince(this, chargePeriodDays);
-
-        LinearLayout ltmCard = new LinearLayout(this);
-        ltmCard.setOrientation(LinearLayout.VERTICAL);
-        int ltmPad = Style.dp(this, 26);
-        ltmCard.setPadding(ltmPad, ltmPad, ltmPad, ltmPad);
-        ltmCard.setBackground(Style.card(Style.cardFillColor(), this));
-        ltmCard.addView(Style.header(this, getString(
-            chargePeriodDays <= 30 ? R.string.charge_period_30d : R.string.charge_ltm_title)));
-
-        LinearLayout periodRow = new LinearLayout(this);
-        periodRow.setOrientation(LinearLayout.HORIZONTAL);
-        periodRow.setPadding(0, Style.dp(this, 8), 0, 0);
-        periodRow.addView(periodTile(30, getString(R.string.charge_period_30d)));
-        periodRow.addView(periodTile(365, getString(R.string.charge_ltm_title)));
-        ltmCard.addView(periodRow);
-
-        LinearLayout statsRow = new LinearLayout(this);
-        statsRow.setOrientation(LinearLayout.HORIZONTAL);
-        statsRow.setPadding(0, Style.dp(this, 10), 0, 0);
-        statsRow.addView(statTile(String.valueOf(ltmCount), getString(R.string.charge_ltm_count_label)));
-        statsRow.addView(statTile(String.format(java.util.Locale.US, "%.0f", ltmKwh), "kWh"));
-        statsRow.addView(statTile(String.format(java.util.Locale.US, "%.0f", kmDriven), "km"));
-        ltmCard.addView(statsRow);
-        content.addView(ltmCard);
-
-        double totalKwh = 0;
-        for (ChargeSession.Summary s : sessions) totalKwh += s.kwh;
-        content.addView(Style.label(this,
-            getString(R.string.charge_summary, sessions.size(), totalKwh)));
-
-        LinearLayout ctl = new LinearLayout(this);
-        ctl.setOrientation(LinearLayout.HORIZONTAL);
-        ctl.setPadding(0, Style.dp(this, 12), 0, Style.dp(this, 4));
-        ctl.addView(Style.cardButton(this, getString(R.string.charge_export), false, () ->
-            UsbExport.exportFiles((ok, drive, copied) -> runOnUiThread(() -> {
-                    String msg = drive == null ? getString(R.string.charge_export_no_drive)
-                               : !ok || copied == 0 ? getString(R.string.charge_export_nothing)
-                               : getString(R.string.charge_export_ok, copied);
-                    android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_LONG).show();
-                }),
-                CarDb.file(this))));
-        content.addView(ctl);
-
-        if (sessions.isEmpty()) { content.addView(Style.label(this, getString(R.string.charge_none))); return; }
-        // Most recent first — readLog() returns oldest-first.
-        for (int i = sessions.size() - 1; i >= 0; i--) content.addView(chargeRow(sessions.get(i)));
-    }
-
-    // One of the two period-toggle buttons on the charge history card.
-    private View periodTile(int days, String label) {
-        boolean sel = chargePeriodDays == days;
-        TextView b = Style.cardButton(this, label, sel, () -> {
-            chargePeriodDays = days;
-            selectSection(SEC_CHARGE);
-        });
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        int m = Style.dp(this, 5);
-        lp.leftMargin = m; lp.rightMargin = m;
-        b.setLayoutParams(lp);
-        return b;
-    }
-
-    // A big-number-over-small-label tile, same shape repeated three times in
-    // the LTM card — count, kWh, km share one look rather than three ad hoc
-    // layouts.
-    private LinearLayout statTile(String value, String label) {
-        LinearLayout t = new LinearLayout(this);
-        t.setOrientation(LinearLayout.VERTICAL);
-        t.setGravity(Gravity.CENTER_HORIZONTAL);
-        t.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView v = new TextView(this);
-        v.setText(value); v.setTextColor(Style.TEXT); v.setTextSize(34);
-        v.setTypeface(null, android.graphics.Typeface.BOLD);
-        v.setGravity(Gravity.CENTER_HORIZONTAL);
-        t.addView(v);
-        TextView l = new TextView(this);
-        l.setText(label); l.setTextColor(Style.TEXT_DIM); l.setTextSize(14);
-        l.setGravity(Gravity.CENTER_HORIZONTAL);
-        t.addView(l);
-        return t;
-    }
-
-    private View chargeRow(ChargeSession.Summary s) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackground(Style.card(Style.CARD, this));
-        int p = Style.dp(this, 14);
-        card.setPadding(p, p, p, p);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = Style.dp(this, 10);
-        card.setLayoutParams(lp);
-        card.addView(Style.header(this, s.title()));   // date + time range
-
-        final android.widget.ImageView bar = new android.widget.ImageView(this);
-        LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 26));   // tall enough to fit the duration label
-        barLp.topMargin = Style.dp(this, 8);
-        bar.setLayoutParams(barLp);
-        // Drawn once, after layout gives it a real width — this row never
-        // changes again, unlike the live card's bar, so no redraw-on-tick
-        // machinery is needed here.
-        bar.post(() -> {
-            int w = bar.getWidth();
-            if (w > 0) bar.setImageBitmap(Style.chargeRangeBar(this, w, bar.getHeight(),
-                s.socStart / 100f, s.socEnd / 100f, Style.ACCENT, s.durationLabel()));
-        });
-        card.addView(bar);
-
-        // Smaller than Style.label()'s usual 22sp: this line is now just
-        // three numbers (SoC range, kWh, kW), not a sentence — it doesn't
-        // need the same weight as a card's main text.
-        TextView sub = new TextView(this);
-        sub.setText(s.subtitle(this));
-        sub.setTextColor(Style.TEXT_DIM);
-        sub.setTextSize(16);
-        card.addView(sub);
-        return card;
-    }
 
 
     // =====================================================================
