@@ -45,7 +45,17 @@ public final class ClipRecovery {
     public interface Callback { void onDone(boolean ok, String message); }
 
     /** Runs entirely on a background thread; `cb` is always invoked on the
-     * main thread. Never throws -- every failure reaches `cb` as ok=false. */
+     * main thread. Never throws -- every failure reaches `cb` as ok=false.
+     *
+     * Catches Throwable, not just Exception: this thread maps a whole
+     * orphan file (some real ones are 250+ MB) into memory and pushes it
+     * through the codec framework one frame at a time, which is a real way
+     * to hit OutOfMemoryError on a memory-constrained head unit -- an
+     * Error, not an Exception, so `catch (Exception e)` would have let it
+     * straight through. Android kills the WHOLE app on any thread's
+     * uncaught throwable, not just the main thread's, so a bug here could
+     * crash the app well after the tap that started it -- exactly the
+     * "crashed after a while" report this class of miss produces. */
     public static void recover(File h264, Callback cb) {
         new Thread(() -> {
             boolean ok;
@@ -53,10 +63,10 @@ public final class ClipRecovery {
             try {
                 msg = doRecover(h264);
                 ok = true;
-            } catch (Exception e) {
-                Log.w(TAG, "clip recovery failed for " + h264.getName() + ": " + e, e);
+            } catch (Throwable t) {
+                Log.w(TAG, "clip recovery failed for " + h264.getName() + ": " + t, t);
                 ok = false;
-                msg = String.valueOf(e.getMessage());
+                msg = String.valueOf(t.getMessage());
             }
             final boolean fok = ok;
             final String fmsg = msg;
