@@ -730,7 +730,7 @@ public class ComfortActivity extends Activity {
     // verify (Wi-Fi dropped after HA last said yes) must hide the card.
     // See gateVisible().
     private boolean gateVisible() {
-        return GateState.available() && GateState.connected();
+        return ComfortCardVisibility.showGateCard(GateState.available(), GateState.connected());
     }
 
 
@@ -831,7 +831,7 @@ public class ComfortActivity extends Activity {
         // while driving — hidden while parked, per whatever CarState
         // already knows at build time; the listener (see below) keeps it
         // in sync as gear actually changes. Both halves share this one rule.
-        t.setVisibility(CarState.isParked() ? View.GONE : View.VISIBLE);
+        t.setVisibility(ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, CarState.isParked()) ? View.VISIBLE : View.GONE);
         turboCardView = t;
         refreshRegenGlyph();
         return t;
@@ -1314,19 +1314,20 @@ public class ComfortActivity extends Activity {
         long dismissed = Prefs.getDriveCardDismissedTrip(this);
         // The parked entry point remains available even when the optional live
         // drive card is disabled; otherwise Valet could become unreachable.
-        boolean visible = valet || parked || (driveCardEnabledAtBuild && driving
-            && dismissed != TripSession.getActiveTripStartMs());
+        boolean dismissedForThisTrip = dismissed == TripSession.getActiveTripStartMs();
+        boolean visible = ComfortCardVisibility.showJourneyCard(valet, parked, driveCardEnabledAtBuild,
+            driving, dismissedForThisTrip);
         journeyCard.setVisibility(visible ? View.VISIBLE : View.GONE);
         if (!visible) {
             if (lastJourneyAvailable) { lastJourneyAvailable = false; repackColumns(); }
             return;
         }
 
-        journeyDismiss.setVisibility(driving && !valet ? View.VISIBLE : View.GONE);
+        journeyDismiss.setVisibility(ComfortCardVisibility.showJourneyDismissButton(driving, valet) ? View.VISIBLE : View.GONE);
         // Parked always gets the button (Start or Stop). Driving only gets it
         // when Valet is the thing showing -- Stop must reach the driver even
         // mid-drive; there's no Start-while-driving to show instead.
-        journeyAction.setVisibility(parked || valet ? View.VISIBLE : View.GONE);
+        journeyAction.setVisibility(ComfortCardVisibility.showJourneyActionButton(parked, valet) ? View.VISIBLE : View.GONE);
         if (valet) {
             ValetSession.Snapshot s = ValetSession.snapshot(this);
             journeyTitle.setText(R.string.valet_active_title);
@@ -1675,7 +1676,7 @@ public class ComfortActivity extends Activity {
     // already says everything: nothing is loaded worth showing a card for.
     private final MusicState.Listener musicListener = (playing, title, artist, artUrl) ->
         ui.post(() -> {
-            boolean available = title != null && !title.isEmpty();
+            boolean available = ComfortCardVisibility.showMusicCard(title);
             if (musicCard != null) musicCard.setVisibility(available ? View.VISIBLE : View.GONE);
             if (available) {
                 musicTitleView.setText(title);
@@ -1695,7 +1696,7 @@ public class ComfortActivity extends Activity {
             // Charging only makes sense while parked — see CarState's header
             // for why this is a real check, not just tidiness.
             ui.post(() -> {
-                if (CarState.isParked()) showCharging(socStart, socNow, startWallMs, nowWallMs);
+                if (ComfortCardVisibility.showActiveCharging(CarState.isParked(), true)) showCharging(socStart, socNow, startWallMs, nowWallMs);
                 else hideCharging();
             });
         }
@@ -1745,14 +1746,14 @@ public class ComfortActivity extends Activity {
     // since a gear change and a charging/turbo change are independent events.
     private final CarState.Listener carStateListener = parked -> ui.post(() -> {
         if (turboCardView != null) {
-            boolean visible = turboEnabledAtBuild && !parked;
+            boolean visible = ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, parked);
             if ((turboCardView.getVisibility() == View.VISIBLE) != visible) {
                 turboCardView.setVisibility(visible ? View.VISIBLE : View.GONE);
                 lastTurboVisible = visible;
                 if (columns != null) repackColumns();
             }
         }
-        if (parked && ChargeSession.isCharging()) {
+        if (ComfortCardVisibility.showActiveCharging(parked, ChargeSession.isCharging())) {
             showCharging(ChargeSession.currentSocStart(), ChargeSession.currentSocEnd(),
                 ChargeSession.currentStartWallMs(), System.currentTimeMillis());
         } else if (retainedChargeSession != null) {
@@ -1845,7 +1846,7 @@ public class ComfortActivity extends Activity {
     }
 
     private void checkRetainedCharge() {
-        if (CarState.isParked() && ChargeSession.isCharging()) {
+        if (ComfortCardVisibility.showActiveCharging(CarState.isParked(), ChargeSession.isCharging())) {
             showCharging(ChargeSession.currentSocStart(), ChargeSession.currentSocEnd(),
                 ChargeSession.currentStartWallMs(), System.currentTimeMillis());
         } else {
@@ -1956,7 +1957,7 @@ public class ComfortActivity extends Activity {
         // show only if there IS content AND it was NOT dismissed (a local
         // comparison, without depending on the broker to clear it). Different
         // content => it comes back.
-        boolean has = !empty && s.hashCode() != dismissedHash;
+        boolean has = ComfortCardVisibility.showPanelCard(empty, s.hashCode() == dismissedHash);
         if (has) {
             // THE CARD ALREADY UP DOES NOT ARRIVE AGAIN — HA republishing an
             // unchanged payload (or this screen resuming) must not reload it.
@@ -2155,7 +2156,7 @@ public class ComfortActivity extends Activity {
         MusicState.setListener(musicListener);
         // Same "changed while paused" re-check as the gate, and the same
         // reason: a track can start or end while the screen is off.
-        boolean nowMusicAvailable = MusicState.title() != null && !MusicState.title().isEmpty();
+        boolean nowMusicAvailable = ComfortCardVisibility.showMusicCard(MusicState.title());
         if (musicCard != null) musicCard.setVisibility(nowMusicAvailable ? View.VISIBLE : View.GONE);
         if (nowMusicAvailable) {
             musicTitleView.setText(MusicState.title());
@@ -2186,7 +2187,7 @@ public class ComfortActivity extends Activity {
         // it (reported 2026-09-21: parked -> opened Config -> car started
         // driving -> back to Home, Portão/Turbo had no gap between them).
         if (turboCardView != null) {
-            boolean turboVisible = turboEnabledAtBuild && !CarState.isParked();
+            boolean turboVisible = ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, CarState.isParked());
             if (turboVisible != lastTurboVisible) {
                 lastTurboVisible = turboVisible;
                 turboCardView.setVisibility(turboVisible ? View.VISIBLE : View.GONE);
