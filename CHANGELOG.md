@@ -9,6 +9,9 @@
   raw footage back into a normal playable clip, no external tools needed.
 
 ### Fixed
+- **EX2 battery temperature could be reported as an impossible sub-zero
+  value.** The BMS temperature byte is now kept in its observed Celsius
+  form, and unexpected values are logged for diagnosis.
 - ABRP could drop a data point entirely instead of sending it: an
   unknown charging reading (a brief sensor hiccup, not just cold boot)
   was being treated as a flat "not charging," which could silently skip
@@ -42,7 +45,8 @@
   from idle telemetry with no actual driving in it. Already-affected
   recent days repaired in place.
 - ABRP could misreport a normal AC charge as a DC fast charge.
-- EX2 battery temperature reads used the wrong sensor offset.
+- EX2 battery temperature now preserves the BMS's Celsius reading instead
+  of applying an incorrect generic offset.
 - Several polish issues on the large Spotify card added in v0.3.1
   (toggle, art sizing, caption, spacing).
 

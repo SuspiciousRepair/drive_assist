@@ -26,8 +26,8 @@ issue numbers, no markdown emphasis (the update dialog is plain text).
 - Fixed: a short trip, or a day of real driving, could show as
   "estimated" even though the car's sensor was connected the whole time.
 - Fixed: an ordinary home charge could show up as a fast charge in ABRP.
-- Fixed: the EX2's battery temperature reading was off by a fixed
-  amount.
+- Fixed: the EX2's battery temperature no longer shows impossible
+  sub-zero readings caused by a generic sensor offset.
 - Fixed: several small issues with the large Spotify card added last
   release.
 
