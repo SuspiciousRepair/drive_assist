@@ -75,7 +75,6 @@ public final class TripSession {
     // telemetry.tick are delivered there, one at a time, same discipline
     // ChargeSession's fields already rely on.
     private static boolean wasParked = true; // matches CarState's own default guess
-    private static int consecutiveNonParkGears = 0;
     private static volatile boolean tripActive = false;
     private static volatile long startMs = 0;
     private static volatile long startSampleId = -1;
@@ -100,19 +99,20 @@ public final class TripSession {
 
     public static void onGear(Context ctx, int gear, long now) {
         CarActor.assertCarThread();
-        boolean isPark = (gear == Modes.GEAR_PARK_ADAPTED);
+        boolean nowParked = (gear == Modes.GEAR_PARK_ADAPTED);
+        if (nowParked == wasParked) return; // no edge -- CarActor only calls
+        // onGear() when car.gear actually changed (EntityBus.ingest() only
+        // publishes on change, see its own comment), so this is never a
+        // repeat delivery of the same reading. A "require two consecutive
+        // non-Park readings" debounce briefly lived here and was wrong for
+        // exactly that reason: the car emits a gear change once per real
+        // shift, not on a poll loop, so requiring a second one meant a
+        // driver who shifted P->D and never touched the selector again
+        // stayed marked "parked" for the entire drive. Caught 2026-09-24 on
+        // a real drive.
+        wasParked = nowParked;
 
-        if (wasParked) {
-            if (isPark) {
-                consecutiveNonParkGears = 0;
-                return; // no edge, still parked
-            }
-            consecutiveNonParkGears++;
-            if (consecutiveNonParkGears < 2) {
-                return; // require two consecutive non-P gear readings before reporting parked-exit edge
-            }
-            consecutiveNonParkGears = 0;
-            wasParked = false;
+        if (!nowParked) {
             CarState.reportParked(false);
 
             if (parkGraceRunnable != null) {
@@ -128,11 +128,6 @@ public final class TripSession {
                 startNewTrip(ctx, now);
             }
         } else {
-            if (!isPark) {
-                return; // still driving in non-P gear
-            }
-            consecutiveNonParkGears = 0;
-            wasParked = true;
             CarState.reportParked(true);
 
             if (tripActive) {
@@ -386,7 +381,6 @@ public final class TripSession {
         // CarState stays parked too, so anything hanging off it (charging
         // included) never gets the memo that a drive is already under way.
         wasParked = false;
-        consecutiveNonParkGears = 0;
         CarState.reportParked(false);
         startMs = persistedStartMs;
         startSampleId = persistedStartSampleId;
@@ -491,7 +485,13 @@ public final class TripSession {
                 // trip finalized from here on, not only rows a one-time
                 // migration happened to already reach.
                 "SELECT SUM(CASE WHEN energy_measured=1 OR battery_temp_c IS NOT NULL THEN 1 ELSE 0 END), "
-              + "       SUM(CASE WHEN energy_measured=0 AND battery_temp_c IS NULL THEN 1 ELSE 0 END) "
+              // A row with no OBD2 AND no real energy delta (stopped, idle,
+              // nothing to measure) is not an estimate of anything -- see
+              // DailyStatsProvider.getEnergyBalances()'s own comment on the
+              // same fix (2026-09-24) for the day-level version of this bug.
+              + "       SUM(CASE WHEN energy_measured=0 AND battery_temp_c IS NULL "
+              + "                 AND (IFNULL(energy_spent_kwh,0) != 0 OR IFNULL(energy_regen_kwh,0) != 0) "
+              + "            THEN 1 ELSE 0 END) "
               + "FROM telemetry_sample WHERE ts_ms BETWEEN ? AND ? "
               + "AND (CASE WHEN gear IS NOT NULL THEN gear <> 4 "
               + "     ELSE (is_charging IS NULL OR is_charging = 0) END)",
@@ -526,7 +526,6 @@ public final class TripSession {
         lastAltitude = null;
         ascentM = 0;
         descentM = 0;
-        consecutiveNonParkGears = 0;
     }
 
     /** Trip statistics for the last 7 days: count and total driving time. */
@@ -597,7 +596,6 @@ public final class TripSession {
     public static void resetForTesting() {
         resetTripState();
         wasParked = true;
-        consecutiveNonParkGears = 0;
         CarState.setParkedForTesting(true);
         testCurrentOdoKm = null;
         EnergyIntegrator.resetForTesting();

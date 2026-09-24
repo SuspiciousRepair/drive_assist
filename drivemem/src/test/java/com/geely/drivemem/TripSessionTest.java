@@ -13,7 +13,6 @@ public class TripSessionTest {
 
     private static void shiftFromPark(int gear, long now) {
         TripSession.onGear(null, gear, now);
-        TripSession.onGear(null, gear, now);
     }
 
     @Before
@@ -21,28 +20,31 @@ public class TripSessionTest {
         TripSession.resetForTesting();
     }
 
+    // CarActor's EntityBus only calls onGear() when car.gear actually
+    // changed (edge-triggered, not polled) -- the car reports a gear shift
+    // once, not repeatedly while sitting in the same gear. A single real
+    // reading must be enough to exit park; requiring a second one (as a
+    // short-lived debounce here once did) left a driver who shifted P->D
+    // and never touched the selector again stuck "parked" for the whole
+    // drive. Caught 2026-09-24 on a real drive.
     @Test
-    public void testParkExitRequiresTwoConsecutiveNonParkGearReadings() {
+    public void testSingleNonParkGearReadingExitsParkImmediately() {
         long t0 = 100_000L;
-        // 1. Single non-P gear reading: must NOT exit park or start trip
         TripSession.onGear(null, Modes.DRIVE_COMFORT, t0);
-        assertFalse("Single non-P gear reading must not start trip", TripSession.isTripActive());
-        assertTrue("Car must remain parked after single non-P reading", CarState.isParked());
-
-        // 2. Glitch returns to Park: counter must reset
-        TripSession.onGear(null, Modes.GEAR_PARK_ADAPTED, t0 + 1000L);
-        assertFalse(TripSession.isTripActive());
-        assertTrue(CarState.isParked());
-
-        // 3. Another single non-P reading: still must not start trip
-        TripSession.onGear(null, Modes.DRIVE_COMFORT, t0 + 2000L);
-        assertFalse("Single non-P reading after park reset must not start trip", TripSession.isTripActive());
-        assertTrue(CarState.isParked());
-
-        // 4. Second consecutive non-P reading: now exits park and starts trip
-        TripSession.onGear(null, Modes.DRIVE_COMFORT, t0 + 2500L);
-        assertTrue("Two consecutive non-P readings must start trip", TripSession.isTripActive());
+        assertTrue("A single real non-P reading must start the trip", TripSession.isTripActive());
         assertFalse("CarState must report driving (not parked)", CarState.isParked());
+    }
+
+    @Test
+    public void testRepeatedSameGearReadingIsANoOp() {
+        // CarActor never actually redelivers the same value (see EntityBus.ingest()),
+        // but onGear() must stay safe if it ever did: a second call with the
+        // identical gear is not a second edge.
+        long t0 = 100_000L;
+        TripSession.onGear(null, Modes.DRIVE_COMFORT, t0);
+        TripSession.onGear(null, Modes.DRIVE_COMFORT, t0 + 1000L);
+        assertTrue(TripSession.isTripActive());
+        assertFalse(CarState.isParked());
     }
 
     @Test
