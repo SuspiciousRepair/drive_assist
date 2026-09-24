@@ -148,6 +148,12 @@
     <string name="cfg_cert_import_failed">Falha ao importar certificado: %1$s</string>
     <string name="cfg_cert_remove_confirm">Remover certificado %1$s?</string>
     <string name="cfg_cert_testing_tls">Testando handshake TLS...</string>
+    <string name="cfg_cert_password_title">Senha do certificado</string>
+    <string name="cfg_cert_remove_title">Remover certificado</string>
+    <string name="cfg_cert_removed">Certificado removido.</string>
+    <string name="cfg_ca_reset_title">Redefinir certificado CA</string>
+    <string name="cfg_ca_reset_confirm">Restaurar o certificado CA padrão (embutido no app)?</string>
+    <string name="cfg_ca_reset_ok">Certificado CA redefinido para o padrão.</string>
 
     <string name="cfg_spotify_header">Spotify</string>
     <string name="cfg_spotify_client_id">Client ID</string>

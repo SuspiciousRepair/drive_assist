@@ -160,6 +160,12 @@
     <string name="cfg_cert_import_failed">Failed to import certificate: %1$s</string>
     <string name="cfg_cert_remove_confirm">Remove certificate %1$s?</string>
     <string name="cfg_cert_testing_tls">Testing TLS handshake…</string>
+    <string name="cfg_cert_password_title">Certificate password</string>
+    <string name="cfg_cert_remove_title">Remove certificate</string>
+    <string name="cfg_cert_removed">Certificate removed.</string>
+    <string name="cfg_ca_reset_title">Reset CA certificate</string>
+    <string name="cfg_ca_reset_confirm">Restore the default (bundled) CA certificate?</string>
+    <string name="cfg_ca_reset_ok">CA certificate reset to default.</string>
 
     <string name="cfg_spotify_header">Spotify</string>
     <string name="cfg_spotify_client_id">Client ID</string>
