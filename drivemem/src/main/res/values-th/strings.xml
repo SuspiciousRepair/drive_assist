@@ -322,6 +322,10 @@
     <string name="clip_play_failed">เล่นคลิปนี้ไม่ได้ (%1$d/%2$d)</string>
     <string name="clips_recording">กำลังบันทึก</string>
     <string name="clips_orphan">ไฟล์ไม่สมบูรณ์ — กู้คืนได้</string>
+    <string name="clips_recover">กู้คืน</string>
+    <string name="clips_recovering">กำลังกู้คืน…</string>
+    <string name="clips_recover_ok">กู้คืนสำเร็จ — เล่นคลิปนี้ได้แล้ว</string>
+    <string name="clips_recover_failed">กู้คืนคลิปนี้ไม่สำเร็จ: %1$s</string>
     <string name="clips_record">บันทึก</string>
     <string name="cfg_nav_clips">Dashcam</string>
     <string name="clips_back">← กลับ</string>
