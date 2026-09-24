@@ -815,7 +815,9 @@ public final class Obd2Reader {
         // field-catalog.md's own table, positive = discharge, negative =
         // charge (matches ABRP's own sign convention for `power`).
         Double newCurr = (currB != null) ? (currB[0] * 256 + currB[1] - 5000) / 10.0 : null;
-        Double newTemp = (tempB != null) ? (double) tempB[0] : null;
+        // DID 4B3C stores degrees Celsius with a 40-degree offset.  In
+        // particular, raw 0x5A represents 50 C, not an implausible 90 C.
+        Double newTemp = (tempB != null) ? tempB[0] - 40.0 : null;
         Integer newSpeed = (spdB != null) ? spdB[0] : null;
 
         if (newSoc != null) soc = newSoc;
