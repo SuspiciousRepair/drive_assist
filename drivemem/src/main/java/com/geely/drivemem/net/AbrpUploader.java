@@ -209,7 +209,7 @@ public final class AbrpUploader {
             Map<String, Object> data = lastData;
             if (data != null) {
                 Integer isCharging = asInt(data.get("is_charging"));
-                boolean charging = isCharging != null && isCharging == 1;
+                Boolean charging = isCharging == null ? null : isCharging == 1;
                 tlm = buildTlm(app, data, charging);
             }
             if (tlm == null) {
@@ -328,11 +328,17 @@ public final class AbrpUploader {
 
         Integer isCharging = asInt(data.get("is_charging"));
         Float speed = asFloat(data.get("speed"));
-        boolean charging = isCharging != null && isCharging == 1;
+        Boolean charging = isCharging == null ? null : isCharging == 1;
         boolean driving = speed != null && speed > 1f;
         // Only while it's actually informative -- ABRP itself asks for
         // this, and there's no route to plan around a car parked and idle.
-        if (!driving && !charging) return null;
+        // Skip ONLY when charging is confidently known false: an unknown
+        // charging state (CarActor's poll hasn't answered yet, e.g. a
+        // transient VHAL hiccup) must not silently drop the whole sample --
+        // that used to mean a real charge session could go dark in ABRP for
+        // exactly the ticks it most needed data, whenever the poll had any
+        // gap. When in doubt, sample.
+        if (!driving && Boolean.FALSE.equals(charging)) return null;
 
         return buildTlm(ctx, data, charging);
     }
@@ -383,12 +389,12 @@ public final class AbrpUploader {
         }
     }
 
-    static JSONObject buildTlm(Context ctx, Map<String, Object> data, boolean charging) {
+    static JSONObject buildTlm(Context ctx, Map<String, Object> data, Boolean charging) {
         double[] loc = (ctx != null && isLocationEnabled(ctx)) ? GpsReader.read(ctx) : null;
         return buildTlm(ctx, data, charging, loc);
     }
 
-    public static JSONObject buildTlm(Context ctx, Map<String, Object> data, boolean charging, double[] loc) {
+    public static JSONObject buildTlm(Context ctx, Map<String, Object> data, Boolean charging, double[] loc) {
         try {
             JSONObject tlm = new JSONObject();
             tlm.put("utc", System.currentTimeMillis() / 1000);
@@ -427,7 +433,12 @@ public final class AbrpUploader {
                 tlm.put("heading", loc[3]);
             }
 
-            tlm.put("is_charging", charging ? 1 : 0);
+            // Same rule as Telemetry.java's own "is_charging": unknown (null)
+            // is a real state, not "assume not charging" -- claiming 0 to
+            // ABRP when we genuinely don't know is worse than a missing
+            // key, since ABRP uses this flag to decide how to interpret the
+            // rest of the payload for its range model. Omit rather than guess.
+            if (charging != null) tlm.put("is_charging", charging ? 1 : 0);
             // Parked, not just "not driving" -- ABRP's own definition is the
             // gear being in P, same signal TripSession/ParkSession/CarState
             // already use for exactly this.
@@ -438,7 +449,7 @@ public final class AbrpUploader {
             // pack voltage. Port voltage reads AC mains (~240V) during AC charging
             // and DC pack (~400V) during DC fast charging, whereas OBD2 pack voltage
             // is always ~400V even on AC.
-            if (charging) {
+            if (Boolean.TRUE.equals(charging)) {
                 Float chargeV = asFloat(data.get("charge_v"));
                 if (chargeV != null) tlm.put("is_dcfc", ChargeSession.isDcfc(chargeV) ? 1 : 0);
             }
