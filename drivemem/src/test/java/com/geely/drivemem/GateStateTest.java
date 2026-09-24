@@ -52,6 +52,8 @@ public class GateStateTest {
     }
 
     @Test public void setConnectedUpdatesAndFires() {
+        GateState.Sender s = new GateState.Sender() { @Override public void pressGate() {} };
+        GateState.setSender(s);
         Recorder r = new Recorder();
         GateState.setListener(r);
         GateState.setConnected(true);
@@ -61,6 +63,32 @@ public class GateStateTest {
         GateState.setConnected(false);
         assertFalse(GateState.connected());
         GateState.setListener(null);
+        GateState.clearSender(s);
+    }
+
+    // Real bug, caught on a real drive 2026-09-24: `connected` (toggled on
+    // every reconnect of the current MqttReporter) and `sender` (bound once
+    // per instance) are two separately-mutated fields with no atomic update
+    // tying them together. A rebuild-on-config-change race left `connected`
+    // true with `sender` null -- Config showed "Connected", the gate button
+    // was enabled, and tapping it logged "no sender" and did nothing.
+    // connected() must never say yes when press() would actually fail.
+    @Test public void connectedIsFalseWithoutASenderEvenIfFlagWasSetTrue() {
+        GateState.setConnected(true);
+        assertFalse("connected() must require a live sender, not just the flag",
+            GateState.connected());
+        GateState.setConnected(false);
+    }
+
+    @Test public void connectedIsTrueOnlyWhenBothFlagAndSenderAgree() {
+        GateState.Sender s = new GateState.Sender() { @Override public void pressGate() {} };
+        GateState.setConnected(true);
+        assertFalse(GateState.connected()); // sender not set yet
+        GateState.setSender(s);
+        assertTrue(GateState.connected());  // now both agree
+        GateState.clearSender(s);
+        assertFalse(GateState.connected()); // sender gone again
+        GateState.setConnected(false);
     }
 
     @Test public void pressWithNoSenderReturnsFalseNoThrow() {
