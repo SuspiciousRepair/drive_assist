@@ -111,6 +111,7 @@ public class TelemetryActivity extends Activity {
     private TelemetryChargeSection chargeSection;
     private TelemetryDriveSection driveSection;
     private EditText fSkylineSeed;
+    private TelemetryObdSection obdSection;
 
     // Keeps liveDrive/liveRegen actually LIVE. Without this the border was a
     // one-time snapshot (taken on screen-open or right after Apply) that went
@@ -303,7 +304,11 @@ public class TelemetryActivity extends Activity {
                 chargeSection = new TelemetryChargeSection(this);
                 content.addView(chargeSection);
                 break;
-            case SEC_OBD: buildObd(); break;
+            case SEC_OBD:
+                obdSection = new TelemetryObdSection(this);
+                content.addView(obdSection);
+                buildObdListeners();
+                break;
             case SEC_SPOTIFY:
                 spotifySection = new TelemetrySpotifySection(this);
                 content.addView(spotifySection);
@@ -327,230 +332,47 @@ public class TelemetryActivity extends Activity {
     // =====================================================================
     // OBD2 dongle + ABRP panel
     // =====================================================================
-    private EditText fAbrpToken;
     // See onDestroy() — unsubscribed there, and re-subscribed fresh each
-    // time buildObd() runs (the section can be rebuilt without the Activity
-    // being destroyed, same reason driveListener/regenListener need this).
+    // time buildObdListeners() runs (the section can be rebuilt without the
+    // Activity being destroyed, same reason driveListener/regenListener need this).
     private Obd2Reader.Listener obdListener;
     private Obd2Reader.Listener obdDebugListener;
     private AbrpUploader.Listener abrpDebugListener;
 
-    private void buildObd() {
-        // Two columns: controls on the left (unchanged), a live debug panel
-        // on the right showing exactly what's being sent to ABRP, when, and
-        // how it went -- requested live while chasing the wrong-request-
-        // format bug, so the next problem doesn't need a logcat session to
-        // diagnose. Local `left`/`right` columns, NOT a reassignment of the
-        // shared `content` field -- this section is the only one that
-        // splits into columns, and every other buildXxx() still expects
-        // `content` to mean the whole right-hand panel.
-        LinearLayout cols = new LinearLayout(this);
-        cols.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout left = new LinearLayout(this);
-        left.setOrientation(LinearLayout.VERTICAL);
-        left.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        left.setPadding(0, 0, Style.dp(this, 16), 0);
-        LinearLayout right = new LinearLayout(this);
-        right.setOrientation(LinearLayout.VERTICAL);
-        right.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        right.setPadding(Style.dp(this, 16), 0, 0, 0);
-        cols.addView(left);
-        cols.addView(right);
-        content.addView(cols);
+    // Subscribe listeners for the OBD section — UI building happens in
+    // TelemetryObdSection.constructor. Listeners are unsubscribed in onDestroy().
+    private void buildObdListeners() {
+        if (obdSection == null) return;  // Section not created (shouldn't happen)
 
-        left.addView(Style.header(this, getString(R.string.obd_title)));
-
-        TextView obdStatus = new TextView(this);
-        obdStatus.setTextColor(Style.TEXT); obdStatus.setTextSize(16);
-        obdStatus.setTypeface(null, android.graphics.Typeface.BOLD);
-        left.addView(obdStatus);
-
-        // Was a 2s self-rescheduling poll of Obd2Reader.isConnected() — a
-        // snapshot read can't tell "still true" apart from "went false and
-        // came back without me noticing," which is exactly how a real
-        // disconnect once stayed on screen as "Connected" for minutes (see
-        // ClassicChannel's own `alive` fix). Subscribing means the UI
-        // updates the instant the state actually changes, from whichever
-        // thread noticed — same edge-triggered idea, just pushed instead of
-        // polled.
+        // OBD status listener: updates when connection state changes
         if (obdListener != null) Obd2Reader.unsubscribe(obdListener);
-        Runnable updateStatus = () -> {
+        obdListener = connected -> runOnUiThread(() -> {
             boolean enabled = Prefs.getObd2Enabled(this);
-            obdStatus.setText(getString(!enabled ? R.string.obd_status_off
-                : Obd2Reader.isConnected() ? R.string.obd_status_connected
-                : R.string.obd_status_searching));
-        };
-        obdListener = connected -> runOnUiThread(updateStatus);
+            obdSection.updateObdStatus(this, enabled);
+        });
         Obd2Reader.subscribe(obdListener);
-        updateStatus.run();
+        obdSection.updateObdStatus(this, Prefs.getObd2Enabled(this));
 
-        left.addView(toggleRow(getString(R.string.obd_enable_label),
-            Prefs.getObd2Enabled(this), on -> {
-                Obd2Reader.setEnabled(this, on);
-                obdStatus.setText(getString(on
-                    ? R.string.obd_status_searching : R.string.obd_status_off));
-            }));
-        TextView obdHint = new TextView(this);
-        obdHint.setTextColor(Style.TEXT_DIM); obdHint.setTextSize(13);
-        obdHint.setText(getString(R.string.obd_hint));
-        obdHint.setPadding(0, 0, 0, Style.dp(this, 4));
-        left.addView(obdHint);
-
-        left.addView(Style.header(this, getString(R.string.abrp_header)));
-        left.addView(toggleRow(getString(R.string.abrp_enable_label),
-            Prefs.getAbrpEnabled(this),
-            on -> Prefs.setAbrpEnabled(this, on)));
-
-        left.addView(toggleRow(getString(R.string.abrp_location_label),
-            Prefs.getAbrpSendLocation(this),
-            on -> Prefs.setAbrpSendLocation(this, on)));
-
-        TextView abrpLocHint = new TextView(this);
-        abrpLocHint.setTextColor(Style.TEXT_DIM); abrpLocHint.setTextSize(13);
-        abrpLocHint.setText(getString(R.string.abrp_location_hint));
-        abrpLocHint.setPadding(0, 0, 0, Style.dp(this, 4));
-        left.addView(abrpLocHint);
-
-        fAbrpToken = field(left, getString(R.string.abrp_field_user_token),
-            Prefs.getAbrpUserToken(this), InputType.TYPE_CLASS_TEXT);
-
-        TextView abrpStatus = new TextView(this);
-        abrpStatus.setTextColor(Style.TEXT_DIM); abrpStatus.setTextSize(13);
-        abrpStatus.setPadding(0, Style.dp(this, 8), 0, 0);
-        left.addView(abrpStatus);
-
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setPadding(0, Style.dp(this, 4), 0, 0);
-        row.addView(action(getString(R.string.cfg_btn_save), Style.ACCENT, () -> {
-            Prefs.setAbrpUserToken(this, fAbrpToken.getText().toString().trim());
-            // Saving is the moment to actually PROVE the credentials work,
-            // not wait for a real drive/charge -- see AbrpUploader
-            // .testConnect()'s own header for why ABRP's token page looked
-            // like it kept "creating a new id" (it was just staying
-            // pending, never having received a real post yet).
-            abrpStatus.setText(getString(R.string.abrp_test_sending));
-            AbrpUploader.testConnect(this, (ok, detail) -> runOnUiThread(() ->
-                abrpStatus.setText(getString(ok ? R.string.abrp_test_ok : R.string.abrp_test_fail, detail))));
-        }));
-        left.addView(row);
-
-        // ---- right column: live debug, refreshed every 2s while this
-        // section is open (a plain poll is fine here -- this is a
-        // snapshot-in-time debug display, not a status that can mislead the
-        // way a stale "Connected" elsewhere in this app once did) ----
-        right.addView(Style.header(this, getString(R.string.abrp_debug_header)));
-
-        TextView obdDataLabel = sectionLabel(getString(R.string.obd_title));
-        right.addView(obdDataLabel);
-        LinearLayout obdFields = new LinearLayout(this);
-        obdFields.setOrientation(LinearLayout.VERTICAL);
-        right.addView(obdFields);
-
-        TextView abrpDataLabel = sectionLabel(getString(R.string.abrp_debug_sent_header));
-        abrpDataLabel.setPadding(0, Style.dp(this, 14), 0, 0);
-        right.addView(abrpDataLabel);
-        LinearLayout abrpFields = new LinearLayout(this);
-        abrpFields.setOrientation(LinearLayout.VERTICAL);
-        right.addView(abrpFields);
-
-        TextView abrpMeta = new TextView(this);
-        abrpMeta.setTextColor(Style.TEXT_DIM); abrpMeta.setTextSize(13);
-        abrpMeta.setPadding(0, Style.dp(this, 6), 0, 0);
-        right.addView(abrpMeta);
-
-        TextView logHeader = sectionLabel(getString(R.string.abrp_debug_log_header));
-        logHeader.setPadding(0, Style.dp(this, 14), 0, 4);
-        right.addView(logHeader);
-
-        ScrollView logScroll = new ScrollView(this);
-        logScroll.setLayoutParams(new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 260)));
-        TextView logText = new TextView(this);
-        logText.setTextColor(Style.TEXT_DIM); logText.setTextSize(11);
-        logText.setTypeface(android.graphics.Typeface.MONOSPACE);
-        logScroll.addView(logText);
-        right.addView(logScroll);
-
-        // PUSHED, not polled -- both Obd2Reader and AbrpUploader now notify
-        // subscribers the moment they have something new (see their own
-        // Listener/Reading additions), so this panel just renders on
-        // demand instead of re-reading everything on a timer.
-        Runnable renderObd = () -> {
-            java.util.List<String> obdLines = new java.util.ArrayList<>();
-            obdLines.add(getString(R.string.abrp_debug_connected,
-                getString(Obd2Reader.isConnected() ? R.string.abrp_debug_yes : R.string.abrp_debug_no)));
-            obdLines.add(fieldLine("SOC", Obd2Reader.freshSoc(600_000), "%"));
-            obdLines.add(fieldLine("Voltage", Obd2Reader.freshVoltage(600_000), "V"));
-            obdLines.add(fieldLine("Current", Obd2Reader.freshCurrent(600_000), "A"));
-            obdLines.add(fieldLine("Power", Obd2Reader.freshPowerKw(600_000), "kW"));
-            obdLines.add(fieldLine("Battery temp", Obd2Reader.freshBattTempC(600_000), "°C"));
-            setDebugLines(obdFields, obdLines);
-        };
-
-        Runnable renderAbrp = () -> {
-            java.util.List<String> abrpLines = new java.util.ArrayList<>();
-            JSONObject tlm = AbrpUploader.lastTlmSent();
-            if (tlm != null) {
-                java.util.Iterator<String> keys = tlm.keys();
-                while (keys.hasNext()) {
-                    String k = keys.next();
-                    abrpLines.add(k + ": " + tlm.opt(k) + abrpUnit(k));
-                }
-            } else {
-                abrpLines.add(getString(R.string.abrp_debug_no_data));
-            }
-            setDebugLines(abrpFields, abrpLines);
-
-            long lastAt = AbrpUploader.lastAttemptAtMs();
-            if (lastAt > 0) {
-                String ts = new java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US)
-                    .format(new java.util.Date(lastAt));
-                abrpMeta.setText(AbrpUploader.lastAttemptOk()
-                    ? getString(R.string.abrp_debug_last_ok, ts)
-                    : getString(R.string.abrp_debug_last_fail, ts, String.valueOf(AbrpUploader.lastErrorDetail())));
-            } else {
-                abrpMeta.setText(getString(R.string.abrp_debug_no_data));
-            }
-
-            StringBuilder sb = new StringBuilder();
-            for (String line : AbrpUploader.recentDebugLog()) sb.append(line).append('\n');
-            logText.setText(sb.length() > 0 ? sb.toString() : "—");
-        };
-
+        // OBD debug display listener: updates when OBD data changes
         if (obdDebugListener != null) Obd2Reader.unsubscribe(obdDebugListener);
         obdDebugListener = new Obd2Reader.Listener() {
-            @Override public void onObd2ConnectedChanged(boolean connected) { runOnUiThread(renderObd); }
-            @Override public void onObd2Reading(Obd2Reader.Reading r) { runOnUiThread(renderObd); }
+            @Override public void onObd2ConnectedChanged(boolean connected) {
+                runOnUiThread(obdSection::updateObdDisplay);
+            }
+            @Override public void onObd2Reading(Obd2Reader.Reading r) {
+                runOnUiThread(obdSection::updateObdDisplay);
+            }
         };
         Obd2Reader.subscribe(obdDebugListener);
 
+        // ABRP debug display listener: updates when ABRP data changes
         if (abrpDebugListener != null) AbrpUploader.unsubscribe(abrpDebugListener);
-        abrpDebugListener = () -> runOnUiThread(renderAbrp);
+        abrpDebugListener = () -> runOnUiThread(obdSection::updateAbrpDisplay);
         AbrpUploader.subscribe(abrpDebugListener);
 
-        renderObd.run();
-        renderAbrp.run();
-    }
-
-    // ABRP field name -> display unit, for the raw key:value dump in the
-    // debug panel's "Sent to ABRP" section (its own OBD2/Style-formatted
-    // fields elsewhere already carry units via fieldLine()).
-    private static String abrpUnit(String key) {
-        switch (key) {
-            case "soc": return "%";
-            case "power": return " kW";
-            case "speed": return " km/h";
-            case "voltage": return " V";
-            case "current": return " A";
-            case "batt_temp":
-            case "ext_temp": return " °C";
-            case "odometer":
-            case "est_battery_range": return " km";
-            case "elevation": return " m";
-            case "heading": return "°";
-            default: return "";
-        }
+        // Initial render of debug displays
+        obdSection.updateObdDisplay();
+        obdSection.updateAbrpDisplay();
     }
 
     private TextView sectionLabel(String text) {
@@ -559,20 +381,6 @@ public class TelemetryActivity extends Activity {
         t.setTypeface(null, android.graphics.Typeface.BOLD);
         t.setText(text);
         return t;
-    }
-
-    private static String fieldLine(String label, Float value, String unit) {
-        return label + ": " + (value != null ? value + " " + unit : "—");
-    }
-
-    private void setDebugLines(LinearLayout container, java.util.List<String> lines) {
-        container.removeAllViews();
-        for (String line : lines) {
-            TextView t = new TextView(this);
-            t.setTextColor(Style.TEXT); t.setTextSize(13);
-            t.setText(line);
-            container.addView(t);
-        }
     }
 
     // =====================================================================

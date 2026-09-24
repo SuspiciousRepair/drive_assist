@@ -9,10 +9,13 @@ import com.geely.drivemem.hvac.EffortTable;
 import com.geely.drivemem.ui.ComfortActivity;
 import com.geely.drivemem.ui.TelemetryActivity;
 
+import com.geely.drivemem.controls.GeelySwitch;
+
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.text.InputType;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
@@ -937,4 +940,5 @@ public class Style {
             v.setLayoutParams(lp);
         }
     }
+
 }
