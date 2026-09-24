@@ -66,7 +66,15 @@ public final class DrivingConsumption {
         if (driving && hasEnergy) {
             totalSpent += spentKwh;
             totalRegen += regenKwh;
-            if (energyMeasured != null) {
+            // A row that fell back to the VHAL SoC-delta estimate but came
+            // back at exactly zero (stopped in a driving gear, nothing
+            // moved) isn't estimating anything -- resolve() has no
+            // tolerance, so even one such row flips an otherwise fully
+            // OBD2-measured day/trip to MIXED. Caught 2026-09-24: a day
+            // that was 617/619 driving samples cleanly measured still read
+            // MIXED because of 2 samples like this.
+            boolean nonZeroEnergy = spentKwh != 0 || regenKwh != 0;
+            if (energyMeasured != null && (energyMeasured != 0 || nonZeroEnergy)) {
                 if (energyMeasured != 0) measuredSamples++;
                 else estimatedSamples++;
             }

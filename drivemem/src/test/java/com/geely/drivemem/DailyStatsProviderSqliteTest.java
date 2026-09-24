@@ -372,14 +372,15 @@ public class DailyStatsProviderSqliteTest {
 
         PreparedStatement ps = conn.prepareStatement(
             "INSERT INTO telemetry_sample " +
-            "(ts_ms, energy_measured, battery_temp_c, energy_spent_kwh) " +
-            "VALUES (?, ?, ?, ?)");
+            "(ts_ms, energy_measured, battery_temp_c, energy_spent_kwh, energy_regen_kwh) " +
+            "VALUES (?, ?, ?, ?, ?)");
 
         // Row 1: energy_measured=1 (explicitly marked measured)
         ps.setLong(1, dayStart + 1000);
         ps.setInt(2, 1);
         ps.setDouble(3, 35.0);
         ps.setDouble(4, 0.1);
+        ps.setDouble(5, 0.0);
         ps.executeUpdate();
 
         // Row 2: battery_temp_c set (OBD2-exclusive, proof of measured)
@@ -387,13 +388,16 @@ public class DailyStatsProviderSqliteTest {
         ps.setInt(2, 0);  // marked as estimated
         ps.setDouble(3, 35.5);  // but battery_temp_c is set
         ps.setDouble(4, 0.1);
+        ps.setDouble(5, 0.0);
         ps.executeUpdate();
 
-        // Row 3: energy_measured=0 AND no battery_temp_c (estimated)
+        // Row 3: energy_measured=0, no battery_temp_c, real (non-zero) energy
+        // -- a genuine estimate: something happened and OBD2 missed it.
         ps.setLong(1, dayStart + 3000);
         ps.setInt(2, 0);
         ps.setNull(3, java.sql.Types.REAL);
         ps.setDouble(4, 0.05);
+        ps.setDouble(5, 0.0);
         ps.executeUpdate();
 
         // Row 4: Outside day bounds
@@ -401,14 +405,31 @@ public class DailyStatsProviderSqliteTest {
         ps.setInt(2, 0);
         ps.setNull(3, java.sql.Types.REAL);
         ps.setDouble(4, 0.05);
+        ps.setDouble(5, 0.0);
+        ps.executeUpdate();
+
+        // Row 5: parked/idle -- energy_measured=0, no battery_temp_c, but
+        // zero energy either way (nothing was happening, so OBD2 was never
+        // polled). This is NOT an estimate of anything and must not count
+        // toward estimated_count -- see DailyStatsProvider.getEnergyBalances()'s
+        // 2026-09-24 comment: a day that was mostly idle with the screen on
+        // used to read MIXED purely from rows like this one, even though
+        // every real driving sample that day was fully OBD2-measured.
+        ps.setLong(1, dayStart + 4000);
+        ps.setInt(2, 0);
+        ps.setNull(3, java.sql.Types.REAL);
+        ps.setDouble(4, 0.0);
+        ps.setDouble(5, 0.0);
         ps.executeUpdate();
         ps.close();
 
-        // Query to classify measured vs estimated (from getEnergyBalanceDays)
+        // Query to classify measured vs estimated (from getEnergyBalances())
         ps = conn.prepareStatement(
             "SELECT " +
             "  SUM(CASE WHEN energy_measured=1 OR battery_temp_c IS NOT NULL THEN 1 ELSE 0 END) AS measured_count, " +
-            "  SUM(CASE WHEN energy_measured=0 AND battery_temp_c IS NULL THEN 1 ELSE 0 END) AS estimated_count " +
+            "  SUM(CASE WHEN energy_measured=0 AND battery_temp_c IS NULL " +
+            "            AND (IFNULL(energy_spent_kwh,0) != 0 OR IFNULL(energy_regen_kwh,0) != 0) " +
+            "       THEN 1 ELSE 0 END) AS estimated_count " +
             "FROM telemetry_sample WHERE ts_ms >= ? AND ts_ms < ?");
         ps.setLong(1, dayStart);
         ps.setLong(2, dayEnd);
@@ -417,7 +438,7 @@ public class DailyStatsProviderSqliteTest {
         assertTrue(rs.next());
         // Row 1 and 2 are measured (either marked or battery_temp_c)
         assertEquals(2, rs.getInt("measured_count"));
-        // Row 3 is estimated
+        // Row 3 is a real estimate; Row 5 (idle, zero energy) must not count
         assertEquals(1, rs.getInt("estimated_count"));
 
         assertFalse(rs.next());

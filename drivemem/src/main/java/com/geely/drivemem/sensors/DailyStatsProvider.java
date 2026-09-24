@@ -679,7 +679,18 @@ public final class DailyStatsProvider {
               // a live-path bug reads correctly on every query, not only for
               // rows a one-time migration happened to reach.
               + "       SUM(CASE WHEN energy_measured=1 OR battery_temp_c IS NOT NULL THEN 1 ELSE 0 END), "
-              + "       SUM(CASE WHEN energy_measured=0 AND battery_temp_c IS NULL THEN 1 ELSE 0 END) "
+              // A row with no OBD2 AND no real energy delta (parked/idle,
+              // nothing to measure) is not an estimate of anything -- only
+              // count "estimated" against a row that actually moved energy,
+              // the same gate DrivingConsumption.add() already applies.
+              // Without this, a day that was mostly idle with the screen on
+              // (hours of zero-energy samples, no OBD2 poll needed) reads as
+              // MIXED even though every real driving/charging sample that
+              // day was fully OBD2-measured -- caught 2026-09-24 on a day
+              // that was 619 measured / 0 real-estimated / 218 idle-zero.
+              + "       SUM(CASE WHEN energy_measured=0 AND battery_temp_c IS NULL "
+              + "                 AND (IFNULL(energy_spent_kwh,0) != 0 OR IFNULL(energy_regen_kwh,0) != 0) "
+              + "            THEN 1 ELSE 0 END) "
               + "FROM telemetry_sample WHERE ts_ms >= ? AND ts_ms < ? "
               + "AND (is_charging IS NULL OR is_charging = 0)",
                 new String[]{String.valueOf(start), String.valueOf(end)});
