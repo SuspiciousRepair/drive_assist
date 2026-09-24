@@ -8,6 +8,13 @@
   with no actual way to recover it. A "Recuperar" button now remuxes the
   raw footage back into a normal playable clip, no external tools needed.
 
+### Fixed
+- ABRP could drop a data point entirely instead of sending it: an
+  unknown charging reading (a brief sensor hiccup, not just cold boot)
+  was being treated as a flat "not charging," which could silently skip
+  the whole sample if the car happened to be stationary at that moment.
+  Now sent as unknown, never guessed as false.
+
 ## [v0.4.0] — 2026-09-24
 
 ### Added
@@ -21,6 +28,13 @@
   and survives a crash or OTA install mid-charge.
 - An OTA install could interrupt an active DC fast charge — installs are
   now blocked for the whole charge session, not just a `is_charging` blip.
+- **A charging reading could stay stuck "on" through an entire drive
+  afterward** — confirmed on a real trip: is_charging held true for
+  1h14min at highway speed after a real charge ended, which also fed
+  ABRP a nonsense 2-hour "charging" entry that had swallowed the whole
+  drive. `CarActor` is now the single source for this reading everywhere
+  in the app, cross-checked against the plug each poll instead of
+  latching on stale current.
 - Update checks could keep offering a build you already installed.
 - A short trip could show "estimated" from its first minute even though
   OBD2 was connected the whole time.

@@ -20,6 +20,8 @@ issue numbers, no markdown emphasis (the update dialog is plain text).
   hiccup. Charging sessions now also survive a crash or an update
   installing mid-charge.
 - Fixed: an update could start installing during an active fast charge.
+- Fixed: the app could sometimes still think you were charging for a
+  while after you'd actually driven away.
 - Fixed: the app could keep offering an update you already installed.
 - Fixed: a short trip, or a day of real driving, could show as
   "estimated" even though the car's sensor was connected the whole time.
