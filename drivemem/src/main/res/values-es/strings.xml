@@ -330,6 +330,12 @@
     <string name="cfg_cert_import_failed">Error al importar el certificado: %1$s</string>
     <string name="cfg_cert_remove_confirm">¿Eliminar el certificado %1$s?</string>
     <string name="cfg_cert_testing_tls">Probando enlace TLS…</string>
+    <string name="cfg_cert_password_title">Contraseña del certificado</string>
+    <string name="cfg_cert_remove_title">Eliminar certificado</string>
+    <string name="cfg_cert_removed">Certificado eliminado.</string>
+    <string name="cfg_ca_reset_title">Restablecer certificado CA</string>
+    <string name="cfg_ca_reset_confirm">¿Restaurar el certificado CA predeterminado (incluido en la app)?</string>
+    <string name="cfg_ca_reset_ok">Certificado CA restablecido al predeterminado.</string>
     <!-- lock, privileged wifi & discovery -->
     <string name="cfg_lock_label">Duración del bloqueo del interruptor (s), tras cada pulsación</string>
     <string name="cfg_trusted_wifi_label">Wi-Fi privilegiada (SSID)</string>

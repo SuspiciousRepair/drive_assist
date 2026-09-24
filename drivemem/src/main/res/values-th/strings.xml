@@ -145,6 +145,12 @@
     <string name="cfg_cert_import_failed">นำเข้าใบรับรองไม่สำเร็จ: %1$s</string>
     <string name="cfg_cert_remove_confirm">ต้องการลบใบรับรอง %1$s หรือไม่?</string>
     <string name="cfg_cert_testing_tls">กำลังทดสอบการเชื่อมต่อ TLS…</string>
+    <string name="cfg_cert_password_title">รหัสผ่านใบรับรอง</string>
+    <string name="cfg_cert_remove_title">ลบใบรับรอง</string>
+    <string name="cfg_cert_removed">ลบใบรับรองแล้ว</string>
+    <string name="cfg_ca_reset_title">รีเซ็ตใบรับรอง CA</string>
+    <string name="cfg_ca_reset_confirm">คืนค่าใบรับรอง CA เริ่มต้น (ที่มากับแอป) หรือไม่?</string>
+    <string name="cfg_ca_reset_ok">รีเซ็ตใบรับรอง CA เป็นค่าเริ่มต้นแล้ว</string>
 
     <string name="cfg_spotify_header">Spotify</string>
     <string name="cfg_spotify_client_id">Client ID</string>
