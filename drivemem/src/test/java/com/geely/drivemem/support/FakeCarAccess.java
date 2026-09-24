@@ -17,6 +17,15 @@ public class FakeCarAccess extends CarAccess {
     @Override public Integer readCharging() {
         return !connected || sample == null || sample.charging == null ? null : sample.charging ? CHARGE_ON : CHARGE_OFF;
     }
+
+    @Override public String readAny(int prop, int area, char t) {
+        // Override parent's implementation which uses CarPropertyManager (not available in tests).
+        // Delegate to readIntRaw to get values seeded via seedIntRaw().
+        Integer val = readIntRaw(prop, area);
+        if (val == null) return null;
+        if (t == 'f') return String.valueOf(val.floatValue());
+        return String.valueOf(val);
+    }
         public Integer lastWriteDrive, lastWriteRegen, lastSetParkMode, lastSetAmbientColor,
                 lastSetAmbientBrightness, lastSetCharging, lastSetChargeLimit;
         public boolean writeShouldSucceed = true;

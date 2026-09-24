@@ -17,7 +17,10 @@ import com.geely.drivemem.util.Modes;
 import android.content.Context;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.util.Log;
+
+import com.geely.drivemem.BuildConfig;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,6 +37,16 @@ public final class CarActor {
     public interface ReadCallback { void onRead(Object value); }
     public interface BoolCallback { void onResult(boolean ok); }
 
+    // For testing: an interface that both Handler and TestHandler can satisfy.
+    interface HandlerLike {
+        void post(Runnable action);
+        void postDelayed(Runnable action, long delayMillis);
+        void removeCallbacks(Runnable action);
+        // Null is a valid answer (e.g. a test double with no real thread) --
+        // assertCarThread() already treats a null looper as "can't check, skip it".
+        Looper getLooper();
+    }
+
     /** Cached reading with explicit status (not_available/loading/ok/error). */
     public static final class Reading {
         public enum Status { NOT_AVAILABLE, LOADING, OK, ERROR }
@@ -47,6 +60,27 @@ public final class CarActor {
         public static Reading error(String msg) { return new Reading(Status.ERROR, null, msg); }
     }
 
+    /** Extracts a plain Boolean from a "car.is_charging" Reading — null when
+     * that poll hasn't produced an OK reading yet. The single conversion
+     * point so every caller of Telemetry passes the same answer. */
+    public static Boolean chargingFrom(Reading r) {
+        return (r.status == Reading.Status.OK && r.value instanceof Integer)
+            ? ((Integer) r.value == 1) : null;
+    }
+
+    /** Derives is_charging state from charge_a and plug_connected readings.
+     * Requires both current flow (charge_a > 0.5A) AND physical connector engagement (plug_connected == 1). */
+    public static Reading deriveIsCharging(Reading chargeA, Reading plugConnected) {
+        if (chargeA.status != Reading.Status.OK || !(chargeA.value instanceof Number)) {
+            return (chargeA.status == Reading.Status.ERROR) ? chargeA : Reading.error("no charge_a reading");
+        }
+        float a = ((Number) chargeA.value).floatValue();
+        boolean plugged = plugConnected.status == Reading.Status.OK
+            && plugConnected.value instanceof Number
+            && ((Number) plugConnected.value).intValue() != 0;
+        return Reading.ok((a > 0.5f && plugged) ? 1 : 0);
+    }
+
     // Per-key cached state and change-detection deadband.
     private static final class Cached {
         volatile Reading reading = Reading.LOADING;
@@ -57,60 +91,99 @@ public final class CarActor {
 
     private static volatile CarActor instance;
 
+    public static CarActor get() { return instance; }
+
     public static CarActor get(Context ctx) {
         CarActor i = instance;
         if (i == null) {
             synchronized (CarActor.class) {
-                if (instance == null) instance = new CarActor(ctx.getApplicationContext());
+                if (instance == null && ctx != null) instance = new CarActor(ctx.getApplicationContext());
                 i = instance;
             }
         }
         return i;
     }
 
+    public Looper getLooper() { return h != null ? h.getLooper() : null; }
+
+    public CarActor(Handler h) {
+        this.ctx = null;
+        this.car = null;
+        this.h = (h != null) ? new HandlerAdapter(h) : null;
+    }
+
+    public static void setInstanceForTesting(CarActor a) {
+        instance = a;
+    }
+
+    public void putForTesting(String key, Reading reading) {
+        Cached c = state.computeIfAbsent(key, k -> new Cached(0));
+        c.reading = reading;
+        recomputeDerivedFor(key);
+    }
+
+    private static volatile boolean strictThreadAssertion = false;
+    public static void setStrictThreadAssertionForTesting(boolean strict) {
+        strictThreadAssertion = strict;
+    }
+
+    public static void assertCarThread() {
+        if (!BuildConfig.DEBUG && !strictThreadAssertion) return;
+        CarActor a = instance;
+        if (a != null && a.h != null) {
+            Looper carLooper = a.h.getLooper();
+            if (carLooper != null && Looper.myLooper() != carLooper) {
+                String msg = "assertCarThread: expected CarActor thread ("
+                    + carLooper.getThread().getName() + ") but called from "
+                    + Thread.currentThread().getName();
+                Log.w(CarAccess.TAG, msg);
+                if (strictThreadAssertion) {
+                    throw new IllegalStateException(msg);
+                }
+            }
+        }
+    }
+
     private final Context ctx;
-    private final CarAccess car = new CarAccess();
-    private final Handler h;
+    private final CarAccess car;
+    private final HandlerLike h;
 
     private CarActor(Context ctx) {
+        this(ctx, null, null);
+    }
+
+    // Package-private testing constructor for dependency injection.
+    CarActor(Context ctx, HandlerLike testHandler, CarAccess testCar) {
+        try {
         this.ctx = ctx;
-        HandlerThread t = new HandlerThread("car-actor");
-        t.start();
-        h = new Handler(t.getLooper());
+        if (testCar != null) {
+            car = testCar;
+        } else {
+            car = new CarAccess();
+        }
+        if (testHandler != null) {
+            h = testHandler;
+        } else {
+            HandlerThread t = new HandlerThread("car-actor");
+            t.start();
+            h = new HandlerAdapter(new Handler(t.getLooper()));
+        }
         h.post(this::tick);
 
-        // Charging status from current flow (faster than main telemetry tick)
-        // for ChargeSession card responsiveness.
-        //
-        // charge_a (605291008) is known to latch at its last non-zero reading
-        // and never return to 0 on its own (2026-09-14: 245V/11.4A held
-        // steady for hours after the plug was physically pulled; and
-        // 2026-09-18: a real 30-minute DC fast charge was missed almost
-        // entirely because is_charging never produced a fresh 0->1 edge —
-        // it had been stuck reporting 1 since a much earlier charge). A
-        // second, no-relation VHAL pair (DCHA_CHARGE_ACDC_*, see CarAccess)
-        // was investigated as a non-latching replacement and turned out to
-        // alias the exact same underlying functionId — no better raw source
-        // exists. car.plug_connected below is a genuinely different,
-        // connector-engagement property, so it's cross-checked HERE, in the
-        // same poll tick, rather than left to each consumer to guard against
-        // separately (ChargeSession used to be the only place that did) —
-        // every subscriber of car.is_charging gets the corrected value for
-        // free, including the ones that don't know this sensor is unreliable.
-        registerPoll("car.is_charging", 2000, c -> {
-            String v = c.readAny(605291008, 0, 'f');   // charge_a — same raw prop Telemetry.FIELDS reads
+        // Raw charging current: 2s poll. Input for car.is_charging derivation.
+        registerPoll("car.charge_a", 2000, c -> {
+            String v = c.readAny(605291008, 0, 'f');   // same raw prop Telemetry.FIELDS reads
             if (v == null) return Reading.error("no reading");
-            float a;
-            try { a = Float.parseFloat(v); } catch (NumberFormatException e) { return Reading.error("bad value: " + v); }
-            String plugV = c.readAny(557887621, 0, 'i');   // same prop car.plug_connected reads, below
-            boolean plugged = plugV != null && !"0".equals(plugV);
-            return Reading.ok((a > 0.5f && plugged) ? 1 : 0);
+            try {
+                return Reading.ok(Float.parseFloat(v));
+            } catch (NumberFormatException e) {
+                return Reading.error("bad value: " + v);
+            }
         });
 
         // Ground truth for "is a cable physically in the port" — a real
         // connector-engagement property, not derived from current flow like
-        // car.is_charging above (which now cross-checks this same read
-        // itself, see its own comment). Still published on its own too:
+        // car.is_charging above. Still published on its own too:
         // ChargeSession also uses this directly, to force-close a session
         // the moment the plug is pulled rather than waiting for the next
         // is_charging tick.
@@ -123,6 +196,15 @@ public final class CarActor {
                 return Reading.error("bad value: " + v);
             }
         });
+
+        // Charging status: derived from car.charge_a and car.plug_connected.
+        // Rule: car.is_charging requires both current flow (charge_a > 0.5A) AND
+        // physical connector engagement (plug_connected == 1).
+        // Invariant: prevents a latched current sensor from falsely reporting active
+        // charging and missing fresh 0->1 edges on subsequent charges.
+        // See docs/incidents.md#2026-09-18-charge-latch
+        deriveFrom("car.is_charging", new String[]{"car.charge_a", "car.plug_connected"},
+            CarActor::deriveIsCharging);
 
         // Always-on baseline (independent of OutTempService lifecycle).
         registerPoll("telemetry.outside_temp", 15000, c -> {
@@ -145,6 +227,10 @@ public final class CarActor {
         // This just puts its state on the same bus everything else reads from.
         registerPoll("car.carplay_connected", 4000, c ->
             Reading.ok(CarplayState.connected() ? 1 : 0));
+        } catch (Throwable t) {
+            Log.w(CarAccess.TAG, "car actor init failed: " + t, t);
+            throw t;
+        }
     }
 
     // Main heartbeat: reads all Telemetry.FIELDS on cadence. 30s, not faster:
@@ -153,10 +239,15 @@ public final class CarActor {
     // other tick's fallback energy calc used a mismatched (half-length)
     // duration against a reading that hadn't actually changed yet.
     private static final int TICK_INTERVAL_MS = 30000;
-    private long lastTelemetryMs = -1;
+    volatile long lastTelemetryMs = -1;
 
     /** Callback for a registered periodic property poll. Runs on actor's thread. */
     public interface Poller { Reading poll(CarAccess car); }
+
+    /** Callback for computing a derived reading from dependency readings. */
+    public interface DeriveFn { Reading derive(Reading... deps); }
+    /** Binary callback for computing a derived reading from two dependency readings. */
+    public interface DeriveFn2 { Reading derive(Reading a, Reading b); }
 
     private static final class PollEntry {
         final String key; final int intervalMs; final Poller poller;
@@ -166,6 +257,15 @@ public final class CarActor {
         }
     }
     private final java.util.List<PollEntry> polls = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    private static final class DeriveEntry {
+        final String key; final String[] depKeys; final DeriveFn fn;
+        DeriveEntry(String key, String[] depKeys, DeriveFn fn) {
+            this.key = key; this.depKeys = depKeys; this.fn = fn;
+        }
+    }
+    private final java.util.List<DeriveEntry> derivations = new java.util.concurrent.CopyOnWriteArrayList<>();
+
     // Loop tick interval adapts to shortest registered poll interval.
     private volatile int masterTickMs = TICK_INTERVAL_MS;
 
@@ -190,6 +290,55 @@ public final class CarActor {
         h.post(() -> { polls.removeIf(p -> p.key.equals(key)); recomputeMasterTick(); });
     }
 
+    /** Declares a derived value computed from cached values of dependency keys.
+     * Recomputed whenever any dependency's poll cycle or ingest runs. */
+    public void deriveFrom(String key, String[] depKeys, DeriveFn fn) {
+        Runnable r = () -> {
+            derivations.removeIf(d -> d.key.equals(key));
+            DeriveEntry de = new DeriveEntry(key, depKeys, fn);
+            derivations.add(de);
+            recomputeDerived(de);
+        };
+        if (h != null) h.post(r);
+        else r.run();
+    }
+
+    public void deriveFrom(String key, String[] depKeys, DeriveFn2 fn) {
+        deriveFrom(key, depKeys, (DeriveFn) deps -> fn.derive(deps[0], deps[1]));
+    }
+
+    /** Unregisters a derived property by key. */
+    public void unregisterDerivation(String key) {
+        Runnable r = () -> derivations.removeIf(d -> d.key.equals(key));
+        if (h != null) h.post(r);
+        else r.run();
+    }
+
+    private void recomputeDerived(DeriveEntry d) {
+        Reading[] depReadings = new Reading[d.depKeys.length];
+        for (int i = 0; i < d.depKeys.length; i++) {
+            depReadings[i] = get(d.depKeys[i]);
+        }
+        Reading derived;
+        try {
+            derived = d.fn.derive(depReadings);
+        } catch (Throwable t) {
+            derived = Reading.error(String.valueOf(t));
+        }
+        ingest(d.key, derived);
+    }
+
+    private void recomputeDerivedFor(String depKey) {
+        for (DeriveEntry d : derivations) {
+            for (String k : d.depKeys) {
+                if (k.equals(depKey)) {
+                    recomputeDerived(d);
+                    break;
+                }
+            }
+        }
+    }
+
     private void recomputeMasterTick() {
         int m = TICK_INTERVAL_MS;
         for (PollEntry p : polls) m = Math.min(m, p.intervalMs);
@@ -202,7 +351,8 @@ public final class CarActor {
             long now = android.os.SystemClock.elapsedRealtime();
             if (lastTelemetryMs < 0 || now - lastTelemetryMs >= TICK_INTERVAL_MS) {
                 lastTelemetryMs = now;
-                java.util.LinkedHashMap<String, Object> data = Telemetry.read(car);
+                java.util.LinkedHashMap<String, Object> data =
+                    Telemetry.tick(car, chargingFrom(get("car.is_charging")));
                 if (!data.isEmpty()) {
                     for (Map.Entry<String, Object> e : data.entrySet())
                         ingest("telemetry." + e.getKey(), Reading.ok(e.getValue()));
@@ -258,15 +408,31 @@ public final class CarActor {
     // For ordered sequences of I/O (e.g., ComfortRuler). Runs on actor's thread
     // and must never be called from any other thread. No ensureConnected()
     // wrapper: caller is responsible for checking car.isReady() first.
-    public void runOnCarThread(Runnable r) { h.post(r); }
+    public void runOnCarThread(Runnable r) {
+        if (h != null) h.post(r);
+        else r.run();
+    }
     /** Posts a runnable to be executed on the actor's thread after a delay. */
-    public void runOnCarThreadDelayed(Runnable r, long delayMs) { h.postDelayed(r, delayMs); }
+    public void runOnCarThreadDelayed(Runnable r, long delayMs) {
+        if (h != null) h.postDelayed(r, delayMs);
+        else r.run();
+    }
 
     /** Cancels a previously posted runnable. */
-    public void cancelOnCarThread(Runnable r) { h.removeCallbacks(r); }
+    public void cancelOnCarThread(Runnable r) {
+        if (h != null) h.removeCallbacks(r);
+    }
 
     /** Returns direct access to the shared CarAccess (for use only on actor's thread). */
     public CarAccess rawAccess() { return car; }
+
+    // Testing seams (package-private).
+    void resetTimingForTesting() {
+        lastTelemetryMs = -1;
+        for (PollEntry p : polls) p.lastRunMs = -1;
+    }
+    java.util.List<PollEntry> getRegisteredPollsForTesting() { return new java.util.ArrayList<>(polls); }
+    void tickNowForTesting() { tick(); }
 
     /** Returns the cached reading for a key, or NOT_AVAILABLE if never registered. */
     public Reading get(String key) {
@@ -280,6 +446,7 @@ public final class CarActor {
         boolean changed = !sameReading(c.reading, next, c.epsilon);
         c.reading = next;
         if (changed) EntityBus.publish(key, next);
+        recomputeDerivedFor(key);
     }
 
     // Change-detection deadband: exact match for discrete properties or
@@ -388,5 +555,15 @@ public final class CarActor {
         watchRaw("car.hvac_recirc", CarAccess.HVAC_RECIRC_ON, 75);
         watchRaw("car.hvac_direction", 557846560, 0);
         watchRaw("car.hvac_rear_defrost", CarAccess.HVAC_ELECTRIC_DEFROSTER_ON, 2);
+    }
+
+    // Adapter from real Handler to HandlerLike interface (production code path).
+    private static class HandlerAdapter implements HandlerLike {
+        final Handler delegate;
+        HandlerAdapter(Handler h) { delegate = h; }
+        public void post(Runnable action) { delegate.post(action); }
+        public void postDelayed(Runnable action, long delayMillis) { delegate.postDelayed(action, delayMillis); }
+        public void removeCallbacks(Runnable action) { delegate.removeCallbacks(action); }
+        public Looper getLooper() { return delegate.getLooper(); }
     }
 }

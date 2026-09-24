@@ -1,6 +1,7 @@
 package com.geely.drivemem;
 
 import com.geely.drivemem.net.AbrpUploader;
+import com.geely.drivemem.sensors.Obd2Reader;
 import com.geely.drivemem.util.Modes;
 
 import org.json.JSONObject;
@@ -104,5 +105,29 @@ public class AbrpUploaderTest {
         assertNotNull(tlmAc);
         assertEquals(1, tlmAc.getInt("is_charging"));
         assertEquals(0, tlmAc.getInt("is_dcfc"));
+    }
+
+    @Test
+    public void testAcChargingReportsNotDcfcEvenWithFreshObdPackVoltage() throws Exception {
+        try {
+            // Fresh OBD2 reading with battery pack voltage well above 250V (e.g. 395V)
+            Obd2Reader.Reading obd = new Obd2Reader.Reading(
+                70.0, 395.0, 32.0, 25.0, 7.5, 0, System.currentTimeMillis());
+            AbrpUploader.setLastObdReadingForTesting(obd);
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("battery", 70);
+            data.put("gear", Modes.GEAR_PARK_ADAPTED);
+            data.put("charge_v", 230.0f); // Normal AC mains charge port voltage (~230V)
+
+            JSONObject tlm = AbrpUploader.buildTlm(null, data, true, null);
+            assertNotNull(tlm);
+            assertEquals(1, tlm.getInt("is_charging"));
+            assertEquals(0, tlm.getInt("is_dcfc"));
+            // OBD2 pack voltage is still preferred for the general "voltage" field
+            assertEquals(395.0, tlm.getDouble("voltage"), 0.01);
+        } finally {
+            AbrpUploader.setLastObdReadingForTesting(null);
+        }
     }
 }

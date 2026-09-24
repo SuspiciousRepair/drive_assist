@@ -7,6 +7,7 @@ import android.content.pm.PackageManager;
 import android.util.Log;
 
 import com.geely.drivemem.BuildConfig;
+import com.geely.drivemem.util.Prefs;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -104,12 +105,48 @@ public class Updater {
     public static String resolveUrl(Context ctx, String url) {
         String u = (url == null) ? "" : url.trim();
         if (u.isEmpty() || u.equalsIgnoreCase("go")) {
-            android.content.SharedPreferences pfUrl =
-                ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-            u = pfUrl.getString("update_url", DEFAULT_URL);
+            u = Prefs.getUpdateUrl(ctx, DEFAULT_URL);
             if (u.trim().isEmpty()) u = DEFAULT_URL;
         }
         return u;
+    }
+
+    /** CloudFlare caches /local with 31-day max-age. Appends a timestamp
+     * query to force a MISS at the edge, unless the URL already carries a
+     * query of its own (an announced "?v=<code>" URL is meant to be stable
+     * — see build.sh and check()'s own remoteVc parsing below, which needs
+     * that param left alone). The one place this decision is made — check()
+     * and update() both call it, so a manually-typed bare URL (the
+     * "update_url" field in Config) is protected the same way in both,
+     * instead of only at install time like before. */
+    public static String cacheBust(String u) {
+        return (u.indexOf('?') < 0) ? u + "?t=" + System.currentTimeMillis() : u;
+    }
+
+    /** Whether update() must refuse to install right now, and the Portuguese
+     * status string to report if so; null means safe to proceed. force
+     * bypasses both checks (an explicit, opt-in override -- same as it
+     * already bypassed the motion check alone before this).
+     *
+     * Installing replaces the app process mid-run (see CLAUDE.md's notes on
+     * what that already does to the app's own alarms/watchdog) -- while a
+     * real charge is in progress, that disruption reached the vehicle's own
+     * charging session too: a public DCFC station's own receipt showed a
+     * session stopped at ~12 minutes, mid-charge, right after an OTA
+     * install landed (2026-09-23). Blocked the same way "vehicle in
+     * motion" already was. ChargeSession.isCharging() alone can be false
+     * during a brief pause/renegotiation grace period or signal desync, so we
+     * also check isSessionActive(), isChargeGraceScheduled(), and activeRowId(). */
+    public static String installBlockedReason(boolean force) {
+        if (force) return null;
+        if (!com.geely.drivemem.state.CarState.isParked()) return "bloqueado: veículo em movimento";
+        if (com.geely.drivemem.state.ChargeSession.isCharging()
+                || com.geely.drivemem.state.ChargeSession.isSessionActive()
+                || com.geely.drivemem.state.ChargeSession.isChargeGraceScheduled()
+                || com.geely.drivemem.state.ChargeSession.activeRowId() > 0) {
+            return "bloqueado: veículo carregando";
+        }
+        return null;
     }
 
     public static void check(final Context ctx, final String url, final String targetPkg, final CheckCallback cb) {
@@ -120,6 +157,7 @@ public class Updater {
                     if (cb != null) cb.onError("URL must start with https://");
                     return;
                 }
+                u = cacheBust(u);
 
                 int curVc;
                 String curVn;
@@ -158,8 +196,7 @@ public class Updater {
                 // curVc/curVn, untouched) still shows what's REALLY installed,
                 // not what was last skipped. A newer release than the skipped
                 // one still prompts normally.
-                String skipKey = (targetLabel != null) ? "skip_update_vc_modehelper" : "skip_update_vc";
-                int skippedVc = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE).getInt(skipKey, 0);
+                int skippedVc = Prefs.getSkipUpdateVc(ctx, targetLabel != null);
                 int effectiveVc = Math.max(curVc, skippedVc);
 
                 // 1. Check if the URL carries a version query parameter (?v=...)
@@ -302,7 +339,6 @@ public class Updater {
         }
     }
 
-    private static final String AUTO_CHECK_PREF = "auto_update_last_check_ms";
     public static final long AUTO_CHECK_INTERVAL_MS = 24L * 3600 * 1000;
 
     /** Unattended update check against whatever URL is configured -- for
@@ -318,11 +354,10 @@ public class Updater {
      * effect, if any, is the same Park-gated UpdateDialog a manual check
      * or MQTT command already produces. */
     public static void autoCheckIfDue(final Context ctx) {
-        android.content.SharedPreferences pf = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-        long last = pf.getLong(AUTO_CHECK_PREF, 0);
+        long last = Prefs.getAutoUpdateLastCheckMs(ctx);
         long now = System.currentTimeMillis();
         if (now - last < AUTO_CHECK_INTERVAL_MS) return;
-        pf.edit().putLong(AUTO_CHECK_PREF, now).apply();
+        Prefs.setAutoUpdateLastCheckMs(ctx, now);
 
         check(ctx, null, new CheckCallback() {
             @Override public void onUpdateAvailable(UpdateInfo info) { broadcastAvailable(ctx, info); }
@@ -386,31 +421,25 @@ public class Updater {
             try {
                 String u = (url == null) ? "" : url.trim();
                 if (u.isEmpty() || u.equalsIgnoreCase("go")) {
-                    android.content.SharedPreferences pfUrl =
-                        ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-                    u = pfUrl.getString("update_url", DEFAULT_URL);
+                    u = Prefs.getUpdateUrl(ctx, DEFAULT_URL);
                     if (u.trim().isEmpty()) u = DEFAULT_URL;
                 }
                 if (!u.startsWith("https://")) { p.step("erro: URL precisa ser https"); return; }
 
                 boolean force = url != null && url.toLowerCase(java.util.Locale.US).contains("force");
-                if (!force && !com.geely.drivemem.state.CarState.isParked()) {
-                    if (p != null) p.step("bloqueado: veículo em movimento");
-                    Log.w(TAG, "Update blocked: vehicle is not parked");
+                String blocked = installBlockedReason(force);
+                if (blocked != null) {
+                    if (p != null) p.step(blocked);
+                    Log.w(TAG, "Update blocked: " + blocked);
                     return;
                 }
 
-                // CloudFlare caches /local with 31-day max-age. Append a
-                // timestamp query to force a MISS at the edge, unless the URL
-                // already carries a query (versioned URLs are meant to be stable).
-                if (u.indexOf('?') < 0) u = u + "?t=" + System.currentTimeMillis();
+                u = cacheBust(u);
 
                 // Has this URL already been applied? Retained MQTT commands are
                 // redelivered on every reconnect, so this check avoids repeated
                 // downloads/installs of the same APK.
-                android.content.SharedPreferences pf =
-                    ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-                if (u.equals(pf.getString("update_last_url", ""))) {
+                if (u.equals(Prefs.getUpdateLastUrl(ctx))) {
                     p.step("já aplicado"); return;
                 }
 
@@ -424,7 +453,7 @@ public class Updater {
                 if (helperPresent(ctx)) {
                     // Recorded BEFORE handing over, not after: a successful
                     // install kills this process mid-call.
-                    pf.edit().putString("update_last_url", u).apply();
+                    Prefs.setUpdateLastUrl(ctx, u);
                     p.step("entregue ao helper de sistema");
                     Intent i = new Intent(HELPER_INSTALL).setPackage(HELPER_PKG);
                     i.putExtra("url", u);
@@ -456,7 +485,7 @@ public class Updater {
                 String mine = sha256(new File(ctx.getPackageCodePath()));
                 String got  = sha256(out);
                 if (mine != null && mine.equals(got)) {
-                    pf.edit().putString("update_last_url", u).apply();
+                    Prefs.setUpdateLastUrl(ctx, u);
                     p.step("já instalado (" + got.substring(0, 8) + ")");
                     return;
                 }
@@ -468,7 +497,7 @@ public class Updater {
                 pr.waitFor();
                 Log.i(TAG, "update pm install: " + res);
                 boolean ok = res.toLowerCase().contains("success");
-                if (ok) pf.edit().putString("update_last_url", u).apply();
+                if (ok) Prefs.setUpdateLastUrl(ctx, u);
                 p.step(ok ? "OK — atualizado" : "erro: " + res.trim());
             } catch (Throwable t) { Log.w(TAG, "update error: " + t); p.step("erro: " + t); }
         }, "updater").start();

@@ -5,10 +5,10 @@ import com.geely.drivemem.car.CarDb;
 import com.geely.drivemem.car.Telemetry;
 import com.geely.drivemem.state.ChargeSession;
 import com.geely.drivemem.util.DbMigration;
+import com.geely.drivemem.util.Prefs;
 
 import android.content.ContentValues;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
@@ -34,7 +34,6 @@ public final class TelemetryRollup {
     private static final String TAG = CarAccess.TAG;
     // Version the guard whenever a DB migration invalidates frozen summaries,
     // so an update installed after today's rollup still rebuilds them at once.
-    private static final String PREF_KEY = "rollup_last_day_v10";
     private static final int RETAIN_DAYS = 90;
     private static final SimpleDateFormat DAY_FMT = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
 
@@ -58,16 +57,15 @@ public final class TelemetryRollup {
     /** Freezes completed days and prunes old telemetry if not already done today. */
     public static void runIfDue(Context ctx) {
         final Context app = ctx.getApplicationContext();
-        final SharedPreferences p = app.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
         final String today = DAY_FMT.format(new Date());
 
         CarDb.get(app).write(() -> {
-            if (today.equals(p.getString(PREF_KEY, ""))) return;
+            if (today.equals(Prefs.getRollupLastDay(app))) return;
             try {
                 SQLiteDatabase db = CarDb.get(app).db();
                 freezeCompletedDays(db, today);
                 pruneOldRawRows(db);
-                p.edit().putString(PREF_KEY, today).apply();
+                Prefs.setRollupLastDay(app, today);
                 Log.i(TAG, "rollup: done for " + today);
             } catch (Throwable t) {
                 // Not persisting PREF_KEY on failure: same reasoning as

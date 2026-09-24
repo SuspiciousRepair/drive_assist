@@ -5,15 +5,11 @@ import android.view.View;
 import java.util.Map;
 import java.util.WeakHashMap;
 
-/** Waits for a view to actually get a real layout pass instead of blindly
- * re-posting until getWidth()/getHeight() happen to be nonzero -- that idiom
- * never terminates when the view sits inside a View.GONE container, since a
- * GONE view is never measured at all (GitHub issue #5, 2026-09-21: six call
- * sites each spun the main thread at 100% CPU, badly enough to ANR Spotify).
- * A real OnLayoutChangeListener only fires on an actual layout pass, so a
- * view that stays GONE forever simply waits forever instead of spinning --
- * and once its container is shown, the pass that follows fires this
- * immediately. */
+/** Waits for a view to receive an actual layout pass via OnLayoutChangeListener
+ * instead of repeatedly re-posting until getWidth()/getHeight() are non-zero.
+ * Invariant: views in View.GONE containers must not spin the main thread.
+ * See docs/incidents.md#2026-09-21-layoutwait-anr
+ */
 public final class LayoutWait {
     // Weak keys: a view that gets rebuilt/discarded takes its pending entry
     // with it, rather than pinning it (and whatever the action's closure

@@ -1206,7 +1206,7 @@ public class MqttReporter {
 
     // Reads CarActor's cache, not the CHARGE_SWITCH property directly — the
     // switch's read-back can be intermittently wrong while charging. Use
-    // telemetry.is_charging instead, which is current-derived and reliable.
+    // car.is_charging (or telemetry.is_charging fallback), which cross-checks current and plug state.
     private void doPublishChargingState(boolean force) {
         if (ctx == null) return;
         CarActor.Reading r = CarActor.get(ctx).get("car.is_charging");

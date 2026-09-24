@@ -15,7 +15,7 @@ import com.geely.drivemem.car.CarAccess;
  * 3. Regen (energy recovered via regenerative braking: kWh >= 0; regen power: kW)
  *
  * Integrates power trapezoidally on every incoming OBD2 reading (~2s cadence)
- * rather than point-sampling or averaging across the 15-second telemetry tick.
+ * rather than point-sampling or averaging across the telemetry tick (CarActor.TICK_INTERVAL_MS).
  * Accumulates exact window energy for telemetry_sample persistence, as well as
  * continuous trip totals for TripSession.
  */
@@ -33,7 +33,7 @@ public final class EnergyIntegrator {
     private static long lastSampleMonoMs = 0;
     private static Double lastPowerKw = null;
 
-    // Window accumulators (drained every ~15s by Telemetry / TelemetrySampler)
+    // Window accumulators (drained on each telemetry tick by Telemetry / TelemetrySampler)
     private static double windowSpentKwh = 0.0;
     private static double windowRegenKwh = 0.0;
     private static double windowNetKwh = 0.0;
@@ -48,7 +48,7 @@ public final class EnergyIntegrator {
     private static double tripNetKwh = 0.0;
     private static int tripSampleCount = 0;
 
-    /** Snapshot of energy accumulated over a sampling window (e.g. 15s). */
+    /** Snapshot of energy accumulated over a sampling window (e.g. CarActor.TICK_INTERVAL_MS). */
     public static final class WindowSnapshot {
         public final Double instantPowerKw;
         public final Double instantPowerSpentKw;
@@ -118,20 +118,12 @@ public final class EnergyIntegrator {
      * Accessible package-private / for testing. */
     public static void onPowerReading(long nowMonoMs, double kw) {
         synchronized (LOCK) {
-            // If the vehicle is PARKED and plugged in and actively charging, do
-            // not integrate charging current as driving regenerative braking.
-            // Gated on CarState.isParked() (the one reliable, gear-derived
-            // signal — see CarState's own class comment) rather than trusting
-            // ChargeSession.isCharging() alone: that flag is current-derived
-            // (charge_a > 0.5A) off a property already caught latching at its
-            // last reading for hours (2026-09-14), including through a whole
-            // drive. Skipping every power reading for however long that flag
-            // stays wrongly "charging" mid-trip is exactly how a real drive's
-            // consumption came out as a flat 0.0 kWh. It is physically
-            // impossible to be both driving and parked-charging at once, so
-            // once CarState confirms we are actually driving, a stuck
-            // "charging" flag is definitely the sensor bug, never a real
-            // reason to stop integrating.
+            // Rule: only suppress energy integration when both parked and actively charging.
+            // Invariant: driving energy must never be suppressed by a lingering charging state.
+            // ChargeSession.isCharging() tracks active session state (fed by CarActor's
+            // cross-checked poll and plug/gear events), but gating on CarState.isParked()
+            // ensures a drive's consumption is never zeroed out if a sensor or state latches.
+            // See docs/incidents.md#2026-09-14-charge-a-latch
             if (com.geely.drivemem.state.CarState.isParked()
                     && com.geely.drivemem.state.ChargeSession.isCharging()) {
                 lastSampleMonoMs = 0;
@@ -211,7 +203,7 @@ public final class EnergyIntegrator {
         }
     }
 
-    /** Drains and resets the rolling window accumulators for the 15-second telemetry tick.
+    /** Drains and resets the rolling window accumulators for the telemetry tick (CarActor.TICK_INTERVAL_MS).
      * If no high-frequency OBD samples arrived during the window, falls back to the
      * provided powerKw estimate (e.g. from VHAL SOC-delta). */
     public static WindowSnapshot drainWindow(Float fallbackPowerKw) {
@@ -237,14 +229,45 @@ public final class EnergyIntegrator {
             double outNet = windowNetKwh;
             int count = windowSampleCount;
 
-            // Fallback integration if OBD2 was unavailable during this entire window.
-            // *4, not *3: the tick that feeds this (CarActor.TICK_INTERVAL_MS) now
-            // runs at the same 30s cadence this fallback's own SoC delta is sampled
-            // at, so elapsedWindowMs normally sits right at that boundary -- *3
-            // (30s) would reject a real window on nothing more than ordinary
-            // scheduling jitter pushing it a few ms over. *4 keeps real multi-tick
-            // gaps (a suspend, a dropped tick) rejected without also punishing jitter.
-            if (count == 0 && fallbackPowerKw != null && elapsedWindowMs <= MAX_GAP_MS * 4) {
+            // count==0 means no full trapezoid step landed this window -- which
+            // isn't only "OBD2 was unavailable." It's also what a single
+            // isolated OBD reading with no predecessor to pair against looks
+            // like: right after onObd2ConnectedChanged(true), right after the
+            // parked+charging guard above resets lastPowerKw, or right after
+            // app start. That reading is genuinely OBD2-sourced -- reaching
+            // past it for the cruder VHAL SoC-delta guess just because it
+            // arrived alone is exactly the "one miss taints everything"
+            // behavior reported live 2026-09-23: a short trip's first window,
+            // one reading in, got "estimated" though OBD2 never disconnected.
+            // Prefer this single real reading (held flat across the window)
+            // over the fallback, and count the window as measured -- only
+            // reach for the fallback when we have NO real OBD reading at all.
+            // Bounded by MAX_GAP_MS so a reading that's actually gone stale
+            // (OBD2 died without a formal disconnect event, or the window
+            // itself sat idle a long time) can't get held flat forever --
+            // that's a real gap, not a single missed poll.
+            if (count == 0 && lastPowerKw != null
+                    && nowMono >= lastSampleMonoMs && (nowMono - lastSampleMonoMs) <= MAX_GAP_MS) {
+                double hours = elapsedWindowMs / 3_600_000.0;
+                double kw = lastPowerKw;
+                if (kw >= 0) {
+                    outSpent = kw * hours;
+                    outRegen = 0.0;
+                } else {
+                    outSpent = 0.0;
+                    outRegen = -kw * hours;
+                }
+                outNet = outSpent - outRegen;
+                count = 1;
+            } else if (count == 0 && fallbackPowerKw != null && elapsedWindowMs <= MAX_GAP_MS * 4) {
+                // Fallback integration: OBD2 gave us nothing at all this window.
+                // *4, not *3: the tick that feeds this (CarActor.TICK_INTERVAL_MS)
+                // now runs at the same 30s cadence this fallback's own SoC delta
+                // is sampled at, so elapsedWindowMs normally sits right at that
+                // boundary -- *3 (30s) would reject a real window on nothing more
+                // than ordinary scheduling jitter pushing it a few ms over. *4
+                // keeps real multi-tick gaps (a suspend, a dropped tick) rejected
+                // without also punishing jitter.
                 double hours = elapsedWindowMs / 3_600_000.0;
                 double kw = fallbackPowerKw;
                 if (kw >= 0) {

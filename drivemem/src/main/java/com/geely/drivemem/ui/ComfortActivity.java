@@ -32,6 +32,7 @@ import com.geely.drivemem.state.ValetSession;
 import com.geely.drivemem.util.BootReceiver;
 import com.geely.drivemem.util.LayoutWait;
 import com.geely.drivemem.util.Modes;
+import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.SpotifyClient;
 import com.geely.drivemem.net.Updater;
 import com.geely.drivemem.util.Style;
@@ -41,7 +42,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
@@ -61,7 +61,6 @@ import java.util.Locale;
  * mode, music playback, charging status, gate access, and HA context cards. */
 public class ComfortActivity extends Activity {
     private final Handler ui = new Handler(Looper.getMainLooper());
-    private SharedPreferences prefs;
     private TextView hint;
     // elements that follow the colour of the cabin ambient light
     private ArtView art;
@@ -172,12 +171,11 @@ public class ComfortActivity extends Activity {
         Style.load(this);                  // before any View: the palette rules the drawing
         themeId = Style.current().id;
         themeLight = Style.LIGHT;
-        prefs = getSharedPreferences("drivemem", MODE_PRIVATE);
-        turboEnabledAtBuild = prefs.getBoolean("turbo_enabled", true);
-        musicLargeCardAtBuild = prefs.getBoolean("spotify_large_card", false);
-        skylineEnabledAtBuild = prefs.getBoolean("skyline_enabled", true);
-        skylineSeedAtBuild = prefs.getLong("skyline_seed", com.geely.drivemem.art.Skyline.DEFAULT_SEED);
-        dismissedHash = prefs.getInt("panel_dismissed", 0);   // the dismissal survives a restart
+        turboEnabledAtBuild = Prefs.getTurboEnabled(this);
+        musicLargeCardAtBuild = Prefs.getSpotifyLargeCard(this);
+        skylineEnabledAtBuild = Prefs.getSkylineEnabled(this);
+        skylineSeedAtBuild = Prefs.getSkylineSeed(this, com.geely.drivemem.art.Skyline.DEFAULT_SEED);
+        dismissedHash = Prefs.getPanelDismissed(this);   // the dismissal survives a restart
         // BORROWED, not owned: the ruler belongs to the process now, so an MQTT
         // tap works with this screen closed. See ComfortHub.
         comfortRuler = ComfortHub.get(this);
@@ -192,7 +190,7 @@ public class ComfortActivity extends Activity {
         // (VaporArtView) is a different art path and always shows regardless
         // -- the toggle only ever hides the skyline other themes use.
         boolean noturno = Style.ART == Style.ART_VAPOR;
-        boolean showSkyline = noturno || prefs.getBoolean("skyline_enabled", true);
+        boolean showSkyline = noturno || Prefs.getSkylineEnabled(this);
         art = noturno ? new VaporArtView(this) : (showSkyline ? new SkylineArtView(this) : null);
         fullBleed = art != null && art.fullBleed();
 
@@ -259,7 +257,7 @@ public class ComfortActivity extends Activity {
             cards.add(turboCard());
             lastTurboVisible = turboCardView.getVisibility() == View.VISIBLE;
         }
-        driveCardEnabledAtBuild = prefs.getBoolean("drive_card_enabled", true);
+        driveCardEnabledAtBuild = Prefs.getDriveCardEnabled(this);
         journeyCard = journeyCard();
         cards.add(journeyCard);
         cards.add(musicCard());
@@ -502,7 +500,7 @@ public class ComfortActivity extends Activity {
                 // flag would be wrong exactly when it mattered.
                 final Boolean was = purge.anyOpen(pc);
                 final int moved = (was == null) ? 0
-                                : was ? purge.close(pc) : purge.open(pc, Purge.targetsFromPrefs(prefs));
+                                : was ? purge.close(pc) : purge.open(pc, Purge.targetsFromPrefs(Prefs.file(this)));
                 ui.post(() -> {
                     hint.setText(was == null ? getString(R.string.purge_unreadable)
                         : moved == 0 ? getString(R.string.purge_nothing)
@@ -710,15 +708,15 @@ public class ComfortActivity extends Activity {
         // Each icon only exists on screen when its service is actually
         // turned on — an icon for a service you never enabled is noise,
         // not status.
-        boolean haOn = prefs.getBoolean("tele_enabled", false);
+        boolean haOn = Prefs.getTeleEnabled(this);
         haStatusIcon.setVisibility(haOn ? View.VISIBLE : View.GONE);
         if (haOn) haStatusIcon.setColorFilter(GateState.connected() ? Style.ACCENT : Style.TEXT_DIM);
 
-        boolean abrpOn = prefs.getBoolean("abrp_enabled", false);
+        boolean abrpOn = Prefs.getAbrpEnabled(this);
         abrpStatusIcon.setVisibility(abrpOn ? View.VISIBLE : View.GONE);
         if (abrpOn) abrpStatusIcon.setColorFilter(AbrpUploader.lastAttemptOk() ? Style.ACCENT : Style.TEXT_DIM);
 
-        boolean obd2On = prefs.getBoolean("obd2_enabled", false);
+        boolean obd2On = Prefs.getObd2Enabled(this);
         obd2StatusIcon.setVisibility(obd2On ? View.VISIBLE : View.GONE);
         if (obd2On) obd2StatusIcon.setColorFilter(Obd2Reader.isConnected() ? Style.ACCENT : Style.TEXT_DIM);
 
@@ -732,7 +730,7 @@ public class ComfortActivity extends Activity {
     // verify (Wi-Fi dropped after HA last said yes) must hide the card.
     // See gateVisible().
     private boolean gateVisible() {
-        return GateState.available() && GateState.connected();
+        return ComfortCardVisibility.showGateCard(GateState.available(), GateState.connected());
     }
 
 
@@ -833,7 +831,7 @@ public class ComfortActivity extends Activity {
         // while driving — hidden while parked, per whatever CarState
         // already knows at build time; the listener (see below) keeps it
         // in sync as gear actually changes. Both halves share this one rule.
-        t.setVisibility(CarState.isParked() ? View.GONE : View.VISIBLE);
+        t.setVisibility(ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, CarState.isParked()) ? View.VISIBLE : View.GONE);
         turboCardView = t;
         refreshRegenGlyph();
         return t;
@@ -848,7 +846,7 @@ public class ComfortActivity extends Activity {
         CarActor.get(this).read("regen_mode", cur -> {
             boolean isHigh = (cur instanceof Integer) && (Integer) cur == Modes.REGEN_HIGH;
             int target = isHigh
-                ? getSharedPreferences("drivemem", MODE_PRIVATE).getInt("regen", Modes.REGEN_MID)
+                ? Prefs.getRegen(this, Modes.REGEN_MID)
                 : Modes.REGEN_HIGH;
             CarActor.get(this).cast("regen_mode", target, r -> {
                 if (r.applied) runOnUiThread(() -> tintRegenGlyph(target == Modes.REGEN_HIGH));
@@ -1275,7 +1273,7 @@ public class ComfortActivity extends Activity {
         journeyDismiss.setTextSize(28);
         journeyDismiss.setGravity(Gravity.CENTER);
         journeyDismiss.setOnClickListener(v -> {
-            prefs.edit().putLong("drive_card_dismissed_trip", TripSession.getActiveTripStartMs()).apply();
+            Prefs.setDriveCardDismissedTrip(this, TripSession.getActiveTripStartMs());
             refreshJourneyCard();
         });
         heading.addView(journeyDismiss, new LinearLayout.LayoutParams(Style.dp(this, 48), Style.dp(this, 48)));
@@ -1313,22 +1311,23 @@ public class ComfortActivity extends Activity {
         boolean valet = ValetSession.isActive(this);
         boolean parked = CarState.isParked();
         boolean driving = !parked && TripSession.isTripActive();
-        long dismissed = prefs.getLong("drive_card_dismissed_trip", -1);
+        long dismissed = Prefs.getDriveCardDismissedTrip(this);
         // The parked entry point remains available even when the optional live
         // drive card is disabled; otherwise Valet could become unreachable.
-        boolean visible = valet || parked || (driveCardEnabledAtBuild && driving
-            && dismissed != TripSession.getActiveTripStartMs());
+        boolean dismissedForThisTrip = dismissed == TripSession.getActiveTripStartMs();
+        boolean visible = ComfortCardVisibility.showJourneyCard(valet, parked, driveCardEnabledAtBuild,
+            driving, dismissedForThisTrip);
         journeyCard.setVisibility(visible ? View.VISIBLE : View.GONE);
         if (!visible) {
             if (lastJourneyAvailable) { lastJourneyAvailable = false; repackColumns(); }
             return;
         }
 
-        journeyDismiss.setVisibility(driving && !valet ? View.VISIBLE : View.GONE);
+        journeyDismiss.setVisibility(ComfortCardVisibility.showJourneyDismissButton(driving, valet) ? View.VISIBLE : View.GONE);
         // Parked always gets the button (Start or Stop). Driving only gets it
         // when Valet is the thing showing -- Stop must reach the driver even
         // mid-drive; there's no Start-while-driving to show instead.
-        journeyAction.setVisibility(parked || valet ? View.VISIBLE : View.GONE);
+        journeyAction.setVisibility(ComfortCardVisibility.showJourneyActionButton(parked, valet) ? View.VISIBLE : View.GONE);
         if (valet) {
             ValetSession.Snapshot s = ValetSession.snapshot(this);
             journeyTitle.setText(R.string.valet_active_title);
@@ -1677,7 +1676,7 @@ public class ComfortActivity extends Activity {
     // already says everything: nothing is loaded worth showing a card for.
     private final MusicState.Listener musicListener = (playing, title, artist, artUrl) ->
         ui.post(() -> {
-            boolean available = title != null && !title.isEmpty();
+            boolean available = ComfortCardVisibility.showMusicCard(title);
             if (musicCard != null) musicCard.setVisibility(available ? View.VISIBLE : View.GONE);
             if (available) {
                 musicTitleView.setText(title);
@@ -1697,7 +1696,7 @@ public class ComfortActivity extends Activity {
             // Charging only makes sense while parked — see CarState's header
             // for why this is a real check, not just tidiness.
             ui.post(() -> {
-                if (CarState.isParked()) showCharging(socStart, socNow, startWallMs, nowWallMs);
+                if (ComfortCardVisibility.showActiveCharging(CarState.isParked(), true)) showCharging(socStart, socNow, startWallMs, nowWallMs);
                 else hideCharging();
             });
         }
@@ -1731,16 +1730,9 @@ public class ComfortActivity extends Activity {
             pendingUpdate = null;
             activeUpdateDialog = null;
             Updater.Progress step = s -> android.util.Log.i("ComfortActivity", "Update step: " + s);
-            // Always the bundled installer, never the plain self-update: build.sh
-            // ships drive_assist and modehelper together with matching versions,
-            // so autoCheckIfDue() finds BOTH "available" at once almost every
-            // time. Accepting a plain self-update only installed drivemem,
-            // leaving modehelper's own separately-detected update to surface
-            // again right after -- reported live as "the update pops up twice"
-            // (2026-09-21). updateHelper()'s installer refreshes both apps in
-            // one shot regardless of which target's dialog the driver actually
-            // saw, so the other one's re-check comes back already-up-to-date
-            // instead of prompting again.
+            // Rule: always install via updateHelper(), which updates drivemem and modehelper together.
+            // Invariant: prevents consecutive update prompts for co-versioned companion packages.
+            // See docs/incidents.md#2026-09-21-double-update-prompt
             Updater.updateHelper(getApplicationContext(), info.apkUrl, step);
         }, () -> {
             // Driver declined/dismissed
@@ -1754,14 +1746,14 @@ public class ComfortActivity extends Activity {
     // since a gear change and a charging/turbo change are independent events.
     private final CarState.Listener carStateListener = parked -> ui.post(() -> {
         if (turboCardView != null) {
-            boolean visible = turboEnabledAtBuild && !parked;
+            boolean visible = ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, parked);
             if ((turboCardView.getVisibility() == View.VISIBLE) != visible) {
                 turboCardView.setVisibility(visible ? View.VISIBLE : View.GONE);
                 lastTurboVisible = visible;
                 if (columns != null) repackColumns();
             }
         }
-        if (parked && ChargeSession.isCharging()) {
+        if (ComfortCardVisibility.showActiveCharging(parked, ChargeSession.isCharging())) {
             showCharging(ChargeSession.currentSocStart(), ChargeSession.currentSocEnd(),
                 ChargeSession.currentStartWallMs(), System.currentTimeMillis());
         } else if (retainedChargeSession != null) {
@@ -1777,9 +1769,9 @@ public class ComfortActivity extends Activity {
             // no flash. Persisted too, so the next cold launch (or a resume
             // after this one) starts from the same city until the next P->D.
             if (art instanceof com.geely.drivemem.art.SkylineArtView
-                    && prefs.getBoolean("skyline_random_per_drive", false)) {
+                    && Prefs.getSkylineRandomPerDrive(this)) {
                 long newSeed = new java.util.Random().nextLong() & Long.MAX_VALUE;
-                prefs.edit().putLong("skyline_seed", newSeed).apply();
+                Prefs.setSkylineSeed(this, newSeed);
                 skylineSeedAtBuild = newSeed;   // this IS the change; onResume must not re-recreate for it
                 ((com.geely.drivemem.art.SkylineArtView) art).reroll(newSeed);
             }
@@ -1854,7 +1846,7 @@ public class ComfortActivity extends Activity {
     }
 
     private void checkRetainedCharge() {
-        if (CarState.isParked() && ChargeSession.isCharging()) {
+        if (ComfortCardVisibility.showActiveCharging(CarState.isParked(), ChargeSession.isCharging())) {
             showCharging(ChargeSession.currentSocStart(), ChargeSession.currentSocEnd(),
                 ChargeSession.currentStartWallMs(), System.currentTimeMillis());
         } else {
@@ -1965,7 +1957,7 @@ public class ComfortActivity extends Activity {
         // show only if there IS content AND it was NOT dismissed (a local
         // comparison, without depending on the broker to clear it). Different
         // content => it comes back.
-        boolean has = !empty && s.hashCode() != dismissedHash;
+        boolean has = ComfortCardVisibility.showPanelCard(empty, s.hashCode() == dismissedHash);
         if (has) {
             // THE CARD ALREADY UP DOES NOT ARRIVE AGAIN — HA republishing an
             // unchanged payload (or this screen resuming) must not reload it.
@@ -1989,7 +1981,7 @@ public class ComfortActivity extends Activity {
     // reconnect brings it back).
     private void dismissCard() {
         dismissedHash = currentPayload.hashCode();
-        prefs.edit().putInt("panel_dismissed", dismissedHash).apply();
+        Prefs.setPanelDismissed(this, dismissedHash);
         closeCard();
     }
 
@@ -2110,19 +2102,19 @@ public class ComfortActivity extends Activity {
         if (!Style.current().id.equals(themeId) || Style.LIGHT != themeLight) { recreate(); return; }
         // same idea: the Turbo toggle in Config only takes effect on the next
         // build of this screen, same as a theme change
-        if (prefs.getBoolean("turbo_enabled", true) != turboEnabledAtBuild) { recreate(); return; }
-        if (prefs.getBoolean("drive_card_enabled", true) != driveCardEnabledAtBuild) { recreate(); return; }
+        if (Prefs.getTurboEnabled(this) != turboEnabledAtBuild) { recreate(); return; }
+        if (Prefs.getDriveCardEnabled(this) != driveCardEnabledAtBuild) { recreate(); return; }
         // Same mistake as the skyline comment above describes, made fresh:
         // musicLargeCardAtBuild was read once at onCreate with no onResume
         // check, so toggling Config > Spotify > "Large card" and coming
         // back to Home did nothing -- reported live. Same fix, same pattern.
-        if (prefs.getBoolean("spotify_large_card", false) != musicLargeCardAtBuild) { recreate(); return; }
+        if (Prefs.getSpotifyLargeCard(this) != musicLargeCardAtBuild) { recreate(); return; }
         // Same again for the skyline settings. This was previously missing
         // the "skyline_enabled" half entirely -- the toggle saved fine but
         // nothing ever told this already-running screen to rebuild art, so
         // the skyline just kept showing.
-        boolean curSkylineEnabled = prefs.getBoolean("skyline_enabled", true);
-        long curSkylineSeed = prefs.getLong("skyline_seed", com.geely.drivemem.art.Skyline.DEFAULT_SEED);
+        boolean curSkylineEnabled = Prefs.getSkylineEnabled(this);
+        long curSkylineSeed = Prefs.getSkylineSeed(this, com.geely.drivemem.art.Skyline.DEFAULT_SEED);
         if (curSkylineEnabled != skylineEnabledAtBuild || curSkylineSeed != skylineSeedAtBuild) {
             recreate();
             return;
@@ -2164,7 +2156,7 @@ public class ComfortActivity extends Activity {
         MusicState.setListener(musicListener);
         // Same "changed while paused" re-check as the gate, and the same
         // reason: a track can start or end while the screen is off.
-        boolean nowMusicAvailable = MusicState.title() != null && !MusicState.title().isEmpty();
+        boolean nowMusicAvailable = ComfortCardVisibility.showMusicCard(MusicState.title());
         if (musicCard != null) musicCard.setVisibility(nowMusicAvailable ? View.VISIBLE : View.GONE);
         if (nowMusicAvailable) {
             musicTitleView.setText(MusicState.title());
@@ -2195,7 +2187,7 @@ public class ComfortActivity extends Activity {
         // it (reported 2026-09-21: parked -> opened Config -> car started
         // driving -> back to Home, Portão/Turbo had no gap between them).
         if (turboCardView != null) {
-            boolean turboVisible = turboEnabledAtBuild && !CarState.isParked();
+            boolean turboVisible = ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, CarState.isParked());
             if (turboVisible != lastTurboVisible) {
                 lastTurboVisible = turboVisible;
                 turboCardView.setVisibility(turboVisible ? View.VISIBLE : View.GONE);

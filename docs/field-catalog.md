@@ -257,6 +257,11 @@ ATSH7E2      # Set target ECU address to 0x7E2 (BMS ECU)
 | **State of Charge (SoC)** | `22 4B 36` | 2 bytes | `(A * 256 + B) / 10.0` | 0.0 to 105.0% (0.1% precision) |
 | **Pack Voltage** | `22 4B 21` | 2 bytes | `(A * 256 + B) / 10.0` | 200.0 to 500.0 V |
 | **Pack Current** | `22 4B 22` | 2 bytes | `((A * 256 + B) - 5000) / 10.0` | Amperes (+ discharge, - charge) |
-| **Battery Core Temp** | `22 4B 3C` | 1 byte | `A - 40` (or `A` depending on BMS offset) | -40 to +85 °C |
+| **Battery Core Temp** | `22 4B 3C` | 1 byte | `A - 40` | -40 to +85 °C |
 | **Vehicle Speed** | `22 DF 01` | 1 byte | `A` | 0 to 255 km/h |
 | **Instantaneous Power** | *(Calculated)* | - | `(Voltage * Current) / 1000.0` | Kilowatts (kW) |
+
+`4B3C` is a proprietary BMS identifier, not a generic OBD-II temperature PID.
+On the EX2, its unsigned byte is encoded with a 40-degree offset: for example,
+raw `0x5A` (90) is 50 °C. Do not reuse this conversion for another vehicle
+without validating that vehicle's BMS response.

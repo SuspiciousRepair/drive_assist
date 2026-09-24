@@ -1,6 +1,7 @@
 package com.geely.drivemem.art;
 
 import com.geely.drivemem.car.CarAccess;
+import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.Style;
 
 import android.content.Context;
@@ -62,8 +63,7 @@ public class SkylineArtView extends ArtView {
 
     public SkylineArtView(Context c) {
         super(c);
-        android.content.SharedPreferences prefs = c.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-        skyline.setSeed(prefs.getLong("skyline_seed", Skyline.DEFAULT_SEED));
+        skyline.setSeed(Prefs.getSkylineSeed(c, Skyline.DEFAULT_SEED));
     }
 
     // Live in-place regeneration -- used when "random every drive" rolls a

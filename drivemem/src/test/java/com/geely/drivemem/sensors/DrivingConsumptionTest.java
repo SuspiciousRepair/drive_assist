@@ -161,6 +161,18 @@ public class DrivingConsumptionTest {
         assertEquals(EnergySource.MIXED, c.energySource());
     }
 
+    // A row in a driving gear but stopped (e.g. traffic light), where OBD2
+    // didn't answer for that instant and the SoC-delta fallback reported
+    // exactly zero, isn't an estimate of anything -- nothing moved. Caught
+    // 2026-09-24: a real day with 617/619 samples cleanly OBD2-measured
+    // still resolved MIXED purely from 2 rows like this one.
+    @Test public void energySourceExcludesZeroEnergyEstimatedRows() {
+        DrivingConsumption c = new DrivingConsumption();
+        c.add(0, 100, 20, 8, false, .1, 0, NaN, 1);       // measured, real energy
+        c.add(15000, 100, 0, 8, false, 0, 0, NaN, 0);      // estimated, but zero -- excluded
+        assertEquals(EnergySource.MEASURED, c.energySource());
+    }
+
     // A null energy_measured is a pre-migration row: real spent/regen energy
     // exists, but nothing recorded which source it came from. Must resolve
     // NO_DATA, not get miscounted as either measured or estimated.

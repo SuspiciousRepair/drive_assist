@@ -8,6 +8,7 @@ import android.util.Log;
 
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.net.Updater;
+import com.geely.drivemem.util.Prefs;
 
 /** Controls ADB state through the privileged modehelper.
  *
@@ -39,8 +40,7 @@ public final class AdbGate {
     /** Sets the privileged Wi-Fi SSID in drivemem preferences and broadcasts it to modehelper. */
     public static void setTrustedWifi(Context ctx, String ssid) {
         String clean = (ssid != null) ? ssid.trim() : "";
-        ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
-           .edit().putString(KEY_TRUSTED_SSID, clean).apply();
+        Prefs.setTrustedSsid(ctx, clean);
         if (helperPresent(ctx)) {
             Intent i = new Intent(HELPER_SET_TRUSTED).setPackage(HELPER_PKG);
             i.putExtra("ssid", clean);
@@ -51,8 +51,7 @@ public final class AdbGate {
 
     /** Gets the configured privileged Wi-Fi SSID. */
     public static String getTrustedWifi(Context ctx) {
-        return ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
-                  .getString(KEY_TRUSTED_SSID, DEFAULT_TRUSTED_SSID);
+        return Prefs.getTrustedSsid(ctx, DEFAULT_TRUSTED_SSID);
     }
 
     /** Gets the currently connected Wi-Fi SSID without quotes, or empty if disconnected. */
@@ -101,8 +100,7 @@ public final class AdbGate {
     /** Returns true if the car is on the home network (by gateway check).
      * This is the primary security guard for the MQTT path. */
     public static boolean isHome(Context ctx) {
-        String want = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
-                         .getString(KEY_HOME_GW, DEFAULT_HOME_GW);
+        String want = Prefs.getHomeGateway(ctx, DEFAULT_HOME_GW);
         String gw = gateway(ctx);
         boolean home = want.equals(gw);
         if (!home) Log.i(CarAccess.TAG, "adb: not home — gateway is " + gw + ", expected " + want);

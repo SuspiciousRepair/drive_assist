@@ -9,12 +9,13 @@ import com.geely.drivemem.hvac.ComfortRuler;
 import com.geely.drivemem.sensors.GpsReader;
 import com.geely.drivemem.sensors.Obd2Reader;
 import com.geely.drivemem.state.CarState;
+import com.geely.drivemem.state.ChargeSession;
 import com.geely.drivemem.state.ParkSession;
 import com.geely.drivemem.state.TripSession;
 import com.geely.drivemem.util.Modes;
+import com.geely.drivemem.util.Prefs;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -101,8 +102,7 @@ public final class AbrpUploader {
 
     public static boolean isLocationEnabled(Context ctx) {
         if (ctx == null) return false;
-        return ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
-                  .getBoolean(PREF_SEND_LOCATION, true);
+        return Prefs.getAbrpSendLocation(ctx);
     }
 
     private static volatile boolean subscribed = false;
@@ -112,7 +112,7 @@ public final class AbrpUploader {
 
     // The latest telemetry.tick snapshot, cheap to cache -- the sampler
     // thread reads this every SAMPLE_MS rather than waiting on the tick
-    // itself, which is what lets sampling run faster than that ~15s tick.
+    // itself, which is what lets sampling run faster than the CarActor.TICK_INTERVAL_MS tick.
     private static volatile Map<String, Object> lastData = null;
     private static final Object samplerWakeLock = new Object();
     // This class's own cached copy of the one thing Obd2Reader pushes --
@@ -138,6 +138,7 @@ public final class AbrpUploader {
     public static void unsubscribe(Listener l) { listeners.remove(l); }
 
     public static JSONObject lastTlmSent() { return lastTlm; }
+    public static void setLastObdReadingForTesting(Obd2Reader.Reading r) { lastObdReading = r; }
     public static long lastAttemptAtMs() { return lastAttemptAtMs; }
     public static boolean lastAttemptOk() { return lastOk; }
     public static String lastErrorDetail() { return lastError; }
@@ -199,8 +200,7 @@ public final class AbrpUploader {
     public static void testConnect(Context ctx, TestCallback cb) {
         Context app = ctx.getApplicationContext();
         new Thread(() -> {
-            SharedPreferences p = app.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-            String userToken = p.getString("abrp_user_token", "").trim();
+            String userToken = Prefs.getAbrpUserToken(app).trim();
             if (userToken.isEmpty()) {
                 cb.onResult(false, "missing user token");
                 return;
@@ -231,7 +231,7 @@ public final class AbrpUploader {
         subscribed = true;
         Context app = ctx.getApplicationContext();
         appCtx = app;
-        app.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
+        Prefs.file(app)
             .registerOnSharedPreferenceChangeListener((prefs, key) -> {
                 if ("abrp_enabled".equals(key) || "abrp_user_token".equals(key)) wakeSampler();
             });
@@ -311,8 +311,7 @@ public final class AbrpUploader {
     }
 
     private static boolean isConfigured(Context ctx) {
-        SharedPreferences p = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-        return p.getBoolean("abrp_enabled", false) && !p.getString("abrp_user_token", "").isEmpty();
+        return Prefs.getAbrpEnabled(ctx) && !Prefs.getAbrpUserToken(ctx).isEmpty();
     }
 
     // Builds one reading, or null if there's nothing worth building yet
@@ -323,9 +322,8 @@ public final class AbrpUploader {
         Map<String, Object> data = lastData;
         if (data == null) return null;   // no telemetry seen yet
 
-        SharedPreferences p = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-        if (!p.getBoolean("abrp_enabled", false)) return null;
-        String userToken = p.getString("abrp_user_token", "");
+        if (!Prefs.getAbrpEnabled(ctx)) return null;
+        String userToken = Prefs.getAbrpUserToken(ctx);
         if (userToken.isEmpty()) return null;
 
         Integer isCharging = asInt(data.get("is_charging"));
@@ -344,9 +342,8 @@ public final class AbrpUploader {
     private static JSONObject buildParkedMarker(Context ctx) {
         Map<String, Object> data = lastData;
         if (data == null) return null;
-        SharedPreferences p = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-        if (!p.getBoolean("abrp_enabled", false)) return null;
-        if (p.getString("abrp_user_token", "").isEmpty()) return null;
+        if (!Prefs.getAbrpEnabled(ctx)) return null;
+        if (Prefs.getAbrpUserToken(ctx).isEmpty()) return null;
 
         Object gear = data.get("gear");
         boolean parked = gear instanceof Integer && (Integer) gear == Modes.GEAR_PARK_ADAPTED;
@@ -357,8 +354,7 @@ public final class AbrpUploader {
 
     private static void flushQueue(Context ctx) {
         if (queue.isEmpty()) return;
-        SharedPreferences p = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-        String userToken = p.getString("abrp_user_token", "");
+        String userToken = Prefs.getAbrpUserToken(ctx);
         if (userToken.isEmpty()) return;
 
         int n = queue.size();   // captured before any clear() -- that's what's actually going out
@@ -375,8 +371,7 @@ public final class AbrpUploader {
     // see this file's own header for why that matters to ABRP's "online"
     // status specifically, not just data freshness.
     private static void sendLive(Context ctx, JSONObject tlm) {
-        SharedPreferences p = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-        String userToken = p.getString("abrp_user_token", "");
+        String userToken = Prefs.getAbrpUserToken(ctx);
         if (userToken.isEmpty()) return;
 
         boolean ok = postSingle(API_KEY, userToken, tlm);
@@ -439,15 +434,13 @@ public final class AbrpUploader {
             Object gear = data.get("gear");
             if (gear instanceof Integer) tlm.put("is_parked", (Integer) gear == Modes.GEAR_PARK_ADAPTED ? 1 : 0);
 
-            // is_dcfc: use voltage, not current or power, to distinguish modes.
-            // The voltage divider reads AC mains side during AC charging (~240V)
-            // but the DC pack side during DC fast charging (~400V). Power is
-            // unreliable because DCFC tapers near full charge but remains on the
-            // DC pack at high voltage. 250V threshold safely separates the two.
+            // is_dcfc: use the vehicle's charge port voltage (charge_v), NOT OBD2
+            // pack voltage. Port voltage reads AC mains (~240V) during AC charging
+            // and DC pack (~400V) during DC fast charging, whereas OBD2 pack voltage
+            // is always ~400V even on AC.
             if (charging) {
-                Float voltsForDcfc = (obdFresh && obd.voltage != null) ? obd.voltage.floatValue() : null;
-                if (voltsForDcfc == null) voltsForDcfc = asFloat(data.get("charge_v"));
-                if (voltsForDcfc != null) tlm.put("is_dcfc", voltsForDcfc > 250f ? 1 : 0);
+                Float chargeV = asFloat(data.get("charge_v"));
+                if (chargeV != null) tlm.put("is_dcfc", ChargeSession.isDcfc(chargeV) ? 1 : 0);
             }
 
             Float odo = asFloat(data.get("odometer"));

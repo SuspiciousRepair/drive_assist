@@ -13,6 +13,8 @@ import com.geely.drivemem.util.DbMigration;
 import com.geely.drivemem.util.Diagnostics;
 
 import android.content.Context;
+import android.content.SharedPreferences; // pii: allow (17-char identifier, not a VIN)
+import android.database.Cursor;
 import android.os.SystemClock;
 import android.util.Log;
 
@@ -46,30 +48,17 @@ public final class ChargeSession {
         if (subscribed) return;
         subscribed = true;
         Context app = ctx.getApplicationContext();
+        recoverOpenSession(app);
         EntityBus.subscribe("car.is_charging", (key, reading) -> {
             if (reading.status != CarActor.Reading.Status.OK || !(reading.value instanceof Integer)) return;
             boolean charging = (Integer) reading.value == 1;
-            // car.is_charging is current-derived (charge_a > 0.5A) and that
-            // property is the one known to latch — never trust it INTO a
-            // session while CarActor's own cache (the one place plug state
-            // lives — no shadow copy here) says nothing is plugged in, or the
-            // 2s poll cycle would just reopen what the plug_connected
-            // subscription below is closing, forever.
-            if (charging && isKnownUnplugged(app)) return;
             onChargingEdge(app, charging);
-        });
-        EntityBus.subscribe("car.plug_connected", (key, reading) -> {
-            if (reading.status == CarActor.Reading.Status.OK && reading.value instanceof Integer
-                    && (Integer) reading.value == 0 && wasCharging) {
-                Log.i(TAG, "chargesession: plug reads disconnected while still marked charging — closing");
-                onChargingEdge(app, false);
-            }
         });
         EntityBus.subscribe("telemetry.tick", (key, reading) -> {
             if (reading.status == CarActor.Reading.Status.OK) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> data = (Map<String, Object>) reading.value;
-                onTelemetryTick(data);
+                onTelemetryTick(app, data);
             }
         });
         CarState.ensureSubscribed();
@@ -126,8 +115,8 @@ public final class ChargeSession {
             this.dismissed = dismissed;
         }
 
-        /** Pack voltage is the authoritative charging-type discriminator. */
-        public boolean isDcfc() { return !Double.isNaN(maxChargeV) && maxChargeV >= 250.0; }
+        /** Port voltage is the authoritative charging-type discriminator (~240V AC vs ~400V DC). */
+        public boolean isDcfc() { return ChargeSession.isDcfc(maxChargeV); }
         public boolean hasChargeVoltage() { return !Double.isNaN(maxChargeV) && maxChargeV > 0; }
 
         public long durationS() { return Math.max(0, (endWallMs - startWallMs) / 1000); }
@@ -169,6 +158,57 @@ public final class ChargeSession {
         }
     }
 
+    private static final String PREFS = "drivemem";
+    private static final String PREF_CHARGE_OPEN_START_MS = "charge_open_start_ms";
+    private static final String PREF_CHARGE_OPEN_START_SOC = "charge_open_start_soc";
+    private static final String PREF_CHARGE_OPEN_SOC_END = "charge_open_soc_end";
+    private static final String PREF_CHARGE_OPEN_START_SAMPLE_ID = "charge_open_start_sample_id";
+    private static final String PREF_CHARGE_OPEN_WH_ACCUM = "charge_open_wh_accum";
+    private static final String PREF_CHARGE_OPEN_ROW_ID = "charge_open_row_id";
+    private static final String PREF_CHARGE_OPEN_ODO_START = "charge_open_odo_start";
+    private static final String PREF_CHARGE_OPEN_MAX_V = "charge_open_max_v";
+    private static final String PREF_CHARGE_OPEN_SAMPLE_COUNT = "charge_open_sample_count";
+    private static final String PREF_CHARGE_OPEN_COST = "charge_open_cost";
+
+    public static final class SessionSnapshot {
+        public final long sessionRowId;
+        public final long startWallMs, endWallMs, startSampleId;
+        public final int socStart, socEnd, sampleCount;
+        public final double kwh, avgPowerW, maxChargeV, odoStart;
+        public final Double cost;
+
+        public SessionSnapshot(long sessionRowId, long startWallMs, long endWallMs, long startSampleId,
+                int socStart, int socEnd, double kwh, double avgPowerW, double maxChargeV,
+                int sampleCount, double odoStart, Double cost) {
+            this.sessionRowId = sessionRowId;
+            this.startWallMs = startWallMs;
+            this.endWallMs = endWallMs;
+            this.startSampleId = startSampleId;
+            this.socStart = socStart;
+            this.socEnd = socEnd;
+            this.kwh = kwh;
+            this.avgPowerW = avgPowerW;
+            this.maxChargeV = maxChargeV;
+            this.sampleCount = sampleCount;
+            this.odoStart = odoStart;
+            this.cost = cost;
+        }
+
+        public Summary toSummary(long rowId) {
+            return new Summary(rowId, startWallMs, endWallMs, socStart, socEnd,
+                kwh, avgPowerW, maxChargeV, sampleCount, odoStart, cost, false);
+        }
+    }
+
+    public static SessionSnapshot captureSnapshot(long endWallMs) {
+        long durationMs = Math.max(0, endWallMs - startWallMs);
+        double kwh = whAccum / 1000.0;
+        double durationH = durationMs / 3_600_000.0;
+        double avgPowerW = (durationH > 0) ? whAccum / durationH : 0;
+        return new SessionSnapshot(currentSessionRowId, startWallMs, endWallMs, startSampleId,
+            socStart, socEnd, kwh, avgPowerW, maxChargeV, sampleCount, odoStart, currentCost);
+    }
+
     public static final long CHARGE_GRACE_PERIOD_MS = 180_000L;
     public static final double MIN_CHARGE_KWH = 0.05;
     public static final long MIN_CHARGE_DURATION_MS = 60_000L;
@@ -188,6 +228,11 @@ public final class ChargeSession {
     private static Runnable chargeGraceRunnable = null;
 
     private ChargeSession() {}
+
+    /** Distinguishes AC charging (~240V mains) from DC fast charging (~400V pack) by port voltage. */
+    public static boolean isDcfc(double chargeV) {
+        return !Double.isNaN(chargeV) && chargeV >= 250.0;
+    }
 
     /** Returns whether charging current is actively flowing right now. */
     public static boolean isCharging() { return wasCharging; }
@@ -227,16 +272,8 @@ public final class ChargeSession {
             + " samples=" + sampleCount;
     }
 
-    // CarActor.get() is the cache — the one place a reading lives once
-    // published. Optimistic (false) on anything but a confirmed 0, same
-    // reasoning as CarState's own "parked defaults to true": don't block a
-    // real charge start just because this hasn't been read yet at boot.
-    private static boolean isKnownUnplugged(Context ctx) {
-        CarActor.Reading r = CarActor.get(ctx).get("car.plug_connected");
-        return r.status == CarActor.Reading.Status.OK && r.value instanceof Integer && (Integer) r.value == 0;
-    }
-
     public static void onParkExit(Context ctx) {
+        CarActor.assertCarThread();
         if (chargeGraceRunnable != null || (sessionActive && !wasCharging)) {
             Log.i(TAG, "chargesession: car shifted out of Park during pause — finalizing session immediately");
             finalizeGracePeriod(ctx);
@@ -250,7 +287,8 @@ public final class ChargeSession {
     }
 
     // Fast edge detection — from CarActor's dedicated "car.is_charging"
-    // poll (2s, current-derived, independent of the 15s telemetry cadence).
+    // poll (2s, cross-checking current and plug state, independent of the
+    // CarActor.TICK_INTERVAL_MS telemetry cadence).
     // Handles session start/stop bookkeeping and the onProgress/onIdle/
     // onSession notifications that make the live card show/hide promptly.
     public static void onChargingEdge(Context ctx, boolean charging) {
@@ -258,6 +296,7 @@ public final class ChargeSession {
     }
 
     public static void onChargingEdge(Context ctx, boolean charging, long nowWallMs, long nowMonoMs) {
+        CarActor.assertCarThread();
         if (charging == wasCharging) return;   // no edge, nothing to do
         if (charging) {
             // 0 -> 1
@@ -270,6 +309,7 @@ public final class ChargeSession {
                 lastSampleMonoMs = nowMonoMs;
                 wasCharging = true;
                 sessionActive = true;
+                if (ctx != null) persistOpenSession(ctx);
                 Log.i(TAG, "chargesession: charge resumed within grace period, merging into session id=" + currentSessionRowId);
                 ProgressListener pl = progressListener;
                 if (pl != null) pl.onProgress(socStart, socEnd, startWallMs, nowWallMs);
@@ -291,6 +331,7 @@ public final class ChargeSession {
                 currentCost = null;
                 wasCharging = true;
                 sessionActive = true;
+                if (ctx != null) persistOpenSession(ctx);
                 ProgressListener pl = progressListener;
                 if (pl != null) pl.onProgress(socStart, socEnd, startWallMs, nowWallMs);
             }
@@ -311,65 +352,75 @@ public final class ChargeSession {
             chargeGraceRunnable = () -> finalizeGracePeriod(ctx);
             if (ctx != null) {
                 CarActor.get(ctx).runOnCarThreadDelayed(chargeGraceRunnable, CHARGE_GRACE_PERIOD_MS);
+                persistOpenSession(ctx);
             }
             Log.i(TAG, "chargesession: charge stopped, 180s grace period started");
         }
     }
 
     private static void commitOrUpdateSession(Context ctx, long endWallMs) {
-        long durationMs = Math.max(0, endWallMs - startWallMs);
-        double kwh = whAccum / 1000.0;
-        double durationH = durationMs / 3_600_000.0;
-        double avgPowerW = (durationH > 0) ? whAccum / durationH : 0;
+        final SessionSnapshot snap = captureSnapshot(endWallMs);
         if (ctx == null) {
-            long rowId = currentSessionRowId > 0 ? currentSessionRowId : 1L;
+            long rowId = snap.sessionRowId > 0 ? snap.sessionRowId : 1L;
             currentSessionRowId = rowId;
-            Summary complete = new Summary(rowId, startWallMs, endWallMs, socStart, socEnd,
-                kwh, avgPowerW, maxChargeV, sampleCount, odoStart, currentCost, false);
+            Summary complete = snap.toSummary(rowId);
             Listener l = listener;
             if (l != null) l.onSession(complete);
             ProgressListener pl = progressListener;
             if (pl != null) pl.onCompleted(complete);
+            EntityBus.publish("charge.completed", CarActor.Reading.ok(complete));
             return;
         }
         final long endSampleId = CarDb.get(ctx).latestSampleId();
         CarDb.get(ctx).write(() -> {
             try {
                 android.content.ContentValues v = new android.content.ContentValues();
-                v.put("start_ms", startWallMs);
-                v.put("end_ms", endWallMs);
-                v.put("start_sample_id", startSampleId);
+                v.put("start_ms", snap.startWallMs);
+                v.put("end_ms", snap.endWallMs);
+                v.put("start_sample_id", snap.startSampleId);
                 v.put("end_sample_id", endSampleId);
-                v.put("soc_start", socStart);
-                v.put("soc_end", socEnd);
-                v.put("kwh", kwh);
-                v.put("avg_power_w", avgPowerW);
-                if (!Double.isNaN(maxChargeV)) v.put("max_charge_v", maxChargeV);
-                v.put("samples", sampleCount);
-                if (odoStart >= 0) v.put("odo_start_km", odoStart);
+                v.put("soc_start", snap.socStart);
+                v.put("soc_end", snap.socEnd);
+                v.put("kwh", snap.kwh);
+                v.put("avg_power_w", snap.avgPowerW);
+                if (!Double.isNaN(snap.maxChargeV)) v.put("max_charge_v", snap.maxChargeV);
+                v.put("samples", snap.sampleCount);
+                if (snap.odoStart >= 0) v.put("odo_start_km", snap.odoStart);
                 v.put("dismissed", 0);
-                if (currentCost != null) v.put("cost", currentCost);
+                if (snap.cost != null) v.put("cost", snap.cost);
 
-                long rowId = currentSessionRowId;
+                long rowId = snap.sessionRowId;
                 if (rowId <= 0) {
                     rowId = CarDb.get(ctx).db().insert("charge_session", null, v);
-                    currentSessionRowId = rowId;
                 } else {
                     CarDb.get(ctx).db().update("charge_session", v, "id = ?", new String[]{String.valueOf(rowId)});
                 }
 
-                Summary complete = new Summary(rowId, startWallMs, endWallMs, socStart, socEnd,
-                    kwh, avgPowerW, maxChargeV, sampleCount, odoStart, currentCost, false);
+                Summary complete = snap.toSummary(rowId);
                 android.content.ContentValues event = new android.content.ContentValues();
-                event.put("session_id", rowId); event.put("occurred_ms", endWallMs);
-                event.put("soc", socEnd); event.put("kwh", kwh);
+                event.put("session_id", rowId); event.put("occurred_ms", snap.endWallMs);
+                event.put("soc", snap.socEnd); event.put("kwh", snap.kwh);
                 CarDb.get(ctx).db().insertWithOnConflict("charge_stop_event", null, event,
                     android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE);
-                Listener l = listener;
-                if (l != null) l.onSession(complete);
-                ProgressListener pl = progressListener;
-                if (pl != null) pl.onCompleted(complete);
-                EntityBus.publish("charge.completed", CarActor.Reading.ok(complete));
+
+                final long finalRowId = rowId;
+                CarActor actor = CarActor.get(ctx);
+                Runnable publishRunnable = () -> {
+                    if (currentSessionRowId <= 0 && sessionActive) {
+                        currentSessionRowId = finalRowId;
+                        persistOpenSession(ctx);
+                    }
+                    Listener l = listener;
+                    if (l != null) l.onSession(complete);
+                    ProgressListener pl = progressListener;
+                    if (pl != null) pl.onCompleted(complete);
+                    EntityBus.publish("charge.completed", CarActor.Reading.ok(complete));
+                };
+                if (actor != null) {
+                    actor.runOnCarThread(publishRunnable);
+                } else {
+                    publishRunnable.run();
+                }
             } catch (Throwable t) {
                 Log.w(TAG, "chargesession commitOrUpdateSession: " + t);
             }
@@ -377,6 +428,7 @@ public final class ChargeSession {
     }
 
     public static void finalizeGracePeriod(Context ctx) {
+        CarActor.assertCarThread();
         if (chargeGraceRunnable != null) {
             if (ctx != null) CarActor.get(ctx).cancelOnCarThread(chargeGraceRunnable);
             chargeGraceRunnable = null;
@@ -401,15 +453,18 @@ public final class ChargeSession {
             if (pl != null) pl.onIdle();
         }
 
+        if (ctx != null) clearOpenSession(ctx);
         resetSessionState();
     }
 
     public static boolean finalizeSession(Context ctx) {
+        CarActor.assertCarThread();
         finalizeGracePeriod(ctx);
         return true;
     }
 
     public static boolean finalizeSession(Context ctx, long now) {
+        CarActor.assertCarThread();
         finalizeGracePeriod(ctx);
         return true;
     }
@@ -451,11 +506,22 @@ public final class ChargeSession {
         resetSessionState();
     }
 
-    // Periodic sampling — from the regular 15s telemetry tick, only while
-    // a session is active per the fast edge above. No longer decides
-    // whether a session is starting or ending itself; only integrates
-    // energy and refreshes the live progress display.
+    // Periodic sampling — from the regular telemetry tick (CarActor.TICK_INTERVAL_MS),
+    // only while a session is active per the fast edge above. Self-corrects
+    // against state drift by cross-checking CarActor's current cached is_charging.
     public static void onTelemetryTick(Map<String, Object> data) {
+        onTelemetryTick(null, data);
+    }
+
+    public static void onTelemetryTick(Context ctx, Map<String, Object> data) {
+        CarActor.assertCarThread();
+        CarActor actor = (ctx != null) ? CarActor.get(ctx) : CarActor.get();
+        if (actor != null) {
+            Boolean cachedCharging = CarActor.chargingFrom(actor.get("car.is_charging"));
+            if (cachedCharging != null && cachedCharging != wasCharging) {
+                onChargingEdge(ctx, cachedCharging);
+            }
+        }
         if (!wasCharging) return;
         Integer soc = asInt(data.get("battery"));
         Float a = asFloat(data.get("charge_a"));
@@ -477,6 +543,7 @@ public final class ChargeSession {
             sampleCount++;
         }
         lastSampleMonoMs = nowMono;
+        if (ctx != null) persistOpenSession(ctx);
 
         ProgressListener pl = progressListener;
         if (pl != null) pl.onProgress(socStart, socEnd, startWallMs, System.currentTimeMillis());
@@ -587,6 +654,7 @@ public final class ChargeSession {
     public static void updateCost(Context ctx, long id, double cost) {
         if (id == currentSessionRowId) {
             currentCost = cost;
+            if (ctx != null) persistOpenSession(ctx);
         }
         if (ctx == null) return;
         CarDb.get(ctx).write(() -> {
@@ -601,7 +669,12 @@ public final class ChargeSession {
                   + ") WHERE date IN ("
                   + "  SELECT date(start_ms/1000,'unixepoch','localtime') FROM charge_session WHERE id = ?"
                   + ")", new Object[]{id});
-                EntityBus.publish("charge.cost_updated", CarActor.Reading.ok(id));
+                CarActor actor = CarActor.get(ctx);
+                if (actor != null) {
+                    actor.runOnCarThread(() -> EntityBus.publish("charge.cost_updated", CarActor.Reading.ok(id)));
+                } else {
+                    EntityBus.publish("charge.cost_updated", CarActor.Reading.ok(id));
+                }
             } catch (Throwable t) {
                 Log.w(TAG, "chargesession updateCost: " + t);
             }
@@ -616,10 +689,191 @@ public final class ChargeSession {
                 android.content.ContentValues v = new android.content.ContentValues();
                 v.put("dismissed", 1);
                 CarDb.get(ctx).db().update("charge_session", v, "id = ?", new String[]{String.valueOf(id)});
-                EntityBus.publish("charge.dismissed", CarActor.Reading.ok(id));
+                CarActor actor = CarActor.get(ctx);
+                if (actor != null) {
+                    actor.runOnCarThread(() -> EntityBus.publish("charge.dismissed", CarActor.Reading.ok(id)));
+                } else {
+                    EntityBus.publish("charge.dismissed", CarActor.Reading.ok(id));
+                }
             } catch (Throwable t) {
                 Log.w(TAG, "chargesession dismissSession: " + t);
             }
         });
+    }
+
+    public static void recoverOpenSession(Context ctx) {
+        if (ctx == null) return;
+        try {
+            recoverOpenSessionUnsafe(ctx);
+        } catch (Throwable t) {
+            Log.w(TAG, "chargesession recovery: failed, continuing without it: " + t);
+        }
+    }
+
+    private static void recoverOpenSessionUnsafe(Context ctx) {
+        SharedPreferences p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE); // pii: allow (17-char identifier, not a VIN)
+        recoverFromPreferences(p, ctx);
+    }
+
+    public static boolean recoverFromPreferences(SharedPreferences p, Context ctx) {
+        if (p == null) return false;
+        long persistedStartMs = p.getLong(PREF_CHARGE_OPEN_START_MS, -1);
+        if (persistedStartMs <= 0) return false;
+
+        int persistedSocStart = p.getInt(PREF_CHARGE_OPEN_START_SOC, -1);
+        int persistedSocEnd = p.getInt(PREF_CHARGE_OPEN_SOC_END, persistedSocStart);
+        long persistedStartSampleId = p.getLong(PREF_CHARGE_OPEN_START_SAMPLE_ID, -1);
+        double persistedWhAccum = Double.longBitsToDouble(p.getLong(PREF_CHARGE_OPEN_WH_ACCUM, 0L));
+        long persistedRowId = p.getLong(PREF_CHARGE_OPEN_ROW_ID, -1);
+        double persistedOdoStart = Double.longBitsToDouble(p.getLong(PREF_CHARGE_OPEN_ODO_START, Double.doubleToRawLongBits(-1.0)));
+        double persistedMaxV = Double.longBitsToDouble(p.getLong(PREF_CHARGE_OPEN_MAX_V, Double.doubleToRawLongBits(Double.NaN)));
+        int persistedSampleCount = p.getInt(PREF_CHARGE_OPEN_SAMPLE_COUNT, 0);
+        float persistedCost = p.getFloat(PREF_CHARGE_OPEN_COST, -1f);
+
+        sessionActive = true;
+        startWallMs = persistedStartMs;
+        socStart = persistedSocStart;
+        socEnd = persistedSocEnd;
+        startSampleId = persistedStartSampleId;
+        whAccum = persistedWhAccum;
+        currentSessionRowId = persistedRowId;
+        odoStart = persistedOdoStart;
+        maxChargeV = persistedMaxV;
+        sampleCount = persistedSampleCount;
+        currentCost = (persistedCost >= 0) ? (double) persistedCost : null;
+        lastSampleMonoMs = SystemClock.elapsedRealtime();
+
+        CarActor actor = (ctx != null) ? CarActor.get(ctx) : CarActor.get();
+        Boolean cachedCharging = (actor != null) ? CarActor.chargingFrom(actor.get("car.is_charging")) : null;
+        if (Boolean.TRUE.equals(cachedCharging)) {
+            wasCharging = true;
+            pauseWallMs = 0;
+            chargeGraceRunnable = null;
+        } else {
+            wasCharging = false;
+            pauseWallMs = System.currentTimeMillis();
+            if (chargeGraceRunnable != null && ctx != null && actor != null) {
+                actor.cancelOnCarThread(chargeGraceRunnable);
+            }
+            chargeGraceRunnable = () -> finalizeGracePeriod(ctx);
+            if (ctx != null && actor != null) {
+                actor.runOnCarThreadDelayed(chargeGraceRunnable, CHARGE_GRACE_PERIOD_MS);
+            }
+        }
+
+        if (ctx != null && persistedStartSampleId >= 0) {
+            try {
+                replaySamplesFromDb(ctx, persistedStartSampleId);
+            } catch (Throwable t) {
+                Log.w(TAG, "charge recovery: replay telemetry failed: " + t);
+            }
+        }
+
+        Log.i(TAG, String.format(Locale.US,
+            "charge recovery: restored open session from %d (wh=%.1f, socStart=%d, socEnd=%d, rowId=%d)",
+            startWallMs, whAccum, socStart, socEnd, currentSessionRowId));
+
+        ProgressListener pl = progressListener;
+        if (pl != null) pl.onProgress(socStart, socEnd, startWallMs, System.currentTimeMillis());
+        return true;
+    }
+
+    public static double[] replayTelemetry(Object[][] rows, double prevWh, int prevCount, double prevMaxV, int prevSoc) {
+        double rederivedWh = 0;
+        int rederivedCount = 0;
+        double rederivedMaxV = prevMaxV;
+        int latestSoc = prevSoc;
+        long lastTs = -1;
+        for (Object[] r : rows) {
+            long ts = ((Number) r[0]).longValue();
+            Float a = r[1] != null ? ((Number) r[1]).floatValue() : null;
+            Float v = r[2] != null ? ((Number) r[2]).floatValue() : null;
+            if (r[3] != null) latestSoc = ((Number) r[3]).intValue();
+            if (v != null && v > 0 && (Double.isNaN(rederivedMaxV) || v > rederivedMaxV)) {
+                rederivedMaxV = v;
+            }
+            if (a != null && v != null && a > 0 && lastTs > 0) {
+                double hours = (ts - lastTs) / 3_600_000.0;
+                if (hours > 0 && hours < 1.0) {
+                    rederivedWh += a * v * hours;
+                    rederivedCount++;
+                }
+            }
+            lastTs = ts;
+        }
+        return new double[]{
+            Math.max(prevWh, rederivedWh),
+            Math.max(prevCount, rederivedCount),
+            rederivedMaxV,
+            latestSoc
+        };
+    }
+
+    private static void replaySamplesFromDb(Context ctx, long fromSampleId) {
+        long endSampleId = CarDb.get(ctx).latestSampleId();
+        if (endSampleId < fromSampleId) return;
+        Cursor c = CarDb.get(ctx).db().rawQuery(
+            "SELECT ts_ms, charge_a, charge_v, battery_pct FROM telemetry_sample "
+          + "WHERE id BETWEEN ? AND ? ORDER BY id ASC",
+            new String[]{String.valueOf(fromSampleId), String.valueOf(endSampleId)});
+        try {
+            java.util.List<Object[]> rows = new java.util.ArrayList<>();
+            while (c.moveToNext()) {
+                long ts = c.getLong(0);
+                Float a = c.isNull(1) ? null : c.getFloat(1);
+                Float v = c.isNull(2) ? null : c.getFloat(2);
+                Integer soc = c.isNull(3) ? null : c.getInt(3);
+                rows.add(new Object[]{ts, a, v, soc});
+            }
+            double[] res = replayTelemetry(rows.toArray(new Object[0][]), whAccum, sampleCount, maxChargeV, socEnd);
+            whAccum = res[0];
+            sampleCount = (int) res[1];
+            maxChargeV = res[2];
+            socEnd = (int) res[3];
+        } finally {
+            c.close();
+        }
+    }
+
+    public static void persistOpenSession(Context ctx) {
+        if (ctx == null) return;
+        persistOpenSession(ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)); // pii: allow (17-char identifier, not a VIN)
+    }
+
+    public static void persistOpenSession(SharedPreferences p) {
+        if (p == null) return;
+        p.edit()
+            .putLong(PREF_CHARGE_OPEN_START_MS, startWallMs)
+            .putInt(PREF_CHARGE_OPEN_START_SOC, socStart)
+            .putInt(PREF_CHARGE_OPEN_SOC_END, socEnd)
+            .putLong(PREF_CHARGE_OPEN_START_SAMPLE_ID, startSampleId)
+            .putLong(PREF_CHARGE_OPEN_WH_ACCUM, Double.doubleToRawLongBits(whAccum))
+            .putLong(PREF_CHARGE_OPEN_ROW_ID, currentSessionRowId)
+            .putLong(PREF_CHARGE_OPEN_ODO_START, Double.doubleToRawLongBits(odoStart))
+            .putLong(PREF_CHARGE_OPEN_MAX_V, Double.doubleToRawLongBits(maxChargeV))
+            .putInt(PREF_CHARGE_OPEN_SAMPLE_COUNT, sampleCount)
+            .putFloat(PREF_CHARGE_OPEN_COST, currentCost != null ? currentCost.floatValue() : -1f)
+            .apply();
+    }
+
+    public static void clearOpenSession(Context ctx) {
+        if (ctx == null) return;
+        clearOpenSession(ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)); // pii: allow (17-char identifier, not a VIN)
+    }
+
+    public static void clearOpenSession(SharedPreferences p) {
+        if (p == null) return;
+        p.edit()
+            .remove(PREF_CHARGE_OPEN_START_MS)
+            .remove(PREF_CHARGE_OPEN_START_SOC)
+            .remove(PREF_CHARGE_OPEN_SOC_END)
+            .remove(PREF_CHARGE_OPEN_START_SAMPLE_ID)
+            .remove(PREF_CHARGE_OPEN_WH_ACCUM)
+            .remove(PREF_CHARGE_OPEN_ROW_ID)
+            .remove(PREF_CHARGE_OPEN_ODO_START)
+            .remove(PREF_CHARGE_OPEN_MAX_V)
+            .remove(PREF_CHARGE_OPEN_SAMPLE_COUNT)
+            .remove(PREF_CHARGE_OPEN_COST)
+            .apply();
     }
 }

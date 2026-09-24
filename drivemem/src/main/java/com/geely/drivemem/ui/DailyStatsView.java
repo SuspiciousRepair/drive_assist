@@ -416,7 +416,7 @@ public class DailyStatsView extends LinearLayout {
         if (period != Period.DAY) loadPeriod();
     }
 
-    /** Live tick update (~15s) while screen is actively displayed. */
+    /** Live tick update (telemetry.tick cadence, CarActor.TICK_INTERVAL_MS) while screen is actively displayed. */
     private void onLiveTick() {
         if (!isShown() || days == null || days.isEmpty()) return;
         // Day-only: `selectedIdx` stays pointed at today's index even while

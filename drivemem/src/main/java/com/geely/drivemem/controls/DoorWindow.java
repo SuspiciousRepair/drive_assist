@@ -4,9 +4,9 @@ import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.car.EntityBus;
 import com.geely.drivemem.hvac.ComfortHub;
+import com.geely.drivemem.util.Prefs;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.util.Log;
 
 import java.util.HashMap;
@@ -64,16 +64,14 @@ public final class DoorWindow {
 
     /** Returns whether the door-window feature is enabled. */
     public static boolean enabled(Context c) {
-        return c.getSharedPreferences("drivemem", Context.MODE_PRIVATE).getBoolean(KEY, false);
+        return Prefs.getWindowOnDoor(c);
     }
 
     private final Context ctx;
-    private final SharedPreferences prefs;
     private final Map<Integer, Boolean> wasOpen = new HashMap<>();
 
     private DoorWindow(Context ctx) {
         this.ctx = ctx;
-        this.prefs = ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
     }
 
     void onDoor(int doorArea, int pos) {
@@ -86,7 +84,7 @@ public final class DoorWindow {
 
         // Checked AFTER the state is recorded: turning the feature on mid-session
         // must not make the next event look like the first one.
-        if (!prefs.getBoolean(KEY, false)) return;
+        if (!Prefs.getWindowOnDoor(ctx)) return;
 
         Integer win = DOOR_TO_WINDOW.get(doorArea);
         if (win == null) return;

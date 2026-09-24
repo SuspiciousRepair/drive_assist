@@ -39,16 +39,9 @@ public final class TripSession {
     public static final double MIN_TRIP_DISTANCE_KM = 0.1;
     public static final long MIN_TRIP_DRIVE_DURATION_MS = 45_000L;
 
-    // A trip in progress lives ONLY in the static fields below — nothing about
-    // it touches disk until finalizeTrip() writes the summary row. That's fine
-    // for a normal park-to-park drive, but a process restart mid-trip (an app
-    // reinstall during a brief Park is what actually happened, on 2026-09-12:
-    // ~34 minutes and 12km of driving before the install were never written,
-    // because the whole in-progress trip lived only in these fields) wipes
-    // every one of them with nothing to show for the drive already underway.
-    // These prefs are the fix: just enough of the trip's IDENTITY (not its
-    // accumulators) to find it again in telemetry_sample after a restart.
-    // See persistOpenTrip/recoverOpenTrip below.
+    // Rule: persist open trip identity to SharedPreferences on start; recover from telemetry_sample on boot.
+    // Invariant: in-progress trip data survives process restarts mid-drive (e.g. app updates).
+    // See docs/incidents.md#2026-09-12-trip-restart-loss
     private static final String PREFS = "drivemem";
     private static final String PREF_OPEN_START_MS = "trip_open_start_ms";
     private static final String PREF_OPEN_START_SAMPLE_ID = "trip_open_start_sample_id";
@@ -105,16 +98,23 @@ public final class TripSession {
     }
 
     public static void onGear(Context ctx, int gear, long now) {
+        CarActor.assertCarThread();
         boolean nowParked = (gear == Modes.GEAR_PARK_ADAPTED);
-        if (nowParked == wasParked) return; // no edge
-
-        // The one place car.gear becomes "parked or not" — CarState relays
-        // this to everyone else (ChargeSession included) via its own
-        // listeners, so nothing downstream needs its own gear subscription.
-        CarState.reportParked(nowParked);
+        if (nowParked == wasParked) return; // no edge -- CarActor only calls
+        // onGear() when car.gear actually changed (EntityBus.ingest() only
+        // publishes on change, see its own comment), so this is never a
+        // repeat delivery of the same reading. A "require two consecutive
+        // non-Park readings" debounce briefly lived here and was wrong for
+        // exactly that reason: the car emits a gear change once per real
+        // shift, not on a poll loop, so requiring a second one meant a
+        // driver who shifted P->D and never touched the selector again
+        // stayed marked "parked" for the entire drive. Caught 2026-09-24 on
+        // a real drive.
+        wasParked = nowParked;
 
         if (!nowParked) {
-            // Parked -> driving: cancel pending park grace finalizer if any
+            CarState.reportParked(false);
+
             if (parkGraceRunnable != null) {
                 if (ctx != null) {
                     CarActor.get(ctx).cancelOnCarThread(parkGraceRunnable);
@@ -123,17 +123,13 @@ public final class TripSession {
             }
 
             if (tripActive) {
-                // Continue existing trip seamlessly (stitch/merge segments)
                 currentDriveSegmentStartMs = now;
             } else {
-                // Any open charge session already got force-closed by
-                // CarState.reportParked() above — its onParkExit listener runs
-                // synchronously, before this line — so there is nothing to do
-                // here for that any more.
                 startNewTrip(ctx, now);
             }
         } else {
-            // Driving -> parked: enter park grace period
+            CarState.reportParked(true);
+
             if (tripActive) {
                 drivingDurationMs += Math.max(0, now - currentDriveSegmentStartMs);
                 currentDriveSegmentStartMs = 0;
@@ -146,7 +142,6 @@ public final class TripSession {
                 }
             }
         }
-        wasParked = nowParked;
     }
 
     private static void startNewTrip(Context ctx, long now) {
@@ -187,6 +182,7 @@ public final class TripSession {
      * would go completely untracked, not merely mislabeled. A no-op (like
      * finalizeTrip) if no trip is open. */
     public static synchronized boolean splitTrip(Context ctx, long now) {
+        CarActor.assertCarThread();
         if (!tripActive) return false;
         boolean wasDriving = !wasParked;
         boolean qualified = finalizeTrip(ctx, now);
@@ -195,6 +191,7 @@ public final class TripSession {
     }
 
     private static void onTelemetryTick(Context ctx, Map<String, Object> data) {
+        CarActor.assertCarThread();
         if (!tripActive) return; // only track while a trip is actually open
         boolean backfilled = false;
         if (startOdoKm < 0 && data.containsKey("odometer")) {
@@ -240,6 +237,7 @@ public final class TripSession {
     }
 
     public static boolean finalizeTrip(Context ctx, long now) {
+        CarActor.assertCarThread();
         if (parkGraceRunnable != null) {
             if (ctx != null) {
                 CarActor.get(ctx).cancelOnCarThread(parkGraceRunnable);
@@ -355,16 +353,9 @@ public final class TripSession {
     // ALSO happens to restart mid-trip — is an acceptable gap for how rare it
     // is, versus the complexity of replaying per-sample gear timings too.
     private static void recoverOpenTrip(Context ctx) {
-        // Runs unconditionally on every app start, before anything else --
-        // there is no safe fallback path above this in the call chain
-        // (TelemetryService.onStartCommand has none either). Learned the hard
-        // way on 2026-09-12: this whole method used to run bare, and a
-        // completely unrelated DB problem (a schema-downgrade refusal) turned
-        // into an uncaught SQLiteException here, which crashed the service,
-        // which got the whole app killed and backed off for an hour. Recovery
-        // is a best-effort convenience, not something worth ever bringing the
-        // app down over -- any failure here should cost the recovered trip's
-        // ascent/descent/energy accuracy at worst, never app startup.
+        // Rule: trip recovery must be wrapped in try/catch and never throw.
+        // Invariant: recovery is best-effort and must never crash service or app startup.
+        // See docs/incidents.md#2026-09-12-sqlite-downgrade-rejection
         try {
             recoverOpenTripUnsafe(ctx);
         } catch (Throwable t) {
@@ -488,8 +479,19 @@ public final class TripSession {
             Context ctx, long startMs, long endMs, EnergyIntegrator.TripSnapshot ts) {
         try {
             Cursor c = CarDb.get(ctx).db().rawQuery(
-                "SELECT SUM(CASE WHEN energy_measured=1 THEN 1 ELSE 0 END), "
-              + "       SUM(CASE WHEN energy_measured=0 THEN 1 ELSE 0 END) "
+                // battery_temp_c is OBD2-exclusive (see CarDb's v22 migration
+                // comment) -- checked directly here, not just via the stored
+                // energy_measured flag, so a live-path bug self-heals for every
+                // trip finalized from here on, not only rows a one-time
+                // migration happened to already reach.
+                "SELECT SUM(CASE WHEN energy_measured=1 OR battery_temp_c IS NOT NULL THEN 1 ELSE 0 END), "
+              // A row with no OBD2 AND no real energy delta (stopped, idle,
+              // nothing to measure) is not an estimate of anything -- see
+              // DailyStatsProvider.getEnergyBalances()'s own comment on the
+              // same fix (2026-09-24) for the day-level version of this bug.
+              + "       SUM(CASE WHEN energy_measured=0 AND battery_temp_c IS NULL "
+              + "                 AND (IFNULL(energy_spent_kwh,0) != 0 OR IFNULL(energy_regen_kwh,0) != 0) "
+              + "            THEN 1 ELSE 0 END) "
               + "FROM telemetry_sample WHERE ts_ms BETWEEN ? AND ? "
               + "AND (CASE WHEN gear IS NOT NULL THEN gear <> 4 "
               + "     ELSE (is_charging IS NULL OR is_charging = 0) END)",
@@ -594,6 +596,7 @@ public final class TripSession {
     public static void resetForTesting() {
         resetTripState();
         wasParked = true;
+        CarState.setParkedForTesting(true);
         testCurrentOdoKm = null;
         EnergyIntegrator.resetForTesting();
     }

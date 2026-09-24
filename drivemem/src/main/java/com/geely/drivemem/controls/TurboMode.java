@@ -6,6 +6,7 @@ import com.geely.drivemem.net.MqttReporter;
 import com.geely.drivemem.state.GateState;
 import com.geely.drivemem.ui.TelemetryActivity;
 import com.geely.drivemem.util.Modes;
+import com.geely.drivemem.util.Prefs;
 
 import android.content.Context;
 import android.os.Handler;
@@ -68,16 +69,14 @@ public final class TurboMode {
     /** Starts a boost, or, if one is already active, refreshes its timer back
      * to the full duration without re-reading or re-writing drive mode. */
     public void start() {
-        android.content.SharedPreferences p =
-            ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-        if (!p.getBoolean("turbo_enabled", true)) return;   // Config: card off
+        if (!Prefs.getTurboEnabled(ctx)) return;   // Config: card off
         synchronized (stateLock) {
             // Clamped here, not at input time: the Config field saves its raw
             // typed value on every keystroke (never rewritten under the
             // cursor), so an in-progress edit or an old out-of-range save
             // must not be able to start a boost shorter than 5s or longer
             // than 120s.
-            durationMs = Math.max(5, Math.min(120, p.getInt("turbo_duration_s", DEFAULT_DURATION_S))) * 1000L;
+            durationMs = Math.max(5, Math.min(120, Prefs.getTurboDurationS(ctx, DEFAULT_DURATION_S))) * 1000L;
             if (active) {
                 startMs = System.currentTimeMillis();
                 fraction = 1f;
@@ -96,7 +95,7 @@ public final class TurboMode {
             CarActor.get(ctx).read("drive_mode", cur -> {
                 synchronized (stateLock) {
                     if (!active || boost != generation) return;
-                    previousDrive = (cur instanceof Integer) ? (Integer) cur : p.getInt("drive", Modes.DRIVE_ECO);
+                    previousDrive = (cur instanceof Integer) ? (Integer) cur : Prefs.getDriveMode(ctx, Modes.DRIVE_ECO);
                     CarActor.get(ctx).cast("drive_mode", Modes.DRIVE_SPORT);
                     startMs = System.currentTimeMillis();
                     h.post(() -> tick(boost));

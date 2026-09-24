@@ -673,8 +673,24 @@ public final class DailyStatsProvider {
             DayEnergyBalance item = new DayEnergyBalance(DAY_FMT.format(new Date(start)));
             Cursor c = db.rawQuery(
                 "SELECT COALESCE(SUM(energy_spent_kwh),0), COALESCE(SUM(energy_regen_kwh),0), "
-              + "       SUM(CASE WHEN energy_measured=1 THEN 1 ELSE 0 END), "
-              + "       SUM(CASE WHEN energy_measured=0 THEN 1 ELSE 0 END) "
+              // battery_temp_c is OBD2-exclusive (see CarDb's v22 migration
+              // comment) -- checked directly here, not just via the stored
+              // energy_measured flag, so a row wrongly flagged "estimated" by
+              // a live-path bug reads correctly on every query, not only for
+              // rows a one-time migration happened to reach.
+              + "       SUM(CASE WHEN energy_measured=1 OR battery_temp_c IS NOT NULL THEN 1 ELSE 0 END), "
+              // A row with no OBD2 AND no real energy delta (parked/idle,
+              // nothing to measure) is not an estimate of anything -- only
+              // count "estimated" against a row that actually moved energy,
+              // the same gate DrivingConsumption.add() already applies.
+              // Without this, a day that was mostly idle with the screen on
+              // (hours of zero-energy samples, no OBD2 poll needed) reads as
+              // MIXED even though every real driving/charging sample that
+              // day was fully OBD2-measured -- caught 2026-09-24 on a day
+              // that was 619 measured / 0 real-estimated / 218 idle-zero.
+              + "       SUM(CASE WHEN energy_measured=0 AND battery_temp_c IS NULL "
+              + "                 AND (IFNULL(energy_spent_kwh,0) != 0 OR IFNULL(energy_regen_kwh,0) != 0) "
+              + "            THEN 1 ELSE 0 END) "
               + "FROM telemetry_sample WHERE ts_ms >= ? AND ts_ms < ? "
               + "AND (is_charging IS NULL OR is_charging = 0)",
                 new String[]{String.valueOf(start), String.valueOf(end)});
@@ -715,7 +731,8 @@ public final class DailyStatsProvider {
         DrivingConsumption totals = new DrivingConsumption();
         Cursor c = db.rawQuery(
             "SELECT ts_ms, odo_km, speed_kmh, gear, is_charging, "
-          + "       energy_spent_kwh, energy_regen_kwh, instant_power_kw_est, energy_measured "
+          + "       energy_spent_kwh, energy_regen_kwh, instant_power_kw_est, energy_measured, "
+          + "       battery_temp_c "
           + "FROM telemetry_sample WHERE " + where + " ORDER BY ts_ms ASC, id ASC", args);
         try {
             while (c.moveToNext()) {
@@ -728,6 +745,11 @@ public final class DailyStatsProvider {
                 double regen = c.isNull(6) ? Double.NaN : c.getDouble(6);
                 double power = c.isNull(7) ? Double.NaN : c.getDouble(7);
                 Integer measured = c.isNull(8) ? null : c.getInt(8);
+                // battery_temp_c is OBD2-exclusive (see CarDb's v22 migration
+                // comment) -- trust it over a stale/wrongly-set energy_measured
+                // flag so a live-path bug self-heals on every read, not just
+                // for rows a one-time migration happened to already reach.
+                if (!c.isNull(9) && (measured == null || measured == 0)) measured = 1;
                 totals.add(ts, odo, speed, gear, charging, spent, regen, power, measured);
             }
         } finally { c.close(); }
@@ -1254,7 +1276,7 @@ public final class DailyStatsProvider {
                 double kwh = cc.getDouble(5);
                 double avgPowerKw = cc.getDouble(6) / 1000.0;
                 Float v = cc.isNull(7) ? null : cc.getFloat(7);
-                boolean isDcfc = v != null && v >= 250f;
+                boolean isDcfc = v != null && com.geely.drivemem.state.ChargeSession.isDcfc(v);
                 Double cost = cc.isNull(8) ? null : cc.getDouble(8);
                 out.add(new ChargeSessionItem(id, startMs, endMs, socStart, socEnd, kwh, avgPowerKw, isDcfc, cost));
             }
@@ -1273,7 +1295,7 @@ public final class DailyStatsProvider {
             if (vR.status == com.geely.drivemem.car.CarActor.Reading.Status.OK && vR.value instanceof Float) {
                 v = (Float) vR.value;
             }
-            boolean isDcfc = v != null && v >= 250f;
+            boolean isDcfc = v != null && com.geely.drivemem.state.ChargeSession.isDcfc(v);
             out.add(new ChargeSessionItem(0, startMs, 0, socStart, socEnd, kwh, avgPowerKw, isDcfc));
         }
 

@@ -51,7 +51,19 @@ public final class GateState {
     private static volatile boolean connected;
 
     public static void setConnected(boolean c) { connected = c; fire(); }
-    public static boolean connected() { return connected; }
+    // "Connected" has to mean "press() will actually work," not just that a
+    // flag was set -- `connected` and `sender` are two independently-mutated
+    // pieces of state (connected toggles on every reconnect of an existing
+    // MqttReporter; sender is bound once per instance, in its constructor,
+    // and cleared once, in its close()) with no atomic update tying them
+    // together. A rebuild-on-config-change race between an old instance's
+    // async close() and a new instance's synchronous constructor was seen
+    // to leave `connected` true with `sender` still null (or vice versa):
+    // Config showed "Connected", GateCard was enabled, and pressing it
+    // logged "GateState.press() returned false (no sender)" -- the tap did
+    // nothing, silently. Folding the sender check into this getter means
+    // the button can never again promise something press() can't deliver.
+    public static boolean connected() { return connected && sender != null; }
 
     // ---- UI -> MQTT: single toggle verb ----
     // Gate motor has one toggle line (open -> stop -> close -> stop -> open).

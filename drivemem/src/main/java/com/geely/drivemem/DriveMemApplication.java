@@ -30,19 +30,12 @@ import android.app.Application;
  * the app was already in front of it — both showing on screen together.
  * Application.onCreate() is the one place guaranteed to run first.
  *
- * The same reasoning now applies to every piece of core car-state tracking
- * below: it used to live in TelemetryService.onStartCommand(), on the theory
- * that the service is the one thing guaranteed to start early. It is not —
- * logcat shows it crashed and got force-restarted four times in one evening
- * (2026-09-14, ~22:17-22:46), and it is skipped entirely by BootReceiver
- * whenever MQTT telemetry itself is turned off. Every time either happens,
- * TripSession/ParkSession/ParkingState/ChargeSession/EnergyIntegrator and
- * the rest silently stop reacting to the car at all until something else
- * happens to start the service again — which is exactly how ParkingState's
- * "parked since" clock was found stuck at a park from the previous day,
- * surviving a real drive in between because the listener that should have
- * cleared it was never registered. These are the car's own shared state —
- * they must not depend on a feature-toggleable service's uptime. */
+ * Rule: bootstrap all shared vehicle state tracking in Application.onCreate(),
+ * never inside TelemetryService.
+ * Invariant: core car tracking must survive background service restarts and
+ * run even when MQTT telemetry is toggled off.
+ * See docs/incidents.md#2026-09-14-core-state-lifecycle
+ */
 public final class DriveMemApplication extends Application {
     @Override public void onCreate() {
         super.onCreate();

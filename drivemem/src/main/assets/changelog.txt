@@ -1,6 +1,6 @@
-- New: a large Spotify card, with full album art and big Play/Skip
-  buttons. Pick it in Settings > Spotify.
-- New: each window can now open to its own amount when you crack all
-  four at once, instead of all four opening the same amount.
-- Fixed: a rare case where a driving trip could get mislabeled as
-  "estimated" even though it was measured by the car.
+- Fixed: a drive right after turning off Valet mode could disappear from
+  your trip history instead of showing up.
+- Fixed: another case of a driving trip mislabeled as "estimated" when
+  it was really measured by the car.
+- Changed: you can now turn off Valet mode while driving, not just while
+  parked.

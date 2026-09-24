@@ -90,19 +90,19 @@ public class BootReceiver extends BroadcastReceiver {
 
         // debug command: turn services on without touching the screen (via adb broadcast)
         if ("com.geely.drivemem.WIFIICON_ON".equals(a)) {
-            ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE).edit().putBoolean("wifiicon_on", true).apply();
+            Prefs.setWifiIconOn(ctx, true);
             Intent svc = new Intent(ctx, WifiIconService.class);
             if (android.os.Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(svc); else ctx.startService(svc);
             return;
         }
         if ("com.geely.drivemem.OUTTEMP_ON".equals(a)) {
-            ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE).edit().putBoolean("outtemp_on", true).apply();
+            Prefs.setOutTempOn(ctx, true);
             Intent svc = new Intent(ctx, OutTempService.class);
             if (android.os.Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(svc); else ctx.startService(svc);
             return;
         }
         if ("com.geely.drivemem.SOCICON_ON".equals(a)) {
-            ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE).edit().putBoolean("soc_on", true).apply();
+            Prefs.setSocOn(ctx, true);
             Intent svc = new Intent(ctx, SocIconService.class);
             if (android.os.Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(svc); else ctx.startService(svc);
             return;
@@ -138,8 +138,7 @@ public class BootReceiver extends BroadcastReceiver {
 
         // telemetry: restarted on boot if enabled (foreground service, allowed)
         try {
-            if (ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
-                    .getBoolean("tele_enabled", false)) {
+            if (Prefs.getTeleEnabled(ctx)) {
                 Intent svc = new Intent(ctx, TelemetryService.class);
                 if (android.os.Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(svc);
                 else ctx.startService(svc);
@@ -148,8 +147,7 @@ public class BootReceiver extends BroadcastReceiver {
 
         // temperature in the status bar: also restarted on boot if it was on
         try {
-            if (ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
-                    .getBoolean("outtemp_on", false)) {
+            if (Prefs.getOutTempOn(ctx)) {
                 Intent svc = new Intent(ctx, OutTempService.class);
                 if (android.os.Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(svc);
                 else ctx.startService(svc);
@@ -159,8 +157,7 @@ public class BootReceiver extends BroadcastReceiver {
 
         // battery % in the status bar: also restarted on boot if it was on
         try {
-            if (ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
-                    .getBoolean("soc_on", false)) {
+            if (Prefs.getSocOn(ctx)) {
                 Intent svc = new Intent(ctx, SocIconService.class);
                 if (android.os.Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(svc);
                 else ctx.startService(svc);
@@ -214,8 +211,6 @@ public class BootReceiver extends BroadcastReceiver {
     // service's beat is old, we stop it and start it again, so that the broken
     // instance (stuck thread, dead MQTT client) is really thrown away.
     public static void ensureAll(Context ctx) {
-        android.content.SharedPreferences p =
-            ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
         try {
             android.net.wifi.WifiManager wm = (android.net.wifi.WifiManager)
                 ctx.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
@@ -224,26 +219,26 @@ public class BootReceiver extends BroadcastReceiver {
             }
         } catch (Throwable ignored) {}
 
-        ensureService(ctx, p.getBoolean("outtemp_on", false),
+        ensureService(ctx, Prefs.getOutTempOn(ctx),
             OutTempService.class, Beat.OUTTEMP, STALE_OUTTEMP_MS);
-        ensureService(ctx, p.getBoolean("tele_enabled", false),
+        ensureService(ctx, Prefs.getTeleEnabled(ctx),
             TelemetryService.class, Beat.TELE, STALE_TELE_MS);
         // The TELE beat only says the loop went round. With the actor, the loop
         // never gets stuck, so we also watch whether MQTT is REALLY publishing.
         // Much bigger limit: a broker down for a few minutes is normal and must
         // not restart the service (the actor reconnects by itself).
-        ensureService(ctx, p.getBoolean("tele_enabled", false),
+        ensureService(ctx, Prefs.getTeleEnabled(ctx),
             TelemetryService.class, Beat.MQTT, STALE_MQTT_MS);
-        ensureService(ctx, p.getBoolean("wifiicon_on", false),
+        ensureService(ctx, Prefs.getWifiIconOn(ctx),
             WifiIconService.class, Beat.WIFIICON, STALE_WIFI_MS);
-        ensureService(ctx, p.getBoolean("soc_on", false),
+        ensureService(ctx, Prefs.getSocOn(ctx),
             SocIconService.class, Beat.SOCICON, STALE_SOC_MS);
 
         // Own small block, not ensureService(): that helper's zombie-detection
         // needs a Beat key with a real periodic tick behind it, and the overlay
         // has none — startForegroundService()'s own no-op on an already-running
         // instance is all the restart-safety this one needs.
-        if (p.getBoolean("overlay_on", false)) {
+        if (Prefs.getOverlayOn(ctx)) {
             try {
                 Intent s = new Intent(ctx, com.geely.drivemem.services.OverlayService.class);
                 if (android.os.Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(s);

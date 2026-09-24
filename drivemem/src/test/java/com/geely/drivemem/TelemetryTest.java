@@ -1,9 +1,13 @@
 package com.geely.drivemem;
 
+import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.Telemetry;
+import com.geely.drivemem.sensors.EnergyIntegrator;
 
 import org.junit.Test;
 import static org.junit.Assert.*;
+
+import java.util.Map;
 
 public class TelemetryTest {
 
@@ -40,5 +44,37 @@ public class TelemetryTest {
         assertEquals("R", Telemetry.gearLabel(2));
         assertEquals("P", Telemetry.gearLabel(4));
         assertEquals("D", Telemetry.gearLabel(8));
+    }
+
+    @Test public void snapshotDoesNotDrainEnergyAccumulatorsWhileTickDrains() {
+        EnergyIntegrator.resetForTesting();
+        Telemetry.resetForTesting();
+
+        // Accumulate positive power (spent energy)
+        // 20 kW over 2 seconds = 20 * (2/3600) = 0.01111 kWh
+        EnergyIntegrator.onPowerReading(1_000, 20.0);
+        EnergyIntegrator.onPowerReading(3_000, 20.0);
+
+        CarAccess dummyCar = new CarAccess();
+
+        // Calling snapshot() multiple times must not drain accumulated energy
+        Map<String, Object> snap1 = Telemetry.snapshot(dummyCar, false);
+        Map<String, Object> snap2 = Telemetry.snapshot(dummyCar, false);
+
+        assertFalse("snapshot must not contain energy_spent_kwh", snap1.containsKey("energy_spent_kwh"));
+        assertFalse("snapshot must not contain energy_spent_kwh", snap2.containsKey("energy_spent_kwh"));
+        assertNull("snapshot must not advance lastPowerSoc", Telemetry.getLastPowerSocForTesting());
+        assertEquals("snapshot must not advance lastPowerSocAtMs", 0L, Telemetry.getLastPowerSocAtMsForTesting());
+
+        // Now call tick() - should drain and report the accumulated energy
+        Map<String, Object> tick1 = Telemetry.tick(dummyCar, false);
+        assertTrue("tick must contain energy_spent_kwh", tick1.containsKey("energy_spent_kwh"));
+        float spent1 = (Float) tick1.get("energy_spent_kwh");
+        assertTrue("tick must drain accumulated energy (>0)", spent1 > 0.005f);
+
+        // Calling tick() a second time without new readings must yield 0 drained energy
+        Map<String, Object> tick2 = Telemetry.tick(dummyCar, false);
+        float spent2 = (Float) tick2.get("energy_spent_kwh");
+        assertEquals("subsequent tick without readings must be 0", 0.0f, spent2, 0.0001f);
     }
 }

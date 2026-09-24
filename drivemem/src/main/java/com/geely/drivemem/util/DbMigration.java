@@ -8,7 +8,6 @@ import com.geely.drivemem.state.ChargeSession;
 
 import android.content.ContentValues;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.util.Log;
 
 import java.util.ArrayList;
@@ -22,22 +21,20 @@ import java.util.List;
  */
 public final class DbMigration {
     private static final String TAG = CarAccess.TAG;
-    private static final String PREF_KEY = "db_migrated_v1";
 
     /** Runs the migration once if not already completed. */
     public static void runOnce(Context ctx) {
         final Context app = ctx.getApplicationContext();
-        final SharedPreferences p = app.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
 
         // Guard check must run on the writer thread to prevent race conditions
         // where TelemetryService.onStartCommand() fires twice in quick succession,
         // causing both calls to import and duplicate all rows.
         CarDb.get(app).write(() -> {
-            if (p.getBoolean(PREF_KEY, false)) return;
+            if (Prefs.getDbMigratedV1(app)) return;
             try {
                 migrateCharge(app);
                 migrateOdo(app);
-                p.edit().putBoolean(PREF_KEY, true).apply();
+                Prefs.setDbMigratedV1(app);
                 Log.i(TAG, "dbmigration: done");
             } catch (Throwable t) {
                 // Deliberately does NOT set the flag on failure — a broken

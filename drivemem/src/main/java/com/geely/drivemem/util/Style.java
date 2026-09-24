@@ -3,16 +3,19 @@ package com.geely.drivemem.util;
 import com.geely.drivemem.R;
 
 import com.geely.drivemem.art.ArtView;
+import com.geely.drivemem.controls.GeelySwitch;
 import com.geely.drivemem.hvac.ComfortRuler;
 import com.geely.drivemem.hvac.EffortTable;
 import com.geely.drivemem.ui.ComfortActivity;
 import com.geely.drivemem.ui.TelemetryActivity;
 
+import com.geely.drivemem.controls.GeelySwitch;
+
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.text.InputType;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
@@ -21,6 +24,7 @@ import android.text.style.StyleSpan;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -177,14 +181,12 @@ public class Style {
 
     /** Returns the saved appearance setting (Light/Dark/Auto). */
     public static String appearance(Context c) {
-        return c.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
-                .getString("appearance", APPEARANCE_DARK);
+        return Prefs.getAppearance(c, APPEARANCE_DARK);
     }
 
     /** Saves and applies an appearance setting (Light/Dark/Auto). */
     public static void setAppearance(Context c, String mode) {
-        c.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
-         .edit().putString("appearance", mode).apply();
+        Prefs.setAppearance(c, mode);
     }
 
     // Reads Android's system day/night setting (Configuration.uiMode).
@@ -209,11 +211,11 @@ public class Style {
 
     /** Loads the saved theme (or transient override) and applies it. Called at onCreate start. */
     public static void load(Context c) {
-        SharedPreferences p = c.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
-        String savedTheme = p.getString("theme", THEMES[0].id);
+        String savedTheme = Prefs.getTheme(c, THEMES[0].id);
         if ("claro".equals(savedTheme)) {
             // Legacy: Claro theme merged into Default's light Palette; migrate to APPEARANCE_LIGHT.
-            p.edit().putString("theme", THEMES[0].id).putString("appearance", APPEARANCE_LIGHT).apply();
+            Prefs.setTheme(c, THEMES[0].id);
+            Prefs.setAppearance(c, APPEARANCE_LIGHT);
             savedTheme = THEMES[0].id;
         }
         apply(c, byId(transientId != null ? transientId : savedTheme));
@@ -221,15 +223,13 @@ public class Style {
 
     /** Returns the saved theme ID, ignoring any transient override. */
     public static String savedId(Context c) {
-        return c.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
-                .getString("theme", THEMES[0].id);
+        return Prefs.getTheme(c, THEMES[0].id);
     }
 
     /** Saves and applies a theme (caller should recreate the screen). Clears transient overrides. */
     public static void save(Context c, String id) {
         transientId = null;
-        c.getSharedPreferences("drivemem", Context.MODE_PRIVATE)
-         .edit().putString("theme", id).apply();
+        Prefs.setTheme(c, id);
         apply(c, byId(id));
     }
 
@@ -468,6 +468,81 @@ public class Style {
         TextView t = new TextView(c);
         t.setText(s); t.setTextColor(TEXT); t.setTextSize(22);
         t.setTypeface(null, android.graphics.Typeface.BOLD);
+        return t;
+    }
+
+    /** Labeled toggle row (switch + label), the shape every Config section
+     * uses for a boolean setting. Moved here from TelemetryActivity so a
+     * section extracted into its own View class can still build one. */
+    public static LinearLayout toggleRow(Context c, String label, boolean on, GeelySwitch.OnToggle cb) {
+        LinearLayout row = new LinearLayout(c);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(c, 8), 0, dp(c, 8));
+        GeelySwitch sw = new GeelySwitch(c);
+        sw.setLockSeconds(Prefs.getSwitchLockS(c, GeelySwitch.DEFAULT_LOCK_S));
+        sw.setCheckedSilently(on);
+        sw.setOnToggle(cb);
+        row.addView(sw);
+        TextView lbl = label(c, label);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.leftMargin = dp(c, 14);
+        lbl.setLayoutParams(lp);
+        row.addView(lbl);
+        return row;
+    }
+
+    /** Labeled text input field, added to `parent` (label above, field below). */
+    public static EditText field(Context c, LinearLayout parent, String label, String val, int type) {
+        TextView l = new TextView(c);
+        l.setText(label); l.setTextColor(TEXT_DIM); l.setTextSize(14);
+        l.setPadding(0, dp(c, 10), 0, dp(c, 2));
+        parent.addView(l);
+        EditText e = new EditText(c);
+        e.setText(val); e.setInputType(type);
+        e.setTextColor(TEXT); e.setTextSize(17);
+        e.setBackground(card(CARD, c));
+        int p = dp(c, 12);
+        e.setPadding(p, p, p, p);
+        parent.addView(e);
+        return e;
+    }
+
+    /** Half-width call-to-action button (fills its row, shared with a sibling). */
+    public static TextView action(Context c, String label, int color, Runnable onClick) {
+        TextView t = new TextView(c);
+        t.setText(label); t.setTextColor(onFill(color)); t.setTextSize(18);
+        t.setTypeface(null, Typeface.BOLD);
+        t.setGravity(Gravity.CENTER);
+        t.setBackground(card(color, c));
+        int pv = dp(c, 16);
+        t.setPadding(pv, pv, pv, pv);
+        t.setOnClickListener(v -> onClick.run());
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        int m = dp(c, 4);
+        lp.setMargins(m, dp(c, 8), m, 0);
+        t.setLayoutParams(lp);
+        return t;
+    }
+
+    /** Small, self-sized action button (Save, Connect, Import, ...), unlike
+     * action() which stretches to fill half its row. */
+    public static TextView button(Context c, String label, int color, Runnable onClick) {
+        TextView t = new TextView(c);
+        t.setText(label); t.setTextColor(onFill(color)); t.setTextSize(15);
+        t.setTypeface(null, Typeface.BOLD);
+        t.setGravity(Gravity.CENTER);
+        t.setBackground(card(color, c));
+        int ph = dp(c, 18);
+        int pv = dp(c, 12);
+        t.setPadding(ph, pv, ph, pv);
+        t.setOnClickListener(v -> onClick.run());
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        int m = dp(c, 4);
+        lp.setMargins(m, dp(c, 8), m, 0);
+        t.setLayoutParams(lp);
         return t;
     }
 
@@ -865,4 +940,5 @@ public class Style {
             v.setLayoutParams(lp);
         }
     }
+
 }

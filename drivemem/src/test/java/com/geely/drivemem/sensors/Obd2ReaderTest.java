@@ -20,6 +20,7 @@ public class Obd2ReaderTest {
     private static final String VOLT_400V = "624B210FA0"; // (15*256+160)/10 = 400.0
     private static final String CURR_50A  = "624B22157C"; // (21*256+124-5000)/10 = 50.0
     private static final String CURR_20A_CHG = "624B2212C0"; // (18*256+192-5000)/10 = -20.0
+    private static final String TEMP_50C = "624B3C5A"; // 0x5A - 40 = 50 C
 
     @Before public void reset() {
         Obd2Reader.resetForTest();
@@ -67,5 +68,12 @@ public class Obd2ReaderTest {
         Obd2Reader.applyReading(null, VOLT_400V, CURR_20A_CHG, null, null);
         // 400.0V * -20.0A = -8000W = -8.0kW
         assertEquals(-8.0f, Obd2Reader.freshPowerKw(5000), 0.001f);
+    }
+
+    @Test public void batteryTemperatureUsesTheGeelyBmsOffset() {
+        // Pair with a valid power PID so this synthetic round is fresh.
+        Obd2Reader.applyReading(null, VOLT_380V, null, TEMP_50C, null);
+
+        assertEquals(50.0f, Obd2Reader.freshBattTempC(5000), 0.001f);
     }
 }
