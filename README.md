@@ -5,7 +5,7 @@
 **English** · [Português (Brasil)](README.pt-BR.md)
 
 [![CI Build](https://img.shields.io/badge/build-passing-brightgreen.svg)](#building)
-[![JaCoCo Coverage](https://img.shields.io/badge/coverage-15.88%25%20%28236%20tests%29-blue.svg)](docs/CODE-QUALITY-REPORT.md)
+[![JaCoCo Coverage](https://img.shields.io/badge/coverage-19.84%25%20%28325%20tests%29-blue.svg)](docs/CODE-QUALITY-REPORT.md)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Geely%20IHU629G%20%7C%20Android%209-orange.svg)](docs/ARCHITECTURE-SAFETY-AUDIT.md)
 
@@ -149,7 +149,7 @@ Full architectural documentation and reverse-engineering guides are located in t
 - [Release Readiness Matrix](docs/RELEASE-READINESS-MATRIX.md) — Comprehensive Go/No-Go release audit and remediation roadmap
 - [Software Architecture & Vehicle Safety Audit](docs/ARCHITECTURE-SAFETY-AUDIT.md) — Multi-perspective audit of UID separation, Park invariants, and VHAL safety
 - [Open-source Head-unit Software Review](docs/OPEN-SOURCE-HEAD-UNIT-REVIEW.md) — Prioritized maintainability, architecture, performance, safety, and community recommendations for rooted sideloaded deployment
-- [Code Quality & Test Coverage Report](docs/CODE-QUALITY-REPORT.md) — JaCoCo test metrics (15.88% scoped instruction coverage / 236 tests), Lint tuning, Checkstyle, and SpotBugs catalog
+- [Code Quality & Test Coverage Report](docs/CODE-QUALITY-REPORT.md) — JaCoCo test metrics (19.84% scoped instruction coverage / 325 tests), Lint tuning, Checkstyle, and SpotBugs catalog
 - [Contributing Guidelines](CONTRIBUTING.md) — Branching rules (`dev`/`master`), Conventional Commits, and pull request checklist
 - [Changelog](CHANGELOG.md) — Full version history, release notes, and unreleased enhancements
 - [License](LICENSE) — GNU General Public License v3.0 terms
