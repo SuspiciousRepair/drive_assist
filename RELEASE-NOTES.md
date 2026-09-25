@@ -12,6 +12,16 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.4.1 — 2026-09-24
+
+- New: recover an unclosed dashcam recording directly in the app.
+- Fixed: recovering an unclosed recording could crash the app instead of
+  reporting that recovery failed.
+- Fixed: the EX2's battery temperature no longer shows impossible
+  sub-zero readings caused by a generic sensor offset.
+- Fixed: ABRP no longer drops a reading when the charging sensor is
+  briefly unavailable.
+
 ## v0.4.0 — 2026-09-24
 
 - Fixed: the gate button could look connected and do nothing when
@@ -26,8 +36,6 @@ issue numbers, no markdown emphasis (the update dialog is plain text).
 - Fixed: a short trip, or a day of real driving, could show as
   "estimated" even though the car's sensor was connected the whole time.
 - Fixed: an ordinary home charge could show up as a fast charge in ABRP.
-- Fixed: the EX2's battery temperature no longer shows impossible
-  sub-zero readings caused by a generic sensor offset.
 - Fixed: several small issues with the large Spotify card added last
   release.
 

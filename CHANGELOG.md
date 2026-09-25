@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.4.1] — 2026-09-24
+
 ### Added
 - **Recover orphaned dashcam clips in-app.** A clip whose recording never
   closed (crash, power loss) used to sit labeled "unclosed — recoverable"
@@ -45,8 +47,6 @@
   from idle telemetry with no actual driving in it. Already-affected
   recent days repaired in place.
 - ABRP could misreport a normal AC charge as a DC fast charge.
-- EX2 battery temperature now preserves the BMS's Celsius reading instead
-  of applying an incorrect generic offset.
 - Several polish issues on the large Spotify card added in v0.3.1
   (toggle, art sizing, caption, spacing).
 
