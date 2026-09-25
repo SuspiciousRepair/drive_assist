@@ -98,6 +98,22 @@ public final class AbrpUploader {
     private static final int QUEUE_CAP = 200;
     private static int sampleCount = 0;   // only touched from the sampler thread
 
+    // ABRP's own documented /bulk processing delay (this file's header) --
+    // how long a batch's data sits before it's actually reconciled
+    // server-side. A small margin over the stated 60s, not the bare
+    // number, since this is a "wait AT LEAST that long" not an exact clock.
+    private static final long ABRP_BULK_WINDOW_SEC = 60;
+    private static final long ABRP_BULK_WINDOW_MS = 65_000;
+
+    /** Whether the batch about to be flushed is old enough that the live
+     * point right behind it could race ahead of it in ABRP's own ~60s
+     * /bulk processing queue. Package-visible for the pure unit test --
+     * same reasoning as samplerDelayMs() below. oldestUtcSec=0 means the
+     * queue was empty (nothing queued, nothing to race against). */
+    static boolean shouldWaitForBulkWindow(long oldestUtcSec, long nowUtcSec) {
+        return oldestUtcSec > 0 && (nowUtcSec - oldestUtcSec) > ABRP_BULK_WINDOW_SEC;
+    }
+
     public static final String PREF_SEND_LOCATION = "abrp_send_location";
 
     public static boolean isLocationEnabled(Context ctx) {
@@ -270,8 +286,28 @@ public final class AbrpUploader {
                     sampleCount++;
                     if (sampleCount % LIVE_EVERY_N == 0) {
                         // Flush whatever's batched BEFORE the live one, so
-                        // older data leaves before newer data.
+                        // older data leaves the DEVICE before newer data --
+                        // but leaving first isn't the same as being
+                        // PROCESSED first. ABRP's own docs (this file's
+                        // header) say /bulk data sits in a ~60s processing
+                        // queue server-side; /send (what the live point
+                        // below uses) has no such delay. Confirmed
+                        // 2026-09-25: a parked-transition marker held up
+                        // 16 minutes by a dead-zone parking garage went out
+                        // via /bulk one second before the next live point,
+                        // and the trip it should have ended never split in
+                        // ABRP's own history -- the live "driving" point
+                        // almost certainly reached ABRP's server and
+                        // reconciled before the stale batch did. Only worth
+                        // waiting out when the batch is actually old enough
+                        // for this race to matter; a normal ~1-minute batch
+                        // of fresh driving data has nothing to race against.
+                        JSONObject oldest = queue.peekFirst();
+                        long oldestUtcSec = oldest != null ? oldest.optLong("utc", 0) : 0;
                         flushQueue(ctx);
+                        if (shouldWaitForBulkWindow(oldestUtcSec, System.currentTimeMillis() / 1000)) {
+                            try { Thread.sleep(ABRP_BULK_WINDOW_MS); } catch (InterruptedException ignored) {}
+                        }
                         sendLive(ctx, tlm);
                     } else {
                         queue.addLast(tlm);
