@@ -70,7 +70,7 @@ The native EVS engine renders a composite 2x2 camera quad (front, rear, left mir
 |---|---|---|
 | **Resolution** | 1920 x 800 | 4 camera views in 2x2 layout (~960x400 per camera) |
 | **Codec** | H.264 / AVC | `video/avc`, Baseline profile |
-| **Bitrate** | 6.0 Mbps CBR | Optimized balance between storage footprint and clarity |
+| **Bitrate** | 16.0 Mbps CBR | Optimized for readable detail in the four-camera composite |
 | **Frame Rate** | 25.0 fps | Native EVS camera sensor stream rate |
 | **Keyframe Interval** | 1.0 s (`IFRAME_SEC = 1`) | Enables fast seeking and bounds crash data loss |
 | **Segment Length** | 300 seconds (5 min) | ~225 MB per segment |
@@ -136,10 +136,28 @@ Standard MP4 containers store the metadata index (`moov` atom) at the end of the
 1. **Simultaneous Annex-B Output**: While streaming to `MediaMuxer`, `DashRecorder` simultaneously appends every raw H.264 access unit to a companion `.h264` file.
 2. **Header Injection**: SPS and PPS parameters from `csd-0` and `csd-1` are written to the head of the `.h264` stream upon encoder initialization.
 3. **Clean Teardown**: Upon normal segment rotation, the MP4 is finalized and renamed atomically (`.mp4.tmp` -> `.mp4`), and the temporary `.h264` stream is deleted.
-4. **Crash Recovery**: If the system resets abruptly, the `.h264` elementary stream remains complete and decodable up to the exact second of termination. It can be remuxed cleanly:
+4. **Crash Recovery**: If the system resets abruptly, the `.h264` elementary stream remains decodable up to the last fully written frame. A computer can remux it without re-encoding:
    ```bash
-   ffmpeg -r 25 -i crash.h264 -c copy recovered.mp4
+   ./tools/recover-dashcam.sh /path/to/dash_YYYYMMDD_HHMMSS.h264
    ```
+   The script requires [FFmpeg](https://ffmpeg.org/), preserves the original
+   `.h264`, and writes `dash_….recovered.mp4` beside it. A folder may be passed
+   to recover every orphan in that folder. For a raw manual command, use
+   `ffmpeg -fflags +genpts -r 25 -err_detect ignore_err -i crash.h264 -c copy recovered.mp4`.
+
+### Preventing Orphans
+
+`MediaMuxer` can only write an MP4's final index when a segment closes. The
+recorder rotates every five minutes, waits for its encoder thread during an
+ordinary Dashcam-off request and system shutdown, and keeps the write-ahead
+H.264 stream until that close succeeds. That prevents orphans for normal stops.
+
+An abrupt battery cut, OS process kill, or hardware reset can still interrupt
+the one active segment; no ordinary MP4 writer can promise otherwise. The
+write-ahead stream makes that one segment recoverable. If unexpected orphans
+continue to accumulate, retain their `.h264` files and collect the ModeHelper
+log around the stop event—the cause is an ungraceful service/process stop, not
+the clip itself.
 
 ### Gallery State Representation
 
