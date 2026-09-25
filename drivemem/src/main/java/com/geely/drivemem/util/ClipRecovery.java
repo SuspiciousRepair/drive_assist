@@ -35,12 +35,15 @@ import java.util.List;
 public final class ClipRecovery {
     private static final String TAG = "DriveMem";
 
-    // MUST match modehelper/DashRecorder.java's DashRecorder.W/H/FPS exactly --
-    // a separate APK/process, so these can't be shared as one constant. If
-    // that encoder's resolution or frame rate ever changes, this needs the
-    // same edit or every future recovery decodes at the wrong size/speed.
+    // MUST match modehelper/DashRecorder.java's DashRecorder.W/H/FPS/BITRATE/
+    // IFRAME_SEC exactly -- a separate APK/process, so these can't be shared
+    // as one constant. If that encoder's config ever changes, this needs the
+    // same edit or every future recovery decodes at the wrong size/speed, or
+    // (BITRATE specifically) under-sizes the native muxer's own buffers again.
     private static final int W = 1920, H = 800;
     private static final int FPS = 25;
+    private static final int BITRATE = 16_000_000;
+    private static final int IFRAME_SEC = 1;
 
     public interface Callback { void onDone(boolean ok, String message); }
 
@@ -81,6 +84,14 @@ public final class ClipRecovery {
         File mp4Tmp = new File(dir, stem + ".mp4.tmp");
         int frameCount;
 
+        // A previous attempt on this same clip that hit the native crash
+        // below never got to clean up after itself (the whole process
+        // aborts -- no Java code runs). Its leftover .mp4.tmp briefly
+        // read as a second "Gravando" row in the Clips list. Clear it so
+        // a retry starts from a clean file, not whatever partial state
+        // the crash left behind.
+        if (mp4Tmp.exists()) mp4Tmp.delete();
+
         try (RandomAccessFile raf = new RandomAccessFile(h264, "r")) {
             long len = raf.length();
             if (len < 16) throw new IOException("File too small to be real footage");
@@ -99,9 +110,27 @@ public final class ClipRecovery {
                 throw new IOException("Expected SPS/PPS at the start, found types " + spsType + "/" + ppsType);
             }
 
+            // Real crash, confirmed live on-device: MPEG4Writer's own log
+            // line read "bit rate: -1 bps" (i.e. never told) right before
+            // it aborted (SIGABRT in its internal VideoTrackEncoder thread,
+            // inside addLengthPrefixedSample_l -- a NATIVE crash, invisible
+            // to any Java try/catch, which is why the per-sample catch
+            // below never helps). DashRecorder's own live encoder always
+            // configures bit rate/frame rate/I-frame interval on its
+            // MediaFormat before the codec ever runs; this reconstructed
+            // one only ever carried csd-0/csd-1, leaving the native writer
+            // to size its internal buffers off unset defaults -- fine for
+            // small samples, not for a real ~300 KB dashcam keyframe.
             MediaFormat fmt = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, W, H);
             fmt.setByteBuffer("csd-0", slice(mapped, sps));
             fmt.setByteBuffer("csd-1", slice(mapped, pps));
+            fmt.setInteger(MediaFormat.KEY_BIT_RATE, BITRATE);
+            fmt.setInteger(MediaFormat.KEY_FRAME_RATE, FPS);
+            fmt.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, IFRAME_SEC);
+            // Largest real NAL seen so far in the field is ~480 KB (a
+            // dense keyframe); leave real headroom rather than cut it
+            // close a second time.
+            fmt.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 4 * 1024 * 1024);
 
             MediaMuxer muxer = new MediaMuxer(mp4Tmp.getAbsolutePath(), MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
             try {
