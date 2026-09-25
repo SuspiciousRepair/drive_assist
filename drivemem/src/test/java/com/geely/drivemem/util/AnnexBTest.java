@@ -2,6 +2,8 @@ package com.geely.drivemem.util;
 
 import org.junit.Test;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -77,5 +79,23 @@ public class AnnexBTest {
         List<AnnexB.Nal> nals = AnnexB.split(AnnexB.of(data));
         assertEquals(1, nals.size());
         assertEquals(1, nals.get(0).length() - 3); // 1 byte of "payload" (the header itself)
+    }
+
+    @Test public void streamingReaderKeepsOnlyOneNalAndNormalizesFourByteCodes() throws Exception {
+        File f = File.createTempFile("annexb", ".h264");
+        try (FileOutputStream out = new FileOutputStream(f)) {
+            out.write(new byte[] {0,0,0,1, nalHeader(7), 1, 0,0,1, nalHeader(8), 2});
+        }
+        try (AnnexB.Reader r = new AnnexB.Reader(f)) {
+            assertEquals(7, AnnexB.type(r.next()));
+            assertEquals(8, AnnexB.type(r.next()));
+            assertEquals(null, r.next());
+        } finally { f.delete(); }
+    }
+
+    @Test public void readsFirstMacroblockExpGolomb() {
+        assertEquals(0, AnnexB.firstMbInSlice(new byte[] {0,0,1, nalHeader(1), (byte) 0x80}));
+        // Exp-Golomb code 010 encodes value one.
+        assertEquals(1, AnnexB.firstMbInSlice(new byte[] {0,0,1, nalHeader(1), (byte) 0x40}));
     }
 }

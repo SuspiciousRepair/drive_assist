@@ -229,7 +229,7 @@ public final class TelemetryClipsSection extends LinearLayout {
             // constructor comment on why the field keeps that name regardless.
             card.addView(Style.cardButton(activity, activity.getString(R.string.clips_recover), false, () -> {
                 Toast.makeText(activity, activity.getString(R.string.clips_recovering), Toast.LENGTH_SHORT).show();
-                ClipRecovery.recover(c.mp4, (ok, message) -> {
+                ClipRecovery.recover(activity, c.mp4, (ok, message) -> {
                     Toast.makeText(activity, ok
                         ? activity.getString(R.string.clips_recover_ok)
                         : activity.getString(R.string.clips_recover_failed, message), Toast.LENGTH_LONG).show();

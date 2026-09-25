@@ -133,6 +133,16 @@ public final class DashRecorder {
         Log.i(TAG, "dashcam: stop requested");
     }
 
+    /** Used for orderly service shutdown. Waiting for the encoder loop means
+     * MediaMuxer gets its stop()/moov write before Android can kill the helper. */
+    public void stopAndWait(long timeoutMs) {
+        stop();
+        Thread t = thread;
+        if (t != null && t != Thread.currentThread()) {
+            try { t.join(timeoutMs); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
+        }
+    }
+
     /** Preserve and promptly close the segment containing a detected event. */
     public void saveCurrentSegmentForEvent() {
         Seg segment = activeSegment;

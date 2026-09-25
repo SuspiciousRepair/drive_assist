@@ -49,7 +49,7 @@ public class ModeHelperService extends Service {
             // a cold start — the recorder tolerates that for telemetry (cues just
             // go quiet) but the ENGINE binder is separate and always available.
             if (on == 1) dash.start();
-            else if (on == 0) dash.stop();
+            else if (on == 0) dash.stopAndWait(5_000);
             // Persisted so maybeAutoStart() respects an explicit "off" across a
             // restart, not just for the rest of this process's life — see that
             // method's own comment for why this used to not survive a restart.
@@ -254,10 +254,7 @@ public class ModeHelperService extends Service {
         }
         if (dash != null && dash.isRunning()) {
             Log.i(TAG, "dashcam: " + why + " — closing the segment");
-            dash.stop();
-            // Give the encoder thread a moment to write the moov atom. Not a
-            // guarantee, just better than none — which is why the .h264 exists.
-            try { Thread.sleep(1200); } catch (InterruptedException ignored) { }
+            dash.stopAndWait(5_000);
         }
     }
 

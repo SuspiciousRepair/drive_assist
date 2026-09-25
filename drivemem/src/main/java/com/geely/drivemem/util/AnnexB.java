@@ -1,5 +1,11 @@
 package com.geely.drivemem.util;
 
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,6 +57,80 @@ public final class AnnexB {
     public static int type(Source s, Nal nal) {
         int hdr = nal.start + 3;
         return hdr < nal.end ? (s.get(hdr) & 0x1F) : -1;
+    }
+
+    /** Same type helper for streaming recovery NALs. Reader always normalizes
+     * start codes to three bytes, so the header is byte three. */
+    public static int type(byte[] nal) {
+        return nal.length > 3 ? (nal[3] & 0x1F) : -1;
+    }
+
+    /** first_mb_in_slice, or -1 when a crash cut the slice before its header.
+     * It is the first unsigned Exp-Golomb value in RBSP after the NAL header. */
+    public static int firstMbInSlice(byte[] nal) {
+        int leading = 0, payload = 0, remaining = -1;
+        int zeros = 0;
+        for (int i = 4; i < nal.length; i++) {
+            int b = nal[i] & 0xFF;
+            if (zeros >= 2 && b == 3) { zeros = 0; continue; }
+            zeros = b == 0 ? zeros + 1 : 0;
+            for (int bit = 7; bit >= 0; bit--) {
+                int v = (b >>> bit) & 1;
+                if (remaining < 0) { if (v == 0) leading++; else { remaining = leading; if (remaining == 0) return 0; } }
+                else { payload = (payload << 1) | v; if (--remaining == 0) return ((1 << leading) - 1) + payload; }
+            }
+        }
+        return -1;
+    }
+
+    /** Incremental Annex-B reader. It never maps or retains the full video:
+     * at most one NAL unit is resident, making 250 MB interrupted clips safe
+     * on the head unit. */
+    public static final class Reader implements Closeable {
+        private final BufferedInputStream in;
+        private boolean started;
+        private int pending = -1;
+
+        public Reader(File file) throws IOException { in = new BufferedInputStream(new FileInputStream(file), 64 * 1024); }
+
+        public byte[] next() throws IOException {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            int zeroes = 0;
+            for (;;) {
+                int b = pending != -1 ? takePending() : in.read();
+                if (b < 0) {
+                    if (!started) return null;
+                    while (zeroes-- > 0) out.write(0);
+                    return out.size() == 0 ? null : out.toByteArray();
+                }
+                if (b == 0) { zeroes++; continue; }
+                if (b == 1 && zeroes >= 2) {
+                    if (started && out.size() > 0) {
+                        while (zeroes-- > 2) out.write(0);
+                        pending = 1; // next call emits the normalized delimiter
+                        return out.toByteArray();
+                    }
+                    started = true; zeroes = 0; out.write(0); out.write(0); out.write(1); continue;
+                }
+                if (started) while (zeroes-- > 0) out.write(0);
+                zeroes = 0;
+                if (started) out.write(b);
+            }
+        }
+
+        private int takePending() {
+            int p = pending; pending = -1;
+            // We consumed the two zero bytes before the delimiter while ending
+            // the prior NAL, so reconstitute its final byte then begin 00 00 01.
+            // Returning 1 alone would lose those zeroes; use a tiny virtual
+            // queue encoded as negative sentinels instead.
+            if (p == 1) { pending = -2; return 0; }
+            if (p == -2) { pending = -3; return 0; }
+            if (p == -3) return 1;
+            return p;
+        }
+
+        @Override public void close() throws IOException { in.close(); }
     }
 
     /** All NAL units in order, each spanning its own start code through the
