@@ -429,18 +429,15 @@ public final class DashRecorder {
         void finish() {
             if (done) return;
             done = true;
-            try { muxer.stop(); } catch (Throwable ignored) { }
+            boolean closed = false;
+            try { muxer.stop(); closed = true; }
+            catch (Throwable t) { Log.w(TAG, "dashcam: muxer stop failed: " + t); }
             try { muxer.release(); } catch (Throwable ignored) { }
             if (sub != null) sub.close();
-            // The mp4 is renamed FIRST: a .vtt with no clip beside it is litter,
-            // but a clip with no subtitles is still footage.
-            if (mp4Tmp.exists() && mp4Tmp.length() > 0) mp4Tmp.renameTo(mp4); else mp4Tmp.delete();
-            if (vttTmp.exists()) { if (mp4.exists()) vttTmp.renameTo(vtt); else vttTmp.delete(); }
-            // The write-ahead stream is a safety net for a segment that never
-            // closed. This one closed, so it goes — otherwise it would double the
-            // archive for nothing.
             try { if (rawOut != null) rawOut.close(); } catch (Throwable ignored) { }
-            if (mp4.exists()) { raw.delete(); thumbnail(); }
+            // The write-ahead stream is a safety net for a segment that never
+            // closed. Only a clean close deletes it — see SegmentFiles.
+            if (SegmentFiles.finish(mp4Tmp, mp4, vttTmp, vtt, raw, closed)) thumbnail();
             else Log.w(TAG, "dashcam: kept " + raw.getName() + " — the mp4 never closed");
             Log.i(TAG, "dashcam: closed " + mp4.getName() + " " + (mp4.length() / 1024) + " KB");
         }
