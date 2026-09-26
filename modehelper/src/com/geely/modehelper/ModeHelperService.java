@@ -188,6 +188,7 @@ public class ModeHelperService extends Service {
                 // "Wi-Fi never came back".)
                 if (parked) ensureWifiOn();
                 nudgeWifiScan();
+                maybeDexopt();
             } catch (Throwable t) { Log.w(TAG, "poll: " + t); }
             // Liveness heartbeat — a timestamp in SharedPreferences (survives process
             // death), so BootReceiver's watchdog can tell whether this loop is still
@@ -198,6 +199,22 @@ public class ModeHelperService extends Service {
                 .putLong("beat_poll", System.currentTimeMillis()).apply();
             try { Thread.sleep(4000); } catch (InterruptedException e) { break; }
         }
+    }
+
+    // Once a minute, on its own thread: a compile takes tens of seconds and
+    // must not stall the poll loop's heartbeat. See Dexopt.
+    private long lastDexoptCheck;
+    private volatile boolean dexoptRunning;
+
+    private void maybeDexopt() {
+        long now = SystemClock.elapsedRealtime();
+        if (dexoptRunning || now - lastDexoptCheck < 60_000) return;
+        lastDexoptCheck = now;
+        dexoptRunning = true;
+        new Thread(() -> {
+            try { Dexopt.ensure(getApplicationContext()); }
+            finally { dexoptRunning = false; }
+        }, "dexopt").start();
     }
 
     /** Dashcam auto-start flag: records from boot until shutdown, UNLESS the
