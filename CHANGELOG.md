@@ -2,15 +2,36 @@
 
 ## [Unreleased]
 
-## [v0.4.1] — 2026-09-24
+## [v0.4.1] — 2026-09-26
 
 ### Added
 - **Recover orphaned dashcam clips in-app.** A clip whose recording never
   closed (crash, power loss) used to sit labeled "unclosed — recoverable"
   with no actual way to recover it. A "Recuperar" button now remuxes the
-  raw footage back into a normal playable clip, no external tools needed.
+  raw footage back into a normal playable clip, with its telemetry and
+  thumbnail, no external tools needed. A 5-minute clip takes seconds.
+
+### Changed
+- **Both apps are now fully compiled after every install.** This head unit
+  runs with the Java JIT off, so Android's default install mode compiled
+  nothing and all of Drive Assist and ModeHelper ran in the interpreter.
+  ModeHelper now asks for a full compile of both apps after each install
+  (adb, OTA or installer). Measured: clip recovery ~50x faster.
 
 ### Fixed
+- **Dashcam recovery aborted on every clip**, and once that was fixed, the
+  recovered clip would not decode. Android 9's MP4 writer needs four-byte
+  start codes in both the frames and the SPS/PPS header.
+- **A failed segment close deleted the only recoverable copy**, and listed
+  the broken file as a playable clip. It now stays an orphan you can recover.
+- **Clips saved by a parked-monitoring event were evicted** by the ring
+  buffer before they ever reached the protected `keep/` folder. The
+  recorder now moves them there as the segment closes.
+- **Crash leftovers filled the dashcam budget forever**, pushing real clips
+  out sooner. They now age out with the clips; the worthless `.mp4.tmp`
+  half is removed at once.
+- **An interrupted clip kept only its first ~90 seconds of telemetry.** The
+  subtitle track is now written every second, and recovery keeps it.
 - **EX2 battery temperature could be reported as an impossible sub-zero
   value.** The BMS temperature byte is now kept in its observed Celsius
   form, and unexpected values are logged for diagnosis.
@@ -19,6 +40,13 @@
   was being treated as a flat "not charging," which could silently skip
   the whole sample if the car happened to be stationary at that moment.
   Now sent as unknown, never guessed as false.
+- ABRP could merge two drives separated by a stop into one continuous
+  drive, when the "parked" point was sent late from a garage with no
+  signal. A live point now waits out ABRP's bulk-processing window.
+
+### Docs
+- `tools/recover-dashcam.sh` recovers orphaned clips on a PC with FFmpeg.
+- `docs/DASHCAM.md` now matches the recorder's real behavior.
 
 ## [v0.4.0] — 2026-09-24
 

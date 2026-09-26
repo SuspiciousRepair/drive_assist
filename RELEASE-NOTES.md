@@ -12,15 +12,21 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
-## v0.4.1 — 2026-09-24
+## v0.4.1 — 2026-09-26
 
-- New: recover an unclosed dashcam recording directly in the app.
-- Fixed: recovering an unclosed recording could crash the app instead of
-  reporting that recovery failed.
+- New: recover an unclosed dashcam recording directly in the app. It
+  keeps the speed and driving data and takes only seconds.
+- Improved: the app and the dashcam now run much faster and use less
+  processor time on this head unit.
+- Fixed: a dashcam recording that could not be closed was deleted instead
+  of being kept for recovery.
+- Fixed: recordings saved by a parked event could be deleted automatically.
+- Fixed: unclosed recordings no longer fill up the dashcam storage.
 - Fixed: the EX2's battery temperature no longer shows impossible
   sub-zero readings caused by a generic sensor offset.
 - Fixed: ABRP no longer drops a reading when the charging sensor is
   briefly unavailable.
+- Fixed: ABRP could show two drives with a stop between them as one drive.
 
 ## v0.4.0 — 2026-09-24
 
