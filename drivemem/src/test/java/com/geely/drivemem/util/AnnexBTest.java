@@ -93,6 +93,23 @@ public class AnnexBTest {
         } finally { f.delete(); }
     }
 
+    // Android 9's MPEG4Writer strips only a four-byte start code; a three-byte
+    // one reaching it aborts the recovery process (tombstones 2026-09-24/25).
+    @Test public void recoverySampleUsesFourByteStartCodes() throws Exception {
+        File f = File.createTempFile("annexb", ".h264");
+        try (FileOutputStream out = new FileOutputStream(f)) {
+            out.write(new byte[] {0,0,0,1, nalHeader(5), 1, 2, 0,0,0,1, nalHeader(5), 3});
+        }
+        java.util.List<byte[]> nals = new java.util.ArrayList<>();
+        try (AnnexB.Reader r = new AnnexB.Reader(f)) {
+            byte[] nal;
+            while ((nal = r.next()) != null) nals.add(nal);
+        } finally { f.delete(); }
+        byte[] sample = ClipRecovery.sample(nals);
+        org.junit.Assert.assertArrayEquals(
+            new byte[] {0,0,0,1, nalHeader(5), 1, 2, 0,0,0,1, nalHeader(5), 3}, sample);
+    }
+
     @Test public void readsFirstMacroblockExpGolomb() {
         assertEquals(0, AnnexB.firstMbInSlice(new byte[] {0,0,1, nalHeader(1), (byte) 0x80}));
         // Exp-Golomb code 010 encodes value one.

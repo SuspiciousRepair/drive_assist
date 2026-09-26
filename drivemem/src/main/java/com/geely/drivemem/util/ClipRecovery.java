@@ -109,15 +109,32 @@ public final class ClipRecovery {
 
     private static void writeAccessUnit(MediaMuxer muxer, int track, List<byte[]> nals, int frame,
                                         long frameUs, boolean key, MediaCodec.BufferInfo info) throws IOException {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        for (byte[] nal : nals) {
-            if (out.size() + nal.length > MAX_SAMPLE_BYTES) throw new IOException("Video frame is too large to recover safely");
-            out.write(nal, 0, nal.length);
-        }
-        byte[] sample = out.toByteArray();
-        if (sample.length < 5) return;
+        byte[] sample = sample(nals);
+        if (sample.length < 6) return;
         info.set(0, sample.length, frame * frameUs, key ? MediaCodec.BUFFER_FLAG_KEY_FRAME : 0);
         muxer.writeSampleData(track, ByteBuffer.wrap(sample), info);
+    }
+
+    /** One muxer sample from a picture's NAL units, each behind a FOUR-byte
+     * start code. AnnexB.Reader hands them over with three-byte codes, and
+     * Android 9's MPEG4Writer strips only `00 00 00 01`: a three-byte code
+     * stays in the sample, the writer computes that NAL's length as 3 - 4,
+     * and the size_t underflow aborts the process in
+     * addLengthPrefixedSample_l. That was every in-app recovery.
+     *
+     * Trailing zero bytes are dropped too: the Reader leaves a four-byte
+     * code's extra zero on the end of the PREVIOUS unit, and a NAL unit
+     * never legitimately ends in 0x00 (rbsp_trailing_bits ends on a 1). */
+    static byte[] sample(List<byte[]> nals) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        for (byte[] nal : nals) {
+            int end = nal.length;
+            while (end > 4 && nal[end - 1] == 0) end--;
+            if (out.size() + end + 1 > MAX_SAMPLE_BYTES) throw new IOException("Video frame is too large to recover safely");
+            out.write(0);
+            out.write(nal, 0, end);
+        }
+        return out.toByteArray();
     }
 
     private static void thumbnail(File mp4, File jpg) {
