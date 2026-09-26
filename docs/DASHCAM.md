@@ -36,7 +36,7 @@ The dashcam is implemented as a headless, privileged background service running 
 ### Core Components
 
 * **`EvsClient.java`**: Interfaces with `bdstar.render.engine` over Binder, requesting the `dvr` function and supplying a surface.
-* **`DashRecorder.java`**: Configures `MediaCodec`, receives raw video frames, manages dual-stream encoding (MP4 + raw Annex-B H.264), and handles file rotation.
+* **`DashRecorder.java`**: Configures `MediaCodec`, receives raw video frames, writes each segment as a fragmented MP4 (`FragmentedMp4`), and handles file rotation.
 * **`Vtt.java`**: Samples vehicle telemetry once per second and formats synchronized WebVTT subtitle tracks.
 * **`DashReceiver.java`**: BroadcastReceiver handling external start/stop triggers and system lifecycle events.
 
@@ -59,7 +59,7 @@ am broadcast -a com.geely.modehelper.DASHCAM --ei on 0
 3. **Close Before Sleep**: The unit suspends rather than shutting down. When the screen goes off, or CarPowerManager announces `SUSPEND_ENTER`, the open segment closes at the next key frame and a new one starts, so a power cut during the sleep cannot orphan a long segment. `SHUTDOWN_ENTER` stops the recorder cleanly.
 4. **Self-Restart**: If the recording loop stops on its own (EVS not ready, a codec error), ModeHelper restarts it while recording is wanted: at once, then after 30 s, 1, 2, 4, 8 and at most 10 minutes. Turning the dashcam off is never undone.
 5. **Status File**: `dashcam/recorder.state` holds `state`, the open segment's `stem`, a `beat` refreshed every 5 s, and the last `error`. Drive Assist reads it to show the live segment as recording and to refuse recovering it.
-6. **Graceful Teardown**: Intercepts `Intent.ACTION_SHUTDOWN` to finalize active segments, close `MediaMuxer`, write the `moov` atom, and remove temporary stream buffers. `adb reboot` bypasses the framework shutdown, so it never sends this broadcast and always leaves the active segment as an orphan.
+6. **Graceful Teardown**: Intercepts `Intent.ACTION_SHUTDOWN` to write the last fragment and the segment index before the process dies. `adb reboot` bypasses the framework shutdown, so it never sends this broadcast and always leaves the active segment as an orphan.
 
 ---
 
@@ -92,8 +92,9 @@ Video clips and subtitle sidecars are stored in Drive Assist's external files di
 
 ### Ring Buffer Budget Management
 
-`DashRecorder.enforceBudget` runs after each segment closes, with no segment
-open. The logic is `SegmentFiles.evict`:
+`DashRecorder.enforceBudget` runs on the close thread after each segment
+closes, while the next one records; the live segment is never touched. The
+logic is `SegmentFiles.repair` then `SegmentFiles.evict`:
 1. A dead fragmented `.mp4.tmp` is repaired into a clip (see section 4). An
    older build's `.mp4.tmp` (no `moov`) is deleted once 10 minutes cold if a
    `.h264` beside it holds the same frames. Subtitles and thumbnails with no
