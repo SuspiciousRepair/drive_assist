@@ -40,7 +40,7 @@ The main app is lean in the background. The cost is in the dashcam.
 
 ## Findings, largest first
 
-### E0. Our apps run entirely in the interpreter
+### E0. Our apps run entirely in the interpreter (fixed in v0.4.1)
 
 This head unit has `dalvik.vm.usejit=false`. Apps are installed with
 `speed-profile`, which compiles only the methods named in a usage profile,
@@ -74,7 +74,7 @@ the live segment.
 Fix: `DASHCAM-RELIABILITY-ROADMAP.md` Phase C (fragmented MP4: one write,
 crash-safe, no sidecar).
 
-### E2. One heap allocation per frame drives the garbage collector
+### E2. One heap allocation per frame drives the garbage collector (fixed)
 
 `Seg.write()` does `new byte[i.size]` for every frame to copy it into the
 raw stream: ~25 allocations/s, ~2 MB/s of garbage. That is most of the
@@ -91,7 +91,7 @@ ship it with the dashcam Phase B.
 Mbit/s and compare plates and signs. 8 Mbit/s would double the history and
 halve flash writes.
 
-### E4. Work on the encoder thread drops frames at every rotation
+### E4. Work on the encoder thread drops frames at every rotation (fixed)
 
 At each 5-minute rotation, `Seg.finish()` runs `MediaMetadataRetriever` on
 a 600 MB file (thumbnail) and `enforceBudget()` lists and deletes files,

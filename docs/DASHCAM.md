@@ -56,7 +56,10 @@ am broadcast -a com.geely.modehelper.DASHCAM --ei on 0
 
 1. **Auto-Start**: Triggers once on system boot after the first successful vehicle property read.
 2. **Continuous Operation**: Records continuously across all vehicle states, including `PARK` (monitoring parked vehicle surroundings).
-3. **Graceful Teardown**: Intercepts `Intent.ACTION_SHUTDOWN` to finalize active segments, close `MediaMuxer`, write the `moov` atom, and remove temporary stream buffers. `adb reboot` bypasses the framework shutdown, so it never sends this broadcast and always leaves the active segment as an orphan.
+3. **Close Before Sleep**: The unit suspends rather than shutting down. When the screen goes off, or CarPowerManager announces `SUSPEND_ENTER`, the open segment closes at the next key frame and a new one starts, so a power cut during the sleep cannot orphan a long segment. `SHUTDOWN_ENTER` stops the recorder cleanly.
+4. **Self-Restart**: If the recording loop stops on its own (EVS not ready, a codec error), ModeHelper restarts it while recording is wanted: at once, then after 30 s, 1, 2, 4, 8 and at most 10 minutes. Turning the dashcam off is never undone.
+5. **Status File**: `dashcam/recorder.state` holds `state`, the open segment's `stem`, a `beat` refreshed every 5 s, and the last `error`. Drive Assist reads it to show the live segment as recording and to refuse recovering it.
+6. **Graceful Teardown**: Intercepts `Intent.ACTION_SHUTDOWN` to finalize active segments, close `MediaMuxer`, write the `moov` atom, and remove temporary stream buffers. `adb reboot` bypasses the framework shutdown, so it never sends this broadcast and always leaves the active segment as an orphan.
 
 ---
 
@@ -149,7 +152,7 @@ Standard MP4 containers store the metadata index (`moov` atom) at the end of the
 
 ### Dual-Stream Recording Mechanism
 
-1. **Simultaneous Annex-B Output**: While streaming to `MediaMuxer`, `DashRecorder` simultaneously appends every raw H.264 access unit to a companion `.h264` file.
+1. **Simultaneous Annex-B Output**: While streaming to `MediaMuxer`, `DashRecorder` simultaneously appends every raw H.264 access unit to a companion `.h264` file (`RawStream`), and forces it to storage at every key frame, so a power cut loses at most about one second.
 2. **Header Injection**: SPS and PPS parameters from `csd-0` and `csd-1` are written to the head of the `.h264` stream upon encoder initialization.
 3. **Clean Teardown**: Only when `MediaMuxer.stop()` returns normally is the MP4 renamed (`.mp4.tmp` -> `.mp4`) and the `.h264` deleted. If the close fails, the segment stays an orphan: the `.h264` and `.vtt.tmp` are kept for recovery (`SegmentFiles.finish`).
 4. **In-app Recovery**: The Clips screen's **Recover** button remuxes an orphan's `.h264` into an `.mp4` without re-encoding, keeps its subtitles, and makes its thumbnail. It runs in the separate `:cliprecovery` process, so a native failure cannot take the app down. A 5-minute segment takes about 20 seconds when the app is fully compiled (see `plan/active/RUNTIME-EFFICIENCY-REVIEW.md`, E0). Android 9's `MPEG4Writer` needs four-byte start codes (`00 00 00 01`) in both the samples and the SPS/PPS; `ClipRecovery.sample` and `ClipRecovery.csd` produce them.

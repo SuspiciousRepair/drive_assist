@@ -18,7 +18,28 @@ problems found while testing on the car:
 Both orphans on the car were recovered in the app and play without a
 single decode error (3958 frames, checked with FFmpeg on a PC).
 
-Next: Phase B.
+Phase B is done and verified on the car (2026-09-26):
+
+- D6: `RawStream` syncs the `.h264` at every key frame and writes the
+  encoder's buffer without a copy (E2 in the efficiency review).
+- D7: the helper restarts a recorder that stopped on its own, with
+  backoff (`RestartBackoff`). An owner's "off" is never undone: tested
+  on the car.
+- D8: `dashcam/recorder.state` names the live segment; Clips shows it as
+  recording and recovery refuses it: tested on the car.
+- D9: the segment closes on screen-off and on CarPowerManager
+  `SUSPEND_ENTER` (`PowerWatch`), and the recorder stops on
+  `SHUTDOWN_ENTER`. Screen-off tested on the car: new segment 55 ms
+  later. A real suspend has not been observed yet.
+- D10 (encoder-thread part): segments close on their own thread; tested
+  on the car.
+
+Not done: the recorder does not detect an EVS stall (running, no
+frames). Whether EVS stops delivering while the screen is off without a
+suspend is unknown, so a watchdog on frames could restart-loop; measure
+first.
+
+Next: Phase C.
 
 ## Problem
 
