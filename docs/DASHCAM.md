@@ -56,7 +56,7 @@ am broadcast -a com.geely.modehelper.DASHCAM --ei on 0
 
 1. **Auto-Start**: Triggers once on system boot after the first successful vehicle property read.
 2. **Continuous Operation**: Records continuously across all vehicle states, including `PARK` (monitoring parked vehicle surroundings).
-3. **Graceful Teardown**: Intercepts `Intent.ACTION_SHUTDOWN` to finalize active segments, close `MediaMuxer`, write the `moov` atom, and remove temporary stream buffers.
+3. **Graceful Teardown**: Intercepts `Intent.ACTION_SHUTDOWN` to finalize active segments, close `MediaMuxer`, write the `moov` atom, and remove temporary stream buffers. `adb reboot` bypasses the framework shutdown, so it never sends this broadcast and always leaves the active segment as an orphan.
 
 ---
 
@@ -70,10 +70,10 @@ The native EVS engine renders a composite 2x2 camera quad (front, rear, left mir
 |---|---|---|
 | **Resolution** | 1920 x 800 | 4 camera views in 2x2 layout (~960x400 per camera) |
 | **Codec** | H.264 / AVC | `video/avc`, Baseline profile |
-| **Bitrate** | 16.0 Mbps CBR | Optimized for readable detail in the four-camera composite |
+| **Bitrate** | 16.0 Mbps | Target only; no bitrate mode is set, so the encoder default applies |
 | **Frame Rate** | 25.0 fps | Native EVS camera sensor stream rate |
 | **Keyframe Interval** | 1.0 s (`IFRAME_SEC = 1`) | Enables fast seeking and bounds crash data loss |
-| **Segment Length** | 300 seconds (5 min) | ~225 MB per segment |
+| **Segment Length** | 300 seconds (5 min) | ~600 MB per segment (measured) |
 | **Timestamp Model** | Monotonic segment elapsed | Eliminates EVS hardware timestamp jitter and muxer rejections |
 
 ### Storage Directory & Permissions
@@ -89,11 +89,21 @@ Video clips and subtitle sidecars are stored in Drive Assist's external files di
 
 ### Ring Buffer Budget Management
 
-`DashRecorder.enforceBudget` executes at each segment completion:
-1. Calculates cumulative byte size of all completed `.mp4` clips in the active directory.
-2. If total size exceeds **10 GB** (~3.7 to 4.0 hours of footage), segments are sorted by last modification timestamp (oldest first).
-3. Oldest `.mp4` and paired `.vtt` files are deleted until disk usage falls below the 10 GB limit.
-4. Clips located in `keep/` are excluded from budget calculation and are never automatically deleted.
+`DashRecorder.enforceBudget` runs after each segment closes, with no segment
+open. The logic is `SegmentFiles.evict`:
+1. A crash's `.mp4.tmp` (no `moov`) is deleted once it is 10 minutes cold and
+   a `.h264` beside it holds the same frames.
+2. Every file in `dashcam/` and `keep/` counts against the budget (default
+   **10 GB**, about 85 minutes at 16 Mbit/s; set from the Recordings panel).
+3. Over budget, whole segments go oldest first: closed clips (`.mp4`) and
+   orphans (`.h264` untouched for 10 minutes), each with all its sidecars.
+4. Never evicted: anything in `keep/`, and any clip with a `<stem>.hold`
+   marker beside it. Held clips still count against the budget.
+
+A segment marked for keeping (a parked-monitoring event, or Hold on a clip
+that is still recording) leaves a `<stem>.hold` marker. The recorder moves
+that clip into `keep/` the moment the segment closes
+(`SegmentFiles.keepIfHeld`).
 
 ---
 
@@ -107,23 +117,29 @@ Each video segment is accompanied by a synchronized WebVTT subtitle track contai
 WEBVTT
 
 00:00:00.000 --> 00:00:01.000
-62 km/h · D · 24.5 °C · 40.7580, -73.9855
+2026-09-26 09:03:32 · 62 km/h · D · 24.5° · NNE 22° · max 60
 
 00:00:01.000 --> 00:00:02.000
-64 km/h · D · 24.5 °C · 40.7582, -73.9853
+2026-09-26 09:03:33 · 64 km/h · D · 24.5° · NNE 23° · max 60
 ```
 
 ### Data Schema & Sources
 
 | Metric | Source | Property ID / Provider |
 |---|---|---|
+| **Time** | System clock | wall-clock time of the sample |
 | **Speed** | VHAL | `291504647` (`PERF_VEHICLE_SPEED`, km/h) |
 | **Gear** | VHAL | `289408001` (`GEAR_SELECTION`: 1=N, 2=R, 4=P, 8=D) |
 | **Ambient Temp** | HVAC ECU | `557884279` (`AC_AMBIENT_TEMP`, °C) |
-| **Drive / Regen** | VHAL | `570491136` (Eco/Comfort/Sport) / `537003264` (Regen) |
-| **Coordinates** | Android GNSS | `LocationManager` (Latitude, Longitude) |
+| **Heading** | Android GNSS | GPS bearing, only above 3 km/h |
+| **Speed limit** | VHAL | camera sign, then navigation limit, then navigation speed; only plausible values (5-200) |
 
-*Synchronization*: Cues are keyed to the hardware encoder's presentation timestamp (PTS) rather than system wall clock, guaranteeing zero subtitle drift over extended durations.
+Coordinates are not written to the sidecar.
+
+*Synchronization*: Video timestamps and cue times both come from the
+segment's own clock (`SystemClock.uptimeMillis()` since the segment started),
+not from encoder timestamps, so they stay in step. The file is flushed after
+every cue, so a segment that never closes keeps all its telemetry.
 
 ---
 
@@ -135,8 +151,9 @@ Standard MP4 containers store the metadata index (`moov` atom) at the end of the
 
 1. **Simultaneous Annex-B Output**: While streaming to `MediaMuxer`, `DashRecorder` simultaneously appends every raw H.264 access unit to a companion `.h264` file.
 2. **Header Injection**: SPS and PPS parameters from `csd-0` and `csd-1` are written to the head of the `.h264` stream upon encoder initialization.
-3. **Clean Teardown**: Upon normal segment rotation, the MP4 is finalized and renamed atomically (`.mp4.tmp` -> `.mp4`), and the temporary `.h264` stream is deleted.
-4. **Crash Recovery**: If the system resets abruptly, the `.h264` elementary stream remains decodable up to the last fully written frame. A computer can remux it without re-encoding:
+3. **Clean Teardown**: Only when `MediaMuxer.stop()` returns normally is the MP4 renamed (`.mp4.tmp` -> `.mp4`) and the `.h264` deleted. If the close fails, the segment stays an orphan: the `.h264` and `.vtt.tmp` are kept for recovery (`SegmentFiles.finish`).
+4. **In-app Recovery**: The Clips screen's **Recover** button remuxes an orphan's `.h264` into an `.mp4` without re-encoding, keeps its subtitles, and makes its thumbnail. It runs in the separate `:cliprecovery` process, so a native failure cannot take the app down. A 5-minute segment takes about 20 seconds when the app is fully compiled (see `plan/active/RUNTIME-EFFICIENCY-REVIEW.md`, E0). Android 9's `MPEG4Writer` needs four-byte start codes (`00 00 00 01`) in both the samples and the SPS/PPS; `ClipRecovery.sample` and `ClipRecovery.csd` produce them.
+5. **Desktop Recovery**: A computer can also remux it without re-encoding:
    ```bash
    ./tools/recover-dashcam.sh /path/to/dash_YYYYMMDD_HHMMSS.h264
    ```
@@ -166,7 +183,12 @@ the clip itself.
 
 ---
 
-## 5. Home Assistant Integration & Remote Access
+## 5. Home Assistant Integration & Remote Access (planned, not implemented)
+
+> [!NOTE]
+> Nothing in this section exists in the code yet: there is no embedded HTTP
+> server and no `drivemem/<vin>/dashcam/vtt` topic. It describes an intended
+> design.
 
 To prevent saturating Home Assistant server storage, video files remain on the vehicle's local ring buffer while metadata is offloaded over lightweight channels.
 

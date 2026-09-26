@@ -58,7 +58,7 @@ public final class Clips {
             this.kind = kind;
             this.vtt = new File(mp4.getParentFile(), name(mp4) + ".vtt");
             // Written once by the recorder at segment close, never here: opening a
-            // 225 MB container per row is what this whole class avoids.
+            // 600 MB container per row is what this whole class avoids.
             this.thumb = new File(mp4.getParentFile(), name(mp4) + ".jpg");
             this.bytes = mp4.length();
             this.whenMs = parseStamp(name(mp4), mp4.lastModified());
@@ -275,7 +275,7 @@ public final class Clips {
 
     // Length from the sidecar rather than the container: counting "-->" lines is
     // one cheap pass over ~16 KB, where asking MediaMetadataRetriever means
-    // opening and parsing a 225 MB mp4 for every row in the list.
+    // opening and parsing a 600 MB mp4 for every row in the list.
     static int cueCount(File vtt) {
         if (!vtt.exists()) return -1;
         int n = 0;

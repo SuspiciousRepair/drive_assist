@@ -245,8 +245,11 @@ public class ModeHelperService extends Service {
     // thumbnail instead of being left as a .h264 to recover by hand. ACTION_SHUTDOWN
     // is a protected broadcast; this app is uid system, so it receives it.
     //
-    // If the unit suspends WITHOUT announcing it, nothing is lost either: the
-    // write-ahead .h264 is exactly the safety net for that case.
+    // Not covered: a suspend is not a shutdown, so the segment stays open
+    // through it, and `adb reboot` or a power cut never sends this broadcast.
+    // Those leave an orphan, and the write-ahead .h264 is the safety net. It
+    // is not fsync'd yet, so a hard power cut can still lose its last seconds
+    // (plan/active/DASHCAM-RELIABILITY-ROADMAP.md, D6 and D9).
     private void stopForShutdown(String why) {
         if (parkedMonitor != null) {
             parkedMonitor.stop();

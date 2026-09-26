@@ -445,7 +445,7 @@ public final class DashRecorder {
 
         // ONE THUMBNAIL PER SEGMENT, made here at close rather than by the
         // gallery per row. MediaMetadataRetriever has to open and index the
-        // container to find a frame, and doing that to a 225 MB file every time a
+        // container to find a frame, and doing that to a 600 MB file every time a
         // list draws is the same mistake the clip DURATION avoids by counting
         // cues in the sidecar instead.
         //
