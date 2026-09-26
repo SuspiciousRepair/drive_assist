@@ -286,7 +286,7 @@ public final class DashRecorder {
                 // ensures monotonic PTS and sync with subtitle timing.
                 long pts = seg.ptsUs();
                 info.presentationTimeUs = pts;
-                seg.write(buf, info);
+                seg.write(buf, info, key);
 
                 // Snap cue to the whole second: ensures each subtitle covers a full
                 // second and stays synchronized despite frame timing variations.
@@ -334,7 +334,7 @@ public final class DashRecorder {
         // timeline. Ensures video duration reflects actual recording time.
         final long startMs = SystemClock.uptimeMillis();
         Vtt sub;
-        java.io.FileOutputStream rawOut;
+        RawStream rawOut;
         long lastPts = -1;
         boolean done;
 
@@ -367,9 +367,9 @@ public final class DashRecorder {
             // close it is deleted, so the cost is 2x disk for the CURRENT segment
             // only, never for the archive.
             try {
-                rawOut = new java.io.FileOutputStream(raw);
+                rawOut = new RawStream(raw);
                 writeCsd(f);
-            } catch (Throwable t) { rawOut = null; }
+            } catch (Throwable t) { if (rawOut != null) rawOut.close(); rawOut = null; }
 
             Log.i(TAG, "dashcam: segment " + mp4.getName());
         }
@@ -390,25 +390,14 @@ public final class DashRecorder {
         void writeCsd(MediaFormat f) throws Exception {
             for (String k : new String[]{"csd-0", "csd-1"}) {
                 if (!f.containsKey(k)) continue;
-                ByteBuffer c = f.getByteBuffer(k).duplicate();
-                byte[] a = new byte[c.remaining()];
-                c.get(a);
-                rawOut.write(a);
+                rawOut.header(f.getByteBuffer(k));
             }
         }
 
-        void write(ByteBuffer b, MediaCodec.BufferInfo i) {
+        void write(ByteBuffer b, MediaCodec.BufferInfo i, boolean key) {
             if (rawOut != null) {
-                try {
-                    int pos = b.position(), lim = b.limit();
-                    byte[] a = new byte[i.size];
-                    b.position(i.offset);
-                    b.limit(i.offset + i.size);
-                    b.get(a);
-                    rawOut.write(a);
-                    b.position(pos);
-                    b.limit(lim);
-                } catch (Throwable t) { Log.w(TAG, "dashcam: raw write: " + t); rawOut = null; }
+                try { rawOut.frame(b, i.offset, i.size, key); }
+                catch (Throwable t) { Log.w(TAG, "dashcam: raw write: " + t); rawOut.close(); rawOut = null; }
             }
             try { muxer.writeSampleData(track, b, i); }
             catch (Throwable t) { Log.w(TAG, "dashcam: writeSampleData: " + t); }
@@ -432,7 +421,7 @@ public final class DashRecorder {
             catch (Throwable t) { Log.w(TAG, "dashcam: muxer stop failed: " + t); }
             try { muxer.release(); } catch (Throwable ignored) { }
             if (sub != null) sub.close();
-            try { if (rawOut != null) rawOut.close(); } catch (Throwable ignored) { }
+            if (rawOut != null) rawOut.close();
             // The write-ahead stream is a safety net for a segment that never
             // closed. Only a clean close deletes it — see SegmentFiles.
             if (SegmentFiles.finish(mp4Tmp, mp4, vttTmp, vtt, raw, closed)) {
