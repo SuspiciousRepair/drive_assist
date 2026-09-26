@@ -20,6 +20,9 @@ import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /** Dashcam recorder: direct encode of the DVR camera view (2x2 of all four cameras)
  * without GL pipeline. Encodes directly to MediaCodec, bypassing unnecessary
@@ -69,6 +72,11 @@ public final class DashRecorder {
     private volatile boolean rotateRequested;
     private Thread thread;
     private Thread sampler;
+    // Closes finished segments: the moov write, a thumbnail decoded from a
+    // 600 MB file, the ring buffer. On the encoder thread that work stopped
+    // the drain for as long as it took, and frames were dropped at every
+    // rotation. One thread, so segments still close in order.
+    private ExecutorService closer;
 
     // Latest telemetry, refreshed off the encoder thread so a slow binder read can
     // never stall the drain loop.
@@ -248,6 +256,7 @@ public final class DashRecorder {
                 return;
             }
 
+            closer = Executors.newSingleThreadExecutor(r -> new Thread(r, "dashcam-close"));
             MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
             MediaFormat outFmt = null;
             boolean rotateArmed = false;
@@ -274,8 +283,8 @@ public final class DashRecorder {
 
                 // Rotate segment at a key frame: segments must start seekable.
                 if (rotateArmed && key) {
-                    seg.finish();
-                    enforceBudget(ctx);
+                    final Seg old = seg;
+                    closer.execute(() -> { old.finish(); enforceBudget(ctx); });
                     seg = new Seg(outFmt);
                     activeSegment = seg;
                     rotateArmed = false;
@@ -313,6 +322,11 @@ public final class DashRecorder {
             running = false;
             if (seg != null) seg.finish();
             activeSegment = null;
+            if (closer != null) {
+                closer.shutdown();
+                try { closer.awaitTermination(10, TimeUnit.SECONDS); }
+                catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            }
             try { if (codec != null) { codec.stop(); codec.release(); } } catch (Throwable ignored) { }
             try { if (input != null) input.release(); } catch (Throwable ignored) { }
             enforceBudget(ctx);
@@ -477,9 +491,9 @@ public final class DashRecorder {
     // holding more leaves less room for new recording instead of being free
     // storage on top of it.
     //
-    // Only ever called with no segment open (after finish()), so the only
-    // files still being written are a recovery's, which SegmentFiles leaves
-    // alone by their age.
+    // Runs on the close thread while the NEXT segment is already recording.
+    // That segment's files, like a recovery's, are written continuously, and
+    // SegmentFiles leaves anything written in the last 10 minutes alone.
     static void enforceBudget(Context ctx) {
         try {
             int gb = ctx.getSharedPreferences("modehelper", Context.MODE_PRIVATE)
