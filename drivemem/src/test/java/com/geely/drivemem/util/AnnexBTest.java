@@ -134,6 +134,40 @@ public class AnnexBTest {
         } finally { f.delete(); }
     }
 
+    // The Reader's fast path skips ahead two bytes at a time; split() looks at
+    // every byte. On random streams dense with zeros and start codes of both
+    // widths, placed across refill edges, both must cut the same units.
+    @Test public void streamingReaderMatchesSplitOnRandomStreams() throws Exception {
+        java.util.Random rnd = new java.util.Random(42);
+        for (int round = 0; round < 20; round++) {
+            java.io.ByteArrayOutputStream data = new java.io.ByteArrayOutputStream();
+            while (data.size() < 700_000) {
+                data.write(new byte[] {0, 0});
+                if (rnd.nextBoolean()) data.write(0);
+                data.write(1);
+                data.write(nalHeader(1 + rnd.nextInt(8)));
+                int len = rnd.nextInt(round % 2 == 0 ? 50 : 300_000);
+                for (int k = 0; k < len; k++) {
+                    int b = rnd.nextInt(4) == 0 ? 0 : 2 + rnd.nextInt(254);
+                    // Never 00 00 0x inside a unit, as emulation prevention guarantees.
+                    data.write(b);
+                    if (b == 0) data.write(2 + rnd.nextInt(254));
+                }
+            }
+            byte[] bytes = data.toByteArray();
+            List<AnnexB.Nal> expected = AnnexB.split(AnnexB.of(bytes));
+            File f = File.createTempFile("annexb", ".h264");
+            try (FileOutputStream out = new FileOutputStream(f)) { out.write(bytes); }
+            try (AnnexB.Reader r = new AnnexB.Reader(f)) {
+                for (AnnexB.Nal nal : expected) {
+                    org.junit.Assert.assertArrayEquals("round " + round,
+                        java.util.Arrays.copyOfRange(bytes, nal.start, nal.end), r.next());
+                }
+                assertEquals(null, r.next());
+            } finally { f.delete(); }
+        }
+    }
+
     @Test public void readsFirstMacroblockExpGolomb() {
         assertEquals(0, AnnexB.firstMbInSlice(new byte[] {0,0,1, nalHeader(1), (byte) 0x80}));
         // Exp-Golomb code 010 encodes value one.

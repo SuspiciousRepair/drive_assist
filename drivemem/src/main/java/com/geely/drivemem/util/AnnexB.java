@@ -117,6 +117,21 @@ public final class AnnexB {
                         return n <= 3 ? null : Arrays.copyOf(nal, n);
                     }
                 }
+                // Fast path: a start code needs two zeros in a row, so looking
+                // at every SECOND byte finds any place one could begin, and
+                // everything before it is copied in one arraycopy. The byte-
+                // by-byte machine below then handles only the zeros. This is
+                // what makes recovery fast on a unit with the JIT off, where
+                // each byte examined in Java is an interpreted step.
+                if (started && zeroes == 0 && buf[pos] != 0) {
+                    int i = pos + 1;
+                    while (i < lim && buf[i] != 0) i += 2;
+                    int end = i < lim ? (buf[i - 1] == 0 ? i - 1 : i)
+                                      : (buf[lim - 1] == 0 ? lim - 1 : lim);
+                    putAll(buf, pos, end - pos);
+                    pos = end;
+                    continue;
+                }
                 int b = buf[pos++] & 0xFF;
                 if (b == 0) { zeroes++; continue; }
                 if (b == 1 && zeroes >= 2) {
@@ -130,6 +145,12 @@ public final class AnnexB {
                 if (started) { while (zeroes-- > 0) put(0); put(b); }
                 zeroes = 0;
             }
+        }
+
+        private void putAll(byte[] src, int off, int len) {
+            if (n + len > nal.length) nal = Arrays.copyOf(nal, Math.max(nal.length * 2, n + len));
+            System.arraycopy(src, off, nal, n, len);
+            n += len;
         }
 
         private void put(int b) {
