@@ -35,6 +35,19 @@ public class ClipRecoveryTest {
         assertEquals("kept", new String(Files.readAllBytes(new File(dir, "dash_1.vtt").toPath())));
     }
 
+    // Android 9's MPEG4Writer treats csd that does not start 00 00 00 01 as a
+    // ready-made avcC box: the recovered clip had no SPS/PPS and never decoded.
+    @Test public void parameterSetsGetFourByteStartCodes() throws Exception {
+        File f = File.createTempFile("annexb", ".h264");
+        try (java.io.FileOutputStream out = new java.io.FileOutputStream(f)) {
+            out.write(new byte[] {0,0,0,1, 0x67, 1, 2, 0,0,0,1, 0x68, 3, 0,0,0,1, 0x65, 4});
+        }
+        try (AnnexB.Reader r = new AnnexB.Reader(f)) {
+            org.junit.Assert.assertArrayEquals(new byte[] {0,0,0,1, 0x67, 1, 2}, ClipRecovery.csd(r.next()));
+            org.junit.Assert.assertArrayEquals(new byte[] {0,0,0,1, 0x68, 3}, ClipRecovery.csd(r.next()));
+        } finally { f.delete(); }
+    }
+
     @Test public void noSidecarIsFine() throws Exception {
         File dir = Files.createTempDirectory("clips").toFile();
         ClipRecovery.keepSidecar(dir, "dash_1");

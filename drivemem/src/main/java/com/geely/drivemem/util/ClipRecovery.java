@@ -74,7 +74,7 @@ public final class ClipRecovery {
             if (sps == null || pps == null || AnnexB.type(sps) != 7 || AnnexB.type(pps) != 8)
                 throw new IOException("Expected SPS/PPS at the start of the recording");
             MediaFormat fmt = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, W, H);
-            fmt.setByteBuffer("csd-0", ByteBuffer.wrap(sps)); fmt.setByteBuffer("csd-1", ByteBuffer.wrap(pps));
+            fmt.setByteBuffer("csd-0", ByteBuffer.wrap(csd(sps))); fmt.setByteBuffer("csd-1", ByteBuffer.wrap(csd(pps)));
             fmt.setInteger(MediaFormat.KEY_BIT_RATE, BITRATE); fmt.setInteger(MediaFormat.KEY_FRAME_RATE, FPS);
             fmt.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, IFRAME_SEC); fmt.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, MAX_SAMPLE_BYTES);
             muxer = new MediaMuxer(mp4Tmp.getAbsolutePath(), MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
@@ -132,6 +132,15 @@ public final class ClipRecovery {
      * Trailing zero bytes are dropped too: the Reader leaves a four-byte
      * code's extra zero on the end of the PREVIOUS unit, and a NAL unit
      * never legitimately ends in 0x00 (rbsp_trailing_bits ends on a 1). */
+    /** SPS or PPS for the track format, behind a four-byte start code. Android
+     * 9's MPEG4Writer builds the avcC box from csd only when it begins
+     * `00 00 00 01`; anything else it copies verbatim AS an avcC box, so a
+     * three-byte code produced a header with no parameter sets: every
+     * frame then failed with "non-existing PPS 0 referenced". */
+    static byte[] csd(byte[] nal) throws IOException {
+        return sample(java.util.Collections.singletonList(nal));
+    }
+
     static byte[] sample(List<byte[]> nals) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         for (byte[] nal : nals) {
