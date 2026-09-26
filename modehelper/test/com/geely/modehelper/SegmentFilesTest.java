@@ -16,6 +16,10 @@ public final class SegmentFilesTest {
         return f;
     }
 
+    private static void age(File f, long modifiedMs) {
+        check(f.setLastModified(modifiedMs), "could not age " + f);
+    }
+
     public static void main(String[] args) throws Exception {
         // Clean close: the clip gets its name, the sidecar follows, the
         // write-ahead stream goes.
@@ -58,6 +62,37 @@ public final class SegmentFilesTest {
         file(d, "s.mp4", 10);
         SegmentFiles.keepIfHeld(d, keep, "s");
         check(new File(d, "s.mp4").exists() && !new File(keep, "s.mp4").exists(), "unheld clip moved");
+
+        // Ring buffer. Times are relative to a fixed "now"; cold = older than COLD_MS.
+        long now = 1_000_000_000_000L, old = now - SegmentFiles.COLD_MS - 60_000;
+        d = Files.createTempDirectory("seg").toFile();
+        keep = new File(d, "keep"); keep.mkdirs();
+        // An orphan from a crash, oldest of all: .h264 + moov-less .mp4.tmp + .vtt.tmp.
+        age(file(d, "a.h264", 100), old - 3000); age(file(d, "a.mp4.tmp", 100), old - 3000);
+        age(file(d, "a.vtt.tmp", 1), old - 3000);
+        age(file(d, "b.mp4", 100), old - 2000); age(file(d, "b.vtt", 1), old - 2000);
+        age(file(d, "c.mp4", 100), old - 1000); file(d, "c.hold", 0);           // held
+        age(file(d, "e.mp4", 100), old);
+
+        // Under budget: only the crash's worthless .mp4.tmp goes.
+        java.util.List<String> dropped = SegmentFiles.evict(d, keep, 10_000, now);
+        check(dropped.equals(java.util.Arrays.asList("a.mp4.tmp")), "under budget dropped " + dropped);
+        check(new File(d, "a.h264").exists(), "orphan .h264 must stay while there is room");
+
+        // Over budget (4 x 100 bytes + 1 + 1 used, 250 allowed): the orphan
+        // goes first as a whole, then the oldest clip; the held one never.
+        dropped = SegmentFiles.evict(d, keep, 250, now);
+        check(dropped.equals(java.util.Arrays.asList("a.h264", "b.mp4")), "over budget dropped " + dropped);
+        check(!new File(d, "a.vtt.tmp").exists() && !new File(d, "b.vtt").exists(), "sidecars left behind");
+        check(new File(d, "c.mp4").exists() && new File(d, "e.mp4").exists(), "wrong clips evicted");
+
+        // A .h264 still being written (fresh) is never a candidate.
+        d = Files.createTempDirectory("seg").toFile();
+        keep = new File(d, "keep"); keep.mkdirs();
+        file(d, "live.h264", 100); file(d, "live.mp4.tmp", 100);
+        dropped = SegmentFiles.evict(d, keep, 10, System.currentTimeMillis());
+        check(dropped.isEmpty() && new File(d, "live.h264").exists()
+              && new File(d, "live.mp4.tmp").exists(), "live segment touched: " + dropped);
 
         System.out.println("SegmentFilesTest OK");
     }

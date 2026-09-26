@@ -18,8 +18,6 @@ import android.view.Surface;
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.Locale;
 
@@ -489,39 +487,18 @@ public final class DashRecorder {
     // (a .hold beside it) — but they DO count against the budget, so
     // holding more leaves less room for new recording instead of being free
     // storage on top of it.
+    //
+    // Only ever called with no segment open (after finish()), so the only
+    // files still being written are a recovery's, which SegmentFiles leaves
+    // alone by their age.
     static void enforceBudget(Context ctx) {
         try {
             int gb = ctx.getSharedPreferences("modehelper", Context.MODE_PRIVATE)
                 .getInt("dashcam_limit_gb", DEFAULT_BUDGET_GB);
             long budgetBytes = Math.max(1, gb) * 1024L * 1024 * 1024;
-            File[] all = dir().listFiles();
-            if (all == null) return;
-            File[] clips = Arrays.stream(all)
-                .filter(f -> f.isFile() && f.getName().endsWith(".mp4")
-                    && !SegmentFiles.held(f.getParentFile(),
-                           f.getName().substring(0, f.getName().length() - 4)))
-                .sorted(Comparator.comparingLong(File::lastModified))
-                .toArray(File[]::new);
-            long used = 0;
-            for (File f : all) if (f.isFile()) used += Math.max(0, f.length());
-            File[] held = keepDir().listFiles();
-            if (held != null) for (File f : held) if (f.isFile()) used += Math.max(0, f.length());
-            if (used <= budgetBytes) return;
-            for (File f : clips) {
-                if (used <= budgetBytes) return;
-                String stem = f.getName().substring(0, f.getName().length() - 4);
-                File side = new File(f.getParentFile(), stem + ".vtt");
-                File th   = new File(f.getParentFile(), stem + ".jpg");
-                long freed = Math.max(0, f.length())
-                           + (side.exists() ? Math.max(0, side.length()) : 0)
-                           + (th.exists()   ? Math.max(0, th.length())   : 0);
-                if (f.delete()) {
-                    side.delete();
-                    th.delete();
-                    used -= freed;
-                    Log.i(TAG, "dashcam: budget dropped " + f.getName());
-                }
-            }
+            for (String name : SegmentFiles.evict(dir(), keepDir(), budgetBytes,
+                                                  System.currentTimeMillis()))
+                Log.i(TAG, "dashcam: budget dropped " + name);
         } catch (Throwable t) { Log.w(TAG, "dashcam: budget: " + t); }
     }
 }
