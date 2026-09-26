@@ -158,16 +158,64 @@ public final class DashRecorder {
         }
     }
 
-    /** Preserve and promptly close the segment containing a detected event. */
-    public void saveCurrentSegmentForEvent() {
-        Seg segment = activeSegment;
-        if (segment == null) {
-            Log.w(TAG, "dashcam: event had no active segment to save");
-            return;
+    // ------------------------------------------------------------ parked motion
+
+    // A segment that begins less than this before motion is kept too, so the
+    // clip shows what led up to it.
+    static final long PRE_ROLL_MS = 10_000L;
+
+    private volatile boolean motionWanted;
+    private volatile String previousStem;
+    private KeyframeMotion motion;                // encoder thread only
+
+    /** Parked motion watch on or off; ModeHelperService calls this on every
+     * poll from its Park policy (on after 30 s in Park, off on leaving it). */
+    public void setMotionWatch(boolean on) { motionWanted = on; }
+
+    // Encoder thread, after each key frame is written.
+    private void motionFrame(MediaFormat outFmt, ByteBuffer buf, MediaCodec.BufferInfo info) {
+        if (motionWanted && motion == null && outFmt != null) {
+            try {
+                motion = new KeyframeMotion(outFmt, W, H, new KeyframeMotion.Listener() {
+                    @Override public void onEventStarted(int changed) { holdForMotion(true, changed); }
+                    @Override public void onEventActive() { holdForMotion(false, 0); }
+                    @Override public void onEventFinished() { Log.i(TAG, "motion: event ended"); }
+                });
+                Log.i(TAG, "motion: watching");
+            } catch (Throwable t) {
+                Log.w(TAG, "motion: could not start: " + t);
+                motionWanted = false;
+            }
+        } else if (!motionWanted && motion != null) {
+            stopMotion();
         }
-        segment.markHeld();
-        rotateRequested = true;
-        Log.i(TAG, "dashcam: event segment marked for keep " + segment.mp4.getName());
+        if (motion != null) motion.offer(buf, info.offset, info.size, info.presentationTimeUs);
+    }
+
+    private void stopMotion() {
+        if (motion == null) return;
+        motion.close();
+        motion = null;
+        Log.i(TAG, "motion: stopped watching");
+    }
+
+    // Motion thread. Marks the open segment kept for every analysed frame of
+    // an event, so an event that runs across a rotation keeps both clips.
+    private void holdForMotion(boolean started, int changedPixels) {
+        Seg s = activeSegment;
+        if (s == null) return;
+        s.markHeld();
+        if (!started) return;
+        Log.i(TAG, "motion: event started (" + changedPixels + " px changed), keeping " + s.stem);
+        String prev = previousStem;
+        ExecutorService c = closer;
+        if (prev != null && s.ageMs() < PRE_ROLL_MS && c != null) {
+            // The previous clip may still be closing on the close thread;
+            // queued behind that close, keepIfHeld finds it finished.
+            SegmentFiles.mark(dir(), prev);
+            c.execute(() -> SegmentFiles.keepIfHeld(dir(), keepDir(), prev));
+            Log.i(TAG, "motion: also keeping " + prev + " (pre-roll)");
+        }
     }
 
     /** Close the open segment NOW, without waiting for a key frame, and
@@ -297,6 +345,7 @@ public final class DashRecorder {
                     closeNow = false;
                     if (seg != null) {
                         final Seg old = seg;
+                        previousStem = old.stem;
                         closer.execute(() -> { old.finish(); enforceBudget(ctx, null); });
                         seg = null;
                         activeSegment = null;
@@ -341,6 +390,7 @@ public final class DashRecorder {
                 if (rotateArmed && key
                         && !SegmentFiles.sameSecond(seg.startWallMs, System.currentTimeMillis())) {
                     final Seg old = seg;
+                    previousStem = old.stem;
                     closer.execute(() -> {
                         old.finish();
                         Seg live = activeSegment;
@@ -366,6 +416,7 @@ public final class DashRecorder {
                     lastCue = sec;
                 }
 
+                if (key) motionFrame(outFmt, buf, info);
                 codec.releaseOutputBuffer(idx, false);
 
                 if (!rotateArmed && (seg.ageMs() >= SEGMENT_MS || valetEdge || rotateRequested)) {
@@ -382,6 +433,7 @@ public final class DashRecorder {
             lastError = String.valueOf(t);
         } finally {
             running = false;
+            stopMotion();
             if (seg != null) seg.finish();
             activeSegment = null;
             if (closer != null) {

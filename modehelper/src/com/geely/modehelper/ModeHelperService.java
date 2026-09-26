@@ -40,7 +40,6 @@ public class ModeHelperService extends Service {
     private int lastGear = -999;
     private long lastLog = 0;
     private final ParkedMonitorPolicy parkedMonitorPolicy = new ParkedMonitorPolicy();
-    private ParkedMonitoringProbe parkedMonitor;
 
     @Override public int onStartCommand(Intent i, int flags, int startId) {
         startAsForeground();
@@ -292,42 +291,36 @@ public class ModeHelperService extends Service {
         dash.start();
     }
 
-    /** Test-only metadata path; defaults off and never creates a clip or model run. */
+    // Parked motion watch (the "Park monitoring" switch): on after thirty
+    // uninterrupted seconds in Park, off the moment Park is left. The work is
+    // DashRecorder's (KeyframeMotion, from its own key frames); nothing here
+    // opens a camera.
+    private boolean motionArmed;
+
     private void updateParkedMonitoring(boolean parked) {
         boolean enabled = getSharedPreferences("modehelper", MODE_PRIVATE)
             .getBoolean("parked_monitoring", false);
         ParkedMonitorPolicy.State state = parkedMonitorPolicy.update(
             SystemClock.elapsedRealtime(), enabled && parked && car.isReady());
-        if (state == ParkedMonitorPolicy.State.ARMED && parkedMonitor == null) {
-            parkedMonitor = new ParkedMonitoringProbe(getApplicationContext(), false,
-                frames -> {
-                    if (dash != null && dash.isRunning()) dash.saveCurrentSegmentForEvent();
-                    else Log.w(TAG, "parked event had no running dashcam frames=" + frames);
-                });
-            Log.i(TAG, "parked runtime: starting metadata analysis after Park settle"
-                + " dashcam=" + (dash != null && dash.isRunning()));
-            parkedMonitor.start();
-        } else if (state != ParkedMonitorPolicy.State.ARMED && parkedMonitor != null) {
-            Log.i(TAG, "parked runtime: disarming " + state);
-            parkedMonitor.stop();
-            parkedMonitor = null;
+        boolean armed = state == ParkedMonitorPolicy.State.ARMED;
+        if (armed != motionArmed) {
+            motionArmed = armed;
+            Log.i(TAG, "parked motion: " + (armed ? "armed" : "disarmed " + state));
         }
+        if (dash != null) dash.setMotionWatch(armed);
     }
 
-    // Stop on the way down, so the last segment gets its moov atom and its
-    // thumbnail instead of being left as a .h264 to recover by hand. ACTION_SHUTDOWN
-    // is a protected broadcast; this app is uid system, so it receives it.
+    // Stop on the way down, so the last segment gets its index and its
+    // thumbnail now rather than from the repair pass later. ACTION_SHUTDOWN is
+    // a protected broadcast; this app is uid system, so it receives it.
     //
     // A suspend is not a shutdown: the head-unit-shutdown, screen-off and
-    // power-state hooks close the open segment before it (closeSegmentNow). `adb reboot` and a power
-    // cut send nothing at all; they leave an orphan, and the write-ahead .h264,
-    // synced every second, is the safety net.
+    // power-state hooks close the open segment before it (closeSegmentNow).
+    // `adb reboot` and a power cut send nothing at all; they leave an
+    // unclosed .mp4.tmp, playable up to its last one-second fragment, which
+    // SegmentFiles.repair finishes.
     private void stopForShutdown(String why) {
         shuttingDown = true;
-        if (parkedMonitor != null) {
-            parkedMonitor.stop();
-            parkedMonitor = null;
-        }
         if (dash != null && dash.isRunning()) {
             Log.i(TAG, "dashcam: " + why + " — closing the segment");
             dash.stopAndWait(5_000);

@@ -52,6 +52,11 @@ final class SegmentFiles {
         return new File(dir, stem + ".hold").exists();
     }
 
+    /** Marks a segment to be kept: the `<stem>.hold` held() looks for. */
+    static void mark(File dir, String stem) {
+        try { new File(dir, stem + ".hold").createNewFile(); } catch (java.io.IOException ignored) { }
+    }
+
     /** Moves a held, closed clip into keep/ the moment it closes. Only
      * Drive Assist's Clips screen used to do this, and only when someone
      * opened it — so the ring buffer usually evicted the event clip first,

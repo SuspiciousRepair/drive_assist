@@ -141,4 +141,17 @@ final class MotionGate {
         consecutiveMotion = 0;
         consecutiveStill = 0;
     }
+
+    /** Nearest-sample shrink of a luma plane (one byte per pixel at
+     * `pixelStride`, rows `rowStride` apart, the picture at `left`,`top`) into
+     * `out`, `outW` x `outH`. Absolute reads: the buffer is left untouched. */
+    static void shrink(java.nio.ByteBuffer y, int rowStride, int pixelStride, int left, int top,
+                       int w, int h, byte[] out, int outW, int outH) {
+        int base = y.position();
+        for (int oy = 0; oy < outH; oy++) {
+            int row = base + (top + oy * h / outH) * rowStride;
+            for (int ox = 0; ox < outW; ox++)
+                out[oy * outW + ox] = y.get(row + (left + ox * w / outW) * pixelStride);
+        }
+    }
 }

@@ -115,6 +115,16 @@ public final class SegmentFilesTest {
         check(SegmentFiles.taken(d, "dash_2"), "held clip name not taken");
         check(SegmentFiles.sameSecond(5_000, 5_999) && !SegmentFiles.sameSecond(5_999, 6_000), "sameSecond");
 
+        // mark() + keepIfHeld on a clip that already closed (the pre-roll
+        // clip before a parked motion event): it moves to keep/.
+        d = Files.createTempDirectory("seg").toFile();
+        keep = new File(d, "keep"); keep.mkdirs();
+        file(d, "prev.mp4", 10); file(d, "prev.vtt", 1);
+        SegmentFiles.mark(d, "prev");
+        SegmentFiles.mark(d, "prev");          // idempotent: once per analysed frame
+        SegmentFiles.keepIfHeld(d, keep, "prev");
+        check(new File(keep, "prev.mp4").exists() && !new File(d, "prev.hold").exists(), "pre-roll clip not kept");
+
         System.out.println("SegmentFilesTest OK");
     }
 }
