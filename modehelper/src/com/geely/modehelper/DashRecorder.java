@@ -381,8 +381,8 @@ public final class DashRecorder {
         boolean done;
 
         Seg(MediaFormat f) throws Exception {
-            stem = "dash_" + NAME.format(new Date())
-                + (new File(dir(), "valet.active").exists() ? "_valet" : "");
+            stem = SegmentFiles.freeStem(dir(), "dash_" + NAME.format(new Date()),
+                new File(dir(), "valet.active").exists() ? "_valet" : "");
             File d = dir();
             mp4 = new File(d, stem + ".mp4");
             vtt = new File(d, stem + ".vtt");

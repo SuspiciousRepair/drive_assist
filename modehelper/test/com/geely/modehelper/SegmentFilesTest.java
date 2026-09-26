@@ -94,6 +94,17 @@ public final class SegmentFilesTest {
         check(dropped.isEmpty() && new File(d, "live.h264").exists()
               && new File(d, "live.mp4.tmp").exists(), "live segment touched: " + dropped);
 
+        // Same second, same name: the second segment gets -2, before "_valet".
+        d = Files.createTempDirectory("seg").toFile();
+        check(SegmentFiles.freeStem(d, "dash_1", "_valet").equals("dash_1_valet"), "free name changed");
+        file(d, "dash_1_valet.mp4.tmp", 1);
+        check(SegmentFiles.freeStem(d, "dash_1", "_valet").equals("dash_1-2_valet"), "collision not avoided");
+        file(d, "dash_1-2_valet.mp4", 1);
+        check(SegmentFiles.freeStem(d, "dash_1", "_valet").equals("dash_1-3_valet"), "second collision");
+        new File(d, "keep").mkdirs();
+        file(new File(d, "keep"), "dash_2.mp4", 1);
+        check(SegmentFiles.freeStem(d, "dash_2", "").equals("dash_2-2"), "held clip overwritten");
+
         System.out.println("SegmentFilesTest OK");
     }
 }

@@ -32,6 +32,23 @@ final class SegmentFiles {
         return false;
     }
 
+    /** A segment name nothing is using yet: `base + suffix`, or with -2, -3
+     * ... before the suffix. Two segments started in the same wall-clock
+     * second (an event right after a rotation) used to share a name, and the
+     * second one's close overwrote the first clip. The counter goes before
+     * the suffix, so "_valet" stays at the end where Clips looks for it. */
+    static String freeStem(File dir, String base, String suffix) {
+        String stem = base + suffix;
+        for (int k = 2; taken(dir, stem); k++) stem = base + "-" + k + suffix;
+        return stem;
+    }
+
+    private static boolean taken(File dir, String stem) {
+        for (String ext : new String[] {".mp4", ".mp4.tmp", ".h264", ".vtt", ".vtt.tmp"})
+            if (new File(dir, stem + ext).exists()) return true;
+        return new File(new File(dir, "keep"), stem + ".mp4").exists();
+    }
+
     /** Marked for keeping: a `<stem>.hold` beside the clip, dropped by a
      * parked-monitoring event or by the Clips screen while the segment was
      * still recording. */
