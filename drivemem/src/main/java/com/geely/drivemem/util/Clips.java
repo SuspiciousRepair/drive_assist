@@ -166,8 +166,19 @@ public final class Clips {
             if (mp4.exists()) {
                 hold(c, new Clip(mp4, false, Kind.DONE), true);
                 f.delete();
+            } else if (stale(dir(c), stem)) {
+                f.delete();
             }
         }
+    }
+
+    // A marker with nothing left to keep: no clip, no live recording, no
+    // orphan to recover. The ring buffer used to evict held clips before
+    // they were promoted, and each one left one of these behind forever.
+    static boolean stale(File dir, String stem) {
+        for (String ext : new String[] {".mp4", ".mp4.tmp", ".h264"})
+            if (new File(dir, stem + ext).exists()) return false;
+        return true;
     }
 
     private static void collect(File d, boolean held, List<Clip> out) {

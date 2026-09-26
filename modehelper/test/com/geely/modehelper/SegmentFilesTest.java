@@ -41,6 +41,24 @@ public final class SegmentFilesTest {
         check(!SegmentFiles.finish(tmp, new File(d, "s.mp4"), vttTmp, new File(d, "s.vtt"), raw, false), "no raw");
         check(tmp.exists(), "the only copy was deleted");
 
+        // A held clip moves into keep/ as it closes, with its sidecars, and
+        // the marker goes: the ring buffer never sees it.
+        d = Files.createTempDirectory("seg").toFile();
+        File keep = new File(d, "keep"); keep.mkdirs();
+        file(d, "s.mp4", 10); file(d, "s.vtt", 5); file(d, "s.jpg", 5); file(d, "s.hold", 0);
+        check(SegmentFiles.held(d, "s"), "marker not seen");
+        SegmentFiles.keepIfHeld(d, keep, "s");
+        check(new File(keep, "s.mp4").exists() && new File(keep, "s.vtt").exists()
+              && new File(keep, "s.jpg").exists(), "held clip not moved to keep/");
+        check(!new File(d, "s.mp4").exists() && !new File(d, "s.hold").exists(), "held clip left behind");
+
+        // Not held: nothing moves.
+        d = Files.createTempDirectory("seg").toFile();
+        keep = new File(d, "keep"); keep.mkdirs();
+        file(d, "s.mp4", 10);
+        SegmentFiles.keepIfHeld(d, keep, "s");
+        check(new File(d, "s.mp4").exists() && !new File(keep, "s.mp4").exists(), "unheld clip moved");
+
         System.out.println("SegmentFilesTest OK");
     }
 }

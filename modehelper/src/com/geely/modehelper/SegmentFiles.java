@@ -28,4 +28,26 @@ final class SegmentFiles {
         if (raw.length() > 0 || mp4Tmp.length() == 0) mp4Tmp.delete();
         return false;
     }
+
+    /** Marked for keeping: a `<stem>.hold` beside the clip, dropped by a
+     * parked-monitoring event or by the Clips screen while the segment was
+     * still recording. */
+    static boolean held(File dir, String stem) {
+        return new File(dir, stem + ".hold").exists();
+    }
+
+    /** Moves a held, closed clip into keep/ the moment it closes. Only
+     * Drive Assist's Clips screen used to do this, and only when someone
+     * opened it — so the ring buffer usually evicted the event clip first,
+     * leaving the marker behind with nothing to keep. */
+    static void keepIfHeld(File dir, File keep, String stem) {
+        File mp4 = new File(dir, stem + ".mp4");
+        if (!held(dir, stem) || !mp4.exists()) return;
+        if (!mp4.renameTo(new File(keep, mp4.getName()))) return;
+        for (String ext : new String[] {".vtt", ".jpg"}) {
+            File f = new File(dir, stem + ext);
+            if (f.exists()) f.renameTo(new File(keep, f.getName()));
+        }
+        new File(dir, stem + ".hold").delete();
+    }
 }

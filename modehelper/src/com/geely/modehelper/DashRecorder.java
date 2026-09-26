@@ -437,8 +437,11 @@ public final class DashRecorder {
             try { if (rawOut != null) rawOut.close(); } catch (Throwable ignored) { }
             // The write-ahead stream is a safety net for a segment that never
             // closed. Only a clean close deletes it — see SegmentFiles.
-            if (SegmentFiles.finish(mp4Tmp, mp4, vttTmp, vtt, raw, closed)) thumbnail();
-            else Log.w(TAG, "dashcam: kept " + raw.getName() + " — the mp4 never closed");
+            if (SegmentFiles.finish(mp4Tmp, mp4, vttTmp, vtt, raw, closed)) {
+                thumbnail();
+                String stem = mp4.getName().substring(0, mp4.getName().length() - 4);
+                SegmentFiles.keepIfHeld(dir(), keepDir(), stem);
+            } else Log.w(TAG, "dashcam: kept " + raw.getName() + " — the mp4 never closed");
             Log.i(TAG, "dashcam: closed " + mp4.getName() + " " + (mp4.length() / 1024) + " KB");
         }
 
@@ -482,7 +485,8 @@ public final class DashRecorder {
     // outright. Run after every finished segment.
     //
     // Held clips still cannot be evicted — keepDir() is never in the
-    // candidate list below — but they DO count against the budget, so
+    // candidate list below, and neither is a clip still waiting for keepIfHeld
+    // (a .hold beside it) — but they DO count against the budget, so
     // holding more leaves less room for new recording instead of being free
     // storage on top of it.
     static void enforceBudget(Context ctx) {
@@ -493,7 +497,9 @@ public final class DashRecorder {
             File[] all = dir().listFiles();
             if (all == null) return;
             File[] clips = Arrays.stream(all)
-                .filter(f -> f.isFile() && f.getName().endsWith(".mp4"))
+                .filter(f -> f.isFile() && f.getName().endsWith(".mp4")
+                    && !SegmentFiles.held(f.getParentFile(),
+                           f.getName().substring(0, f.getName().length() - 4)))
                 .sorted(Comparator.comparingLong(File::lastModified))
                 .toArray(File[]::new);
             long used = 0;
