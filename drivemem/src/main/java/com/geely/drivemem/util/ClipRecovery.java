@@ -103,8 +103,15 @@ public final class ClipRecovery {
         if (frames == 0) { mp4Tmp.delete(); throw new IOException("No complete video frames found"); }
         if (!mp4Tmp.renameTo(mp4)) { mp4Tmp.delete(); throw new IOException("Could not finalize recovered video"); }
         if (!h264.delete()) Log.w(TAG, "recovered clip but could not delete " + h264);
-        new File(dir, stem + ".vtt.tmp").delete(); thumbnail(mp4, new File(dir, stem + ".jpg"));
+        keepSidecar(dir, stem); thumbnail(mp4, new File(dir, stem + ".jpg"));
         return stem;
+    }
+
+    /** The orphan's subtitles become the recovered clip's: they carry its
+     * telemetry, and Clips reads the clip's duration from the cue count. */
+    static void keepSidecar(File dir, String stem) {
+        File tmp = new File(dir, stem + ".vtt.tmp"), vtt = new File(dir, stem + ".vtt");
+        if (tmp.exists() && (vtt.exists() || !tmp.renameTo(vtt))) tmp.delete();
     }
 
     private static void writeAccessUnit(MediaMuxer muxer, int track, List<byte[]> nals, int frame,
