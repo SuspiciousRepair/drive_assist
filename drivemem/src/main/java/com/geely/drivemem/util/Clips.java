@@ -181,9 +181,37 @@ public final class Clips {
         return true;
     }
 
+    // THE SEGMENT MODEHELPER HAS OPEN, from its recorder.state (see
+    // RecorderState there): state=recording, and a beat in the last BEAT_MS.
+    // The mtime test below cannot tell a stalled recording (EVS stopped
+    // delivering frames, files cold) from crash debris; this can, so the live
+    // segment is never offered for recovery out from under the recorder.
+    static final long BEAT_MS = 30_000;
+
+    public static String liveStem(File dir, long nowMs) {
+        File f = new File(dir, "recorder.state");
+        if (!f.isFile()) return null;
+        String state = null, stem = null;
+        long beat = 0;
+        try (BufferedReader r = new BufferedReader(new FileReader(f))) {
+            String line;
+            while ((line = r.readLine()) != null) {
+                int eq = line.indexOf('=');
+                if (eq < 0) continue;
+                String k = line.substring(0, eq), v = line.substring(eq + 1);
+                if (k.equals("state")) state = v;
+                else if (k.equals("stem")) stem = v;
+                else if (k.equals("beat")) { try { beat = Long.parseLong(v); } catch (NumberFormatException ignored) { } }
+            }
+        } catch (Exception e) { return null; }
+        if (!"recording".equals(state) || stem == null || stem.isEmpty()) return null;
+        return Math.abs(nowMs - beat) <= BEAT_MS ? stem : null;
+    }
+
     private static void collect(File d, boolean held, List<Clip> out) {
         File[] fs = d.listFiles();
         if (fs == null) return;
+        String liveStem = liveStem(d, System.currentTimeMillis());
         for (File f : fs) {
             if (!f.isFile()) continue;
             String n = f.getName();
@@ -199,7 +227,8 @@ public final class Clips {
                 // second time as its .h264. A stale one is skipped entirely: the
                 // orphan row below is that footage, and it is the row that can
                 // actually be recovered.
-                if (System.currentTimeMillis() - f.lastModified() < LIVE_MS)
+                if ((liveStem != null && n.equals(liveStem + ".mp4.tmp"))
+                        || System.currentTimeMillis() - f.lastModified() < LIVE_MS)
                     out.add(new Clip(f, held, Kind.RECORDING));
                 continue;
             }
@@ -215,8 +244,8 @@ public final class Clips {
                 String stem = name(f);
                 File done = new File(f.getParentFile(), stem + ".mp4");
                 File tmp  = new File(f.getParentFile(), stem + ".mp4.tmp");
-                boolean live = tmp.exists()
-                            && System.currentTimeMillis() - tmp.lastModified() < LIVE_MS;
+                boolean live = stem.equals(liveStem) || (tmp.exists()
+                            && System.currentTimeMillis() - tmp.lastModified() < LIVE_MS);
                 if (!done.exists() && !live) out.add(new Clip(f, held, Kind.ORPHAN));
             }
         }

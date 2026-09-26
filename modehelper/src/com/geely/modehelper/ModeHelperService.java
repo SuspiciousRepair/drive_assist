@@ -44,19 +44,18 @@ public class ModeHelperService extends Service {
         startAsForeground();
         if (i != null && ACTION_DASHCAM.equals(i.getAction())) {
             int on = i.getIntExtra("on", -1);
+            // Persisted BEFORE acting, so superviseDash() never sees an
+            // owner's stop as a recorder that died on its own.
+            if (on == 0 || on == 1) {
+                getSharedPreferences("modehelper", MODE_PRIVATE).edit()
+                    .putBoolean("dashcam_on", on == 1).commit();
+            }
             if (dash == null) dash = new DashRecorder(getApplicationContext(), car);
             // The car connection is the poll loop's, and it may not be up yet on
             // a cold start — the recorder tolerates that for telemetry (cues just
             // go quiet) but the ENGINE binder is separate and always available.
             if (on == 1) dash.start();
             else if (on == 0) dash.stopAndWait(5_000);
-            // Persisted so maybeAutoStart() respects an explicit "off" across a
-            // restart, not just for the rest of this process's life — see that
-            // method's own comment for why this used to not survive a restart.
-            if (on == 0 || on == 1) {
-                getSharedPreferences("modehelper", MODE_PRIVATE).edit()
-                    .putBoolean("dashcam_on", on == 1).apply();
-            }
             Log.i(TAG, "dashcam: now " + (dash.isRunning() ? "RUNNING" : "stopped"));
         }
         if (i != null && ACTION_PARKED_MONITORING.equals(i.getAction())) {
@@ -173,6 +172,7 @@ public class ModeHelperService extends Service {
                 Integer g = car.readGear();
                 boolean parked = (g != null && g == CarMode.GEAR_PARK);
                 maybeAutoStart();
+                superviseDash();
                 maybeWatchPower();
                 updateParkedMonitoring(parked);
                 if (g != null) {
@@ -210,6 +210,24 @@ public class ModeHelperService extends Service {
         }
     }
 
+    // A recorder that stopped on its own (EVS not ready at boot, a codec
+    // error, a failed segment open) used to stay stopped until the process
+    // restarted, and nothing said so. Restart it while recording is wanted,
+    // backing off if it keeps failing; RecorderState tells Drive Assist.
+    private final RestartBackoff dashBackoff = new RestartBackoff();
+    private volatile boolean shuttingDown;
+
+    private void superviseDash() {
+        if (!dashAutoStarted || shuttingDown || dash == null) return;
+        long now = SystemClock.uptimeMillis();
+        if (dash.isRunning()) { dashBackoff.running(dash.startedUptimeMs(), now); return; }
+        if (!getSharedPreferences("modehelper", MODE_PRIVATE).getBoolean("dashcam_on", true)) return;
+        if (!dashBackoff.due(now)) return;
+        Log.w(TAG, "dashcam: recorder stopped on its own — restarting");
+        dash = new DashRecorder(getApplicationContext(), car);
+        dash.start();
+    }
+
     // The car's own power states, once the car connection is up: a suspend
     // is announced here even when the screen was already off. One attempt
     // per process — a refusal will not change on retry.
@@ -225,6 +243,8 @@ public class ModeHelperService extends Service {
                     if (dash != null && dash.isRunning()) dash.closeSegmentSoon("suspend");
                 } else if (state == PowerWatch.SHUTDOWN_ENTER) {
                     stopForShutdown("car shutdown");
+                } else if (state == PowerWatch.SHUTDOWN_CANCELLED) {
+                    shuttingDown = false;
                 }
             });
             Log.i(TAG, "power watch: " + (ok ? "registered" : "no power manager"));
@@ -297,6 +317,7 @@ public class ModeHelperService extends Service {
     // cut send nothing at all; they leave an orphan, and the write-ahead .h264,
     // synced every second, is the safety net.
     private void stopForShutdown(String why) {
+        shuttingDown = true;
         if (parkedMonitor != null) {
             parkedMonitor.stop();
             parkedMonitor = null;

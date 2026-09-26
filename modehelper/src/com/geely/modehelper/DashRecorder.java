@@ -77,6 +77,8 @@ public final class DashRecorder {
     // the drain for as long as it took, and frames were dropped at every
     // rotation. One thread, so segments still close in order.
     private ExecutorService closer;
+    private volatile long startedUptimeMs;
+    private volatile String lastError;
 
     // Latest telemetry, refreshed off the encoder thread so a slow binder read can
     // never stall the drain loop.
@@ -123,9 +125,15 @@ public final class DashRecorder {
 
     public boolean isRunning() { return running; }
 
+    /** uptime when start() last ran; the supervisor resets its backoff once a
+     * recorder has stayed up a while. */
+    public long startedUptimeMs() { return startedUptimeMs; }
+
     public synchronized void start() {
         if (running) return;
         running = true;
+        startedUptimeMs = SystemClock.uptimeMillis();
+        lastError = null;
         startGps();
         thread = new Thread(this::loop, "dashcam");
         thread.start();
@@ -194,7 +202,11 @@ public final class DashRecorder {
     // ------------------------------------------------------------ telemetry
 
     private void sample() {
+        int tick = 0;
         while (running) {
+            Seg open = activeSegment;
+            if (tick++ % 5 == 0 && open != null)
+                RecorderState.write(dir(), "recording", open.stem, System.currentTimeMillis(), null);
             try {
                 if (car.isReady()) {
                     boolean valet = new File(dir(), "valet.active").exists();
@@ -243,7 +255,7 @@ public final class DashRecorder {
         Surface input = null;
         Seg seg = null;
         try {
-            if (!evs.connect()) { Log.w(TAG, "dashcam: no engine, giving up"); running = false; return; }
+            if (!evs.connect()) { lastError = "no EVS engine"; Log.w(TAG, "dashcam: no engine, giving up"); running = false; return; }
             evs.openCamera(EvsClient.CAMERA_AVM);
 
             MediaFormat fmt = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, W, H);
@@ -261,6 +273,7 @@ public final class DashRecorder {
             // The engine renders straight into the encoder. Same IGraphicBufferProducer
             // trick as any other surface — MediaCodec's input surface is no different.
             if (!evs.attach(input, EvsClient.TYPE_DVR, EvsClient.CAMERA_AVM)) {
+                lastError = "EVS attach refused";
                 Log.w(TAG, "dashcam: attach refused");
                 running = false;
                 return;
@@ -328,6 +341,7 @@ public final class DashRecorder {
             }
         } catch (Throwable t) {
             Log.w(TAG, "dashcam: " + t, t);
+            lastError = String.valueOf(t);
         } finally {
             running = false;
             if (seg != null) seg.finish();
@@ -341,6 +355,7 @@ public final class DashRecorder {
             try { if (input != null) input.release(); } catch (Throwable ignored) { }
             enforceBudget(ctx);
             stopGps();
+            RecorderState.write(dir(), "stopped", "", System.currentTimeMillis(), lastError);
             Log.i(TAG, "dashcam: stopped");
         }
     }
@@ -351,6 +366,7 @@ public final class DashRecorder {
     // never mistaken for a whole one — by the ring buffer, by a player, or by
     // whatever eventually uploads them.
     private final class Seg {
+        final String stem;
         final File mp4, vtt, mp4Tmp, vttTmp, raw, jpg, hold;
         final MediaMuxer muxer;
         final int track;
@@ -363,7 +379,7 @@ public final class DashRecorder {
         boolean done;
 
         Seg(MediaFormat f) throws Exception {
-            String stem = "dash_" + NAME.format(new Date())
+            stem = "dash_" + NAME.format(new Date())
                 + (new File(dir(), "valet.active").exists() ? "_valet" : "");
             File d = dir();
             mp4 = new File(d, stem + ".mp4");
@@ -396,6 +412,7 @@ public final class DashRecorder {
             } catch (Throwable t) { if (rawOut != null) rawOut.close(); rawOut = null; }
 
             Log.i(TAG, "dashcam: segment " + mp4.getName());
+            RecorderState.write(dir(), "recording", stem, System.currentTimeMillis(), null);
         }
 
         long ageMs() { return SystemClock.uptimeMillis() - startMs; }
