@@ -110,6 +110,30 @@ public class AnnexBTest {
             new byte[] {0,0,0,1, nalHeader(5), 1, 2, 0,0,0,1, nalHeader(5), 3}, sample);
     }
 
+    // The Reader scans a 256 KB buffer of its own: a unit and a start code
+    // straddling a refill must come out whole, and a unit may outgrow the
+    // initial 64 KB array.
+    @Test public void streamingReaderHandlesUnitsAcrossBufferRefills() throws Exception {
+        java.io.ByteArrayOutputStream data = new java.io.ByteArrayOutputStream();
+        int[] sizes = {10, 262_140, 300_000, 5};
+        for (int i = 0; i < sizes.length; i++) {
+            data.write(new byte[] {0,0,0,1, nalHeader(i == 0 ? 7 : 1)});
+            for (int k = 0; k < sizes[i]; k++) data.write(0x55);
+        }
+        File f = File.createTempFile("annexb", ".h264");
+        try (FileOutputStream out = new FileOutputStream(f)) { data.writeTo(out); }
+        try (AnnexB.Reader r = new AnnexB.Reader(f)) {
+            for (int i = 0; i < sizes.length; i++) {
+                byte[] nal = r.next();
+                assertEquals(i == 0 ? 7 : 1, AnnexB.type(nal));
+                // 00 00 01, header, payload, and -- for all but the last --
+                // the next four-byte code's extra zero.
+                assertEquals("unit " + i, 3 + 1 + sizes[i] + (i < sizes.length - 1 ? 1 : 0), nal.length);
+            }
+            assertEquals(null, r.next());
+        } finally { f.delete(); }
+    }
+
     @Test public void readsFirstMacroblockExpGolomb() {
         assertEquals(0, AnnexB.firstMbInSlice(new byte[] {0,0,1, nalHeader(1), (byte) 0x80}));
         // Exp-Golomb code 010 encodes value one.

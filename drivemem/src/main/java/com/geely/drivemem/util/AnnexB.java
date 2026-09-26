@@ -1,12 +1,12 @@
 package com.geely.drivemem.util;
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /** Splits a raw H.264 Annex-B elementary stream (the format DashRecorder
@@ -84,50 +84,57 @@ public final class AnnexB {
     }
 
     /** Incremental Annex-B reader. It never maps or retains the full video:
-     * at most one NAL unit is resident, making 250 MB interrupted clips safe
-     * on the head unit. */
+     * at most one NAL unit is resident, making 600 MB interrupted clips safe
+     * on the head unit.
+     *
+     * Scans its own buffer rather than calling InputStream.read() per byte:
+     * that synchronized call per byte held recovery to ~0.4 MB/s on the car,
+     * a quarter of an hour per segment and past the UI's five-minute wait. */
     public static final class Reader implements Closeable {
-        private final BufferedInputStream in;
-        private boolean started;
-        private int pending = -1;
+        private final InputStream in;
+        private final byte[] buf = new byte[256 * 1024];
+        private int pos, lim;
+        private boolean started, prefixNext;
+        private byte[] nal = new byte[64 * 1024];
+        private int n;
 
-        public Reader(File file) throws IOException { in = new BufferedInputStream(new FileInputStream(file), 64 * 1024); }
+        public Reader(File file) throws IOException { in = new FileInputStream(file); }
 
+        /** The next NAL unit, always led by a three-byte `00 00 01`; null at
+         * the end. A four-byte code's extra zero ends the PREVIOUS unit. */
         public byte[] next() throws IOException {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            n = 0;
+            if (prefixNext) { prefixNext = false; put(0); put(0); put(1); }
             int zeroes = 0;
             for (;;) {
-                int b = pending != -1 ? takePending() : in.read();
-                if (b < 0) {
-                    if (!started) return null;
-                    while (zeroes-- > 0) out.write(0);
-                    return out.size() == 0 ? null : out.toByteArray();
+                if (pos == lim) {
+                    lim = in.read(buf, 0, buf.length);
+                    pos = 0;
+                    if (lim <= 0) {
+                        lim = 0;
+                        if (!started) return null;
+                        while (zeroes-- > 0) put(0);
+                        return n <= 3 ? null : Arrays.copyOf(nal, n);
+                    }
                 }
+                int b = buf[pos++] & 0xFF;
                 if (b == 0) { zeroes++; continue; }
                 if (b == 1 && zeroes >= 2) {
-                    if (started && out.size() > 0) {
-                        while (zeroes-- > 2) out.write(0);
-                        pending = 1; // next call emits the normalized delimiter
-                        return out.toByteArray();
+                    if (started) {
+                        while (zeroes-- > 2) put(0);
+                        prefixNext = true;
+                        return Arrays.copyOf(nal, n);
                     }
-                    started = true; zeroes = 0; out.write(0); out.write(0); out.write(1); continue;
+                    started = true; zeroes = 0; put(0); put(0); put(1); continue;
                 }
-                if (started) while (zeroes-- > 0) out.write(0);
+                if (started) { while (zeroes-- > 0) put(0); put(b); }
                 zeroes = 0;
-                if (started) out.write(b);
             }
         }
 
-        private int takePending() {
-            int p = pending; pending = -1;
-            // We consumed the two zero bytes before the delimiter while ending
-            // the prior NAL, so reconstitute its final byte then begin 00 00 01.
-            // Returning 1 alone would lose those zeroes; use a tiny virtual
-            // queue encoded as negative sentinels instead.
-            if (p == 1) { pending = -2; return 0; }
-            if (p == -2) { pending = -3; return 0; }
-            if (p == -3) return 1;
-            return p;
+        private void put(int b) {
+            if (n == nal.length) nal = Arrays.copyOf(nal, n * 2);
+            nal[n++] = (byte) b;
         }
 
         @Override public void close() throws IOException { in.close(); }
