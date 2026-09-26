@@ -503,6 +503,10 @@ public final class DashRecorder {
             r.setDataSource(mp4.getAbsolutePath());
             android.graphics.Bitmap full = r.getFrameAtTime(1_000_000,
                 android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+            // A clip shorter than about a second and a half (closed right
+            // after it started) has no frame there; take its first one.
+            if (full == null) full = r.getFrameAtTime(0,
+                android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
             if (full == null) return;
             android.graphics.Bitmap small =
                 android.graphics.Bitmap.createScaledBitmap(full, 480, 200, true);
