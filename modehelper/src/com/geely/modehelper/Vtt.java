@@ -28,6 +28,9 @@ public final class Vtt {
         w.write('\n');
         w.write(text);
         w.write("\n\n");
+        // Flushed per cue (once a second, ~60 bytes): without it a segment
+        // that never closes keeps only the first 8 KB buffer, ~90 s of cues.
+        w.flush();
     }
 
     public void close() {

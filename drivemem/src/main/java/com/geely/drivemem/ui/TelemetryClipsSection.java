@@ -13,6 +13,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.geely.drivemem.R;
+import com.geely.drivemem.util.ClipRecovery;
 import com.geely.drivemem.util.Clips;
 import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.Style;
@@ -223,6 +224,18 @@ public final class TelemetryClipsSection extends LinearLayout {
                     if (pending) Clips.clearPending(activity, c); else Clips.markPending(activity, c);
                     refresh();
                 }));
+        } else if (c.kind == Clips.Kind.ORPHAN) {
+            // c.mp4 is actually the .h264 for an orphan row -- see Clip's own
+            // constructor comment on why the field keeps that name regardless.
+            card.addView(Style.cardButton(activity, activity.getString(R.string.clips_recover), false, () -> {
+                Toast.makeText(activity, activity.getString(R.string.clips_recovering), Toast.LENGTH_SHORT).show();
+                ClipRecovery.recover(activity, c.mp4, (ok, message) -> {
+                    Toast.makeText(activity, ok
+                        ? activity.getString(R.string.clips_recover_ok)
+                        : activity.getString(R.string.clips_recover_failed, message), Toast.LENGTH_LONG).show();
+                    refresh();
+                });
+            }));
         }
         if (c.kind != Clips.Kind.RECORDING) {
             card.addView(Style.cardButton(activity, activity.getString(R.string.clips_delete), false, () ->

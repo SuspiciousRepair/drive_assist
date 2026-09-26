@@ -98,6 +98,22 @@ public final class AbrpUploader {
     private static final int QUEUE_CAP = 200;
     private static int sampleCount = 0;   // only touched from the sampler thread
 
+    // ABRP's own documented /bulk processing delay (this file's header) --
+    // how long a batch's data sits before it's actually reconciled
+    // server-side. A small margin over the stated 60s, not the bare
+    // number, since this is a "wait AT LEAST that long" not an exact clock.
+    private static final long ABRP_BULK_WINDOW_SEC = 60;
+    private static final long ABRP_BULK_WINDOW_MS = 65_000;
+
+    /** Whether the batch about to be flushed is old enough that the live
+     * point right behind it could race ahead of it in ABRP's own ~60s
+     * /bulk processing queue. Package-visible for the pure unit test --
+     * same reasoning as samplerDelayMs() below. oldestUtcSec=0 means the
+     * queue was empty (nothing queued, nothing to race against). */
+    static boolean shouldWaitForBulkWindow(long oldestUtcSec, long nowUtcSec) {
+        return oldestUtcSec > 0 && (nowUtcSec - oldestUtcSec) > ABRP_BULK_WINDOW_SEC;
+    }
+
     public static final String PREF_SEND_LOCATION = "abrp_send_location";
 
     public static boolean isLocationEnabled(Context ctx) {
@@ -209,7 +225,7 @@ public final class AbrpUploader {
             Map<String, Object> data = lastData;
             if (data != null) {
                 Integer isCharging = asInt(data.get("is_charging"));
-                boolean charging = isCharging != null && isCharging == 1;
+                Boolean charging = isCharging == null ? null : isCharging == 1;
                 tlm = buildTlm(app, data, charging);
             }
             if (tlm == null) {
@@ -270,8 +286,28 @@ public final class AbrpUploader {
                     sampleCount++;
                     if (sampleCount % LIVE_EVERY_N == 0) {
                         // Flush whatever's batched BEFORE the live one, so
-                        // older data leaves before newer data.
+                        // older data leaves the DEVICE before newer data --
+                        // but leaving first isn't the same as being
+                        // PROCESSED first. ABRP's own docs (this file's
+                        // header) say /bulk data sits in a ~60s processing
+                        // queue server-side; /send (what the live point
+                        // below uses) has no such delay. Confirmed
+                        // 2026-09-25: a parked-transition marker held up
+                        // 16 minutes by a dead-zone parking garage went out
+                        // via /bulk one second before the next live point,
+                        // and the trip it should have ended never split in
+                        // ABRP's own history -- the live "driving" point
+                        // almost certainly reached ABRP's server and
+                        // reconciled before the stale batch did. Only worth
+                        // waiting out when the batch is actually old enough
+                        // for this race to matter; a normal ~1-minute batch
+                        // of fresh driving data has nothing to race against.
+                        JSONObject oldest = queue.peekFirst();
+                        long oldestUtcSec = oldest != null ? oldest.optLong("utc", 0) : 0;
                         flushQueue(ctx);
+                        if (shouldWaitForBulkWindow(oldestUtcSec, System.currentTimeMillis() / 1000)) {
+                            try { Thread.sleep(ABRP_BULK_WINDOW_MS); } catch (InterruptedException ignored) {}
+                        }
                         sendLive(ctx, tlm);
                     } else {
                         queue.addLast(tlm);
@@ -328,11 +364,17 @@ public final class AbrpUploader {
 
         Integer isCharging = asInt(data.get("is_charging"));
         Float speed = asFloat(data.get("speed"));
-        boolean charging = isCharging != null && isCharging == 1;
+        Boolean charging = isCharging == null ? null : isCharging == 1;
         boolean driving = speed != null && speed > 1f;
         // Only while it's actually informative -- ABRP itself asks for
         // this, and there's no route to plan around a car parked and idle.
-        if (!driving && !charging) return null;
+        // Skip ONLY when charging is confidently known false: an unknown
+        // charging state (CarActor's poll hasn't answered yet, e.g. a
+        // transient VHAL hiccup) must not silently drop the whole sample --
+        // that used to mean a real charge session could go dark in ABRP for
+        // exactly the ticks it most needed data, whenever the poll had any
+        // gap. When in doubt, sample.
+        if (!driving && Boolean.FALSE.equals(charging)) return null;
 
         return buildTlm(ctx, data, charging);
     }
@@ -383,12 +425,12 @@ public final class AbrpUploader {
         }
     }
 
-    static JSONObject buildTlm(Context ctx, Map<String, Object> data, boolean charging) {
+    static JSONObject buildTlm(Context ctx, Map<String, Object> data, Boolean charging) {
         double[] loc = (ctx != null && isLocationEnabled(ctx)) ? GpsReader.read(ctx) : null;
         return buildTlm(ctx, data, charging, loc);
     }
 
-    public static JSONObject buildTlm(Context ctx, Map<String, Object> data, boolean charging, double[] loc) {
+    public static JSONObject buildTlm(Context ctx, Map<String, Object> data, Boolean charging, double[] loc) {
         try {
             JSONObject tlm = new JSONObject();
             tlm.put("utc", System.currentTimeMillis() / 1000);
@@ -427,7 +469,12 @@ public final class AbrpUploader {
                 tlm.put("heading", loc[3]);
             }
 
-            tlm.put("is_charging", charging ? 1 : 0);
+            // Same rule as Telemetry.java's own "is_charging": unknown (null)
+            // is a real state, not "assume not charging" -- claiming 0 to
+            // ABRP when we genuinely don't know is worse than a missing
+            // key, since ABRP uses this flag to decide how to interpret the
+            // rest of the payload for its range model. Omit rather than guess.
+            if (charging != null) tlm.put("is_charging", charging ? 1 : 0);
             // Parked, not just "not driving" -- ABRP's own definition is the
             // gear being in P, same signal TripSession/ParkSession/CarState
             // already use for exactly this.
@@ -438,7 +485,7 @@ public final class AbrpUploader {
             // pack voltage. Port voltage reads AC mains (~240V) during AC charging
             // and DC pack (~400V) during DC fast charging, whereas OBD2 pack voltage
             // is always ~400V even on AC.
-            if (charging) {
+            if (Boolean.TRUE.equals(charging)) {
                 Float chargeV = asFloat(data.get("charge_v"));
                 if (chargeV != null) tlm.put("is_dcfc", ChargeSession.isDcfc(chargeV) ? 1 : 0);
             }

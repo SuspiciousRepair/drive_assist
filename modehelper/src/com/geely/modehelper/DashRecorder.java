@@ -18,8 +18,6 @@ import android.view.Surface;
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.Locale;
 
@@ -131,6 +129,16 @@ public final class DashRecorder {
     public synchronized void stop() {
         running = false;
         Log.i(TAG, "dashcam: stop requested");
+    }
+
+    /** Used for orderly service shutdown. Waiting for the encoder loop means
+     * MediaMuxer gets its stop()/moov write before Android can kill the helper. */
+    public void stopAndWait(long timeoutMs) {
+        stop();
+        Thread t = thread;
+        if (t != null && t != Thread.currentThread()) {
+            try { t.join(timeoutMs); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
+        }
     }
 
     /** Preserve and promptly close the segment containing a detected event. */
@@ -419,25 +427,25 @@ public final class DashRecorder {
         void finish() {
             if (done) return;
             done = true;
-            try { muxer.stop(); } catch (Throwable ignored) { }
+            boolean closed = false;
+            try { muxer.stop(); closed = true; }
+            catch (Throwable t) { Log.w(TAG, "dashcam: muxer stop failed: " + t); }
             try { muxer.release(); } catch (Throwable ignored) { }
             if (sub != null) sub.close();
-            // The mp4 is renamed FIRST: a .vtt with no clip beside it is litter,
-            // but a clip with no subtitles is still footage.
-            if (mp4Tmp.exists() && mp4Tmp.length() > 0) mp4Tmp.renameTo(mp4); else mp4Tmp.delete();
-            if (vttTmp.exists()) { if (mp4.exists()) vttTmp.renameTo(vtt); else vttTmp.delete(); }
-            // The write-ahead stream is a safety net for a segment that never
-            // closed. This one closed, so it goes — otherwise it would double the
-            // archive for nothing.
             try { if (rawOut != null) rawOut.close(); } catch (Throwable ignored) { }
-            if (mp4.exists()) { raw.delete(); thumbnail(); }
-            else Log.w(TAG, "dashcam: kept " + raw.getName() + " — the mp4 never closed");
+            // The write-ahead stream is a safety net for a segment that never
+            // closed. Only a clean close deletes it — see SegmentFiles.
+            if (SegmentFiles.finish(mp4Tmp, mp4, vttTmp, vtt, raw, closed)) {
+                thumbnail();
+                String stem = mp4.getName().substring(0, mp4.getName().length() - 4);
+                SegmentFiles.keepIfHeld(dir(), keepDir(), stem);
+            } else Log.w(TAG, "dashcam: kept " + raw.getName() + " — the mp4 never closed");
             Log.i(TAG, "dashcam: closed " + mp4.getName() + " " + (mp4.length() / 1024) + " KB");
         }
 
         // ONE THUMBNAIL PER SEGMENT, made here at close rather than by the
         // gallery per row. MediaMetadataRetriever has to open and index the
-        // container to find a frame, and doing that to a 225 MB file every time a
+        // container to find a frame, and doing that to a 600 MB file every time a
         // list draws is the same mistake the clip DURATION avoids by counting
         // cues in the sidecar instead.
         //
@@ -475,40 +483,22 @@ public final class DashRecorder {
     // outright. Run after every finished segment.
     //
     // Held clips still cannot be evicted — keepDir() is never in the
-    // candidate list below — but they DO count against the budget, so
+    // candidate list below, and neither is a clip still waiting for keepIfHeld
+    // (a .hold beside it) — but they DO count against the budget, so
     // holding more leaves less room for new recording instead of being free
     // storage on top of it.
+    //
+    // Only ever called with no segment open (after finish()), so the only
+    // files still being written are a recovery's, which SegmentFiles leaves
+    // alone by their age.
     static void enforceBudget(Context ctx) {
         try {
             int gb = ctx.getSharedPreferences("modehelper", Context.MODE_PRIVATE)
                 .getInt("dashcam_limit_gb", DEFAULT_BUDGET_GB);
             long budgetBytes = Math.max(1, gb) * 1024L * 1024 * 1024;
-            File[] all = dir().listFiles();
-            if (all == null) return;
-            File[] clips = Arrays.stream(all)
-                .filter(f -> f.isFile() && f.getName().endsWith(".mp4"))
-                .sorted(Comparator.comparingLong(File::lastModified))
-                .toArray(File[]::new);
-            long used = 0;
-            for (File f : all) if (f.isFile()) used += Math.max(0, f.length());
-            File[] held = keepDir().listFiles();
-            if (held != null) for (File f : held) if (f.isFile()) used += Math.max(0, f.length());
-            if (used <= budgetBytes) return;
-            for (File f : clips) {
-                if (used <= budgetBytes) return;
-                String stem = f.getName().substring(0, f.getName().length() - 4);
-                File side = new File(f.getParentFile(), stem + ".vtt");
-                File th   = new File(f.getParentFile(), stem + ".jpg");
-                long freed = Math.max(0, f.length())
-                           + (side.exists() ? Math.max(0, side.length()) : 0)
-                           + (th.exists()   ? Math.max(0, th.length())   : 0);
-                if (f.delete()) {
-                    side.delete();
-                    th.delete();
-                    used -= freed;
-                    Log.i(TAG, "dashcam: budget dropped " + f.getName());
-                }
-            }
+            for (String name : SegmentFiles.evict(dir(), keepDir(), budgetBytes,
+                                                  System.currentTimeMillis()))
+                Log.i(TAG, "dashcam: budget dropped " + name);
         } catch (Throwable t) { Log.w(TAG, "dashcam: budget: " + t); }
     }
 }

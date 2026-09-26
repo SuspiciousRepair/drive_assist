@@ -231,6 +231,10 @@
     <string name="clip_play_failed">No se pudo reproducir este clip (%1$d/%2$d)</string>
     <string name="clips_recording">grabando</string>
     <string name="clips_orphan">sin cerrar — recuperable</string>
+    <string name="clips_recover">Recuperar</string>
+    <string name="clips_recovering">Recuperando…</string>
+    <string name="clips_recover_ok">Recuperado — el clip ya se puede reproducir</string>
+    <string name="clips_recover_failed">No se pudo recuperar este clip: %1$s</string>
     <string name="clips_record">Grabar</string>
     <string name="clips_limit_label">Límite de grabación (GB)</string>
     <string name="clips_limit_save">Guardar</string>

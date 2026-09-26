@@ -86,6 +86,10 @@
         <service android:name=".services.WifiIconService" android:exported="false" />
         <service android:name=".services.SocIconService" android:exported="false" />
         <service android:name=".services.OverlayService" android:exported="false" />
+        <!-- MediaMuxer can abort native code on a damaged raw stream. Recovery
+             therefore has its own disposable process, never the UI process. -->
+        <service android:name=".util.ClipRecoveryService" android:exported="false"
+                 android:process=":cliprecovery" />
         <activity android:name=".ui.GpsProbe" android:exported="false" />
         <activity android:name=".ui.ChargeProbe" android:exported="false" />
         <!-- exported: Spotify login now happens in the car's own browser

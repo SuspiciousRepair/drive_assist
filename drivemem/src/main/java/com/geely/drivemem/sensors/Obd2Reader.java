@@ -59,6 +59,10 @@ public final class Obd2Reader {
     private static final long POLL_MS = 2_000;
     private static final long CMD_TIMEOUT_MS = 4_000;
     private static final long BLE_SCAN_MS = 6_000;
+    // Diagnostic guardrail only: retain every decoded reading, but make a
+    // potentially unsafe or incorrectly scaled value visible in logcat.
+    private static final double MIN_REASONABLE_BATT_TEMP_C = -30.0;
+    private static final double MAX_REASONABLE_BATT_TEMP_C = 70.0;
     // Longer than a direct-connect would need: autoConnect=true (see
     // BleChannel.connect()) means Android manages the connection attempt
     // itself rather than failing fast, which trades a slower first
@@ -815,9 +819,15 @@ public final class Obd2Reader {
         // field-catalog.md's own table, positive = discharge, negative =
         // charge (matches ABRP's own sign convention for `power`).
         Double newCurr = (currB != null) ? (currB[0] * 256 + currB[1] - 5000) / 10.0 : null;
-        // DID 4B3C stores degrees Celsius with a 40-degree offset.  In
-        // particular, raw 0x5A represents 50 C, not an implausible 90 C.
-        Double newTemp = (tempB != null) ? tempB[0] - 40.0 : null;
+        // Live EX2 readings track a plausible 29--32 C pack temperature
+        // directly in this byte; do not apply a generic temperature offset.
+        Double newTemp = (tempB != null) ? (double) tempB[0] : null;
+        if (newTemp != null && (newTemp < MIN_REASONABLE_BATT_TEMP_C
+                || newTemp > MAX_REASONABLE_BATT_TEMP_C)) {
+            Log.w(TAG, "obd2: battery temperature outside reasonable range: "
+                + newTemp + " C (raw=0x" + String.format(Locale.US, "%02X", tempB[0])
+                + ", response=\"" + tempResp + "\")");
+        }
         Integer newSpeed = (spdB != null) ? spdB[0] : null;
 
         if (newSoc != null) soc = newSoc;

@@ -53,7 +53,7 @@ Privileged climate control application running under `android.uid.system` with `
 
 #### AIDL Services
 
-* **`IAiCarControl` (`AiCarControlSDK`)**: Generic voice assistant execution bridge. Directly modifies climate setpoints, fan speeds, air direction, and window positions via voice commands without UI interaction.
+* **`IAiCarControl` (`AiCarControlSDK`)**: Generic voice assistant execution bridge. Directly modifies climate setpoints, fan speeds, air direction, and window positions without UI interaction. Only the bridge ships: **no voice assistant is installed** on this unit (no voice or speech package; `voice_interaction_service` is null — checked 2026-09-26).
 * **AI Eco System**: Automatic geofenced climate optimization logic monitoring vehicle proximity to home.
 
 #### UI Asset & Animation Pipeline

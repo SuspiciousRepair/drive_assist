@@ -49,7 +49,7 @@ public class ModeHelperService extends Service {
             // a cold start — the recorder tolerates that for telemetry (cues just
             // go quiet) but the ENGINE binder is separate and always available.
             if (on == 1) dash.start();
-            else if (on == 0) dash.stop();
+            else if (on == 0) dash.stopAndWait(5_000);
             // Persisted so maybeAutoStart() respects an explicit "off" across a
             // restart, not just for the rest of this process's life — see that
             // method's own comment for why this used to not survive a restart.
@@ -188,6 +188,7 @@ public class ModeHelperService extends Service {
                 // "Wi-Fi never came back".)
                 if (parked) ensureWifiOn();
                 nudgeWifiScan();
+                maybeDexopt();
             } catch (Throwable t) { Log.w(TAG, "poll: " + t); }
             // Liveness heartbeat — a timestamp in SharedPreferences (survives process
             // death), so BootReceiver's watchdog can tell whether this loop is still
@@ -198,6 +199,22 @@ public class ModeHelperService extends Service {
                 .putLong("beat_poll", System.currentTimeMillis()).apply();
             try { Thread.sleep(4000); } catch (InterruptedException e) { break; }
         }
+    }
+
+    // Once a minute, on its own thread: a compile takes tens of seconds and
+    // must not stall the poll loop's heartbeat. See Dexopt.
+    private long lastDexoptCheck;
+    private volatile boolean dexoptRunning;
+
+    private void maybeDexopt() {
+        long now = SystemClock.elapsedRealtime();
+        if (dexoptRunning || now - lastDexoptCheck < 60_000) return;
+        lastDexoptCheck = now;
+        dexoptRunning = true;
+        new Thread(() -> {
+            try { Dexopt.ensure(getApplicationContext()); }
+            finally { dexoptRunning = false; }
+        }, "dexopt").start();
     }
 
     /** Dashcam auto-start flag: records from boot until shutdown, UNLESS the
@@ -245,8 +262,11 @@ public class ModeHelperService extends Service {
     // thumbnail instead of being left as a .h264 to recover by hand. ACTION_SHUTDOWN
     // is a protected broadcast; this app is uid system, so it receives it.
     //
-    // If the unit suspends WITHOUT announcing it, nothing is lost either: the
-    // write-ahead .h264 is exactly the safety net for that case.
+    // Not covered: a suspend is not a shutdown, so the segment stays open
+    // through it, and `adb reboot` or a power cut never sends this broadcast.
+    // Those leave an orphan, and the write-ahead .h264 is the safety net. It
+    // is not fsync'd yet, so a hard power cut can still lose its last seconds
+    // (plan/active/DASHCAM-RELIABILITY-ROADMAP.md, D6 and D9).
     private void stopForShutdown(String why) {
         if (parkedMonitor != null) {
             parkedMonitor.stop();
@@ -254,10 +274,7 @@ public class ModeHelperService extends Service {
         }
         if (dash != null && dash.isRunning()) {
             Log.i(TAG, "dashcam: " + why + " — closing the segment");
-            dash.stop();
-            // Give the encoder thread a moment to write the moov atom. Not a
-            // guarantee, just better than none — which is why the .h264 exists.
-            try { Thread.sleep(1200); } catch (InterruptedException ignored) { }
+            dash.stopAndWait(5_000);
         }
     }
 

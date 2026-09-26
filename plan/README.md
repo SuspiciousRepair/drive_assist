@@ -7,6 +7,9 @@ work look pending.
 
 ## Active
 
+- [Dashcam reliability](active/DASHCAM-RELIABILITY-ROADMAP.md)
+- [Runtime efficiency review](active/RUNTIME-EFFICIENCY-REVIEW.md)
+- ["Hey Geely" voice assistant](active/VOICE-ASSISTANT-ROADMAP.md)
 - [Smarter dashcam sessions](active/DASHCAM-SMART-SESSIONS-ROADMAP.md)
 - [Right-hand-drive layout](active/RIGHT-HAND-DRIVE-ROADMAP.md)
 - [Settings PIN](active/SETTINGS-PIN-ROADMAP.md)

@@ -107,6 +107,31 @@ public class AbrpUploaderTest {
         assertEquals(0, tlmAc.getInt("is_dcfc"));
     }
 
+    // Real bug, 2026-09-24: an unknown charging state (CarActor's poll
+    // hasn't answered, e.g. a transient VHAL hiccup) was being collapsed to
+    // "not charging" before reaching ABRP -- both a false is_charging=0
+    // claim, and (in sampleOnce(), not reachable from here) a dropped
+    // sample entirely whenever this coincided with speed<=1. Same "unknown
+    // is a real state" rule Telemetry.java's own is_charging already
+    // follows: omit the flag rather than guess it.
+    @Test
+    public void testUnknownChargingStateOmitsFlagsRatherThanGuessingFalse() throws Exception {
+        Map<String, Object> data = new HashMap<>();
+        data.put("battery", 50);
+        data.put("gear", Modes.GEAR_PARK_ADAPTED);
+        data.put("charge_v", 380.0f);
+
+        JSONObject tlm = AbrpUploader.buildTlm(null, data, null, null);
+        assertNotNull(tlm);
+        assertFalse("is_charging must be omitted, not defaulted to 0, when unknown",
+            tlm.has("is_charging"));
+        assertFalse("is_dcfc must be omitted when charging state is unknown",
+            tlm.has("is_dcfc"));
+        // Unrelated fields still go out normally.
+        assertEquals(1, tlm.getInt("is_parked"));
+        assertEquals(50, tlm.getInt("soc"));
+    }
+
     @Test
     public void testAcChargingReportsNotDcfcEvenWithFreshObdPackVoltage() throws Exception {
         try {

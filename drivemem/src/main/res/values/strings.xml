@@ -339,6 +339,10 @@
     <string name="clip_play_failed">Could not play this clip (%1$d/%2$d)</string>
     <string name="clips_recording">recording</string>
     <string name="clips_orphan">unclosed — recoverable</string>
+    <string name="clips_recover">Recover</string>
+    <string name="clips_recovering">Recovering…</string>
+    <string name="clips_recover_ok">Recovered — the clip is playable now</string>
+    <string name="clips_recover_failed">Could not recover this clip: %1$s</string>
     <string name="clips_record">Record</string>
     <string name="clips_limit_label">Recording limit (GB)</string>
     <string name="clips_limit_save">Save</string>

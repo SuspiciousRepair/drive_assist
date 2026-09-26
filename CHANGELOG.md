@@ -2,76 +2,85 @@
 
 ## [Unreleased]
 
+## [v0.4.1] — 2026-09-26
+
+### Added
+- **Recover orphaned dashcam clips in-app.** A clip whose recording never
+  closed (crash, power loss) used to sit labeled "unclosed — recoverable"
+  with no actual way to recover it. A "Recuperar" button now remuxes the
+  raw footage back into a normal playable clip, with its telemetry and
+  thumbnail, no external tools needed. A 5-minute clip takes seconds.
+
+### Changed
+- **Both apps are now fully compiled after every install.** This head unit
+  runs with the Java JIT off, so Android's default install mode compiled
+  nothing and all of Drive Assist and ModeHelper ran in the interpreter.
+  ModeHelper now asks for a full compile of both apps after each install
+  (adb, OTA or installer). Measured: clip recovery ~50x faster.
+
+### Fixed
+- **Dashcam recovery aborted on every clip**, and once that was fixed, the
+  recovered clip would not decode. Android 9's MP4 writer needs four-byte
+  start codes in both the frames and the SPS/PPS header.
+- **A failed segment close deleted the only recoverable copy**, and listed
+  the broken file as a playable clip. It now stays an orphan you can recover.
+- **Clips saved by a parked-monitoring event were evicted** by the ring
+  buffer before they ever reached the protected `keep/` folder. The
+  recorder now moves them there as the segment closes.
+- **Crash leftovers filled the dashcam budget forever**, pushing real clips
+  out sooner. They now age out with the clips; the worthless `.mp4.tmp`
+  half is removed at once.
+- **An interrupted clip kept only its first ~90 seconds of telemetry.** The
+  subtitle track is now written every second, and recovery keeps it.
+- **EX2 battery temperature could be reported as an impossible sub-zero
+  value.** The BMS temperature byte is now kept in its observed Celsius
+  form, and unexpected values are logged for diagnosis.
+- ABRP could drop a data point entirely instead of sending it: an
+  unknown charging reading (a brief sensor hiccup, not just cold boot)
+  was being treated as a flat "not charging," which could silently skip
+  the whole sample if the car happened to be stationary at that moment.
+  Now sent as unknown, never guessed as false.
+- ABRP could merge two drives separated by a stop into one continuous
+  drive, when the "parked" point was sent late from a garage with no
+  signal. A live point now waits out ABRP's bulk-processing window.
+
+### Docs
+- `tools/recover-dashcam.sh` recovers orphaned clips on a PC with FFmpeg.
+- `docs/DASHCAM.md` now matches the recorder's real behavior.
+
 ## [v0.4.0] — 2026-09-24
 
 ### Added
-- Data quality (measured / estimated / mixed) is now tracked as a real
-  condition end to end — daily and per-trip energy figures carry it, it's
-  surfaced as a Home Assistant attribute, and the UI marks any number
-  that isn't a clean OBD2 measurement instead of presenting it as exact.
+- Energy figures now carry a real measured/estimated/mixed data-quality
+  flag end to end, surfaced in Home Assistant and marked in the UI.
 
 ### Fixed
-- **Safety: the app could get stuck reading "parked" for an entire
-  drive.** A gear-transition debounce added earlier this build cycle
-  required two separate "not parked" signals before believing the car
-  was moving — but the car only ever reports a gear change once per real
-  shift, not repeatedly. A normal Park-to-Drive shift, unless followed by
-  another gear change, left Turbo, the charging card, and the "don't
-  install an update while driving" OTA gate all believing the car was
-  still parked. Reverted to reacting on the first real signal.
-- **The gate button could show "Connected" and do nothing.** Two pieces
-  of state that track whether a command can actually be sent to Home
-  Assistant could drift apart during an MQTT reconnect; the button now
-  can't promise more than it can deliver.
-- **A charge session could truncate early** on a brief plug-read glitch
-  (a glitch under 2 seconds was enough, not the ~3 minutes assumed
-  previously) — charging state now self-corrects every telemetry tick
-  against the car's live reading instead of only reacting to edges.
-  Charge sessions also now survive a crash or OTA install mid-charge.
-- **An OTA install could interrupt an active DC fast charge.** Installs
-  are now blocked while a charge session is active, not only while
-  `is_charging` itself reads true — closing the exact window a
-  stuck/latched current sensor used to leave open. Applies to both the
-  in-app updater and a cable `adb install`.
-- The OTA update-check path could keep offering an already-superseded
-  build because only `update()`, not `check()`, bypassed CloudFlare's
-  edge cache.
-- `is_charging` was being derived independently in two places
-  (`Telemetry` and `CarActor`) and could disagree; `CarActor` is now the
-  single source, declared as a derivation from `charge_a` +
-  `plug_connected` rather than a raw polled property.
-- A short trip could show "estimated" right from its very first minute
-  even though OBD2 never disconnected — its opening telemetry window had
-  no earlier reading to pair against, so it fell back to the cruder
-  estimate on a technicality, not a real gap.
-- A day or trip with real, fully OBD2-measured driving could still show
-  as "(estimate)" from parked/idle telemetry rows with no energy
-  activity being wrongly counted as an estimate. Fixed at the source
-  (`DrivingConsumption`, the daily rollup, and per-trip classification);
-  already-affected recent days repaired in place.
-- ABRP could misreport an ordinary AC charge as DC fast charging, because
-  it checked the OBD2 battery pack voltage (~400V regardless of AC/DC)
-  instead of the vehicle's own port voltage.
-- EX2 battery temperature reads applied the wrong sensor offset.
-- A handful of Spotify large-card polish issues since its v0.3.1
-  introduction: the live toggle and scrim direction, real art resolution
-  and a readable caption, solid caption backing, capped art height, and
-  compact buttons on the Config page.
+- Gate button could show "Connected" and do nothing when pressed.
+- A charge session could truncate early on a brief signal glitch.
+  Charging now self-corrects continuously instead of trusting one edge,
+  and survives a crash or OTA install mid-charge.
+- An OTA install could interrupt an active DC fast charge — installs are
+  now blocked for the whole charge session, not just a `is_charging` blip.
+- **A charging reading could stay stuck "on" through an entire drive
+  afterward** — confirmed on a real trip: is_charging held true for
+  1h14min at highway speed after a real charge ended, which also fed
+  ABRP a nonsense 2-hour "charging" entry that had swallowed the whole
+  drive. `CarActor` is now the single source for this reading everywhere
+  in the app, cross-checked against the plug each poll instead of
+  latching on stale current.
+- Update checks could keep offering a build you already installed.
+- A short trip could show "estimated" from its first minute even though
+  OBD2 was connected the whole time.
+- A day of real, fully measured driving could still show "(estimate)"
+  from idle telemetry with no actual driving in it. Already-affected
+  recent days repaired in place.
+- ABRP could misreport a normal AC charge as a DC fast charge.
+- Several polish issues on the large Spotify card added in v0.3.1
+  (toggle, art sizing, caption, spacing).
 
 ### Internal
-- `TelemetryActivity` (2,863 lines) split into one `View` subclass per
-  Config section (Spotify, Doors, Clips, Charge, Drive Mode, OBD2/ABRP,
-  MQTT + certificates, System, Menu Bar, Appearance) — now ~500 lines.
-  `ComfortActivity`'s card-visibility logic likewise extracted into a
-  standalone, fully unit-tested `ComfortCardVisibility`.
-- All ~51 raw `SharedPreferences` call sites converted to a single typed
-  `Prefs` class.
-- Added a deterministic `CarActor` test harness and real SQLite-backed
-  tests for the persistence layer; unit test suite grew from 194 to 325
-  tests (see `docs/CODE-QUALITY-REPORT.md`).
-- `build.sh`'s cable `adb install -r` step now checks the car's own
-  charging state first and refuses to install while charging, closing
-  the one install path that didn't already respect that rule.
+- `TelemetryActivity` split from 2,863 lines into one file per Config
+  section; unit test suite grew from 194 to 325 tests.
 
 ## [v0.3.2] — 2026-09-22
 

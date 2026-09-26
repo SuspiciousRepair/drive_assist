@@ -12,28 +12,38 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.4.1 — 2026-09-26
+
+- New: recover an unclosed dashcam recording directly in the app. It
+  keeps the speed and driving data and takes only seconds.
+- Improved: the app and the dashcam now run much faster and use less
+  processor time on this head unit.
+- Fixed: a dashcam recording that could not be closed was deleted instead
+  of being kept for recovery.
+- Fixed: recordings saved by a parked event could be deleted automatically.
+- Fixed: unclosed recordings no longer fill up the dashcam storage.
+- Fixed: the EX2's battery temperature no longer shows impossible
+  sub-zero readings caused by a generic sensor offset.
+- Fixed: ABRP no longer drops a reading when the charging sensor is
+  briefly unavailable.
+- Fixed: ABRP could show two drives with a stop between them as one drive.
+
 ## v0.4.0 — 2026-09-24
 
-- Fixed: a safety issue where the app could keep thinking the car was
-  parked for an entire drive after a single gear shift, which could
-  affect Turbo, the charging card, and update safety checks.
 - Fixed: the gate button could look connected and do nothing when
   pressed.
 - Fixed: a charge session could stop tracking early on a brief signal
   hiccup. Charging sessions now also survive a crash or an update
   installing mid-charge.
 - Fixed: an update could start installing during an active fast charge.
+- Fixed: the app could sometimes still think you were charging for a
+  while after you'd actually driven away.
 - Fixed: the app could keep offering an update you already installed.
-- Fixed: a short trip could show as "estimated" from its very first
-  minute even though the car's own sensor never disconnected.
-- Fixed: a day of real, fully measured driving could still show as
-  "estimated" because of idle moments with no real driving happening.
+- Fixed: a short trip, or a day of real driving, could show as
+  "estimated" even though the car's sensor was connected the whole time.
 - Fixed: an ordinary home charge could show up as a fast charge in ABRP.
-- Fixed: the EX2's battery temperature reading was off by a fixed
-  amount.
 - Fixed: several small issues with the large Spotify card added last
-  release (live toggle, art sizing, caption readability, button
-  spacing).
+  release.
 
 ## v0.3.2 — 2026-09-22
 

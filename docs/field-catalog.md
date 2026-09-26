@@ -257,11 +257,17 @@ ATSH7E2      # Set target ECU address to 0x7E2 (BMS ECU)
 | **State of Charge (SoC)** | `22 4B 36` | 2 bytes | `(A * 256 + B) / 10.0` | 0.0 to 105.0% (0.1% precision) |
 | **Pack Voltage** | `22 4B 21` | 2 bytes | `(A * 256 + B) / 10.0` | 200.0 to 500.0 V |
 | **Pack Current** | `22 4B 22` | 2 bytes | `((A * 256 + B) - 5000) / 10.0` | Amperes (+ discharge, - charge) |
-| **Battery Core Temp** | `22 4B 3C` | 1 byte | `A - 40` | -40 to +85 °C |
+| **Battery Core Temp** | `22 4B 3C` | 1 byte | `A` | 0 to +255 °C (observed 29--32 °C) |
 | **Vehicle Speed** | `22 DF 01` | 1 byte | `A` | 0 to 255 km/h |
 | **Instantaneous Power** | *(Calculated)* | - | `(Voltage * Current) / 1000.0` | Kilowatts (kW) |
 
 `4B3C` is a proprietary BMS identifier, not a generic OBD-II temperature PID.
-On the EX2, its unsigned byte is encoded with a 40-degree offset: for example,
-raw `0x5A` (90) is 50 °C. Do not reuse this conversion for another vehicle
-without validating that vehicle's BMS response.
+On the EX2, current live readings use the byte directly: `0x1D` is 29 °C.
+At 15:35 on 2026-09-24 the app otherwise decoded that value as -11 °C while
+the outside temperature was 22 °C; later readings of -8 °C corresponded to
+raw 32, which is a plausible pack temperature. Do not reuse this conversion
+for another vehicle without validating that vehicle's BMS response.
+
+The reader retains the decoded value but writes a logcat warning (tag
+`DriveMem`) outside `-30..70 °C`; that exposes a bad response or scaling
+change without concealing diagnostic evidence.
