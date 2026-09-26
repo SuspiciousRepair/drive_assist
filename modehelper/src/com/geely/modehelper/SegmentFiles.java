@@ -130,6 +130,17 @@ final class SegmentFiles {
             File raw = new File(dir, n.substring(0, n.length() - 8) + ".h264");
             if (raw.length() > 0 && f.delete()) dropped.add(n);
         }
+        // Sidecars with no video left beside them (a crash before the first
+        // fragment, or an older build's leftovers) are dropped once cold.
+        for (File f : all) {
+            String n = f.getName();
+            if (!(n.endsWith(".vtt") || n.endsWith(".vtt.tmp") || n.endsWith(".jpg")) || !cold(f, nowMs)) continue;
+            String stem = stem(n);
+            boolean video = false;
+            for (String ext : new String[] {".mp4", ".mp4.tmp", ".h264"})
+                if (new File(dir, stem + ext).exists()) video = true;
+            if (!video && f.delete()) dropped.add(n);
+        }
         all = dir.listFiles();
         if (all == null) return dropped;
         long used = size(all) + size(keep.listFiles());

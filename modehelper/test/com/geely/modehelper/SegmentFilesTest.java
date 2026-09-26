@@ -94,6 +94,16 @@ public final class SegmentFilesTest {
         check(dropped.isEmpty() && new File(d, "live.h264").exists()
               && new File(d, "live.mp4.tmp").exists(), "live segment touched: " + dropped);
 
+        // Stray sidecars with no video go once cold; one beside a video stays.
+        d = Files.createTempDirectory("seg").toFile();
+        keep = new File(d, "keep"); keep.mkdirs();
+        age(file(d, "gone.vtt.tmp", 5), old); age(file(d, "gone.jpg", 5), old);
+        age(file(d, "kept.mp4", 10), old); age(file(d, "kept.vtt", 5), old);
+        file(d, "fresh.vtt.tmp", 5);
+        dropped = SegmentFiles.evict(d, keep, 10_000, now);
+        check(!new File(d, "gone.vtt.tmp").exists() && !new File(d, "gone.jpg").exists(), "stray sidecars kept: " + dropped);
+        check(new File(d, "kept.vtt").exists() && new File(d, "fresh.vtt.tmp").exists(), "wrong sidecar dropped");
+
         // Same second, same name: the second segment gets -2, before "_valet".
         d = Files.createTempDirectory("seg").toFile();
         check(SegmentFiles.freeStem(d, "dash_1", "_valet").equals("dash_1_valet"), "free name changed");
