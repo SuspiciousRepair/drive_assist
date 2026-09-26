@@ -104,16 +104,16 @@ public final class SegmentFilesTest {
         check(!new File(d, "gone.vtt.tmp").exists() && !new File(d, "gone.jpg").exists(), "stray sidecars kept: " + dropped);
         check(new File(d, "kept.vtt").exists() && new File(d, "fresh.vtt.tmp").exists(), "wrong sidecar dropped");
 
-        // Same second, same name: the second segment gets -2, before "_valet".
+        // One segment per second: a name is taken by any of its files,
+        // including a held clip; sameSecond compares whole seconds.
         d = Files.createTempDirectory("seg").toFile();
-        check(SegmentFiles.freeStem(d, "dash_1", "_valet").equals("dash_1_valet"), "free name changed");
-        file(d, "dash_1_valet.mp4.tmp", 1);
-        check(SegmentFiles.freeStem(d, "dash_1", "_valet").equals("dash_1-2_valet"), "collision not avoided");
-        file(d, "dash_1-2_valet.mp4", 1);
-        check(SegmentFiles.freeStem(d, "dash_1", "_valet").equals("dash_1-3_valet"), "second collision");
+        check(!SegmentFiles.taken(d, "dash_1"), "empty dir");
+        file(d, "dash_1.mp4.tmp", 1);
+        check(SegmentFiles.taken(d, "dash_1"), "live segment name not taken");
         new File(d, "keep").mkdirs();
         file(new File(d, "keep"), "dash_2.mp4", 1);
-        check(SegmentFiles.freeStem(d, "dash_2", "").equals("dash_2-2"), "held clip overwritten");
+        check(SegmentFiles.taken(d, "dash_2"), "held clip name not taken");
+        check(SegmentFiles.sameSecond(5_000, 5_999) && !SegmentFiles.sameSecond(5_999, 6_000), "sameSecond");
 
         System.out.println("SegmentFilesTest OK");
     }

@@ -305,7 +305,13 @@ public final class DashRecorder {
                 if (config || seg == null || buf == null) { codec.releaseOutputBuffer(idx, false); continue; }
 
                 // Rotate segment at a key frame: segments must start seekable.
-                if (rotateArmed && key) {
+                // Rotate at a key frame (segments must start seekable), and
+                // never within the second the current segment started: a
+                // close requested right after a rotation (an event, screen
+                // off) waits for the next key frame, about a second, so two
+                // segments never start in the same second.
+                if (rotateArmed && key
+                        && !SegmentFiles.sameSecond(seg.startWallMs, System.currentTimeMillis())) {
                     final Seg old = seg;
                     closer.execute(() -> {
                         old.finish();
@@ -375,14 +381,29 @@ public final class DashRecorder {
         // Use uptimeMillis, not elapsedRealtime: suspension doesn't interrupt the
         // timeline. Ensures video duration reflects actual recording time.
         final long startMs = SystemClock.uptimeMillis();
+        // Wall-clock start; the name is this second. See the rotation check.
+        final long startWallMs;
         FragmentedMp4.Writer out;
         Vtt sub;
         long lastPts = -1;
         boolean done;
 
         Seg(MediaFormat f) throws Exception {
-            stem = SegmentFiles.freeStem(dir(), "dash_" + NAME.format(new Date()),
-                new File(dir(), "valet.active").exists() ? "_valet" : "");
+            // A segment is named after the second it starts in, and only one
+            // may start per second (see the rotation check). A recorder
+            // restarting within the second its last segment started would
+            // meet a used name: it waits for the next second instead of
+            // writing over that clip.
+            String suffix = new File(dir(), "valet.active").exists() ? "_valet" : "";
+            long now = System.currentTimeMillis();
+            String name = "dash_" + NAME.format(new Date(now)) + suffix;
+            for (int tries = 0; SegmentFiles.taken(dir(), name) && tries < 3; tries++) {
+                Thread.sleep(1000 - now % 1000 + 5);
+                now = System.currentTimeMillis();
+                name = "dash_" + NAME.format(new Date(now)) + suffix;
+            }
+            stem = name;
+            startWallMs = now;
             File d = dir();
             mp4 = new File(d, stem + ".mp4");
             vtt = new File(d, stem + ".vtt");
