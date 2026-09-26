@@ -54,6 +54,36 @@ final class SegmentFiles {
         new File(dir, stem + ".hold").delete();
     }
 
+    // The recorder forces a fragment to storage every second, so a
+    // .mp4.tmp untouched for a minute that is not the live segment is one
+    // whose writer died.
+    static final long REPAIR_COLD_MS = 60_000L;
+
+    /** Turns every dead fragmented .mp4.tmp into a clip: FragmentedMp4.finish
+     * cuts a torn last fragment and writes the index, then it is renamed like
+     * a clean close. Never the live segment; never a legacy MediaMuxer file
+     * (finish refuses those), nor one with a .h264 beside it (a legacy orphan
+     * for ClipRecovery). Returns the stems repaired. */
+    static List<String> repair(File dir, long nowMs, String liveStem) {
+        List<String> done = new ArrayList<>();
+        File[] all = dir.listFiles();
+        if (all == null) return done;
+        for (File f : all) {
+            String n = f.getName();
+            if (!n.endsWith(".mp4.tmp")) continue;
+            String stem = n.substring(0, n.length() - 8);
+            if (stem.equals(liveStem) || nowMs - f.lastModified() <= REPAIR_COLD_MS) continue;
+            if (new File(dir, stem + ".h264").exists() || new File(dir, stem + ".mp4").exists()) continue;
+            try {
+                if (!FragmentedMp4.finish(f) || !f.renameTo(new File(dir, stem + ".mp4"))) continue;
+            } catch (java.io.IOException e) { continue; }
+            File vttTmp = new File(dir, stem + ".vtt.tmp");
+            if (vttTmp.exists()) vttTmp.renameTo(new File(dir, stem + ".vtt"));
+            done.add(stem);
+        }
+        return done;
+    }
+
     // Untouched this long means nobody is writing it. A recovery in progress
     // writes its .mp4.tmp continuously, so it is never this cold.
     static final long COLD_MS = 10 * 60_000L;
@@ -91,9 +121,13 @@ final class SegmentFiles {
         for (File f : all) {
             String n = f.getName();
             if (!f.isFile()) continue;
-            if (n.endsWith(".mp4") || (n.endsWith(".h264") && cold(f, nowMs)
-                    && !new File(dir, stem(n) + ".mp4").exists()))
-                if (!held(dir, stem(n))) heads.add(f);
+            boolean orphan = (n.endsWith(".h264") || n.endsWith(".mp4.tmp")) && cold(f, nowMs)
+                && !new File(dir, stem(n) + ".mp4").exists();
+            if (n.endsWith(".h264") && !orphan) continue;
+            // A cold .mp4.tmp repair() could not finish counts as an orphan
+            // too, or it would sit in the budget forever.
+            if (n.endsWith(".mp4.tmp") && (!orphan || new File(dir, stem(n) + ".h264").exists())) continue;
+            if ((n.endsWith(".mp4") || orphan) && !held(dir, stem(n))) heads.add(f);
         }
         Collections.sort(heads, (a, b) -> Long.compare(a.lastModified(), b.lastModified()));
         for (File head : heads) {
