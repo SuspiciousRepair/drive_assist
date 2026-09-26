@@ -64,7 +64,7 @@ install, compile to `speed`. Options, to test in this order:
 Do not change `dalvik.vm.usejit` itself: it is a system-wide setting that
 the OEM apps were tuned with.
 
-### E1. Every video frame is written to flash twice
+### E1. Every video frame is written to flash twice (fixed)
 
 `DashRecorder.Seg.write()` sends each frame to `MediaMuxer` (`.mp4.tmp`)
 and to the raw `.h264`. At 16 Mbit/s that is ~4 MB/s, ~14 GB per hour of

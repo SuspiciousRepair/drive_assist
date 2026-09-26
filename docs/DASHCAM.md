@@ -17,10 +17,10 @@ The dashcam is implemented as a headless, privileged background service running 
 │  └──────┬──────┘                                └─────────┘  │
 │         │ Surface                                            │
 │         ▼                                                    │
-│  ┌──────────────┐     H.264 ES     ┌──────────────────────┐  │
-│  │ DashRecorder │ ───────────────> │ Write-Ahead (.h264)  │  │
-│  └──────┬───────┘                  └──────────────────────┘  │
-│         │ Muxer                                              │
+│  ┌──────────────┐                                            │
+│  │ DashRecorder │                                            │
+│  └──────┬───────┘                                            │
+│         │ FragmentedMp4 (1 fragment per key frame, synced)   │
 │         ▼                                                    │
 │    dash_*.mp4                                                │
 │                                                              │
@@ -94,12 +94,15 @@ Video clips and subtitle sidecars are stored in Drive Assist's external files di
 
 `DashRecorder.enforceBudget` runs after each segment closes, with no segment
 open. The logic is `SegmentFiles.evict`:
-1. A crash's `.mp4.tmp` (no `moov`) is deleted once it is 10 minutes cold and
-   a `.h264` beside it holds the same frames.
+1. A dead fragmented `.mp4.tmp` is repaired into a clip (see section 4). An
+   older build's `.mp4.tmp` (no `moov`) is deleted once 10 minutes cold if a
+   `.h264` beside it holds the same frames. Subtitles and thumbnails with no
+   video left beside them are deleted once 10 minutes cold.
 2. Every file in `dashcam/` and `keep/` counts against the budget (default
    **10 GB**, about 85 minutes at 16 Mbit/s; set from the Recordings panel).
 3. Over budget, whole segments go oldest first: closed clips (`.mp4`) and
-   orphans (`.h264` untouched for 10 minutes), each with all its sidecars.
+   orphans (a `.h264`, or a `.mp4.tmp` that could not be repaired, untouched
+   for 10 minutes), each with all its sidecars.
 4. Never evicted: anything in `keep/`, and any clip with a `<stem>.hold`
    marker beside it. Held clips still count against the budget.
 
@@ -146,43 +149,53 @@ every cue, so a segment that never closes keeps all its telemetry.
 
 ---
 
-## 4. Crash Resilience: Write-Ahead Stream
+## 4. Crash Resilience: Fragmented MP4
 
-Standard MP4 containers store the metadata index (`moov` atom) at the end of the file. If power is lost or the process is killed abruptly, an unfinalized `.mp4.tmp` file cannot be parsed or decoded.
+A normal MP4 keeps its index (`moov`) at the end, written only when the file
+closes; a crash leaves nothing playable. The recorder therefore writes a
+**fragmented MP4** (`FragmentedMp4`):
 
-### Dual-Stream Recording Mechanism
+1. **Index first**: the `moov` is written at the start and describes no
+   samples. The video follows as one `moof`+`mdat` fragment per key frame
+   (one a second), each forced to storage as it is written. At every moment
+   the `.mp4.tmp` is a playable video up to its last fragment. A crash or a
+   power cut loses at most about one second. Each frame is written once.
+2. **Seeking**: Android 9's `MPEG4Extractor` seeks a fragmented file only
+   through a segment index (`sidx`) placed before the first fragment. Room
+   for one is reserved after the `moov` (a `free` box). At close, the index
+   and the total duration are filled in by scanning the fragment headers:
+   small reads, no rewrite.
+3. **Clean close**: the file is renamed `.mp4.tmp` -> `.mp4`, its subtitles
+   `.vtt.tmp` -> `.vtt`, and a thumbnail is made.
+4. **Self-repair**: a `.mp4.tmp` whose writer died (not the live segment, a
+   minute cold) is repaired at the next ring-buffer pass: the torn last
+   fragment is cut, the index is written, and it becomes a normal clip with
+   its thumbnail (`SegmentFiles.repair`). There is nothing to recover by hand.
 
-1. **Simultaneous Annex-B Output**: While streaming to `MediaMuxer`, `DashRecorder` simultaneously appends every raw H.264 access unit to a companion `.h264` file (`RawStream`), and forces it to storage at every key frame, so a power cut loses at most about one second.
-2. **Header Injection**: SPS and PPS parameters from `csd-0` and `csd-1` are written to the head of the `.h264` stream upon encoder initialization.
-3. **Clean Teardown**: Only when `MediaMuxer.stop()` returns normally is the MP4 renamed (`.mp4.tmp` -> `.mp4`) and the `.h264` deleted. If the close fails, the segment stays an orphan: the `.h264` and `.vtt.tmp` are kept for recovery (`SegmentFiles.finish`).
-4. **In-app Recovery**: The Clips screen's **Recover** button remuxes an orphan's `.h264` into an `.mp4` without re-encoding, keeps its subtitles, and makes its thumbnail. It runs in the separate `:cliprecovery` process, so a native failure cannot take the app down. A 5-minute segment takes about 20 seconds when the app is fully compiled (see `plan/active/RUNTIME-EFFICIENCY-REVIEW.md`, E0). Android 9's `MPEG4Writer` needs four-byte start codes (`00 00 00 01`) in both the samples and the SPS/PPS; `ClipRecovery.sample` and `ClipRecovery.csd` produce them.
-5. **Desktop Recovery**: A computer can also remux it without re-encoding:
-   ```bash
-   ./tools/recover-dashcam.sh /path/to/dash_YYYYMMDD_HHMMSS.h264
-   ```
-   The script requires [FFmpeg](https://ffmpeg.org/), preserves the original
-   `.h264`, and writes `dash_….recovered.mp4` beside it. A folder may be passed
-   to recover every orphan in that folder. For a raw manual command, use
-   `ffmpeg -fflags +genpts -r 25 -err_detect ignore_err -i crash.h264 -c copy recovered.mp4`.
+Checked on the car on 2026-09-26: a hard kill of the recorder mid-segment
+left a file that was repaired into a 116 s clip with every frame decodable
+and working seek.
 
-### Preventing Orphans
+### Older recordings (`.h264` orphans)
 
-`MediaMuxer` can only write an MP4's final index when a segment closes. The
-recorder rotates every five minutes, waits for its encoder thread during an
-ordinary Dashcam-off request and system shutdown, and keeps the write-ahead
-H.264 stream until that close succeeds. That prevents orphans for normal stops.
+Builds before this change wrote a raw `.h264` beside a `MediaMuxer` file, and
+a crash left an orphan `.h264`. Those are still handled:
 
-An abrupt battery cut, OS process kill, or hardware reset can still interrupt
-the one active segment; no ordinary MP4 writer can promise otherwise. The
-write-ahead stream makes that one segment recoverable. If unexpected orphans
-continue to accumulate, retain their `.h264` files and collect the ModeHelper
-log around the stop event—the cause is an ungraceful service/process stop, not
-the clip itself.
+* **In-app Recovery**: the Clips screen's **Recover** button remuxes an
+  orphan's `.h264` into an `.mp4` without re-encoding, keeps its subtitles,
+  and makes its thumbnail, in the separate `:cliprecovery` process. Android
+  9's `MPEG4Writer` needs four-byte start codes (`00 00 00 01`) in both the
+  samples and the SPS/PPS; `ClipRecovery.sample` and `ClipRecovery.csd`
+  produce them.
+* **Desktop Recovery**: `./tools/recover-dashcam.sh /path/to/dash_*.h264`
+  (needs [FFmpeg](https://ffmpeg.org/)) writes `dash_….recovered.mp4` beside
+  each orphan and never changes the source.
 
 ### Gallery State Representation
 
 * **Active Recording**: Identified by recent mtime (<15 s). Displayed with an active indicator; deletion and playback actions are disabled.
-* **Recoverable Crash Fragment**: Orphaned `.h264` file whose companion `.mp4.tmp` has not been updated for >15 s. Displayed with an "Unclosed / Recoverable" status and direct recovery/delete options.
+* **Recoverable Crash Fragment** (older recordings only): an orphaned `.h264` file with no closed `.mp4` and not the live segment. Displayed with an "Unclosed / Recoverable" status and direct recovery/delete options.
+* The live segment is named in `recorder.state`; it is always shown as recording, even if its files look cold.
 
 ---
 

@@ -39,7 +39,24 @@ frames). Whether EVS stops delivering while the screen is off without a
 suspend is unknown, so a watchdog on frames could restart-loop; measure
 first.
 
-Next: Phase C.
+Phase C is done and verified on the car (2026-09-26):
+
+- `FragmentedMp4` replaces `MediaMuxer` plus the raw `.h264`: one write per
+  frame, each fragment synced, a playable file at every moment.
+- A reserved `sidx` is filled at close, so Android 9's player seeks.
+  Checked on the car with MediaExtractor, MediaMetadataRetriever and
+  MediaPlayer, and with FFmpeg on real recordings.
+- A dead `.mp4.tmp` is repaired automatically. Tested with a hard kill of
+  the helper mid-segment: a 116 s clip, every frame decodable.
+- Segment names no longer collide within one second; stray sidecars are
+  cleaned up.
+
+Still open:
+
+- The bitrate A/B (E3 in the efficiency review) needs a person to compare
+  plates and signs at 8, 10 and 16 Mbit/s.
+- The recorder does not detect an EVS stall (see Phase B note).
+- A real car suspend has not been observed with the new hooks yet.
 
 ## Problem
 
