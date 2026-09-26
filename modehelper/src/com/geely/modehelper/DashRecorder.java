@@ -161,6 +161,16 @@ public final class DashRecorder {
         Log.i(TAG, "dashcam: event segment marked for keep " + segment.mp4.getName());
     }
 
+    /** Close the open segment at the next key frame (within a second) and
+     * carry on in a new one. Called when the screen goes off and when the car
+     * announces a suspend: the unit then sleeps with the segment open for
+     * hours, and a power cut in that time used to orphan a whole segment. */
+    public void closeSegmentSoon(String why) {
+        if (activeSegment == null) return;
+        rotateRequested = true;
+        Log.i(TAG, "dashcam: " + why + " — closing the segment");
+    }
+
     // Clips stored in drivemem's external files directory. Accessible to both apps
     // without additional permissions. Uninstalling drivemem removes clips. Hardcoded
     // because modehelper cannot query drivemem's files dir.

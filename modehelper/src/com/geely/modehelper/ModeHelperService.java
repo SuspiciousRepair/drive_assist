@@ -111,6 +111,14 @@ public class ModeHelperService extends Service {
                 }
             };
             registerReceiver(rx, new IntentFilter(SET_MODE));
+            // The screen goes off before the unit suspends (seen on the car:
+            // screen off at 02:33, a segment then open until 08:39). Close
+            // the segment there, while the process can still write the moov.
+            registerReceiver(new BroadcastReceiver() {
+                @Override public void onReceive(Context c, Intent it) {
+                    if (dash != null && dash.isRunning()) dash.closeSegmentSoon("screen off");
+                }
+            }, new IntentFilter(Intent.ACTION_SCREEN_OFF));
             IntentFilter down = new IntentFilter(Intent.ACTION_SHUTDOWN);
             down.addAction(Intent.ACTION_REBOOT);
             registerReceiver(new BroadcastReceiver() {
@@ -165,6 +173,7 @@ public class ModeHelperService extends Service {
                 Integer g = car.readGear();
                 boolean parked = (g != null && g == CarMode.GEAR_PARK);
                 maybeAutoStart();
+                maybeWatchPower();
                 updateParkedMonitoring(parked);
                 if (g != null) {
                     if (g != lastGear) Log.i(TAG, "gear " + lastGear + " -> " + g);
@@ -199,6 +208,27 @@ public class ModeHelperService extends Service {
                 .putLong("beat_poll", System.currentTimeMillis()).apply();
             try { Thread.sleep(4000); } catch (InterruptedException e) { break; }
         }
+    }
+
+    // The car's own power states, once the car connection is up: a suspend
+    // is announced here even when the screen was already off. One attempt
+    // per process — a refusal will not change on retry.
+    private boolean powerWatchTried;
+
+    private void maybeWatchPower() {
+        if (powerWatchTried || !car.isReady()) return;
+        powerWatchTried = true;
+        try {
+            boolean ok = PowerWatch.register(car.powerManager(), state -> {
+                Log.i(TAG, "power state " + state);
+                if (state == PowerWatch.SUSPEND_ENTER) {
+                    if (dash != null && dash.isRunning()) dash.closeSegmentSoon("suspend");
+                } else if (state == PowerWatch.SHUTDOWN_ENTER) {
+                    stopForShutdown("car shutdown");
+                }
+            });
+            Log.i(TAG, "power watch: " + (ok ? "registered" : "no power manager"));
+        } catch (Throwable t) { Log.w(TAG, "power watch: " + t); }
     }
 
     // Once a minute, on its own thread: a compile takes tens of seconds and
@@ -262,11 +292,10 @@ public class ModeHelperService extends Service {
     // thumbnail instead of being left as a .h264 to recover by hand. ACTION_SHUTDOWN
     // is a protected broadcast; this app is uid system, so it receives it.
     //
-    // Not covered: a suspend is not a shutdown, so the segment stays open
-    // through it, and `adb reboot` or a power cut never sends this broadcast.
-    // Those leave an orphan, and the write-ahead .h264 is the safety net. It
-    // is not fsync'd yet, so a hard power cut can still lose its last seconds
-    // (plan/active/DASHCAM-RELIABILITY-ROADMAP.md, D6 and D9).
+    // A suspend is not a shutdown: the screen-off and power-state hooks close
+    // the open segment before it (closeSegmentSoon). `adb reboot` and a power
+    // cut send nothing at all; they leave an orphan, and the write-ahead .h264,
+    // synced every second, is the safety net.
     private void stopForShutdown(String why) {
         if (parkedMonitor != null) {
             parkedMonitor.stop();
