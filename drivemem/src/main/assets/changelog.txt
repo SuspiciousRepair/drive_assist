@@ -1,13 +1,9 @@
-- New: recover an unclosed dashcam recording directly in the app. It
-  keeps the speed and driving data and takes only seconds.
-- Improved: the app and the dashcam now run much faster and use less
-  processor time on this head unit.
-- Fixed: a dashcam recording that could not be closed was deleted instead
-  of being kept for recovery.
-- Fixed: recordings saved by a parked event could be deleted automatically.
-- Fixed: unclosed recordings no longer fill up the dashcam storage.
-- Fixed: the EX2's battery temperature no longer shows impossible
-  sub-zero readings caused by a generic sensor offset.
-- Fixed: ABRP no longer drops a reading when the charging sensor is
-  briefly unavailable.
-- Fixed: ABRP could show two drives with a stop between them as one drive.
+- Improved: dashcam videos survive a crash or power cut, losing at most
+  about a second, and repair themselves. They also wear the car's storage
+  much less.
+- Fixed: the dashcam video now closes when you turn the car off.
+- Fixed: the dashcam restarts itself if it stops unexpectedly.
+- New (experimental, off by default): Park monitoring keeps the dashcam
+  video when something moves near the car while it is on in Park.
+- Fixed: Home Assistant connection switches to the remote address quickly
+  when you leave home.
