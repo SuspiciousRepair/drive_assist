@@ -12,6 +12,12 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.4.3 — 2026-09-27
+
+- Fixed: opening Appearance in the settings no longer closes the app.
+- Fixed: the dashcam no longer keeps a tiny clip each time you turn
+  the car off.
+
 ## v0.4.2 — 2026-09-27
 
 - Improved: dashcam videos survive a crash or power cut, losing at most

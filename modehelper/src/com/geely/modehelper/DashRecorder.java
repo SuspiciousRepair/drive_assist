@@ -545,6 +545,10 @@ public final class DashRecorder {
             // A segment that did not close cleanly keeps its .mp4.tmp, which
             // SegmentFiles.repair() turns into a clip later.
             if (SegmentFiles.finish(mp4Tmp, mp4, vttTmp, vtt, raw, closed)) {
+                if (SegmentFiles.dropTiny(dir(), stem, lastPts)) {
+                    Log.i(TAG, "dashcam: dropped " + mp4.getName() + ", under 2 s of video");
+                    return;
+                }
                 thumbnail(mp4, jpg);
                 SegmentFiles.keepIfHeld(dir(), keepDir(), stem);
             } else Log.w(TAG, "dashcam: " + mp4Tmp.getName() + " did not close; kept for repair");

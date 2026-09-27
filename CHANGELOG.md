@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [v0.4.3] — 2026-09-27
+
+### Fixed
+- **Config > Appearance no longer crashes the app.** The skyline seed field
+  was added to the screen twice, which crashed it whenever the skyline was
+  on (the default). Broken since v0.4.0.
+- Dashcam: a clip with under two seconds of video, left by turning the car
+  off right after a new clip started, is dropped instead of kept.
+
+
 ## [v0.4.2] — 2026-09-27
 
 ### Changed
