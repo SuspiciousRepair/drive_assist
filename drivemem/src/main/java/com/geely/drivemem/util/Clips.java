@@ -44,13 +44,16 @@ public final class Clips {
 
     /** A dashcam video clip with metadata. */
     public static final class Clip {
-        public final File mp4, vtt, thumb;
+        public final File mp4, vtt, thumb, motionMark;
         public final Kind kind;
         public final boolean held;
         public final long bytes;
         public final long whenMs;
         public final int seconds;      // from the sidecar; -1 when there is none
         public final boolean valet;
+        /** Parked motion was seen in it (a `.motion` the recorder drops
+         * beside it). A label only: the recorder never holds a clip. */
+        public final boolean motion;
 
         Clip(File mp4, boolean held, Kind kind) {
             this.mp4 = mp4;
@@ -63,6 +66,8 @@ public final class Clips {
             this.bytes = mp4.length();
             this.whenMs = parseStamp(name(mp4), mp4.lastModified());
             this.valet = name(mp4).endsWith("_valet");
+            this.motionMark = new File(mp4.getParentFile(), name(mp4) + ".motion");
+            this.motion = motionMark.exists();
             this.seconds = cueCount(this.vtt);
         }
 
@@ -260,6 +265,7 @@ public final class Clips {
         if (!clip.mp4.renameTo(mp4)) return false;
         if (clip.vtt.exists()) clip.vtt.renameTo(new File(target, clip.vtt.getName()));
         if (clip.thumb.exists()) clip.thumb.renameTo(new File(target, clip.thumb.getName()));
+        if (clip.motionMark.exists()) clip.motionMark.renameTo(new File(target, clip.motionMark.getName()));
         return true;
     }
 
@@ -267,6 +273,7 @@ public final class Clips {
         clip.mp4.delete();
         if (clip.vtt.exists()) clip.vtt.delete();
         if (clip.thumb.exists()) clip.thumb.delete();
+        if (clip.motionMark.exists()) clip.motionMark.delete();
         // An orphan is one lost segment wearing three filenames. Deleting the row
         // has to take all of them, or the leftovers reappear as a ghost.
         if (clip.kind == Kind.ORPHAN) {

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+- **Parked motion no longer holds clips.** A clip with motion is labelled
+  "movement" in the Clips list and ages out like any other; holding is up
+  to you. Auto-holding kept every parked clip when plants were in view, and
+  held clips are never deleted, so they ate the recording space.
+
 ## [v0.4.3] — 2026-09-27
 
 ### Fixed

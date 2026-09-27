@@ -45,11 +45,26 @@ final class SegmentFiles {
         return new File(new File(dir, "keep"), stem + ".mp4").exists();
     }
 
-    /** Marked for keeping: a `<stem>.hold` beside the clip, dropped by a
-     * parked-monitoring event or by the Clips screen while the segment was
-     * still recording. */
+    /** Marked for keeping: a `<stem>.hold` beside the clip, dropped by the
+     * Clips screen while the segment was still recording. Only a person
+     * holds a clip -- parked motion marks it (motion()) and leaves it in the
+     * ring buffer. */
     static boolean held(File dir, String stem) {
         return new File(dir, stem + ".hold").exists();
+    }
+
+    /** Parked motion was seen in this segment: a `<stem>.motion` beside it.
+     * A label for the Clips screen, not a hold: the clip ages out of the
+     * ring buffer like any other. Auto-holding every clip with motion held
+     * EVERY parked clip at home (plants in front of the camera, 2026-09-27),
+     * 600 MB each, never evicted and counted against the budget. */
+    static boolean motion(File dir, String stem) {
+        return new File(dir, stem + ".motion").exists();
+    }
+
+    /** Marks a segment as having parked motion: the `<stem>.motion` motion() looks for. */
+    static void markMotion(File dir, String stem) {
+        try { new File(dir, stem + ".motion").createNewFile(); } catch (java.io.IOException ignored) { }
     }
 
     // Less video than this is not a clip anyone can use. When the car goes
@@ -64,7 +79,7 @@ final class SegmentFiles {
     static boolean dropTiny(File dir, String stem, long contentUs) {
         if (contentUs >= MIN_CLIP_US || held(dir, stem)) return false;
         boolean gone = new File(dir, stem + ".mp4").delete();
-        for (String ext : new String[] {".vtt", ".jpg"}) new File(dir, stem + ext).delete();
+        for (String ext : new String[] {".vtt", ".jpg", ".motion"}) new File(dir, stem + ext).delete();
         return gone;
     }
 
@@ -81,7 +96,7 @@ final class SegmentFiles {
         File mp4 = new File(dir, stem + ".mp4");
         if (!held(dir, stem) || !mp4.exists()) return;
         if (!mp4.renameTo(new File(keep, mp4.getName()))) return;
-        for (String ext : new String[] {".vtt", ".jpg"}) {
+        for (String ext : new String[] {".vtt", ".jpg", ".motion"}) {
             File f = new File(dir, stem + ext);
             if (f.exists()) f.renameTo(new File(keep, f.getName()));
         }
@@ -123,7 +138,7 @@ final class SegmentFiles {
     static final long COLD_MS = 10 * 60_000L;
 
     private static final String[] SEGMENT_FILES =
-        {".mp4", ".h264", ".mp4.tmp", ".vtt", ".vtt.tmp", ".jpg"};
+        {".mp4", ".h264", ".mp4.tmp", ".vtt", ".vtt.tmp", ".jpg", ".motion"};
 
     /** The ring buffer: oldest first against a byte budget, one whole
      * segment at a time. Returns what was dropped, for the log.
@@ -151,7 +166,8 @@ final class SegmentFiles {
         // fragment, or an older build's leftovers) are dropped once cold.
         for (File f : all) {
             String n = f.getName();
-            if (!(n.endsWith(".vtt") || n.endsWith(".vtt.tmp") || n.endsWith(".jpg")) || !cold(f, nowMs)) continue;
+            if (!(n.endsWith(".vtt") || n.endsWith(".vtt.tmp") || n.endsWith(".jpg") || n.endsWith(".motion"))
+                || !cold(f, nowMs)) continue;
             String stem = stem(n);
             boolean video = false;
             for (String ext : new String[] {".mp4", ".mp4.tmp", ".h264"})

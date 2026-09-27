@@ -333,6 +333,7 @@
     <string name="clips_none">Nothing recorded yet.</string>
     <string name="clips_play">Play</string>
     <string name="clips_hold">Hold</string>
+    <string name="clips_motion">movement</string>
     <string name="clips_release">Release</string>
     <string name="clips_delete">Delete</string>
     <string name="clips_delete_q">Delete %1$s?</string>

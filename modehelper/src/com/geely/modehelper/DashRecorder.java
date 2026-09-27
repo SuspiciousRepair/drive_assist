@@ -160,8 +160,8 @@ public final class DashRecorder {
 
     // ------------------------------------------------------------ parked motion
 
-    // A segment that begins less than this before motion is kept too, so the
-    // clip shows what led up to it.
+    // A segment that begins less than this before motion is marked too, so
+    // the clip that shows what led up to it is easy to find.
     static final long PRE_ROLL_MS = 10_000L;
 
     private volatile boolean motionWanted;
@@ -177,8 +177,8 @@ public final class DashRecorder {
         if (motionWanted && motion == null && outFmt != null) {
             try {
                 motion = new KeyframeMotion(outFmt, W, H, new KeyframeMotion.Listener() {
-                    @Override public void onEventStarted(int changed) { holdForMotion(true, changed); }
-                    @Override public void onEventActive() { holdForMotion(false, 0); }
+                    @Override public void onEventStarted(int changed) { markForMotion(true, changed); }
+                    @Override public void onEventActive() { markForMotion(false, 0); }
                     @Override public void onEventFinished() { Log.i(TAG, "motion: event ended"); }
                 });
                 Log.i(TAG, "motion: watching");
@@ -199,22 +199,21 @@ public final class DashRecorder {
         Log.i(TAG, "motion: stopped watching");
     }
 
-    // Motion thread. Marks the open segment kept for every analysed frame of
-    // an event, so an event that runs across a rotation keeps both clips.
-    private void holdForMotion(boolean started, int changedPixels) {
+    // Motion thread. Marks the open segment for every analysed frame of an
+    // event, so an event that runs across a rotation marks both clips. A
+    // mark, never a hold: see SegmentFiles.motion().
+    private void markForMotion(boolean started, int changedPixels) {
         Seg s = activeSegment;
         if (s == null) return;
-        s.markHeld();
+        SegmentFiles.markMotion(dir(), s.stem);
         if (!started) return;
-        Log.i(TAG, "motion: event started (" + changedPixels + " px changed), keeping " + s.stem);
+        Log.i(TAG, "motion: event started (" + changedPixels + " px changed), marking " + s.stem);
         String prev = previousStem;
-        ExecutorService c = closer;
-        if (prev != null && s.ageMs() < PRE_ROLL_MS && c != null) {
-            // The previous clip may still be closing on the close thread;
-            // queued behind that close, keepIfHeld finds it finished.
-            SegmentFiles.mark(dir(), prev);
-            c.execute(() -> SegmentFiles.keepIfHeld(dir(), keepDir(), prev));
-            Log.i(TAG, "motion: also keeping " + prev + " (pre-roll)");
+        if (prev != null && s.ageMs() < PRE_ROLL_MS) {
+            // The previous clip may still be closing; the marker does not
+            // care, and finish() leaves it alone.
+            SegmentFiles.markMotion(dir(), prev);
+            Log.i(TAG, "motion: also marking " + prev + " (pre-roll)");
         }
     }
 
@@ -457,7 +456,7 @@ public final class DashRecorder {
     // whatever eventually uploads them.
     private final class Seg {
         final String stem;
-        final File mp4, vtt, mp4Tmp, vttTmp, raw, jpg, hold;
+        final File mp4, vtt, mp4Tmp, vttTmp, raw, jpg;
         // Use uptimeMillis, not elapsedRealtime: suspension doesn't interrupt the
         // timeline. Ensures video duration reflects actual recording time.
         final long startMs = SystemClock.uptimeMillis();
@@ -491,7 +490,6 @@ public final class DashRecorder {
             vttTmp = new File(d, stem + ".vtt.tmp");
             raw    = new File(d, stem + ".h264");   // legacy name, never written now
             jpg    = new File(d, stem + ".jpg");
-            hold   = new File(d, stem + ".hold");
             // Fragmented MP4, one fragment per key frame, each forced to
             // storage: the .mp4.tmp is a playable video at every moment, so a
             // crash costs at most the last second and there is nothing to
@@ -526,11 +524,6 @@ public final class DashRecorder {
         void cue(long fromUs, long toUs, String text) {
             if (sub == null || text == null || text.isEmpty()) return;
             try { sub.cue(fromUs, toUs, text); } catch (Throwable ignored) { }
-        }
-
-        void markHeld() {
-            try { hold.createNewFile(); }
-            catch (Throwable t) { Log.w(TAG, "dashcam: could not mark event segment", t); }
         }
 
         void finish() {

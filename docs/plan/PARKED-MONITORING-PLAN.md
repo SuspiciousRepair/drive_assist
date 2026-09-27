@@ -11,6 +11,12 @@ running, so the upcoming logged soak is intentionally a simultaneous-`dvr`
 consumer test. It remains experimental: no inference, event clips, or deep-sleep
 keepalive is enabled.
 
+Motion only **labels** a clip ("movement" in the Clips list, a `.motion`
+file beside it); it never holds it. Owner decision 2026-09-27, after
+auto-holding kept every parked clip at home (plants in front of the camera):
+600 MB each, never evicted, eating the recording budget. Holding is a
+person's choice from the Clips screen.
+
 ## Goal
 
 Offer optional activity monitoring only while the vehicle is demonstrably

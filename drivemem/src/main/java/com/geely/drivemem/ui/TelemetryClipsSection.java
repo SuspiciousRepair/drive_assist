@@ -200,6 +200,7 @@ public final class TelemetryClipsSection extends LinearLayout {
                          ? "  ● " + activity.getString(R.string.clips_recording) + (pendingHold ? "  ★" : "")
                    : c.kind == Clips.Kind.ORPHAN ? "  ⚠ " + activity.getString(R.string.clips_orphan)
                    : c.held ? "  ★" : "";
+        if (c.motion) tag += "  ◆ " + activity.getString(R.string.clips_motion);
         text.addView(Style.header(activity, c.title() + tag));
         text.addView(Style.label(activity, c.subtitle()));
         card.addView(text);
