@@ -71,8 +71,9 @@ public final class TelemetryLookSection extends LinearLayout {
             // Locked while "random every drive" is on: that toggle is the one
             // writing skyline_seed now, on every P->D, so a value typed here
             // would just be overwritten by the next drive anyway.
+            // field() already added it to this section -- adding it again threw
+            // "The specified child already has a parent" and crashed the screen.
             fSkylineSeed.setEnabled(!randomPerDrive);
-            addView(fSkylineSeed);
 
             LinearLayout skylineBtnRow = new LinearLayout(activity);
             skylineBtnRow.setOrientation(LinearLayout.HORIZONTAL);
