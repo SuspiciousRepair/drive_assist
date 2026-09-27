@@ -1,0 +1,28 @@
+plugins {
+    id("com.android.application")
+}
+
+android {
+    namespace "com.geely.owwprobe"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.geely.owwprobe"
+        minSdk 28
+        targetSdk 28
+        versionCode 1
+        versionName "0.1"
+    }
+
+    buildTypes {
+        release { minifyEnabled false }
+    }
+
+    androidResources {
+        noCompress += ["tflite", "onnx"]
+    }
+}
+
+dependencies {
+    implementation "com.google.ai.edge.litert:litert:1.4.0"
+}
