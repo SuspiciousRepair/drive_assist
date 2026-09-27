@@ -12,6 +12,18 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.4.2 — 2026-09-27
+
+- Improved: dashcam videos survive a crash or power cut, losing at most
+  about a second, and repair themselves. They also wear the car's storage
+  much less.
+- Fixed: the dashcam video now closes when you turn the car off.
+- Fixed: the dashcam restarts itself if it stops unexpectedly.
+- New (experimental, off by default): Park monitoring keeps the dashcam
+  video when something moves near the car while it is on in Park.
+- Fixed: Home Assistant connection switches to the remote address quickly
+  when you leave home.
+
 ## v0.4.1 — 2026-09-26
 
 - New: recover an unclosed dashcam recording directly in the app. It

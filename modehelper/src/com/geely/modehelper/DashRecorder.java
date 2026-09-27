@@ -3,7 +3,6 @@ package com.geely.modehelper;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
-import android.media.MediaMuxer;
 import android.content.Context;
 import android.location.Location;
 import android.location.LocationListener;
@@ -20,6 +19,9 @@ import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /** Dashcam recorder: direct encode of the DVR camera view (2x2 of all four cameras)
  * without GL pipeline. Encodes directly to MediaCodec, bypassing unnecessary
@@ -67,8 +69,16 @@ public final class DashRecorder {
     private volatile boolean running;
     private volatile Seg activeSegment;
     private volatile boolean rotateRequested;
+    private volatile boolean closeNow;
     private Thread thread;
     private Thread sampler;
+    // Closes finished segments: the moov write, a thumbnail decoded from a
+    // 600 MB file, the ring buffer. On the encoder thread that work stopped
+    // the drain for as long as it took, and frames were dropped at every
+    // rotation. One thread, so segments still close in order.
+    private ExecutorService closer;
+    private volatile long startedUptimeMs;
+    private volatile String lastError;
 
     // Latest telemetry, refreshed off the encoder thread so a slow binder read can
     // never stall the drain loop.
@@ -115,9 +125,15 @@ public final class DashRecorder {
 
     public boolean isRunning() { return running; }
 
+    /** uptime when start() last ran; the supervisor resets its backoff once a
+     * recorder has stayed up a while. */
+    public long startedUptimeMs() { return startedUptimeMs; }
+
     public synchronized void start() {
         if (running) return;
         running = true;
+        startedUptimeMs = SystemClock.uptimeMillis();
+        lastError = null;
         startGps();
         thread = new Thread(this::loop, "dashcam");
         thread.start();
@@ -132,7 +148,8 @@ public final class DashRecorder {
     }
 
     /** Used for orderly service shutdown. Waiting for the encoder loop means
-     * MediaMuxer gets its stop()/moov write before Android can kill the helper. */
+     * the last fragment and the index are written before Android can kill
+     * the helper. */
     public void stopAndWait(long timeoutMs) {
         stop();
         Thread t = thread;
@@ -141,16 +158,78 @@ public final class DashRecorder {
         }
     }
 
-    /** Preserve and promptly close the segment containing a detected event. */
-    public void saveCurrentSegmentForEvent() {
-        Seg segment = activeSegment;
-        if (segment == null) {
-            Log.w(TAG, "dashcam: event had no active segment to save");
-            return;
+    // ------------------------------------------------------------ parked motion
+
+    // A segment that begins less than this before motion is kept too, so the
+    // clip shows what led up to it.
+    static final long PRE_ROLL_MS = 10_000L;
+
+    private volatile boolean motionWanted;
+    private volatile String previousStem;
+    private KeyframeMotion motion;                // encoder thread only
+
+    /** Parked motion watch on or off; ModeHelperService calls this on every
+     * poll from its Park policy (on after 30 s in Park, off on leaving it). */
+    public void setMotionWatch(boolean on) { motionWanted = on; }
+
+    // Encoder thread, after each key frame is written.
+    private void motionFrame(MediaFormat outFmt, ByteBuffer buf, MediaCodec.BufferInfo info) {
+        if (motionWanted && motion == null && outFmt != null) {
+            try {
+                motion = new KeyframeMotion(outFmt, W, H, new KeyframeMotion.Listener() {
+                    @Override public void onEventStarted(int changed) { holdForMotion(true, changed); }
+                    @Override public void onEventActive() { holdForMotion(false, 0); }
+                    @Override public void onEventFinished() { Log.i(TAG, "motion: event ended"); }
+                });
+                Log.i(TAG, "motion: watching");
+            } catch (Throwable t) {
+                Log.w(TAG, "motion: could not start: " + t);
+                motionWanted = false;
+            }
+        } else if (!motionWanted && motion != null) {
+            stopMotion();
         }
-        segment.markHeld();
-        rotateRequested = true;
-        Log.i(TAG, "dashcam: event segment marked for keep " + segment.mp4.getName());
+        if (motion != null) motion.offer(buf, info.offset, info.size, info.presentationTimeUs);
+    }
+
+    private void stopMotion() {
+        if (motion == null) return;
+        motion.close();
+        motion = null;
+        Log.i(TAG, "motion: stopped watching");
+    }
+
+    // Motion thread. Marks the open segment kept for every analysed frame of
+    // an event, so an event that runs across a rotation keeps both clips.
+    private void holdForMotion(boolean started, int changedPixels) {
+        Seg s = activeSegment;
+        if (s == null) return;
+        s.markHeld();
+        if (!started) return;
+        Log.i(TAG, "motion: event started (" + changedPixels + " px changed), keeping " + s.stem);
+        String prev = previousStem;
+        ExecutorService c = closer;
+        if (prev != null && s.ageMs() < PRE_ROLL_MS && c != null) {
+            // The previous clip may still be closing on the close thread;
+            // queued behind that close, keepIfHeld finds it finished.
+            SegmentFiles.mark(dir(), prev);
+            c.execute(() -> SegmentFiles.keepIfHeld(dir(), keepDir(), prev));
+            Log.i(TAG, "motion: also keeping " + prev + " (pre-roll)");
+        }
+    }
+
+    /** Close the open segment NOW, without waiting for a key frame, and
+     * start the next one at the first key frame once pictures flow again.
+     * For the car going off: it sends ACTION_SHUTDOWN_HU, the cameras stop
+     * at that moment, the screen goes off three seconds later, and the unit
+     * sleeps. A close that waited for a key frame (the first version) never
+     * ran until the car woke hours later (seen on 2026-09-26: screen off at
+     * 22:20:23, segment closed at 00:01:12). A fragmented MP4 can close at
+     * any sample, so nothing needs to wait. */
+    public void closeSegmentNow(String why) {
+        if (activeSegment == null) return;
+        closeNow = true;
+        Log.i(TAG, "dashcam: " + why + " — closing the segment now");
     }
 
     // Clips stored in drivemem's external files directory. Accessible to both apps
@@ -176,7 +255,11 @@ public final class DashRecorder {
     // ------------------------------------------------------------ telemetry
 
     private void sample() {
+        int tick = 0;
         while (running) {
+            Seg open = activeSegment;
+            if (tick++ % 5 == 0 && open != null)
+                RecorderState.write(dir(), "recording", open.stem, System.currentTimeMillis(), null);
             try {
                 if (car.isReady()) {
                     boolean valet = new File(dir(), "valet.active").exists();
@@ -225,7 +308,7 @@ public final class DashRecorder {
         Surface input = null;
         Seg seg = null;
         try {
-            if (!evs.connect()) { Log.w(TAG, "dashcam: no engine, giving up"); running = false; return; }
+            if (!evs.connect()) { lastError = "no EVS engine"; Log.w(TAG, "dashcam: no engine, giving up"); running = false; return; }
             evs.openCamera(EvsClient.CAMERA_AVM);
 
             MediaFormat fmt = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, W, H);
@@ -243,17 +326,37 @@ public final class DashRecorder {
             // The engine renders straight into the encoder. Same IGraphicBufferProducer
             // trick as any other surface — MediaCodec's input surface is no different.
             if (!evs.attach(input, EvsClient.TYPE_DVR, EvsClient.CAMERA_AVM)) {
+                lastError = "EVS attach refused";
                 Log.w(TAG, "dashcam: attach refused");
                 running = false;
                 return;
             }
 
+            closer = Executors.newSingleThreadExecutor(r -> new Thread(r, "dashcam-close"));
             MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
             MediaFormat outFmt = null;
             boolean rotateArmed = false;
             long lastCue = -1;
 
             while (running) {
+                // Checked on every pass, frames or not: after the car goes
+                // off there are no more frames to wait for.
+                if (closeNow) {
+                    closeNow = false;
+                    if (seg != null) {
+                        final Seg old = seg;
+                        previousStem = old.stem;
+                        closer.execute(() -> { old.finish(); enforceBudget(ctx, null); });
+                        seg = null;
+                        activeSegment = null;
+                        rotateArmed = false;
+                        rotateRequested = false;
+                        lastCue = -1;
+                        Bundle b = new Bundle();
+                        b.putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0);
+                        codec.setParameters(b);
+                    }
+                }
                 int idx = codec.dequeueOutputBuffer(info, 20000);
                 if (idx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     outFmt = codec.getOutputFormat();
@@ -267,15 +370,32 @@ public final class DashRecorder {
                 boolean config = (info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0;
                 boolean key    = (info.flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0;
 
-                // csd lives in the output format, which the muxer already took;
-                // writing it as a sample as well produces a file some players
-                // refuse.
+                // csd lives in the output format, which the writer already put in
+                // the avcC; writing it as a sample as well produces a file some
+                // players refuse.
+                // After closeSegmentNow() the next segment starts at the first
+                // key frame; frames before it cannot start a playable file.
+                if (seg == null && key && !config && buf != null && outFmt != null) {
+                    seg = new Seg(outFmt);
+                    activeSegment = seg;
+                    lastCue = -1;
+                }
                 if (config || seg == null || buf == null) { codec.releaseOutputBuffer(idx, false); continue; }
 
-                // Rotate segment at a key frame: segments must start seekable.
-                if (rotateArmed && key) {
-                    seg.finish();
-                    enforceBudget(ctx);
+                // Rotate at a key frame (segments must start seekable), and
+                // never within the second the current segment started: a
+                // close requested right after a rotation (an event, screen
+                // off) waits for the next key frame, about a second, so two
+                // segments never start in the same second.
+                if (rotateArmed && key
+                        && !SegmentFiles.sameSecond(seg.startWallMs, System.currentTimeMillis())) {
+                    final Seg old = seg;
+                    previousStem = old.stem;
+                    closer.execute(() -> {
+                        old.finish();
+                        Seg live = activeSegment;
+                        enforceBudget(ctx, live == null ? null : live.stem);
+                    });
                     seg = new Seg(outFmt);
                     activeSegment = seg;
                     rotateArmed = false;
@@ -286,7 +406,7 @@ public final class DashRecorder {
                 // ensures monotonic PTS and sync with subtitle timing.
                 long pts = seg.ptsUs();
                 info.presentationTimeUs = pts;
-                seg.write(buf, info);
+                seg.write(buf, info, key);
 
                 // Snap cue to the whole second: ensures each subtitle covers a full
                 // second and stays synchronized despite frame timing variations.
@@ -296,6 +416,7 @@ public final class DashRecorder {
                     lastCue = sec;
                 }
 
+                if (key) motionFrame(outFmt, buf, info);
                 codec.releaseOutputBuffer(idx, false);
 
                 if (!rotateArmed && (seg.ageMs() >= SEGMENT_MS || valetEdge || rotateRequested)) {
@@ -309,14 +430,22 @@ public final class DashRecorder {
             }
         } catch (Throwable t) {
             Log.w(TAG, "dashcam: " + t, t);
+            lastError = String.valueOf(t);
         } finally {
             running = false;
+            stopMotion();
             if (seg != null) seg.finish();
             activeSegment = null;
+            if (closer != null) {
+                closer.shutdown();
+                try { closer.awaitTermination(10, TimeUnit.SECONDS); }
+                catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            }
             try { if (codec != null) { codec.stop(); codec.release(); } } catch (Throwable ignored) { }
             try { if (input != null) input.release(); } catch (Throwable ignored) { }
-            enforceBudget(ctx);
+            enforceBudget(ctx, null);
             stopGps();
+            RecorderState.write(dir(), "stopped", "", System.currentTimeMillis(), lastError);
             Log.i(TAG, "dashcam: stopped");
         }
     }
@@ -327,91 +456,71 @@ public final class DashRecorder {
     // never mistaken for a whole one — by the ring buffer, by a player, or by
     // whatever eventually uploads them.
     private final class Seg {
+        final String stem;
         final File mp4, vtt, mp4Tmp, vttTmp, raw, jpg, hold;
-        final MediaMuxer muxer;
-        final int track;
         // Use uptimeMillis, not elapsedRealtime: suspension doesn't interrupt the
         // timeline. Ensures video duration reflects actual recording time.
         final long startMs = SystemClock.uptimeMillis();
+        // Wall-clock start; the name is this second. See the rotation check.
+        final long startWallMs;
+        FragmentedMp4.Writer out;
         Vtt sub;
-        java.io.FileOutputStream rawOut;
         long lastPts = -1;
         boolean done;
 
         Seg(MediaFormat f) throws Exception {
-            String stem = "dash_" + NAME.format(new Date())
-                + (new File(dir(), "valet.active").exists() ? "_valet" : "");
+            // A segment is named after the second it starts in, and only one
+            // may start per second (see the rotation check). A recorder
+            // restarting within the second its last segment started would
+            // meet a used name: it waits for the next second instead of
+            // writing over that clip.
+            String suffix = new File(dir(), "valet.active").exists() ? "_valet" : "";
+            long now = System.currentTimeMillis();
+            String name = "dash_" + NAME.format(new Date(now)) + suffix;
+            for (int tries = 0; SegmentFiles.taken(dir(), name) && tries < 3; tries++) {
+                Thread.sleep(1000 - now % 1000 + 5);
+                now = System.currentTimeMillis();
+                name = "dash_" + NAME.format(new Date(now)) + suffix;
+            }
+            stem = name;
+            startWallMs = now;
             File d = dir();
             mp4 = new File(d, stem + ".mp4");
             vtt = new File(d, stem + ".vtt");
             mp4Tmp = new File(d, stem + ".mp4.tmp");
             vttTmp = new File(d, stem + ".vtt.tmp");
-            raw    = new File(d, stem + ".h264");
+            raw    = new File(d, stem + ".h264");   // legacy name, never written now
             jpg    = new File(d, stem + ".jpg");
             hold   = new File(d, stem + ".hold");
-            muxer = new MediaMuxer(mp4Tmp.getAbsolutePath(), MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
-            track = muxer.addTrack(f);
-            muxer.start();
+            // Fragmented MP4, one fragment per key frame, each forced to
+            // storage: the .mp4.tmp is a playable video at every moment, so a
+            // crash costs at most the last second and there is nothing to
+            // recover. It replaced MediaMuxer plus a raw .h264 write-ahead
+            // copy, which wrote every frame twice. See FragmentedMp4.
+            out = new FragmentedMp4.Writer(mp4Tmp, W, H, parameterSet(f, "csd-0"), parameterSet(f, "csd-1"));
             try { sub = new Vtt(vttTmp); } catch (Throwable t) { sub = null; }
-
-            // The write-ahead stream, and the reason it exists.
-            //
-            // MP4 keeps its index in a moov atom that MediaMuxer only writes on
-            // stop(), so a .mp4.tmp is worthless until the segment closes: a
-            // crash mid-segment leaves an unplayable file with no moov atom and
-            // no recoverable footage — losing exactly the event you'd want it for.
-            //
-            // So every access unit is also appended raw, Annex-B, to a .h264.
-            // A raw elementary stream has no index to lose — it is valid at every
-            // byte — and `ffmpeg -i x.h264 -c copy x.mp4` remuxes it. On a clean
-            // close it is deleted, so the cost is 2x disk for the CURRENT segment
-            // only, never for the archive.
-            try {
-                rawOut = new java.io.FileOutputStream(raw);
-                writeCsd(f);
-            } catch (Throwable t) { rawOut = null; }
-
             Log.i(TAG, "dashcam: segment " + mp4.getName());
+            RecorderState.write(dir(), "recording", stem, System.currentTimeMillis(), null);
         }
 
         long ageMs() { return SystemClock.uptimeMillis() - startMs; }
 
         long ptsUs() {
             long p = (SystemClock.uptimeMillis() - startMs) * 1000L;
-            if (p <= lastPts) p = lastPts + 1;   // the muxer demands strictly increasing
+            if (p <= lastPts) p = lastPts + 1;   // durations must be positive
             lastPts = p;
             return p;
         }
 
-        // SPS/PPS first, or the stream cannot be decoded from the top. They come
-        // out of the output format as csd-0 / csd-1 rather than as a separate
-        // config buffer, which is why the config-flagged buffers are still
-        // skipped everywhere else.
-        void writeCsd(MediaFormat f) throws Exception {
-            for (String k : new String[]{"csd-0", "csd-1"}) {
-                if (!f.containsKey(k)) continue;
-                ByteBuffer c = f.getByteBuffer(k).duplicate();
-                byte[] a = new byte[c.remaining()];
-                c.get(a);
-                rawOut.write(a);
+        void write(ByteBuffer b, MediaCodec.BufferInfo i, boolean key) {
+            if (out == null) return;
+            try { out.sample(b, i.offset, i.size, i.presentationTimeUs, key); }
+            catch (Throwable t) {
+                // Everything already written stays playable; stop here rather
+                // than log 25 failures a second.
+                Log.w(TAG, "dashcam: write failed, segment ends here: " + t);
+                out = null;
             }
-        }
-
-        void write(ByteBuffer b, MediaCodec.BufferInfo i) {
-            if (rawOut != null) {
-                try {
-                    int pos = b.position(), lim = b.limit();
-                    byte[] a = new byte[i.size];
-                    b.position(i.offset);
-                    b.limit(i.offset + i.size);
-                    b.get(a);
-                    rawOut.write(a);
-                    b.position(pos);
-                    b.limit(lim);
-                } catch (Throwable t) { Log.w(TAG, "dashcam: raw write: " + t); rawOut = null; }
-            }
-            try { muxer.writeSampleData(track, b, i); }
-            catch (Throwable t) { Log.w(TAG, "dashcam: writeSampleData: " + t); }
         }
 
         void cue(long fromUs, long toUs, String text) {
@@ -428,51 +537,68 @@ public final class DashRecorder {
             if (done) return;
             done = true;
             boolean closed = false;
-            try { muxer.stop(); closed = true; }
-            catch (Throwable t) { Log.w(TAG, "dashcam: muxer stop failed: " + t); }
-            try { muxer.release(); } catch (Throwable ignored) { }
+            FragmentedMp4.Writer w = out;
+            out = null;
+            try { closed = w != null && w.close(mp4Tmp); }
+            catch (Throwable t) { Log.w(TAG, "dashcam: close failed: " + t); }
             if (sub != null) sub.close();
-            try { if (rawOut != null) rawOut.close(); } catch (Throwable ignored) { }
-            // The write-ahead stream is a safety net for a segment that never
-            // closed. Only a clean close deletes it — see SegmentFiles.
+            // A segment that did not close cleanly keeps its .mp4.tmp, which
+            // SegmentFiles.repair() turns into a clip later.
             if (SegmentFiles.finish(mp4Tmp, mp4, vttTmp, vtt, raw, closed)) {
-                thumbnail();
-                String stem = mp4.getName().substring(0, mp4.getName().length() - 4);
+                thumbnail(mp4, jpg);
                 SegmentFiles.keepIfHeld(dir(), keepDir(), stem);
-            } else Log.w(TAG, "dashcam: kept " + raw.getName() + " — the mp4 never closed");
+            } else Log.w(TAG, "dashcam: " + mp4Tmp.getName() + " did not close; kept for repair");
             Log.i(TAG, "dashcam: closed " + mp4.getName() + " " + (mp4.length() / 1024) + " KB");
         }
+    }
 
-        // ONE THUMBNAIL PER SEGMENT, made here at close rather than by the
-        // gallery per row. MediaMetadataRetriever has to open and index the
-        // container to find a frame, and doing that to a 600 MB file every time a
-        // list draws is the same mistake the clip DURATION avoids by counting
-        // cues in the sidecar instead.
-        //
-        // Asked for a frame one second in: at zero the camera is often still
-        // adjusting exposure, and with a keyframe every second the seek is cheap
-        // either way. The whole 2x2 is kept rather than one quadrant, because
-        // what the clip contains IS four cameras and the row should say so.
-        void thumbnail() {
-            android.media.MediaMetadataRetriever r = new android.media.MediaMetadataRetriever();
-            java.io.FileOutputStream out = null;
-            try {
-                r.setDataSource(mp4.getAbsolutePath());
-                android.graphics.Bitmap full = r.getFrameAtTime(1_000_000,
-                    android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
-                if (full == null) return;
-                android.graphics.Bitmap small =
-                    android.graphics.Bitmap.createScaledBitmap(full, 480, 200, true);
-                out = new java.io.FileOutputStream(jpg);
-                small.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, out);
-                small.recycle();
-                full.recycle();
-            } catch (Throwable t) {
-                Log.w(TAG, "dashcam: thumbnail: " + t);
-            } finally {
-                try { if (out != null) out.close(); } catch (Throwable ignored) { }
-                try { r.release(); } catch (Throwable ignored) { }
-            }
+    /** An SPS or PPS from the encoder's output format, without its start
+     * code or trailing zeros. */
+    static byte[] parameterSet(MediaFormat f, String key) {
+        ByteBuffer c = f.getByteBuffer(key).duplicate();
+        byte[] a = new byte[c.remaining()];
+        c.get(a);
+        int from = 0;
+        while (from < a.length && a[from] == 0) from++;
+        if (from < a.length && a[from] == 1) from++;
+        int end = a.length;
+        while (end > from && a[end - 1] == 0) end--;
+        return java.util.Arrays.copyOfRange(a, from, end);
+    }
+
+    // ONE THUMBNAIL PER SEGMENT, made at close rather than by the gallery
+    // per row. MediaMetadataRetriever has to open and index the container to
+    // find a frame, and doing that to a 600 MB file every time a list draws
+    // is the same mistake the clip DURATION avoids by counting cues in the
+    // sidecar instead.
+    //
+    // Asked for a frame one second in: at zero the camera is often still
+    // adjusting exposure, and with a keyframe every second the seek is cheap
+    // either way. The whole 2x2 is kept rather than one quadrant, because
+    // what the clip contains IS four cameras and the row should say so.
+    static void thumbnail(File mp4, File jpg) {
+        android.media.MediaMetadataRetriever r = new android.media.MediaMetadataRetriever();
+        java.io.FileOutputStream out = null;
+        try {
+            r.setDataSource(mp4.getAbsolutePath());
+            android.graphics.Bitmap full = r.getFrameAtTime(1_000_000,
+                android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+            // A clip shorter than about a second and a half (closed right
+            // after it started) has no frame there; take its first one.
+            if (full == null) full = r.getFrameAtTime(0,
+                android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+            if (full == null) return;
+            android.graphics.Bitmap small =
+                android.graphics.Bitmap.createScaledBitmap(full, 480, 200, true);
+            out = new java.io.FileOutputStream(jpg);
+            small.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, out);
+            small.recycle();
+            full.recycle();
+        } catch (Throwable t) {
+            Log.w(TAG, "dashcam: thumbnail: " + t);
+        } finally {
+            try { if (out != null) out.close(); } catch (Throwable ignored) { }
+            try { r.release(); } catch (Throwable ignored) { }
         }
     }
 
@@ -488,10 +614,20 @@ public final class DashRecorder {
     // holding more leaves less room for new recording instead of being free
     // storage on top of it.
     //
-    // Only ever called with no segment open (after finish()), so the only
-    // files still being written are a recovery's, which SegmentFiles leaves
-    // alone by their age.
-    static void enforceBudget(Context ctx) {
+    // Runs on the close thread while the NEXT segment is already recording.
+    // That segment's files, like a recovery's, are written continuously, and
+    // SegmentFiles leaves anything written in the last 10 minutes alone.
+    static void enforceBudget(Context ctx, String liveStem) {
+        // A segment whose writer never closed (a crash, a power cut) is still
+        // a playable file up to its last fragment; finishing it makes it an
+        // ordinary clip. Done here, before the budget counts it.
+        try {
+            for (String stem : SegmentFiles.repair(dir(), System.currentTimeMillis(), liveStem)) {
+                Log.i(TAG, "dashcam: repaired " + stem + ".mp4");
+                thumbnail(new File(dir(), stem + ".mp4"), new File(dir(), stem + ".jpg"));
+                SegmentFiles.keepIfHeld(dir(), keepDir(), stem);
+            }
+        } catch (Throwable t) { Log.w(TAG, "dashcam: repair: " + t); }
         try {
             int gb = ctx.getSharedPreferences("modehelper", Context.MODE_PRIVATE)
                 .getInt("dashcam_limit_gb", DEFAULT_BUDGET_GB);

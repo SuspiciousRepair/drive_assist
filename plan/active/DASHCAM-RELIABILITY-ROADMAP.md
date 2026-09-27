@@ -18,7 +18,51 @@ problems found while testing on the car:
 Both orphans on the car were recovered in the app and play without a
 single decode error (3958 frames, checked with FFmpeg on a PC).
 
-Next: Phase B.
+Phase B is done and verified on the car (2026-09-26):
+
+- D6: `RawStream` syncs the `.h264` at every key frame and writes the
+  encoder's buffer without a copy (E2 in the efficiency review).
+- D7: the helper restarts a recorder that stopped on its own, with
+  backoff (`RestartBackoff`). An owner's "off" is never undone: tested
+  on the car.
+- D8: `dashcam/recorder.state` names the live segment; Clips shows it as
+  recording and recovery refuses it: tested on the car.
+- D9: the segment closes on screen-off and on CarPowerManager
+  `SUSPEND_ENTER` (`PowerWatch`), and the recorder stops on
+  `SHUTDOWN_ENTER`. Screen-off tested on the car: new segment 55 ms
+  later. A real suspend has not been observed yet.
+- D10 (encoder-thread part): segments close on their own thread; tested
+  on the car.
+
+Not done: the recorder does not detect an EVS stall (running, no
+frames). Whether EVS stops delivering while the screen is off without a
+suspend is unknown, so a watchdog on frames could restart-loop; measure
+first.
+
+Phase C is done and verified on the car (2026-09-26):
+
+- `FragmentedMp4` replaces `MediaMuxer` plus the raw `.h264`: one write per
+  frame, each fragment synced, a playable file at every moment.
+- A reserved `sidx` is filled at close, so Android 9's player seeks.
+  Checked on the car with MediaExtractor, MediaMetadataRetriever and
+  MediaPlayer, and with FFmpeg on real recordings.
+- A dead `.mp4.tmp` is repaired automatically. Tested with a hard kill of
+  the helper mid-segment: a 116 s clip, every frame decodable.
+- Segment names no longer collide within one second; stray sidecars are
+  cleaned up.
+
+Still open:
+
+- The bitrate A/B (E3 in the efficiency review) needs a person to compare
+  plates and signs at 8, 10 and 16 Mbit/s.
+- The recorder does not detect an EVS stall (see Phase B note).
+- Observed on the first real car-offs (2026-09-26): the close waited for a
+  key frame that never came, because the cameras stop at the head unit's
+  `ACTION_SHUTDOWN_HU`, before screen-off. Fixed: the segment now closes at
+  once, and also on `ACTION_SHUTDOWN_HU`. Confirm on the next real car-off.
+- Field check the same day: a 300 s driving clip decoded with 0 errors and
+  seeks; a clip cut by an `adb reboot` was repaired automatically (229 s,
+  0 errors).
 
 ## Problem
 

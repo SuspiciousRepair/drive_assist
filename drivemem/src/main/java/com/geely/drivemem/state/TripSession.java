@@ -456,8 +456,7 @@ public final class TripSession {
             "SELECT COALESCE(SUM(energy_spent_kwh),0), COALESCE(SUM(energy_regen_kwh),0), "
           + "COALESCE(SUM(energy_net_kwh),0) FROM telemetry_sample "
           + "WHERE ts_ms BETWEEN ? AND ? "
-          + "AND (CASE WHEN gear IS NOT NULL THEN gear <> 4 "
-          + "     ELSE (is_charging IS NULL OR is_charging = 0) END)",
+          + "AND " + CarDb.DRIVING_ROW_SQL,
             new String[]{String.valueOf(startMs), String.valueOf(endMs)});
         try {
             if (c.moveToFirst()) return new double[]{c.getDouble(0), c.getDouble(1), c.getDouble(2)};
@@ -484,17 +483,10 @@ public final class TripSession {
                 // energy_measured flag, so a live-path bug self-heals for every
                 // trip finalized from here on, not only rows a one-time
                 // migration happened to already reach.
-                "SELECT SUM(CASE WHEN energy_measured=1 OR battery_temp_c IS NOT NULL THEN 1 ELSE 0 END), "
-              // A row with no OBD2 AND no real energy delta (stopped, idle,
-              // nothing to measure) is not an estimate of anything -- see
-              // DailyStatsProvider.getEnergyBalances()'s own comment on the
-              // same fix (2026-09-24) for the day-level version of this bug.
-              + "       SUM(CASE WHEN energy_measured=0 AND battery_temp_c IS NULL "
-              + "                 AND (IFNULL(energy_spent_kwh,0) != 0 OR IFNULL(energy_regen_kwh,0) != 0) "
-              + "            THEN 1 ELSE 0 END) "
+                "SELECT SUM(CASE WHEN " + CarDb.MEASURED_ROW_SQL + " THEN 1 ELSE 0 END), "
+              + "       SUM(CASE WHEN " + CarDb.ESTIMATED_ENERGY_ROW_SQL + " THEN 1 ELSE 0 END) "
               + "FROM telemetry_sample WHERE ts_ms BETWEEN ? AND ? "
-              + "AND (CASE WHEN gear IS NOT NULL THEN gear <> 4 "
-              + "     ELSE (is_charging IS NULL OR is_charging = 0) END)",
+              + "AND " + CarDb.DRIVING_ROW_SQL,
                 new String[]{String.valueOf(startMs), String.valueOf(endMs)});
             try {
                 if (c.moveToFirst()) {

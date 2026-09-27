@@ -1,0 +1,4 @@
+src/main/assets/*.tflite
+src/main/assets/*.onnx
+.model-tools/
+*.apk

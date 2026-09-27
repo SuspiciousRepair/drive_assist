@@ -1,0 +1,8 @@
+*.apk
+*.idsig
+debug.ks
+obj/
+classes.dex
+results/
+*-time.txt
+*-resources.txt

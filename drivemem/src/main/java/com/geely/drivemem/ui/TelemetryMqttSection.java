@@ -677,7 +677,8 @@ public final class TelemetryMqttSection extends LinearLayout {
             logMqtt("TEST", "Sensores lidos: " + data.size() + " campos (CarAccess ok=" + carOk + ")");
             logMqtt("TEST", "Publicando em '" + MqttReporter.getBaseTopic() + "/state'...");
 
-            final MqttReporter r = new MqttReporter(uri, "", u, pw, activity.getApplicationContext());
+            final MqttReporter r = new MqttReporter(
+                    uri, "", u, pw, activity.getApplicationContext(), true);
             r.testConnection(data, (ok, detail) -> {
                 activity.runOnUiThread(() -> {
                     status.setText(detail);
@@ -719,7 +720,8 @@ public final class TelemetryMqttSection extends LinearLayout {
         final String pw = (fPass != null) ? fPass.getText().toString() : Prefs.getMqttPass(activity);
         logMqtt("DISCOVERY", "Conectando cliente direto para publicar descoberta...");
         CarActor.get(activity).runOnCarThread(() -> {
-            final MqttReporter r = new MqttReporter(uri, "", u, pw, activity.getApplicationContext());
+            final MqttReporter r = new MqttReporter(
+                    uri, "", u, pw, activity.getApplicationContext(), true);
             r.forceDiscovery((ok, detail) -> {
                 activity.runOnUiThread(() -> {
                     String msg = ok ? activity.getString(R.string.cfg_discovery_ok) : activity.getString(R.string.cfg_discovery_failed, detail);

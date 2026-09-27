@@ -32,5 +32,20 @@ public final class MotionGateTest {
         gate.accept(frame(100, 20));
         check(!gate.accept(frame(100, 100)).active,
               "global exposure shift must not start an event");
+
+        // shrink(): padded rows, a 2-byte pixel stride and a crop offset, as a
+        // hardware decoder's luma plane can have. Pixel value = x + 10*y.
+        int rowStride = 40, pixelStride = 2, left = 2, top = 1;
+        java.nio.ByteBuffer plane = java.nio.ByteBuffer.allocate(rowStride * 12);
+        for (int y = 0; y < 10; y++)
+            for (int x = 0; x < 8; x++)
+                plane.put((top + y) * rowStride + (left + x) * pixelStride, (byte) (x + 10 * y));
+        plane.position(0);
+        byte[] small = new byte[4 * 5];
+        MotionGate.shrink(plane, rowStride, pixelStride, left, top, 8, 10, small, 4, 5);
+        for (int y = 0; y < 5; y++)
+            for (int x = 0; x < 4; x++)
+                check(small[y * 4 + x] == (byte) (2 * x + 10 * (2 * y)), "shrink at " + x + "," + y);
+        check(plane.position() == 0, "shrink moved the buffer");
     }
 }

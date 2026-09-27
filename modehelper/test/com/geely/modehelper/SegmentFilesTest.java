@@ -94,6 +94,37 @@ public final class SegmentFilesTest {
         check(dropped.isEmpty() && new File(d, "live.h264").exists()
               && new File(d, "live.mp4.tmp").exists(), "live segment touched: " + dropped);
 
+        // Stray sidecars with no video go once cold; one beside a video stays.
+        d = Files.createTempDirectory("seg").toFile();
+        keep = new File(d, "keep"); keep.mkdirs();
+        age(file(d, "gone.vtt.tmp", 5), old); age(file(d, "gone.jpg", 5), old);
+        age(file(d, "kept.mp4", 10), old); age(file(d, "kept.vtt", 5), old);
+        file(d, "fresh.vtt.tmp", 5);
+        dropped = SegmentFiles.evict(d, keep, 10_000, now);
+        check(!new File(d, "gone.vtt.tmp").exists() && !new File(d, "gone.jpg").exists(), "stray sidecars kept: " + dropped);
+        check(new File(d, "kept.vtt").exists() && new File(d, "fresh.vtt.tmp").exists(), "wrong sidecar dropped");
+
+        // One segment per second: a name is taken by any of its files,
+        // including a held clip; sameSecond compares whole seconds.
+        d = Files.createTempDirectory("seg").toFile();
+        check(!SegmentFiles.taken(d, "dash_1"), "empty dir");
+        file(d, "dash_1.mp4.tmp", 1);
+        check(SegmentFiles.taken(d, "dash_1"), "live segment name not taken");
+        new File(d, "keep").mkdirs();
+        file(new File(d, "keep"), "dash_2.mp4", 1);
+        check(SegmentFiles.taken(d, "dash_2"), "held clip name not taken");
+        check(SegmentFiles.sameSecond(5_000, 5_999) && !SegmentFiles.sameSecond(5_999, 6_000), "sameSecond");
+
+        // mark() + keepIfHeld on a clip that already closed (the pre-roll
+        // clip before a parked motion event): it moves to keep/.
+        d = Files.createTempDirectory("seg").toFile();
+        keep = new File(d, "keep"); keep.mkdirs();
+        file(d, "prev.mp4", 10); file(d, "prev.vtt", 1);
+        SegmentFiles.mark(d, "prev");
+        SegmentFiles.mark(d, "prev");          // idempotent: once per analysed frame
+        SegmentFiles.keepIfHeld(d, keep, "prev");
+        check(new File(keep, "prev.mp4").exists() && !new File(d, "prev.hold").exists(), "pre-roll clip not kept");
+
         System.out.println("SegmentFilesTest OK");
     }
 }

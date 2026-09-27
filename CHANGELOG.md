@@ -2,6 +2,45 @@
 
 ## [Unreleased]
 
+## [v0.4.2] — 2026-09-27
+
+### Changed
+- **Dashcam videos are written crash-safe.** Each video is now a fragmented
+  MP4: one piece per second, each saved to storage at once. A crash or power
+  cut loses at most about a second, a cut-off video repairs itself into a
+  normal clip with its thumbnail, and every frame is written once instead of
+  twice (about 7 GB less flash wear per hour of driving). Seeking works in
+  the app's player. Older `.h264` leftovers can still be recovered.
+
+### Added
+- **Parked motion detection (experimental, off by default).** With "Park
+  monitoring" on and the car awake in Park for 30 s, motion in the cameras
+  keeps the video (and the one before it, if the motion starts in its first
+  10 s) from being deleted. It reads the dashcam's own recording and never
+  opens a camera itself, so the factory reverse camera is not affected.
+
+### Fixed
+- **Dashcam: the open video now closes when the car goes off**, at the head
+  unit's own shutdown signal, instead of hours later when the car wakes.
+- **Dashcam: a recorder that stopped on its own restarts** by itself, with
+  a growing pause if it keeps failing. Turning the dashcam off is respected.
+- **Dashcam: the video being recorded can no longer be "recovered"** and
+  damaged by the Recover button; the recorder publishes which one is live.
+- Dashcam: never two videos started in the same second; very short clips
+  get a thumbnail; stray subtitle and thumbnail files are cleaned up; no
+  dropped frames at each 5-minute video change.
+- **MQTT fails over to the remote address promptly** after the connection
+  drops (for example when leaving home), instead of retrying the home
+  address until the next recovery window. The settings screen's connection
+  test no longer knocks the running connection off the broker.
+
+### Internal
+- Shared SQL definitions for driving, measured and estimated rows, with a
+  real-SQLite test.
+- Voice assistant phase-zero probe tools and findings (`voiceprobe/`,
+  `owwprobe/`), not part of the app.
+
+
 ## [v0.4.1] — 2026-09-26
 
 ### Added

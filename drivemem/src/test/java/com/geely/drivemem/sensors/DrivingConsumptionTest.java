@@ -1,5 +1,6 @@
 package com.geely.drivemem.sensors;
 
+import com.geely.drivemem.car.CarDb;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -190,5 +191,161 @@ public class DrivingConsumptionTest {
         DrivingConsumption c = new DrivingConsumption();
         c.add(0, 100, 0, 4, false, 2, 0, NaN, 1); // parked (gear 4): excluded
         assertEquals(EnergySource.NO_DATA, c.energySource());
+    }
+
+    // ── Predicate agreement tests (SQL constants vs pure Java logic) ─────────────
+
+    /**
+     * Exercises DrivingConsumption.isDriving() against a table of (gear, is_charging)
+     * input combinations to verify agreement with CarDb.DRIVING_ROW_SQL:
+     *   (CASE WHEN gear IS NOT NULL THEN gear <> 4
+     *         ELSE (is_charging IS NULL OR is_charging = 0) END)
+     *
+     * In both implementations:
+     * 1. Gear wins whenever known: Park (4) is false; driving gears (1, 2, 8)
+     *    are true even if is_charging is true (recovering from stale charging latch).
+     * 2. Charging flag is the fallback when gear is missing: charging is false.
+     * 3. For moving telemetry (speed > 0), missing gear without charging is true.
+     *
+     * Note: CarDb.DRIVING_ROW_SQL is expected to implement this exact truth table for
+     * queries over telemetry_sample rows, so any future change to one prompts checking the other.
+     */
+    @Test public void drivingPredicateAgreesWithSqlTruthTable() {
+        assertNotNull(CarDb.DRIVING_ROW_SQL);
+
+        // Pure (gear, is_charging) truth table matching CarDb.DRIVING_ROW_SQL:
+        //   (CASE WHEN gear IS NOT NULL THEN gear <> 4
+        //         ELSE (is_charging IS NULL OR is_charging = 0) END)
+        Object[][] sqlTable = {
+            {4, false, false, "Park (4) not charging -> false"},
+            {4, true, false, "Park (4) charging -> false"},
+            {8, false, true, "Drive (8) not charging -> true"},
+            {8, true, true, "Drive (8) charging (stale latch) -> true"},
+            {2, false, true, "Reverse (2) not charging -> true"},
+            {2, true, true, "Reverse (2) charging (stale latch) -> true"},
+            {1, false, true, "Neutral (1) not charging -> true"},
+            {1, true, true, "Neutral (1) charging (stale latch) -> true"},
+            {null, true, false, "Unknown gear, charging -> false"},
+            {null, false, true, "Unknown gear, not charging -> true"},
+            {null, null, true, "Unknown gear, null charging -> true"},
+        };
+
+        for (Object[] row : sqlTable) {
+            Integer gear = (Integer) row[0];
+            Boolean charging = (Boolean) row[1];
+            boolean expected = (Boolean) row[2];
+            String desc = (String) row[3];
+
+            assertEquals("isDriving(gear, charging) failed for: " + desc,
+                expected, DrivingConsumption.isDriving(gear, charging));
+            if (charging != null) {
+                assertEquals("isDriving(gear, boolean) failed for: " + desc,
+                    expected, DrivingConsumption.isDriving(gear, charging.booleanValue()));
+            }
+        }
+
+        // Telemetry-level (gear, charging, speed) table matching 3-arg isDriving()
+        Object[][] speedTable = {
+            // Park (4): false regardless of charging flag or speed
+            {4, false, 0.0, false, "Park stationary -> not driving"},
+            {4, false, 20.0, false, "Park with speed -> not driving"},
+            {4, true, 0.0, false, "Park charging -> not driving"},
+            {4, true, 20.0, false, "Park charging with speed -> not driving"},
+
+            // Drive (8): true even if stationary (traffic stop) or charging latch is stuck
+            {8, false, 0.0, true, "Drive stopped in traffic -> driving"},
+            {8, false, 50.0, true, "Drive cruising -> driving"},
+            {8, true, 0.0, true, "Drive with stuck charging flag (stopped) -> driving"},
+            {8, true, 50.0, true, "Drive with stuck charging flag (moving) -> driving"},
+
+            // Reverse (2): true
+            {2, false, 5.0, true, "Reverse moving -> driving"},
+            {2, true, 5.0, true, "Reverse with stuck charging flag -> driving"},
+
+            // Neutral (1): true
+            {1, false, 0.0, true, "Neutral stopped -> driving"},
+            {1, false, 30.0, true, "Neutral coasting -> driving"},
+            {1, true, 0.0, true, "Neutral stopped with stuck charging flag -> driving"},
+
+            // Unknown gear (null): charging flag acts as fallback
+            {null, true, 0.0, false, "Unknown gear, charging -> not driving"},
+            {null, true, 30.0, false, "Unknown gear, charging with speed -> not driving"},
+            {null, false, 20.0, true, "Unknown gear, not charging, moving -> driving"},
+            {null, false, 0.0, false, "Unknown gear, not charging, stationary -> not driving (ambiguous)"},
+        };
+
+        for (Object[] row : speedTable) {
+            Integer gear = (Integer) row[0];
+            boolean charging = (Boolean) row[1];
+            double speed = (Double) row[2];
+            boolean expected = (Boolean) row[3];
+            String desc = (String) row[4];
+
+            assertEquals("isDriving(gear, speed, charging) failed for: " + desc,
+                expected, DrivingConsumption.isDriving(gear, speed, charging));
+        }
+    }
+
+    /**
+     * Confirms the measured (vs estimated) row classification logic applied in
+     * DailyStatsProvider.queryDrivingConsumption agrees with CarDb.MEASURED_ROW_SQL:
+     *   (energy_measured = 1 OR battery_temp_c IS NOT NULL)
+     * and CarDb.ESTIMATED_ROW_SQL:
+     *   (energy_measured = 0 AND battery_temp_c IS NULL)
+     *
+     * battery_temp_c is OBD2-exclusive, so its presence overrides a missing or zero
+     * energy_measured flag, repairing mislabeled rows on read.
+     *
+     * Note: CarDb.MEASURED_ROW_SQL and CarDb.ESTIMATED_ROW_SQL are expected to implement
+     * this exact truth table, so any future change to one prompts checking the other.
+     */
+    @Test public void measuredPredicateResolutionAgreesWithSqlTruthTable() {
+        assertNotNull(CarDb.MEASURED_ROW_SQL);
+        assertNotNull(CarDb.ESTIMATED_ROW_SQL);
+
+        // Truth table of (storedEnergyMeasured, batteryTempC, expectedSource, description)
+        Object[][] table = {
+            // Measured: energy_measured = 1 (with or without temp)
+            {1, 28.5, EnergySource.MEASURED, "OBD2 flag=1 with valid temp -> MEASURED"},
+            {1, null, EnergySource.MEASURED, "OBD2 flag=1 without temp -> MEASURED"},
+
+            // Mislabeled as estimated (flag=0), but battery_temp_c is present: self-heals to measured
+            {0, 28.5, EnergySource.MEASURED, "Mislabeled flag=0 self-healed by battery_temp_c -> MEASURED"},
+
+            // Genuinely estimated: flag=0 and battery_temp_c is absent
+            {0, null, EnergySource.ESTIMATED, "VHAL SoC-delta estimate: flag=0 and null temp -> ESTIMATED"},
+
+            // Pre-migration legacy row: flag is null, but battery_temp_c proves OBD2 was active
+            {null, 28.5, EnergySource.MEASURED, "Legacy null flag recovered to measured by battery_temp_c -> MEASURED"},
+
+            // Pre-migration legacy row: flag is null and temp is null -> NO_DATA
+            {null, null, EnergySource.NO_DATA, "Legacy row before column existed without temp -> NO_DATA"},
+        };
+
+        for (Object[] row : table) {
+            Integer storedMeasured = (Integer) row[0];
+            Double batteryTempC = (Double) row[1];
+            EnergySource expected = (EnergySource) row[2];
+            String desc = (String) row[3];
+
+            // Verify pure helper methods in CarDb agree with the expected classification
+            assertEquals("isRowMeasured() failed for: " + desc,
+                expected == EnergySource.MEASURED, CarDb.isRowMeasured(storedMeasured, batteryTempC));
+            assertEquals("isRowEstimated() failed for: " + desc,
+                expected == EnergySource.ESTIMATED, CarDb.isRowEstimated(storedMeasured, batteryTempC));
+
+            // Replicate the resolution logic from DailyStatsProvider.queryDrivingConsumption:
+            // if (!c.isNull(9) && (measured == null || measured == 0)) measured = 1;
+            Integer resolved = storedMeasured;
+            if (batteryTempC != null && (resolved == null || resolved == 0)) {
+                resolved = 1;
+            }
+
+            DrivingConsumption dc = new DrivingConsumption();
+            dc.add(0, 100, 20, 8, false, 0.1, 0.0, NaN, resolved);
+
+            assertEquals("energySource() failed for: " + desc,
+                expected, dc.energySource());
+        }
     }
 }

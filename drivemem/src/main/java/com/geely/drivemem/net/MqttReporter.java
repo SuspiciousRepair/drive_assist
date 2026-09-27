@@ -214,6 +214,7 @@ public class MqttReporter {
     private static final int MSG_CMD_UPDATE_HELPER = 21;  // no — modehelper's own OTA, see UPDATE_HELPER_CMD_TOPIC
 
     private final String uri, user, pass;
+    private final String clientId;
     // Alternative addresses, in order of preference. Paho walks the list and
     // walks it again on every auto-reconnect, so the car uses the local broker
     // at home and falls back to the remote ones when away — with no
@@ -258,7 +259,7 @@ public class MqttReporter {
     private boolean everConnected = false;
 
     public MqttReporter(String uri, String user, String pass, Context ctx) {
-        this(uri, null, user, pass, ctx);
+        this(uri, null, user, pass, ctx, false);
     }
 
     /**
@@ -266,7 +267,20 @@ public class MqttReporter {
      *               comma/space). Tried in order, after the primary one.
      */
     public MqttReporter(String uri, String extras, String user, String pass, Context ctx) {
+        this(uri, extras, user, pass, ctx, false);
+    }
+
+    /**
+     * @param diagnostic gives a short-lived UI probe its own client id. MQTT
+     *                   brokers permit only one connection per client id, so a
+     *                   probe must never reuse the foreground service's id.
+     */
+    public MqttReporter(String uri, String extras, String user, String pass, Context ctx,
+                        boolean diagnostic) {
         this.uri = uri; this.user = user; this.pass = pass;
+        this.clientId = diagnostic
+                ? getClientId() + "-probe-" + java.util.UUID.randomUUID().toString().substring(0, 8)
+                : getClientId();
         this.uriList = buildUriList(uri, extras);
         this.ctx = (ctx != null) ? ctx.getApplicationContext() : null;
         thread = new HandlerThread("mqtt-actor");
@@ -539,7 +553,8 @@ public class MqttReporter {
             dropClient();
             // STABLE id (not a timestamp): resumes the session and avoids
             // leaving junk behind on the broker
-            client = new MqttAsyncClient(target, "driveassist-" + getClientSuffix(), new MemoryPersistence());
+            final MqttAsyncClient attempt = new MqttAsyncClient(target, clientId, new MemoryPersistence());
+            client = attempt;
             // New instance: whatever the previous one managed says nothing about
             // this one, and claiming otherwise would hand out a grace window for
             // a reconnect that is not running.
@@ -573,6 +588,13 @@ public class MqttReporter {
                     // is restored but the fresh availability has not arrived yet.
                     GateState.setConnected(false);
                     GateState.setAvailable(false);
+                    // Paho's automatic reconnect is pinned to the URI that just
+                    // failed. Give it a brief chance to recover a transient
+                    // drop, then recreate the client so connect() walks the
+                    // complete LAN -> remote address list. Without this, leaving
+                    // home can leave the car retrying the private LAN address
+                    // until the next telemetry recovery window.
+                    h.postDelayed(() -> failOverAfterLoss(attempt), 3000L);
                 }
                 @Override public void messageArrived(String t, MqttMessage msg) {}
                 @Override public void deliveryComplete(org.eclipse.paho.client.mqttv3.IMqttDeliveryToken t) {}
@@ -635,6 +657,16 @@ public class MqttReporter {
             dropClient();
             return false;
         }
+    }
+
+    private void failOverAfterLoss(MqttAsyncClient lostClient) {
+        if (client != lostClient || lostClient.isConnected()) return;
+        Log.i(TAG, "MQTT still offline after drop — trying the complete address list");
+        dropClient();
+        discoverySent = false; trackerDiscovered = false;
+        everConnected = false;
+        disconnectedSince = 0; publishFails = 0;
+        connect();
     }
 
     // Tear the client down PROPERLY, and it has to be in this order: callback

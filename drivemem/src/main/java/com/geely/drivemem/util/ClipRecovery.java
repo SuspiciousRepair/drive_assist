@@ -65,6 +65,10 @@ public final class ClipRecovery {
     static String doRecover(File h264) throws IOException {
         String stem = Clips.name(h264);
         File dir = h264.getParentFile();
+        // Recovery deletes and rewrites this stem's files; the recorder may
+        // still hold them open.
+        if (stem.equals(Clips.liveStem(dir, System.currentTimeMillis())))
+            throw new IOException("This recording is still in progress");
         File mp4 = new File(dir, stem + ".mp4"), mp4Tmp = new File(dir, stem + ".mp4.tmp");
         if (mp4Tmp.exists() && !mp4Tmp.delete()) throw new IOException("Could not clear prior partial recovery");
         int frames = 0;

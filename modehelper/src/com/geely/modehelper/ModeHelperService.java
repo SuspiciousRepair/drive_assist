@@ -25,6 +25,8 @@ public class ModeHelperService extends Service {
     static final String TAG = "ModeHelper";
     static final String SET_MODE = "com.geely.modehelper.SET_MODE";
     public static final String ACTION_DASHCAM = "com.geely.modehelper.svc.DASHCAM";
+    // The head unit's own "car is going off" broadcast (vendor, not AOSP).
+    static final String ACTION_SHUTDOWN_HU = "android.intent.action.ACTION_SHUTDOWN_HU";
     public static final String ACTION_PARKED_MONITORING = "com.geely.modehelper.svc.PARKED_MONITORING";
     public static final String ACTION_BT_PAIR = "com.geely.modehelper.svc.BT_PAIR";
     private boolean btRxRegistered = false;
@@ -38,25 +40,23 @@ public class ModeHelperService extends Service {
     private int lastGear = -999;
     private long lastLog = 0;
     private final ParkedMonitorPolicy parkedMonitorPolicy = new ParkedMonitorPolicy();
-    private ParkedMonitoringProbe parkedMonitor;
 
     @Override public int onStartCommand(Intent i, int flags, int startId) {
         startAsForeground();
         if (i != null && ACTION_DASHCAM.equals(i.getAction())) {
             int on = i.getIntExtra("on", -1);
+            // Persisted BEFORE acting, so superviseDash() never sees an
+            // owner's stop as a recorder that died on its own.
+            if (on == 0 || on == 1) {
+                getSharedPreferences("modehelper", MODE_PRIVATE).edit()
+                    .putBoolean("dashcam_on", on == 1).commit();
+            }
             if (dash == null) dash = new DashRecorder(getApplicationContext(), car);
             // The car connection is the poll loop's, and it may not be up yet on
             // a cold start — the recorder tolerates that for telemetry (cues just
             // go quiet) but the ENGINE binder is separate and always available.
             if (on == 1) dash.start();
             else if (on == 0) dash.stopAndWait(5_000);
-            // Persisted so maybeAutoStart() respects an explicit "off" across a
-            // restart, not just for the rest of this process's life — see that
-            // method's own comment for why this used to not survive a restart.
-            if (on == 0 || on == 1) {
-                getSharedPreferences("modehelper", MODE_PRIVATE).edit()
-                    .putBoolean("dashcam_on", on == 1).apply();
-            }
             Log.i(TAG, "dashcam: now " + (dash.isRunning() ? "RUNNING" : "stopped"));
         }
         if (i != null && ACTION_PARKED_MONITORING.equals(i.getAction())) {
@@ -111,6 +111,18 @@ public class ModeHelperService extends Service {
                 }
             };
             registerReceiver(rx, new IntentFilter(SET_MODE));
+            // Car going off, earliest first: the head unit's own
+            // ACTION_SHUTDOWN_HU (the cameras stop at that moment), then screen
+            // off three seconds later, then the suspend. Close the segment at
+            // the first of them. Seen on the car 2026-09-26 22:20:20/22:20:23.
+            IntentFilter off = new IntentFilter(Intent.ACTION_SCREEN_OFF);
+            off.addAction(ACTION_SHUTDOWN_HU);
+            registerReceiver(new BroadcastReceiver() {
+                @Override public void onReceive(Context c, Intent it) {
+                    String why = ACTION_SHUTDOWN_HU.equals(it.getAction()) ? "head unit shutdown" : "screen off";
+                    if (dash != null && dash.isRunning()) dash.closeSegmentNow(why);
+                }
+            }, off);
             IntentFilter down = new IntentFilter(Intent.ACTION_SHUTDOWN);
             down.addAction(Intent.ACTION_REBOOT);
             registerReceiver(new BroadcastReceiver() {
@@ -165,6 +177,8 @@ public class ModeHelperService extends Service {
                 Integer g = car.readGear();
                 boolean parked = (g != null && g == CarMode.GEAR_PARK);
                 maybeAutoStart();
+                superviseDash();
+                maybeWatchPower();
                 updateParkedMonitoring(parked);
                 if (g != null) {
                     if (g != lastGear) Log.i(TAG, "gear " + lastGear + " -> " + g);
@@ -199,6 +213,47 @@ public class ModeHelperService extends Service {
                 .putLong("beat_poll", System.currentTimeMillis()).apply();
             try { Thread.sleep(4000); } catch (InterruptedException e) { break; }
         }
+    }
+
+    // A recorder that stopped on its own (EVS not ready at boot, a codec
+    // error, a failed segment open) used to stay stopped until the process
+    // restarted, and nothing said so. Restart it while recording is wanted,
+    // backing off if it keeps failing; RecorderState tells Drive Assist.
+    private final RestartBackoff dashBackoff = new RestartBackoff();
+    private volatile boolean shuttingDown;
+
+    private void superviseDash() {
+        if (!dashAutoStarted || shuttingDown || dash == null) return;
+        long now = SystemClock.uptimeMillis();
+        if (dash.isRunning()) { dashBackoff.running(dash.startedUptimeMs(), now); return; }
+        if (!getSharedPreferences("modehelper", MODE_PRIVATE).getBoolean("dashcam_on", true)) return;
+        if (!dashBackoff.due(now)) return;
+        Log.w(TAG, "dashcam: recorder stopped on its own — restarting");
+        dash = new DashRecorder(getApplicationContext(), car);
+        dash.start();
+    }
+
+    // The car's own power states, once the car connection is up: a suspend
+    // is announced here even when the screen was already off. One attempt
+    // per process — a refusal will not change on retry.
+    private boolean powerWatchTried;
+
+    private void maybeWatchPower() {
+        if (powerWatchTried || !car.isReady()) return;
+        powerWatchTried = true;
+        try {
+            boolean ok = PowerWatch.register(car.powerManager(), state -> {
+                Log.i(TAG, "power state " + state);
+                if (state == PowerWatch.SUSPEND_ENTER) {
+                    if (dash != null && dash.isRunning()) dash.closeSegmentNow("suspend");
+                } else if (state == PowerWatch.SHUTDOWN_ENTER) {
+                    stopForShutdown("car shutdown");
+                } else if (state == PowerWatch.SHUTDOWN_CANCELLED) {
+                    shuttingDown = false;
+                }
+            });
+            Log.i(TAG, "power watch: " + (ok ? "registered" : "no power manager"));
+        } catch (Throwable t) { Log.w(TAG, "power watch: " + t); }
     }
 
     // Once a minute, on its own thread: a compile takes tens of seconds and
@@ -236,42 +291,36 @@ public class ModeHelperService extends Service {
         dash.start();
     }
 
-    /** Test-only metadata path; defaults off and never creates a clip or model run. */
+    // Parked motion watch (the "Park monitoring" switch): on after thirty
+    // uninterrupted seconds in Park, off the moment Park is left. The work is
+    // DashRecorder's (KeyframeMotion, from its own key frames); nothing here
+    // opens a camera.
+    private boolean motionArmed;
+
     private void updateParkedMonitoring(boolean parked) {
         boolean enabled = getSharedPreferences("modehelper", MODE_PRIVATE)
             .getBoolean("parked_monitoring", false);
         ParkedMonitorPolicy.State state = parkedMonitorPolicy.update(
             SystemClock.elapsedRealtime(), enabled && parked && car.isReady());
-        if (state == ParkedMonitorPolicy.State.ARMED && parkedMonitor == null) {
-            parkedMonitor = new ParkedMonitoringProbe(getApplicationContext(), false,
-                frames -> {
-                    if (dash != null && dash.isRunning()) dash.saveCurrentSegmentForEvent();
-                    else Log.w(TAG, "parked event had no running dashcam frames=" + frames);
-                });
-            Log.i(TAG, "parked runtime: starting metadata analysis after Park settle"
-                + " dashcam=" + (dash != null && dash.isRunning()));
-            parkedMonitor.start();
-        } else if (state != ParkedMonitorPolicy.State.ARMED && parkedMonitor != null) {
-            Log.i(TAG, "parked runtime: disarming " + state);
-            parkedMonitor.stop();
-            parkedMonitor = null;
+        boolean armed = state == ParkedMonitorPolicy.State.ARMED;
+        if (armed != motionArmed) {
+            motionArmed = armed;
+            Log.i(TAG, "parked motion: " + (armed ? "armed" : "disarmed " + state));
         }
+        if (dash != null) dash.setMotionWatch(armed);
     }
 
-    // Stop on the way down, so the last segment gets its moov atom and its
-    // thumbnail instead of being left as a .h264 to recover by hand. ACTION_SHUTDOWN
-    // is a protected broadcast; this app is uid system, so it receives it.
+    // Stop on the way down, so the last segment gets its index and its
+    // thumbnail now rather than from the repair pass later. ACTION_SHUTDOWN is
+    // a protected broadcast; this app is uid system, so it receives it.
     //
-    // Not covered: a suspend is not a shutdown, so the segment stays open
-    // through it, and `adb reboot` or a power cut never sends this broadcast.
-    // Those leave an orphan, and the write-ahead .h264 is the safety net. It
-    // is not fsync'd yet, so a hard power cut can still lose its last seconds
-    // (plan/active/DASHCAM-RELIABILITY-ROADMAP.md, D6 and D9).
+    // A suspend is not a shutdown: the head-unit-shutdown, screen-off and
+    // power-state hooks close the open segment before it (closeSegmentNow).
+    // `adb reboot` and a power cut send nothing at all; they leave an
+    // unclosed .mp4.tmp, playable up to its last one-second fragment, which
+    // SegmentFiles.repair finishes.
     private void stopForShutdown(String why) {
-        if (parkedMonitor != null) {
-            parkedMonitor.stop();
-            parkedMonitor = null;
-        }
+        shuttingDown = true;
         if (dash != null && dash.isRunning()) {
             Log.i(TAG, "dashcam: " + why + " — closing the segment");
             dash.stopAndWait(5_000);

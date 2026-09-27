@@ -18,3 +18,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "drive_assist"
 include ":drivemem"
+include ":owwprobe"
