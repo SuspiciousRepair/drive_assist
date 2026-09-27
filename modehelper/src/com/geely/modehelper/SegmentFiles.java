@@ -52,6 +52,22 @@ final class SegmentFiles {
         return new File(dir, stem + ".hold").exists();
     }
 
+    // Less video than this is not a clip anyone can use. When the car goes
+    // off, the cameras can send one more key frame after the close: a new
+    // segment starts, holds one frame, and closes at screen-off seconds later
+    // (seen on the car 2026-09-27 01:09: 53 KB, one frame).
+    static final long MIN_CLIP_US = 2_000_000L;
+
+    /** Deletes a just-closed clip holding less than MIN_CLIP_US of video
+     * (`contentUs`, the last frame's time from the segment start), with its
+     * sidecars, unless it is marked to be kept. Returns true if deleted. */
+    static boolean dropTiny(File dir, String stem, long contentUs) {
+        if (contentUs >= MIN_CLIP_US || held(dir, stem)) return false;
+        boolean gone = new File(dir, stem + ".mp4").delete();
+        for (String ext : new String[] {".vtt", ".jpg"}) new File(dir, stem + ext).delete();
+        return gone;
+    }
+
     /** Marks a segment to be kept: the `<stem>.hold` held() looks for. */
     static void mark(File dir, String stem) {
         try { new File(dir, stem + ".hold").createNewFile(); } catch (java.io.IOException ignored) { }

@@ -125,6 +125,18 @@ public final class SegmentFilesTest {
         SegmentFiles.keepIfHeld(d, keep, "prev");
         check(new File(keep, "prev.mp4").exists() && !new File(d, "prev.hold").exists(), "pre-roll clip not kept");
 
+        // A clip with under 2 s of video goes with its sidecars; a held one,
+        // or one with 2 s or more, stays.
+        d = Files.createTempDirectory("seg").toFile();
+        file(d, "tiny.mp4", 10); file(d, "tiny.vtt", 1); file(d, "tiny.jpg", 1);
+        check(SegmentFiles.dropTiny(d, "tiny", 40_000), "one-frame clip kept");
+        check(!new File(d, "tiny.mp4").exists() && !new File(d, "tiny.vtt").exists()
+              && !new File(d, "tiny.jpg").exists(), "tiny clip files left behind");
+        file(d, "event.mp4", 10); SegmentFiles.mark(d, "event");
+        check(!SegmentFiles.dropTiny(d, "event", 40_000) && new File(d, "event.mp4").exists(), "held tiny clip dropped");
+        file(d, "ok.mp4", 10);
+        check(!SegmentFiles.dropTiny(d, "ok", 2_000_000) && new File(d, "ok.mp4").exists(), "2 s clip dropped");
+
         System.out.println("SegmentFilesTest OK");
     }
 }
