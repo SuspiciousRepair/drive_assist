@@ -25,6 +25,8 @@ public class ModeHelperService extends Service {
     static final String TAG = "ModeHelper";
     static final String SET_MODE = "com.geely.modehelper.SET_MODE";
     public static final String ACTION_DASHCAM = "com.geely.modehelper.svc.DASHCAM";
+    // The head unit's own "car is going off" broadcast (vendor, not AOSP).
+    static final String ACTION_SHUTDOWN_HU = "android.intent.action.ACTION_SHUTDOWN_HU";
     public static final String ACTION_PARKED_MONITORING = "com.geely.modehelper.svc.PARKED_MONITORING";
     public static final String ACTION_BT_PAIR = "com.geely.modehelper.svc.BT_PAIR";
     private boolean btRxRegistered = false;
@@ -110,14 +112,18 @@ public class ModeHelperService extends Service {
                 }
             };
             registerReceiver(rx, new IntentFilter(SET_MODE));
-            // The screen goes off before the unit suspends (seen on the car:
-            // screen off at 02:33, a segment then open until 08:39). Close
-            // the segment there, while the process can still write the moov.
+            // Car going off, earliest first: the head unit's own
+            // ACTION_SHUTDOWN_HU (the cameras stop at that moment), then screen
+            // off three seconds later, then the suspend. Close the segment at
+            // the first of them. Seen on the car 2026-09-26 22:20:20/22:20:23.
+            IntentFilter off = new IntentFilter(Intent.ACTION_SCREEN_OFF);
+            off.addAction(ACTION_SHUTDOWN_HU);
             registerReceiver(new BroadcastReceiver() {
                 @Override public void onReceive(Context c, Intent it) {
-                    if (dash != null && dash.isRunning()) dash.closeSegmentSoon("screen off");
+                    String why = ACTION_SHUTDOWN_HU.equals(it.getAction()) ? "head unit shutdown" : "screen off";
+                    if (dash != null && dash.isRunning()) dash.closeSegmentNow(why);
                 }
-            }, new IntentFilter(Intent.ACTION_SCREEN_OFF));
+            }, off);
             IntentFilter down = new IntentFilter(Intent.ACTION_SHUTDOWN);
             down.addAction(Intent.ACTION_REBOOT);
             registerReceiver(new BroadcastReceiver() {
@@ -240,7 +246,7 @@ public class ModeHelperService extends Service {
             boolean ok = PowerWatch.register(car.powerManager(), state -> {
                 Log.i(TAG, "power state " + state);
                 if (state == PowerWatch.SUSPEND_ENTER) {
-                    if (dash != null && dash.isRunning()) dash.closeSegmentSoon("suspend");
+                    if (dash != null && dash.isRunning()) dash.closeSegmentNow("suspend");
                 } else if (state == PowerWatch.SHUTDOWN_ENTER) {
                     stopForShutdown("car shutdown");
                 } else if (state == PowerWatch.SHUTDOWN_CANCELLED) {
@@ -312,8 +318,8 @@ public class ModeHelperService extends Service {
     // thumbnail instead of being left as a .h264 to recover by hand. ACTION_SHUTDOWN
     // is a protected broadcast; this app is uid system, so it receives it.
     //
-    // A suspend is not a shutdown: the screen-off and power-state hooks close
-    // the open segment before it (closeSegmentSoon). `adb reboot` and a power
+    // A suspend is not a shutdown: the head-unit-shutdown, screen-off and
+    // power-state hooks close the open segment before it (closeSegmentNow). `adb reboot` and a power
     // cut send nothing at all; they leave an orphan, and the write-ahead .h264,
     // synced every second, is the safety net.
     private void stopForShutdown(String why) {

@@ -69,6 +69,7 @@ public final class DashRecorder {
     private volatile boolean running;
     private volatile Seg activeSegment;
     private volatile boolean rotateRequested;
+    private volatile boolean closeNow;
     private Thread thread;
     private Thread sampler;
     // Closes finished segments: the moov write, a thumbnail decoded from a
@@ -169,14 +170,18 @@ public final class DashRecorder {
         Log.i(TAG, "dashcam: event segment marked for keep " + segment.mp4.getName());
     }
 
-    /** Close the open segment at the next key frame (within a second) and
-     * carry on in a new one. Called when the screen goes off and when the car
-     * announces a suspend: the unit then sleeps with the segment open for
-     * hours, and a power cut in that time used to orphan a whole segment. */
-    public void closeSegmentSoon(String why) {
+    /** Close the open segment NOW, without waiting for a key frame, and
+     * start the next one at the first key frame once pictures flow again.
+     * For the car going off: it sends ACTION_SHUTDOWN_HU, the cameras stop
+     * at that moment, the screen goes off three seconds later, and the unit
+     * sleeps. A close that waited for a key frame (the first version) never
+     * ran until the car woke hours later (seen on 2026-09-26: screen off at
+     * 22:20:23, segment closed at 00:01:12). A fragmented MP4 can close at
+     * any sample, so nothing needs to wait. */
+    public void closeSegmentNow(String why) {
         if (activeSegment == null) return;
-        rotateRequested = true;
-        Log.i(TAG, "dashcam: " + why + " — closing the segment");
+        closeNow = true;
+        Log.i(TAG, "dashcam: " + why + " — closing the segment now");
     }
 
     // Clips stored in drivemem's external files directory. Accessible to both apps
@@ -286,6 +291,23 @@ public final class DashRecorder {
             long lastCue = -1;
 
             while (running) {
+                // Checked on every pass, frames or not: after the car goes
+                // off there are no more frames to wait for.
+                if (closeNow) {
+                    closeNow = false;
+                    if (seg != null) {
+                        final Seg old = seg;
+                        closer.execute(() -> { old.finish(); enforceBudget(ctx, null); });
+                        seg = null;
+                        activeSegment = null;
+                        rotateArmed = false;
+                        rotateRequested = false;
+                        lastCue = -1;
+                        Bundle b = new Bundle();
+                        b.putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0);
+                        codec.setParameters(b);
+                    }
+                }
                 int idx = codec.dequeueOutputBuffer(info, 20000);
                 if (idx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     outFmt = codec.getOutputFormat();
@@ -302,9 +324,15 @@ public final class DashRecorder {
                 // csd lives in the output format, which the writer already put in
                 // the avcC; writing it as a sample as well produces a file some
                 // players refuse.
+                // After closeSegmentNow() the next segment starts at the first
+                // key frame; frames before it cannot start a playable file.
+                if (seg == null && key && !config && buf != null && outFmt != null) {
+                    seg = new Seg(outFmt);
+                    activeSegment = seg;
+                    lastCue = -1;
+                }
                 if (config || seg == null || buf == null) { codec.releaseOutputBuffer(idx, false); continue; }
 
-                // Rotate segment at a key frame: segments must start seekable.
                 // Rotate at a key frame (segments must start seekable), and
                 // never within the second the current segment started: a
                 // close requested right after a rotation (an event, screen
