@@ -1,9 +1,3 @@
-- Improved: dashcam videos survive a crash or power cut, losing at most
-  about a second, and repair themselves. They also wear the car's storage
-  much less.
-- Fixed: the dashcam video now closes when you turn the car off.
-- Fixed: the dashcam restarts itself if it stops unexpectedly.
-- New (experimental, off by default): Park monitoring keeps the dashcam
-  video when something moves near the car while it is on in Park.
-- Fixed: Home Assistant connection switches to the remote address quickly
-  when you leave home.
+- Fixed: opening Appearance in the settings no longer closes the app.
+- Fixed: the dashcam no longer keeps a tiny clip each time you turn
+  the car off.
