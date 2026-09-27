@@ -56,7 +56,13 @@ Still open:
 - The bitrate A/B (E3 in the efficiency review) needs a person to compare
   plates and signs at 8, 10 and 16 Mbit/s.
 - The recorder does not detect an EVS stall (see Phase B note).
-- A real car suspend has not been observed with the new hooks yet.
+- Observed on the first real car-offs (2026-09-26): the close waited for a
+  key frame that never came, because the cameras stop at the head unit's
+  `ACTION_SHUTDOWN_HU`, before screen-off. Fixed: the segment now closes at
+  once, and also on `ACTION_SHUTDOWN_HU`. Confirm on the next real car-off.
+- Field check the same day: a 300 s driving clip decoded with 0 errors and
+  seeks; a clip cut by an `adb reboot` was repaired automatically (229 s,
+  0 errors).
 
 ## Problem
 
