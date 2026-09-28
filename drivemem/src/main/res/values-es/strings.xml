@@ -390,6 +390,8 @@
     <string name="charge_curve_unavailable">Muestras no disponibles para esta sesión.</string>
     <string name="charge_curve_power_label">Potencia (kW)</string>
     <string name="charge_curve_temp_label">Temp. exterior (°C)</string>
+    <string name="charge_curve_batt_temp_label">Temp. de la batería (°C)</string>
+    <string name="charge_curve_no_batt_temp">Temperatura de la batería no disponible (OBD2 desconectado)</string>
     <string name="charge_completed_title">Carga completada</string>
     <string name="charge_cost_label">Coste</string>
     <string name="charge_cost_input_title">Coste de la carga</string>

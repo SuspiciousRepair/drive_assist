@@ -423,6 +423,8 @@
     <string name="charge_curve_title">กำลังการชาร์จตามเวลา</string>
     <string name="charge_curve_power_label">กำลังไฟฟ้า (kW)</string>
     <string name="charge_curve_temp_label">อุณหภูมิภายนอก (°C)</string>
+    <string name="charge_curve_batt_temp_label">อุณหภูมิแบตเตอรี่ (°C)</string>
+    <string name="charge_curve_no_batt_temp">ไม่มีข้อมูลอุณหภูมิแบตเตอรี่สำหรับการชาร์จนี้ — ไม่ได้เชื่อมต่อดองเกิล OBD2</string>
     <string name="charge_curve_unavailable">ไม่มีข้อมูลตัวอย่างสำหรับการชาร์จนี้แล้ว</string>
 
     <!-- energy balance chart -->

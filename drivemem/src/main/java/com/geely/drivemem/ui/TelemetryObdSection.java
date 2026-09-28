@@ -182,8 +182,7 @@ public final class TelemetryObdSection extends LinearLayout {
         obdLines.add(fieldLine("Voltage", Obd2Reader.freshVoltage(600_000), "V"));
         obdLines.add(fieldLine("Current", Obd2Reader.freshCurrent(600_000), "A"));
         obdLines.add(fieldLine("Power", Obd2Reader.freshPowerKw(600_000), "kW"));
-        Integer raw4B3C = Obd2Reader.freshRaw4B3C(600_000);
-        obdLines.add("4B3C raw (not a temp): " + (raw4B3C != null ? raw4B3C : "—"));
+        obdLines.add(fieldLine("Battery temp", Obd2Reader.freshBattTempC(600_000), "°C"));
         setDebugLines(obdFields, obdLines);
     }
 

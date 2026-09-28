@@ -257,20 +257,33 @@ ATSH7E2      # Set target ECU address to 0x7E2 (BMS ECU)
 | **State of Charge (SoC)** | `22 4B 36` | 2 bytes | `(A * 256 + B) / 10.0` | 0.0 to 105.0% (0.1% precision) |
 | **Pack Voltage** | `22 4B 21` | 2 bytes | `(A * 256 + B) / 10.0` | 200.0 to 500.0 V |
 | **Pack Current** | `22 4B 22` | 2 bytes | `((A * 256 + B) - 5000) / 10.0` | Amperes (+ discharge, - charge) |
-| ~~Battery Core Temp~~ | `22 4B 3C` | 1 byte | unknown -- **not a temperature** | logged raw only |
+| **Battery Avg Temp** | `22 4B 48` | 1 byte | `A - 40` | °C (observed 17--22 °C) |
+| Battery Max Cell Temp | `22 4B 23` | 1 byte | `A - 40` | °C (not read by the app) |
+| Battery Min Cell Temp | `22 4B 25` | 1 byte | `A - 40` | °C (not read by the app) |
+| Cell # of Max / Min Temp | `22 4B 24` / `22 4B 26` | 1 byte | `A` | index (not read by the app) |
+| Coolant Inlet Temp (probably) | `22 4B C2` | 1 byte | `A - 40` | °C (not read by the app) |
+| Charging Socket Temp | `22 4B DA` | 1 byte | `A - 40` | °C (not read by the app) |
+| ~~`4B3C`~~ | `22 4B 3C` | 1 byte | **not a temperature** | do not use |
 | **Vehicle Speed** | `22 DF 01` | 1 byte | `A` | 0 to 255 km/h |
 | **Instantaneous Power** | *(Calculated)* | - | `(Voltage * Current) / 1000.0` | Kilowatts (kW) |
 
-`4B3C` is a proprietary BMS identifier, and **it is not the pack
-temperature**. Neither `A` nor `A - 40` fits the data. `A - 40` gave -11 °C
-on a 22 °C day (2026-09-24). `A` looked right at 29--32 °C at first, but the
-reading log then showed the byte climbing 27 -> 80 over three days
-(2026-09-25..27), dropping only 62 -> 56 over a parked night, and reading 67
-on a 20 °C overcast cold start (2026-09-28). No offset explains that, and
-older logs reach 115.
+**Battery temperature is `4B48`, `A - 40`.** The temperature DIDs came
+from a Car Scanner ("Geely Geometry C" profile) communication log on
+2026-09-28, 07:33, 20 °C outside: `4B48`, `4B23`, `4B25` and `4BC2` all
+answered `0x3D` (21 °C) and `4BDA` `0x3C` (20 °C). Car Scanner labels them
+"Average", "Max. cell", "Min. cell", "Inlet" and "Charging socket", but it
+shows max/min/inlet as -9.5 °C (it scales them `A * 0.5 - 40`, wrongly).
+Which of `4B48`/`4BC2` is the average was settled from 892 polling rounds in
+the same log: `4B48` lies between min (`4B25`) and max (`4B23`) in 97% of
+them, `4BC2` is below the minimum in 28% -- the pattern of a coolant inlet.
+`4B1C`, `4B85` and `4B8A` answer `7F 22 31` (not supported).
 
-Since then the app keeps the byte raw (`raw4B3C` column of
-`obd2-reading.log`, "4B3C raw" line of the OBD2 debug panel) and does not
-store it as `battery_temp_c`, plot it, or send it to ABRP as `batt_temp`.
-`battery_temp_c` rows recorded 2026-09-13..28 hold this byte, not a
-temperature. The real pack-temperature DID on ECU `7E2` is still to be found.
+**`4B3C` is not a temperature**, under any offset. It was used first as
+`A - 40` (gave -11 °C on a 22 °C day, 2026-09-24), then as `A` (looked right
+at 29--32 °C, then climbed 27 -> 80 over three days, fell only 62 -> 56 over
+a parked night, and read 67 on the 20 °C morning above). Every
+`battery_temp_c` stored 2026-09-13..28 was that byte; CarDb v23 clears them,
+first copying their "OBD2 was connected" meaning into `energy_measured`.
+
+The reader writes a logcat warning (tag `DriveMem`) outside `-30..70 °C`;
+that exposes a bad response or scaling change without concealing diagnostic evidence.

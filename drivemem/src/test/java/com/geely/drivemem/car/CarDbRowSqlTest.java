@@ -54,4 +54,36 @@ public class CarDbRowSqlTest {
             assertEquals("1,4,6", r.getString(1));
         }
     }
+
+    // v23: stored battery_temp_c values are the bogus DID 4B3C byte. They
+    // are cleared, but each row stays counted as measured.
+    @Test public void clearingBogusBatteryTempKeepsRowsMeasured() throws Exception {
+        SqliteTestDb db = new SqliteTestDb();
+        db.createCarDbSchema();
+        Connection c = db.getConnection();
+        try (Statement s = c.createStatement()) {
+            s.execute("INSERT INTO telemetry_sample (ts_ms, energy_measured, battery_temp_c, energy_spent_kwh, energy_regen_kwh) VALUES"
+                + " (1, 0, 67.0, 0.1, 0),"
+                + " (2, NULL, 79.0, 0.1, 0),"
+                + " (3, 1, NULL, 0.1, 0),"
+                + " (4, 0, NULL, 0.1, 0)");
+            String before = "SELECT SUM(CASE WHEN " + CarDb.MEASURED_ROW_SQL + " THEN 1 ELSE 0 END)"
+                + " FROM telemetry_sample";
+            ResultSet r = s.executeQuery(before);
+            r.next();
+            assertEquals(3, r.getInt(1));
+
+            for (String sql : CarDb.CLEAR_BOGUS_BATTERY_TEMP_SQL) s.execute(sql);
+
+            r = s.executeQuery("SELECT COUNT(battery_temp_c) FROM telemetry_sample");
+            r.next();
+            assertEquals(0, r.getInt(1));
+            r = s.executeQuery(before);
+            r.next();
+            assertEquals(3, r.getInt(1));   // the same three rows, now by the flag
+            r = s.executeQuery("SELECT energy_measured FROM telemetry_sample WHERE ts_ms = 4");
+            r.next();
+            assertEquals(0, r.getInt(1));   // an estimated row stays estimated
+        }
+    }
 }
