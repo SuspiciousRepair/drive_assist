@@ -316,7 +316,7 @@
     <string name="clips_none">ยังไม่มีการบันทึกใดๆ</string>
     <string name="clips_play">เล่น</string>
     <string name="clips_hold">ล็อกคลิป</string>
-    <string name="clips_motion">มีการเคลื่อนไหว</string>
+    <string name="clips_motion">ขณะจอด: มีการเคลื่อนไหว</string>
     <string name="clips_release">ปลดล็อก</string>
     <string name="clips_delete">ลบ</string>
     <string name="clips_delete_q">ลบ %1$s หรือไม่?</string>

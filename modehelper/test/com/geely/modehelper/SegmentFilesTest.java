@@ -137,35 +137,13 @@ public final class SegmentFilesTest {
         file(d, "ok.mp4", 10);
         check(!SegmentFiles.dropTiny(d, "ok", 2_000_000) && new File(d, "ok.mp4").exists(), "2 s clip dropped");
 
-        // Parked motion MARKS a clip, never holds it: the clip and its
-        // marker still leave the ring buffer like any other.
+        // A `.motion` marker an earlier build left goes once cold.
         d = Files.createTempDirectory("seg").toFile();
         keep = new File(d, "keep"); keep.mkdirs();
-        long hourAgo = System.currentTimeMillis() - 60 * 60_000L;
-        File moved = file(d, "moved.mp4", 100);
-        SegmentFiles.markMotion(d, "moved");
-        SegmentFiles.markMotion(d, "moved");   // idempotent: once per analysed frame
-        check(SegmentFiles.motion(d, "moved") && !SegmentFiles.held(d, "moved"), "motion must mark, not hold");
-        age(moved, hourAgo); age(new File(d, "moved.motion"), hourAgo);
-        dropped = SegmentFiles.evict(d, keep, 10, System.currentTimeMillis());
-        check(dropped.contains("moved.mp4") && !moved.exists(), "motion clip was not evicted");
-        check(!new File(d, "moved.motion").exists(), "motion marker outlived its clip");
-
-        // A marker with no video left beside it goes once cold.
         File stray = file(d, "gone.motion", 0);
-        age(stray, hourAgo);
+        age(stray, System.currentTimeMillis() - 60 * 60_000L);
         SegmentFiles.evict(d, keep, 1L << 40, System.currentTimeMillis());
         check(!stray.exists(), "stray motion marker kept");
-
-        // A tiny clip takes its motion marker with it.
-        file(d, "blip.mp4", 10); SegmentFiles.markMotion(d, "blip");
-        check(SegmentFiles.dropTiny(d, "blip", 40_000) && !new File(d, "blip.motion").exists(),
-              "tiny motion clip left its marker");
-
-        // Held by hand: the marker moves to keep/ with the clip.
-        file(d, "both.mp4", 10); SegmentFiles.markMotion(d, "both"); SegmentFiles.mark(d, "both");
-        SegmentFiles.keepIfHeld(d, keep, "both");
-        check(new File(keep, "both.motion").exists(), "motion marker not moved with a held clip");
 
         System.out.println("SegmentFilesTest OK");
     }

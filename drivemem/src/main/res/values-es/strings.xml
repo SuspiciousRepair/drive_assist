@@ -225,7 +225,7 @@
     <string name="clips_none">Todavía no hay nada grabado.</string>
     <string name="clips_play">Reproducir</string>
     <string name="clips_hold">Retener</string>
-    <string name="clips_motion">movimiento</string>
+    <string name="clips_motion">estacionado: movimiento</string>
     <string name="clips_release">Liberar</string>
     <string name="clips_delete">Eliminar</string>
     <string name="clips_delete_q">¿Eliminar %1$s?</string>

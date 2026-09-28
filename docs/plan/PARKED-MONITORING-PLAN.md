@@ -11,11 +11,13 @@ running, so the upcoming logged soak is intentionally a simultaneous-`dvr`
 consumer test. It remains experimental: no inference, event clips, or deep-sleep
 keepalive is enabled.
 
-Motion only **labels** a clip ("movement" in the Clips list, a `.motion`
-file beside it); it never holds it. Owner decision 2026-09-27, after
-auto-holding kept every parked clip at home (plants in front of the camera):
-600 MB each, never evicted, eating the recording budget. Holding is a
-person's choice from the Clips screen.
+While armed, the recorder writes **only on motion** (owner decision
+2026-09-27): the encoder keeps running for `KeyframeMotion`, the last 6 s wait
+in memory (`PreRoll`), and an event opens a `_park` segment that starts with
+that pre-roll and closes when the event ends. Nothing is held automatically --
+auto-holding kept every parked clip at home (plants in front of the camera),
+600 MB each, never evicted. `MotionGate` learns pixels that change on most
+samples (leaves in the wind) and leaves them out.
 
 ## Goal
 

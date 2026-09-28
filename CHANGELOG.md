@@ -3,10 +3,15 @@
 ## [Unreleased]
 
 ### Changed
-- **Parked motion no longer holds clips.** A clip with motion is labelled
-  "movement" in the Clips list and ages out like any other; holding is up
-  to you. Auto-holding kept every parked clip when plants were in view, and
-  held clips are never deleted, so they ate the recording space.
+- **In Park with Park monitoring on, the dashcam records only when
+  something moves.** Nothing is written while all is still; the last 6 s
+  wait in memory, so each clip starts a few seconds before the motion and
+  ends when it has been quiet for a while. The clips are labelled "parked:
+  movement" and age out like any other; nothing is held automatically
+  (holding every clip with motion kept every parked clip when plants were in
+  view, 600 MB each, never deleted).
+- Parked motion ignores spots that move all the time, such as leaves in
+  the wind.
 
 ## [v0.4.3] — 2026-09-27
 
