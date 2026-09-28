@@ -53,7 +53,7 @@ public final class ChargeCurrentCurveDialog {
             empty.setPadding(0, Style.dp(c, 36), 0, Style.dp(c, 36));
             root.addView(empty);
         } else {
-            boolean hasTemp = !curves.outsideTemp.isEmpty() || !curves.batteryTemp.isEmpty();
+            boolean hasTemp = !curves.outsideTemp.isEmpty();
             LineChart chart = new LineChart(c);
             chart.getDescription().setEnabled(false);
             chart.setScaleEnabled(false);
@@ -94,10 +94,6 @@ public final class ChargeCurrentCurveDialog {
                 // still clearly legible, not flattened by an all-time hot day.
                 float tMin = Float.MAX_VALUE, tMax = -Float.MAX_VALUE;
                 for (Entry e : curves.outsideTemp) {
-                    tMin = Math.min(tMin, e.getY());
-                    tMax = Math.max(tMax, e.getY());
-                }
-                for (Entry e : curves.batteryTemp) {
                     tMin = Math.min(tMin, e.getY());
                     tMax = Math.max(tMax, e.getY());
                 }
@@ -143,29 +139,9 @@ public final class ChargeCurrentCurveDialog {
                 tempSet.setAxisDependency(YAxis.AxisDependency.RIGHT);
                 sets.add(tempSet);
             }
-            if (!curves.batteryTemp.isEmpty()) {
-                LineDataSet battTempSet = new LineDataSet(curves.batteryTemp, c.getString(R.string.charge_curve_batt_temp_label));
-                battTempSet.setColor(Style.GOOD);
-                battTempSet.setLineWidth(2f);
-                battTempSet.setDrawCircles(false);
-                battTempSet.setDrawValues(false);
-                battTempSet.setMode(LineDataSet.Mode.LINEAR);
-                battTempSet.setAxisDependency(YAxis.AxisDependency.RIGHT);
-                sets.add(battTempSet);
-            }
             chart.setData(new LineData(sets));
             root.addView(chart, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 330)));
-            // battery_temp_c is the one genuinely OBD2-exclusive column here
-            // (charge_a/charge_v, despite the name, are plain VHAL fields,
-            // always available) -- say so explicitly instead of just letting
-            // the curve silently not exist.
-            if (curves.batteryTemp.isEmpty()) {
-                TextView noBattTemp = Style.label(c, c.getString(R.string.charge_curve_no_batt_temp));
-                noBattTemp.setTextSize(12.5f);
-                noBattTemp.setPadding(0, Style.dp(c, 8), 0, 0);
-                root.addView(noBattTemp);
-            }
         }
         dialog.setContentView(root);
         android.view.Window window = dialog.getWindow();
@@ -190,19 +166,12 @@ public final class ChargeCurrentCurveDialog {
     private static final class Curves {
         final List<Entry> power = new ArrayList<>();
         final List<Entry> outsideTemp = new ArrayList<>();
-        // Only populated for sessions recorded after the CarDb v16 migration
-        // added telemetry_sample.battery_temp_c (2026-09-13) -- older
-        // sessions simply have nothing here, same as any other column that
-        // didn't exist yet when they were recorded. Also empty whenever the
-        // OBD2 dongle wasn't connected/enabled during charging, since that's
-        // the only source for this value (see TelemetrySampler).
-        final List<Entry> batteryTemp = new ArrayList<>();
     }
 
     private static Curves read(Context c, ChargeSession.Summary s) {
         Curves out = new Curves();
         Cursor cursor = CarDb.get(c).db().rawQuery(
-            "SELECT ts_ms, charge_a, charge_v, outside_temp_c, battery_temp_c FROM telemetry_sample "
+            "SELECT ts_ms, charge_a, charge_v, outside_temp_c FROM telemetry_sample "
           + "WHERE ts_ms BETWEEN ? AND ? ORDER BY ts_ms ASC",
             new String[]{String.valueOf(s.startWallMs), String.valueOf(s.endWallMs)});
         try {
@@ -214,9 +183,6 @@ public final class ChargeCurrentCurveDialog {
                 }
                 if (!cursor.isNull(3)) {
                     out.outsideTemp.add(new Entry(minutes, cursor.getFloat(3)));
-                }
-                if (!cursor.isNull(4)) {
-                    out.batteryTemp.add(new Entry(minutes, cursor.getFloat(4)));
                 }
             }
         } finally { cursor.close(); }

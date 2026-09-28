@@ -20,7 +20,7 @@ public class Obd2ReaderTest {
     private static final String VOLT_400V = "624B210FA0"; // (15*256+160)/10 = 400.0
     private static final String CURR_50A  = "624B22157C"; // (21*256+124-5000)/10 = 50.0
     private static final String CURR_20A_CHG = "624B2212C0"; // (18*256+192-5000)/10 = -20.0
-    private static final String TEMP_29C = "624B3C1D"; // raw 0x1D = 29 C
+    private static final String RAW_4B3C_67 = "624B3C43"; // raw 0x43 = 67
 
     @Before public void reset() {
         Obd2Reader.resetForTest();
@@ -70,10 +70,12 @@ public class Obd2ReaderTest {
         assertEquals(-8.0f, Obd2Reader.freshPowerKw(5000), 0.001f);
     }
 
-    @Test public void batteryTemperatureUsesTheEx2RawByte() {
+    @Test public void did4B3CIsKeptRawNotConvertedToATemperature() {
         // Pair with a valid power PID so this synthetic round is fresh.
-        Obd2Reader.applyReading(null, VOLT_380V, null, TEMP_29C, null);
+        Obd2Reader.applyReading(null, VOLT_380V, null, RAW_4B3C_67, null);
 
-        assertEquals(29.0f, Obd2Reader.freshBattTempC(5000), 0.001f);
+        // 67 was read on a 20 C cold start: the byte is kept as-is for
+        // diagnostics, with no offset that would pass it off as a temperature.
+        assertEquals(Integer.valueOf(67), Obd2Reader.freshRaw4B3C(5000));
     }
 }

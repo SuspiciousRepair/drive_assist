@@ -137,7 +137,7 @@ public class AbrpUploaderTest {
         try {
             // Fresh OBD2 reading with battery pack voltage well above 250V (e.g. 395V)
             Obd2Reader.Reading obd = new Obd2Reader.Reading(
-                70.0, 395.0, 32.0, 25.0, 7.5, 0, System.currentTimeMillis());
+                70.0, 395.0, 32.0, 67, 7.5, 0, System.currentTimeMillis());
             AbrpUploader.setLastObdReadingForTesting(obd);
 
             Map<String, Object> data = new HashMap<>();
@@ -151,6 +151,8 @@ public class AbrpUploaderTest {
             assertEquals(0, tlm.getInt("is_dcfc"));
             // OBD2 pack voltage is still preferred for the general "voltage" field
             assertEquals(395.0, tlm.getDouble("voltage"), 0.01);
+            // DID 4B3C is not a battery temperature -- never sent as one
+            assertFalse(tlm.has("batt_temp"));
         } finally {
             AbrpUploader.setLastObdReadingForTesting(null);
         }

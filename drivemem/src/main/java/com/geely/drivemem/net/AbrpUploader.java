@@ -514,8 +514,8 @@ public final class AbrpUploader {
             if (v != null) tlm.put("voltage", v);
             Float a = (obdFresh && obd.current != null) ? obd.current.floatValue() : null;
             if (a != null) tlm.put("current", a);
-            Float bt = (obdFresh && obd.battTempC != null) ? obd.battTempC.floatValue() : null;
-            if (bt != null) tlm.put("batt_temp", bt);
+            // No batt_temp: DID 4B3C is not a temperature (Obd2Reader.raw4B3C),
+            // and ABRP plans charging from it.
 
             return tlm;
         } catch (JSONException e) {

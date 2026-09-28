@@ -257,17 +257,20 @@ ATSH7E2      # Set target ECU address to 0x7E2 (BMS ECU)
 | **State of Charge (SoC)** | `22 4B 36` | 2 bytes | `(A * 256 + B) / 10.0` | 0.0 to 105.0% (0.1% precision) |
 | **Pack Voltage** | `22 4B 21` | 2 bytes | `(A * 256 + B) / 10.0` | 200.0 to 500.0 V |
 | **Pack Current** | `22 4B 22` | 2 bytes | `((A * 256 + B) - 5000) / 10.0` | Amperes (+ discharge, - charge) |
-| **Battery Core Temp** | `22 4B 3C` | 1 byte | `A` | 0 to +255 °C (observed 29--32 °C) |
+| ~~Battery Core Temp~~ | `22 4B 3C` | 1 byte | unknown -- **not a temperature** | logged raw only |
 | **Vehicle Speed** | `22 DF 01` | 1 byte | `A` | 0 to 255 km/h |
 | **Instantaneous Power** | *(Calculated)* | - | `(Voltage * Current) / 1000.0` | Kilowatts (kW) |
 
-`4B3C` is a proprietary BMS identifier, not a generic OBD-II temperature PID.
-On the EX2, current live readings use the byte directly: `0x1D` is 29 °C.
-At 15:35 on 2026-09-24 the app otherwise decoded that value as -11 °C while
-the outside temperature was 22 °C; later readings of -8 °C corresponded to
-raw 32, which is a plausible pack temperature. Do not reuse this conversion
-for another vehicle without validating that vehicle's BMS response.
+`4B3C` is a proprietary BMS identifier, and **it is not the pack
+temperature**. Neither `A` nor `A - 40` fits the data. `A - 40` gave -11 °C
+on a 22 °C day (2026-09-24). `A` looked right at 29--32 °C at first, but the
+reading log then showed the byte climbing 27 -> 80 over three days
+(2026-09-25..27), dropping only 62 -> 56 over a parked night, and reading 67
+on a 20 °C overcast cold start (2026-09-28). No offset explains that, and
+older logs reach 115.
 
-The reader retains the decoded value but writes a logcat warning (tag
-`DriveMem`) outside `-30..70 °C`; that exposes a bad response or scaling
-change without concealing diagnostic evidence.
+Since then the app keeps the byte raw (`raw4B3C` column of
+`obd2-reading.log`, "4B3C raw" line of the OBD2 debug panel) and does not
+store it as `battery_temp_c`, plot it, or send it to ABRP as `batt_temp`.
+`battery_temp_c` rows recorded 2026-09-13..28 hold this byte, not a
+temperature. The real pack-temperature DID on ECU `7E2` is still to be found.

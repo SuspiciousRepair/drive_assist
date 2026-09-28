@@ -59,10 +59,6 @@ public final class Obd2Reader {
     private static final long POLL_MS = 2_000;
     private static final long CMD_TIMEOUT_MS = 4_000;
     private static final long BLE_SCAN_MS = 6_000;
-    // Diagnostic guardrail only: retain every decoded reading, but make a
-    // potentially unsafe or incorrectly scaled value visible in logcat.
-    private static final double MIN_REASONABLE_BATT_TEMP_C = -30.0;
-    private static final double MAX_REASONABLE_BATT_TEMP_C = 70.0;
     // Longer than a direct-connect would need: autoConnect=true (see
     // BleChannel.connect()) means Android manages the connection attempt
     // itself rather than failing fast, which trades a slower first
@@ -79,7 +75,12 @@ public final class Obd2Reader {
     private static volatile Double soc;
     private static volatile Double voltage;
     private static volatile Double current;
-    private static volatile Double battTempC;
+    // Raw byte of BMS DID 4B3C. NOT a battery temperature: on 2026-09-28 it
+    // read 67 on a cold start at 20 C outside, had climbed 27 -> 80 over
+    // three days, and barely fell overnight. Still polled so the reading
+    // log keeps evidence while the real temperature DID is found; nothing
+    // may display it, store it as battery_temp_c or send it to ABRP.
+    private static volatile Integer raw4B3C;
     private static volatile Double powerKw;
     private static volatile Integer reportedSpeedKmh;
     private static volatile long lastReadingAtMs = 0;
@@ -88,7 +89,7 @@ public final class Obd2Reader {
     // see the comment above), which means they'd otherwise leak between
     // test methods in the same JVM run. Package-visible, not public.
     static void resetForTest() {
-        soc = null; voltage = null; current = null; battTempC = null;
+        soc = null; voltage = null; current = null; raw4B3C = null;
         powerKw = null; reportedSpeedKmh = null; lastReadingAtMs = 0;
     }
 
@@ -111,16 +112,17 @@ public final class Obd2Reader {
         public final Double soc;
         public final Double voltage;
         public final Double current;
-        public final Double battTempC;
+        /** Raw DID 4B3C byte, meaning unknown -- see Obd2Reader.raw4B3C. */
+        public final Integer raw4B3C;
         public final Double powerKw;
         public final Integer speedKmh;
         public final long atMs;
-        public Reading(Double soc, Double voltage, Double current, Double battTempC,
+        public Reading(Double soc, Double voltage, Double current, Integer raw4B3C,
                 Double powerKw, Integer speedKmh, long atMs) {
             this.soc = soc;
             this.voltage = voltage;
             this.current = current;
-            this.battTempC = battTempC;
+            this.raw4B3C = raw4B3C;
             this.powerKw = powerKw;
             this.speedKmh = speedKmh;
             this.atMs = atMs;
@@ -149,7 +151,7 @@ public final class Obd2Reader {
     }
 
     private static void notifyReading() {
-        Reading r = new Reading(soc, voltage, current, battTempC, powerKw, reportedSpeedKmh, lastReadingAtMs);
+        Reading r = new Reading(soc, voltage, current, raw4B3C, powerKw, reportedSpeedKmh, lastReadingAtMs);
         logReading(r);
         for (Listener l : listeners) {
             l.onObd2Reading(r);
@@ -183,9 +185,10 @@ public final class Obd2Reader {
     public static Float freshCurrent(long maxAgeMs) {
         return (fresh(maxAgeMs) && current != null) ? current.floatValue() : null;
     }
-    /** Returns the last measured battery temperature (C) if within maxAgeMs, or null. */
-    public static Float freshBattTempC(long maxAgeMs) {
-        return (fresh(maxAgeMs) && battTempC != null) ? battTempC.floatValue() : null;
+    /** Returns the last raw DID 4B3C byte if within maxAgeMs, or null.
+     * Diagnostics only: its meaning is unknown (see raw4B3C). */
+    public static Integer freshRaw4B3C(long maxAgeMs) {
+        return fresh(maxAgeMs) ? raw4B3C : null;
     }
 
     private static volatile Thread readerThread;
@@ -220,7 +223,7 @@ public final class Obd2Reader {
         }
         String line = LOG_FMT.format(new java.util.Date(r.atMs)) + '\t'
             + r.soc + '\t' + r.voltage + '\t' + r.current + '\t'
-            + r.powerKw + '\t' + r.battTempC + '\t' + r.speedKmh;
+            + r.powerKw + '\t' + r.raw4B3C + '\t' + r.speedKmh;
         try {
             java.io.File dir = app.getExternalFilesDir(null);
             if (dir == null) {
@@ -234,7 +237,7 @@ public final class Obd2Reader {
             java.io.FileWriter w = new java.io.FileWriter(f, true);
             try {
                 if (fresh) {
-                    w.write("wall\tsoc\tvoltage\tcurrent\tpowerKw\tbattTempC\tspeedKmh\n");
+                    w.write("wall\tsoc\tvoltage\tcurrent\tpowerKw\traw4B3C\tspeedKmh\n");
                 }
                 w.write(line + "\n");
             } finally {
@@ -819,21 +822,15 @@ public final class Obd2Reader {
         // field-catalog.md's own table, positive = discharge, negative =
         // charge (matches ABRP's own sign convention for `power`).
         Double newCurr = (currB != null) ? (currB[0] * 256 + currB[1] - 5000) / 10.0 : null;
-        // Live EX2 readings track a plausible 29--32 C pack temperature
-        // directly in this byte; do not apply a generic temperature offset.
-        Double newTemp = (tempB != null) ? (double) tempB[0] : null;
-        if (newTemp != null && (newTemp < MIN_REASONABLE_BATT_TEMP_C
-                || newTemp > MAX_REASONABLE_BATT_TEMP_C)) {
-            Log.w(TAG, "obd2: battery temperature outside reasonable range: "
-                + newTemp + " C (raw=0x" + String.format(Locale.US, "%02X", tempB[0])
-                + ", response=\"" + tempResp + "\")");
-        }
+        // Kept raw, never converted: no offset makes it a temperature
+        // (see raw4B3C).
+        Integer newRaw4B3C = (tempB != null) ? tempB[0] : null;
         Integer newSpeed = (spdB != null) ? spdB[0] : null;
 
         if (newSoc != null) soc = newSoc;
         if (newVolt != null) voltage = newVolt;
         if (newCurr != null) current = newCurr;
-        if (newTemp != null) battTempC = newTemp;
+        if (newRaw4B3C != null) raw4B3C = newRaw4B3C;
         if (newSpeed != null) reportedSpeedKmh = newSpeed;
         // Recompute from voltage/current's latest known values, not only
         // when both parse in this exact round. A round where only one of
