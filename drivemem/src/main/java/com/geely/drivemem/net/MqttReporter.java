@@ -490,12 +490,12 @@ public class MqttReporter {
     // force=true: used by the "Testar" button — it wants an answer now, so it
     // recreates the client on the spot instead of waiting for auto-reconnect.
     //
-    // force=false (periodic telemetry): if the client exists but dropped, Paho
-    // is ALREADY reconnecting on its own TO THE SAME address. Steamrolling that
-    // with connect() — which closes this client and starts over from the LAN —
-    // was exactly what caused the offline/online storm: every lost publish tore
-    // down the good connection. Now we give it a window (RECONNECT_GRACE_MS) for
-    // the auto-reconnect to come back; we only recreate if it is truly stuck.
+    // force=false (periodic telemetry): if the client exists but dropped,
+    // failOverAfterLoss() is ALREADY reconnecting (3 s after the loss; Paho's
+    // own reconnect is off, see connectOptions). Steamrolling that with
+    // connect() was exactly what caused an earlier offline/online storm: every
+    // lost publish tore down the good connection. So we give it a window
+    // (RECONNECT_GRACE_MS); we only recreate if it is truly stuck.
     private boolean ensureConnected(boolean force) {
         if (client != null && client.isConnected()) {
             disconnectedSince = 0;
@@ -588,29 +588,16 @@ public class MqttReporter {
                     // is restored but the fresh availability has not arrived yet.
                     GateState.setConnected(false);
                     GateState.setAvailable(false);
-                    // Paho's automatic reconnect is pinned to the URI that just
-                    // failed. Give it a brief chance to recover a transient
-                    // drop, then recreate the client so connect() walks the
-                    // complete LAN -> remote address list. Without this, leaving
-                    // home can leave the car retrying the private LAN address
-                    // until the next telemetry recovery window.
+                    // The only reconnect (Paho's own is off, see
+                    // connectOptions): a fresh client walks the complete
+                    // LAN -> remote address list, so leaving home does not
+                    // leave the car retrying the private LAN address.
                     h.postDelayed(() -> failOverAfterLoss(attempt), 3000L);
                 }
                 @Override public void messageArrived(String t, MqttMessage msg) {}
                 @Override public void deliveryComplete(org.eclipse.paho.client.mqttv3.IMqttDeliveryToken t) {}
             });
-            MqttConnectOptions o = new MqttConnectOptions();
-            o.setAutomaticReconnect(true);
-            o.setCleanSession(true);
-            // The LAN answers in <1s or does not answer at all; a short timeout
-            // so failover to the remote is fast when the car is away from home.
-            o.setConnectionTimeout(target.startsWith("tcp://") ? 4 : 10);
-            o.setKeepAliveInterval(30);
-            o.setMaxInflight(20);
-            if (user != null && !user.isEmpty()) { o.setUserName(user); o.setPassword(pass.toCharArray()); }
-            // LWT: if the car sleeps/drops, the broker publishes "offline" and
-            // HA marks the entities unavailable instead of showing stale data
-            o.setWill(AVAIL_TOPIC, "offline".getBytes("UTF-8"), 1, true);
+            MqttConnectOptions o = connectOptions(target, user, pass);
 
             if (MqttTls.isTls(target)) {
                 javax.net.ssl.SSLSocketFactory sf = MqttTls.build(ctx);
@@ -679,8 +666,42 @@ public class MqttReporter {
         client = null;
         if (c == null) return;
         try { c.setCallback(null); } catch (Throwable ignored) {}
+        if (!shutDown(c)) {
+            // close() refuses while a connect is still in flight. Try again once
+            // it has settled, so the dropped client never lingers connected.
+            h.postDelayed(() -> shutDown(c), 20_000L);
+        }
+    }
+
+    private static boolean shutDown(MqttAsyncClient c) {
         try { c.disconnectForcibly(250, 250); } catch (Throwable ignored) {}
-        try { c.close(); } catch (Throwable ignored) {}
+        try { c.close(); return true; } catch (Throwable t) { return false; }
+    }
+
+    // Paho's automatic reconnect is OFF, and must stay off. Its retry timer
+    // survives disconnectForcibly() and a close() that fails mid-connect, so
+    // every client dropped by failOverAfterLoss() kept reconnecting on its own,
+    // under the same client id. On 2026-09-28 the broker logged "session taken
+    // over" several times a second: the car's LAN, remote and proxy clients
+    // kicking each other off, and HA saw the car flap online/offline.
+    // Reconnecting is done here instead: connectionLost -> failOverAfterLoss
+    // (3 s) walks the whole address list with a fresh client, and
+    // ensureConnected() retries on every telemetry tick if that fails.
+    // Package-visible for MqttReporterOptionsTest.
+    static MqttConnectOptions connectOptions(String target, String user, String pass) {
+        MqttConnectOptions o = new MqttConnectOptions();
+        o.setAutomaticReconnect(false);
+        o.setCleanSession(true);
+        // The LAN answers in <1s or does not answer at all; a short timeout
+        // so failover to the remote is fast when the car is away from home.
+        o.setConnectionTimeout(target.startsWith("tcp://") ? 4 : 10);
+        o.setKeepAliveInterval(30);
+        o.setMaxInflight(20);
+        if (user != null && !user.isEmpty()) { o.setUserName(user); o.setPassword(pass.toCharArray()); }
+        // LWT: if the car sleeps/drops, the broker publishes "offline" and
+        // HA marks the entities unavailable instead of showing stale data
+        o.setWill(AVAIL_TOPIC, "offline".getBytes(java.nio.charset.StandardCharsets.UTF_8), 1, true);
+        return o;
     }
 
     // Command lock: when switched off, the app does NOT subscribe to any command
