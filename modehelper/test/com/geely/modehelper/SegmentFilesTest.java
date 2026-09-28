@@ -115,8 +115,8 @@ public final class SegmentFilesTest {
         check(SegmentFiles.taken(d, "dash_2"), "held clip name not taken");
         check(SegmentFiles.sameSecond(5_000, 5_999) && !SegmentFiles.sameSecond(5_999, 6_000), "sameSecond");
 
-        // mark() + keepIfHeld on a clip that already closed (the pre-roll
-        // clip before a parked motion event): it moves to keep/.
+        // mark() + keepIfHeld on a clip that already closed (held from the
+        // Clips screen while it was still recording): it moves to keep/.
         d = Files.createTempDirectory("seg").toFile();
         keep = new File(d, "keep"); keep.mkdirs();
         file(d, "prev.mp4", 10); file(d, "prev.vtt", 1);
@@ -136,6 +136,14 @@ public final class SegmentFilesTest {
         check(!SegmentFiles.dropTiny(d, "event", 40_000) && new File(d, "event.mp4").exists(), "held tiny clip dropped");
         file(d, "ok.mp4", 10);
         check(!SegmentFiles.dropTiny(d, "ok", 2_000_000) && new File(d, "ok.mp4").exists(), "2 s clip dropped");
+
+        // A `.motion` marker an earlier build left goes once cold.
+        d = Files.createTempDirectory("seg").toFile();
+        keep = new File(d, "keep"); keep.mkdirs();
+        File stray = file(d, "gone.motion", 0);
+        age(stray, System.currentTimeMillis() - 60 * 60_000L);
+        SegmentFiles.evict(d, keep, 1L << 40, System.currentTimeMillis());
+        check(!stray.exists(), "stray motion marker kept");
 
         System.out.println("SegmentFilesTest OK");
     }

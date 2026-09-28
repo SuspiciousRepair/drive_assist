@@ -1,3 +1,5 @@
-- Fixed: opening Appearance in the settings no longer closes the app.
-- Fixed: the dashcam no longer keeps a tiny clip each time you turn
-  the car off.
+- Fixed: the OBD2 battery temperature shows the real value. It used to
+  show numbers like 67 or 79 °C on a cool day.
+- Improved: with Park monitoring on, the dashcam records in Park only
+  when something moves. Each clip starts a few seconds before the
+  movement. Leaves in the wind are ignored.

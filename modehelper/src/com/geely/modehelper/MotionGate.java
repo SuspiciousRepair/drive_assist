@@ -13,6 +13,16 @@ package com.geely.modehelper;
  * adapts slowly to gradual daylight changes. A near-whole-frame change is
  * treated as an exposure transition rather than motion, preventing a camera
  * auto-exposure adjustment from creating an event.</p>
+ *
+ * <p>Pixels that change on most samples -- leaves and branches in the wind,
+ * a flag, rippling water -- are learned and left out of both counts. A
+ * per-pixel flicker level rises 1/8 of the way to full on every sample
+ * where the pixel changed since the last one, and falls 1/8 of the way to
+ * zero when it did not; at or above NOISY the pixel does not count. At one
+ * sample a second, a pixel that changes on more than ~40% of samples ends
+ * up ignored, while a person crossing it changes it for a few samples and
+ * is counted. Without this, plants in front of the camera at home made
+ * every parked clip an "event" (2026-09-27).</p>
  */
 final class MotionGate {
     static final class Result {
@@ -38,6 +48,8 @@ final class MotionGate {
     private final int framesToEnd;
     private final int[] background;
     private final byte[] previous;
+    private final int[] flicker;
+    static final int NOISY = 100;
 
     private boolean seeded;
     private boolean active;
@@ -65,6 +77,7 @@ final class MotionGate {
         this.framesToEnd = framesToEnd;
         this.background = new int[width * height];
         this.previous = new byte[width * height];
+        this.flicker = new int[width * height];
     }
 
     /** Processes exactly one grayscale frame. Callers must serialize calls. */
@@ -85,8 +98,12 @@ final class MotionGate {
         int interFrameChanged = 0;
         for (int i = 0; i < frame.length; i++) {
             int now = frame[i] & 0xff;
+            boolean stepped = Math.abs(now - (previous[i] & 0xff)) >= pixelThreshold;
+            boolean noisy = flicker[i] >= NOISY;
+            flicker[i] += stepped ? (255 - flicker[i] + 7) >> 3 : -((flicker[i] + 7) >> 3);
+            if (noisy) continue;
             if (Math.abs(now - background[i]) >= pixelThreshold) changed++;
-            if (Math.abs(now - (previous[i] & 0xff)) >= pixelThreshold) interFrameChanged++;
+            if (stepped) interFrameChanged++;
         }
 
         // A global brightness jump is normally auto-exposure or a lighting
@@ -136,6 +153,7 @@ final class MotionGate {
     }
 
     void reset() {
+        java.util.Arrays.fill(flicker, 0);
         seeded = false;
         active = false;
         consecutiveMotion = 0;

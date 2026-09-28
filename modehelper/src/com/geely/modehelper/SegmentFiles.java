@@ -45,9 +45,9 @@ final class SegmentFiles {
         return new File(new File(dir, "keep"), stem + ".mp4").exists();
     }
 
-    /** Marked for keeping: a `<stem>.hold` beside the clip, dropped by a
-     * parked-monitoring event or by the Clips screen while the segment was
-     * still recording. */
+    /** Marked for keeping: a `<stem>.hold` beside the clip, dropped by the
+     * Clips screen while the segment was still recording. Only a person
+     * holds a clip; parked motion never does. */
     static boolean held(File dir, String stem) {
         return new File(dir, stem + ".hold").exists();
     }
@@ -148,10 +148,12 @@ final class SegmentFiles {
             if (raw.length() > 0 && f.delete()) dropped.add(n);
         }
         // Sidecars with no video left beside them (a crash before the first
-        // fragment, or an older build's leftovers) are dropped once cold.
+        // fragment, or an older build's leftovers -- `.motion` markers from a
+        // build that marked parked clips) are dropped once cold.
         for (File f : all) {
             String n = f.getName();
-            if (!(n.endsWith(".vtt") || n.endsWith(".vtt.tmp") || n.endsWith(".jpg")) || !cold(f, nowMs)) continue;
+            if (!(n.endsWith(".vtt") || n.endsWith(".vtt.tmp") || n.endsWith(".jpg") || n.endsWith(".motion"))
+                || !cold(f, nowMs)) continue;
             String stem = stem(n);
             boolean video = false;
             for (String ext : new String[] {".mp4", ".mp4.tmp", ".h264"})

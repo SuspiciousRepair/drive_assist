@@ -32,7 +32,7 @@ public final class CarDb extends SQLiteOpenHelper {
     // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
     // every write failed until this was bumped past 14. See the v15 entry in
     // onUpgrade below for what v15 itself actually does.
-    private static final int VERSION = 22;
+    private static final int VERSION = 23;
 
     /** SQL predicate for telemetry rows representing driving: gear is not Park (4),
      * or if gear is missing, car is not charging. */
@@ -428,6 +428,12 @@ public final class CarDb extends SQLiteOpenHelper {
         // estimated" bug for real, on data young enough for the
         // battery_temp_c cross-check to apply. See repairEstimatedFlag().
         if (oldVersion < 22) repairEstimatedFlag(db);
+        // v23: every battery_temp_c stored so far is the byte of OBD2 DID
+        // 4B3C, which is not a temperature (it read 67 on a 20 C cold
+        // start). Clear it so no chart shows it. The column also marks a
+        // row as OBD2-measured (MEASURED_ROW_SQL), so move that fact into
+        // energy_measured first -- no row's energy source changes.
+        if (oldVersion < 23) clearBogusBatteryTemp(db);
     }
 
     // Fixes telemetry_sample rows mislabeled "estimated" despite OBD2
@@ -452,6 +458,16 @@ public final class CarDb extends SQLiteOpenHelper {
     //    rather than a second copy of that logic in SQL. Spent/regen/net
     //    kWh are left untouched: per the original bug report, those numbers
     //    were already correct; only the measured/estimated label was wrong.
+    // v23, in order. Package-visible so CarDbRowSqlTest runs them on real SQLite.
+    static final String[] CLEAR_BOGUS_BATTERY_TEMP_SQL = {
+        "UPDATE telemetry_sample SET energy_measured = 1 WHERE battery_temp_c IS NOT NULL",
+        "UPDATE telemetry_sample SET battery_temp_c = NULL WHERE battery_temp_c IS NOT NULL",
+    };
+
+    private static void clearBogusBatteryTemp(SQLiteDatabase db) {
+        for (String sql : CLEAR_BOGUS_BATTERY_TEMP_SQL) db.execSQL(sql);
+    }
+
     private static void repairEstimatedFlag(SQLiteDatabase db) {
         db.execSQL("UPDATE telemetry_sample SET energy_measured = 1 "
             + "WHERE energy_measured = 0 AND " + MEASURED_ROW_SQL);

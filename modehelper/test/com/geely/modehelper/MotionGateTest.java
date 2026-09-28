@@ -47,5 +47,22 @@ public final class MotionGateTest {
             for (int x = 0; x < 4; x++)
                 check(small[y * 4 + x] == (byte) (2 * x + 10 * (2 * y)), "shrink at " + x + "," + y);
         check(plane.position() == 0, "shrink moved the buffer");
+
+        // What moves all the time (leaves in the wind) is learned and left
+        // out; something new beside it still starts an event.
+        MotionGate g = new MotionGate(10, 10, 10, 8, 90, 2, 3);
+        byte[] even = new byte[100], odd = new byte[100];
+        for (int i = 0; i < 9; i++) odd[(i / 3) * 10 + (i % 3)] = (byte) 200;   // 3x3 "leaves"
+        g.accept(even);
+        for (int i = 0; i < 40; i++) g.accept(i % 2 == 0 ? odd : even);
+        for (int i = 0; i < 20; i++)
+            check(!g.accept(i % 2 == 0 ? odd : even).active, "flickering leaves still an event");
+        byte[] person = even.clone(), personLeaves = odd.clone();
+        for (int i = 0; i < 9; i++) {
+            person[60 + (i / 3) * 10 + 5 + (i % 3)] = (byte) 200;
+            personLeaves[60 + (i / 3) * 10 + 5 + (i % 3)] = (byte) 200;
+        }
+        g.accept(personLeaves);
+        check(g.accept(person).began, "a new object beside the leaves must still start an event");
     }
 }

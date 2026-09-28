@@ -12,6 +12,14 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.4.4 — 2026-09-28
+
+- Fixed: the OBD2 battery temperature shows the real value. It used to
+  show numbers like 67 or 79 °C on a cool day.
+- Improved: with Park monitoring on, the dashcam records in Park only
+  when something moves. Each clip starts a few seconds before the
+  movement. Leaves in the wind are ignored.
+
 ## v0.4.3 — 2026-09-27
 
 - Fixed: opening Appearance in the settings no longer closes the app.

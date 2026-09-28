@@ -160,28 +160,47 @@ public final class DashRecorder {
 
     // ------------------------------------------------------------ parked motion
 
-    // A segment that begins less than this before motion is kept too, so the
-    // clip shows what led up to it.
-    static final long PRE_ROLL_MS = 10_000L;
+    // While motion watch is armed (the car awake in Park with Park
+    // monitoring on), nothing is written until something moves. The encoder
+    // keeps running -- its key frames are what KeyframeMotion watches -- and
+    // the last PRE_ROLL_MS of frames wait in memory. When an event starts,
+    // a `_park` segment opens with that pre-roll, so the clip shows what led
+    // up to the motion; it closes when the event ends. These are ordinary
+    // clips: the ring buffer ages them out like any other, and nothing is
+    // held automatically (holding every clip with motion kept EVERY parked
+    // clip at home, 600 MB each, 2026-09-27).
+    //
+    // An event is declared about two key frames after motion begins, and a
+    // key frame is analysed up to a second late, so the pre-roll must cover
+    // well over three seconds to catch the start.
+    static final long PRE_ROLL_MS = 6_000L;
+    static final String PARK_SUFFIX = "_park";
 
     private volatile boolean motionWanted;
-    private volatile String previousStem;
+    private volatile boolean motionEvent;          // set on the motion thread
     private KeyframeMotion motion;                // encoder thread only
+    private final PreRoll preRoll = new PreRoll(PRE_ROLL_MS);   // encoder thread only
 
     /** Parked motion watch on or off; ModeHelperService calls this on every
-     * poll from its Park policy (on after 30 s in Park, off on leaving it). */
+     * park-state update. The encoder thread acts on it at the next key frame. */
     public void setMotionWatch(boolean on) { motionWanted = on; }
 
-    // Encoder thread, after each key frame is written.
+    // Encoder thread, for each key frame.
     private void motionFrame(MediaFormat outFmt, ByteBuffer buf, MediaCodec.BufferInfo info) {
         if (motionWanted && motion == null && outFmt != null) {
             try {
                 motion = new KeyframeMotion(outFmt, W, H, new KeyframeMotion.Listener() {
-                    @Override public void onEventStarted(int changed) { holdForMotion(true, changed); }
-                    @Override public void onEventActive() { holdForMotion(false, 0); }
-                    @Override public void onEventFinished() { Log.i(TAG, "motion: event ended"); }
+                    @Override public void onEventStarted(int changed) {
+                        motionEvent = true;
+                        Log.i(TAG, "motion: event started (" + changed + " px changed), recording");
+                    }
+                    @Override public void onEventActive() { }
+                    @Override public void onEventFinished() {
+                        motionEvent = false;
+                        Log.i(TAG, "motion: event ended");
+                    }
                 });
-                Log.i(TAG, "motion: watching");
+                Log.i(TAG, "motion: watching, recording only on motion");
             } catch (Throwable t) {
                 Log.w(TAG, "motion: could not start: " + t);
                 motionWanted = false;
@@ -196,26 +215,9 @@ public final class DashRecorder {
         if (motion == null) return;
         motion.close();
         motion = null;
+        motionEvent = false;
+        preRoll.clear();
         Log.i(TAG, "motion: stopped watching");
-    }
-
-    // Motion thread. Marks the open segment kept for every analysed frame of
-    // an event, so an event that runs across a rotation keeps both clips.
-    private void holdForMotion(boolean started, int changedPixels) {
-        Seg s = activeSegment;
-        if (s == null) return;
-        s.markHeld();
-        if (!started) return;
-        Log.i(TAG, "motion: event started (" + changedPixels + " px changed), keeping " + s.stem);
-        String prev = previousStem;
-        ExecutorService c = closer;
-        if (prev != null && s.ageMs() < PRE_ROLL_MS && c != null) {
-            // The previous clip may still be closing on the close thread;
-            // queued behind that close, keepIfHeld finds it finished.
-            SegmentFiles.mark(dir(), prev);
-            c.execute(() -> SegmentFiles.keepIfHeld(dir(), keepDir(), prev));
-            Log.i(TAG, "motion: also keeping " + prev + " (pre-roll)");
-        }
     }
 
     /** Close the open segment NOW, without waiting for a key frame, and
@@ -260,6 +262,9 @@ public final class DashRecorder {
             Seg open = activeSegment;
             if (tick++ % 5 == 0 && open != null)
                 RecorderState.write(dir(), "recording", open.stem, System.currentTimeMillis(), null);
+            else if (tick % 5 == 1 && open == null && motionWanted)
+                // Parked, nothing moving: alive, but no segment is open.
+                RecorderState.write(dir(), "watching", "", System.currentTimeMillis(), null);
             try {
                 if (car.isReady()) {
                     boolean valet = new File(dir(), "valet.active").exists();
@@ -345,7 +350,6 @@ public final class DashRecorder {
                     closeNow = false;
                     if (seg != null) {
                         final Seg old = seg;
-                        previousStem = old.stem;
                         closer.execute(() -> { old.finish(); enforceBudget(ctx, null); });
                         seg = null;
                         activeSegment = null;
@@ -360,8 +364,6 @@ public final class DashRecorder {
                 int idx = codec.dequeueOutputBuffer(info, 20000);
                 if (idx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     outFmt = codec.getOutputFormat();
-                    seg = new Seg(outFmt);
-                    activeSegment = seg;
                     continue;
                 }
                 if (idx < 0) continue;
@@ -375,12 +377,47 @@ public final class DashRecorder {
                 // players refuse.
                 // After closeSegmentNow() the next segment starts at the first
                 // key frame; frames before it cannot start a playable file.
-                if (seg == null && key && !config && buf != null && outFmt != null) {
-                    seg = new Seg(outFmt);
+                if (config || buf == null || outFmt == null) { codec.releaseOutputBuffer(idx, false); continue; }
+                long nowUp = SystemClock.uptimeMillis();
+                // Watched whether or not anything is being written.
+                if (key) motionFrame(outFmt, buf, info);
+
+                // Armed and nothing moving: close what is open, keep the last
+                // seconds in memory, write nothing.
+                if (motion != null && !motionEvent) {
+                    if (seg != null) {
+                        final Seg old = seg;
+                        closer.execute(() -> { old.finish(); enforceBudget(ctx, null); });
+                        seg = null;
+                        activeSegment = null;
+                        rotateArmed = false;
+                        rotateRequested = false;
+                        lastCue = -1;
+                    }
+                    preRoll.add(buf, info.offset, info.size, key, nowUp, System.currentTimeMillis(), tele);
+                    codec.releaseOutputBuffer(idx, false);
+                    continue;
+                }
+
+                // An event just started: its clip begins with the pre-roll.
+                if (seg == null && motionEvent && !preRoll.isEmpty()) {
+                    seg = new Seg(outFmt, preRoll.firstUptimeMs(), preRoll.firstWallMs(), true);
+                    activeSegment = seg;
+                    lastCue = -1;
+                    for (PreRoll.Frame f : preRoll.frames()) {
+                        long p = seg.ptsUs(f.uptimeMs);
+                        seg.write(f.data, p, f.key);
+                        long sec = (p / CUE_US) * CUE_US;
+                        if (sec > lastCue) { seg.cue(sec, sec + CUE_US, f.tele); lastCue = sec; }
+                    }
+                }
+                preRoll.clear();
+                if (seg == null && key) {
+                    seg = new Seg(outFmt, nowUp, System.currentTimeMillis(), motionEvent);
                     activeSegment = seg;
                     lastCue = -1;
                 }
-                if (config || seg == null || buf == null) { codec.releaseOutputBuffer(idx, false); continue; }
+                if (seg == null) { codec.releaseOutputBuffer(idx, false); continue; }
 
                 // Rotate at a key frame (segments must start seekable), and
                 // never within the second the current segment started: a
@@ -390,13 +427,12 @@ public final class DashRecorder {
                 if (rotateArmed && key
                         && !SegmentFiles.sameSecond(seg.startWallMs, System.currentTimeMillis())) {
                     final Seg old = seg;
-                    previousStem = old.stem;
                     closer.execute(() -> {
                         old.finish();
                         Seg live = activeSegment;
                         enforceBudget(ctx, live == null ? null : live.stem);
                     });
-                    seg = new Seg(outFmt);
+                    seg = new Seg(outFmt, nowUp, System.currentTimeMillis(), motionEvent);
                     activeSegment = seg;
                     rotateArmed = false;
                     lastCue = -1;
@@ -404,7 +440,7 @@ public final class DashRecorder {
 
                 // Use segment-relative clock: encoder timestamps are untrusted; this
                 // ensures monotonic PTS and sync with subtitle timing.
-                long pts = seg.ptsUs();
+                long pts = seg.ptsUs(nowUp);
                 info.presentationTimeUs = pts;
                 seg.write(buf, info, key);
 
@@ -416,7 +452,6 @@ public final class DashRecorder {
                     lastCue = sec;
                 }
 
-                if (key) motionFrame(outFmt, buf, info);
                 codec.releaseOutputBuffer(idx, false);
 
                 if (!rotateArmed && (seg.ageMs() >= SEGMENT_MS || valetEdge || rotateRequested)) {
@@ -457,10 +492,11 @@ public final class DashRecorder {
     // whatever eventually uploads them.
     private final class Seg {
         final String stem;
-        final File mp4, vtt, mp4Tmp, vttTmp, raw, jpg, hold;
+        final File mp4, vtt, mp4Tmp, vttTmp, raw, jpg;
         // Use uptimeMillis, not elapsedRealtime: suspension doesn't interrupt the
         // timeline. Ensures video duration reflects actual recording time.
-        final long startMs = SystemClock.uptimeMillis();
+        // Earlier than now for a parked clip, which starts with its pre-roll.
+        final long startMs;
         // Wall-clock start; the name is this second. See the rotation check.
         final long startWallMs;
         FragmentedMp4.Writer out;
@@ -468,14 +504,18 @@ public final class DashRecorder {
         long lastPts = -1;
         boolean done;
 
-        Seg(MediaFormat f) throws Exception {
+        /** `park`: a parked-motion clip, named `_park`. `startUptimeMs` and
+         * `startWallMs` are those of its first frame. */
+        Seg(MediaFormat f, long startUptimeMs, long startWall, boolean park) throws Exception {
+            startMs = startUptimeMs;
             // A segment is named after the second it starts in, and only one
             // may start per second (see the rotation check). A recorder
             // restarting within the second its last segment started would
             // meet a used name: it waits for the next second instead of
             // writing over that clip.
-            String suffix = new File(dir(), "valet.active").exists() ? "_valet" : "";
-            long now = System.currentTimeMillis();
+            String suffix = new File(dir(), "valet.active").exists() ? "_valet"
+                          : park ? PARK_SUFFIX : "";
+            long now = startWall;
             String name = "dash_" + NAME.format(new Date(now)) + suffix;
             for (int tries = 0; SegmentFiles.taken(dir(), name) && tries < 3; tries++) {
                 Thread.sleep(1000 - now % 1000 + 5);
@@ -491,7 +531,6 @@ public final class DashRecorder {
             vttTmp = new File(d, stem + ".vtt.tmp");
             raw    = new File(d, stem + ".h264");   // legacy name, never written now
             jpg    = new File(d, stem + ".jpg");
-            hold   = new File(d, stem + ".hold");
             // Fragmented MP4, one fragment per key frame, each forced to
             // storage: the .mp4.tmp is a playable video at every moment, so a
             // crash costs at most the last second and there is nothing to
@@ -505,8 +544,9 @@ public final class DashRecorder {
 
         long ageMs() { return SystemClock.uptimeMillis() - startMs; }
 
-        long ptsUs() {
-            long p = (SystemClock.uptimeMillis() - startMs) * 1000L;
+        /** The frame captured at `uptimeMs`, in this segment's time. */
+        long ptsUs(long uptimeMs) {
+            long p = (uptimeMs - startMs) * 1000L;
             if (p <= lastPts) p = lastPts + 1;   // durations must be positive
             lastPts = p;
             return p;
@@ -523,14 +563,19 @@ public final class DashRecorder {
             }
         }
 
+        /** A frame copied earlier (the pre-roll), Annex-B. */
+        void write(byte[] data, long ptsUs, boolean key) {
+            if (out == null) return;
+            try { out.sample(ByteBuffer.wrap(data), 0, data.length, ptsUs, key); }
+            catch (Throwable t) {
+                Log.w(TAG, "dashcam: write failed, segment ends here: " + t);
+                out = null;
+            }
+        }
+
         void cue(long fromUs, long toUs, String text) {
             if (sub == null || text == null || text.isEmpty()) return;
             try { sub.cue(fromUs, toUs, text); } catch (Throwable ignored) { }
-        }
-
-        void markHeld() {
-            try { hold.createNewFile(); }
-            catch (Throwable t) { Log.w(TAG, "dashcam: could not mark event segment", t); }
         }
 
         void finish() {

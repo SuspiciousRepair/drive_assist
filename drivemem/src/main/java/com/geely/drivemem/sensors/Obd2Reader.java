@@ -335,7 +335,7 @@ public final class Obd2Reader {
             String socResp   = ch.command("224B36");
             String voltResp  = ch.command("224B21");
             String currResp  = ch.command("224B22");
-            String tempResp  = ch.command("224B3C");
+            String tempResp  = ch.command("224B48");
             String speedResp = ch.command("22DF01");
             applyReading(socResp, voltResp, currResp, tempResp, speedResp);
             sleep(POLL_MS);
@@ -810,7 +810,7 @@ public final class Obd2Reader {
         int[] socB  = parseDataBytes(socResp,  "4B36", 2);
         int[] voltB = parseDataBytes(voltResp, "4B21", 2);
         int[] currB = parseDataBytes(currResp, "4B22", 2);
-        int[] tempB = parseDataBytes(tempResp, "4B3C", 1);
+        int[] tempB = parseDataBytes(tempResp, "4B48", 1);
         int[] spdB  = parseDataBytes(speedResp, "DF01", 1);
 
         Double newSoc = (socB != null) ? (socB[0] * 256 + socB[1]) / 10.0 : null;
@@ -819,9 +819,12 @@ public final class Obd2Reader {
         // field-catalog.md's own table, positive = discharge, negative =
         // charge (matches ABRP's own sign convention for `power`).
         Double newCurr = (currB != null) ? (currB[0] * 256 + currB[1] - 5000) / 10.0 : null;
-        // Live EX2 readings track a plausible 29--32 C pack temperature
-        // directly in this byte; do not apply a generic temperature offset.
-        Double newTemp = (tempB != null) ? (double) tempB[0] : null;
+        // DID 4B48 is the BMS average pack temperature, A - 40 (0x3D = 21 C
+        // on a 20 C morning). Found in a Car Scanner log on 2026-09-28: it
+        // stays between the max/min cell temperatures (4B23/4B25). The DID
+        // read before, 4B3C, was not a temperature at all -- see
+        // field-catalog.md.
+        Double newTemp = (tempB != null) ? tempB[0] - 40.0 : null;
         if (newTemp != null && (newTemp < MIN_REASONABLE_BATT_TEMP_C
                 || newTemp > MAX_REASONABLE_BATT_TEMP_C)) {
             Log.w(TAG, "obd2: battery temperature outside reasonable range: "

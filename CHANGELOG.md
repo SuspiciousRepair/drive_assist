@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [v0.4.4] — 2026-09-28
+
+### Fixed
+- **OBD2 battery temperature is correct.** It is now read from the BMS
+  average pack temperature (DID `4B48`, byte − 40). The DID used before,
+  `4B3C`, is not a temperature: it read 67 °C on a 20 °C morning. ABRP,
+  the database and the charge chart get the real value again, and the
+  false values stored since 2026-09-13 are cleared.
+
+### Changed
+- **In Park with Park monitoring on, the dashcam records only when
+  something moves.** Nothing is written while all is still; the last 6 s
+  wait in memory, so each clip starts a few seconds before the motion and
+  ends when it has been quiet for a while. The clips are labelled "parked:
+  movement" and age out like any other; nothing is held automatically
+  (holding every clip with motion kept every parked clip when plants were in
+  view, 600 MB each, never deleted).
+- Parked motion ignores spots that move all the time, such as leaves in
+  the wind.
+
 ## [v0.4.3] — 2026-09-27
 
 ### Fixed

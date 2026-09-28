@@ -51,6 +51,9 @@ public final class Clips {
         public final long whenMs;
         public final int seconds;      // from the sidecar; -1 when there is none
         public final boolean valet;
+        /** Recorded in Park because something moved (the recorder names
+         * those `_park`). A label only: the recorder never holds a clip. */
+        public final boolean motion;
 
         Clip(File mp4, boolean held, Kind kind) {
             this.mp4 = mp4;
@@ -63,6 +66,7 @@ public final class Clips {
             this.bytes = mp4.length();
             this.whenMs = parseStamp(name(mp4), mp4.lastModified());
             this.valet = name(mp4).endsWith("_valet");
+            this.motion = name(mp4).endsWith("_park");
             this.seconds = cueCount(this.vtt);
         }
 
