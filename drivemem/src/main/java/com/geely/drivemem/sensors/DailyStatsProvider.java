@@ -136,6 +136,15 @@ public final class DailyStatsProvider {
         @Override public boolean isTrip() { return false; }
     }
 
+    // A trip (alias t) that started inside a Valet interval belongs to that
+    // Valet session and is hidden from the day list. The end is EXCLUSIVE:
+    // turning Valet off mid-drive splits the trip, and the rest of the drive
+    // starts at exactly valet end_ms (ValetSession.stop -> splitTrip). With
+    // `<=` that drive vanished from the list (2026-09-28).
+    static final String TRIP_IN_VALET_SQL =
+        "EXISTS (SELECT 1 FROM valet_session v WHERE t.start_ms >= v.start_ms "
+        + "AND t.start_ms < COALESCE(v.end_ms, 9223372036854775807))";
+
     /** One explicit Valet interval; underlying trip rows remain stored but are grouped here. */
     public static final class ValetSessionItem extends DaySession {
         public final long valetId;
@@ -1164,8 +1173,7 @@ public final class DailyStatsProvider {
           + "LEFT JOIN telemetry_sample s1 ON t.start_sample_id = s1.id "
           + "LEFT JOIN telemetry_sample s2 ON t.end_sample_id = s2.id "
           + "WHERE t.start_ms >= ? AND t.start_ms < ? "
-          + "AND NOT EXISTS (SELECT 1 FROM valet_session v WHERE t.start_ms >= v.start_ms "
-          + "AND t.start_ms <= COALESCE(v.end_ms, 9223372036854775807)) "
+          + "AND NOT " + TRIP_IN_VALET_SQL + " "
           + "ORDER BY t.start_ms ASC", new String[]{boundStart, boundEnd});
         try {
             while (tc.moveToNext()) {
