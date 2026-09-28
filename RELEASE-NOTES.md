@@ -12,6 +12,11 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.4.6 — 2026-09-28
+
+- Fixed: the car no longer goes online and offline again and again in
+  Home Assistant.
+
 ## v0.4.5 — 2026-09-28
 
 - Fixed: when you turn Valet off while driving, the rest of the drive

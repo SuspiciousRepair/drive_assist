@@ -1,3 +1,2 @@
-- Fixed: when you turn Valet off while driving, the rest of the drive
-  now stays in the trip list after you park. Drives hidden by this bug
-  show again.
+- Fixed: the car no longer goes online and offline again and again in
+  Home Assistant.
