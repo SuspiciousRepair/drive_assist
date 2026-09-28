@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [v0.4.6] — 2026-09-28
+
+### Fixed
+- **MQTT no longer flaps online/offline.** Since v0.4.2, each connection
+  loss left the dropped MQTT client reconnecting on its own (Paho's
+  automatic reconnect), under the same client id. The hidden clients kicked
+  each other off the broker ("session taken over") several times a second.
+  Paho's automatic reconnect is now off; the app reconnects with a fresh
+  client itself.
+
 ## [v0.4.5] — 2026-09-28
 
 ### Fixed
