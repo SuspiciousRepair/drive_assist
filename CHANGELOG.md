@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [v0.4.5] — 2026-09-28
+
+### Fixed
+- **A drive no longer vanishes after Valet is turned off while driving.**
+  The rest of that drive started at the exact second Valet ended, and the
+  day list counted that second as still in Valet, so the drive disappeared
+  once the car parked. The trips were always stored; they show again.
+
 ## [v0.4.4] — 2026-09-28
 
 ### Fixed
