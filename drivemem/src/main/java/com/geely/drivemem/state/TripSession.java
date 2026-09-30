@@ -266,7 +266,7 @@ public final class TripSession {
             if (currentOdoKm < 0) {
                 try {
                     Cursor c = CarDb.get(ctx).db().rawQuery(
-                        "SELECT odo_km FROM telemetry_sample WHERE odo_km IS NOT NULL ORDER BY id DESC LIMIT 1", null);
+                        "SELECT odo_km FROM telemetry_sample WHERE odo_km > 0 ORDER BY id DESC LIMIT 1", null);
                     try {
                         if (c.moveToFirst()) currentOdoKm = c.getDouble(0);
                     } finally {

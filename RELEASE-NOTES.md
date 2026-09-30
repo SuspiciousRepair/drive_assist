@@ -12,6 +12,11 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.4.7 — 2026-09-30
+
+- Fixed: a day no longer shows the whole odometer as the distance
+  driven. Days already shown wrong are repaired.
+
 ## v0.4.6 — 2026-09-28
 
 - Fixed: the car no longer goes online and offline again and again in

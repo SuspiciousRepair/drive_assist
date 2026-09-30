@@ -86,4 +86,41 @@ public class CarDbRowSqlTest {
             assertEquals(0, r.getInt(1));   // an estimated row stays estimated
         }
     }
+
+    // v24: a 0 odometer saved on wake-up made a day's distance the whole
+    // odometer (5878 km on 2026-09-30).
+    @Test public void zeroOdometerIsRemovedAndFrozenDaysRepaired() throws Exception {
+        SqliteTestDb db = new SqliteTestDb();
+        db.createCarDbSchema();
+        try (Statement s = db.getConnection().createStatement()) {
+            // Local noon on each day, so the date() the migration uses matches.
+            String d1 = "strftime('%s','2026-09-28 12:00','utc')*1000";
+            String d2 = "strftime('%s','2026-09-29 12:00','utc')*1000";
+            s.execute("INSERT INTO telemetry_sample (ts_ms, odo_km) VALUES"
+                + " (" + d1 + ", 0), (" + d1 + "+1, 5800), (" + d1 + "+2, 5810)");
+            s.execute("INSERT INTO daily_stat (date, first_odo_km, last_odo_km, avg_speed_kmh, driving_minutes) VALUES"
+                // raw samples still kept: repaired from them
+                + " ('2026-09-28', 0, 5810, 34860, 10),"
+                // raw samples gone: start from the day before's end
+                + " ('2026-09-29', 0, 5840, 35040, 60),"
+                // a good day stays as it is
+                + " ('2026-09-27', 5700, 5790, 45, 120)");
+
+            for (String sql : CarDb.REPAIR_ZERO_ODO_SQL) s.execute(sql);
+
+            ResultSet r = s.executeQuery("SELECT COUNT(*) FROM telemetry_sample WHERE odo_km <= 0");
+            r.next();
+            assertEquals(0, r.getInt(1));
+            r = s.executeQuery("SELECT date, first_odo_km, last_odo_km, avg_speed_kmh FROM daily_stat ORDER BY date");
+            r.next();   // 09-27
+            assertEquals(5700, r.getDouble(2), 0.001);
+            assertEquals(45, r.getDouble(4), 0.001);
+            r.next();   // 09-28
+            assertEquals(5800, r.getDouble(2), 0.001);
+            assertEquals(60, r.getDouble(4), 0.001);   // 10 km in 10 min
+            r.next();   // 09-29
+            assertEquals(5810, r.getDouble(2), 0.001);
+            assertEquals(30, r.getDouble(4), 0.001);   // 30 km in 60 min
+        }
+    }
 }

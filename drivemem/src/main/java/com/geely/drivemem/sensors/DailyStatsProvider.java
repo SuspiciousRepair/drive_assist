@@ -784,7 +784,7 @@ public final class DailyStatsProvider {
             "SELECT grp.day, MAX(0, last.odo_km - first.odo_km) AS km FROM "
           + "(SELECT date(ts_ms/1000,'unixepoch','localtime') AS day, "
           + "        MIN(id) AS first_id, MAX(id) AS last_id "
-          + " FROM telemetry_sample WHERE odo_km IS NOT NULL AND ts_ms >= ? GROUP BY day) grp "
+          + " FROM telemetry_sample WHERE odo_km > 0 AND ts_ms >= ? GROUP BY day) grp "
           + "JOIN telemetry_sample first ON first.id = grp.first_id "
           + "JOIN telemetry_sample last ON last.id = grp.last_id "
           + "WHERE grp.day NOT IN (SELECT date FROM daily_stat) "
@@ -805,7 +805,7 @@ public final class DailyStatsProvider {
         long[] todayBounds = dayBoundsMs(today);
         Cursor todayFirstC = db.rawQuery(
             "SELECT odo_km FROM telemetry_sample WHERE ts_ms >= ? AND ts_ms < ? "
-          + "  AND odo_km IS NOT NULL ORDER BY id ASC LIMIT 1",
+          + "  AND odo_km > 0 ORDER BY id ASC LIMIT 1",
             new String[]{String.valueOf(todayBounds[0]), String.valueOf(todayBounds[1])});
         try {
             if (todayFirstC.moveToFirst()) {
@@ -934,7 +934,7 @@ public final class DailyStatsProvider {
             Cursor odoC = db.rawQuery(
                 "SELECT first.odo_km, last.odo_km, first.battery_pct, last.battery_pct FROM "
               + "(SELECT MIN(id) as first_id, MAX(id) as last_id FROM telemetry_sample "
-              + " WHERE ts_ms >= ? AND ts_ms < ? AND odo_km IS NOT NULL) grp "
+              + " WHERE ts_ms >= ? AND ts_ms < ? AND odo_km > 0) grp "
               + "JOIN telemetry_sample first ON first.id = grp.first_id "
               + "JOIN telemetry_sample last ON last.id = grp.last_id",
                 new String[]{boundStart, boundEnd});

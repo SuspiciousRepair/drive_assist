@@ -77,4 +77,14 @@ public class TelemetryTest {
         float spent2 = (Float) tick2.get("energy_spent_kwh");
         assertEquals("subsequent tick without readings must be 0", 0.0f, spent2, 0.0001f);
     }
+
+    @Test public void zeroOdometerIsLeftOut() {
+        Map<String, Object> m = new java.util.HashMap<>();
+        m.put("odometer", 0f);
+        Telemetry.dropZeroOdometer(m);
+        assertFalse(m.containsKey("odometer"));
+        m.put("odometer", 5878.4f);
+        Telemetry.dropZeroOdometer(m);
+        assertEquals(5878.4f, m.get("odometer"));
+    }
 }
