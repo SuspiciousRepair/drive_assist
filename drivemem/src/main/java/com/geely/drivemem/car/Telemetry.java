@@ -108,6 +108,7 @@ public class Telemetry {
                 } catch (NumberFormatException ignored) {}
             }
         }
+        dropZeroOdometer(out);
         // human-readable gear
         Object g = out.get("gear");
         if (g instanceof Integer) out.put("gear_label", gearLabel((Integer) g));
@@ -159,6 +160,15 @@ public class Telemetry {
             out.put("park_timer", (pm != 0) ? parkTimerLabel(pm) : "—");
         }
         return out;
+    }
+
+    /** The odometer can read 0 for a moment while the car wakes up. That is
+     * "not ready", not a distance: stored as a day's first sample, it made
+     * the day's distance the whole odometer (5878 km on 2026-09-30). Left
+     * out of the map, like any other failed read. */
+    public static void dropZeroOdometer(java.util.Map<String, Object> out) {
+        Object odo = out.get("odometer");
+        if (odo instanceof Number && !(((Number) odo).doubleValue() > 0)) out.remove("odometer");
     }
 
     /** Periodic telemetry tick: reads snapshot values and integrates energy over the

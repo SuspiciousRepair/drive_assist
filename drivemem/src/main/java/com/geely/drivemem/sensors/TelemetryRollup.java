@@ -91,7 +91,7 @@ public final class TelemetryRollup {
             "SELECT grp.day, first.odo_km, last.odo_km, first.battery_pct, last.battery_pct FROM "
           + "(SELECT date(ts_ms/1000,'unixepoch','localtime') AS day, "
           + "        MIN(id) AS first_id, MAX(id) AS last_id "
-          + " FROM telemetry_sample WHERE odo_km IS NOT NULL GROUP BY day) grp "
+          + " FROM telemetry_sample WHERE odo_km > 0 GROUP BY day) grp "
           + "JOIN telemetry_sample first ON first.id = grp.first_id "
           + "JOIN telemetry_sample last ON last.id = grp.last_id "
           + "WHERE grp.day < ? AND grp.day NOT IN (SELECT date FROM daily_stat)",

@@ -32,7 +32,7 @@ public final class CarDb extends SQLiteOpenHelper {
     // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
     // every write failed until this was bumped past 14. See the v15 entry in
     // onUpgrade below for what v15 itself actually does.
-    private static final int VERSION = 23;
+    private static final int VERSION = 24;
 
     /** SQL predicate for telemetry rows representing driving: gear is not Park (4),
      * or if gear is missing, car is not charging. */
@@ -434,6 +434,10 @@ public final class CarDb extends SQLiteOpenHelper {
         // row as OBD2-measured (MEASURED_ROW_SQL), so move that fact into
         // energy_measured first -- no row's energy source changes.
         if (oldVersion < 23) clearBogusBatteryTemp(db);
+        // v24: odometer read 0 while the car woke up, and that 0 was saved.
+        // A day that started with it showed the whole odometer as the day's
+        // distance. Remove the zeros and repair the days frozen from them.
+        if (oldVersion < 24) for (String sql : REPAIR_ZERO_ODO_SQL) db.execSQL(sql);
     }
 
     // Fixes telemetry_sample rows mislabeled "estimated" despite OBD2
@@ -462,6 +466,32 @@ public final class CarDb extends SQLiteOpenHelper {
     static final String[] CLEAR_BOGUS_BATTERY_TEMP_SQL = {
         "UPDATE telemetry_sample SET energy_measured = 1 WHERE battery_temp_c IS NOT NULL",
         "UPDATE telemetry_sample SET battery_temp_c = NULL WHERE battery_temp_c IS NOT NULL",
+    };
+
+    // v24, in order. Package-visible so CarDbRowSqlTest runs them on real SQLite.
+    // A frozen day's bad end takes, first choice, the day's own real samples
+    // (if still kept); then, for the start only, the day before's end (the
+    // car does not move overnight); then the other end of the same day, which
+    // gives 0 km -- wrong low, never wrong by the whole odometer.
+    private static final String DAY_ODO_SQL =
+        "(SELECT odo_km FROM telemetry_sample WHERE odo_km > 0 "
+      + " AND date(ts_ms/1000,'unixepoch','localtime') = daily_stat.date ORDER BY id %s LIMIT 1)";
+    static final String[] REPAIR_ZERO_ODO_SQL = {
+        "UPDATE telemetry_sample SET odo_km = NULL WHERE odo_km <= 0",
+        "UPDATE charge_session SET odo_start_km = NULL WHERE odo_start_km <= 0",
+        "UPDATE valet_session SET start_odo_km = NULL WHERE start_odo_km <= 0",
+        "UPDATE valet_session SET end_odo_km = NULL WHERE end_odo_km <= 0",
+        "UPDATE daily_stat SET last_odo_km = COALESCE(" + String.format(DAY_ODO_SQL, "DESC")
+          + ", CASE WHEN first_odo_km > 0 THEN first_odo_km END, last_odo_km) WHERE last_odo_km <= 0",
+        "UPDATE daily_stat SET first_odo_km = COALESCE(" + String.format(DAY_ODO_SQL, "ASC")
+          + ", (SELECT p.last_odo_km FROM daily_stat p WHERE p.date < daily_stat.date"
+          + "   AND p.last_odo_km > 0 AND p.last_odo_km <= daily_stat.last_odo_km ORDER BY p.date DESC LIMIT 1)"
+          + ", last_odo_km) WHERE first_odo_km <= 0",
+        // The same distance-over-driving-time TelemetryRollup freezes. Only
+        // days no car can reach (> 300 km/h), i.e. the ones frozen from a 0.
+        "UPDATE daily_stat SET avg_speed_kmh = CASE WHEN driving_minutes > 0"
+          + " THEN MAX(0, last_odo_km - first_odo_km) / (driving_minutes / 60.0) ELSE 0 END"
+          + " WHERE avg_speed_kmh > 300",
     };
 
     private static void clearBogusBatteryTemp(SQLiteDatabase db) {
