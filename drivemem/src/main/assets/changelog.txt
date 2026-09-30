@@ -1,2 +1,2 @@
-- Fixed: the car no longer goes online and offline again and again in
-  Home Assistant.
+- Fixed: a day no longer shows the whole odometer as the distance
+  driven. Days already shown wrong are repaired.

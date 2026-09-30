@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [v0.4.7] — 2026-09-30
+
+### Fixed
+- **A day no longer shows the whole odometer as its distance.** While the
+  car wakes up, the odometer can read 0 for a moment. That 0 was saved as
+  the day's first reading, so the day showed thousands of km driven and an
+  impossible average speed. A 0 odometer is now ignored. On update, stored
+  zeros are removed and the days already saved with them are repaired.
+
 ## [v0.4.6] — 2026-09-28
 
 ### Fixed
