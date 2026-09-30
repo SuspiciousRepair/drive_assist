@@ -708,13 +708,16 @@ public class DailyStatsView extends LinearLayout {
         navNextBtn.setEnabled(idx < periodWindow.size() - 1);
         navNextBtn.setAlpha(idx < periodWindow.size() - 1 ? 1.0f : 0.35f);
 
-        renderConsumptionCard(po.totals);
+        // Real dates, never po.totals.date: that is the period's label, and
+        // a label falls back to one single day (the 2026-09-16 bug again,
+        // found on the Week speed chart 2026-09-30).
+        List<String> dates = new ArrayList<>(po.days.size());
+        for (DailyStatsProvider.DayOverview d : po.days) dates.add(d.date);
+        renderConsumptionCard(po.totals, DailyStatsProvider.getSpeedBucketEfficiency(getContext(), dates));
         renderBatteryCard(po.totals); // pii: allow (17-char identifier, not a VIN)
         renderTimeCard(po.totals);
         renderAltitudeCard(po.totals);
         renderPeriodSessions(po);
-        List<String> dates = new ArrayList<>(po.days.size());
-        for (DailyStatsProvider.DayOverview d : po.days) dates.add(d.date);
         renderHourlyChart(DailyStatsProvider.getHourlySpeedData(getContext(), dates));
     }
 
@@ -870,7 +873,7 @@ public class DailyStatsView extends LinearLayout {
         }
 
         // 4-Column Middle Section
-        renderConsumptionCard(ov);
+        renderConsumptionCard(ov, DailyStatsProvider.getSpeedBucketEfficiency(getContext(), ov.date));
         renderBatteryCard(ov);
         renderTimeCard(ov);
         renderAltitudeCard(ov);
@@ -962,7 +965,8 @@ public class DailyStatsView extends LinearLayout {
         return caption;
     }
 
-    private void renderConsumptionCard(DailyStatsProvider.DayOverview ov) {
+    private void renderConsumptionCard(DailyStatsProvider.DayOverview ov,
+                                       DailyStatsProvider.SpeedBucket[] buckets) {
         Context c = getContext();
         consumptionCard.removeAllViews();
 
@@ -992,8 +996,7 @@ public class DailyStatsView extends LinearLayout {
         // average marked as a reference line, so the hero number reads next
         // to the question it actually answers: is today's average coming
         // from city driving, highway, or a mix.
-        DailyStatsProvider.SpeedBucket[] buckets =
-                DailyStatsProvider.getSpeedBucketEfficiency(c, ov.date);
+        // The caller passes the buckets: only it knows the real dates.
         //
         // Without OBD2, this breakdown isn't just less precise, it's not
         // computable at all: the VHAL SoC-delta estimate is one power number
@@ -1120,9 +1123,9 @@ public class DailyStatsView extends LinearLayout {
         Context c = getContext();
         altitudeCard.removeAllViews();
 
-        // Header: "Altitude"
+        // Header: "Relevo"
         TextView title = new TextView(c);
-        title.setText("Altitude");
+        title.setText("Relevo");
         title.setTextColor(Style.TEXT_DIM);
         title.setTextSize(15.5f);
         title.setTypeface(null, Typeface.BOLD);
