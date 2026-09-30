@@ -64,6 +64,12 @@ sysprobe/platkey/
 sysprobe/*.idsig
 sysprobe/sysprobe.apk
 
+# Local only, never committed: the AccelProbe experiment, private notes,
+# and git worktrees made inside this checkout.
+accelprobe/
+.local-notes/
+.worktrees/
+
 # Claude Code's own local session config — machine-local, not project source.
 .claude/
 
