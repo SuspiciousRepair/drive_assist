@@ -384,6 +384,52 @@ public class ChargeSessionTest {
         assertEquals(35, (int) result[3]); // latest SoC
     }
 
+    // 2026-09-23: full at 04:47, still plugged in until 06:50, and the car
+    // kept reporting 19.1 A x 242 V the whole time. That tail is not energy.
+    @Test public void replayStopsCountingOnceFullForTenMinutes() {
+        java.util.List<Object[]> rows = new java.util.ArrayList<>();
+        long t = 1_000_000L;
+        for (int i = 0; i < 60; i++, t += 60_000L) rows.add(new Object[]{t, 19.1f, 242.0f, 99});   // 1 h charging
+        for (int i = 0; i < 120; i++, t += 60_000L) rows.add(new Object[]{t, 19.1f, 242.0f, 100}); // 2 h full
+        Object[][] r = rows.toArray(new Object[0][]);
+        double kw = 19.1 * 242.0 / 1000.0;
+
+        double counted = ChargeSession.replayTelemetry(r, 0.0, 0, Double.NaN, -1)[0] / 1000.0;
+        // 59 min before full + the first minute at 100 + 10 min of grace
+        assertEquals(kw * 70 / 60.0, counted, 0.01);
+        assertEquals(kw * 109 / 60.0, ChargeSession.frozenFullTailWh(r) / 1000.0, 0.01);
+    }
+
+    @Test public void frozenFullTailIsZeroWhenUnpluggedSoonAfterFull() {
+        Object[][] r = {
+            {100_000L, 16.0f, 230.0f, 98}, {600_000L, 16.0f, 230.0f, 99},
+            {1_200_000L, 16.0f, 230.0f, 100}, {1_500_000L, 16.0f, 230.0f, 100},
+        };
+        assertEquals(0.0, ChargeSession.frozenFullTailWh(r), 1e-9);
+    }
+
+    @Test public void liveTickStopsCountingOnceFullForTenMinutes() {
+        ChargeSession.resetForTesting();
+        try {
+            long m = 10_000L;
+            ChargeSession.onChargingEdge(null, true, 1_000_000L, m);
+            Map<String, Object> d = new HashMap<>();
+            d.put("charge_a", 10.0f);
+            d.put("charge_v", 240.0f);   // 2.4 kW
+            d.put("battery", 100);
+            for (int i = 1; i <= 30; i++) ChargeSession.onTelemetryTick(null, d, m + i * 60_000L);
+            // The first tick at 100 counts the minute before it and starts
+            // the clock; then 10 more minutes count, and nothing after.
+            assertEquals(2.4 * 11 / 60.0, ChargeSession.currentKwh(), 0.01);
+
+            d.put("battery", 99);        // drops back: counting resumes
+            ChargeSession.onTelemetryTick(null, d, m + 31 * 60_000L);
+            assertEquals(2.4 * 12 / 60.0, ChargeSession.currentKwh(), 0.01);
+        } finally {
+            ChargeSession.resetForTesting();
+        }
+    }
+
     @Test public void commitOrUpdateSessionCapturesStateBeforeReset() {
         ChargeSession.resetForTesting();
         long t0 = 1_000_000L;
