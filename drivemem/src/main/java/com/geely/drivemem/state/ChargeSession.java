@@ -212,10 +212,17 @@ public final class ChargeSession {
     public static final long CHARGE_GRACE_PERIOD_MS = 180_000L;
     public static final double MIN_CHARGE_KWH = 0.05;
     public static final long MIN_CHARGE_DURATION_MS = 60_000L;
+    // Once the battery is full the car stops charging, but it keeps
+    // reporting the last charge current and voltage, frozen, until the cable
+    // comes out. Counted, that added ~9 kWh to a night charge left plugged
+    // in for two hours after 100% (2026-09-22 and -23). So stop counting
+    // once the battery has read 100% for this long.
+    public static final long FULL_TAIL_MS = 10 * 60_000L;
 
     // Ongoing-session state. Only ever touched from TelemetryService's own
     // loop thread / CarActor's serialized HandlerThread.
     private static long startWallMs = 0, pauseWallMs = 0, lastSampleMonoMs = 0, startSampleId = -1;
+    private static long fullSinceMonoMs = 0;   // when the battery first read 100%, 0 if not full
     private static int socStart = -1, socEnd = -1;
     private static double whAccum = 0;   // running energy, Wh
     private static double maxChargeV = Double.NaN;
@@ -324,6 +331,7 @@ public final class ChargeSession {
                 socStart = (soc != null) ? soc : -1;
                 socEnd = socStart;
                 whAccum = 0;
+                fullSinceMonoMs = 0;
                 maxChargeV = Double.NaN;
                 sampleCount = 0;
                 odoStart = -1;
@@ -484,6 +492,7 @@ public final class ChargeSession {
         socStart = -1;
         socEnd = -1;
         whAccum = 0;
+        fullSinceMonoMs = 0;
         maxChargeV = Double.NaN;
         sampleCount = 0;
         odoStart = -1;
@@ -514,6 +523,10 @@ public final class ChargeSession {
     }
 
     public static void onTelemetryTick(Context ctx, Map<String, Object> data) {
+        onTelemetryTick(ctx, data, SystemClock.elapsedRealtime());
+    }
+
+    public static void onTelemetryTick(Context ctx, Map<String, Object> data, long nowMono) {
         CarActor.assertCarThread();
         CarActor actor = (ctx != null) ? CarActor.get(ctx) : CarActor.get();
         if (actor != null) {
@@ -527,9 +540,14 @@ public final class ChargeSession {
         Float a = asFloat(data.get("charge_a"));
         Float v = asFloat(data.get("charge_v"));
         Float odo = asFloat(data.get("odometer"));
-        long nowMono = SystemClock.elapsedRealtime();
 
         if (soc != null) socEnd = soc;
+        if (soc != null && soc >= 100) {
+            if (fullSinceMonoMs == 0) fullSinceMonoMs = nowMono;
+        } else if (soc != null) {
+            fullSinceMonoMs = 0;
+        }
+        boolean frozenTail = fullSinceMonoMs != 0 && nowMono - fullSinceMonoMs > FULL_TAIL_MS;
         if (odoStart < 0 && odo != null) odoStart = odo;
         if (v != null && v > 0 && (Double.isNaN(maxChargeV) || v > maxChargeV)) maxChargeV = v;
         // Rectangular integration at the tick's own cadence (whatever it
@@ -537,7 +555,7 @@ public final class ChargeSession {
         // assumed): this tick's power held for the time since the last
         // one. Good enough for a session lasting tens of minutes+; not
         // trying to be a lab instrument.
-        if (a != null && v != null && lastSampleMonoMs != 0) {
+        if (a != null && v != null && lastSampleMonoMs != 0 && !frozenTail) {
             double hours = (nowMono - lastSampleMonoMs) / 3_600_000.0;
             whAccum += a * v * hours;
             sampleCount++;
@@ -779,20 +797,37 @@ public final class ChargeSession {
     }
 
     public static double[] replayTelemetry(Object[][] rows, double prevWh, int prevCount, double prevMaxV, int prevSoc) {
+        return replayTelemetry(rows, prevWh, prevCount, prevMaxV, prevSoc, true);
+    }
+
+    /** The Wh a replay without the FULL_TAIL_MS rule counts after the battery
+     * stayed full: energy the car never delivered. rows as replayTelemetry. */
+    public static double frozenFullTailWh(Object[][] rows) {
+        return replayTelemetry(rows, 0, 0, Double.NaN, -1, false)[0]
+             - replayTelemetry(rows, 0, 0, Double.NaN, -1, true)[0];
+    }
+
+    private static double[] replayTelemetry(Object[][] rows, double prevWh, int prevCount, double prevMaxV,
+                                            int prevSoc, boolean stopWhenFull) {
         double rederivedWh = 0;
         int rederivedCount = 0;
         double rederivedMaxV = prevMaxV;
         int latestSoc = prevSoc;
-        long lastTs = -1;
+        long lastTs = -1, fullSinceTs = -1;
         for (Object[] r : rows) {
             long ts = ((Number) r[0]).longValue();
             Float a = r[1] != null ? ((Number) r[1]).floatValue() : null;
             Float v = r[2] != null ? ((Number) r[2]).floatValue() : null;
-            if (r[3] != null) latestSoc = ((Number) r[3]).intValue();
+            if (r[3] != null) {
+                latestSoc = ((Number) r[3]).intValue();
+                if (latestSoc < 100) fullSinceTs = -1;
+                else if (fullSinceTs < 0) fullSinceTs = ts;
+            }
+            boolean frozenTail = stopWhenFull && fullSinceTs >= 0 && ts - fullSinceTs > FULL_TAIL_MS;
             if (v != null && v > 0 && (Double.isNaN(rederivedMaxV) || v > rederivedMaxV)) {
                 rederivedMaxV = v;
             }
-            if (a != null && v != null && a > 0 && lastTs > 0) {
+            if (a != null && v != null && a > 0 && lastTs > 0 && !frozenTail) {
                 double hours = (ts - lastTs) / 3_600_000.0;
                 if (hours > 0 && hours < 1.0) {
                     rederivedWh += a * v * hours;

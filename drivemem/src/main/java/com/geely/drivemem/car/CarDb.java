@@ -32,7 +32,7 @@ public final class CarDb extends SQLiteOpenHelper {
     // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
     // every write failed until this was bumped past 14. See the v15 entry in
     // onUpgrade below for what v15 itself actually does.
-    private static final int VERSION = 24;
+    private static final int VERSION = 25;
 
     /** SQL predicate for telemetry rows representing driving: gear is not Park (4),
      * or if gear is missing, car is not charging. */
@@ -438,6 +438,52 @@ public final class CarDb extends SQLiteOpenHelper {
         // A day that started with it showed the whole odometer as the day's
         // distance. Remove the zeros and repair the days frozen from them.
         if (oldVersion < 24) for (String sql : REPAIR_ZERO_ODO_SQL) db.execSQL(sql);
+        // v25: a charge left plugged in after 100% kept counting the car's
+        // frozen current and voltage (see ChargeSession.FULL_TAIL_MS). Take
+        // that tail out of the charges whose samples are still kept.
+        if (oldVersion < 25) removeFrozenFullTail(db);
+    }
+
+    // The kWh changes; the R$/kWh does not -- the cost is almost always
+    // entered with the per-kWh button, so it scales with the kWh.
+    // daily_stat is frozen, so its charge totals are summed again, the same
+    // way TelemetryRollup sums them, only for the days of repaired charges.
+    static final String RESUM_DAY_CHARGES_SQL =
+        "UPDATE daily_stat SET "
+      + " charge_kwh = (SELECT COALESCE(SUM(kwh), 0) FROM charge_session"
+      + "   WHERE date(start_ms/1000,'unixepoch','localtime') = daily_stat.date),"
+      + " charge_cost = (SELECT COALESCE(SUM(cost), 0) FROM charge_session"
+      + "   WHERE date(start_ms/1000,'unixepoch','localtime') = daily_stat.date)"
+      + " WHERE date = (SELECT date(start_ms/1000,'unixepoch','localtime') FROM charge_session WHERE id = ?)";
+
+    private static void removeFrozenFullTail(SQLiteDatabase db) {
+        java.util.List<long[]> sessions = new java.util.ArrayList<>();
+        Cursor c = db.rawQuery("SELECT id, start_sample_id, end_sample_id FROM charge_session "
+            + "WHERE soc_end >= 100 AND start_sample_id >= 0 AND end_sample_id > start_sample_id", null);
+        try { while (c.moveToNext()) sessions.add(new long[]{c.getLong(0), c.getLong(1), c.getLong(2)}); }
+        finally { c.close(); }
+
+        for (long[] s : sessions) {
+            java.util.List<Object[]> rows = new java.util.ArrayList<>();
+            Cursor r = db.rawQuery("SELECT ts_ms, charge_a, charge_v, battery_pct FROM telemetry_sample "
+                + "WHERE id BETWEEN ? AND ? ORDER BY id",
+                new String[]{String.valueOf(s[1]), String.valueOf(s[2])});
+            try {
+                while (r.moveToNext()) rows.add(new Object[]{r.getLong(0),
+                    r.isNull(1) ? null : r.getFloat(1), r.isNull(2) ? null : r.getFloat(2),
+                    r.isNull(3) ? null : r.getInt(3)});
+            } finally { r.close(); }
+            double tailKwh = ChargeSession.frozenFullTailWh(rows.toArray(new Object[0][])) / 1000.0;
+            if (tailKwh < ChargeSession.MIN_CHARGE_KWH) continue;
+            db.execSQL("UPDATE charge_session SET "
+                + " avg_power_w = avg_power_w * MAX(0, kwh - ?) / kwh,"
+                + " cost = cost * MAX(0, kwh - ?) / kwh,"
+                + " kwh = MAX(0, kwh - ?)"
+                + " WHERE id = ? AND kwh > 0", new Object[]{tailKwh, tailKwh, tailKwh, s[0]});
+            db.execSQL(RESUM_DAY_CHARGES_SQL, new Object[]{s[0]});
+            android.util.Log.i("CarDb", String.format(java.util.Locale.US,
+                "v25: charge %d minus %.2f kWh counted after full", s[0], tailKwh));
+        }
     }
 
     // Fixes telemetry_sample rows mislabeled "estimated" despite OBD2

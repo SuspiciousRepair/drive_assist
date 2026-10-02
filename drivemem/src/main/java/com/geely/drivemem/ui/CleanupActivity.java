@@ -22,7 +22,6 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
-// TODO: Another app opened a new option to remove AVAS sound completely. I want to revert to original (no option to silence it) now, independent of a clean-up. But we should also remove it in the clean-up
 // TODO: We have changed the app a lot after this was introduced. We should review the cleanup process and make sure it is still valid and complete. Also remove reference to Drive Assist,
 /** Cleanup screen: undoes Drive Assist's modifications to restore the head unit
  * toward factory state. Both cleanup actions require confirmation. System

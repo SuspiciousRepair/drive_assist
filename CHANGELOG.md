@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [v0.4.8] — 2026-10-02
+
+### Fixed
+- **Turning AVAS off now works.** The switch saved your choice but the
+  helper copied the car's old value back over it, so the sound never
+  changed. The choice is now written to the car within a few seconds.
+- **A charge left plugged in after full no longer adds energy.** At 100%
+  the car keeps reporting the last current, so a night charge counted
+  kWh that never flowed. Counting stops once the battery stays full.
+  Past charges are corrected.
+- **Week and Month speed chart now covers the whole period**, not one day.
+
 ## [v0.4.7] — 2026-09-30
 
 ### Fixed

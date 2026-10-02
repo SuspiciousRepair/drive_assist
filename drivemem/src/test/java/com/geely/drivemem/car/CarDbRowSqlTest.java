@@ -123,4 +123,30 @@ public class CarDbRowSqlTest {
             assertEquals(30, r.getDouble(4), 0.001);   // 30 km in 60 min
         }
     }
+
+    // v25: a repaired charge's day sums its charges again; other days stay frozen.
+    @Test public void resumDayChargesTouchesOnlyThatDay() throws Exception {
+        SqliteTestDb db = new SqliteTestDb();
+        db.createCarDbSchema();
+        try (Statement s = db.getConnection().createStatement()) {
+            long d1 = 1790200000000L;              // 2026-09-23 local
+            long d2 = d1 + 86_400_000L;
+            s.execute("INSERT INTO charge_session (id, start_ms, end_ms, kwh, cost) VALUES"
+                + " (1, " + d1 + ", " + d1 + ", 33.4, 3.34), (2, " + (d1 + 3600_000L) + ", " + d1 + ", 11.7, 33.83),"
+                + " (3, " + d2 + ", " + d2 + ", 10.0, 1.0)");
+            s.execute("INSERT INTO daily_stat (date, first_odo_km, last_odo_km, charge_kwh, charge_cost) VALUES"
+                + " (date(" + d1 + "/1000,'unixepoch','localtime'), 1, 2, 54.4, 38.10),"
+                + " (date(" + d2 + "/1000,'unixepoch','localtime'), 1, 2, 99, 99)");
+            try (java.sql.PreparedStatement p = db.getConnection().prepareStatement(CarDb.RESUM_DAY_CHARGES_SQL)) {
+                p.setLong(1, 1);
+                p.executeUpdate();
+            }
+            ResultSet r = s.executeQuery("SELECT charge_kwh, charge_cost FROM daily_stat ORDER BY date");
+            r.next();
+            assertEquals(45.1, r.getDouble(1), 1e-9);
+            assertEquals(37.17, r.getDouble(2), 1e-9);
+            r.next();
+            assertEquals(99, r.getDouble(1), 1e-9);
+        }
+    }
 }
