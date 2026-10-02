@@ -12,6 +12,13 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.4.8 — 2026-10-02
+
+- Fixed: turning the pedestrian warning sound (AVAS) off now works.
+- Fixed: a charge left plugged in after full no longer adds energy that
+  never flowed. Past charges are corrected.
+- Fixed: the Week and Month speed chart now shows the whole period.
+
 ## v0.4.7 — 2026-09-30
 
 - Fixed: a day no longer shows the whole odometer as the distance
