@@ -94,6 +94,10 @@ public class ModeHelperService extends Service {
                         if (it.hasExtra("avas")) {
                             int avas = it.getIntExtra("avas", 1);
                             e.putInt("avas", avas); log.append(" avas=").append(avas);
+                            // An explicit choice from the app must reach the car. Without
+                            // this, enforceAvasParked() sees car != saved and "mirrors" the
+                            // car back over the new choice, so the toggle never applies.
+                            avasAppliedOnce = false;
                         }
                         if (it.hasExtra("parked_monitoring")) {
                             boolean enabled = it.getBooleanExtra("parked_monitoring", false);
