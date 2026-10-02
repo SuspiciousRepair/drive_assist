@@ -1,2 +1,4 @@
-- Fixed: a day no longer shows the whole odometer as the distance
-  driven. Days already shown wrong are repaired.
+- Fixed: turning the pedestrian warning sound (AVAS) off now works.
+- Fixed: a charge left plugged in after full no longer adds energy that
+  never flowed. Past charges are corrected.
+- Fixed: the Week and Month speed chart now shows the whole period.
