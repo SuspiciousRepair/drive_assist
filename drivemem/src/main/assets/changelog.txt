@@ -1,4 +1,3 @@
-- Fixed: turning the pedestrian warning sound (AVAS) off now works.
-- Fixed: a charge left plugged in after full no longer adds energy that
-  never flowed. Past charges are corrected.
-- Fixed: the Week and Month speed chart now shows the whole period.
+- Fixed: the pedestrian warning sound (AVAS) no longer turns itself back
+  on after the car wakes up.
+- Fixed: the hidden night theme switch works again.
