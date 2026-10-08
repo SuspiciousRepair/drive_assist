@@ -12,6 +12,12 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.4.9 — 2026-10-08
+
+- Fixed: the pedestrian warning sound (AVAS) no longer turns itself back
+  on after the car wakes up.
+- Fixed: the hidden night theme switch works again.
+
 ## v0.4.8 — 2026-10-02
 
 - Fixed: turning the pedestrian warning sound (AVAS) off now works.

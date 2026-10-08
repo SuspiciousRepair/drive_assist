@@ -2,7 +2,11 @@
 
 ## [Unreleased]
 
+## [v0.4.9] — 2026-10-08
+
 ### Fixed
+- **The hidden Noturno switch works again.** Its tap area had no width, so
+  the eight taps never registered.
 - **AVAS no longer turns itself back on.** The car re-arms the pedestrian
   sound on wake, and the helper then saved the car's "on" over your "off".
   Your choice is now kept and written to the car again whenever it differs.
