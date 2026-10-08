@@ -379,7 +379,10 @@ public class ComfortActivity extends Activity {
     // never needs to change again after that (it does not track cards at all).
     private void sizeKonamiZone(FrameLayout zone) {
         int w = columnWidth();
-        if (w <= 0) { LayoutWait.onNextLayout(band, () -> sizeKonamiZone(zone)); return; }
+        // Waits on `screen` (zone's parent), NOT `band`: LayoutWait keeps one
+        // action per view and repackColumns() already waits on `band`, so
+        // sharing it silently dropped this one and left the zone 0 px wide.
+        if (w <= 0) { LayoutWait.onNextLayout((View) zone.getParent(), () -> sizeKonamiZone(zone)); return; }
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) zone.getLayoutParams();
         lp.width = w;
         zone.setLayoutParams(lp);

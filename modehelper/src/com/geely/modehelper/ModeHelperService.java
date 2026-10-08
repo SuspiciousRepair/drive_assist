@@ -94,10 +94,6 @@ public class ModeHelperService extends Service {
                         if (it.hasExtra("avas")) {
                             int avas = it.getIntExtra("avas", 1);
                             e.putInt("avas", avas); log.append(" avas=").append(avas);
-                            // An explicit choice from the app must reach the car. Without
-                            // this, enforceAvasParked() sees car != saved and "mirrors" the
-                            // car back over the new choice, so the toggle never applies.
-                            avasAppliedOnce = false;
                         }
                         if (it.hasExtra("parked_monitoring")) {
                             boolean enabled = it.getBooleanExtra("parked_monitoring", false);
@@ -359,31 +355,21 @@ public class ModeHelperService extends Service {
     // AVAS mute. 0 = muted, >=1 = active mode (see AvasMuteTestReceiver). Same
     // "no preference yet, don't touch it" rule as enforceAeb().
     //
-    // Unlike drive/regen and AEB above, this does NOT keep re-forcing the saved
-    // value forever: it applies the saved value ONCE, right when the car
-    // connection first comes up (boot / process start). After that it only
-    // MIRRORS — if the car's mode no longer matches, that means the owner
-    // changed it live in OEM Settings, so the saved preference is updated to
-    // match instead of being fought. The saved value is reasserted again on
-    // the next boot. See plan/AVAS-MUTE-ROADMAP.md.
-    private boolean avasAppliedOnce = false;
+    // Like AEB, the saved choice is held every tick: the car re-arms AVAS on
+    // wake/power-on, and the head unit suspends instead of restarting this
+    // process, so an apply-once-per-process rule never ran again. Nothing is
+    // mirrored back from the car; only the Drive Assist toggle changes the
+    // saved value. See AvasPolicy and plan/AVAS-MUTE-ROADMAP.md.
     private void enforceAvasParked() {
         SharedPreferences p = getSharedPreferences("modehelper", MODE_PRIVATE);
         if (!p.contains("avas")) return;
         Object cur = car.audioCall("getAVASMode");
         if (!(cur instanceof Integer)) return;
         int want = p.getInt("avas", 1);
-        if (!avasAppliedOnce) {
-            avasAppliedOnce = true;
-            if (!cur.equals(want)) {
-                car.audioCall("setAVASMode", want);
-                Log.i(TAG, "modo: avas " + cur + " -> " + want + " (boot apply)");
-            }
-            return;
-        }
-        if (!cur.equals(want)) {
-            p.edit().putInt("avas", (Integer) cur).apply();
-            Log.i(TAG, "modo: avas mirrored from OEM " + want + " -> " + cur);
+        Integer write = AvasPolicy.toWrite((Integer) cur, want);
+        if (write != null) {
+            car.audioCall("setAVASMode", write);
+            Log.i(TAG, "modo: avas " + cur + " -> " + write);
         }
     }
 
