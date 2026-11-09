@@ -303,6 +303,34 @@ public class EffortTableTest {
         assertEquals(-3, level);
     }
 
+    // Issue #6: on a cool evening the C4 setpoint (18 C) is not below the outside
+    // air (18 C), and the side test used to compare the two. A refit then read a
+    // car blowing cold as W1 and relabelled the slider "heating".
+    @Test public void fitColdColumnOnCoolEveningStaysCold() {
+        Column[] t = EffortTable.build(18f);
+        Column c4 = EffortTable.at(t, 4);
+        assertTrue(c4.machine);
+        assertEquals(18f, c4.setpointC, 0.01f);
+        assertEquals(4, EffortTable.fit(t, 18f, true, c4.machine, c4.setpointC, c4.fan,
+            c4.direction, c4.recirc));
+        // A hand on the OEM fan must not change the side either.
+        assertEquals(4, EffortTable.fit(t, 18f, true, c4.machine, c4.setpointC, 8,
+            c4.direction, c4.recirc));
+    }
+
+    @Test public void fitEveryColumnRoundTripsToItsOwnSideAtEveryOutsideTemp() {
+        for (float out = -10f; out <= 45f; out += 1f) {
+            Column[] t = EffortTable.build(out);
+            for (int lv = -EffortTable.MAX_LEVEL; lv <= EffortTable.MAX_LEVEL; lv++) {
+                if (lv == 0) continue;
+                Column c = EffortTable.at(t, lv);
+                int got = EffortTable.fit(t, out, true, c.machine, c.setpointC, c.fan,
+                    c.direction, c.recirc);
+                assertEquals("out=" + out + " col=" + c, lv, got);
+            }
+        }
+    }
+
     // ---- name() / dirName() ------------------------------------------------
 
     @Test public void nameFormatsLevels() {
