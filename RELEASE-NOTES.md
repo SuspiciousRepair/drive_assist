@@ -12,6 +12,11 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.4.10 — 2026-11-09
+
+- Fixed: the comfort slider no longer jumps to the heating side while the
+  car is still cooling on a cool evening.
+
 ## v0.4.9 — 2026-10-08
 
 - Fixed: the pedestrian warning sound (AVAS) no longer turns itself back
