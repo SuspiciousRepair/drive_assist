@@ -323,11 +323,17 @@ public final class EffortTable {
     }
 
     // Determines which side of the effort table the car belongs to (cold or warm).
-    // With machine on: compare setpoint to outside temperature (not to middle of
-    // scale). With machine off: infer from air direction (feet = warm side, glass
+    // With machine on: compare the setpoint to MIDDLE_C, the point where the
+    // machine itself reverses. NOT to the outside temperature: on a cool evening
+    // (outside <= 18 C) the C4/C5 setpoints of 18/17 C are not below the outside
+    // air, so that comparison read a car blowing cold as "heating" (issue #6).
+    // Every machine column is authored a whole degree clear of MIDDLE_C
+    // (COLD_NEAREST / HOT_NEAREST), so this split is exact for the table's own
+    // columns and still right for a hand-set setpoint.
+    // With machine off: infer from air direction (feet = warm side, glass
     // = cold side).
     private static boolean sideIsCold(float outC, boolean machine, float sp, int direction) {
-        if (machine && !Float.isNaN(sp)) return sp < outC;
+        if (machine && !Float.isNaN(sp)) return sp < MIDDLE_C;
         return direction != DIR_FEET && direction != DIR_FACE_FEET && direction != DIR_GLASS_FEET;
     }
 }

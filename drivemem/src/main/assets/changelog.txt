@@ -1,3 +1,2 @@
-- Fixed: the pedestrian warning sound (AVAS) no longer turns itself back
-  on after the car wakes up.
-- Fixed: the hidden night theme switch works again.
+- Fixed: the comfort slider no longer jumps to the heating side while the
+  car is still cooling on a cool evening.

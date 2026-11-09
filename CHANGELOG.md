@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [v0.4.10] — 2026-11-09
+
+### Fixed
+- **Cooling no longer reads as heating on a cool evening.** The comfort
+  slider decided its side by comparing the setpoint to the outside air, so
+  at 18 °C or less outside, the two strongest cooling steps (setpoint 17–18 °C)
+  were re-read as "heating · level 1" the next time the car was polled — often
+  right after a fan change on the car's own panel. The side is now decided
+  by the car's own heat/cool reversal point, which does not move with the
+  weather. (#6)
+
 ## [v0.4.9] — 2026-10-08
 
 ### Fixed
