@@ -88,7 +88,6 @@
     <string name="cfg_spotify_large_card_hint">La portada del álbum llena la tarjeta, con una banda grande de Reproducir/Siguiente debajo. Desactivado muestra la tarjeta más pequeña, con la portada junto al título.</string>
     <string name="spotify_play_label">Reproducir</string>
     <string name="spotify_skip_label">Siguiente</string>
-    <string name="cfg_security_header">Seguridad</string>
     <string name="cfg_commands_label">Aceptar comandos de Home Assistant</string>
     <string name="cfg_commands_on">Aceptando comandos de Home Assistant</string>
     <string name="cfg_commands_off">Comandos bloqueados — solo telemetría</string>
@@ -347,6 +346,10 @@
     <string name="cfg_trusted_wifi_hint">Al conectarse a esta red, ADB permanece abierto indefinidamente y un WakeLock evita que la unidad se suspenda.</string>
     <string name="cfg_btn_use_current_wifi">Usar Wi-Fi actual</string>
     <string name="cfg_trusted_wifi_saved">Wi-Fi privilegiada guardada</string>
+    <string name="cfg_network_header">Wi-Fi y ADB</string>
+    <string name="cfg_wifi_keep_label">Mantener Wi-Fi encendido</string>
+    <string name="cfg_wifi_keep_on">La app vuelve a encender el Wi-Fi cuando se apaga. Necesario para MQTT, actualizaciones y Home Assistant.</string>
+    <string name="cfg_wifi_keep_off">La app no toca el Wi-Fi. Con el Wi-Fi apagado, MQTT y las actualizaciones se detienen.</string>
     <string name="cfg_btn_discovery">Descubrimiento MQTT</string>
     <string name="cfg_btn_save">Guardar</string>
     <string name="cfg_discovery_sending">Enviando descubrimiento MQTT…</string>

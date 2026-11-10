@@ -102,6 +102,8 @@ public final class TelemetrySystemSection extends LinearLayout {
         addView(infoCard);
 
         // ---- Software Update Card ----
+        NetworkSettingsBlock.addTo(activity, this);
+
         addView(Style.header(activity, activity.getString(R.string.cfg_update_header)));
         LinearLayout updateCard = new LinearLayout(activity);
         updateCard.setOrientation(LinearLayout.VERTICAL);

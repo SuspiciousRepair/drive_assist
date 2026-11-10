@@ -168,7 +168,6 @@
     <string name="cfg_spotify_large_card_hint">A capa do álbum preenche o cartão, com uma faixa grande de Play/Avançar embaixo. Desligado mostra o cartão menor, com a capa ao lado do título.</string>
     <string name="spotify_play_label">Tocar</string>
     <string name="spotify_skip_label">Avançar</string>
-    <string name="cfg_security_header">Segurança</string>
     <string name="cfg_commands_label">Aceitar comandos do HA</string>
     <string name="cfg_commands_on">Aceitando comandos do HA</string>
     <string name="cfg_commands_off">Comandos BLOQUEADOS — só envia telemetria</string>
@@ -182,6 +181,10 @@
     <string name="cfg_trusted_wifi_hint">Nesta rede, o ADB permanece aberto e um WakeLock impede o computador de bordo de suspender.</string>
     <string name="cfg_btn_use_current_wifi">Usar Wi-Fi Atual</string>
     <string name="cfg_trusted_wifi_saved">Wi-Fi Privilegiado salvo</string>
+    <string name="cfg_network_header">Wi-Fi e ADB</string>
+    <string name="cfg_wifi_keep_label">Manter Wi-Fi ligado</string>
+    <string name="cfg_wifi_keep_on">O app religa o Wi-Fi quando ele desliga. Necessário para MQTT, atualizações e Home Assistant.</string>
+    <string name="cfg_wifi_keep_off">O app não mexe no Wi-Fi. Com o Wi-Fi desligado, MQTT e atualizações param.</string>
     <string name="cfg_doors_header">Portas</string>
     <string name="cfg_window_on_door">Abrir um dedo o vidro quando a porta abre</string>
     <string name="cfg_window_on_door_hint">Baixa ~1 cm o vidro daquela porta para ela fechar sem brigar com a cabine selada, e devolve ao fechar. So fecha vidro que ele mesmo abriu, e nao mexe em vidro que voce moveu.</string>

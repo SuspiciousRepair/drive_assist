@@ -16,7 +16,6 @@ import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.car.Telemetry;
-import com.geely.drivemem.controls.AdbGate;
 import com.geely.drivemem.net.CertImporter;
 import com.geely.drivemem.net.MqttReporter;
 import com.geely.drivemem.services.TelemetryService;
@@ -28,7 +27,7 @@ import java.io.InputStream;
 import java.util.List;
 
 /** MQTT and TLS certificate configuration panel of the Config screen -- Home Assistant
- * broker settings, MQTT credentials, trusted Wi-Fi for ADB, certificate management,
+ * broker settings, MQTT credentials, certificate management,
  * and live testing controls. Includes the live log display and connection test buttons,
  * plus the full certificate import/management UI (client cert, CA cert, TLS tests).
  *
@@ -47,7 +46,7 @@ public final class TelemetryMqttSection extends LinearLayout {
     private LinearLayout mqttConfigContainer;
 
     // Configuration fields
-    private EditText fUri, fUser, fPass, fInterval, fTrustedSsid, fTlsTarget;
+    private EditText fUri, fUser, fPass, fInterval, fTlsTarget;
 
     // Certificate UI
     private TextView clientCertStatus, caCertStatus, tlsTestStatus;
@@ -217,49 +216,6 @@ public final class TelemetryMqttSection extends LinearLayout {
         left.addView(intervalRow);
 
         buildCertSection(left);
-
-        left.addView(Style.header(activity, activity.getString(R.string.cfg_security_header)));
-
-        final TextView adbHint = new TextView(activity);
-        adbHint.setTextColor(Style.TEXT_DIM);
-        adbHint.setTextSize(12);
-        adbHint.setPadding(0, 0, 0, Style.dp(activity, 4));
-        left.addView(Style.toggleRow(activity, activity.getString(R.string.cfg_adb_label),
-            AdbGate.isEnabled(activity), on -> {
-                if (!AdbGate.request(activity, on, AdbGate.DEFAULT_MINUTES)) {
-                    adbHint.setText(activity.getString(R.string.cfg_adb_no_helper));
-                    return;
-                }
-                adbHint.postDelayed(() -> adbHint.setText(activity.getString(
-                    AdbGate.isEnabled(activity)
-                        ? R.string.cfg_adb_on : R.string.cfg_adb_off,
-                    AdbGate.DEFAULT_MINUTES)), 900);
-            }));
-        adbHint.setText(activity.getString(AdbGate.isEnabled(activity)
-            ? R.string.cfg_adb_on : R.string.cfg_adb_off, AdbGate.DEFAULT_MINUTES));
-        left.addView(adbHint);
-
-        fTrustedSsid = Style.field(activity, left, activity.getString(R.string.cfg_trusted_wifi_label),
-            AdbGate.getTrustedWifi(activity), InputType.TYPE_CLASS_TEXT);
-
-        final TextView wifiHint = new TextView(activity);
-        wifiHint.setTextColor(Style.TEXT_DIM);
-        wifiHint.setTextSize(12);
-        wifiHint.setText(activity.getString(R.string.cfg_trusted_wifi_hint));
-        wifiHint.setPadding(0, 0, 0, Style.dp(activity, 4));
-        left.addView(wifiHint);
-
-        LinearLayout wifiBtnRow = new LinearLayout(activity);
-        wifiBtnRow.setOrientation(LinearLayout.HORIZONTAL);
-        wifiBtnRow.addView(Style.button(activity, activity.getString(R.string.cfg_btn_use_current_wifi), 0xFF3A5A7A, () -> {
-            String current = AdbGate.getCurrentSsid(activity);
-            if (!current.isEmpty()) {
-                fTrustedSsid.setText(current);
-                AdbGate.setTrustedWifi(activity, current);
-                Toast.makeText(activity, activity.getString(R.string.cfg_trusted_wifi_saved), Toast.LENGTH_SHORT).show();
-            }
-        }));
-        left.addView(wifiBtnRow);
 
         Style.gap(left, activity, 14);
         left.addView(Style.button(activity, activity.getString(R.string.cfg_btn_save_all), Style.ACCENT, () -> saveAll(true)));
@@ -790,11 +746,6 @@ public final class TelemetryMqttSection extends LinearLayout {
         if (fTlsTarget != null && fTlsTarget.getText() != null) {
             String val = fTlsTarget.getText().toString().trim();
             if (!val.isEmpty()) Prefs.setMqttTlsTestTarget(activity, val);
-        }
-
-        if (fTrustedSsid != null && fTrustedSsid.getText() != null) {
-            String val = fTrustedSsid.getText().toString().trim();
-            AdbGate.setTrustedWifi(activity, val);
         }
 
         Intent svc = new Intent(activity, TelemetryService.class);

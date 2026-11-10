@@ -180,7 +180,6 @@
     <string name="cfg_spotify_large_card_hint">Album art fills the card, with a big Play/Skip band underneath. Off shows the smaller card with the art beside the title.</string>
     <string name="spotify_play_label">Play</string>
     <string name="spotify_skip_label">Skip</string>
-    <string name="cfg_security_header">Security</string>
     <string name="cfg_commands_label">Accept commands from Home Assistant</string>
     <string name="cfg_commands_on">Accepting commands from Home Assistant</string>
     <string name="cfg_commands_off">Commands blocked — telemetry only</string>
@@ -194,6 +193,10 @@
     <string name="cfg_trusted_wifi_hint">Keeps ADB active and prevents screen timeout on this network.</string>
     <string name="cfg_btn_use_current_wifi">Use Current Wi-Fi</string>
     <string name="cfg_trusted_wifi_saved">Privileged Wi-Fi saved</string>
+    <string name="cfg_network_header">Wi-Fi &amp; ADB</string>
+    <string name="cfg_wifi_keep_label">Keep Wi-Fi on</string>
+    <string name="cfg_wifi_keep_on">The app turns Wi-Fi back on when it goes off. Needed for MQTT, updates and Home Assistant.</string>
+    <string name="cfg_wifi_keep_off">The app leaves Wi-Fi alone. While Wi-Fi is off, MQTT and updates stop.</string>
     <string name="cfg_doors_header">Doors</string>
     <string name="cfg_window_on_door">Crack the window when the door opens</string>
     <string name="cfg_window_on_door_hint">Lowers window slightly when door opens to ease closing, then raises it when shut.</string>

@@ -452,6 +452,7 @@ public class ModeHelperService extends Service {
     // value periodically to map the remaining states (plugged in / paused).
     // Aggressive Wi-Fi while parked: switches it back on if it drops.
     private void ensureWifiOn() {
+        if (!WifiKeepOnReceiver.enabled(getApplicationContext())) return;   // issue #14
         try {
             WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
             if (wm != null && !wm.isWifiEnabled()) {
