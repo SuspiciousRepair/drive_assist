@@ -39,66 +39,22 @@ public final class Prefs {
 
     // --- Restore at start (HelperSync.java, modehelper RestorePolicy) ---
     // Per setting: does modehelper write the saved value back to the car in the
-    // minute after it wakes? (issues #12, #13, #16). Decided once, on first
-    // read, then stored: an UPDATED install that had already saved a value was
-    // being enforced before this switch existed, so it stays ON; anything else
-    // starts OFF.
+    // minute after it wakes? (issues #12, #13, #16). ON until the user turns it
+    // off: Drive Assist owns the car's start state; the switch exists for a
+    // user whose other app (e.g. Sapo) restores the same setting.
     public static final String RESTORE_DRIVE = "restore_drive", RESTORE_REGEN = "restore_regen",
                                RESTORE_AEB = "restore_aeb", RESTORE_AVAS = "restore_avas";
-    /** The saved-value key each restore switch guards. */
-    public static String restoreValueKey(String restoreKey) {
-        switch (restoreKey) {
-            case RESTORE_DRIVE: return "drive";
-            case RESTORE_REGEN: return "regen";
-            case RESTORE_AEB:   return "aeb_on";
-            default:            return "avas_on";
-        }
-    }
-    public static boolean getRestore(Context ctx, String key) {
-        SharedPreferences f = file(ctx);
-        if (f.contains(key)) return f.getBoolean(key, false);
-        boolean def = defaultRestore(wasUpdated(ctx), f.contains(restoreValueKey(key)));
-        f.edit().putBoolean(key, def).apply();
-        return def;
-    }
+    public static boolean getRestore(Context ctx, String key) { return file(ctx).getBoolean(key, true); }
     public static void setRestore(Context ctx, String key, boolean v) { file(ctx).edit().putBoolean(key, v).apply(); }
-    /** Pure rule behind getRestore's one-time default. */
-    static boolean defaultRestore(boolean wasUpdated, boolean hasSavedValue) {
-        return wasUpdated && hasSavedValue;
-    }
-    public static boolean has(Context ctx, String key) { return file(ctx).contains(key); }
 
     // --- Keep Wi-Fi on (WifiKeep.java) ---
     // Whether Drive Assist and modehelper turn Wi-Fi back on when it is off.
-    // Default is decided ONCE, on first read, and then stored: an install that
-    // was UPDATED (it existed before this switch did) keeps today's behaviour,
-    // ON, so a car that relies on Wi-Fi for MQTT/OTA does not drop off the
-    // network after an update. A FRESH install starts OFF — the user's Wi-Fi
-    // is the user's (issue #14).
+    // ON until the user turns it off: this car does not rejoin Wi-Fi after it
+    // suspends, and MQTT, OTA and Home Assistant all need the network. A user
+    // who wants Wi-Fi off (issue #14) switches it off once.
     public static final String KEY_WIFI_KEEP_ON = "wifi_keep_on";
-    public static boolean getWifiKeepOn(Context ctx) {
-        SharedPreferences f = file(ctx);
-        if (f.contains(KEY_WIFI_KEEP_ON)) return f.getBoolean(KEY_WIFI_KEEP_ON, false);
-        boolean def = wasUpdated(ctx);
-        f.edit().putBoolean(KEY_WIFI_KEEP_ON, def).apply();
-        return def;
-    }
+    public static boolean getWifiKeepOn(Context ctx) { return file(ctx).getBoolean(KEY_WIFI_KEEP_ON, true); }
     public static void setWifiKeepOn(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_WIFI_KEEP_ON, v).apply(); }
-
-    /** True when this install replaced an earlier one (not a first install). */
-    static boolean wasUpdated(Context ctx) {
-        try {
-            android.content.pm.PackageInfo pi =
-                ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0);
-            return wasUpdated(pi.firstInstallTime, pi.lastUpdateTime);
-        } catch (Throwable t) { return true; }   // unknown: keep the old behaviour
-    }
-
-    /** Pure rule behind {@link #wasUpdated(Context)}: an install that was later
-     * replaced has a newer update time than its first-install time. */
-    static boolean wasUpdated(long firstInstallTime, long lastUpdateTime) {
-        return lastUpdateTime > firstInstallTime;
-    }
 
     // --- ADB gate (AdbGate.java) ---
     public static final String KEY_TRUSTED_SSID = "adb_trusted_ssid";

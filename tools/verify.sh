@@ -5,6 +5,19 @@ set -euo pipefail
 
 ./tools/check-active-locales.sh
 
+# modehelper's pure policy tests (plain main() runners; modehelper is not a
+# Gradle module). Only classes with no Android dependency are compiled here.
+MH_OUT="$(mktemp -d)"
+javac -d "$MH_OUT" \
+  modehelper/src/com/geely/modehelper/RestorePolicy.java \
+  modehelper/src/com/geely/modehelper/AvasPolicy.java \
+  modehelper/test/com/geely/modehelper/RestorePolicyTest.java \
+  modehelper/test/com/geely/modehelper/AvasPolicyTest.java
+java -cp "$MH_OUT" com.geely.modehelper.RestorePolicyTest
+java -cp "$MH_OUT" com.geely.modehelper.AvasPolicyTest
+rm -rf "$MH_OUT"   # not a trap: the exec below would skip it
+echo "modehelper policy tests: OK"
+
 exec ./gradlew \
   :drivemem:testDebugUnitTest \
   :drivemem:jacocoTestReport \

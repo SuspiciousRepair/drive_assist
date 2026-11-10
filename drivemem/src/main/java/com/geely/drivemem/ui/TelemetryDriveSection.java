@@ -217,20 +217,31 @@ public final class TelemetryDriveSection extends LinearLayout {
         refreshAvasFromCar();
         refreshAebFromCar();
 
-        // ---- Restore at start (issues #12, #16) ----
-        // Per setting: write the saved value back in the minute after the car
-        // wakes, then leave it alone. Off = the app never touches it.
-        left.addView(Style.header(activity, activity.getString(R.string.cfg_restore_header)));
+        // ---- Advanced: Restore at start (issues #12, #16) ----
+        // Drive Assist owns the car's start state, so these are ON and folded
+        // away: they exist for a user whose other app (e.g. Sapo) restores the
+        // same setting, so the two do not fight.
+        final LinearLayout advanced = new LinearLayout(activity);
+        advanced.setOrientation(LinearLayout.VERTICAL);
+        advanced.setVisibility(View.GONE);
+        final String advLabel = activity.getString(R.string.cfg_advanced);
+        final TextView advToggle = Style.header(activity, advLabel + "  \u25B8");
+        advToggle.setOnClickListener(v -> {
+            boolean show = advanced.getVisibility() != View.VISIBLE;
+            advanced.setVisibility(show ? View.VISIBLE : View.GONE);
+            advToggle.setText(advLabel + (show ? "  \u25BE" : "  \u25B8"));
+        });
+        advanced.addView(Style.header(activity, activity.getString(R.string.cfg_restore_header)));
         TextView restoreHint = new TextView(activity);
         restoreHint.setText(activity.getString(R.string.cfg_restore_hint));
         restoreHint.setTextColor(Style.TEXT_DIM);
         restoreHint.setTextSize(14);
         restoreHint.setPadding(0, 0, 0, Style.dp(activity, 6));
-        left.addView(restoreHint);
-        addRestoreRow(left, pageWidth, R.string.cfg_drive_header, Prefs.RESTORE_DRIVE);
-        addRestoreRow(left, pageWidth, R.string.cfg_regen_header, Prefs.RESTORE_REGEN);
-        addRestoreRow(left, pageWidth, R.string.cfg_aeb_label, Prefs.RESTORE_AEB);
-        addRestoreRow(left, pageWidth, R.string.cfg_avas_label, Prefs.RESTORE_AVAS);
+        advanced.addView(restoreHint);
+        addRestoreRow(advanced, pageWidth, R.string.cfg_drive_header, Prefs.RESTORE_DRIVE);
+        addRestoreRow(advanced, pageWidth, R.string.cfg_regen_header, Prefs.RESTORE_REGEN);
+        addRestoreRow(advanced, pageWidth, R.string.cfg_aeb_label, Prefs.RESTORE_AEB);
+        addRestoreRow(advanced, pageWidth, R.string.cfg_avas_label, Prefs.RESTORE_AVAS);
 
         left.addView(Style.header(activity, activity.getString(R.string.cfg_actions_header)));
         LinearLayout actionRow = new LinearLayout(activity);
@@ -238,6 +249,8 @@ public final class TelemetryDriveSection extends LinearLayout {
         actionRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
         actionRow.addView(Style.action(activity, activity.getString(R.string.cfg_btn_restore_defaults), Style.ACCENT, this::restoreDriveDefaults));
         left.addView(actionRow);
+        left.addView(advToggle);
+        left.addView(advanced);
 
         // No separate car cutout here any more -- the whole Config screen's
         // background is now the OEM day/night render (see Style.configScreenBg,
@@ -348,7 +361,7 @@ public final class TelemetryDriveSection extends LinearLayout {
     private void pickDrive(int v) {
         selDrive = v;
         Prefs.setDriveMode(activity, v);
-        notifyHelperDefault();
+        notifyHelperDefault("drive", v);
         if (TurboMode.get(activity).active()) TurboMode.get(activity).selectDriveMode(v);
         else CarActor.get(activity).cast("drive_mode", v);
         // Trusted as sent, not waited on — see CarActor's own comment for
@@ -361,7 +374,7 @@ public final class TelemetryDriveSection extends LinearLayout {
     private void pickRegen(int v) {
         selRegen = v;
         Prefs.setRegen(activity, v);
-        notifyHelperDefault();
+        notifyHelperDefault("regen", v);
         CarActor.get(activity).cast("regen_mode", v);
         liveRegen = v; regenKnown = true;
         highlight();
@@ -371,11 +384,13 @@ public final class TelemetryDriveSection extends LinearLayout {
     // Tells the system helper (com.geely.modehelper) about the new startup
     // default — it is the one that, running as uid system, re-applies it
     // when the car wakes (here, as a normal app, we do not survive suspend).
-    private void notifyHelperDefault() {
+    // Only the one just picked: sending both made a regen the user never
+    // chose into a saved value that "Restore at start" then enforced (review #10).
+    private void notifyHelperDefault(String key, int value) {
         try {
             android.content.Intent i = new android.content.Intent("com.geely.modehelper.SET_MODE");
             i.setPackage("com.geely.modehelper");
-            i.putExtra("drive", selDrive).putExtra("regen", selRegen);
+            i.putExtra(key, value);
             activity.sendBroadcast(i);
         } catch (Throwable ignored) {}
     }

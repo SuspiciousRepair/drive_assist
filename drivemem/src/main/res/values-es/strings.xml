@@ -128,11 +128,12 @@
     <string name="cfg_adas_header">Asistencia a la conducción</string>
     <string name="cfg_aeb_label">AEB (frenado automático de emergencia)</string>
     <string name="cfg_avas_label">AVAS (aviso acústico de peatones)</string>
+    <string name="cfg_advanced">Avanzado</string>
     <string name="cfg_restore_header">Restaurar al encender el auto</string>
-    <string name="cfg_restore_hint">Si está activado, la app vuelve a tu elección guardada en el primer minuto después de encender el auto. Después, los cambios hechos en el auto o en otra app se mantienen.</string>
+    <string name="cfg_restore_hint">Drive Assist vuelve a tu elección guardada en el primer minuto después de encender el auto. Después, los cambios hechos en el auto o en otra app se mantienen durante el viaje. Desactiva un ajuste que otra app ya restaura.</string>
     <string name="cfg_park_monitor_label">Vigilancia en estacionamiento</string>
     <string name="cfg_aeb_confirm_title">¿Desactivar el frenado automático de emergencia?</string>
-    <string name="cfg_aeb_confirm_body">Desactiva el frenado automático de emergencia. Se mantiene al reiniciar el vehículo.</string>
+    <string name="cfg_aeb_confirm_body">Desactiva el frenado automático de emergencia. Sigue desactivado tras reiniciar mientras Restaurar al encender el auto esté activado para AEB (Avanzado, abajo).</string>
     <string name="cfg_aeb_confirm_turn_off">Desactivar</string>
     <string name="cfg_btn_restore_defaults">Restaurar valores predeterminados</string>
     <string name="cfg_car_connect_fail">No se pudo conectar con el coche</string>

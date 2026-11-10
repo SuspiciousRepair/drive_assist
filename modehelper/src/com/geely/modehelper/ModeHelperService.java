@@ -45,6 +45,18 @@ public class ModeHelperService extends Service {
     private volatile long restoreUntil = android.os.SystemClock.elapsedRealtime() + RestorePolicy.WINDOW_MS;
     // A tap in Drive Assist's AEB/AVAS switch: write it once, now, whatever the window.
     private volatile boolean applyAebNow = false, applyAvasNow = false;
+    // Deep-sleep time at the last tick (elapsedRealtime - uptimeMillis), for the
+    // wake fallback when SUSPEND_EXIT is never delivered (review #3).
+    private long lastSleepMs = sleepMs();
+
+    private static long sleepMs() {
+        return android.os.SystemClock.elapsedRealtime() - android.os.SystemClock.uptimeMillis();
+    }
+
+    private void openRestoreWindow(String why) {
+        restoreUntil = android.os.SystemClock.elapsedRealtime() + RestorePolicy.WINDOW_MS;
+        Log.i(TAG, "restore window open (" + why + ")");
+    }
 
     @Override public int onStartCommand(Intent i, int flags, int startId) {
         startAsForeground();
@@ -111,18 +123,20 @@ public class ModeHelperService extends Service {
                                 e.putBoolean(k, on); log.append(' ').append(k).append('=').append(on);
                             }
                         }
-                        // A user tap (not a watchdog sync): apply this one value now.
-                        if (it.getBooleanExtra("apply_now", false)) {
-                            if (it.hasExtra("aeb"))  applyAebNow = true;
-                            if (it.hasExtra("avas")) applyAvasNow = true;
-                            log.append(" apply_now");
-                        }
                         if (it.hasExtra("dashcam_limit_gb")) {
                             int gb = it.getIntExtra("dashcam_limit_gb", DashRecorder.DEFAULT_BUDGET_GB);
                             e.putInt("dashcam_limit_gb", gb);
                             log.append(" dashcam_limit_gb=").append(gb);
                         }
                         e.apply();
+                        // A user tap (not a watchdog sync): write this one value now.
+                        // Raised only AFTER apply(), so the poll thread can never
+                        // consume the tap and read the previous value (review #7).
+                        if (it.getBooleanExtra("apply_now", false)) {
+                            if (it.hasExtra("aeb"))  applyAebNow = true;
+                            if (it.hasExtra("avas")) applyAvasNow = true;
+                            log.append(" apply_now");
+                        }
                         Log.i(TAG, log.toString());
                     }
                 }
@@ -205,11 +219,16 @@ public class ModeHelperService extends Service {
                     // is on. Outside it, a change made in the car or another app stays
                     // (issue #12). Drive/regen also need Park; AEB/AVAS do not, so the
                     // car re-arming AVAS just after wake is still beaten.
+                    long slept = sleepMs();
+                    if (RestorePolicy.sleptBetween(lastSleepMs, slept)) openRestoreWindow("slept");
+                    lastSleepMs = slept;
                     boolean window = RestorePolicy.inWindow(
                         android.os.SystemClock.elapsedRealtime(), restoreUntil);
-                    if (parked && window) enforceModeParked();
-                    if (window || applyAebNow)  { applyAebNow = false;  enforceAeb(!window); }
-                    if (window || applyAvasNow) { applyAvasNow = false; enforceAvasParked(!window); }
+                    if (parked) enforceModeParked(window);
+                    boolean tapAeb = applyAebNow, tapAvas = applyAvasNow;
+                    applyAebNow = false; applyAvasNow = false;
+                    enforceAeb(window, tapAeb);
+                    enforceAvasParked(window, tapAvas);
                 }
                 // AGGRESSIVE Wi-Fi while parked (~= at home, charging/paused): keep it
                 // on, switching it back on if it drops. While driving we do not force
@@ -267,7 +286,7 @@ public class ModeHelperService extends Service {
                     shuttingDown = false;
                 } else if (state == PowerWatch.SUSPEND_EXIT) {
                     // The car woke: restore saved settings for one window (RestorePolicy).
-                    restoreUntil = android.os.SystemClock.elapsedRealtime() + RestorePolicy.WINDOW_MS;
+                    openRestoreWindow("suspend exit");
                 }
             });
             Log.i(TAG, "power watch: " + (ok ? "registered" : "no power manager"));
@@ -348,34 +367,34 @@ public class ModeHelperService extends Service {
     // PARKED: read the mode and, if it differs from the default, correct it with ONE write.
     // Only a setting with a saved value AND "Restore at start" on is written —
     // no more forcing Eco/Mid on a car whose owner never picked anything.
-    private void enforceModeParked() {
+    private void enforceModeParked(boolean window) {
         SharedPreferences p = getSharedPreferences("modehelper", MODE_PRIVATE);
-        if (restoreOn(p, "restore_drive", "drive")) {
+        if (shouldWrite(p, "restore_drive", "drive", window, false)) {
             int drive = p.getInt("drive", CarMode.DRIVE_ECO);
             Integer cd = car.readDrive();
             if (cd != null && cd != drive) { car.writeDrive(drive); Log.i(TAG, "modo: drive " + cd + " -> " + drive); }
         }
-        if (restoreOn(p, "restore_regen", "regen")) {
+        if (shouldWrite(p, "restore_regen", "regen", window, false)) {
             int regen = p.getInt("regen", CarMode.REGEN_MID);
             Integer cr = car.readRegen();
             if (cr != null && cr != regen) { car.writeRegen(regen); Log.i(TAG, "modo: regen " + cr + " -> " + regen); }
         }
     }
 
-    /** "Restore at start" for one setting, and it has a saved value. */
-    private static boolean restoreOn(SharedPreferences p, String flagKey, String valueKey) {
-        return p.contains(valueKey)
-            && RestorePolicy.restoreOn(p.contains(flagKey), p.getBoolean(flagKey, false), true);
+    /** RestorePolicy.shouldWrite for one setting, from this app's stored values. */
+    private static boolean shouldWrite(SharedPreferences p, String flagKey, String valueKey,
+                                       boolean window, boolean tap) {
+        return RestorePolicy.shouldWrite(p.contains(valueKey),
+            RestorePolicy.restoreOn(p.contains(flagKey), p.getBoolean(flagKey, true)), window, tap);
     }
 
     // Same shape as enforceModeParked(), for AEB, but not Park-gated. Called only
     // in the post-wake window (RestorePolicy) or for a user tap. No preference
     // yet (no "aeb" extra ever sent) means "don't touch it", not "force it on".
-    // force = a user tap: write it even if "Restore at start" is off.
-    private void enforceAeb(boolean force) {
+    // tap = a user tap in Drive Assist: written even if "Restore at start" is off.
+    private void enforceAeb(boolean window, boolean tap) {
         SharedPreferences p = getSharedPreferences("modehelper", MODE_PRIVATE);
-        if (!p.contains("aeb")) return;
-        if (!force && !restoreOn(p, "restore_aeb", "aeb")) return;
+        if (!shouldWrite(p, "restore_aeb", "aeb", window, tap)) return;
         boolean want = p.getBoolean("aeb", true);
         Boolean have = car.readBoolProp(CarMode.AEB_PROP, CarMode.AEB_AREA);
         if (have != null && have != want) {
@@ -392,10 +411,9 @@ public class ModeHelperService extends Service {
     // post-wake window (opened on SUSPEND_EXIT), not applied once. After the
     // window a change made in the car stays (issue #12). Nothing is mirrored
     // back from the car. See AvasPolicy, RestorePolicy, plan/AVAS-MUTE-ROADMAP.md.
-    private void enforceAvasParked(boolean force) {
+    private void enforceAvasParked(boolean window, boolean tap) {
         SharedPreferences p = getSharedPreferences("modehelper", MODE_PRIVATE);
-        if (!p.contains("avas")) return;
-        if (!force && !restoreOn(p, "restore_avas", "avas")) return;
+        if (!shouldWrite(p, "restore_avas", "avas", window, tap)) return;
         Object cur = car.audioCall("getAVASMode");
         if (!(cur instanceof Integer)) return;
         int want = p.getInt("avas", 1);
