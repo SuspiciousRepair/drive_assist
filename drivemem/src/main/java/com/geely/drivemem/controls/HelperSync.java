@@ -8,13 +8,16 @@ import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.net.Updater;
 import com.geely.drivemem.util.Prefs;
 
-/** Sends the saved drive mode, regen, AEB and AVAS values and their
- * "Restore at start" switches to modehelper, which is the one that writes
- * them to the car after a wake (issues #12, #13, #16).
+/** Talks to modehelper, which writes saved settings to the car after a wake
+ * (issues #12, #13, #16).
  *
- * {@link #push} is a quiet sync — safe on every watchdog tick, it never makes
- * modehelper write anything. {@link #applyNow} is a user tap: modehelper
- * writes that one value at once, whatever the restore switch says. */
+ * {@link #push} syncs only the four "Restore at start" switches — safe on
+ * every watchdog tick. It deliberately does NOT send saved values: older
+ * versions copied the car's AVAS state into "avas_on" every time the Drive
+ * screen opened, so that key holds values nobody chose, and pushing it would
+ * start restoring them (review #2). Values reach modehelper only from a user
+ * action: a drive/regen pick, or {@link #applyNow} for an AEB/AVAS tap, which
+ * modehelper writes at once, whatever the restore switch says. */
 public final class HelperSync {
     static final String SET_MODE = "com.geely.modehelper.SET_MODE";
 
@@ -22,10 +25,6 @@ public final class HelperSync {
 
     public static void push(Context ctx) {
         Intent i = base();
-        if (Prefs.has(ctx, "drive"))   i.putExtra("drive", Prefs.getDriveMode(ctx, 0));
-        if (Prefs.has(ctx, "regen"))   i.putExtra("regen", Prefs.getRegen(ctx, 0));
-        if (Prefs.has(ctx, "aeb_on"))  i.putExtra("aeb", Prefs.getAebOn(ctx));
-        if (Prefs.has(ctx, "avas_on")) i.putExtra("avas", Prefs.getAvasOn(ctx) ? 1 : 0);
         for (String k : new String[]{Prefs.RESTORE_DRIVE, Prefs.RESTORE_REGEN,
                                      Prefs.RESTORE_AEB, Prefs.RESTORE_AVAS}) {
             i.putExtra(k, Prefs.getRestore(ctx, k));

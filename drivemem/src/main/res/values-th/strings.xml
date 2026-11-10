@@ -187,11 +187,12 @@
     <string name="cfg_adas_header">ระบบช่วยขับขี่</string>
     <string name="cfg_aeb_label">AEB (ระบบเบรกฉุกเฉินอัตโนมัติ)</string>
     <string name="cfg_aeb_confirm_title">ปิดระบบเบรกฉุกเฉินอัตโนมัติหรือไม่?</string>
-    <string name="cfg_aeb_confirm_body">การปิด AEB จะทำให้รถไม่เบรกเองโดยอัตโนมัติเมื่อตรวจพบความเสี่ยงชนด้านหน้า การตั้งค่านี้จะยังคงปิดอยู่แม้สตาร์ทรถใหม่ จนกว่าคุณจะเปิดใช้งานอีกครั้งที่นี่</string>
+    <string name="cfg_aeb_confirm_body">ปิดระบบเบรกฉุกเฉินอัตโนมัติ จะยังคงปิดอยู่หลังรีสตาร์ทตราบใดที่เปิด คืนค่าเมื่อสตาร์ทรถ สำหรับ AEB (ขั้นสูง ด้านล่าง)</string>
     <string name="cfg_aeb_confirm_turn_off">ปิดใช้งาน</string>
     <string name="cfg_avas_label">AVAS (เสียงเตือนคนเดินถนน)</string>
+    <string name="cfg_advanced">ขั้นสูง</string>
     <string name="cfg_restore_header">คืนค่าเมื่อสตาร์ทรถ</string>
-    <string name="cfg_restore_hint">เมื่อเปิดไว้ แอปจะคืนค่าที่บันทึกไว้ในนาทีแรกหลังสตาร์ทรถ หลังจากนั้นการเปลี่ยนแปลงในรถหรือในแอปอื่นจะคงอยู่</string>
+    <string name="cfg_restore_hint">Drive Assist จะคืนค่าที่บันทึกไว้ในนาทีแรกหลังสตาร์ทรถ หลังจากนั้นการเปลี่ยนแปลงในรถหรือในแอปอื่นจะคงอยู่ตลอดการเดินทาง ปิดการตั้งค่าที่แอปอื่นคืนค่าให้อยู่แล้ว</string>
     <string name="cfg_park_monitor_label">ระบบเฝ้าระวังขณะจอด</string>
 
     <string name="cfg_doors_header">ประตู</string>

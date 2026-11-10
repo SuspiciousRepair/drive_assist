@@ -7,28 +7,37 @@ public final class RestorePolicyTest {
     }
 
     public static void main(String[] args) {
-        long end = 100_000L;
-        // #12: outside the window nothing is written, whatever the switch says
-        check(!RestorePolicy.shouldEnforce(end, end, true, true),
-              "after the window a change made in the car must stay");
-        check(!RestorePolicy.shouldEnforce(end + 5_000, end, true, true),
-              "long after the window nothing is written");
-        // inside the window, only with the switch on AND a saved value
-        check(RestorePolicy.shouldEnforce(end - 1, end, true, true),
-              "inside the window a restored setting is written");
-        check(!RestorePolicy.shouldEnforce(0, end, false, true),
-              "switch off: never written, even right after wake");
-        check(!RestorePolicy.shouldEnforce(0, end, true, false),
-              "nothing saved: never written (no forced Eco/Mid)");
-        // switch defaults before Drive Assist pushes it
-        check(RestorePolicy.restoreOn(false, false, true),
-              "no flag yet + saved value: keep restoring (update keeps behaviour)");
-        check(!RestorePolicy.restoreOn(false, false, false),
-              "no flag yet + nothing saved: off");
-        check(!RestorePolicy.restoreOn(true, false, true),
-              "explicit off wins over a saved value");
-        check(RestorePolicy.restoreOn(true, true, false),
-              "explicit on is kept even before a value is saved");
+        // restore switch: ON by default, OFF only when the user says so
+        check(RestorePolicy.restoreOn(false, false), "no switch stored yet: restore is on");
+        check(!RestorePolicy.restoreOn(true, false), "switch turned off: restore is off");
+        check(RestorePolicy.restoreOn(true, true), "switch on: restore is on");
+
+        // window
+        check(RestorePolicy.inWindow(99, 100), "before the end: in window");
+        check(!RestorePolicy.inWindow(100, 100), "at the end: out of window");
+
+        // #12: after the window a change made in the car stays
+        check(!RestorePolicy.shouldWrite(true, true, false, false),
+              "restore on, window closed, no tap: do not write");
+        check(RestorePolicy.shouldWrite(true, true, true, false),
+              "restore on, in window: write the saved value");
+        // #16: restore off is never written by the window
+        check(!RestorePolicy.shouldWrite(true, false, true, false),
+              "restore off, in window: do not write");
+        // review finding 1: a tap is written even in the window with restore off
+        check(RestorePolicy.shouldWrite(true, false, true, true),
+              "tap in window with restore off: write");
+        check(RestorePolicy.shouldWrite(true, false, false, true),
+              "tap outside window: write");
+        // nothing saved: never (no forced Eco/Mid)
+        check(!RestorePolicy.shouldWrite(false, true, true, true),
+              "nothing saved: never write");
+
+        // review finding 3: wake fallback from deep-sleep time
+        check(RestorePolicy.sleptBetween(1_000, 1_000 + RestorePolicy.SLEEP_GAP_MS),
+              "a sleep of the gap length counts as a wake");
+        check(!RestorePolicy.sleptBetween(1_000, 1_200), "a few ms of jitter is not a wake");
+        check(!RestorePolicy.sleptBetween(5_000, 5_000), "no sleep: no wake");
         System.out.println("RestorePolicyTest: OK");
     }
 }
