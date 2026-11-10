@@ -40,6 +40,11 @@ public class ModeHelperService extends Service {
     private int lastGear = -999;
     private long lastLog = 0;
     private final ParkedMonitorPolicy parkedMonitorPolicy = new ParkedMonitorPolicy();
+    // Saved settings are written only until this time (SystemClock.elapsedRealtime);
+    // opened at service start and on every wake. See RestorePolicy.
+    private volatile long restoreUntil = android.os.SystemClock.elapsedRealtime() + RestorePolicy.WINDOW_MS;
+    // A tap in Drive Assist's AEB/AVAS switch: write it once, now, whatever the window.
+    private volatile boolean applyAebNow = false, applyAvasNow = false;
 
     @Override public int onStartCommand(Intent i, int flags, int startId) {
         startAsForeground();
@@ -99,6 +104,18 @@ public class ModeHelperService extends Service {
                             boolean enabled = it.getBooleanExtra("parked_monitoring", false);
                             e.putBoolean("parked_monitoring", enabled);
                             log.append(" parked_monitoring=").append(enabled);
+                        }
+                        for (String k : new String[]{"restore_drive", "restore_regen", "restore_aeb", "restore_avas"}) {
+                            if (it.hasExtra(k)) {
+                                boolean on = it.getBooleanExtra(k, false);
+                                e.putBoolean(k, on); log.append(' ').append(k).append('=').append(on);
+                            }
+                        }
+                        // A user tap (not a watchdog sync): apply this one value now.
+                        if (it.getBooleanExtra("apply_now", false)) {
+                            if (it.hasExtra("aeb"))  applyAebNow = true;
+                            if (it.hasExtra("avas")) applyAvasNow = true;
+                            log.append(" apply_now");
                         }
                         if (it.hasExtra("dashcam_limit_gb")) {
                             int gb = it.getIntExtra("dashcam_limit_gb", DashRecorder.DEFAULT_BUDGET_GB);
@@ -183,18 +200,16 @@ public class ModeHelperService extends Service {
                 if (g != null) {
                     if (g != lastGear) Log.i(TAG, "gear " + lastGear + " -> " + g);
                     lastGear = g;
-                    if (parked) {
-                        enforceModeParked();  // hold the saved default while parked
-                    }
-                    // AEB and AVAS are NOT parked-gated, unlike drive/regen mode above:
-                    // by owner's explicit choice, both apply in any condition, driving
-                    // or parked — see plan/ADAS-CONTROLS-ROADMAP.md and
-                    // plan/AVAS-MUTE-ROADMAP.md. Drive/regen mode stays parked-gated on
-                    // purpose, for a different reason: it respects whatever the driver
-                    // picks live during a drive, only reasserting the saved default
-                    // once parked.
-                    enforceAeb();
-                    enforceAvasParked();
+                    // Saved settings are restored only in the window after a wake
+                    // (RestorePolicy), and only those whose "Restore at start" switch
+                    // is on. Outside it, a change made in the car or another app stays
+                    // (issue #12). Drive/regen also need Park; AEB/AVAS do not, so the
+                    // car re-arming AVAS just after wake is still beaten.
+                    boolean window = RestorePolicy.inWindow(
+                        android.os.SystemClock.elapsedRealtime(), restoreUntil);
+                    if (parked && window) enforceModeParked();
+                    if (window || applyAebNow)  { applyAebNow = false;  enforceAeb(!window); }
+                    if (window || applyAvasNow) { applyAvasNow = false; enforceAvasParked(!window); }
                 }
                 // AGGRESSIVE Wi-Fi while parked (~= at home, charging/paused): keep it
                 // on, switching it back on if it drops. While driving we do not force
@@ -250,6 +265,9 @@ public class ModeHelperService extends Service {
                     stopForShutdown("car shutdown");
                 } else if (state == PowerWatch.SHUTDOWN_CANCELLED) {
                     shuttingDown = false;
+                } else if (state == PowerWatch.SUSPEND_EXIT) {
+                    // The car woke: restore saved settings for one window (RestorePolicy).
+                    restoreUntil = android.os.SystemClock.elapsedRealtime() + RestorePolicy.WINDOW_MS;
                 }
             });
             Log.i(TAG, "power watch: " + (ok ? "registered" : "no power manager"));
@@ -328,22 +346,36 @@ public class ModeHelperService extends Service {
     }
 
     // PARKED: read the mode and, if it differs from the default, correct it with ONE write.
+    // Only a setting with a saved value AND "Restore at start" on is written —
+    // no more forcing Eco/Mid on a car whose owner never picked anything.
     private void enforceModeParked() {
         SharedPreferences p = getSharedPreferences("modehelper", MODE_PRIVATE);
-        int drive = p.getInt("drive", CarMode.DRIVE_ECO);
-        int regen = p.getInt("regen", CarMode.REGEN_MID);
-        Integer cd = car.readDrive(), cr = car.readRegen();
-        if (cd != null && cd != drive) { car.writeDrive(drive); Log.i(TAG, "modo: drive " + cd + " -> " + drive); }
-        if (cr != null && cr != regen) { car.writeRegen(regen); Log.i(TAG, "modo: regen " + cr + " -> " + regen); }
+        if (restoreOn(p, "restore_drive", "drive")) {
+            int drive = p.getInt("drive", CarMode.DRIVE_ECO);
+            Integer cd = car.readDrive();
+            if (cd != null && cd != drive) { car.writeDrive(drive); Log.i(TAG, "modo: drive " + cd + " -> " + drive); }
+        }
+        if (restoreOn(p, "restore_regen", "regen")) {
+            int regen = p.getInt("regen", CarMode.REGEN_MID);
+            Integer cr = car.readRegen();
+            if (cr != null && cr != regen) { car.writeRegen(regen); Log.i(TAG, "modo: regen " + cr + " -> " + regen); }
+        }
     }
 
-    // Same shape as enforceModeParked(), for AEB — but runs every tick regardless
-    // of parked state (owner's explicit choice: applies in any condition). Only
-    // acts once drivemem has actually sent a preference (SET_MODE with an "aeb"
-    // extra) — no preference yet means "don't touch it", not "force it on".
-    private void enforceAeb() {
+    /** "Restore at start" for one setting, and it has a saved value. */
+    private static boolean restoreOn(SharedPreferences p, String flagKey, String valueKey) {
+        return p.contains(valueKey)
+            && RestorePolicy.restoreOn(p.contains(flagKey), p.getBoolean(flagKey, false), true);
+    }
+
+    // Same shape as enforceModeParked(), for AEB, but not Park-gated. Called only
+    // in the post-wake window (RestorePolicy) or for a user tap. No preference
+    // yet (no "aeb" extra ever sent) means "don't touch it", not "force it on".
+    // force = a user tap: write it even if "Restore at start" is off.
+    private void enforceAeb(boolean force) {
         SharedPreferences p = getSharedPreferences("modehelper", MODE_PRIVATE);
         if (!p.contains("aeb")) return;
+        if (!force && !restoreOn(p, "restore_aeb", "aeb")) return;
         boolean want = p.getBoolean("aeb", true);
         Boolean have = car.readBoolProp(CarMode.AEB_PROP, CarMode.AEB_AREA);
         if (have != null && have != want) {
@@ -355,14 +387,15 @@ public class ModeHelperService extends Service {
     // AVAS mute. 0 = muted, >=1 = active mode (see AvasMuteTestReceiver). Same
     // "no preference yet, don't touch it" rule as enforceAeb().
     //
-    // Like AEB, the saved choice is held every tick: the car re-arms AVAS on
-    // wake/power-on, and the head unit suspends instead of restarting this
-    // process, so an apply-once-per-process rule never ran again. Nothing is
-    // mirrored back from the car; only the Drive Assist toggle changes the
-    // saved value. See AvasPolicy and plan/AVAS-MUTE-ROADMAP.md.
-    private void enforceAvasParked() {
+    // The car re-arms AVAS on wake/power-on, and the head unit suspends instead
+    // of restarting this process — so the saved choice is held for the whole
+    // post-wake window (opened on SUSPEND_EXIT), not applied once. After the
+    // window a change made in the car stays (issue #12). Nothing is mirrored
+    // back from the car. See AvasPolicy, RestorePolicy, plan/AVAS-MUTE-ROADMAP.md.
+    private void enforceAvasParked(boolean force) {
         SharedPreferences p = getSharedPreferences("modehelper", MODE_PRIVATE);
         if (!p.contains("avas")) return;
+        if (!force && !restoreOn(p, "restore_avas", "avas")) return;
         Object cur = car.audioCall("getAVASMode");
         if (!(cur instanceof Integer)) return;
         int want = p.getInt("avas", 1);
