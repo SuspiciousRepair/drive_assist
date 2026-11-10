@@ -235,6 +235,8 @@
     <string name="cfg_adas_header">Driver assistance</string>
     <string name="cfg_aeb_label">AEB (automatic emergency braking)</string>
     <string name="cfg_avas_label">AVAS (pedestrian warning sound)</string>
+    <string name="cfg_restore_header">Restore at car start</string>
+    <string name="cfg_restore_hint">When on, the app puts your saved choice back during the first minute after the car starts. After that, changes made in the car or in another app stay.</string>
     <string name="cfg_park_monitor_label">Park monitoring</string>
     <string name="cfg_aeb_confirm_title">Turn off automatic emergency braking?</string>
     <string name="cfg_aeb_confirm_body">Disables automatic emergency braking. Persists across vehicle restarts.</string>

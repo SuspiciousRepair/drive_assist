@@ -17,6 +17,7 @@ import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.controls.GeelySwitch;
+import com.geely.drivemem.controls.HelperSync;
 import com.geely.drivemem.controls.TurboMode;
 import com.geely.drivemem.util.Modes;
 import com.geely.drivemem.util.Prefs;
@@ -49,6 +50,7 @@ public final class TelemetryDriveSection extends LinearLayout {
     private final TextView status;
     private final EditText fTurbo;
     private final GeelySwitch avasSwitch;
+    private final GeelySwitch aebSwitch;
 
     // Drive/Regen mode cards, indexed by mode value (e.g., Modes.DRIVE_ECO).
     private final Map<Integer, LinearLayout> driveCards = new HashMap<>();
@@ -176,6 +178,7 @@ public final class TelemetryDriveSection extends LinearLayout {
         // silently on cancel/not-parked without rebuilding the whole screen.
         LinearLayout aebRow = Style.toggleRow(activity, activity.getString(R.string.cfg_aeb_label), Prefs.getAebOn(activity), null);
         GeelySwitch aebSwitch = (GeelySwitch) aebRow.getChildAt(0);
+        this.aebSwitch = aebSwitch;
         aebSwitch.setOnToggle(on -> {
             if (!on) {
                 // No Park requirement, by design: applies in any condition,
@@ -183,16 +186,13 @@ public final class TelemetryDriveSection extends LinearLayout {
                 new android.app.AlertDialog.Builder(activity)
                     .setTitle(activity.getString(R.string.cfg_aeb_confirm_title))
                     .setMessage(activity.getString(R.string.cfg_aeb_confirm_body))
-                    .setPositiveButton(activity.getString(R.string.cfg_aeb_confirm_turn_off), (d, w) -> {
-                        Prefs.setAebOn(activity, false);
-                        sendAdasPreference("aeb", false);
-                    })
+                    .setPositiveButton(activity.getString(R.string.cfg_aeb_confirm_turn_off), (d, w) ->
+                        HelperSync.applyNow(activity, "aeb", false))
                     .setNegativeButton(android.R.string.cancel, (d, w) -> aebSwitch.setCheckedSilently(true))
                     .setOnCancelListener(d -> aebSwitch.setCheckedSilently(true))
                     .show();
             } else {
-                Prefs.setAebOn(activity, true);
-                sendAdasPreference("aeb", true);
+                HelperSync.applyNow(activity, "aeb", true);
             }
         });
         aebRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -211,13 +211,26 @@ public final class TelemetryDriveSection extends LinearLayout {
         // directly on every screen entry is what keeps this switch honest.
         LinearLayout avasRow = Style.toggleRow(activity, activity.getString(R.string.cfg_avas_label), Prefs.getAvasOn(activity), null);
         avasSwitch = (GeelySwitch) avasRow.getChildAt(0);
-        avasSwitch.setOnToggle(on -> {
-            Prefs.setAvasOn(activity, on);
-            sendAdasPreference("avas", on);
-        });
+        avasSwitch.setOnToggle(on -> HelperSync.applyNow(activity, "avas", on));
         avasRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
         left.addView(avasRow);
         refreshAvasFromCar();
+        refreshAebFromCar();
+
+        // ---- Restore at start (issues #12, #16) ----
+        // Per setting: write the saved value back in the minute after the car
+        // wakes, then leave it alone. Off = the app never touches it.
+        left.addView(Style.header(activity, activity.getString(R.string.cfg_restore_header)));
+        TextView restoreHint = new TextView(activity);
+        restoreHint.setText(activity.getString(R.string.cfg_restore_hint));
+        restoreHint.setTextColor(Style.TEXT_DIM);
+        restoreHint.setTextSize(14);
+        restoreHint.setPadding(0, 0, 0, Style.dp(activity, 6));
+        left.addView(restoreHint);
+        addRestoreRow(left, pageWidth, R.string.cfg_drive_header, Prefs.RESTORE_DRIVE);
+        addRestoreRow(left, pageWidth, R.string.cfg_regen_header, Prefs.RESTORE_REGEN);
+        addRestoreRow(left, pageWidth, R.string.cfg_aeb_label, Prefs.RESTORE_AEB);
+        addRestoreRow(left, pageWidth, R.string.cfg_avas_label, Prefs.RESTORE_AVAS);
 
         left.addView(Style.header(activity, activity.getString(R.string.cfg_actions_header)));
         LinearLayout actionRow = new LinearLayout(activity);
@@ -376,22 +389,14 @@ public final class TelemetryDriveSection extends LinearLayout {
         status.setText(activity.getString(R.string.cfg_restored_defaults));
     }
 
-    // Same SET_MODE broadcast notifyHelperDefault() sends for drive/regen,
-    // but for one AEB/AVAS preference at a time — modehelper's receiver treats each
-    // extra as independent and optional, so this never touches the other
-    // three. Drive Assist cannot write either property itself (confirmed for
-    // AVAS, expected for AEB — see plan/ADAS-CONTROLS-ROADMAP.md); this only
-    // updates the preference modehelper's own poll loop enforces while
-    // parked, so the actual car write lands within a few seconds, not
-    // instantly.
-    private void sendAdasPreference(String key, boolean on) {
-        try {
-            android.content.Intent i = new android.content.Intent("com.geely.modehelper.SET_MODE");
-            i.setPackage("com.geely.modehelper");
-            if ("avas".equals(key)) i.putExtra("avas", on ? 1 : 0);
-            else i.putExtra(key, on);
-            activity.sendBroadcast(i);
-        } catch (Throwable ignored) {}
+    private void addRestoreRow(LinearLayout parent, int width, int labelRes, String key) {
+        LinearLayout row = Style.toggleRow(activity, activity.getString(labelRes),
+            Prefs.getRestore(activity, key), on -> {
+                Prefs.setRestore(activity, key, on);
+                HelperSync.push(activity);
+            });
+        row.setLayoutParams(new LinearLayout.LayoutParams(width, ViewGroup.LayoutParams.WRAP_CONTENT));
+        parent.addView(row);
     }
 
     // A fresh read (CarActor.read -> CarDataHub), not a cache lookup — this
@@ -448,10 +453,21 @@ public final class TelemetryDriveSection extends LinearLayout {
             Object mode = c.audioCall("getAVASMode");
             if (!(mode instanceof Integer)) return;
             boolean on = ((Integer) mode) != 0;
-            ui.post(() -> {
-                Prefs.setAvasOn(activity, on);
-                avasSwitch.setCheckedSilently(on);
-            });
+            // Display only: the saved value is the user's choice for "Restore
+            // at start", and the car's current state is not a choice (#13).
+            ui.post(() -> avasSwitch.setCheckedSilently(on));
+        });
+    }
+
+    // Same idea for AEB: show what the car has now, not what was saved (#13).
+    public void refreshAebFromCar() {
+        if (aebSwitch == null) return;
+        CarActor.get(activity).runOnCarThread(() -> {
+            CarAccess c = CarActor.get(activity).rawAccess();
+            if (!c.isReady() && !c.connect(activity.getApplicationContext())) return;
+            Boolean on = c.readBool(CarAccess.AEB_PROP, 0);
+            if (on == null) return;
+            ui.post(() -> aebSwitch.setCheckedSilently(on));
         });
     }
 }

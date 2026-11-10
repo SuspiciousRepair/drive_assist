@@ -359,6 +359,9 @@ public class CarAccess {
     }
 
     // ADAPTED boolean read (the raw value can be 2 = false; only the boolean is trustworthy)
+    /** AEB on/off (same property modehelper writes; see its CarMode.AEB_PROP). */
+    public static final int AEB_PROP = 557858874;
+
     public Boolean readBool(int prop, int area) {
         try { return cpm.getBooleanProperty(prop, area); }
         catch (Throwable t) { return null; }
