@@ -37,6 +37,38 @@ public final class Prefs {
     public static boolean getParkedMonitoring(Context ctx) { return file(ctx).getBoolean("parked_monitoring", false); }
     public static void setParkedMonitoring(Context ctx, boolean v) { file(ctx).edit().putBoolean("parked_monitoring", v).apply(); }
 
+    // --- Keep Wi-Fi on (WifiKeep.java) ---
+    // Whether Drive Assist and modehelper turn Wi-Fi back on when it is off.
+    // Default is decided ONCE, on first read, and then stored: an install that
+    // was UPDATED (it existed before this switch did) keeps today's behaviour,
+    // ON, so a car that relies on Wi-Fi for MQTT/OTA does not drop off the
+    // network after an update. A FRESH install starts OFF — the user's Wi-Fi
+    // is the user's (issue #14).
+    public static final String KEY_WIFI_KEEP_ON = "wifi_keep_on";
+    public static boolean getWifiKeepOn(Context ctx) {
+        SharedPreferences f = file(ctx);
+        if (f.contains(KEY_WIFI_KEEP_ON)) return f.getBoolean(KEY_WIFI_KEEP_ON, false);
+        boolean def = wasUpdated(ctx);
+        f.edit().putBoolean(KEY_WIFI_KEEP_ON, def).apply();
+        return def;
+    }
+    public static void setWifiKeepOn(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_WIFI_KEEP_ON, v).apply(); }
+
+    /** True when this install replaced an earlier one (not a first install). */
+    static boolean wasUpdated(Context ctx) {
+        try {
+            android.content.pm.PackageInfo pi =
+                ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0);
+            return wasUpdated(pi.firstInstallTime, pi.lastUpdateTime);
+        } catch (Throwable t) { return true; }   // unknown: keep the old behaviour
+    }
+
+    /** Pure rule behind {@link #wasUpdated(Context)}: an install that was later
+     * replaced has a newer update time than its first-install time. */
+    static boolean wasUpdated(long firstInstallTime, long lastUpdateTime) {
+        return lastUpdateTime > firstInstallTime;
+    }
+
     // --- ADB gate (AdbGate.java) ---
     public static final String KEY_TRUSTED_SSID = "adb_trusted_ssid";
     public static final String KEY_HOME_GW = "adb_home_gw";

@@ -128,13 +128,8 @@ public class BootReceiver extends BroadcastReceiver {
         scheduleWatchdog(ctx);
 
         // turns the Wi-Fi back on (the car does not reconnect by itself after shutdown)
-        try {
-            android.net.wifi.WifiManager wm = (android.net.wifi.WifiManager)
-                ctx.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-            if (wm != null && !wm.isWifiEnabled()) {
-                Log.i(CarAccess.TAG, "boot: turning Wi-Fi on -> " + wm.setWifiEnabled(true));
-            }
-        } catch (Throwable t) { Log.w(CarAccess.TAG, "boot wifi failed: " + t); }
+        // — only if the user's "Keep Wi-Fi on" switch allows it (issue #14)
+        com.geely.drivemem.controls.WifiKeep.ensure(ctx, "boot");
 
         // telemetry: restarted on boot if enabled (foreground service, allowed)
         try {
@@ -211,13 +206,8 @@ public class BootReceiver extends BroadcastReceiver {
     // service's beat is old, we stop it and start it again, so that the broken
     // instance (stuck thread, dead MQTT client) is really thrown away.
     public static void ensureAll(Context ctx) {
-        try {
-            android.net.wifi.WifiManager wm = (android.net.wifi.WifiManager)
-                ctx.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-            if (wm != null && !wm.isWifiEnabled()) {
-                Log.i(CarAccess.TAG, "watchdog: turning Wi-Fi back on -> " + wm.setWifiEnabled(true));
-            }
-        } catch (Throwable ignored) {}
+        com.geely.drivemem.controls.WifiKeep.ensure(ctx, "watchdog");
+        com.geely.drivemem.controls.WifiKeep.syncHelper(ctx);
 
         ensureService(ctx, Prefs.getOutTempOn(ctx),
             OutTempService.class, Beat.OUTTEMP, STALE_OUTTEMP_MS);

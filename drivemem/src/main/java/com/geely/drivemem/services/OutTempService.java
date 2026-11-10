@@ -48,13 +48,7 @@ public class OutTempService extends Service {
     // and itself — back on when the head unit WAKES (the car suspends, it does not boot).
     private final android.content.BroadcastReceiver wakeRx = new android.content.BroadcastReceiver() {
         @Override public void onReceive(android.content.Context c, Intent it) {
-            try {
-                android.net.wifi.WifiManager wm = (android.net.wifi.WifiManager)
-                    c.getApplicationContext().getSystemService(WIFI_SERVICE);
-                if (wm != null && !wm.isWifiEnabled()) {
-                    Log.i(TAG, "wake: turning Wi-Fi back on -> " + wm.setWifiEnabled(true));
-                }
-            } catch (Throwable t) { Log.w(TAG, "wake wifi: " + t); }
+            com.geely.drivemem.controls.WifiKeep.ensure(c, "wake");
             // re-assert the status bar icon (SystemUI may have cleared it
             // during sleep) — from the last known reading, not a fresh car
             // read: CarActor's own poll is already keeping it current.

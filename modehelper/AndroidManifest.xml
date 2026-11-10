@@ -131,11 +131,13 @@
                 <action android:name="com.geely.modehelper.SET_TRUSTED_WIFI" />
             </intent-filter>
         </receiver>
-        <!-- Not exported: only its own self-rescheduled alarm sends this. See
-             WifiKeepOnReceiver's own header — keeps WiFi enabled. -->
-        <receiver android:name=".WifiKeepOnReceiver" android:exported="false">
+        <!-- Keeps WiFi enabled while Drive Assist's "Keep Wi-Fi on" switch is ON.
+             Exported for SET_WIFI_KEEPON, which Drive Assist sends; the worst
+             any other sender can do is switch the keep-on off or on. -->
+        <receiver android:name=".WifiKeepOnReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="com.geely.modehelper.WIFI_KEEPON_CHECK" />
+                <action android:name="com.geely.modehelper.SET_WIFI_KEEPON" />
             </intent-filter>
         </receiver>
         <!-- Command-line pairing, driven by adb: pass addr (and optionally pin)
