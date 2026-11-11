@@ -39,6 +39,12 @@ import android.app.Application;
 public final class DriveMemApplication extends Application {
     @Override public void onCreate() {
         super.onCreate();
+        // ClipRecoveryService runs in its own ":cliprecovery" process (MediaMuxer
+        // can abort native code). Android runs this onCreate there too, and
+        // without this guard that process started a SECOND CarActor, trip and
+        // charge state machines, sampler, ABRP and OBD2 reader — double rows in
+        // car.db and two readers fighting for the dongle. Recovery needs none of it.
+        if (!isMainProcess(Application.getProcessName(), getPackageName())) return;
         AppForeground.ensureTracking(this);
 
         ComfortHub.get(this);
@@ -56,5 +62,11 @@ public final class DriveMemApplication extends Application {
         Obd2Reader.ensureStarted(this);   // no-ops unless obd2_enabled is set
         AbrpUploader.ensureSubscribed(this);
         CarplayState.ensureSubscribed(this);
+    }
+
+    /** True for the app's main process (no ":suffix"). An unknown name counts
+     * as main, so a failed lookup never switches the app off. */
+    static boolean isMainProcess(String processName, String packageName) {
+        return processName == null || processName.equals(packageName);
     }
 }
