@@ -451,8 +451,12 @@ public final class CarActor {
 
     // Change-detection deadband: exact match for discrete properties or
     // pre-quantized floats; 0.05 for raw unrounded values (sensor jitter).
-    private static double epsilonFor(String key) {
-        Integer round = Telemetry.roundFor(key);
+    // Cache keys are "telemetry.speed", FIELDS keys are "speed": strip the
+    // prefix, or no field ever matched and raw floats (speed jitter) published
+    // on every tick (review finding 12).
+    static double epsilonFor(String key) {
+        String field = key.startsWith("telemetry.") ? key.substring("telemetry.".length()) : key;
+        Integer round = Telemetry.roundFor(field);
         return (round == null || round >= 0) ? 0 : 0.05;
     }
 

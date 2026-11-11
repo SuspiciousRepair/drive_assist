@@ -92,6 +92,10 @@ public class Telemetry {
                 try {
                     if (f.type == 'f') {
                         float val = Float.parseFloat(v) / f.div;
+                        // The unrounded SoC, which the no-OBD2 energy estimate
+                        // and TripSession read; nothing wrote it before, so that
+                        // estimate never ran (review finding 4).
+                        if ("battery".equals(f.key)) out.put("battery_raw_pct", val);
                         if (f.round == 0) {
                             out.put(f.key, Math.round(val));            // publish as integer
                         } else if (f.round > 0) {
