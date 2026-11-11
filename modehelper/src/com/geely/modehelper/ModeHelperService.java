@@ -42,6 +42,8 @@ public class ModeHelperService extends Service {
     private final ParkedMonitorPolicy parkedMonitorPolicy = new ParkedMonitorPolicy();
     // Saved settings are written only until this time (SystemClock.elapsedRealtime);
     // opened at service start and on every wake. See RestorePolicy.
+    private static final long BEAT_WRITE_GAP_MS = 15_000L;
+    private long lastBeatWriteMs = 0;
     private volatile long restoreUntil = android.os.SystemClock.elapsedRealtime() + RestorePolicy.WINDOW_MS;
     // A tap in Drive Assist's AEB/AVAS switch: write it once, now, whatever the window.
     private volatile boolean applyAebNow = false, applyAvasNow = false;
@@ -243,8 +245,16 @@ public class ModeHelperService extends Service {
             // actually running instead of just assuming a START_STICKY restart happened.
             // Marked even if the try block above threw, so a stuck car connection
             // doesn't also look like a dead poll loop.
-            getSharedPreferences("modehelper", MODE_PRIVATE).edit()
-                .putLong("beat_poll", System.currentTimeMillis()).apply();
+            // Written at most every BEAT_WRITE_GAP_MS, not every 4 s tick: each
+            // write rewrites the prefs file on flash (performance review
+            // finding 3). The watchdog's limit (STALE_POLL_MS) is 60 s.
+            long beatNow = System.currentTimeMillis();
+            if (lastBeatWriteMs == 0 || beatNow < lastBeatWriteMs
+                    || beatNow - lastBeatWriteMs >= BEAT_WRITE_GAP_MS) {
+                getSharedPreferences("modehelper", MODE_PRIVATE).edit()
+                    .putLong("beat_poll", beatNow).apply();
+                lastBeatWriteMs = beatNow;
+            }
             try { Thread.sleep(4000); } catch (InterruptedException e) { break; }
         }
     }

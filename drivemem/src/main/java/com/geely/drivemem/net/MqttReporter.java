@@ -227,6 +227,7 @@ public class MqttReporter {
     // ---- from here down: ONLY the actor thread touches this ---------------
     private MqttAsyncClient client;
     private boolean discoverySent = false;
+    private final PubDedupe dedupe = new PubDedupe();
     private boolean trackerDiscovered = false;
     private int publishFails = 0;
     private int lastBright = 0;
@@ -403,7 +404,7 @@ public class MqttReporter {
             if (!ok) {
                 detail = "Falha ao conectar ao broker";
             } else {
-                discoverySent = false;
+                discoverySent = false; dedupe.clear();
                 trackerDiscovered = false;
                 sendDiscovery();
                 detail = "OK — descoberta MQTT enviada";
@@ -519,7 +520,7 @@ public class MqttReporter {
         }
         if (client != null) {
             dropClient();
-            discoverySent = false; trackerDiscovered = false;
+            discoverySent = false; dedupe.clear(); trackerDiscovered = false;
             everConnected = false;
         }
         disconnectedSince = 0; publishFails = 0;
@@ -572,7 +573,7 @@ public class MqttReporter {
                         // this pub.
                         h.post(() -> {
                             disconnectedSince = 0; publishFails = 0;
-                            discoverySent = false; trackerDiscovered = false;
+                            discoverySent = false; dedupe.clear(); trackerDiscovered = false;
                             pub(AVAIL_TOPIC, "online", true);
                             GateState.setConnected(true);
                             subscribeCommands();
@@ -650,7 +651,7 @@ public class MqttReporter {
         if (client != lostClient || lostClient.isConnected()) return;
         Log.i(TAG, "MQTT still offline after drop — trying the complete address list");
         dropClient();
-        discoverySent = false; trackerDiscovered = false;
+        discoverySent = false; dedupe.clear(); trackerDiscovered = false;
         everConnected = false;
         disconnectedSince = 0; publishFails = 0;
         connect();
@@ -919,8 +920,8 @@ public class MqttReporter {
         if (pm == null) return;
         boolean on = pm != 0;
         if (on) parkDurCode = pm & 0xFF;   // sync with the real duration
-        pub(PARK_STATE_TOPIC, on ? "ON" : "OFF", true);
-        pub(PARK_TIMER_STATE_TOPIC, Telemetry.parkTimerLabel(CarAccess.PARK_ON_BASE | parkDurCode), true);
+        pubIfChanged(PARK_STATE_TOPIC, on ? "ON" : "OFF", true);
+        pubIfChanged(PARK_TIMER_STATE_TOPIC, Telemetry.parkTimerLabel(CarAccess.PARK_ON_BASE | parkDurCode), true);
     }
 
     // auto-update triggered by HA: downloads the apk (payload = URL, or
@@ -967,7 +968,7 @@ public class MqttReporter {
     // Assistant. Retained, so the state survives the car sleeping.
     private void publishAdbState() {
         if (ctx == null) return;
-        pub(ADB_STATE_TOPIC, AdbGate.isEnabled(ctx) ? "ON" : "OFF", true);
+        pubIfChanged(ADB_STATE_TOPIC, AdbGate.isEnabled(ctx) ? "ON" : "OFF", true);
     }
 
     private void doCmdUpdate(String body) {
@@ -1188,7 +1189,7 @@ public class MqttReporter {
             else j.append(v);
         }
         j.append("}");
-        pub(STATE_TOPIC, j.toString(), false);
+        pubIfChanged(STATE_TOPIC, j.toString(), false);
         drainLimits();
         doPublishChargingState(false);   // keeps HA's switch in sync
         doPublishParkState();            // Parking Mode switch + select
@@ -1215,7 +1216,7 @@ public class MqttReporter {
         String j = "{\"latitude\":" + loc[0] + ",\"longitude\":" + loc[1]
             + ",\"gps_accuracy\":" + loc[5] + ",\"altitude\":" + loc[2]
             + ",\"course\":" + loc[3] + ",\"speed\":" + loc[4] + "}";
-        pub(TRACKER_ATTR_TOPIC, j, true);
+        pubIfChanged(TRACKER_ATTR_TOPIC, j, true);
     }
 
     // Publishes the REAL state read from the car, not the requested value:
@@ -1318,6 +1319,15 @@ public class MqttReporter {
     // mailbox
     private void pub(String topic, String payload, boolean retained) {
         pub(topic, payload, retained, 0);
+    }
+
+    /** pub() for the per-tick topics: an unchanged payload is sent at most
+     * every PubDedupe.KEEPALIVE_MS. Never for commands or discovery. */
+    private void pubIfChanged(String topic, String payload, boolean retained) {
+        if (!dedupe.shouldSend(topic, payload, System.currentTimeMillis())) return;
+        int failsBefore = publishFails;
+        pub(topic, payload, retained);
+        if (publishFails != failsBefore) dedupe.forget(topic);
     }
 
     private void pub(String topic, String payload, boolean retained, int qos) {
