@@ -21,6 +21,7 @@ public final class AdbGate {
     static final String HELPER_PKG = Updater.HELPER_PKG;
     static final String HELPER_SET = "com.geely.modehelper.SET_ADB";
     static final String HELPER_SET_TRUSTED = "com.geely.modehelper.SET_TRUSTED_WIFI";
+    static final String HELPER_SET_ALWAYS = "com.geely.modehelper.SET_ADB_ALWAYS";
 
     public static final int DEFAULT_MINUTES = 15;
 
@@ -46,6 +47,25 @@ public final class AdbGate {
             i.putExtra("ssid", clean);
             ctx.sendBroadcast(i);
             Log.i(CarAccess.TAG, "adb: broadcasted trusted SSID \"" + clean + "\" to modehelper");
+        }
+    }
+
+    /** Saves the "Keep ADB always on" switch and tells modehelper. */
+    public static void setAlwaysOn(Context ctx, boolean on) {
+        Prefs.setAdbAlwaysOn(ctx, on);
+        syncAlwaysOn(ctx);
+    }
+
+    /** Re-sends the stored switch, so a reinstalled or cleared modehelper
+     * gets it back. An unchanged value is a no-op in modehelper. */
+    public static void syncAlwaysOn(Context ctx) {
+        if (!helperPresent(ctx)) return;
+        try {
+            Intent i = new Intent(HELPER_SET_ALWAYS).setPackage(HELPER_PKG);
+            i.putExtra("on", Prefs.getAdbAlwaysOn(ctx));
+            ctx.sendBroadcast(i);
+        } catch (Throwable t) {
+            Log.w(CarAccess.TAG, "adb: always-on sync failed: " + t);
         }
     }
 

@@ -173,6 +173,8 @@
     <string name="cfg_adb_label">adb</string>
     <string name="cfg_adb_off">ปิดอยู่ ตราบใดที่เปิดอยู่ ใครก็ตามในเครือข่ายเดียวกันจะได้รับ root shell บนยูนิตนี้</string>
     <string name="cfg_adb_on">เปิดอยู่ — จะปิดเองภายใน %1$d นาที</string>
+    <string name="cfg_adb_always_label">เปิด ADB ค้างไว้ตลอด</string>
+    <string name="cfg_adb_always_hint">สำหรับแอปที่ต้องใช้ ADB เท่านั้น เช่น GeelyTelemetry (Capy) ADB จะไม่ปิดเองอีก ทุกคนในเครือข่าย Wi-Fi เดียวกันสามารถควบคุมเครื่องเสียงรถได้ทั้งหมด ปิดไว้หากไม่จำเป็น</string>
     <string name="cfg_adb_no_helper">ไม่ได้ติดตั้ง modehelper ดังนั้นไม่มีอะไรที่นี่สามารถเปิดหรือปิด adb ได้</string>
     <string name="cfg_trusted_wifi_label">Wi-Fi ที่ได้รับสิทธิ์ (SSID)</string>
     <string name="cfg_trusted_wifi_hint">ขณะเชื่อมต่อกับเครือข่ายนี้ ADB จะเปิดอยู่เสมอ และ WakeLock จะป้องกันไม่ให้ระบบเข้าสู่โหมดสลีป</string>

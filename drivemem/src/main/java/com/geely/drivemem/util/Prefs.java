@@ -56,6 +56,12 @@ public final class Prefs {
     public static boolean getWifiKeepOn(Context ctx) { return file(ctx).getBoolean(KEY_WIFI_KEEP_ON, true); }
     public static void setWifiKeepOn(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_WIFI_KEEP_ON, v).apply(); }
 
+    /** "Keep ADB always on" (Wi-Fi & ADB > Advanced). Off by default: while
+     * on, adb is a root shell for anyone on the same network. */
+    public static final String KEY_ADB_ALWAYS_ON = "adb_always_on";
+    public static boolean getAdbAlwaysOn(Context ctx) { return file(ctx).getBoolean(KEY_ADB_ALWAYS_ON, false); }
+    public static void setAdbAlwaysOn(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_ADB_ALWAYS_ON, v).apply(); }
+
     // --- ADB gate (AdbGate.java) ---
     public static final String KEY_TRUSTED_SSID = "adb_trusted_ssid";
     public static final String KEY_HOME_GW = "adb_home_gw";
