@@ -200,31 +200,67 @@ public class DailyStatsProviderTest {
     // Issue #21: no driving energy at all (no OBD2, no SoC estimate) must
     // fall back to charges + SoC drop instead of leaving the card empty.
     @Test public void noDrivingEnergyFallsBackToCharges() {
-        // 80% -> 60% over the week with 10 kWh charged, 200 km:
+        // 80% -> 60% over the week with 10 kWh (battery side) charged, 200 km:
         // used = 10 + 0.20 * 39.6 = 17.92 kWh -> 8.96 kWh/100 km.
         DailyStatsProvider.DayOverview a = day("2026-09-01", 120, 0, 0, 0, 0, 90, 1, 10.0, 40, 80, 80, 50, 0);
         DailyStatsProvider.DayOverview b = day("2026-09-02", 80, 0, 0, 0, 0, 60, 0, 0.0, 60, 70, 70, 60, 0);
-
         DailyStatsProvider.DayOverview total = DailyStatsProvider.aggregate(asList(a, b), "label");
 
+        DailyStatsProvider.applyChargeFallback(total, 10.0);
+
         assertTrue(total.efficiencyFromCharges);
-        assertEquals(17.92 / 200 * 100, total.efficiencyKwh100km, 1e-9);
+        assertEquals(17.92 / 200 * 100, total.chargeBasedKwh100km, 1e-9);
+        assertEquals(0, total.efficiencyKwh100km, 0); // the driving figure is left alone
     }
 
     @Test public void drivingEnergyWinsOverCharges() {
         DailyStatsProvider.DayOverview a = day("2026-09-01", 200, 30, 0, 0, 0, 150, 1, 10.0, 40, 80, 80, 60, 0);
-
         DailyStatsProvider.DayOverview total = DailyStatsProvider.aggregate(asList(a), "label");
+
+        DailyStatsProvider.applyChargeFallback(total, 10.0);
 
         assertFalse(total.efficiencyFromCharges);
         assertEquals(15.0, total.efficiencyKwh100km, 1e-9);
     }
 
+    @Test public void failedGuardLeavesTheFlagOff() {
+        // Unknown end SoC.
+        DailyStatsProvider.DayOverview a = day("2026-09-01", 200, 0, 0, 0, 0, 150, 1, 10.0, 40, 80, 80, -1, 0);
+        DailyStatsProvider.DayOverview total = DailyStatsProvider.aggregate(asList(a), "label");
+
+        DailyStatsProvider.applyChargeFallback(total, 10.0);
+
+        assertFalse(total.efficiencyFromCharges);
+        assertEquals(0, total.chargeBasedKwh100km, 0);
+    }
+
     @Test public void chargeBasedNeedsDistanceBatteryAndSaneRange() {
-        assertEquals(0, DrivingConsumption.chargeBasedKwh100km(40, 10, 80, 60), 0);   // too short
-        assertEquals(0, DrivingConsumption.chargeBasedKwh100km(200, 10, -1, 60), 0);  // no SoC
-        assertEquals(0, DrivingConsumption.chargeBasedKwh100km(200, 0, 60, 80), 0);   // net gain
-        assertEquals(0, DrivingConsumption.chargeBasedKwh100km(60, 40, 80, 20), 0);   // > 40, broken input
+        assertEquals(0, DrivingConsumption.chargeBasedKwh100km(49.9, 10, 80, 60), 0);  // too short
+        assertEquals(35.84, DrivingConsumption.chargeBasedKwh100km(50, 10, 80, 60), 1e-9); // 50 km is enough
+        assertEquals(0, DrivingConsumption.chargeBasedKwh100km(200, 10, -1, 60), 0);   // no start SoC
+        assertEquals(0, DrivingConsumption.chargeBasedKwh100km(200, 10, 80, -1), 0);   // no end SoC
+        assertEquals(0, DrivingConsumption.chargeBasedKwh100km(200, 0, 60, 80), 0);    // net gain
+        assertEquals(0, DrivingConsumption.chargeBasedKwh100km(60, 40, 80, 20), 0);    // > 40, broken input
+        assertEquals(0, DrivingConsumption.chargeBasedKwh100km(500, 10, 50, 50), 0);   // 2.0 < 5, broken input
         assertEquals(10.0, DrivingConsumption.chargeBasedKwh100km(100, 10, 50, 50), 1e-9);
+    }
+
+    // Fable review of #27: a charge across midnight at a period edge must be
+    // split by time, not land whole on its start day's period.
+    @Test public void chargeIsSplitByTimeAcrossThePeriodEdge() {
+        long h = 3_600_000L;
+        // Session 22:00 -> 04:00 (6 h), DC so no derate; window ends at 24:00.
+        assertEquals(30.0 * 2 / 6, DailyStatsProvider.batteryKwhInWindow(0, 24 * h, 22 * h, 28 * h, 30.0, 400), 1e-9);
+        // The next window gets the rest.
+        assertEquals(30.0 * 4 / 6, DailyStatsProvider.batteryKwhInWindow(24 * h, 48 * h, 22 * h, 28 * h, 30.0, 400), 1e-9);
+    }
+
+    @Test public void acChargeIsDeratedToBatterySide() {
+        long h = 3_600_000L;
+        assertEquals(10.0 * DailyStatsProvider.AC_CHARGER_EFFICIENCY,
+            DailyStatsProvider.batteryKwhInWindow(0, 24 * h, 1 * h, 5 * h, 10.0, 230), 1e-9);
+        // Unknown voltage counts as AC (the common home case).
+        assertEquals(10.0 * DailyStatsProvider.AC_CHARGER_EFFICIENCY,
+            DailyStatsProvider.batteryKwhInWindow(0, 24 * h, 1 * h, 5 * h, 10.0, Double.NaN), 1e-9);
     }
 }

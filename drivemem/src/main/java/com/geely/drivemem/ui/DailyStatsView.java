@@ -990,7 +990,7 @@ public class DailyStatsView extends LinearLayout {
         if (ov.efficiencyFromCharges) {
             // Charge-based figure (no driving energy recorded): say so, and
             // don't put the estimate mark on it -- its source is the caption.
-            heroVal = valueWithUnit(String.format(Locale.US, "%.1f", ov.efficiencyKwh100km),
+            heroVal = valueWithUnit(String.format(Locale.US, "%.1f", ov.chargeBasedKwh100km),
                     null, "kWh/100 km", HERO_UNIT_SCALE);
             consumptionCaption = "Pelas recargas (inclui uso parado)";
         }

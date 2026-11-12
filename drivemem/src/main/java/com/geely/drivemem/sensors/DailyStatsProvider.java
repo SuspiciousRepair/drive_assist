@@ -198,10 +198,12 @@ public final class DailyStatsProvider {
         // (VHAL SoC-delta), a mix, or is there no telemetry at all -- same
         // after-construction idiom as maxAltitudeM/chargeCost above.
         public EnergySource energySource = EnergySource.NO_DATA;
-        // True when efficiencyKwh100km came from charges + SoC drop
-        // (DrivingConsumption.chargeBasedKwh100km) because there was no
-        // driving energy at all. Only aggregate() (Week/Month) sets it.
+        // Week/Month only (buildPeriodOverview -> applyChargeFallback): when
+        // the period has no driving energy at all, kWh/100 km from charges +
+        // SoC drop (DrivingConsumption.chargeBasedKwh100km), and the flag
+        // that tells the card to show it instead of efficiencyKwh100km.
         public boolean efficiencyFromCharges;
+        public double chargeBasedKwh100km;
 
         public DayOverview(String date, String displayDate, double distanceKm, double dischargeKwh,
                            double regenKwh, double netKwh,
@@ -308,14 +310,6 @@ public final class DailyStatsProvider {
         double avgTemp = tempDays > 0 ? tempSum / tempDays : 0;
         double netElevation = ascentDPlus - descentDMinus;
         double efficiency = DrivingConsumption.efficiencyKwh100km(distanceKm, dischargeKwh, regenKwh);
-        // No driving energy anywhere in the period (no OBD2, no SoC estimate):
-        // fall back to what the charges say. Not on single days -- a day you
-        // charge but barely drive is too noisy (issue #21).
-        boolean fromCharges = false;
-        if (efficiency <= 0) {
-            double viaCharges = DrivingConsumption.chargeBasedKwh100km(distanceKm, chargeKwh, firstBatt, lastBatt);
-            if (viaCharges > 0) { efficiency = viaCharges; fromCharges = true; }
-        }
 
         DayOverview total = new DayOverview(label, label, distanceKm, dischargeKwh, regenKwh, netKwh,
             efficiency, ascentDPlus, descentDMinus, netElevation, firstBatt, lastBatt,
@@ -323,7 +317,6 @@ public final class DailyStatsProvider {
         total.chargeCost = chargeCost;
         total.maxAltitudeM = maxAlt;
         total.energySource = EnergySource.combine(sources);
-        total.efficiencyFromCharges = fromCharges;
         return total;
     }
 
@@ -447,7 +440,77 @@ public final class DailyStatsProvider {
     private static PeriodOverview buildPeriodOverview(Context ctx, List<String> dates, String label) {
         List<DayOverview> days = new ArrayList<>(dates.size());
         for (String d : dates) days.add(getDayOverview(ctx, d));
-        return new PeriodOverview(aggregate(days, label), days, label);
+        DayOverview total = aggregate(days, label);
+        // Never on a single day: a day you charge but barely drive is too
+        // noisy for this (issue #21).
+        if (dates.size() > 1 && total.efficiencyKwh100km <= 0) {
+            applyChargeFallback(total, periodBatteryChargeKwh(ctx, dates));
+        }
+        return new PeriodOverview(total, days, label);
+    }
+
+    /** A period with no driving energy at all (no OBD2, no SoC estimate):
+     * fill in kWh/100 km from what the charges say. batteryChargeKwh must be
+     * the battery-side energy charged inside the period's exact bounds --
+     * see periodBatteryChargeKwh. Pure, for tests. */
+    public static void applyChargeFallback(DayOverview total, double batteryChargeKwh) {
+        if (total.efficiencyKwh100km > 0) return;
+        double v = DrivingConsumption.chargeBasedKwh100km(total.distanceKm, batteryChargeKwh,
+            total.firstBatteryPct, total.lastBatteryPct);
+        total.chargeBasedKwh100km = v;
+        total.efficiencyFromCharges = v > 0;
+    }
+
+    /** Assumed AC on-board charger efficiency. AC sessions are integrated from
+     * the charge port's own voltage (~240 V mains, see ChargeSession.isDcfc),
+     * so their kWh is wall-side; this brings it to what reached the battery,
+     * which is what the SoC term in chargeBasedKwh100km is measured in. An
+     * estimate -- typical OBCs run 88-93%. DC sessions are already at pack
+     * voltage and are taken as-is. */
+    public static final double AC_CHARGER_EFFICIENCY = 0.90;
+
+    /** One session's battery-side kWh that falls inside [windowStart, windowEnd):
+     * split by wall-clock overlap (same overlapFraction getEnergyBalanceDays
+     * uses), so a charge that runs across midnight at a period's edge is
+     * shared between the two periods instead of landing whole on its start
+     * day -- whose own SoC samples stop at midnight, which would otherwise
+     * pair 100% of the energy with only part of the SoC rise. */
+    public static double batteryKwhInWindow(long windowStart, long windowEnd,
+                                     long sessionStart, long sessionEnd, double kwh, double maxChargeV) {
+        if (!(kwh > 0)) return 0;
+        double share = overlapFraction(windowStart, windowEnd, sessionStart, sessionEnd);
+        return kwh * share * (com.geely.drivemem.state.ChargeSession.isDcfc(maxChargeV) ? 1.0 : AC_CHARGER_EFFICIENCY);
+    }
+
+    private static double periodBatteryChargeKwh(Context ctx, List<String> dates) {
+        long start = dayBoundsMs(dates.get(0))[0];
+        long end = dayBoundsMs(dates.get(dates.size() - 1))[1];
+        boolean active = com.geely.drivemem.state.ChargeSession.isSessionActive();
+        long activeId = active ? com.geely.drivemem.state.ChargeSession.activeRowId() : -1;
+        double total = 0;
+        try {
+            SQLiteDatabase db = CarDb.get(ctx).db();
+            Cursor c = db.rawQuery(
+                "SELECT id, start_ms, end_ms, kwh, max_charge_v FROM charge_session "
+              + "WHERE start_ms < ? AND end_ms > ?",
+                new String[]{String.valueOf(end), String.valueOf(start)});
+            try {
+                while (c.moveToNext()) {
+                    if (activeId > 0 && c.getLong(0) == activeId) continue; // live copy below
+                    total += batteryKwhInWindow(start, end, c.getLong(1), c.getLong(2),
+                        c.isNull(3) ? 0 : c.getDouble(3), c.isNull(4) ? Double.NaN : c.getDouble(4));
+                }
+            } finally { c.close(); }
+        } catch (Exception e) {
+            android.util.Log.w("DailyStatsProvider", "period charge kWh failed: " + e);
+            return 0;
+        }
+        if (active) {
+            com.geely.drivemem.state.ChargeSession.SessionSnapshot snap =
+                com.geely.drivemem.state.ChargeSession.captureSnapshot(System.currentTimeMillis());
+            total += batteryKwhInWindow(start, end, snap.startWallMs, snap.endWallMs, snap.kwh, snap.maxChargeV);
+        }
+        return total;
     }
 
     /** Which grain of the stats screen is being shown -- the whole reason
