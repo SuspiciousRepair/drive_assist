@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+- **Week and Month consumption without OBD2.** When a period has no driving
+  energy at all, Consumption & Efficiency now shows kWh/100 km from the
+  charges (kWh charged plus the battery drop across the period, over the km
+  driven), labeled as charge-based. It includes energy used while parked.
+  A charge that runs across the edge of a period is split by time, and AC
+  charges count about 90 % of the wall energy (charger loss). Single days
+  are unchanged. (#21)
+
 ## [v0.4.10] — 2026-11-09
 
 ### Fixed

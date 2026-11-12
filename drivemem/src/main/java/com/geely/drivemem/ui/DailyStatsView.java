@@ -987,6 +987,13 @@ public class DailyStatsView extends LinearLayout {
                     null, "kWh/100 km", HERO_UNIT_SCALE), ov.energySource)
                 : "—";
         CharSequence consumptionCaption = withEnergySourceMark("Consumo por velocidade", ov.energySource);
+        if (ov.efficiencyFromCharges) {
+            // Charge-based figure (no driving energy recorded): say so, and
+            // don't put the estimate mark on it -- its source is the caption.
+            heroVal = valueWithUnit(String.format(Locale.US, "%.1f", ov.chargeBasedKwh100km),
+                    null, "kWh/100 km", HERO_UNIT_SCALE);
+            consumptionCaption = "Pelas recargas (inclui uso parado)";
+        }
         consumptionCard.addView(createHeroView(c, heroVal, consumptionCaption));
         Style.gap(consumptionCard, c, 10);
 
@@ -1007,7 +1014,8 @@ public class DailyStatsView extends LinearLayout {
         // already says "nothing recorded" correctly; only ESTIMATED/MIXED
         // energy gets the explicit unavailable message instead of a
         // fabricated bucket-level number.
-        consumptionCard.addView(ov.energySource == EnergySource.ESTIMATED || ov.energySource == EnergySource.MIXED
+        consumptionCard.addView(ov.efficiencyFromCharges
+                || ov.energySource == EnergySource.ESTIMATED || ov.energySource == EnergySource.MIXED
                 ? buildSpeedBucketUnavailable(c)
                 : buildSpeedBucketChart(c, buckets, ov.efficiencyKwh100km));
         Style.gap(consumptionCard, c, 14);
