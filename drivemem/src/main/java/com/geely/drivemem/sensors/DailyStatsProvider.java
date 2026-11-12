@@ -198,6 +198,10 @@ public final class DailyStatsProvider {
         // (VHAL SoC-delta), a mix, or is there no telemetry at all -- same
         // after-construction idiom as maxAltitudeM/chargeCost above.
         public EnergySource energySource = EnergySource.NO_DATA;
+        // True when efficiencyKwh100km came from charges + SoC drop
+        // (DrivingConsumption.chargeBasedKwh100km) because there was no
+        // driving energy at all. Only aggregate() (Week/Month) sets it.
+        public boolean efficiencyFromCharges;
 
         public DayOverview(String date, String displayDate, double distanceKm, double dischargeKwh,
                            double regenKwh, double netKwh,
@@ -304,6 +308,14 @@ public final class DailyStatsProvider {
         double avgTemp = tempDays > 0 ? tempSum / tempDays : 0;
         double netElevation = ascentDPlus - descentDMinus;
         double efficiency = DrivingConsumption.efficiencyKwh100km(distanceKm, dischargeKwh, regenKwh);
+        // No driving energy anywhere in the period (no OBD2, no SoC estimate):
+        // fall back to what the charges say. Not on single days -- a day you
+        // charge but barely drive is too noisy (issue #21).
+        boolean fromCharges = false;
+        if (efficiency <= 0) {
+            double viaCharges = DrivingConsumption.chargeBasedKwh100km(distanceKm, chargeKwh, firstBatt, lastBatt);
+            if (viaCharges > 0) { efficiency = viaCharges; fromCharges = true; }
+        }
 
         DayOverview total = new DayOverview(label, label, distanceKm, dischargeKwh, regenKwh, netKwh,
             efficiency, ascentDPlus, descentDMinus, netElevation, firstBatt, lastBatt,
@@ -311,6 +323,7 @@ public final class DailyStatsProvider {
         total.chargeCost = chargeCost;
         total.maxAltitudeM = maxAlt;
         total.energySource = EnergySource.combine(sources);
+        total.efficiencyFromCharges = fromCharges;
         return total;
     }
 

@@ -10,6 +10,8 @@ import java.util.List;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 // Covers DailyStatsProvider.aggregate() and the week/month date-range
 // helpers added for plan/active/STATS-PERIOD-VIEWS-ROADMAP.md. getDayOverview
@@ -193,5 +195,36 @@ public class DailyStatsProviderTest {
         DailyStatsProvider.DayOverview total = DailyStatsProvider.aggregate(asList(a, b), "label");
 
         assertEquals(com.geely.drivemem.sensors.EnergySource.MIXED, total.energySource);
+    }
+
+    // Issue #21: no driving energy at all (no OBD2, no SoC estimate) must
+    // fall back to charges + SoC drop instead of leaving the card empty.
+    @Test public void noDrivingEnergyFallsBackToCharges() {
+        // 80% -> 60% over the week with 10 kWh charged, 200 km:
+        // used = 10 + 0.20 * 39.6 = 17.92 kWh -> 8.96 kWh/100 km.
+        DailyStatsProvider.DayOverview a = day("2026-09-01", 120, 0, 0, 0, 0, 90, 1, 10.0, 40, 80, 80, 50, 0);
+        DailyStatsProvider.DayOverview b = day("2026-09-02", 80, 0, 0, 0, 0, 60, 0, 0.0, 60, 70, 70, 60, 0);
+
+        DailyStatsProvider.DayOverview total = DailyStatsProvider.aggregate(asList(a, b), "label");
+
+        assertTrue(total.efficiencyFromCharges);
+        assertEquals(17.92 / 200 * 100, total.efficiencyKwh100km, 1e-9);
+    }
+
+    @Test public void drivingEnergyWinsOverCharges() {
+        DailyStatsProvider.DayOverview a = day("2026-09-01", 200, 30, 0, 0, 0, 150, 1, 10.0, 40, 80, 80, 60, 0);
+
+        DailyStatsProvider.DayOverview total = DailyStatsProvider.aggregate(asList(a), "label");
+
+        assertFalse(total.efficiencyFromCharges);
+        assertEquals(15.0, total.efficiencyKwh100km, 1e-9);
+    }
+
+    @Test public void chargeBasedNeedsDistanceBatteryAndSaneRange() {
+        assertEquals(0, DrivingConsumption.chargeBasedKwh100km(40, 10, 80, 60), 0);   // too short
+        assertEquals(0, DrivingConsumption.chargeBasedKwh100km(200, 10, -1, 60), 0);  // no SoC
+        assertEquals(0, DrivingConsumption.chargeBasedKwh100km(200, 0, 60, 80), 0);   // net gain
+        assertEquals(0, DrivingConsumption.chargeBasedKwh100km(60, 40, 80, 20), 0);   // > 40, broken input
+        assertEquals(10.0, DrivingConsumption.chargeBasedKwh100km(100, 10, 50, 50), 1e-9);
     }
 }
