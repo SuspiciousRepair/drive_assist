@@ -188,6 +188,8 @@
     <string name="cfg_adb_label">ADB</string>
     <string name="cfg_adb_off">Closed. When open, network ADB access is enabled.</string>
     <string name="cfg_adb_on">Open — closes on its own in %1$d min.</string>
+    <string name="cfg_adb_always_label">Keep ADB always on</string>
+    <string name="cfg_adb_always_hint">Only for apps that need ADB, such as GeelyTelemetry (Capy). ADB then never closes on its own. Anyone on the same Wi-Fi network can take full control of the head unit. Leave this off unless you need it.</string>
     <string name="cfg_adb_no_helper">ModeHelper is not installed, so nothing here can turn ADB on or off.</string>
     <string name="cfg_trusted_wifi_label">Privileged Wi-Fi (SSID)</string>
     <string name="cfg_trusted_wifi_hint">Keeps ADB active and prevents screen timeout on this network.</string>

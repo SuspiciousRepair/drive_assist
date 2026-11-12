@@ -2,6 +2,7 @@ package com.geely.drivemem.ui;
 
 import android.app.Activity;
 import android.text.InputType;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -76,6 +77,32 @@ final class NetworkSettingsBlock {
             Toast.makeText(a, a.getString(R.string.cfg_trusted_wifi_saved), Toast.LENGTH_SHORT).show();
         }));
         parent.addView(row);
+
+        // ---- Advanced: keep ADB always on ----
+        // Folded away on purpose: it turns off the auto-close that is the
+        // whole safety model of the switch above.
+        final LinearLayout advanced = new LinearLayout(a);
+        advanced.setOrientation(LinearLayout.VERTICAL);
+        advanced.setVisibility(View.GONE);
+        final String advLabel = a.getString(R.string.cfg_advanced);
+        final TextView advToggle = Style.header(a, advLabel + "  \u25B8");
+        advToggle.setOnClickListener(v -> {
+            boolean show = advanced.getVisibility() != View.VISIBLE;
+            advanced.setVisibility(show ? View.VISIBLE : View.GONE);
+            advToggle.setText(advLabel + (show ? "  \u25BE" : "  \u25B8"));
+        });
+        advanced.addView(Style.toggleRow(a, a.getString(R.string.cfg_adb_always_label),
+            Prefs.getAdbAlwaysOn(a), on -> {
+                AdbGate.setAlwaysOn(a, on);
+                adbHint.postDelayed(() -> adbHint.setText(a.getString(
+                    AdbGate.isEnabled(a) ? R.string.cfg_adb_on : R.string.cfg_adb_off,
+                    AdbGate.DEFAULT_MINUTES)), 900);
+            }));
+        TextView alwaysHint = hint(a);
+        alwaysHint.setText(a.getString(R.string.cfg_adb_always_hint));
+        advanced.addView(alwaysHint);
+        parent.addView(advToggle);
+        parent.addView(advanced);
     }
 
     private static TextView hint(Activity a) {

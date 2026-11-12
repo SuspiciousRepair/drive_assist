@@ -208,6 +208,7 @@ public class BootReceiver extends BroadcastReceiver {
     public static void ensureAll(Context ctx) {
         com.geely.drivemem.controls.WifiKeep.ensure(ctx, "watchdog");
         com.geely.drivemem.controls.WifiKeep.syncHelper(ctx);
+        com.geely.drivemem.controls.AdbGate.syncAlwaysOn(ctx);
         com.geely.drivemem.controls.HelperSync.push(ctx);
 
         ensureService(ctx, Prefs.getOutTempOn(ctx),

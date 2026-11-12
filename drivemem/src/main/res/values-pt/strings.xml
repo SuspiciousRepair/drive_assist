@@ -176,6 +176,8 @@
     <string name="cfg_adb_label">adb</string>
     <string name="cfg_adb_off">Fechado. Aberto, qualquer um na mesma rede ganha um shell root nesta central.</string>
     <string name="cfg_adb_on">Aberto — fecha sozinho em %1$d min.</string>
+    <string name="cfg_adb_always_label">Manter o ADB sempre ligado</string>
+    <string name="cfg_adb_always_hint">Só para apps que precisam do ADB, como o GeelyTelemetry (Capy). O ADB deixa de fechar sozinho. Qualquer pessoa na mesma rede Wi-Fi pode ter controle total da central. Deixe desligado se não precisar.</string>
     <string name="cfg_adb_no_helper">O modehelper não está instalado, então nada aqui liga ou desliga o adb.</string>
     <string name="cfg_trusted_wifi_label">Wi-Fi Privilegiado (SSID)</string>
     <string name="cfg_trusted_wifi_hint">Nesta rede, o ADB permanece aberto e um WakeLock impede o computador de bordo de suspender.</string>

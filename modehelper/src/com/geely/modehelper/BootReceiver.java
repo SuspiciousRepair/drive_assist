@@ -62,8 +62,13 @@ public class BootReceiver extends BroadcastReceiver {
         // user intervention). WifiGuardReceiver extends this to indefinite on the
         // trusted "car" network, independent of this window.
         try {
-            AdbControl.set(ctx.getApplicationContext(), true, 5);
-            Log.i(CarMode.TAG, "adb open for 5 min at boot (longer if on \"car\" WiFi)");
+            if (AdbControl.alwaysOn(ctx)) {
+                AdbControl.setIndefinite(ctx.getApplicationContext(), true);
+                Log.i(CarMode.TAG, "adb open at boot, no timer (\"always on\" is set)");
+            } else {
+                AdbControl.set(ctx.getApplicationContext(), true, 5);
+                Log.i(CarMode.TAG, "adb open for 5 min at boot (longer if on \"car\" WiFi)");
+            }
         } catch (Throwable t) { Log.w(CarMode.TAG, "boot adb open failed: " + t); }
 
         // Start WiFi guard polling.
