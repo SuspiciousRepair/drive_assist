@@ -463,6 +463,19 @@ installs those APKs first, then the data, and then checks that MQTT connects.
 An app that is already installed is kept as it is. The backup does not
 include dashcam clips. Export those to USB.
 
+**Car already used after the wipe?** A plain restore would erase the new
+trips. Merge them instead. Pull the current `car.db` (with its `-wal` and
+`-shm`), then run:
+
+```bash
+python3 -I tools/merge-car-db.py OLD/car.db CURRENT/car.db merged.db
+```
+
+The old rows keep their ids. The new rows move up after them, with their
+links to samples, trips and charge sessions. Push `merged.db` back as
+`car.db` while the app is stopped. Delete the old `-wal` and `-shm`, and fix
+the owner and label as the restore step does.
+
 > [!WARNING]
 > The backup contains your MQTT password, client certificate and API tokens.
 > Keep it private. The folder is created readable only by you.
