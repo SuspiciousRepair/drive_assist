@@ -175,7 +175,10 @@ restore() {
 
   # The saved 'last applied update URL' would make the Updater skip the OTA
   # that is current right now, if the restored apk is older than it.
-  ash "sed -i '/name=\"update_last_url\"/d' /data/data/com.geely.drivemem/shared_prefs/drivemem.xml 2>/dev/null || true"
+  # sed -i writes a NEW file, which loses the app's SELinux categories
+  # (s0:c32,... becomes plain s0): label it again right after.
+  ash "f=/data/data/com.geely.drivemem/shared_prefs/drivemem.xml; [ -f \$f ] || exit 0
+       sed -i '/name=\"update_last_url\"/d' \$f && restorecon \$f"
 
   local since; since=$(ash "date '+%m-%d %H:%M:%S.000'" | tr -d '\r')
   restart_apps
