@@ -443,6 +443,32 @@ Typing long passwords, MQTT URLs, and private tokens on a vehicle touchscreen is
 
 ---
 
+## 💾 Backup & Restore (`car-backup.sh`)
+
+A workshop visit or a factory reset wipes Drive Assist: settings, the MQTT
+client certificate, and every trip. Take a backup before the car goes in, and
+restore it when the car comes back.
+
+```bash
+# Back up (one dated folder in ~/drive-assist-backups/)
+./tools/car-backup.sh <CAR_IP>
+
+# Restore, after the ADB patch is back on (see GUIA-ADB-IHU629G.md)
+./tools/car-backup.sh --restore ~/drive-assist-backups/<DATE> <CAR_IP>
+```
+
+The folder holds the settings, the client certificate, the trip database
+(`car.db`), and the exact APKs that wrote them. A restore onto a wiped car
+installs those APKs first, then the data, and then checks that MQTT connects.
+An app that is already installed is kept as it is. The backup does not
+include dashcam clips. Export those to USB.
+
+> [!WARNING]
+> The backup contains your MQTT password, client certificate and API tokens.
+> Keep it private. The folder is created readable only by you.
+
+---
+
 ## 🤝 Community Credits & Upstream References
 
 Drive Assist builds upon reverse-engineering research conducted by the open-source automotive community:
