@@ -1166,7 +1166,7 @@ public class MqttReporter {
 
     private void applyColor(int rgb) {
         applyLogged("light colour", "ambient_color", rgb, r -> {
-            if (r.applied && ctx != null) CarActor.get(ctx).inject("telemetry.ambient_color", rgb);
+            if (r.applied && ctx != null) CarActor.get(ctx).inject("telemetry.ambient_color_set", rgb);
         });
     }
 

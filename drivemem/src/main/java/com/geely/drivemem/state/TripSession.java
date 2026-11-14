@@ -5,7 +5,9 @@ import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.car.CarDb;
 import com.geely.drivemem.car.EntityBus;
 import com.geely.drivemem.car.Telemetry;
+import com.geely.drivemem.sensors.DrivingConsumption;
 import com.geely.drivemem.sensors.EnergyIntegrator;
+import com.geely.drivemem.sensors.ObdHub;
 import com.geely.drivemem.sensors.EnergySource;
 import com.geely.drivemem.sensors.GpsReader;
 import com.geely.drivemem.util.Modes;
@@ -34,6 +36,11 @@ public final class TripSession {
     // inflate both ascent and descent over a long drive. A rough estimate,
     // not a precise one; said plainly rather than pretending otherwise.
     static final double ALTITUDE_NOISE_M = 3.0;
+
+    /** Hub key: the open trip as a {@link LiveTrip} ({@link LiveTrip#NONE}
+     * when no trip is open). Updated on the hub thread on every
+     * telemetry.tick; the home card reads it instead of car.db. */
+    public static final String LIVE_KEY = "trip.live";
 
     public static final long PARK_GRACE_PERIOD_MS = 75_000L;
     public static final double MIN_TRIP_DISTANCE_KM = 0.1;
@@ -91,6 +98,11 @@ public final class TripSession {
     private static volatile long currentDriveSegmentStartMs = 0;
     private static volatile long drivingDurationMs = 0;
     private static Runnable parkGraceRunnable = null;
+    // Driving energy of the open trip, fed one telemetry.tick at a time --
+    // the same rows and the same DrivingConsumption rules the stats pages
+    // use on telemetry_sample, so the live card and the finished trip agree.
+    // Hub thread only (and recovery, before any tick is subscribed).
+    private static DrivingConsumption liveEnergy = new DrivingConsumption();
     private static Double testCurrentOdoKm = null;
 
     public static void onGear(Context ctx, int gear) {
@@ -169,7 +181,11 @@ public final class TripSession {
             && rawSocR.value instanceof Number) ? ((Number) rawSocR.value).doubleValue() : Double.NaN;
         currentSocRaw = startSocRaw;
         EnergyIntegrator.startTrip();
-        if (ctx != null) persistOpenTrip(ctx);
+        liveEnergy = new DrivingConsumption();
+        if (ctx != null) {
+            persistOpenTrip(ctx);
+            publishLive(ctx, startOdoKm, startSoc, now);
+        }
     }
 
     /** Closes the trip open right now and, if still driving, immediately opens
@@ -212,6 +228,10 @@ public final class TripSession {
         // right after trip start but before the first odometer/SoC reading
         // arrived would otherwise recover a marker with startOdoKm still -1.
         if (backfilled && ctx != null) persistOpenTrip(ctx);
+        long now = System.currentTimeMillis();
+        feedLive(now, data);
+        if (ctx != null) publishLive(ctx, num(data.get("odometer"), -1),
+            data.get("battery") instanceof Integer ? (Integer) data.get("battery") : -1, now);
         if (wasParked) return; // stationary in park debounce: don't accumulate altitude jitter
         double[] loc = GpsReader.read(ctx);
         if (loc == null) return;
@@ -318,6 +338,7 @@ public final class TripSession {
 
         if (ctx != null) clearOpenTrip(ctx);
         resetTripState();
+        if (ctx != null) CarActor.get(ctx).inject(LIVE_KEY, LiveTrip.NONE);
         return qualified;
     }
 
@@ -402,6 +423,11 @@ public final class TripSession {
         EnergyIntegrator.startTrip();
         double[] energy = sumEnergySince(ctx, persistedStartMs, System.currentTimeMillis());
         EnergyIntegrator.seedTrip(energy[0], energy[1], energy[2]);
+        // One replay of the rows already written, so trip.live does not
+        // restart from zero after an app update mid-drive. Every later
+        // tick is added by feedLive().
+        liveEnergy = DrivingConsumption.fromSamples(CarDb.get(ctx).db(), "ts_ms >= ? AND ts_ms < ?",
+            new String[]{String.valueOf(persistedStartMs), String.valueOf(System.currentTimeMillis())});
 
         Log.i(TAG, String.format(Locale.US,
             "trip recovery: restored open trip from %d (ascent=%.1fm descent=%.1fm)",
@@ -506,8 +532,34 @@ public final class TripSession {
         return (distanceKm >= MIN_TRIP_DISTANCE_KM) || (drivingDurationMs >= MIN_TRIP_DRIVE_DURATION_MS);
     }
 
+    /** Adds one telemetry.tick to the open trip's energy, exactly as
+     * DrivingConsumption.fromSamples() would read the same row back. */
+    static void feedLive(long now, Map<String, Object> data) {
+        Integer measured = data.get("energy_measured") instanceof Integer
+            ? (Integer) data.get("energy_measured") : null;
+        // battery_temp_c (dongle only) marks a measured row, same rule as fromSamples().
+        if ((measured == null || measured == 0) && ObdHub.get(ObdHub.BATT_TEMP_C) != null) measured = 1;
+        liveEnergy.add(now, num(data.get("odometer"), Double.NaN), num(data.get("speed"), Double.NaN),
+            data.get("gear") instanceof Integer ? (Integer) data.get("gear") : null,
+            data.get("is_charging") instanceof Integer && (Integer) data.get("is_charging") != 0,
+            num(data.get("energy_spent_kwh"), Double.NaN), num(data.get("energy_regen_kwh"), Double.NaN),
+            num(data.get("instant_power_kw_est"), Double.NaN), measured);
+    }
+
+    private static void publishLive(Context ctx, double odoNowKm, int socNow, long now) {
+        double km = (startOdoKm >= 0 && odoNowKm >= startOdoKm) ? odoNowKm - startOdoKm : 0;
+        CarActor.get(ctx).inject(LIVE_KEY, LiveTrip.of(startMs, getDrivingDurationMs(now), km,
+            liveEnergy.spentKwh(), liveEnergy.regenKwh(), startSoc, socNow >= 0 ? socNow : startSoc,
+            liveEnergy.energySource()));
+    }
+
+    private static double num(Object o, double fallback) {
+        return o instanceof Number ? ((Number) o).doubleValue() : fallback;
+    }
+
     private static void resetTripState() {
         tripActive = false;
+        liveEnergy = new DrivingConsumption();
         parkGraceRunnable = null;
         startMs = 0;
         startSampleId = -1;

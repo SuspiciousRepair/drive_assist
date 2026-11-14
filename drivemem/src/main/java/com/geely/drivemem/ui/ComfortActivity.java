@@ -6,6 +6,7 @@ import com.geely.drivemem.art.ArtView;
 import com.geely.drivemem.art.PanelCardView;
 import com.geely.drivemem.art.SkylineArtView;
 import com.geely.drivemem.art.VaporArtView;
+import com.geely.drivemem.car.AmbientLight;
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.car.EntityBus;
@@ -18,7 +19,7 @@ import com.geely.drivemem.hvac.ComfortRuler;
 import com.geely.drivemem.hvac.EffortTable;
 import com.geely.drivemem.net.AbrpUploader;
 import com.geely.drivemem.net.MqttReporter;
-import com.geely.drivemem.sensors.DailyStatsProvider;
+import com.geely.drivemem.sensors.EnergySource;
 import com.geely.drivemem.services.TelemetryService;
 import com.geely.drivemem.state.CarState;
 import com.geely.drivemem.state.ChargeSession;
@@ -27,6 +28,7 @@ import com.geely.drivemem.state.MusicState;
 import com.geely.drivemem.state.PanelState;
 import com.geely.drivemem.state.ParkingState;
 import com.geely.drivemem.state.TripSession;
+import com.geely.drivemem.state.LiveTrip;
 import com.geely.drivemem.state.TempTrail;
 import com.geely.drivemem.state.ValetSession;
 import com.geely.drivemem.util.BootReceiver;
@@ -146,10 +148,12 @@ public class ComfortActivity extends Activity {
 
     // One compact identity whose content follows driving, parked and Valet state.
     private LinearLayout journeyCard;
-    private TextView journeyTitle, journeyPrimary, journeySecondary, journeyAction, journeyDismiss;
-    // Parked has its own compact two-line layout (journeyParked), shown
-    // instead of the heading/primary/secondary/action used by drive and Valet.
-    private LinearLayout journeyHeading, journeyParked;
+    // Two compact two-line layouts: journeyParked (parked) and journeyTrip
+    // (driving, and Valet). Only one is shown at a time.
+    private LinearLayout journeyParked, journeyTrip, tripValetStop;
+    private TextView journeyDismiss, tripHero, tripLeft, tripRight;
+    private android.widget.ImageView tripIcon, tripLeftIcon, tripRightIcon;
+    private EfficiencyBadgeView tripEff;
     private TextView parkedHero, parkedBattery;
     private TempRangeView parkedTemp;
     private boolean driveCardEnabledAtBuild;
@@ -1267,15 +1271,39 @@ public class ComfortActivity extends Activity {
         int pad = Style.dp(this, 22);
         card.setPadding(pad, pad, pad, pad);
         card.setBackground(Style.card(Style.cardFillColor(), this));
+        card.addView(tripLayout());
+        card.addView(parkedLayout());
+        return card;
+    }
 
-        LinearLayout heading = new LinearLayout(this);
-        heading.setGravity(Gravity.CENTER_VERTICAL);
-        journeyTitle = new TextView(this);
-        journeyTitle.setTextColor(Style.TEXT);
-        journeyTitle.setTextSize(21);
-        journeyTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        heading.addView(journeyTitle, new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+    /**
+     * Driving (and Valet), in two lines, same shape as the parked card:
+     *   [car] 2,5 km  8m · desde 19:14         ×  | 8,7        |
+     *   [battery] 96% → 94%   [bolt] 0,22 kWh net  | kWh/100 km |
+     * The right tile is consumption on a fixed colour scale
+     * (EfficiencyBadgeView). With Valet on, the tile is the filled purple
+     * "End" button instead -- ending Valet must be found fast.
+     * Numbers come from the hub (trip.live), never from car.db.
+     */
+    private View tripLayout() {
+        journeyTrip = new LinearLayout(this);
+        journeyTrip.setOrientation(LinearLayout.HORIZONTAL);
+        journeyTrip.setBaselineAligned(false);
+
+        LinearLayout left = new LinearLayout(this);
+        left.setOrientation(LinearLayout.VERTICAL);
+        left.setGravity(Gravity.CENTER_VERTICAL);
+
+        LinearLayout line1 = new LinearLayout(this);
+        line1.setGravity(Gravity.CENTER_VERTICAL);
+        tripIcon = rowIcon(R.drawable.ic_car);
+        line1.addView(tripIcon);
+        tripHero = new TextView(this);
+        tripHero.setTextColor(Style.TEXT);
+        tripHero.setTextSize(30);
+        tripHero.setTypeface(null, android.graphics.Typeface.BOLD);
+        tripHero.setSingleLine(true);
+        line1.addView(tripHero, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         journeyDismiss = new TextView(this);
         journeyDismiss.setText("×");
         journeyDismiss.setTextColor(Style.TEXT_DIM);
@@ -1285,37 +1313,73 @@ public class ComfortActivity extends Activity {
             Prefs.setDriveCardDismissedTrip(this, TripSession.getActiveTripStartMs());
             refreshJourneyCard();
         });
-        heading.addView(journeyDismiss, new LinearLayout.LayoutParams(Style.dp(this, 48), Style.dp(this, 48)));
-        card.addView(heading);
-        journeyHeading = heading;
+        line1.addView(journeyDismiss, new LinearLayout.LayoutParams(Style.dp(this, 48), Style.dp(this, 48)));
+        left.addView(line1);
 
-        journeyPrimary = new TextView(this);
-        journeyPrimary.setTextColor(Style.TEXT);
-        journeyPrimary.setTextSize(30);
-        journeyPrimary.setTypeface(null, android.graphics.Typeface.BOLD);
-        card.addView(journeyPrimary);
-        journeySecondary = new TextView(this);
-        journeySecondary.setTextColor(Style.TEXT_DIM);
-        journeySecondary.setTextSize(16);
-        journeySecondary.setPadding(0, Style.dp(this, 8), 0, 0);
-        card.addView(journeySecondary);
+        LinearLayout line2 = new LinearLayout(this);
+        line2.setGravity(Gravity.CENTER_VERTICAL);
+        line2.setPadding(0, Style.dp(this, 8), 0, 0);
+        tripLeftIcon = rowIcon(R.drawable.ic_battery);
+        line2.addView(tripLeftIcon);
+        tripLeft = rowValue();
+        line2.addView(tripLeft);
+        line2.addView(new View(this), new LinearLayout.LayoutParams(Style.dp(this, 20), 1));
+        tripRightIcon = rowIcon(R.drawable.ic_flash);
+        line2.addView(tripRightIcon);
+        tripRight = rowValue();
+        line2.addView(tripRight);
+        left.addView(line2);
+        journeyTrip.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        journeyAction = Style.cardButton(this, getString(R.string.valet_start), true, () -> {
-            // Stop is allowed any time Valet is active, moving or not -- it's
-            // easy to forget Valet is on and pull away, and making the owner
-            // wait for a stop light isn't worth the drive going untracked in
-            // the meantime. Start still requires Park: ValetSession.start()
-            // itself refuses otherwise.
+        android.widget.FrameLayout right = new android.widget.FrameLayout(this);
+        tripEff = new EfficiencyBadgeView(this);
+        right.addView(tripEff, new android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        tripValetStop = new LinearLayout(this);
+        tripValetStop.setOrientation(LinearLayout.VERTICAL);
+        tripValetStop.setGravity(Gravity.CENTER);
+        android.graphics.drawable.GradientDrawable fill = new android.graphics.drawable.GradientDrawable();
+        fill.setCornerRadius(Style.dp(this, 18));
+        fill.setColor(Style.PURPLE);
+        tripValetStop.setBackground(fill);
+        android.widget.ImageView shield = new android.widget.ImageView(this);
+        shield.setImageResource(R.drawable.ic_shield_car);
+        shield.setColorFilter(0xFFFFFFFF, android.graphics.PorterDuff.Mode.SRC_IN);
+        tripValetStop.addView(shield, new LinearLayout.LayoutParams(Style.dp(this, 32), Style.dp(this, 32)));
+        TextView stop = new TextView(this);
+        stop.setText(R.string.valet_end_short);
+        stop.setTextColor(0xFFFFFFFF);
+        stop.setTextSize(18);
+        stop.setTypeface(null, android.graphics.Typeface.BOLD);
+        stop.setGravity(Gravity.CENTER);
+        stop.setSingleLine(true);
+        stop.setPadding(0, Style.dp(this, 4), 0, 0);
+        tripValetStop.addView(stop);
+        // Stop is allowed any time Valet is active, moving or not -- it's
+        // easy to forget Valet is on and pull away, and making the owner
+        // wait for a stop light isn't worth the drive going untracked.
+        tripValetStop.setOnClickListener(v -> {
             if (ValetSession.isActive(this)) ValetSession.stop(this);
-            else if (CarState.isParked()) ValetSession.start(this);
             refreshJourneyCard();
         });
-        LinearLayout.LayoutParams actionLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        actionLp.topMargin = Style.dp(this, 14);
-        card.addView(journeyAction, actionLp);
-        card.addView(parkedLayout());
-        return card;
+        right.addView(tripValetStop, new android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
+            Style.dp(this, 140), ViewGroup.LayoutParams.MATCH_PARENT);
+        rlp.leftMargin = Style.dp(this, 16);
+        journeyTrip.addView(right, rlp);
+        return journeyTrip;
+    }
+
+    private TextView rowValue() {
+        TextView t = new TextView(this);
+        t.setTextColor(Style.TEXT);
+        t.setTextSize(22);
+        t.setTypeface(null, android.graphics.Typeface.BOLD);
+        t.setSingleLine(true);
+        return t;
     }
 
     /**
@@ -1428,67 +1492,64 @@ public class ComfortActivity extends Activity {
             return;
         }
 
+        boolean gray = Prefs.getCardGrayscale(this);
+        tripEff.setGrayscale(gray);
+        parkedTemp.setGrayscale(gray);
         journeyDismiss.setVisibility(ComfortCardVisibility.showJourneyDismissButton(driving, valet) ? View.VISIBLE : View.GONE);
-        // Parked always gets the button (Start or Stop). Driving only gets it
-        // when Valet is the thing showing -- Stop must reach the driver even
-        // mid-drive; there's no Start-while-driving to show instead.
-        journeyAction.setVisibility(ComfortCardVisibility.showJourneyActionButton(parked, valet) ? View.VISIBLE : View.GONE);
         boolean parkedView = !valet && !driving;
         journeyParked.setVisibility(parkedView ? View.VISIBLE : View.GONE);
-        int other = parkedView ? View.GONE : View.VISIBLE;
-        journeyHeading.setVisibility(other);
-        journeyPrimary.setVisibility(other);
-        journeySecondary.setVisibility(other);
-        if (parkedView) journeyAction.setVisibility(View.GONE);
+        journeyTrip.setVisibility(parkedView ? View.GONE : View.VISIBLE);
+        tripEff.setVisibility(valet ? View.GONE : View.VISIBLE);
+        tripValetStop.setVisibility(valet ? View.VISIBLE : View.GONE);
+        tripLeftIcon.setVisibility(valet ? View.GONE : View.VISIBLE);
+        tripRightIcon.setVisibility(valet ? View.GONE : View.VISIBLE);
         if (valet) {
             ValetSession.Snapshot s = ValetSession.snapshot(this);
-            journeyTitle.setText(R.string.valet_active_title);
-            journeyPrimary.setText(String.format(Locale.getDefault(), "%.1f km  ·  %.0f km/h",
-                s.distanceKm, s.maxSpeedKmh));
-            String power = s.maxPowerKw == null ? getString(R.string.value_unavailable)
-                : String.format(Locale.getDefault(), "%.1f kW", s.maxPowerKw);
-            journeySecondary.setText(getString(R.string.valet_active_detail,
-                formatElapsed(System.currentTimeMillis() - s.startMs), power));
-            journeyAction.setText(R.string.valet_end);
+            tripIcon.setImageResource(R.drawable.ic_shield_car);
+            tripIcon.setColorFilter(Style.PURPLE, android.graphics.PorterDuff.Mode.SRC_IN);
+            SpannableStringBuilder hero = new SpannableStringBuilder(Style.valueWithUnit(
+                String.format(Locale.getDefault(), "%.1f", s.distanceKm), null, "km", Style.UNIT_SCALE_ROW));
+            Style.appendUnit(hero, "   " + formatElapsed(System.currentTimeMillis() - s.startMs)
+                + " · " + getString(R.string.session_since, formatClock(s.startMs)), 0.6f);
+            tripHero.setText(hero);
+            tripLeft.setText(labelled(R.string.session_stat_max_speed,
+                Style.valueWithUnit(String.format(Locale.getDefault(), "%.0f", s.maxSpeedKmh), null, "km/h",
+                    Style.UNIT_SCALE_ROW)));
+            tripRight.setText(labelled(R.string.session_stat_max_power, s.maxPowerKw == null
+                ? getString(R.string.value_unavailable)
+                : Style.valueWithUnit(String.format(Locale.getDefault(), "%.1f", s.maxPowerKw), null, "kW",
+                    Style.UNIT_SCALE_ROW)));
         } else if (driving) {
-            // Same accounting the daily stats page uses for this exact still-driving
-            // trip (DailyStatsProvider.getActiveDriveSession, shared with
-            // queryDaySessions' own active-trip branch) -- including the real
-            // measured/mixed/estimated classification, not just "any OBD2 sample
-            // at all this trip?" which used to hide a mostly-estimated trip behind
-            // one lucky reading. See DrivingConsumption.efficiencyKwh100km's own
-            // header for the fuller history on the netting-vs-spentKwh-alone fix.
-            DailyStatsProvider.DriveSession session = DailyStatsProvider.getActiveDriveSession(this);
-            journeyTitle.setText(R.string.drive_card_title);
-            SpannableStringBuilder primary = new SpannableStringBuilder();
-            if (session == null) {
-                primary.append(getString(R.string.value_calculating));
-                journeyPrimary.setText(primary);
-                journeySecondary.setText(getString(R.string.drive_card_detail, 0.0,
-                    formatElapsed(TripSession.getDrivingDurationMs()), formatClock(TripSession.getActiveTripStartMs()),
-                    0.0));
+            tripIcon.setImageResource(R.drawable.ic_car);
+            tripIcon.setColorFilter(Style.TEXT_DIM, android.graphics.PorterDuff.Mode.SRC_IN);
+            // From the hub (TripSession builds it on each telemetry.tick), not car.db.
+            CarActor.Reading liveR = CarActor.get(this).get(TripSession.LIVE_KEY);
+            LiveTrip t = liveR.status == CarActor.Reading.Status.OK && liveR.value instanceof LiveTrip
+                ? (LiveTrip) liveR.value : LiveTrip.NONE;
+            if (!t.isOpen()) {
+                tripHero.setText(R.string.value_calculating);
+                tripLeft.setText("—");
+                tripRight.setText("—");
+                tripEff.setValue(Double.NaN, false);
             } else {
-                double km = session.distanceKm;
-                double eff = session.efficiencyKwh100km;
-                double netKwh = session.energyKwh;
-                // Smaller/dimmer units, same look as a daily-stats session row
-                // (Style.valueWithUnit), instead of plain concatenated strings.
-                primary.append(eff > 0
-                    ? Style.valueWithUnit(String.format(Locale.getDefault(), "%.1f", eff),
-                        null, "kWh/100 km", Style.UNIT_SCALE_HERO)
-                    : getString(R.string.value_calculating));
-                primary.append("  ·  ");
-                primary.append(Style.valueWithUnit(String.format(Locale.getDefault(), "%.2f", netKwh),
-                    null, "kWh", Style.UNIT_SCALE_HERO));
-                journeyPrimary.setText(DailyStatsView.withEnergySourceMark(primary, session.energySource));
-                // recovered X kWh is the last thing in this string -- the mark
-                // reads naturally right after it, same convention as every
-                // other estimated number in the app.
-                journeySecondary.setText(DailyStatsView.withEnergySourceMark(
-                    getString(R.string.drive_card_detail, km,
-                        formatElapsed(TripSession.getDrivingDurationMs()), formatClock(TripSession.getActiveTripStartMs()),
-                        session.regenKwh),
-                    session.energySource));
+                SpannableStringBuilder hero = new SpannableStringBuilder(Style.valueWithUnit(
+                    String.format(Locale.getDefault(), "%.1f", t.distanceKm()), null, "km", Style.UNIT_SCALE_ROW));
+                Style.appendUnit(hero, "   " + formatElapsed(t.drivingMs())
+                    + " · " + getString(R.string.session_since, formatClock(t.startMs)), 0.6f);
+                tripHero.setText(hero);
+                if (t.socStart >= 0 && t.socEnd >= 0) {
+                    tripLeft.setText(Style.percentRange(t.socStart, t.socEnd, Style.UNIT_SCALE_ROW));
+                } else {
+                    tripLeft.setText("—");
+                }
+                // "net" after the number: it is spent minus regen. The full
+                // "spent − regen" breakdown does not fit the narrow column.
+                SpannableStringBuilder energy = new SpannableStringBuilder(Style.valueWithUnit(
+                    String.format(Locale.getDefault(), "%.2f", t.netKwh()), null, "kWh", Style.UNIT_SCALE_ROW));
+                Style.appendUnit(energy, " " + getString(R.string.energy_net_short), Style.UNIT_SCALE_ROW);
+                tripRight.setText(DailyStatsView.withEnergySourceMark(energy, t.source));
+                tripEff.setValue(t.efficiencyKwh100km(), t.source == EnergySource.ESTIMATED
+                    || t.source == EnergySource.MIXED);
             }
         } else {
             ParkingState.Snapshot s = ParkingState.snapshot(this);
@@ -1516,6 +1577,14 @@ public class ComfortActivity extends Activity {
             parkedTemp.setValues(trail.min(), trail.max(), nowT == null ? Float.NaN : nowT.floatValue());
         }
         if (!lastJourneyAvailable) { lastJourneyAvailable = true; repackColumns(); }
+    }
+
+    /** "Vel. máxima 58 km/h": a small dim label, then the value. */
+    private CharSequence labelled(int labelRes, CharSequence value) {
+        SpannableStringBuilder sb = new SpannableStringBuilder();
+        Style.appendUnit(sb, getString(labelRes) + " ", 0.68f);
+        sb.append(value);
+        return sb;
     }
 
     private Number cachedNumber(String key) {
@@ -2196,7 +2265,13 @@ public class ComfortActivity extends Activity {
         // ambient color/brightness already applied.
         a.runOnCarThread(() -> {
             CarAccess c = a.rawAccess();
-            Integer col = c.readAmbientColor();
+            // The hub's colour already knows the light's mode (#17); read the
+            // car only when the hub has nothing yet.
+            CarActor.Reading hubCol = a.get("telemetry.ambient_color");
+            Integer col = (hubCol.status == CarActor.Reading.Status.OK && hubCol.value instanceof Integer)
+                ? (Integer) hubCol.value
+                : AmbientLight.effective(c.readAmbientMode(), c.readAmbientColor(),
+                    c.readIntRaw(com.geely.drivemem.util.Modes.PROP_DRIVE, 0));
             Integer bri = c.readAmbientBrightness();
             ui.post(() -> {
                 if (col != null) applyAmbient(col);
@@ -2305,6 +2380,7 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe("valet.progress", journeyBusListener);
         EntityBus.subscribe("parking.changed", journeyBusListener);
         EntityBus.subscribe(ParkingState.TRAIL_KEY, journeyBusListener);
+        EntityBus.subscribe(TripSession.LIVE_KEY, journeyBusListener);
         // Same "did it actually change while this screen was away" re-check
         // as the gate and music cards just above, and the same reason: a
         // park↔drive edge (and therefore Turbo's own visibility) can happen
@@ -2363,6 +2439,7 @@ public class ComfortActivity extends Activity {
         EntityBus.unsubscribe("valet.progress", journeyBusListener);
         EntityBus.unsubscribe("parking.changed", journeyBusListener);
         EntityBus.unsubscribe(ParkingState.TRAIL_KEY, journeyBusListener);
+        EntityBus.unsubscribe(TripSession.LIVE_KEY, journeyBusListener);
         try { unregisterReceiver(updateReceiver); } catch (Throwable ignored) {}
         if (activeUpdateDialog != null && activeUpdateDialog.isShowing()) {
             try { activeUpdateDialog.dismiss(); } catch (Throwable ignored) {}
