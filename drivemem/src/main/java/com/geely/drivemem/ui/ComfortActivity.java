@@ -28,6 +28,7 @@ import com.geely.drivemem.state.MusicState;
 import com.geely.drivemem.state.PanelState;
 import com.geely.drivemem.state.ParkingState;
 import com.geely.drivemem.state.TripSession;
+import com.geely.drivemem.state.TempTrail;
 import com.geely.drivemem.state.ValetSession;
 import com.geely.drivemem.util.BootReceiver;
 import com.geely.drivemem.util.LayoutWait;
@@ -147,6 +148,11 @@ public class ComfortActivity extends Activity {
     // One compact identity whose content follows driving, parked and Valet state.
     private LinearLayout journeyCard;
     private TextView journeyTitle, journeyPrimary, journeySecondary, journeyAction, journeyDismiss;
+    // Parked has its own compact two-line layout (journeyParked), shown
+    // instead of the heading/primary/secondary/action used by drive and Valet.
+    private LinearLayout journeyHeading, journeyParked;
+    private TextView parkedHero, parkedBattery;
+    private TempRangeView parkedTemp;
     private boolean driveCardEnabledAtBuild;
     private boolean lastJourneyAvailable;
 
@@ -1282,6 +1288,7 @@ public class ComfortActivity extends Activity {
         });
         heading.addView(journeyDismiss, new LinearLayout.LayoutParams(Style.dp(this, 48), Style.dp(this, 48)));
         card.addView(heading);
+        journeyHeading = heading;
 
         journeyPrimary = new TextView(this);
         journeyPrimary.setTextColor(Style.TEXT);
@@ -1293,6 +1300,7 @@ public class ComfortActivity extends Activity {
         journeySecondary.setTextSize(16);
         journeySecondary.setPadding(0, Style.dp(this, 8), 0, 0);
         card.addView(journeySecondary);
+
         journeyAction = Style.cardButton(this, getString(R.string.valet_start), true, () -> {
             // Stop is allowed any time Valet is active, moving or not -- it's
             // easy to forget Valet is on and pull away, and making the owner
@@ -1307,9 +1315,103 @@ public class ComfortActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         actionLp.topMargin = Style.dp(this, 14);
         card.addView(journeyAction, actionLp);
+        card.addView(parkedLayout());
         return card;
     }
 
+    /**
+     * Parked, in two lines:
+     *   [P] 5h 48m  desde 09:27                    | [shield]   |
+     *   [battery] 44% → 99%   [thermo] 27° ━●━ 33°  | Manobrista |
+     * The Valet button is two lines tall on the right and quiet (purple
+     * outline): starting Valet is rare. The temperature bar covers only the
+     * range the car sat through, coloured on an absolute scale (TempRangeView).
+     */
+    private View parkedLayout() {
+        journeyParked = new LinearLayout(this);
+        journeyParked.setOrientation(LinearLayout.HORIZONTAL);
+        journeyParked.setBaselineAligned(false);
+
+        LinearLayout left = new LinearLayout(this);
+        left.setOrientation(LinearLayout.VERTICAL);
+        left.setGravity(Gravity.CENTER_VERTICAL);
+
+        LinearLayout line1 = new LinearLayout(this);
+        line1.setGravity(Gravity.CENTER_VERTICAL);
+        line1.addView(rowIcon(R.drawable.ic_parking));
+        parkedHero = new TextView(this);
+        parkedHero.setTextColor(Style.TEXT);
+        parkedHero.setTextSize(30);
+        parkedHero.setTypeface(null, android.graphics.Typeface.BOLD);
+        parkedHero.setSingleLine(true);
+        line1.addView(parkedHero);
+        left.addView(line1);
+
+        LinearLayout line2 = new LinearLayout(this);
+        line2.setGravity(Gravity.CENTER_VERTICAL);
+        line2.setPadding(0, Style.dp(this, 8), 0, 0);
+        line2.addView(rowIcon(R.drawable.ic_battery));
+        parkedBattery = new TextView(this);
+        parkedBattery.setTextColor(Style.TEXT);
+        parkedBattery.setTextSize(22);
+        parkedBattery.setTypeface(null, android.graphics.Typeface.BOLD);
+        parkedBattery.setSingleLine(true);
+        line2.addView(parkedBattery);
+        line2.addView(new View(this), new LinearLayout.LayoutParams(Style.dp(this, 20), 1));
+        line2.addView(rowIcon(R.drawable.ic_thermometer));
+        parkedTemp = new TempRangeView(this);
+        line2.addView(parkedTemp, new LinearLayout.LayoutParams(0, Style.dp(this, 32), 1f));
+        left.addView(line2);
+        journeyParked.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        LinearLayout valet = new LinearLayout(this);
+        valet.setOrientation(LinearLayout.VERTICAL);
+        valet.setGravity(Gravity.CENTER);
+        valet.setPadding(0, Style.dp(this, 8), 0, Style.dp(this, 8));
+        android.graphics.drawable.GradientDrawable g = Style.card(Style.cardFillColor(), this);
+        g.setStroke(Style.dp(this, 2), Style.PURPLE);
+        valet.setBackground(g);
+        android.widget.ImageView shield = new android.widget.ImageView(this);
+        shield.setImageResource(R.drawable.ic_shield_car);
+        shield.setColorFilter(Style.PURPLE, android.graphics.PorterDuff.Mode.SRC_IN);
+        valet.addView(shield, new LinearLayout.LayoutParams(Style.dp(this, 32), Style.dp(this, 32)));
+        TextView label = new TextView(this);
+        label.setText(R.string.valet_short);
+        label.setTextColor(Style.TEXT);
+        label.setTextSize(16);
+        label.setGravity(Gravity.CENTER);
+        label.setSingleLine(true);
+        label.setPadding(0, Style.dp(this, 4), 0, 0);
+        valet.addView(label);
+        valet.setOnClickListener(v -> {
+            // Start still requires Park: ValetSession.start() refuses otherwise.
+            if (CarState.isParked()) ValetSession.start(this);
+            refreshJourneyCard();
+        });
+        // Fixed width: wrap_content let the label break mid-word ("Ma-no-").
+        LinearLayout.LayoutParams vlp = new LinearLayout.LayoutParams(
+            Style.dp(this, 140), ViewGroup.LayoutParams.MATCH_PARENT);
+        vlp.leftMargin = Style.dp(this, 16);
+        journeyParked.addView(valet, vlp);
+        return journeyParked;
+    }
+
+    private android.widget.ImageView rowIcon(int res) {
+        android.widget.ImageView i = new android.widget.ImageView(this);
+        i.setImageResource(res);
+        i.setColorFilter(Style.TEXT_DIM, android.graphics.PorterDuff.Mode.SRC_IN);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Style.dp(this, 24), Style.dp(this, 24));
+        lp.rightMargin = Style.dp(this, 8);
+        i.setLayoutParams(lp);
+        return i;
+    }
+
+    /**
+     * Starting Valet is a rare, deliberate act, so on the parked card its
+     * button is quiet: an outline in Valet's purple with the shield icon,
+     * not the full blue fill that made it the loudest thing on the screen.
+     * Ending Valet keeps the filled button -- that one must be found fast.
+     */
     private void refreshJourneyCard() {
         if (journeyCard == null) return;
         boolean valet = ValetSession.isActive(this);
@@ -1332,6 +1434,13 @@ public class ComfortActivity extends Activity {
         // when Valet is the thing showing -- Stop must reach the driver even
         // mid-drive; there's no Start-while-driving to show instead.
         journeyAction.setVisibility(ComfortCardVisibility.showJourneyActionButton(parked, valet) ? View.VISIBLE : View.GONE);
+        boolean parkedView = !valet && !driving;
+        journeyParked.setVisibility(parkedView ? View.VISIBLE : View.GONE);
+        int other = parkedView ? View.GONE : View.VISIBLE;
+        journeyHeading.setVisibility(other);
+        journeyPrimary.setVisibility(other);
+        journeySecondary.setVisibility(other);
+        if (parkedView) journeyAction.setVisibility(View.GONE);
         if (valet) {
             ValetSession.Snapshot s = ValetSession.snapshot(this);
             journeyTitle.setText(R.string.valet_active_title);
@@ -1384,17 +1493,28 @@ public class ComfortActivity extends Activity {
             }
         } else {
             ParkingState.Snapshot s = ParkingState.snapshot(this);
-            journeyTitle.setText(R.string.parked_card_title);
-            journeyPrimary.setText(s.startMs > 0 ? formatElapsed(System.currentTimeMillis() - s.startMs)
-                : getString(R.string.value_unavailable));
-            String battery = s.startSoc != null && s.currentSoc != null
-                ? String.format(Locale.getDefault(), "%+d pp", s.currentSoc - s.startSoc)
-                : getString(R.string.value_unavailable);
-            String temp = s.startTemp != null && s.currentTemp != null
-                ? String.format(Locale.getDefault(), "%+.1f °C", s.currentTemp - s.startTemp)
-                : getString(R.string.value_unavailable);
-            journeySecondary.setText(getString(R.string.parked_card_detail, battery, temp));
-            journeyAction.setText(R.string.valet_start);
+            SpannableStringBuilder hero = new SpannableStringBuilder(s.startMs > 0
+                ? formatElapsed(System.currentTimeMillis() - s.startMs) : getString(R.string.value_unavailable));
+            if (s.startMs > 0) {
+                Style.appendUnit(hero, "   " + getString(R.string.session_since, formatClock(s.startMs)), 0.6f);
+            }
+            parkedHero.setText(hero);
+            // "44% → 100%" instead of "+56 pp": the two ends say more than the
+            // difference, and "pp" is a word few drivers know.
+            if (s.startSoc != null && s.currentSoc != null) {
+                parkedBattery.setText(Style.percentRange(s.startSoc, s.currentSoc, Style.UNIT_SCALE_ROW));
+            } else if (s.currentSoc != null) {
+                parkedBattery.setText(Style.valueWithUnit(String.valueOf(s.currentSoc), null, "%",
+                    Style.UNIT_SCALE_ROW));
+            } else {
+                parkedBattery.setText(R.string.value_unavailable);
+            }
+            // Both read from the hub, never from ParkingState directly.
+            CarActor.Reading trailR = CarActor.get(this).get(ParkingState.TRAIL_KEY);
+            TempTrail trail = trailR.status == CarActor.Reading.Status.OK && trailR.value instanceof TempTrail
+                ? (TempTrail) trailR.value : TempTrail.EMPTY;
+            Number nowT = cachedNumber("telemetry.outside_temp");
+            parkedTemp.setValues(trail.min(), trail.max(), nowT == null ? Float.NaN : nowT.floatValue());
         }
         if (!lastJourneyAvailable) { lastJourneyAvailable = true; repackColumns(); }
     }
@@ -1404,10 +1524,9 @@ public class ComfortActivity extends Activity {
         return r.status == CarActor.Reading.Status.OK && r.value instanceof Number ? (Number) r.value : null;
     }
 
+    /** Same duration format as the day-session cards ("5h 32m", "44m"). */
     private String formatElapsed(long ms) {
-        long minutes = Math.max(0, ms) / 60_000L;
-        return minutes >= 60 ? String.format(Locale.getDefault(), "%dh %02dmin", minutes / 60, minutes % 60)
-            : String.format(Locale.getDefault(), "%d min", minutes);
+        return SessionText.duration(ms);
     }
 
     private String formatClock(long ms) {
@@ -2186,6 +2305,7 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe("valet.changed", journeyBusListener);
         EntityBus.subscribe("valet.progress", journeyBusListener);
         EntityBus.subscribe("parking.changed", journeyBusListener);
+        EntityBus.subscribe(ParkingState.TRAIL_KEY, journeyBusListener);
         // Same "did it actually change while this screen was away" re-check
         // as the gate and music cards just above, and the same reason: a
         // park↔drive edge (and therefore Turbo's own visibility) can happen
@@ -2243,6 +2363,7 @@ public class ComfortActivity extends Activity {
         EntityBus.unsubscribe("valet.changed", journeyBusListener);
         EntityBus.unsubscribe("valet.progress", journeyBusListener);
         EntityBus.unsubscribe("parking.changed", journeyBusListener);
+        EntityBus.unsubscribe(ParkingState.TRAIL_KEY, journeyBusListener);
         try { unregisterReceiver(updateReceiver); } catch (Throwable ignored) {}
         if (activeUpdateDialog != null && activeUpdateDialog.isShowing()) {
             try { activeUpdateDialog.dismiss(); } catch (Throwable ignored) {}

@@ -16,6 +16,11 @@ public final class ParkingState {
     private static final String START = "parking_start_ms";
     private static final String SOC = "parking_start_soc";
     private static final String TEMP = "parking_start_temp";
+    private static final String TRAIL = "parking_temp_trail";
+    /** Hub key: outside temperature over this stay in Park (a {@link TempTrail}). */
+    public static final String TRAIL_KEY = "parking.temp_trail";
+    // Only touched on the hub thread (telemetry.tick and CarState listeners).
+    private static TempTrail trail = TempTrail.EMPTY;
     private static volatile boolean subscribed;
 
     public static final class Snapshot {
@@ -32,6 +37,9 @@ public final class ParkingState {
         if (subscribed) return;
         subscribed = true;
         Context app = context.getApplicationContext();
+        // Put the stored trail back into the hub after a process restart.
+        trail = TempTrail.decode(app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(TRAIL, null));
+        CarActor.get(app).inject(TRAIL_KEY, trail);
         CarState.addListener(parked -> {
             if (parked) ensureBaseline(app, null);
             else clear(app);
@@ -40,6 +48,7 @@ public final class ParkingState {
             if (reading.status != CarActor.Reading.Status.OK || !CarState.isParked()) return;
             @SuppressWarnings("unchecked") Map<String, Object> data = (Map<String, Object>) reading.value;
             ensureBaseline(app, data);
+            recordTrail(app, data);
         });
     }
 
@@ -57,6 +66,25 @@ public final class ParkingState {
             EntityBus.publish("parking.changed", CarActor.Reading.ok(true));
     }
 
+    /**
+     * One hub tick while parked: the outside temperature goes into its time
+     * bucket. Ticks only come while the head unit is awake, so buckets with
+     * none stay empty and the card shows those hours as asleep. Cheap: a
+     * prefs write and a hub update only when a bucket actually changes.
+     */
+    private static void recordTrail(Context c, Map<String, Object> data) {
+        SharedPreferences p = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        long start = p.getLong(START, 0);
+        if (start <= 0) return;
+        if (trail.startMs != start) trail = TempTrail.start(start);
+        Number temp = number(data, "outside_temp", CarActor.get(c).get("telemetry.outside_temp"));
+        TempTrail next = trail.record(System.currentTimeMillis(), temp == null ? null : temp.floatValue());
+        if (next.equals(trail) && p.contains(TRAIL)) return;
+        trail = next;
+        p.edit().putString(TRAIL, next.encode()).apply();
+        CarActor.get(c).inject(TRAIL_KEY, next);
+    }
+
     private static Number number(Map<String, Object> data, String key, CarActor.Reading cached) {
         Object value = data == null ? null : data.get(key);
         if (value instanceof Number) return (Number) value;
@@ -66,7 +94,9 @@ public final class ParkingState {
 
     private static void clear(Context c) {
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .remove(START).remove(SOC).remove(TEMP).apply();
+            .remove(START).remove(SOC).remove(TEMP).remove(TRAIL).apply();
+        trail = TempTrail.EMPTY;
+        CarActor.get(c).inject(TRAIL_KEY, TempTrail.EMPTY);
         EntityBus.publish("parking.changed", CarActor.Reading.ok(false));
     }
 
