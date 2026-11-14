@@ -39,12 +39,14 @@ public final class TelemetrySystemSection extends LinearLayout {
 
         int pad = Style.dp(activity, 14);
 
+        // Two columns. Left: what this app is and how it gets updated and
+        // backed up. Right: the car's network and the rarely used tools.
+        LinearLayout left = ConfigCards.column(activity);
+        LinearLayout right = ConfigCards.column(activity);
+        addView(ConfigCards.columns(activity, left, right));
+
         // ---- App Info Card ----
-        addView(Style.header(activity, activity.getString(R.string.cfg_app_info_header)));
-        LinearLayout infoCard = new LinearLayout(activity);
-        infoCard.setOrientation(LinearLayout.VERTICAL);
-        infoCard.setBackground(Style.card(Style.CARD, activity));
-        infoCard.setPadding(pad, pad, pad, pad);
+        LinearLayout infoCard = ConfigCards.card(activity, activity.getString(R.string.cfg_app_info_header));
 
         String verName = "Unknown";
         long verCode = 0;
@@ -99,16 +101,12 @@ public final class TelemetrySystemSection extends LinearLayout {
             activity.runOnUiThread(() -> shaView.setText(sha != null ? sha : "N/A"));
         }).start();
 
-        addView(infoCard);
+        ConfigCards.add(left, infoCard);
+
+        ConfigCards.add(right, NetworkSettingsBlock.card(activity));
 
         // ---- Software Update Card ----
-        NetworkSettingsBlock.addTo(activity, this);
-
-        addView(Style.header(activity, activity.getString(R.string.cfg_update_header)));
-        LinearLayout updateCard = new LinearLayout(activity);
-        updateCard.setOrientation(LinearLayout.VERTICAL);
-        updateCard.setBackground(Style.card(Style.CARD, activity));
-        updateCard.setPadding(pad, pad, pad, pad);
+        LinearLayout updateCard = ConfigCards.card(activity, activity.getString(R.string.cfg_update_header));
 
         TextView urlLbl = Style.label(activity, activity.getString(R.string.cfg_update_url_label));
         urlLbl.setTextSize(14);
@@ -159,14 +157,10 @@ public final class TelemetrySystemSection extends LinearLayout {
         status.setPadding(0, Style.dp(activity, 10), 0, 0);
         updateCard.addView(status);
 
-        addView(updateCard);
+        ConfigCards.add(left, updateCard);
 
         // ---- Maintenance Card ----
-        addView(Style.header(activity, activity.getString(R.string.cfg_maintenance_header)));
-        LinearLayout maintCard = new LinearLayout(activity);
-        maintCard.setOrientation(LinearLayout.VERTICAL);
-        maintCard.setBackground(Style.card(Style.CARD, activity));
-        maintCard.setPadding(pad, pad, pad, pad);
+        LinearLayout maintCard = ConfigCards.card(activity, activity.getString(R.string.cfg_maintenance_header));
 
         LinearLayout maintRow = new LinearLayout(activity);
         maintRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -175,16 +169,21 @@ public final class TelemetrySystemSection extends LinearLayout {
         }));
         maintCard.addView(maintRow);
 
-        addView(maintCard);
+        ConfigCards.add(right, maintCard);
 
         // ---- Backup Card ----
-        addView(Style.header(activity, activity.getString(R.string.backup_header)));
-        LinearLayout backupCard = new LinearLayout(activity);
-        backupCard.setOrientation(LinearLayout.VERTICAL);
-        backupCard.setBackground(Style.card(Style.CARD, activity));
-        backupCard.setPadding(pad, pad, pad, pad);
-        backupCard.addView(Style.label(activity, activity.getString(R.string.backup_info)));
-        TextView lastBackup = Style.label(activity, "");
+        LinearLayout backupCard = ConfigCards.card(activity, activity.getString(R.string.backup_header));
+        // Plain body text, not Style.label(): label is 22sp bold, made for a
+        // one-line switch name, and a whole paragraph in it shouted.
+        TextView backupInfo = new TextView(activity);
+        backupInfo.setText(activity.getString(R.string.backup_info));
+        backupInfo.setTextColor(Style.TEXT_DIM);
+        backupInfo.setTextSize(16);
+        backupCard.addView(backupInfo);
+        TextView lastBackup = new TextView(activity);
+        lastBackup.setTextColor(Style.TEXT);
+        lastBackup.setTextSize(17);
+        lastBackup.setPadding(0, Style.dp(activity, 10), 0, 0);
         backupCard.addView(lastBackup);
         Runnable refreshLast = () -> new Thread(() -> {
             java.util.List<com.geely.drivemem.util.AppBackup.Found> f =
@@ -207,7 +206,7 @@ public final class TelemetrySystemSection extends LinearLayout {
         backupRow.addView(button(activity, activity.getString(R.string.backup_password), 0xFF3A5A7A,
             () -> BackupDialogs.setPassword(activity, refreshLast)));
         backupCard.addView(backupRow);
-        addView(backupCard);
+        ConfigCards.add(left, backupCard);
     }
 
     private void updateCheck() {
