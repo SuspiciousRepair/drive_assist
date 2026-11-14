@@ -81,6 +81,16 @@
             </intent-filter>
         </receiver>
 
+        <!-- adb-only backup/restore (tools/car-backup.sh). DUMP: the shell has it,
+             no ordinary app can get it. -->
+        <receiver android:name=".util.BackupReceiver" android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.geely.drivemem.BACKUP" />
+                <action android:name="com.geely.drivemem.RESTORE" />
+            </intent-filter>
+        </receiver>
+
         <service android:name=".services.TelemetryService" android:exported="false" />
         <service android:name=".services.OutTempService" android:exported="false" />
         <service android:name=".services.WifiIconService" android:exported="false" />

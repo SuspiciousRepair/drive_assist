@@ -176,6 +176,38 @@ public final class TelemetrySystemSection extends LinearLayout {
         maintCard.addView(maintRow);
 
         addView(maintCard);
+
+        // ---- Backup Card ----
+        addView(Style.header(activity, activity.getString(R.string.backup_header)));
+        LinearLayout backupCard = new LinearLayout(activity);
+        backupCard.setOrientation(LinearLayout.VERTICAL);
+        backupCard.setBackground(Style.card(Style.CARD, activity));
+        backupCard.setPadding(pad, pad, pad, pad);
+        backupCard.addView(Style.label(activity, activity.getString(R.string.backup_info)));
+        TextView lastBackup = Style.label(activity, "");
+        backupCard.addView(lastBackup);
+        Runnable refreshLast = () -> new Thread(() -> {
+            java.util.List<com.geely.drivemem.util.AppBackup.Found> f =
+                com.geely.drivemem.util.AppBackup.list();
+            boolean pw = com.geely.drivemem.util.AppBackup.hasPassword(activity);
+            String last = f.isEmpty()
+                ? activity.getString(R.string.backup_none)
+                : activity.getString(R.string.backup_last, BackupDialogs.describe(activity, f.get(0)));
+            activity.runOnUiThread(() -> lastBackup.setText(pw ? last
+                : activity.getString(R.string.backup_no_password) + "\n" + last));
+        }, "backup-last").start();
+        refreshLast.run();
+        LinearLayout backupRow = new LinearLayout(activity);
+        backupRow.setOrientation(LinearLayout.HORIZONTAL);
+        backupRow.setPadding(0, Style.dp(activity, 12), 0, 0);
+        backupRow.addView(button(activity, activity.getString(R.string.backup_now), Style.ACCENT,
+            () -> BackupDialogs.backupNow(activity, refreshLast)));
+        backupRow.addView(button(activity, activity.getString(R.string.backup_restore), 0xFF3A5A7A,
+            () -> BackupDialogs.pickAndRestore(activity)));
+        backupRow.addView(button(activity, activity.getString(R.string.backup_password), 0xFF3A5A7A,
+            () -> BackupDialogs.setPassword(activity, refreshLast)));
+        backupCard.addView(backupRow);
+        addView(backupCard);
     }
 
     private void updateCheck() {

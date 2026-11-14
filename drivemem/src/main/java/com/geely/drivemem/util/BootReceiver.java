@@ -209,6 +209,7 @@ public class BootReceiver extends BroadcastReceiver {
         com.geely.drivemem.controls.WifiKeep.ensure(ctx, "watchdog");
         com.geely.drivemem.controls.WifiKeep.syncHelper(ctx);
         com.geely.drivemem.controls.HelperSync.push(ctx);
+        try { AppBackup.autoIfDue(ctx); } catch (Throwable t) { Log.w(CarAccess.TAG, "backup: " + t); }
 
         ensureService(ctx, Prefs.getOutTempOn(ctx),
             OutTempService.class, Beat.OUTTEMP, STALE_OUTTEMP_MS);

@@ -466,4 +466,42 @@
     <!-- daily stats day navigator -->
     <string name="daily_stats_prev_day">Previous</string>
     <string name="daily_stats_next_day">Next</string>
+
+    <!-- Backup and restore (AppBackup, BackupDialogs) -->
+    <string name="backup_header">Backup</string>
+    <string name="backup_info">Saves your settings, trips and MQTT certificates to the USB stick and to the car storage, locked with your backup password. It also runs by itself once a day, in Park. A backup on the car storage stays when you delete the app. A backup on the USB stick also stays after a workshop reset. To restore after you delete the app, you need the backup password.</string>
+    <string name="backup_last">Last backup: %1$s</string>
+    <string name="backup_none">No backup yet</string>
+    <string name="backup_none_found">No backup found. Put in the USB stick that has the \"Drive Assist/Backups\" folder.</string>
+    <string name="backup_where_usb">USB stick</string>
+    <string name="backup_where_car">car storage</string>
+    <string name="backup_now">Back up now</string>
+    <string name="backup_restore">Restore</string>
+    <string name="backup_running">Backing up…</string>
+    <string name="backup_ok">Backup saved: %1$s</string>
+    <string name="backup_failed">Backup failed: %1$s</string>
+    <string name="backup_pick_title">Choose a backup</string>
+    <string name="backup_restore_confirm">Restore the backup from %1$s?\n\nYour settings change to the ones in the backup. The trips in the backup are added to the trips on the car. Then the app restarts.</string>
+    <string name="backup_restoring">Restoring… The app restarts.</string>
+    <string name="backup_restore_failed">Restore failed. Nothing was changed.\n\n%1$s</string>
+    <string name="backup_park_first">Put the car in P first.</string>
+    <string name="backup_offer_title">Restore your backup?</string>
+    <string name="backup_offer_msg">Drive Assist found a backup from %1$s.\n\nIt brings back your settings, your trips and your MQTT certificates.</string>
+    <string name="backup_offer_no">No, start new</string>
+    <string name="backup_offer_other">Other backup…</string>
+    <string name="backup_restored">Backup restored: %1$d settings, %2$d trips added.</string>
+    <string name="backup_restored_trips_there">Backup restored: %1$d settings. The trips were already on the car.</string>
+    <string name="backup_password">Password</string>
+    <string name="backup_no_password">No backup password yet, so backups are off. Tap Password to turn them on.</string>
+    <string name="backup_pw_set_title">Choose a backup password</string>
+    <string name="backup_pw_set_msg">Write it down. Without it, nobody can open your backups.</string>
+    <string name="backup_pw_change_msg">Older backups keep the old password.</string>
+    <string name="backup_pw_hint">Password (6 characters or more)</string>
+    <string name="backup_pw_again_hint">Same password again</string>
+    <string name="backup_pw_short">Use 6 characters or more.</string>
+    <string name="backup_pw_mismatch">The 2 passwords are not the same.</string>
+    <string name="backup_pw_saved">Backup password saved.</string>
+    <string name="backup_pw_enter_title">Backup password</string>
+    <string name="backup_pw_enter_msg">Type the password of the backup from %1$s.</string>
+    <string name="backup_pw_wrong">Wrong password. Try again.</string>
 </resources>
