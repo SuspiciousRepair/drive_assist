@@ -40,6 +40,7 @@ final class EfficiencyBadgeView extends View {
 
     private double value = Double.NaN;
     private boolean estimated;
+    private boolean grayscale;
     private final Paint border = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint number = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint unit = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -71,6 +72,13 @@ final class EfficiencyBadgeView extends View {
         invalidate();
     }
 
+    /** Config > Elements "Grayscale cards": theme text colours, no scale. */
+    void setGrayscale(boolean on) {
+        if (on == grayscale) return;
+        grayscale = on;
+        invalidate();
+    }
+
     /** Colour of a consumption on the fixed scale (clamped at both ends). */
     static int colorFor(double kwh100) {
         if (kwh100 <= STOPS[0]) return STOP_COLORS[0];
@@ -94,7 +102,7 @@ final class EfficiencyBadgeView extends View {
         Context c = getContext();
         float w = getWidth(), h = getHeight();
         boolean has = !Double.isNaN(value);
-        int color = has ? colorFor(value) : Style.TEXT_DIM;
+        int color = has && !grayscale ? colorFor(value) : Style.TEXT_DIM;
 
         float sw = border.getStrokeWidth();
         rect.set(sw / 2, sw / 2, w - sw / 2, h - sw / 2);
@@ -112,7 +120,7 @@ final class EfficiencyBadgeView extends View {
 
         String s = has ? String.format(Locale.getDefault(), "%.1f", value) : "—";
         if (has && estimated) s += "~";
-        number.setColor(color);
+        number.setColor(has && grayscale ? Style.TEXT : color);
         canvas.drawText(s, w / 2f, top + numH, number);
         unit.setColor(Style.TEXT_DIM);
         canvas.drawText("kWh/100 km", w / 2f, top + numH + unitGap - unit.ascent(), unit);
@@ -122,7 +130,7 @@ final class EfficiencyBadgeView extends View {
         float left = (w - barW) / 2f, right = left + barW;
         int n = 7;
         int[] colors = new int[n];
-        for (int i = 0; i < n; i++) colors[i] = colorFor(BAR_MIN + (BAR_MAX - BAR_MIN) * i / (n - 1));
+        for (int i = 0; i < n; i++) colors[i] = grayscale ? Style.TEXT_DIM : colorFor(BAR_MIN + (BAR_MAX - BAR_MIN) * i / (n - 1));
         bar.setStrokeWidth(barH);
         bar.setShader(new LinearGradient(left, 0, right, 0, colors, null, Shader.TileMode.CLAMP));
         canvas.drawLine(left, cy, right, cy, bar);

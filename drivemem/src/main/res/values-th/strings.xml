@@ -66,6 +66,7 @@
     <string name="notif_soc_value">%1$s%%</string>
 
     <!-- overlay: floating quick-access button -->
+    <string name="cfg_card_grayscale">การ์ดสีเทา</string>
     <string name="cfg_overlay_label">ปุ่มลอยเข้าถึงด่วน</string>
     <string name="notif_overlay_channel">ปุ่มลอย</string>
     <string name="notif_overlay_fg_text">ปุ่มเข้าถึงด่วน</string>

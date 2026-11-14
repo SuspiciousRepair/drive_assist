@@ -39,6 +39,7 @@ final class TempRangeView extends View {
     };
 
     private float min = Float.NaN, max = Float.NaN, now = Float.NaN;
+    private boolean grayscale;
     private final Paint bar = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint dot = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -55,6 +56,13 @@ final class TempRangeView extends View {
     void setValues(float min, float max, float now) {
         if (same(min, this.min) && same(max, this.max) && same(now, this.now)) return;
         this.min = min; this.max = max; this.now = now;
+        invalidate();
+    }
+
+    /** Config > Elements "Grayscale cards": a plain bar, no colour scale. */
+    void setGrayscale(boolean on) {
+        if (on == grayscale) return;
+        grayscale = on;
         invalidate();
     }
 
@@ -108,7 +116,7 @@ final class TempRangeView extends View {
         // actually saw is painted.
         int n = 6;
         int[] colors = new int[n];
-        for (int i = 0; i < n; i++) colors[i] = colorFor(min + (max - min) * i / (n - 1));
+        for (int i = 0; i < n; i++) colors[i] = grayscale ? Style.TEXT_DIM : colorFor(min + (max - min) * i / (n - 1));
         bar.setStrokeWidth(Style.dp(c, 10));
         bar.setShader(new LinearGradient(left, 0, right, 0, colors, null, Shader.TileMode.CLAMP));
         canvas.drawLine(left, cy, right, cy, bar);

@@ -256,6 +256,7 @@
     <string name="cfg_bar_topbar_header">Status bar</string>
     <string name="cfg_bar_soc">Battery %% in the bar</string>
     <string name="cfg_bar_home_header">Home screen</string>
+    <string name="cfg_card_grayscale">Grayscale cards</string>
     <string name="cfg_overlay_label">Floating quick-access button</string>
     <string name="overlay_climate_label">Climate</string>
     <string name="overlay_open_app">Open app</string>

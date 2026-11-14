@@ -1492,6 +1492,9 @@ public class ComfortActivity extends Activity {
             return;
         }
 
+        boolean gray = Prefs.getCardGrayscale(this);
+        tripEff.setGrayscale(gray);
+        parkedTemp.setGrayscale(gray);
         journeyDismiss.setVisibility(ComfortCardVisibility.showJourneyDismissButton(driving, valet) ? View.VISIBLE : View.GONE);
         boolean parkedView = !valet && !driving;
         journeyParked.setVisibility(parkedView ? View.VISIBLE : View.GONE);
