@@ -454,7 +454,7 @@
 
     <!-- Backup and restore (AppBackup, BackupDialogs) -->
     <string name="backup_header">Backup</string>
-    <string name="backup_info">Salva suas configurações, viagens e certificados MQTT no pendrive e na memória do carro, trancados com sua senha de backup. Também roda sozinho uma vez por dia, em P. O backup na memória do carro fica mesmo se você apagar o app. O backup no pendrive fica também depois de um reset na oficina.</string>
+    <string name="backup_info">Salva suas configurações, viagens e certificados MQTT no pendrive e na memória do carro, trancados com sua senha de backup. Também roda sozinho uma vez por dia, em P. O backup na memória do carro fica mesmo se você apagar o app. O backup no pendrive fica também depois de um reset na oficina. Para restaurar depois de apagar o app, você precisa da senha de backup.</string>
     <string name="backup_last">Último backup: %1$s</string>
     <string name="backup_none">Nenhum backup ainda</string>
     <string name="backup_none_found">Nenhum backup encontrado. Coloque o pendrive que tem a pasta \"Drive Assist/Backups\".</string>
@@ -479,8 +479,8 @@
     <string name="backup_password">Senha</string>
     <string name="backup_no_password">Ainda não há senha de backup, então os backups estão desligados. Toque em Senha para ligar.</string>
     <string name="backup_pw_set_title">Escolha uma senha de backup</string>
-    <string name="backup_pw_set_msg">Seus backups ficam trancados com esta senha, então outros apps não conseguem ler. Você precisa dela para restaurar depois de apagar o app.\n\nAnote a senha. Se você perder, ninguém consegue abrir seus backups.</string>
-    <string name="backup_pw_change_msg">Os backups novos usam a senha nova. Os backups antigos ainda precisam da senha antiga.</string>
+    <string name="backup_pw_set_msg">Anote a senha. Sem ela, ninguém abre seus backups.</string>
+    <string name="backup_pw_change_msg">Os backups antigos continuam com a senha antiga.</string>
     <string name="backup_pw_hint">Senha (6 caracteres ou mais)</string>
     <string name="backup_pw_again_hint">A mesma senha de novo</string>
     <string name="backup_pw_short">Use 6 caracteres ou mais.</string>

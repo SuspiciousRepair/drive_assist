@@ -89,7 +89,9 @@ wait_log() {
   return 1
 }
 
-car_now() { ash "date '+%m-%d %H:%M:%S.000'" | tr -d '\r'; }
+# The log filter has whole-second precision: wait into the next second, so a
+# line from the request before is never read as the answer to this one.
+car_now() { sleep 1; ash "date '+%m-%d %H:%M:%S.000'" | tr -d '\r'; }
 
 # The password, asked once, never echoed. Passed to the app as an intent
 # extra over the root adb shell; the app never logs it.

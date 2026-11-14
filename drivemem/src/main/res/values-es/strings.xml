@@ -442,7 +442,7 @@
 
     <!-- Backup and restore (AppBackup, BackupDialogs) -->
     <string name="backup_header">Copia de seguridad</string>
-    <string name="backup_info">Guarda tus ajustes, viajes y certificados MQTT en la memoria USB y en el almacenamiento del auto, bloqueados con tu contraseña de copia. También se ejecuta solo una vez al día, en P. La copia en el almacenamiento del auto se queda aunque borres la app. La copia en la memoria USB se queda también después de un reinicio en el taller.</string>
+    <string name="backup_info">Guarda tus ajustes, viajes y certificados MQTT en la memoria USB y en el almacenamiento del auto, bloqueados con tu contraseña de copia. También se ejecuta solo una vez al día, en P. La copia en el almacenamiento del auto se queda aunque borres la app. La copia en la memoria USB se queda también después de un reinicio en el taller. Para restaurar después de borrar la app, necesitas la contraseña de copia.</string>
     <string name="backup_last">Última copia: %1$s</string>
     <string name="backup_none">Aún no hay copias</string>
     <string name="backup_none_found">No se encontró ninguna copia. Conecta el pendrive que tiene la carpeta \"Drive Assist/Backups\".</string>
@@ -467,8 +467,8 @@
     <string name="backup_password">Contraseña</string>
     <string name="backup_no_password">Aún no hay contraseña de copia, así que las copias están apagadas. Toca Contraseña para activarlas.</string>
     <string name="backup_pw_set_title">Elige una contraseña de copia</string>
-    <string name="backup_pw_set_msg">Tus copias quedan bloqueadas con esta contraseña, así otras apps no pueden leerlas. La necesitas para restaurar después de borrar la app.\n\nAnótala. Si la pierdes, nadie puede abrir tus copias.</string>
-    <string name="backup_pw_change_msg">Las copias nuevas usan la contraseña nueva. Las copias anteriores todavía necesitan la contraseña anterior.</string>
+    <string name="backup_pw_set_msg">Anótala. Sin ella, nadie puede abrir tus copias.</string>
+    <string name="backup_pw_change_msg">Las copias anteriores siguen con la contraseña anterior.</string>
     <string name="backup_pw_hint">Contraseña (6 caracteres o más)</string>
     <string name="backup_pw_again_hint">La misma contraseña otra vez</string>
     <string name="backup_pw_short">Usa 6 caracteres o más.</string>

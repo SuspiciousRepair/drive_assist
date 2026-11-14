@@ -3,6 +3,9 @@ package com.geely.drivemem.ui;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.text.InputType;
+import android.text.method.PasswordTransformationMethod;
+import android.view.WindowManager;
+import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -77,8 +80,8 @@ public final class BackupDialogs {
             return;
         }
         final boolean change = AppBackup.hasPassword(a);
-        EditText pw = passwordBox(a, R.string.backup_pw_hint);
-        EditText again = passwordBox(a, R.string.backup_pw_again_hint);
+        EditText pw = passwordBox(a, R.string.backup_pw_hint, EditorInfo.IME_ACTION_NEXT);
+        EditText again = passwordBox(a, R.string.backup_pw_again_hint, EditorInfo.IME_ACTION_DONE);
         LinearLayout box = new LinearLayout(a);
         box.setOrientation(LinearLayout.VERTICAL);
         int pad = Style.dp(a, 24);
@@ -86,7 +89,7 @@ public final class BackupDialogs {
         box.addView(pw);
         box.addView(again);
         String msg = a.getString(R.string.backup_pw_set_msg)
-            + (change ? "\n\n" + a.getString(R.string.backup_pw_change_msg) : "");
+            + (change ? "\n" + a.getString(R.string.backup_pw_change_msg) : "");
         AlertDialog d = new AlertDialog.Builder(a)
             .setTitle(a.getString(R.string.backup_pw_set_title))
             .setMessage(msg)
@@ -98,8 +101,16 @@ public final class BackupDialogs {
             Button ok = d.getButton(AlertDialog.BUTTON_POSITIVE);
             ok.setOnClickListener(v -> {
                 String p1 = pw.getText().toString();
-                if (p1.length() < AppBackup.MIN_PASSWORD) { pw.setError(a.getString(R.string.backup_pw_short)); return; }
-                if (!p1.equals(again.getText().toString())) { again.setError(a.getString(R.string.backup_pw_mismatch)); return; }
+                if (p1.length() < AppBackup.MIN_PASSWORD) {
+                    pw.requestFocus();
+                    pw.setError(a.getString(R.string.backup_pw_short));
+                    return;
+                }
+                if (!p1.equals(again.getText().toString())) {
+                    again.requestFocus();
+                    again.setError(a.getString(R.string.backup_pw_mismatch));
+                    return;
+                }
                 ok.setEnabled(false);
                 new Thread(() -> {
                     String err = null;
@@ -113,6 +124,9 @@ public final class BackupDialogs {
                     });
                 }, "backup-password").start();
             });
+            // The car keyboard covers the lower half of the screen, OK
+            // included: its Enter key goes to the next box, then presses OK.
+            again.setOnEditorActionListener((v, id, ev) -> { ok.performClick(); return true; });
         });
         showPw(d);
     }
@@ -120,7 +134,7 @@ public final class BackupDialogs {
     /** Asks the password that locked f, then restores. Asks again when wrong. */
     private static void askPassword(Activity a, AppBackup.Found f, boolean wrongBefore) {
         if (a.isFinishing() || !CarState.isParked()) return;
-        EditText pw = passwordBox(a, R.string.backup_pw_enter_title);
+        EditText pw = passwordBox(a, R.string.backup_pw_enter_title, EditorInfo.IME_ACTION_DONE);
         if (wrongBefore) pw.setError(a.getString(R.string.backup_pw_wrong));
         LinearLayout box = new LinearLayout(a);
         int pad = Style.dp(a, 24);
@@ -134,15 +148,23 @@ public final class BackupDialogs {
                 (x, w) -> restoreWith(a, f, pw.getText().toString().toCharArray()))
             .setNegativeButton(android.R.string.cancel, null)
             .create();
+        pw.setOnEditorActionListener((v, id, ev) -> {
+            d.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+            return true;
+        });
         showPw(d);
     }
 
-    private static EditText passwordBox(Activity a, int hint) {
+    private static EditText passwordBox(Activity a, int hint, int imeAction) {
         EditText e = new EditText(a);
+        // setSingleLine FIRST: called after, it drops the password dots and
+        // shows the password in plain text.
+        e.setSingleLine(true);
         e.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        e.setTransformationMethod(PasswordTransformationMethod.getInstance());
+        e.setImeOptions(imeAction | EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         e.setHint(a.getString(hint));
         e.setTextSize(28);
-        e.setSingleLine(true);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         e.setLayoutParams(lp);
@@ -154,7 +176,18 @@ public final class BackupDialogs {
             try { pwDialog.dismiss(); } catch (Throwable ignored) {}
         }
         pwDialog = d;
+        // Shrink the dialog above the keyboard instead of under it.
+        if (d.getWindow() != null) {
+            d.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                | WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
+        }
         d.show();
+        // Wider than the default, so the text takes fewer lines and the
+        // boxes and buttons stay above the keyboard.
+        if (d.getWindow() != null) {
+            d.getWindow().setLayout(Style.dp(d.getContext(), 1200),
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
     }
 
     /** Lists the backups and restores the one the user picks. */
