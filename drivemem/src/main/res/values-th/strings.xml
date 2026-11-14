@@ -394,7 +394,6 @@
     <string name="drive_card_title">การขับขี่ปัจจุบัน</string>
     <string name="drive_card_detail">%1$.1f กม. · %2$s · ตั้งแต่ %3$s · คืนพลังงาน %4$.2f kWh</string>
     <string name="parked_card_title">จอดอยู่</string>
-    <string name="parked_card_detail">แบตเตอรี่ %1$s · อุณหภูมิ %2$s</string>
     <string name="value_calculating">กำลังคำนวณ…</string>
     <string name="value_unavailable">ไม่พร้อมใช้งาน</string>
 

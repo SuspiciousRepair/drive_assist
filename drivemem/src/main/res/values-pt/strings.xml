@@ -237,7 +237,6 @@
     <string name="drive_card_title">Viagem atual</string>
     <string name="drive_card_detail">%1$.1f km · %2$s · desde %3$s · recuperados %4$.2f kWh</string>
     <string name="parked_card_title">Estacionado</string>
-    <string name="parked_card_detail">Bateria %1$s · temperatura %2$s</string>
     <string name="valet_start">Ativar modo manobrista</string>
     <string name="valet_end">Encerrar modo manobrista</string>
     <string name="valet_active_title">Modo manobrista ativo</string>

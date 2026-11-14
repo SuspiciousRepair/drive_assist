@@ -145,7 +145,6 @@
     <string name="drive_card_title">Trayecto actual</string>
     <string name="drive_card_detail">%1$.1f km · %2$s · desde %3$s · recuperados %4$.2f kWh</string>
     <string name="parked_card_title">Estacionado</string>
-    <string name="parked_card_detail">Batería %1$s · temperatura %2$s</string>
     <string name="valet_start">Iniciar modo Valet</string>
     <string name="valet_end">Finalizar modo Valet</string>
     <string name="valet_active_title">Modo Valet activo</string>

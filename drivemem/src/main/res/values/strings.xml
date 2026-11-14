@@ -249,7 +249,6 @@
     <string name="drive_card_title">Current drive</string>
     <string name="drive_card_detail">%1$.1f km · %2$s · since %3$s · recovered %4$.2f kWh</string>
     <string name="parked_card_title">Parked</string>
-    <string name="parked_card_detail">Battery %1$s · temperature %2$s</string>
     <string name="valet_start">Start Valet Mode</string>
     <string name="valet_end">End Valet Mode</string>
     <string name="valet_active_title">Valet Mode Active</string>
