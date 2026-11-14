@@ -3,6 +3,14 @@
 ## [Unreleased]
 
 ### Added
+- **Backup and restore in the app.** Settings → System → Backup. One file
+  (settings, trips, MQTT certificates), locked with your backup password
+  (AES-256), goes to the USB stick and to the car storage, by hand or by
+  itself once a day in P. After a reinstall the app offers the newest backup
+  and asks its password. A restore puts the settings back and adds the
+  backup's trips to the ones on the car, never twice. `tools/car-backup.sh`
+  drives the same backup over ADB and keeps the APKs; `tools/backup-open.sh`
+  unlocks a backup on a computer.
 - **"Keep ADB always on" (Wi-Fi & ADB > Advanced), off by default.** For
   apps that start a root helper through the car's own ADB, such as
   GeelyTelemetry (Capy). Before, the helper closed ADB 5 minutes after

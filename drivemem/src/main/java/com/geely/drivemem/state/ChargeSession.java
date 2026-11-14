@@ -169,6 +169,8 @@ public final class ChargeSession {
     private static final String PREF_CHARGE_OPEN_MAX_V = "charge_open_max_v";
     private static final String PREF_CHARGE_OPEN_SAMPLE_COUNT = "charge_open_sample_count";
     private static final String PREF_CHARGE_OPEN_COST = "charge_open_cost";
+    private static final String PREF_CHARGE_OPEN_BATT_WH = "charge_open_batt_wh";
+    private static final String PREF_CHARGE_OPEN_BATT_SAMPLES = "charge_open_batt_samples";
 
     public static final class SessionSnapshot {
         public final long sessionRowId;
@@ -225,6 +227,12 @@ public final class ChargeSession {
     private static long fullSinceMonoMs = 0;   // when the battery first read 100%, 0 if not full
     private static int socStart = -1, socEnd = -1;
     private static double whAccum = 0;   // running energy, Wh
+    // Battery side of the same charge, from CAN pack V x I ("Exact energy").
+    // whAccum is the port/wall side (charge_a x charge_v); the difference is
+    // charger loss. Only counted on ticks where the CAN reader was live, so
+    // battSamples == 0 means "unknown", stored as NULL, never as 0 kWh.
+    private static double battWhAccum = 0;
+    private static int battSamples = 0;
     private static double maxChargeV = Double.NaN;
     private static double odoStart = -1;
     private static int sampleCount = 0;
@@ -331,6 +339,8 @@ public final class ChargeSession {
                 socStart = (soc != null) ? soc : -1;
                 socEnd = socStart;
                 whAccum = 0;
+                battWhAccum = 0;
+                battSamples = 0;
                 fullSinceMonoMs = 0;
                 maxChargeV = Double.NaN;
                 sampleCount = 0;
@@ -366,8 +376,12 @@ public final class ChargeSession {
         }
     }
 
+    /** Battery-side kWh of the open charge, or null if CAN never read it. */
+    public static Double currentBatteryKwh() { return battSamples > 0 ? battWhAccum / 1000.0 : null; }
+
     private static void commitOrUpdateSession(Context ctx, long endWallMs) {
         final SessionSnapshot snap = captureSnapshot(endWallMs);
+        final Double battKwh = currentBatteryKwh();
         if (ctx == null) {
             long rowId = snap.sessionRowId > 0 ? snap.sessionRowId : 1L;
             currentSessionRowId = rowId;
@@ -396,6 +410,7 @@ public final class ChargeSession {
                 if (snap.odoStart >= 0) v.put("odo_start_km", snap.odoStart);
                 v.put("dismissed", 0);
                 if (snap.cost != null) v.put("cost", snap.cost);
+                if (battKwh != null) v.put("kwh_battery", battKwh);
 
                 long rowId = snap.sessionRowId;
                 if (rowId <= 0) {
@@ -492,6 +507,8 @@ public final class ChargeSession {
         socStart = -1;
         socEnd = -1;
         whAccum = 0;
+        battWhAccum = 0;
+        battSamples = 0;
         fullSinceMonoMs = 0;
         maxChargeV = Double.NaN;
         sampleCount = 0;
@@ -559,6 +576,13 @@ public final class ChargeSession {
             double hours = (nowMono - lastSampleMonoMs) / 3_600_000.0;
             whAccum += a * v * hours;
             sampleCount++;
+        }
+        // Negative pack power = into the battery. Fresh = within the last 3 s.
+        Float packKw = com.geely.drivemem.sensors.CanEnergyReader.freshPowerKw();
+        if (packKw != null && lastSampleMonoMs != 0 && !frozenTail) {
+            double hours = (nowMono - lastSampleMonoMs) / 3_600_000.0;
+            if (packKw < 0) battWhAccum += -packKw * 1000.0 * hours;
+            battSamples++;
         }
         lastSampleMonoMs = nowMono;
         if (ctx != null) persistOpenSession(ctx);
@@ -754,6 +778,8 @@ public final class ChargeSession {
         socEnd = persistedSocEnd;
         startSampleId = persistedStartSampleId;
         whAccum = persistedWhAccum;
+        battWhAccum = Double.longBitsToDouble(p.getLong(PREF_CHARGE_OPEN_BATT_WH, 0L));
+        battSamples = p.getInt(PREF_CHARGE_OPEN_BATT_SAMPLES, 0);
         currentSessionRowId = persistedRowId;
         odoStart = persistedOdoStart;
         maxChargeV = persistedMaxV;
@@ -888,6 +914,8 @@ public final class ChargeSession {
             .putLong(PREF_CHARGE_OPEN_MAX_V, Double.doubleToRawLongBits(maxChargeV))
             .putInt(PREF_CHARGE_OPEN_SAMPLE_COUNT, sampleCount)
             .putFloat(PREF_CHARGE_OPEN_COST, currentCost != null ? currentCost.floatValue() : -1f)
+            .putLong(PREF_CHARGE_OPEN_BATT_WH, Double.doubleToRawLongBits(battWhAccum))
+            .putInt(PREF_CHARGE_OPEN_BATT_SAMPLES, battSamples)
             .apply();
     }
 
@@ -909,6 +937,8 @@ public final class ChargeSession {
             .remove(PREF_CHARGE_OPEN_MAX_V)
             .remove(PREF_CHARGE_OPEN_SAMPLE_COUNT)
             .remove(PREF_CHARGE_OPEN_COST)
+            .remove(PREF_CHARGE_OPEN_BATT_WH)
+            .remove(PREF_CHARGE_OPEN_BATT_SAMPLES)
             .apply();
     }
 }

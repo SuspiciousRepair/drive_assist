@@ -125,6 +125,11 @@ public class ModeHelperService extends Service {
                                 e.putBoolean(k, on); log.append(' ').append(k).append('=').append(on);
                             }
                         }
+                        if (it.hasExtra(CanReader.PREF_ENABLED)) {
+                            boolean can = it.getBooleanExtra(CanReader.PREF_ENABLED, false);
+                            CanReader.setEnabled(getApplicationContext(), can);
+                            log.append(" can_energy=").append(can);
+                        }
                         if (it.hasExtra("dashcam_limit_gb")) {
                             int gb = it.getIntExtra("dashcam_limit_gb", DashRecorder.DEFAULT_BUDGET_GB);
                             e.putInt("dashcam_limit_gb", gb);
@@ -239,6 +244,7 @@ public class ModeHelperService extends Service {
                 if (parked) ensureWifiOn();
                 nudgeWifiScan();
                 maybeDexopt();
+                CanReader.tick(getApplicationContext());
             } catch (Throwable t) { Log.w(TAG, "poll: " + t); }
             // Liveness heartbeat — a timestamp in SharedPreferences (survives process
             // death), so BootReceiver's watchdog can tell whether this loop is still

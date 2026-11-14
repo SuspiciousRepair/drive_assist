@@ -35,8 +35,14 @@ public final class TelemetryDoorsSection extends LinearLayout {
         super(activity);
         setOrientation(VERTICAL);
 
-        addView(Style.header(activity, activity.getString(R.string.cfg_doors_header)));
-        addView(Style.toggleRow(activity, activity.getString(R.string.cfg_window_on_door),
+        // One column (the car render fills the rest of the screen), two
+        // cards: the door-opens-window switch, and the four pane targets laid
+        // out 2x2 the way the panes sit in the car.
+        LinearLayout col = ConfigCards.column(activity);
+        addView(ConfigCards.columns(activity, col));
+
+        LinearLayout doorCard = ConfigCards.card(activity, activity.getString(R.string.cfg_doors_header));
+        doorCard.addView(Style.toggleRow(activity, activity.getString(R.string.cfg_window_on_door),
             DoorWindow.enabled(activity), on -> {
                 Prefs.setWindowOnDoor(activity, on);
                 // The watch itself is always registered; the pref only decides
@@ -45,27 +51,33 @@ public final class TelemetryDoorsSection extends LinearLayout {
                 // event look like the first one.
                 ComfortHub.get(activity);
             }));
-        TextView winHint = new TextView(activity);
-        winHint.setTextColor(Style.TEXT_DIM); winHint.setTextSize(13);
-        winHint.setPadding(0, 0, 0, Style.dp(activity, 4));
-        winHint.setText(activity.getString(R.string.cfg_window_on_door_hint));
-        addView(winHint);
+        doorCard.addView(ConfigCards.hint(activity, activity.getString(R.string.cfg_window_on_door_hint)));
+        ConfigCards.add(col, doorCard);
 
         // Per-pane crack-all-windows target. See Purge's own comment: a
         // single raw position value doesn't open every pane the same real
         // amount, since each pane's regulator/gearing maps position units
         // to physical travel differently. One field per pane instead of
         // one shared value.
-        addView(Style.header(activity, activity.getString(R.string.cfg_purge_open_header)));
-        TextView purgeHint = new TextView(activity);
-        purgeHint.setTextColor(Style.TEXT_DIM); purgeHint.setTextSize(13);
-        purgeHint.setPadding(0, 0, 0, Style.dp(activity, 4));
-        purgeHint.setText(activity.getString(R.string.cfg_purge_open_hint));
-        addView(purgeHint);
-        addView(purgeTargetRow(activity, Purge.AREAS[0], activity.getString(R.string.cfg_purge_open_fl)));
-        addView(purgeTargetRow(activity, Purge.AREAS[1], activity.getString(R.string.cfg_purge_open_fr)));
-        addView(purgeTargetRow(activity, Purge.AREAS[2], activity.getString(R.string.cfg_purge_open_rl)));
-        addView(purgeTargetRow(activity, Purge.AREAS[3], activity.getString(R.string.cfg_purge_open_rr)));
+        LinearLayout purgeCard = ConfigCards.card(activity, activity.getString(R.string.cfg_purge_open_header));
+        purgeCard.addView(ConfigCards.hint(activity, activity.getString(R.string.cfg_purge_open_hint)));
+        purgeCard.addView(paneRow(activity,
+            purgeTargetRow(activity, Purge.AREAS[0], activity.getString(R.string.cfg_purge_open_fl)),
+            purgeTargetRow(activity, Purge.AREAS[1], activity.getString(R.string.cfg_purge_open_fr))));
+        purgeCard.addView(paneRow(activity,
+            purgeTargetRow(activity, Purge.AREAS[2], activity.getString(R.string.cfg_purge_open_rl)),
+            purgeTargetRow(activity, Purge.AREAS[3], activity.getString(R.string.cfg_purge_open_rr))));
+        ConfigCards.add(col, purgeCard);
+    }
+
+    // Front pane on the left, the other side's pane on the right: one row
+    // per seat row, same as looking down at the car.
+    private static LinearLayout paneRow(Activity activity, LinearLayout left, LinearLayout right) {
+        LinearLayout row = new LinearLayout(activity);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(right, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        return row;
     }
 
     // Number-only input, saved on every keystroke that parses rather than on
@@ -83,7 +95,7 @@ public final class TelemetryDoorsSection extends LinearLayout {
 
         TextView lbl = new TextView(activity);
         lbl.setText(label);
-        lbl.setTextColor(Style.TEXT); lbl.setTextSize(14);
+        lbl.setTextColor(Style.TEXT); lbl.setTextSize(17);
         LinearLayout.LayoutParams lblLp = new LinearLayout.LayoutParams(
             Style.dp(activity, 160), ViewGroup.LayoutParams.WRAP_CONTENT);
         lbl.setLayoutParams(lblLp);

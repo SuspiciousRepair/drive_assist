@@ -23,8 +23,9 @@ import com.geely.drivemem.util.Style;
 final class NetworkSettingsBlock {
     private NetworkSettingsBlock() {}
 
-    static void addTo(Activity a, LinearLayout parent) {
-        parent.addView(Style.header(a, a.getString(R.string.cfg_network_header)));
+    /** The whole block as one Config card, ready for ConfigCards.add(). */
+    static LinearLayout card(Activity a) {
+        LinearLayout parent = ConfigCards.card(a, a.getString(R.string.cfg_network_header));
 
         // ---- Keep Wi-Fi on ----
         final TextView keepHint = hint(a);
@@ -103,13 +104,10 @@ final class NetworkSettingsBlock {
         advanced.addView(alwaysHint);
         parent.addView(advToggle);
         parent.addView(advanced);
+        return parent;
     }
 
     private static TextView hint(Activity a) {
-        TextView t = new TextView(a);
-        t.setTextColor(Style.TEXT_DIM);
-        t.setTextSize(12);
-        t.setPadding(0, 0, 0, Style.dp(a, 4));
-        return t;
+        return ConfigCards.hint(a, null);
     }
 }

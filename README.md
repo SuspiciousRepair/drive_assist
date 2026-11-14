@@ -153,6 +153,7 @@ Full architectural documentation and reverse-engineering guides are located in t
 - [Contributing Guidelines](CONTRIBUTING.md) — Branching rules (`dev`/`master`), Conventional Commits, and pull request checklist
 - [Changelog](CHANGELOG.md) — Full version history, release notes, and unreleased enhancements
 - [License](LICENSE) — GNU General Public License v3.0 terms
+- [Third-party notices and credits](THIRD-PARTY-NOTICES.md) — roadcast and Capy by Timoteo Sousa, libuv
 
 ### Engineering References
 - [Vehicle Data Catalog](docs/DATA-CATALOG.md) — Confirmed properties and function IDs
@@ -326,3 +327,10 @@ Drive Assist welcomes contributions from automotive software developers and the 
 - **Release Readiness & Audits**: See [docs/RELEASE-READINESS-MATRIX.md](docs/RELEASE-READINESS-MATRIX.md) for the objective release assessment matrix, [docs/ARCHITECTURE-SAFETY-AUDIT.md](docs/ARCHITECTURE-SAFETY-AUDIT.md) for vehicle safety invariant analyses, and [docs/CODE-QUALITY-REPORT.md](docs/CODE-QUALITY-REPORT.md) for test coverage and static analysis findings.
 - **Changelog**: See [CHANGELOG.md](CHANGELOG.md) for release notes across all versions and unreleased staging features.
 - **License**: Drive Assist is licensed under the [GNU General Public License v3.0](LICENSE). Any distributed modified version must also stay open source under GPLv3.
+
+## Credits
+
+- **[roadcast](https://github.com/Timoteohss/roadcast) and [Capy](https://github.com/Timoteohss/capy), by Timoteo Sousa** (Apache-2.0). "Exact energy" runs Timoteo's roadcast CAN reader, unchanged, and starts it the way Capy showed. Capy proved on EX2 cars that this works.
+- **[libuv](https://github.com/libuv/libuv)** (MIT), the event loop under roadcast.
+
+Details and licenses: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

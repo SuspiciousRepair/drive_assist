@@ -1160,12 +1160,18 @@ public final class DailyStatsProvider {
         return getActiveDriveSession(ctx, CarDb.get(ctx).db());
     }
 
-    private static List<DaySession> queryDaySessions(Context ctx, SQLiteDatabase db, String dateStr) {
-        List<DaySession> out = new ArrayList<>();
-        long[] bounds = dayBoundsMs(dateStr);
-        String boundStart = String.valueOf(bounds[0]), boundEnd = String.valueOf(bounds[1]);
+    /** Every trip of all time, oldest first, with the same per-trip numbers
+     * the daily timeline shows (energy recomputed from samples, Valet trips
+     * left out). For the CSV export: one query per trip, so call it off the
+     * UI thread. */
+    public static List<DriveSession> readAllTrips(Context ctx) {
+        List<DriveSession> out = new ArrayList<>();
+        queryTrips(CarDb.get(ctx).db(), 0, Long.MAX_VALUE, out);
+        return out;
+    }
 
-        // 1. Driving trips
+    // Completed and open trips that START in [fromMs, toMs), oldest first.
+    private static void queryTrips(SQLiteDatabase db, long fromMs, long toMs, List<? super DriveSession> out) {
         Cursor tc = db.rawQuery(
             "SELECT t.id, t.start_ms, t.end_ms, t.ascent_m, t.descent_m, t.regen_kwh, "
           + "       s1.odo_km, s2.odo_km, s1.battery_pct, s2.battery_pct, "
@@ -1174,7 +1180,7 @@ public final class DailyStatsProvider {
           + "LEFT JOIN telemetry_sample s2 ON t.end_sample_id = s2.id "
           + "WHERE t.start_ms >= ? AND t.start_ms < ? "
           + "AND NOT " + TRIP_IN_VALET_SQL + " "
-          + "ORDER BY t.start_ms ASC", new String[]{boundStart, boundEnd});
+          + "ORDER BY t.start_ms ASC", new String[]{String.valueOf(fromMs), String.valueOf(toMs)});
         try {
             while (tc.moveToNext()) {
                 long id = tc.getLong(0);
@@ -1219,6 +1225,15 @@ public final class DailyStatsProvider {
                         ascent, descent, regen, tripSpent, tripNet, eff, tripSource));
             }
         } finally { tc.close(); }
+    }
+
+    private static List<DaySession> queryDaySessions(Context ctx, SQLiteDatabase db, String dateStr) {
+        List<DaySession> out = new ArrayList<>();
+        long[] bounds = dayBoundsMs(dateStr);
+        String boundStart = String.valueOf(bounds[0]), boundEnd = String.valueOf(bounds[1]);
+
+        // 1. Driving trips
+        queryTrips(db, bounds[0], bounds[1], out);
 
         // 2. Active in-progress trip (if driving today)
         String today = todayDateStr();

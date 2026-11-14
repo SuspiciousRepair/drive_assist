@@ -802,8 +802,9 @@ public class DailyStatsView extends LinearLayout {
 
             List<DailyStatsProvider.DaySession> ordered = new ArrayList<>(day.sessions);
             Collections.reverse(ordered);
+            long dayStartMs = parseDayMs(day.date);
             for (DailyStatsProvider.DaySession s : ordered) {
-                View card = buildSessionCard(s);
+                View card = buildSessionCard(s, dayStartMs);
                 LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
                 lp.topMargin = Style.dp(c, 6);
@@ -1439,9 +1440,10 @@ public class DailyStatsView extends LinearLayout {
         // whole day one clear visual home.  Every bubble fills the same inner
         // width; the former fixed-width rows were the source of the uneven
         // horizontal edges.
+        long dayStartMs = parseDayMs(ov.date);
         for (int i = 0; i < ordered.size(); i++) {
             DailyStatsProvider.DaySession s = ordered.get(i);
-            View card = buildSessionCard(s);
+            View card = buildSessionCard(s, dayStartMs);
             card.setLayoutParams(new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             sessionsContainer.addView(card);
@@ -1488,7 +1490,7 @@ public class DailyStatsView extends LinearLayout {
         TextView tv = new TextView(c);
         tv.setTextColor(Style.TEXT_DIM);
         tv.setTextSize(16f);
-        tv.setText("Estacionado " + formatGapDuration(gapMs));
+        tv.setText(c.getString(R.string.session_parked, SessionText.duration(gapMs)));
         row.addView(tv);
 
         return row;
@@ -1502,263 +1504,235 @@ public class DailyStatsView extends LinearLayout {
         return divider;
     }
 
-    private static String formatGapDuration(long ms) {
-        long totalMin = ms / 60_000L;
-        long h = totalMin / 60;
-        long m = totalMin % 60;
-        return h > 0 ? String.format(Locale.US, "%dh %02dmin", h, m) : String.format(Locale.US, "%dmin", m);
-    }
+    // ---- Session cards ------------------------------------------------------
+    //
+    // Every kind of session (trip, charge, valet) is built from the same two
+    // lines, so the eye learns one layout:
+    //   line 1: [icon] time range · duration                    hero number
+    //   line 2: four equal stat columns, a small label above each value.
+    // The columns are equal-weight in every card, so "Battery" sits in the
+    // same place in all of them and the rows read as one table. Icons and
+    // their colors are the app's color code (AC = blue plug, DC = green CCS,
+    // valet = purple shield, trip = dim car) and are not changed here.
 
-    private View buildSessionCard(DailyStatsProvider.DaySession session) {
+    private static final int STAT_COLUMNS = 4;
+
+    /** No card spells out its kind (the valet card used to say "Modo
+     * manobrista", alone among the three): the icon says it. */
+    private View buildSessionCard(DailyStatsProvider.DaySession session, long dayStartMs) {
         Context c = getContext();
         LinearLayout card = new LinearLayout(c);
         card.setOrientation(LinearLayout.VERTICAL);
         int pad = Style.dp(c, 12);
         card.setPadding(pad, pad, pad, pad);
-        card.setBackground(Style.tile(c));
 
+        boolean live = session.endMs <= 0;
+        int color;
         if (session.isValet()) {
-            buildValetSessionCard(card, (DailyStatsProvider.ValetSessionItem) session);
+            color = Style.PURPLE;
+            buildValetSessionCard(card, (DailyStatsProvider.ValetSessionItem) session, dayStartMs);
         } else if (session.isTrip()) {
-            buildDriveSessionCard(card, (DailyStatsProvider.DriveSession) session);
+            color = Style.TEXT_DIM;
+            buildDriveSessionCard(card, (DailyStatsProvider.DriveSession) session, dayStartMs);
         } else {
-            buildChargeSessionCard(card, (DailyStatsProvider.ChargeSessionItem) session);
+            DailyStatsProvider.ChargeSessionItem ch = (DailyStatsProvider.ChargeSessionItem) session;
+            color = ch.isDcfc ? Style.GOOD : Style.ACCENT;
+            buildChargeSessionCard(card, ch, dayStartMs);
         }
 
+        // A session still running gets an outline in its own color code, so
+        // it does not look like one of the finished ones below it. (A NOW
+        // pill was tried beside the time too, and dropped: "since 09:27"
+        // plus the outline already say it.)
+        android.graphics.drawable.GradientDrawable bg = Style.tile(c);
+        if (live) bg.setStroke(Style.dp(c, 1), color);
+        card.setBackground(bg);
         return card;
     }
 
-    private void buildValetSessionCard(LinearLayout card, DailyStatsProvider.ValetSessionItem v) {
+    /** Line 1, shared by every card. */
+    private LinearLayout titleRow(int iconRes, int iconColor, DailyStatsProvider.DaySession s,
+                                  long dayStartMs, CharSequence hero) {
         Context c = getContext();
-        LinearLayout title = new LinearLayout(c);
-        title.setGravity(Gravity.CENTER_VERTICAL);
-        android.widget.ImageView icon = new android.widget.ImageView(c);
-        icon.setImageResource(R.drawable.ic_shield_car);
-        icon.setColorFilter(Style.PURPLE, android.graphics.PorterDuff.Mode.SRC_IN);
-        title.addView(icon, new LinearLayout.LayoutParams(Style.dp(c, 20), Style.dp(c, 20)));
+        LinearLayout line1 = new LinearLayout(c);
+        line1.setOrientation(LinearLayout.HORIZONTAL);
+        line1.setGravity(Gravity.CENTER_VERTICAL);
+
+        android.widget.ImageView badge = new android.widget.ImageView(c);
+        badge.setImageResource(iconRes);
+        badge.setColorFilter(iconColor, android.graphics.PorterDuff.Mode.SRC_IN);
+        line1.addView(badge, new LinearLayout.LayoutParams(Style.dp(c, 20), Style.dp(c, 20)));
+
+        boolean live = s.endMs <= 0;
+        String yesterday = c.getString(R.string.session_yesterday);
+        String range = live
+                ? c.getString(R.string.session_since, SessionText.startLabel(s.startMs, dayStartMs, yesterday))
+                : SessionText.range(s.startMs, s.endMs, dayStartMs, yesterday);
+        long durMs = (live ? System.currentTimeMillis() : s.endMs) - s.startMs;
+        SpannableStringBuilder time = new SpannableStringBuilder(range);
+        appendUnit(time, "  ·  " + SessionText.duration(durMs), 0.92f);
+
+        TextView timeView = new TextView(c);
+        timeView.setTextColor(Style.TEXT);
+        timeView.setTextSize(17f);
+        timeView.setTypeface(null, Typeface.BOLD);
+        timeView.setText(time);
+        timeView.setPadding(Style.dp(c, 10), 0, 0, 0);
+        line1.addView(timeView);
+
+        line1.addView(new View(c), new LinearLayout.LayoutParams(0, 1, 1f));
+
+        TextView heroView = new TextView(c);
+        heroView.setTextColor(Style.TEXT);
+        heroView.setTextSize(18.5f);
+        heroView.setTypeface(null, Typeface.BOLD);
+        heroView.setText(hero);
+        line1.addView(heroView);
+        return line1;
+    }
+
+    /** Line 2: up to STAT_COLUMNS stat columns of equal width; missing ones stay empty. */
+    private LinearLayout statsRow(View... stats) {
+        Context c = getContext();
+        LinearLayout row = new LinearLayout(c);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setBaselineAligned(false);
+        row.setPadding(Style.dp(c, 30), Style.dp(c, 10), 0, 0);
+        for (int i = 0; i < STAT_COLUMNS; i++) {
+            View v = i < stats.length && stats[i] != null ? stats[i] : new View(c);
+            row.addView(v, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        }
+        return row;
+    }
+
+    /** One stat column: small dim label, the value under it, and an optional dim note. */
+    private View stat(int labelRes, CharSequence value, CharSequence note) {
+        Context c = getContext();
+        LinearLayout col = new LinearLayout(c);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setPadding(0, 0, Style.dp(c, 12), 0);
+
         TextView label = new TextView(c);
-        label.setText("Modo manobrista  ·  " + sessionTime(v.timeLabel, v.durationLabel));
-        label.setTextColor(Style.TEXT);
-        label.setTextSize(17f);
-        label.setTypeface(null, Typeface.BOLD);
-        label.setPadding(Style.dp(c, 10), 0, 0, 0);
-        title.addView(label, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView distance = new TextView(c);
-        distance.setText(String.format(Locale.getDefault(), "%.1f km", v.distanceKm));
-        distance.setTextColor(Style.TEXT);
-        distance.setTextSize(18f);
-        distance.setTypeface(null, Typeface.BOLD);
-        title.addView(distance);
-        card.addView(title);
+        label.setText(labelRes);
+        label.setTextColor(Style.TEXT_DIM);
+        label.setTextSize(15f);
+        col.addView(label);
 
-        TextView details = new TextView(c);
-        String power = v.maxPowerKw == null ? "—" : String.format(Locale.getDefault(), "%.1f kW", v.maxPowerKw);
-        String battery = v.startSoc >= 0 && v.endSoc >= 0
-            ? String.format(Locale.getDefault(), "%+d pp", v.endSoc - v.startSoc) : "—";
-        details.setText(String.format(Locale.getDefault(), "Máx. %.0f km/h  ·  potência %s  ·  bateria %s",
-            v.maxSpeedKmh, power, battery));
-        details.setTextColor(Style.TEXT_DIM);
-        details.setTextSize(16f);
-        details.setPadding(Style.dp(c, 30), Style.dp(c, 8), 0, 0);
-        card.addView(details);
+        TextView v = new TextView(c);
+        v.setText(value);
+        v.setTextColor(Style.TEXT);
+        v.setTextSize(18f);
+        v.setTypeface(null, Typeface.BOLD);
+        col.addView(v);
+
+        if (note != null) {
+            TextView n = new TextView(c);
+            n.setText(note);
+            n.setTextColor(Style.TEXT_DIM);
+            n.setTextSize(15f);
+            col.addView(n);
+        }
+        return col;
     }
 
-    private void buildDriveSessionCard(LinearLayout card, DailyStatsProvider.DriveSession t) {
-        Context c = getContext();
-
-        // Line 1: Left [Badge pill + time]   Right [10.0 km • 10.5 kWh/100km]
-        LinearLayout line1 = new LinearLayout(c);
-        line1.setOrientation(LinearLayout.HORIZONTAL);
-        line1.setGravity(Gravity.CENTER_VERTICAL);
-
-        // Left container (Badge + Time)
-        LinearLayout leftBox = new LinearLayout(c);
-        leftBox.setOrientation(LinearLayout.HORIZONTAL);
-        leftBox.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams leftLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        leftBox.setLayoutParams(leftLp);
-
-        // Trip marker: an MDI vector icon (readable and tintable, unlike the
-        // emoji it replaces). Whether it's still going is already said by
-        // the time text below ("... – em andamento").
-        android.widget.ImageView badge = new android.widget.ImageView(c);
-        badge.setImageResource(R.drawable.ic_car);
-        badge.setColorFilter(Style.TEXT_DIM, android.graphics.PorterDuff.Mode.SRC_IN);
-        badge.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(c, 20), Style.dp(c, 20)));
-        leftBox.addView(badge);
-
-        // Time range: 08:18 – 09:05 (48m)
-        TextView timeView = new TextView(c);
-        timeView.setTextColor(Style.TEXT);
-        timeView.setTextSize(17f);
-        timeView.setTypeface(null, Typeface.BOLD);
-        timeView.setText(sessionTime(t.timeLabel, t.durationLabel));
-        timeView.setPadding(Style.dp(c, 10), 0, 0, 0);
-        leftBox.addView(timeView);
-
-        line1.addView(leftBox);
-
-        // Right metric: 10.0 km • 10.5 kWh/100km (bold, Style.TEXT, dim/small units)
-        TextView rightMetric = new TextView(c);
-        rightMetric.setTextColor(Style.TEXT);
-        rightMetric.setTextSize(18f);
-        rightMetric.setTypeface(null, Typeface.BOLD);
-        SpannableStringBuilder rightSb = new SpannableStringBuilder();
-        rightSb.append(valueWithUnit(String.format(Locale.US, "%.1f", t.distanceKm), null, "km", ROW_UNIT_SCALE));
-        rightSb.append("  •  ");
-        if (t.efficiencyKwh100km > 0) {
-            rightSb.append(valueWithUnit(String.format(Locale.US, "%.1f", t.efficiencyKwh100km), null, "kWh/100km", ROW_UNIT_SCALE));
-        } else {
-            rightSb.append("—");
-        }
-        rightMetric.setText(rightSb);
-        line1.addView(rightMetric);
-
-        card.addView(line1);
-
-        // Line 2: SoC: 100% → 97% | ▲+163m ▼-189m | Consumo: 1.0 kWh (Regen +0.7)
-        TextView line2 = new TextView(c);
-        line2.setTextSize(16f);
-        line2.setPadding(Style.dp(c, 30), Style.dp(c, 7), 0, 0);
-
-        SpannableStringBuilder l2Sb = new SpannableStringBuilder();
-
-        // SoC: 100% → 97%
-        String socLabel = (t.socStart >= 0 && t.socEnd >= 0)
-                ? (t.socStart + "% → " + t.socEnd + "%")
-                : (t.socStart >= 0 ? (t.socStart + "%") : "—");
-        appendMetadata(l2Sb, "SoC: ", socLabel, Style.TEXT);
-
-        // Divider
-        appendDivider(l2Sb);
-
-        // Altimetria: ▲+163m ▼-189m
-        int altStart = l2Sb.length();
-        l2Sb.append(String.format(Locale.US, "▲+%.0fm", t.ascentDPlusM));
-        l2Sb.setSpan(new ForegroundColorSpan(Style.HEAT), altStart, l2Sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-
-        l2Sb.append(" ");
-
-        int descStart = l2Sb.length();
-        l2Sb.append(String.format(Locale.US, "▼-%.0fm", t.descentDMinusM));
-        l2Sb.setSpan(new ForegroundColorSpan(Style.COOL), descStart, l2Sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-
-        // Divider
-        appendDivider(l2Sb);
-
-        // Consumo: 1.0 kWh (Regen +0.7)
-        String netStr = (t.spentKwh > 0 || t.regenKwh > 0)
-                ? String.format(Locale.US, "%.1f kWh", t.energyKwh)
-                : (t.distanceKm > 0 ? "0.0 kWh" : "—");
-        appendMetadata(l2Sb, "Consumo: ", netStr, Style.TEXT);
-        // Appended outside appendMetadata, not inside netStr: a color span
-        // embedded in netStr would be layered under appendMetadata's own
-        // valueColor span over the same range, an ambiguous overlap. Applied
-        // here instead, it's the last (and only) span over this exact range.
-        if (t.energySource == EnergySource.ESTIMATED || t.energySource == EnergySource.MIXED) {
-            l2Sb.append(' ');
-            Style.appendUnit(l2Sb, "~", 0.85f);
-        }
-
-        if (t.regenKwh > 0) {
-            l2Sb.append(" (Regen ");
-            int rStart = l2Sb.length();
-            l2Sb.append(String.format(Locale.US, "+%.1f", t.regenKwh));
-            l2Sb.setSpan(new ForegroundColorSpan(Style.COOL), rStart, l2Sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            l2Sb.append(")");
-        }
-
-        line2.setTextColor(Style.TEXT_DIM);
-        line2.setText(l2Sb);
-        card.addView(line2);
+    private static CharSequence socValue(int from, int to) {
+        if (from >= 0 && to >= 0) return percentRange(from, to, ROW_UNIT_SCALE);
+        if (from >= 0) return valueWithUnit(String.valueOf(from), null, "%", ROW_UNIT_SCALE);
+        return "—";
     }
 
-    private void buildChargeSessionCard(LinearLayout card, DailyStatsProvider.ChargeSessionItem ch) {
+    private static CharSequence number(double v, String unit) {
+        return valueWithUnit(String.format(Locale.US, "%.1f", v), null, unit, ROW_UNIT_SCALE);
+    }
+
+    private void buildValetSessionCard(LinearLayout card, DailyStatsProvider.ValetSessionItem v, long dayStartMs) {
+        card.addView(titleRow(R.drawable.ic_shield_car, Style.PURPLE, v, dayStartMs, number(v.distanceKm, "km")));
+        card.addView(statsRow(
+            stat(R.string.session_stat_battery, socValue(v.startSoc, v.endSoc), null),
+            stat(R.string.session_stat_max_speed, valueWithUnit(
+                String.format(Locale.US, "%.0f", v.maxSpeedKmh), null, "km/h", ROW_UNIT_SCALE), null),
+            stat(R.string.session_stat_max_power, v.maxPowerKw == null ? "—" : number(v.maxPowerKw, "kW"), null)));
+    }
+
+    private void buildDriveSessionCard(LinearLayout card, DailyStatsProvider.DriveSession t, long dayStartMs) {
         Context c = getContext();
+        card.addView(titleRow(R.drawable.ic_car, Style.TEXT_DIM, t, dayStartMs, number(t.distanceKm, "km")));
 
-        // Line 1: Left [Badge pill + time]   Right [+14.2 kWh]
-        LinearLayout line1 = new LinearLayout(c);
-        line1.setOrientation(LinearLayout.HORIZONTAL);
-        line1.setGravity(Gravity.CENTER_VERTICAL);
+        CharSequence eff = t.efficiencyKwh100km > 0 ? number(t.efficiencyKwh100km, "kWh/100km") : "—";
 
-        // Left container
-        LinearLayout leftBox = new LinearLayout(c);
-        leftBox.setOrientation(LinearLayout.HORIZONTAL);
-        leftBox.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams leftLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        leftBox.setLayoutParams(leftLp);
-
-        // Charge marker: an MDI vector icon (bolt for DC fast charge, plug
-        // for AC) instead of an emoji that doesn't render cleanly on this
-        // display. Whether it's still going is already said by the time
-        // text below ("... – em andamento"). App-wide charging style guide
-        // (2026-09-13): AC = blue + plug, DC = green + bolt.
-        android.widget.ImageView badge = new android.widget.ImageView(c);
-        badge.setImageResource(ch.isDcfc ? R.drawable.ic_ev_plug_ccs2 : R.drawable.ic_power_plug);
-        badge.setColorFilter(ch.isDcfc ? Style.GOOD : Style.ACCENT, android.graphics.PorterDuff.Mode.SRC_IN);
-        badge.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(c, 20), Style.dp(c, 20)));
-        leftBox.addView(badge);
-
-        // Time range: 01:20 – 04:42 (3h 22m)
-        TextView timeView = new TextView(c);
-        timeView.setTextColor(Style.TEXT);
-        timeView.setTextSize(17f);
-        timeView.setTypeface(null, Typeface.BOLD);
-        timeView.setText(sessionTime(ch.timeLabel, ch.durationLabel));
-        timeView.setPadding(Style.dp(c, 10), 0, 0, 0);
-        leftBox.addView(timeView);
-
-        line1.addView(leftBox);
-
-        // Right: +14.2 kWh (bold blue for AC, green for DC; dim/small unit)
-        TextView rightMetric = new TextView(c);
-        int metricColor = ch.isDcfc ? Style.GOOD : Style.ACCENT;
-        rightMetric.setTextSize(18.5f);
-        rightMetric.setTypeface(null, Typeface.BOLD);
-        rightMetric.setText(valueWithUnit(String.format(Locale.US, "+%.1f", ch.kwh), metricColor, "kWh", ROW_UNIT_SCALE));
-        line1.addView(rightMetric);
-
-        card.addView(line1);
-
-        // Line 2: SoC: 66% → 100% | Potência Méd: 4.2 kW | Custo: R$ 0,00 (or Custo não informado)
-        TextView line2 = new TextView(c);
-        line2.setTextSize(16f);
-        line2.setPadding(Style.dp(c, 30), Style.dp(c, 7), 0, 0);
-
-        SpannableStringBuilder l2Sb = new SpannableStringBuilder();
-
-        // SoC: 66% → 100%
-        String socLabel = (ch.socStart >= 0 && ch.socEnd >= 0)
-                ? (ch.socStart + "% → " + ch.socEnd + "%")
-                : (ch.socStart >= 0 ? (ch.socStart + "%") : "—");
-        appendMetadata(l2Sb, "SoC: ", socLabel, Style.TEXT);
-
-        // Divider
-        appendDivider(l2Sb);
-
-        // Potência Méd: 4.2 kW
-        String pwrStr = String.format(Locale.US, "%.1f kW", ch.avgPowerKw);
-        appendMetadata(l2Sb, "Potência Méd: ", pwrStr, Style.TEXT);
-
-        // Divider
-        appendDivider(l2Sb);
-
-        // Custo: R$ 0,00 or Custo não informado
-        if (ch.cost != null && ch.cost >= 0) {
-            String costStr = String.format(Locale.getDefault(), "R$ %.2f", ch.cost);
-            appendMetadata(l2Sb, "Custo: ", costStr, Style.ACCENT);
+        // Net energy, with the sum that makes it written out underneath. The
+        // old "Consumo: 1.6 kWh (Regen +0.7)" read as if regen was still to be
+        // added; "2.2 used − 0.7 regen" says the 1.6 already has it taken off,
+        // and uses the same three words as the day's Líquido/Gasto/Regen tiles.
+        boolean hasEnergy = t.spentKwh > 0 || t.regenKwh > 0
+                || t.energySource == EnergySource.ESTIMATED;
+        CharSequence net;
+        CharSequence breakdown = null;
+        if (hasEnergy) {
+            SpannableStringBuilder sb = new SpannableStringBuilder(number(t.energyKwh, "kWh"));
+            if (t.energySource == EnergySource.ESTIMATED || t.energySource == EnergySource.MIXED) {
+                sb.append(' ');
+                appendUnit(sb, "~", 0.85f);
+            }
+            net = sb;
+            // An estimated trip has only a net figure (from the % drop); there
+            // is no used/regen split to show for it.
+            if (t.energySource != EnergySource.ESTIMATED && t.regenKwh > 0) {
+                breakdown = c.getString(R.string.session_stat_net_breakdown,
+                        String.format(Locale.US, "%.1f", t.spentKwh),
+                        String.format(Locale.US, "%.1f", t.regenKwh));
+            }
         } else {
-            int cStart = l2Sb.length();
-            l2Sb.append("Custo não informado");
-            l2Sb.setSpan(new ForegroundColorSpan(Style.TEXT_DIM), cStart, l2Sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            net = t.distanceKm > 0 ? number(0, "kWh") : "—";
         }
 
-        line2.setTextColor(Style.TEXT_DIM);
-        line2.setText(l2Sb);
-        card.addView(line2);
+        SpannableStringBuilder alt = new SpannableStringBuilder();
+        int a = alt.length();
+        alt.append(String.format(Locale.US, "↑%.0f", t.ascentDPlusM));
+        alt.setSpan(new ForegroundColorSpan(Style.HEAT), a, alt.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        alt.append("  ");
+        int d = alt.length();
+        alt.append(String.format(Locale.US, "↓%.0f", t.descentDMinusM));
+        alt.setSpan(new ForegroundColorSpan(Style.COOL), d, alt.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        appendUnit(alt, " m", ROW_UNIT_SCALE);
 
-        // Retain click listener on completed charging session card to open ChargeCostDialog,
-        // preserving the Park-only safety check (CarState.isParked()).
+        card.addView(statsRow(
+            stat(R.string.session_stat_battery, socValue(t.socStart, t.socEnd), null),
+            stat(R.string.session_stat_net_energy, net, breakdown),
+            stat(R.string.session_stat_efficiency, eff, null),
+            stat(R.string.session_stat_elevation, alt, null)));
+    }
+
+    private void buildChargeSessionCard(LinearLayout card, DailyStatsProvider.ChargeSessionItem ch, long dayStartMs) {
+        Context c = getContext();
+        // App-wide charging color code (2026-09-13): AC = blue + plug, DC = green + CCS.
+        int color = ch.isDcfc ? Style.GOOD : Style.ACCENT;
+        int icon = ch.isDcfc ? R.drawable.ic_ev_plug_ccs2 : R.drawable.ic_power_plug;
+        card.addView(titleRow(icon, color, ch, dayStartMs,
+                valueWithUnit(String.format(Locale.US, "+%.1f", ch.kwh), color, "kWh", ROW_UNIT_SCALE)));
+
+        View power = stat(R.string.session_stat_avg_power, number(ch.avgPowerKw, "kW"), null);
+        View third;
+        if (ch.endMs <= 0) {
+            third = stat(R.string.session_stat_eta, chargeEta(ch), null);
+        } else if (ch.cost != null && ch.cost >= 0) {
+            SpannableStringBuilder cost = new SpannableStringBuilder();
+            cost.append(String.format(Locale.getDefault(), "R$ %.2f", ch.cost));
+            cost.setSpan(new ForegroundColorSpan(Style.ACCENT), 0, cost.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            third = stat(R.string.session_stat_cost, cost, null);
+        } else if (ch.chargeId > 0) {
+            SpannableStringBuilder tap = new SpannableStringBuilder(c.getString(R.string.session_cost_tap));
+            tap.setSpan(new ForegroundColorSpan(Style.TEXT_DIM), 0, tap.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            tap.setSpan(new android.text.style.StyleSpan(Typeface.NORMAL), 0, tap.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            third = stat(R.string.session_stat_cost, tap, null);
+        } else {
+            third = null;
+        }
+        card.addView(statsRow(
+            stat(R.string.session_stat_battery, socValue(ch.socStart, ch.socEnd), null),
+            power, third));
+
+        // Tapping a finished charge opens ChargeCostDialog, Park only (CarState.isParked()).
         if (ch.endMs > 0 && ch.chargeId > 0) {
             card.setOnClickListener(v -> {
                 if (!CarState.isParked()) {
@@ -1771,25 +1745,16 @@ public class DailyStatsView extends LinearLayout {
         }
     }
 
-    private static CharSequence sessionTime(String timeLabel, String durationLabel) {
-        SpannableStringBuilder text = new SpannableStringBuilder(timeLabel);
-        appendUnit(text, "  ·  " + durationLabel, 0.92f);
-        return text;
-    }
-
-    private static void appendMetadata(SpannableStringBuilder sb, String label, String value, int valueColor) {
-        int lStart = sb.length();
-        sb.append(label);
-        sb.setSpan(new ForegroundColorSpan(Style.TEXT_DIM), lStart, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-
-        int vStart = sb.length();
-        sb.append(value);
-        sb.setSpan(new ForegroundColorSpan(valueColor), vStart, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-    }
-
-    private static void appendDivider(SpannableStringBuilder sb) {
-        int dStart = sb.length();
-        sb.append("  ·  ");
-        sb.setSpan(new ForegroundColorSpan(Style.TEXT_DIM), dStart, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+    /** Clock time the live charge should reach 100%, from the same estimate
+     * (ChargeSession.estimateRemainingMs) the home screen's charge card uses,
+     * so the two screens never disagree. */
+    private CharSequence chargeEta(DailyStatsProvider.ChargeSessionItem ch) {
+        Context c = getContext();
+        if (ch.socEnd >= 100) return c.getString(R.string.charge_card_ready);
+        long now = System.currentTimeMillis();
+        long elapsedMs = Math.max(0, now - ch.startMs);
+        Long remainingMs = com.geely.drivemem.state.ChargeSession.estimateRemainingMs(ch.socEnd, elapsedMs);
+        if (remainingMs == null) return c.getString(R.string.charge_card_calculating);
+        return SessionText.clock(now + remainingMs);
     }
 }

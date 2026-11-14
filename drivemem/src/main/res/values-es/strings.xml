@@ -62,7 +62,6 @@
     <!-- config -->
     <string name="cfg_title">Ajustes</string>
     <string name="cfg_nav_doors">Puertas</string>
-    <string name="cfg_nav_mqtt">MQTT</string>
     <string name="cfg_nav_drive">Modo de conducción</string>
     <string name="cfg_nav_bar">Barra de menú</string>
     <string name="cfg_nav_look">Apariencia</string>
@@ -148,7 +147,6 @@
     <string name="drive_card_title">Trayecto actual</string>
     <string name="drive_card_detail">%1$.1f km · %2$s · desde %3$s · recuperados %4$.2f kWh</string>
     <string name="parked_card_title">Estacionado</string>
-    <string name="parked_card_detail">Batería %1$s · temperatura %2$s</string>
     <string name="valet_start">Iniciar modo Valet</string>
     <string name="valet_end">Finalizar modo Valet</string>
     <string name="valet_active_title">Modo Valet activo</string>
@@ -252,16 +250,12 @@
     <string name="cam_right">Derecha</string>
     <string name="cam_orbit">Girar</string>
     <!-- charging history -->
-    <string name="cfg_nav_charge">Carga</string>
-    <string name="charge_title">Historial de carga</string>
-    <string name="charge_summary">%1$d cargas · %2$.1f kWh en total</string>
     <string name="charge_ltm_title">Últimos 12 meses</string>
     <string name="charge_period_30d">Últimos 30 días</string>
     <string name="charge_ltm_count_label">cargas</string>
     <string name="charge_row_subtitle">SoC %1$d%%→%2$d%% · %3$.1f kWh · %4$.1f kW</string>
     <string name="charge_none">Todavía no hay ninguna sesión de carga registrada.</string>
     <!-- stats -->
-    <string name="cfg_nav_stats">Estadísticas</string>
     <string name="stats_title">Estadísticas de conducción</string>
     <string name="stats_driving_header">Esta semana</string>
     <string name="stats_trips_label">viajes</string>
@@ -282,12 +276,9 @@
     <!-- regen boost -->
     <string name="regen_boost_title">Regen</string>
     <!-- system & navigation -->
-    <string name="cfg_nav_spotify">Spotify</string>
     <string name="cfg_nav_system">Sistema</string>
     <string name="cfg_group_car">Coche</string>
     <string name="cfg_group_display">Pantalla</string>
-    <string name="cfg_group_integrations">Integraciones</string>
-    <string name="cfg_group_system">Sistema</string>
     <string name="cfg_system_header">Sistema</string>
     <string name="cfg_app_info_header">Información de la aplicación</string>
     <string name="cfg_version_label">Versión: %1$s (compilación %2$d)</string>
@@ -365,8 +356,7 @@
     <!-- climate readout extra -->
     <string name="ruler_defrosting">descongelando</string>
     <!-- obd2 & abrp -->
-    <string name="cfg_nav_obd">OBD2 / ABRP</string>
-    <string name="obd_title">Adaptador OBD2 y ABRP</string>
+    <string name="obd_title">Dongle OBD2</string>
     <string name="obd_status_connected">Conectado — leyendo la potencia real de la batería</string>
     <string name="obd_status_searching">Buscando el adaptador…</string>
     <string name="obd_status_off">Desactivado</string>
@@ -441,4 +431,80 @@
     <!-- daily stats day navigator -->
     <string name="daily_stats_prev_day">Anterior</string>
     <string name="daily_stats_next_day">Siguiente</string>
+
+    <!-- Backup and restore (AppBackup, BackupDialogs) -->
+    <string name="backup_header">Copia de seguridad</string>
+    <string name="backup_info">Guarda tus ajustes, viajes y certificados MQTT en la memoria USB y en el almacenamiento del auto, bloqueados con tu contraseña de copia. También se ejecuta solo una vez al día, en P. La copia en el almacenamiento del auto se queda aunque borres la app. La copia en la memoria USB se queda también después de un reinicio en el taller. Para restaurar después de borrar la app, necesitas la contraseña de copia.</string>
+    <string name="backup_last">Última copia: %1$s</string>
+    <string name="backup_none">Aún no hay copias</string>
+    <string name="backup_none_found">No se encontró ninguna copia. Conecta el pendrive que tiene la carpeta \"Drive Assist/Backups\".</string>
+    <string name="backup_where_usb">pendrive</string>
+    <string name="backup_where_car">memoria del auto</string>
+    <string name="backup_now">Copiar ahora</string>
+    <string name="backup_restore">Restaurar</string>
+    <string name="backup_running">Copiando…</string>
+    <string name="backup_ok">Copia guardada: %1$s</string>
+    <string name="backup_failed">Error en la copia: %1$s</string>
+    <string name="backup_pick_title">Elige una copia</string>
+    <string name="backup_restore_confirm">¿Restaurar la copia de %1$s?\n\nTus ajustes pasan a ser los de la copia. Los viajes de la copia se suman a los del auto. Luego la app se reinicia.</string>
+    <string name="backup_restoring">Restaurando… La app se reinicia.</string>
+    <string name="backup_restore_failed">Error al restaurar. No se cambió nada.\n\n%1$s</string>
+    <string name="backup_park_first">Pon el auto en P primero.</string>
+    <string name="backup_offer_title">¿Restaurar tu copia?</string>
+    <string name="backup_offer_msg">Drive Assist encontró una copia de %1$s.\n\nRecupera tus ajustes, tus viajes y tus certificados MQTT.</string>
+    <string name="backup_offer_no">No, empezar de cero</string>
+    <string name="backup_offer_other">Otra copia…</string>
+    <string name="backup_restored">Copia restaurada: %1$d ajustes, %2$d viajes añadidos.</string>
+    <string name="backup_restored_trips_there">Copia restaurada: %1$d ajustes. Los viajes ya estaban en el auto.</string>
+    <string name="backup_password">Contraseña</string>
+    <string name="backup_no_password">Aún no hay contraseña de copia, así que las copias están apagadas. Toca Contraseña para activarlas.</string>
+    <string name="backup_pw_set_title">Elige una contraseña de copia</string>
+    <string name="backup_pw_set_msg">Anótala. Sin ella, nadie puede abrir tus copias.</string>
+    <string name="backup_pw_change_msg">Las copias anteriores siguen con la contraseña anterior.</string>
+    <string name="backup_pw_hint">Contraseña (6 caracteres o más)</string>
+    <string name="backup_pw_again_hint">La misma contraseña otra vez</string>
+    <string name="backup_pw_short">Usa 6 caracteres o más.</string>
+    <string name="backup_pw_mismatch">Las 2 contraseñas no son iguales.</string>
+    <string name="backup_pw_saved">Contraseña de copia guardada.</string>
+    <string name="backup_pw_enter_title">Contraseña de la copia</string>
+    <string name="backup_pw_enter_msg">Escribe la contraseña de la copia de %1$s.</string>
+    <string name="backup_pw_wrong">Contraseña incorrecta. Inténtalo de nuevo.</string>
+    <string name="can_header">Datos del coche (CAN)</string>
+    <string name="can_enable_label">Leer la potencia de la batería del coche (CAN)</string>
+    <string name="can_hint">Voltios × amperios exactos de la batería, leídos del propio coche. Activado por defecto; no hay nada que configurar. Necesita la app ModeHelper. Para iniciar el lector, puede activar ADB unos segundos y desactivarlo de nuevo. Si no funciona, la app vuelve al dongle o a la estimación por el % de batería. Mientras esté activado, otras apps del coche también pueden leer estos datos del coche.</string>
+    <!-- Tarjetas de sesiones del día (DailyStatsView) -->
+    <string name="session_since">desde %1$s</string>
+    <string name="session_yesterday">ayer</string>
+    <string name="session_parked">Estacionado %1$s</string>
+    <string name="session_stat_battery">Batería</string>
+    <string name="session_stat_efficiency">Eficiencia</string>
+    <string name="session_stat_net_energy">Energía neta</string>
+    <string name="session_stat_net_breakdown">%1$s gastado − %2$s regen</string>
+    <string name="session_stat_elevation">Subida / bajada</string>
+    <string name="session_stat_avg_power">Potencia media</string>
+    <string name="session_stat_eta">Fin previsto</string>
+    <string name="session_stat_cost">Costo</string>
+    <string name="session_cost_tap">Toca para informar</string>
+    <string name="session_stat_max_speed">Vel. máxima</string>
+    <string name="session_stat_max_power">Potencia máx.</string>
+    <!-- Integrations page (TelemetryIntegrationsSection) -->
+    <string name="cfg_group_app">App</string>
+    <string name="cfg_nav_integrations">Integraciones</string>
+    <string name="int_intro">Servicios y dispositivos con los que habla Drive Assist. Toca uno para configurarlo.</string>
+    <string name="int_ha_name">Home Assistant</string>
+    <string name="int_ha_desc">Envía los datos del coche por MQTT y recibe comandos.</string>
+    <string name="int_obd_name">Dongle OBD2</string>
+    <string name="int_obd_desc">Potencia y temperatura de la batería desde un dongle Bluetooth.</string>
+    <string name="int_abrp_name">ABRP</string>
+    <string name="int_abrp_desc">Datos en vivo para A Better Route Planner.</string>
+    <string name="int_spotify_name">Spotify</string>
+    <string name="int_spotify_desc">Lo que suena, en la pantalla de inicio.</string>
+    <string name="int_status_connected">Conectado</string>
+    <string name="int_status_searching">Buscando…</string>
+    <string name="int_status_needs_setup">Falta configurar</string>
+    <string name="int_status_failing">Con fallos</string>
+    <string name="int_status_on">Activado</string>
+    <string name="obd_live_header">Datos en vivo</string>
+    <string name="obd_compare_can">Comparar con CAN</string>
+    <string name="valet_short">Valet</string>
 </resources>

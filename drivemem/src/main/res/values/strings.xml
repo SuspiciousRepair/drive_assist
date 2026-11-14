@@ -90,17 +90,13 @@
     <!-- config -->
     <string name="cfg_title">Settings</string>
     <string name="cfg_nav_doors">Doors</string>
-    <string name="cfg_nav_mqtt">MQTT</string>
     <string name="cfg_nav_drive">Driving mode</string>
     <string name="cfg_nav_bar">Elements</string>
     <string name="cfg_nav_look">Appearance</string>
-    <string name="cfg_nav_spotify">Spotify</string>
     <string name="cfg_nav_system">System</string>
     <!-- sidebar group captions -->
     <string name="cfg_group_car">Car</string>
     <string name="cfg_group_display">Display</string>
-    <string name="cfg_group_integrations">Integrations</string>
-    <string name="cfg_group_system">System</string>
     <string name="cfg_system_header">System</string>
     <string name="cfg_app_info_header">Application info</string>
     <string name="cfg_version_label">Version: %1$s (build %2$d)</string>
@@ -255,7 +251,6 @@
     <string name="drive_card_title">Current drive</string>
     <string name="drive_card_detail">%1$.1f km · %2$s · since %3$s · recovered %4$.2f kWh</string>
     <string name="parked_card_title">Parked</string>
-    <string name="parked_card_detail">Battery %1$s · temperature %2$s</string>
     <string name="valet_start">Start Valet Mode</string>
     <string name="valet_end">End Valet Mode</string>
     <string name="valet_active_title">Valet Mode Active</string>
@@ -364,23 +359,18 @@
     <string name="cam_right">Right</string>
     <string name="cam_orbit">Orbit</string>
     <!-- charging history -->
-    <string name="cfg_nav_charge">Charging</string>
-    <string name="charge_title">Charging history</string>
-    <string name="charge_summary">%1$d charge(s) · %2$.1f kWh total</string>
     <string name="charge_ltm_title">Last 12 months</string>
     <string name="charge_period_30d">Last 30 days</string>
     <string name="charge_ltm_count_label">charges</string>
     <string name="charge_row_subtitle">SoC %1$d%%→%2$d%% · %3$.1f kWh · %4$.1f kW</string>
     <string name="charge_none">No charging session recorded yet.</string>
     <!-- stats -->
-    <string name="cfg_nav_stats">Stats</string>
     <string name="stats_title">Driving stats</string>
     <string name="stats_driving_header">This week</string>
     <string name="stats_trips_label">trips</string>
     <string name="stats_chart_header">Km per day</string>
     <!-- OBD2 + ABRP -->
-    <string name="cfg_nav_obd">OBD2 / ABRP</string>
-    <string name="obd_title">OBD2 dongle and ABRP</string>
+    <string name="obd_title">OBD2 dongle</string>
     <string name="obd_status_connected">Connected — reading real power from the battery</string>
     <string name="obd_status_searching">Looking for the dongle…</string>
     <string name="obd_status_off">Off</string>
@@ -468,4 +458,80 @@
     <!-- daily stats day navigator -->
     <string name="daily_stats_prev_day">Previous</string>
     <string name="daily_stats_next_day">Next</string>
+
+    <!-- Backup and restore (AppBackup, BackupDialogs) -->
+    <string name="backup_header">Backup</string>
+    <string name="backup_info">Saves your settings, trips and MQTT certificates to the USB stick and to the car storage, locked with your backup password. It also runs by itself once a day, in Park. A backup on the car storage stays when you delete the app. A backup on the USB stick also stays after a workshop reset. To restore after you delete the app, you need the backup password.</string>
+    <string name="backup_last">Last backup: %1$s</string>
+    <string name="backup_none">No backup yet</string>
+    <string name="backup_none_found">No backup found. Put in the USB stick that has the \"Drive Assist/Backups\" folder.</string>
+    <string name="backup_where_usb">USB stick</string>
+    <string name="backup_where_car">car storage</string>
+    <string name="backup_now">Back up now</string>
+    <string name="backup_restore">Restore</string>
+    <string name="backup_running">Backing up…</string>
+    <string name="backup_ok">Backup saved: %1$s</string>
+    <string name="backup_failed">Backup failed: %1$s</string>
+    <string name="backup_pick_title">Choose a backup</string>
+    <string name="backup_restore_confirm">Restore the backup from %1$s?\n\nYour settings change to the ones in the backup. The trips in the backup are added to the trips on the car. Then the app restarts.</string>
+    <string name="backup_restoring">Restoring… The app restarts.</string>
+    <string name="backup_restore_failed">Restore failed. Nothing was changed.\n\n%1$s</string>
+    <string name="backup_park_first">Put the car in P first.</string>
+    <string name="backup_offer_title">Restore your backup?</string>
+    <string name="backup_offer_msg">Drive Assist found a backup from %1$s.\n\nIt brings back your settings, your trips and your MQTT certificates.</string>
+    <string name="backup_offer_no">No, start new</string>
+    <string name="backup_offer_other">Other backup…</string>
+    <string name="backup_restored">Backup restored: %1$d settings, %2$d trips added.</string>
+    <string name="backup_restored_trips_there">Backup restored: %1$d settings. The trips were already on the car.</string>
+    <string name="backup_password">Password</string>
+    <string name="backup_no_password">No backup password yet, so backups are off. Tap Password to turn them on.</string>
+    <string name="backup_pw_set_title">Choose a backup password</string>
+    <string name="backup_pw_set_msg">Write it down. Without it, nobody can open your backups.</string>
+    <string name="backup_pw_change_msg">Older backups keep the old password.</string>
+    <string name="backup_pw_hint">Password (6 characters or more)</string>
+    <string name="backup_pw_again_hint">Same password again</string>
+    <string name="backup_pw_short">Use 6 characters or more.</string>
+    <string name="backup_pw_mismatch">The 2 passwords are not the same.</string>
+    <string name="backup_pw_saved">Backup password saved.</string>
+    <string name="backup_pw_enter_title">Backup password</string>
+    <string name="backup_pw_enter_msg">Type the password of the backup from %1$s.</string>
+    <string name="backup_pw_wrong">Wrong password. Try again.</string>
+    <string name="can_header">Car data (CAN)</string>
+    <string name="can_enable_label">Read battery power from the car (CAN)</string>
+    <string name="can_hint">Exact battery volts × amps from the car itself. On by default; nothing to set up. It needs the ModeHelper app. To start its reader, it may switch ADB on for a few seconds, then off again. If it does not work, the app falls back to the dongle or to the battery % estimate. While it is on, other apps on the car can also read this car data.</string>
+    <!-- Day session cards (DailyStatsView) -->
+    <string name="session_since">since %1$s</string>
+    <string name="session_yesterday">yesterday</string>
+    <string name="session_parked">Parked %1$s</string>
+    <string name="session_stat_battery">Battery</string>
+    <string name="session_stat_efficiency">Efficiency</string>
+    <string name="session_stat_net_energy">Net energy</string>
+    <string name="session_stat_net_breakdown">%1$s used − %2$s regen</string>
+    <string name="session_stat_elevation">Climb / descent</string>
+    <string name="session_stat_avg_power">Average power</string>
+    <string name="session_stat_eta">Expected end</string>
+    <string name="session_stat_cost">Cost</string>
+    <string name="session_cost_tap">Tap to add</string>
+    <string name="session_stat_max_speed">Top speed</string>
+    <string name="session_stat_max_power">Peak power</string>
+    <!-- Integrations page (TelemetryIntegrationsSection) -->
+    <string name="cfg_group_app">App</string>
+    <string name="cfg_nav_integrations">Integrations</string>
+    <string name="int_intro">Services and devices Drive Assist talks to. Tap one to set it up.</string>
+    <string name="int_ha_name">Home Assistant</string>
+    <string name="int_ha_desc">Send car data over MQTT and take commands.</string>
+    <string name="int_obd_name">OBD2 dongle</string>
+    <string name="int_obd_desc">Battery power and temperature from a Bluetooth dongle.</string>
+    <string name="int_abrp_name">ABRP</string>
+    <string name="int_abrp_desc">Live data for A Better Route Planner.</string>
+    <string name="int_spotify_name">Spotify</string>
+    <string name="int_spotify_desc">What is playing, on the home screen.</string>
+    <string name="int_status_connected">Connected</string>
+    <string name="int_status_searching">Searching…</string>
+    <string name="int_status_needs_setup">Needs setup</string>
+    <string name="int_status_failing">Failing</string>
+    <string name="int_status_on">On</string>
+    <string name="obd_live_header">Live data</string>
+    <string name="obd_compare_can">Compare with CAN</string>
+    <string name="valet_short">Valet</string>
 </resources>

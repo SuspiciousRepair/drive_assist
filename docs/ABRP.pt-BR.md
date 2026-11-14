@@ -24,7 +24,7 @@ precisa, tensão, corrente e temperatura da bateria.
 
 1. No ABRP, abra as configurações de **Dados ao vivo** do veículo, escolha a
    conexão genérica e copie o token de usuário.
-2. Na central, abra **Configurações → OBD2 / ABRP**.
+2. Na central, abra **Configurações → Integrações → ABRP**.
 3. Ative a telemetria do ABRP e informe o token.
 4. Escolha se deseja enviar a localização GPS. Ao desativá-la, coordenadas,
    altitude e direção não são enviadas; os dados de bateria e energia ainda podem

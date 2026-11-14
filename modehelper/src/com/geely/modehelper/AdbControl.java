@@ -34,6 +34,14 @@ public final class AdbControl {
 
     private static final int ALARM_ID = 2001;
 
+    /** Bumped every time anything switches ADB on. CanReader compares it
+     * before closing a window it opened, so it never closes ADB that the
+     * owner or WifiGuard asked for in the meantime. */
+    private static final java.util.concurrent.atomic.AtomicInteger OPENS =
+        new java.util.concurrent.atomic.AtomicInteger();
+
+    static int openCount() { return OPENS.get(); }
+
     private AdbControl() {}
 
     public static boolean isEnabled(Context ctx) {
@@ -50,6 +58,7 @@ public final class AdbControl {
      * Returns the actual state after the operation, since WRITE_SECURE_SETTINGS
      * may be revoked if the build's signature or platform-signing status changes. */
     public static boolean set(Context ctx, boolean on, int minutes) {
+        if (on) OPENS.incrementAndGet();
         try {
             Settings.Global.putInt(ctx.getContentResolver(),
                                    Settings.Global.ADB_ENABLED, on ? 1 : 0);
@@ -77,6 +86,7 @@ public final class AdbControl {
      * WifiGuardReceiver for trusted home networks, where the network itself
      * (not a timeout) gates the adb session. */
     static boolean setIndefinite(Context ctx, boolean on) {
+        if (on) OPENS.incrementAndGet();
         try {
             Settings.Global.putInt(ctx.getContentResolver(),
                                    Settings.Global.ADB_ENABLED, on ? 1 : 0);

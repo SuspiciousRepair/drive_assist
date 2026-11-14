@@ -27,7 +27,7 @@ and give it access only to the required Drive Assist topics.
 
 ## Connect the car
 
-1. On the car, open **Settings → MQTT**.
+1. On the car, open **Settings → Integrations → Home Assistant**.
 2. Enable **MQTT telemetry**.
 3. Enter the broker address. Use `ssl://` or `tls://` with port `8883` for an
    encrypted connection. Use `tcp://` with port `1883` only on a network you

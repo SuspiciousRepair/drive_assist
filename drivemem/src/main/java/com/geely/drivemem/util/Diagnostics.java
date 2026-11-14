@@ -39,7 +39,8 @@ public final class Diagnostics {
         "com.geely.drivemem.ACTORTEST",
         "com.geely.drivemem.CHARGETEST",
         "com.geely.drivemem.CONFIGCHECK",
-        "com.geely.drivemem.FAKESET"
+        "com.geely.drivemem.FAKESET",
+        "com.geely.drivemem.CANSTATUS"
     ));
 
     // Default area list for READPROP/READGENERIC/WRAPREAD when not specified.
@@ -71,6 +72,7 @@ public final class Diagnostics {
             case "com.geely.drivemem.CHARGETEST":  chargeTest(app, intent, onDone); break;
             case "com.geely.drivemem.CONFIGCHECK": configCheck(app, intent, onDone); break;
             case "com.geely.drivemem.FAKESET":     fakeSet(app, intent, onDone); break;
+            case "com.geely.drivemem.CANSTATUS":   canStatus(onDone); break;
             default: onDone.run(); // unreachable — BootReceiver gates on ACTIONS first
         }
     }
@@ -462,6 +464,15 @@ public final class Diagnostics {
     // be checked mid-session instead of waiting for a real one to finish.
     private static void chargeTest(Context app, Intent intent, Runnable onDone) {
         Log.i(CarAccess.TAG, "chargetest: " + ChargeSession.debugState());
+        onDone.run();
+    }
+
+    // "Exact energy": why CAN is or is not feeding the energy numbers.
+    private static void canStatus(Runnable onDone) {
+        Log.i(CarAccess.TAG, "canstatus: " + com.geely.drivemem.sensors.CanEnergyReader.statusLine()
+            + " power=" + com.geely.drivemem.sensors.CanEnergyReader.freshPowerKw() + "kW"
+            + " climate=" + com.geely.drivemem.sensors.CanEnergyReader.freshClimateKw() + "kW"
+            + " charge_batt_kwh=" + ChargeSession.currentBatteryKwh());
         onDone.run();
     }
 
