@@ -213,10 +213,20 @@ public final class CarActor {
         });
 
         // Always-on polling of ambient light (independent of screen focus).
-        registerPoll("telemetry.ambient_color", 4000, c -> {
+        // ambient_color_set is the colour picked by hand; the light's mode
+        // says whether the light shows it or follows the drive mode, and
+        // telemetry.ambient_color is the colour really shown (#17).
+        registerPoll("telemetry.ambient_color_set", 4000, c -> {
             Integer v = c.readAmbientColor();
             return (v != null) ? Reading.ok(v) : Reading.error("read failed");
         });
+        registerPoll("telemetry.ambient_mode", 4000, c -> {
+            Integer v = c.readAmbientMode();
+            return (v != null) ? Reading.ok(v) : Reading.error("read failed");
+        });
+        deriveFrom("telemetry.ambient_color",
+            new String[]{"telemetry.ambient_color_set", "telemetry.ambient_mode", "car.drive_mode"},
+            (DeriveFn) deps -> AmbientLight.derive(deps[0], deps[1], deps[2]));
         registerPoll("telemetry.ambient_brightness", 4000, c -> {
             Integer v = c.readAmbientBrightness();
             return (v != null) ? Reading.ok(v) : Reading.error("read failed");

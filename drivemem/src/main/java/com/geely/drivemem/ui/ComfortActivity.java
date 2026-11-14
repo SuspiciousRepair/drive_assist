@@ -6,6 +6,7 @@ import com.geely.drivemem.art.ArtView;
 import com.geely.drivemem.art.PanelCardView;
 import com.geely.drivemem.art.SkylineArtView;
 import com.geely.drivemem.art.VaporArtView;
+import com.geely.drivemem.car.AmbientLight;
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.car.EntityBus;
@@ -2196,7 +2197,13 @@ public class ComfortActivity extends Activity {
         // ambient color/brightness already applied.
         a.runOnCarThread(() -> {
             CarAccess c = a.rawAccess();
-            Integer col = c.readAmbientColor();
+            // The hub's colour already knows the light's mode (#17); read the
+            // car only when the hub has nothing yet.
+            CarActor.Reading hubCol = a.get("telemetry.ambient_color");
+            Integer col = (hubCol.status == CarActor.Reading.Status.OK && hubCol.value instanceof Integer)
+                ? (Integer) hubCol.value
+                : AmbientLight.effective(c.readAmbientMode(), c.readAmbientColor(),
+                    c.readIntRaw(com.geely.drivemem.util.Modes.PROP_DRIVE, 0));
             Integer bri = c.readAmbientBrightness();
             ui.post(() -> {
                 if (col != null) applyAmbient(col);
