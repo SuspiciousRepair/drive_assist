@@ -10,12 +10,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.geely.drivemem.R;
-import com.geely.drivemem.car.CarDb;
 import com.geely.drivemem.sensors.OdoStats;
 import com.geely.drivemem.state.ChargeSession;
 import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.Style;
-import com.geely.drivemem.util.UsbExport;
+import com.geely.drivemem.util.CsvExport;
 
 import java.util.List;
 
@@ -87,13 +86,12 @@ public final class TelemetryChargeSection extends LinearLayout {
         ctl.setOrientation(LinearLayout.HORIZONTAL);
         ctl.setPadding(0, Style.dp(activity, 12), 0, Style.dp(activity, 4));
         ctl.addView(Style.cardButton(activity, activity.getString(R.string.charge_export), false, () ->
-            UsbExport.exportFiles((ok, drive, copied) -> activity.runOnUiThread(() -> {
+            CsvExport.exportToUsb(activity, (ok, drive, copied) -> activity.runOnUiThread(() -> {
                     String msg = drive == null ? activity.getString(R.string.charge_export_no_drive)
                                : !ok || copied == 0 ? activity.getString(R.string.charge_export_nothing)
                                : activity.getString(R.string.charge_export_ok, copied);
                     Toast.makeText(activity, msg, Toast.LENGTH_LONG).show();
-                }),
-                CarDb.file(activity))));
+                }))));
         addView(ctl);
 
         if (sessions.isEmpty()) { addView(Style.label(activity, activity.getString(R.string.charge_none))); return; }

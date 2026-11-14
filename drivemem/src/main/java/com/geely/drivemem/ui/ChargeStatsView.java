@@ -14,13 +14,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.geely.drivemem.R;
-import com.geely.drivemem.car.CarDb;
 import com.geely.drivemem.car.EntityBus;
 import com.geely.drivemem.sensors.DailyStatsProvider;
 import com.geely.drivemem.sensors.OdoStats;
 import com.geely.drivemem.state.ChargeSession;
 import com.geely.drivemem.util.Style;
-import com.geely.drivemem.util.UsbExport;
+import com.geely.drivemem.util.CsvExport;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -271,12 +270,12 @@ public class ChargeStatsView extends LinearLayout {
         controlsCol.addView(sideButton(365, c.getString(R.string.charge_ltm_title)));
         Style.gap(controlsCol, c, 10);
         TextView exportBtn = Style.cardButton(c, c.getString(R.string.charge_export), false, () ->
-            UsbExport.exportFiles((ok, drive, copied) -> post(() -> {
+            CsvExport.exportToUsb(c, (ok, drive, copied) -> post(() -> {
                 String msg = drive == null ? c.getString(R.string.charge_export_no_drive)
                            : !ok || copied == 0 ? c.getString(R.string.charge_export_nothing)
                            : c.getString(R.string.charge_export_ok, copied);
                 Toast.makeText(c, msg, Toast.LENGTH_LONG).show();
-            }), CarDb.file(c)));
+            })));
         exportBtn.setLayoutParams(new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         controlsCol.addView(exportBtn);
