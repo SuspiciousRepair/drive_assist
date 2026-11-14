@@ -37,7 +37,18 @@ public final class TelemetryLookSection extends LinearLayout {
         this.prefs = activity.getSharedPreferences("drivemem", Activity.MODE_PRIVATE);
         setOrientation(VERTICAL);
 
-        int pageWidth = Style.dp(activity, 960);
+        // Two columns. Left: light/dark and the skyline art. Right: the
+        // theme grid, which is the tallest thing on the page.
+        LinearLayout left = ConfigCards.column(activity);
+        LinearLayout right = ConfigCards.column(activity);
+        addView(ConfigCards.columns(activity, left, right));
+
+        LinearLayout appCard = ConfigCards.card(activity, activity.getString(R.string.cfg_dark_mode_header));
+        ConfigCards.add(left, appCard);
+        LinearLayout skyCard = ConfigCards.card(activity, activity.getString(R.string.cfg_skyline_header));
+        ConfigCards.add(left, skyCard);
+        LinearLayout themeCard = ConfigCards.card(activity, activity.getString(R.string.cfg_theme_selection_header));
+        ConfigCards.add(right, themeCard);
 
         // Noturno's own scene (VaporArtView) is a different art path entirely
         // from the skyline (SkylineArtView) every other theme uses -- this
@@ -48,7 +59,6 @@ public final class TelemetryLookSection extends LinearLayout {
         // the seed config below must appear/disappear with it, not just sit
         // there disabled -- "the config for it" goes away along with the
         // skyline itself, not just the art.
-        addView(Style.header(activity, activity.getString(R.string.cfg_skyline_header)));
         boolean skylineEnabled = prefs.getBoolean("skyline_enabled", true);
         LinearLayout skylineToggle = toggleRow(activity, activity.getString(R.string.cfg_skyline_label),
             skylineEnabled,
@@ -56,18 +66,16 @@ public final class TelemetryLookSection extends LinearLayout {
                 prefs.edit().putBoolean("skyline_enabled", on).apply();
                 // Recreate is handled by TelemetryActivity
             });
-        skylineToggle.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        addView(skylineToggle);
+        skyCard.addView(skylineToggle);
 
         if (skylineEnabled) {
-            addView(Style.header(activity, activity.getString(R.string.cfg_skyline_seed_header)));
+            skyCard.addView(sectionLabel(activity, activity.getString(R.string.cfg_skyline_seed_header)));
 
             boolean randomPerDrive = prefs.getBoolean("skyline_random_per_drive", false);
 
-            fSkylineSeed = field(activity, activity.getString(R.string.cfg_skyline_seed_label),
+            fSkylineSeed = field(activity, skyCard, activity.getString(R.string.cfg_skyline_seed_label),
                 String.valueOf(prefs.getLong("skyline_seed", Skyline.DEFAULT_SEED)),
                 InputType.TYPE_CLASS_NUMBER);
-            fSkylineSeed.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
             // Locked while "random every drive" is on: that toggle is the one
             // writing skyline_seed now, on every P->D, so a value typed here
             // would just be overwritten by the next drive anyway.
@@ -77,7 +85,6 @@ public final class TelemetryLookSection extends LinearLayout {
 
             LinearLayout skylineBtnRow = new LinearLayout(activity);
             skylineBtnRow.setOrientation(LinearLayout.HORIZONTAL);
-            skylineBtnRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
             skylineBtnRow.addView(action(activity, activity.getString(R.string.cfg_skyline_seed_save), Style.ACCENT, () -> {
                 if (!fSkylineSeed.isEnabled()) return;   // random-per-drive owns the seed right now
                 long seed;
@@ -94,7 +101,7 @@ public final class TelemetryLookSection extends LinearLayout {
                 if (fSkylineSeed != null) fSkylineSeed.setText(String.valueOf(seed));
                 Toast.makeText(activity, activity.getString(R.string.cfg_saved), Toast.LENGTH_SHORT).show();
             }));
-            addView(skylineBtnRow);
+            skyCard.addView(skylineBtnRow);
 
             LinearLayout randomToggle = toggleRow(activity, activity.getString(R.string.cfg_skyline_random_per_drive_label),
                 randomPerDrive,
@@ -102,30 +109,25 @@ public final class TelemetryLookSection extends LinearLayout {
                     prefs.edit().putBoolean("skyline_random_per_drive", on).apply();
                     // Recreate is handled by TelemetryActivity
                 });
-            randomToggle.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-            addView(randomToggle);
+            skyCard.addView(randomToggle);
         }
 
-        addView(Style.header(activity, activity.getString(R.string.cfg_theme_header)));
-        addView(sectionLabel(activity, activity.getString(R.string.cfg_dark_mode_header)));
         LinearLayout appRow = new LinearLayout(activity);
         appRow.setOrientation(LinearLayout.HORIZONTAL);
-        appRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
         appRow.addView(appearanceTile(activity, Style.APPEARANCE_LIGHT, activity.getString(R.string.cfg_appearance_light)));
         appRow.addView(appearanceTile(activity, Style.APPEARANCE_DARK,  activity.getString(R.string.cfg_appearance_dark)));
         appRow.addView(appearanceTile(activity, Style.APPEARANCE_AUTO,  activity.getString(R.string.cfg_appearance_auto)));
-        addView(appRow);
+        appCard.addView(appRow);
         TextView appNote = new TextView(activity);
-        appNote.setTextColor(Style.TEXT_DIM); appNote.setTextSize(13);
-        appNote.setPadding(0, Style.dp(activity, 8), 0, Style.dp(activity, 12));
+        appNote.setTextColor(Style.TEXT_DIM); appNote.setTextSize(14);
+        appNote.setPadding(0, Style.dp(activity, 10), 0, 0);
         appNote.setText(activity.getString(R.string.cfg_appearance_note));
-        addView(appNote);
+        appCard.addView(appNote);
 
-        addView(sectionLabel(activity, activity.getString(R.string.cfg_theme_selection_header)));
         TextView sub = new TextView(activity);
         sub.setTextColor(Style.TEXT_DIM); sub.setTextSize(14);
         sub.setText(activity.getString(R.string.cfg_theme_sub));
-        addView(sub);
+        themeCard.addView(sub);
 
         // A secret theme still gets a tile while it is the SAVED choice. That is
         // not a loophole in the secret: without it, someone who chose Noturno
@@ -142,7 +144,7 @@ public final class TelemetryLookSection extends LinearLayout {
             if (i % 2 == 0) {
                 row = new LinearLayout(activity);
                 row.setOrientation(LinearLayout.HORIZONTAL);
-                addView(row);
+                themeCard.addView(row);
             }
             row.addView(themeTile(activity, shown.get(i)));
         }
@@ -154,11 +156,11 @@ public final class TelemetryLookSection extends LinearLayout {
         }
 
         TextView note = new TextView(activity);
-        note.setTextColor(Style.TEXT_DIM); note.setTextSize(13);
+        note.setTextColor(Style.TEXT_DIM); note.setTextSize(14);
         note.setPadding(0, Style.dp(activity, 14), 0, 0);
         note.setText(activity.getString(Style.FOLLOW_AMBIENT
             ? R.string.cfg_theme_ambient_on : R.string.cfg_theme_ambient_off));
-        addView(note);
+        themeCard.addView(note);
     }
 
     private View themeTile(Activity activity, final Style.Theme t) {
@@ -249,18 +251,18 @@ public final class TelemetryLookSection extends LinearLayout {
         return row;
     }
 
-    private EditText field(Activity activity, String label, String val, int type) {
+    private EditText field(Activity activity, LinearLayout parent, String label, String val, int type) {
         TextView l = new TextView(activity);
         l.setText(label); l.setTextColor(Style.TEXT_DIM); l.setTextSize(14);
         l.setPadding(0, Style.dp(activity, 10), 0, Style.dp(activity, 2));
-        addView(l);
+        parent.addView(l);
         EditText e = new EditText(activity);
         e.setText(val); e.setInputType(type);
         e.setTextColor(Style.TEXT); e.setTextSize(17);
         e.setBackground(Style.card(Style.CARD, activity));
         int p = Style.dp(activity, 12);
         e.setPadding(p, p, p, p);
-        addView(e);
+        parent.addView(e);
         return e;
     }
 
