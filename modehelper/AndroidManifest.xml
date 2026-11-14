@@ -120,6 +120,7 @@
         <receiver android:name=".AdbReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="com.geely.modehelper.SET_ADB" />
+                <action android:name="com.geely.modehelper.SET_ADB_ALWAYS" />
             </intent-filter>
         </receiver>
         <!-- Exported to receive SET_TRUSTED_WIFI from Drive Assist (drivemem) or ADB.

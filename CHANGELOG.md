@@ -19,6 +19,12 @@
   "Exact energy" (CAN) on, the energy measured going into the battery is
   used; without it, AC charges count about 90 % of the wall energy (charger
   loss). Single days are unchanged. (#21)
+- **"Keep ADB always on" (Wi-Fi & ADB > Advanced), off by default.** For
+  apps that start a root helper through the car's own ADB, such as
+  GeelyTelemetry (Capy). Before, the helper closed ADB 5 minutes after
+  every wake and when the car left the home Wi-Fi, which stopped those
+  apps. While on, anyone on the same network can get a root shell; the
+  setting says so.
 
 ## [v0.4.10] — 2026-11-09
 
