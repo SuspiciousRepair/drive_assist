@@ -496,4 +496,19 @@
     <string name="can_header">พลังงานที่แม่นยำ (ทดลอง)</string>
     <string name="can_enable_label">อ่านกำลังไฟแบตเตอรี่จากรถ (CAN)</string>
     <string name="can_hint">อ่านโวลต์ × แอมป์ของแบตเตอรี่จากตัวรถโดยตรง ไม่ต้องใช้ดองเกิล OBD2 ต้องมีแอป ModeHelper ในการเริ่มตัวอ่าน แอปอาจเปิด ADB สักครู่แล้วปิดอีกครั้ง หากใช้ไม่ได้ แอปจะกลับไปใช้ดองเกิลหรือการประมาณจาก % แบตเตอรี่ ขณะเปิดอยู่ แอปอื่นในรถก็สามารถอ่านข้อมูลรถนี้ได้เช่นกัน</string>
+    <!-- การ์ดเซสชันของวัน (DailyStatsView) -->
+    <string name="session_since">ตั้งแต่ %1$s</string>
+    <string name="session_yesterday">เมื่อวาน</string>
+    <string name="session_parked">จอด %1$s</string>
+    <string name="session_stat_battery">แบตเตอรี่</string>
+    <string name="session_stat_efficiency">ประสิทธิภาพ</string>
+    <string name="session_stat_net_energy">พลังงานสุทธิ</string>
+    <string name="session_stat_net_breakdown">ใช้ %1$s − คืน %2$s</string>
+    <string name="session_stat_elevation">ขึ้น / ลง</string>
+    <string name="session_stat_avg_power">กำลังเฉลี่ย</string>
+    <string name="session_stat_eta">คาดว่าเสร็จ</string>
+    <string name="session_stat_cost">ค่าใช้จ่าย</string>
+    <string name="session_cost_tap">แตะเพื่อกรอก</string>
+    <string name="session_stat_max_speed">ความเร็วสูงสุด</string>
+    <string name="session_stat_max_power">กำลังสูงสุด</string>
 </resources>
