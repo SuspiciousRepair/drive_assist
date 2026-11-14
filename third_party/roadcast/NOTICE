@@ -1,0 +1,64 @@
+Roadcast
+Copyright 2026 Timoteo Sousa
+
+This product includes software developed by Timoteo Sousa.
+
+Licensed under the Apache License, Version 2.0. See LICENSE for the full terms.
+
+## Scope and affiliation
+
+Roadcast is an independent, non-commercial interoperability and research
+project. It is not affiliated with, endorsed by, sponsored by, or connected to
+Geely, Zeekr, Google, the Android Open Source Project, or any vehicle
+manufacturer or supplier.
+
+"Geely", "Android", "Android Automotive", and all other product and company
+names referenced in this repository are the trademarks of their respective
+owners. They are used here only to identify the systems this project observes,
+as nominative reference, and no claim to those marks is made.
+
+## What this repository contains
+
+Roadcast is original work. This repository does not contain, redistribute, or
+derive from:
+
+- any manufacturer or supplier binary, firmware image, or system partition;
+- any source code owned by Geely, Google, or any third party;
+- any proprietary calibration file, diagnostic database, or vendor DBC file;
+- any credential, key, or unlock mechanism.
+
+`data/dbc.json` records CAN frame identifiers, signal names, and bit offsets
+observed in a specific vehicle. This is descriptive factual metadata about a
+data format, produced by independent observation for the purpose of
+interoperability. No vendor file is copied into this repository.
+
+## What this software does
+
+Roadcast performs read-only observation of memory in a process running on the
+user's own vehicle head unit. It does not write vehicle properties, does not
+write into any other process, does not transmit CAN frames, does not invoke
+vehicle controls, and does not alter ECU state. These constraints are
+structural project invariants, not configuration. See docs/ARCHITECTURE.md.
+
+Roadcast does not circumvent any technological protection measure and contains
+no rooting, unlocking, or exploit mechanism. It requires a head unit that
+already grants the necessary access.
+
+## User responsibility
+
+Running this software may void a vehicle warranty, may violate the terms of a
+purchase, lease, or service agreement, and may be regulated differently in
+different jurisdictions. Vehicle modification and diagnostic access law is not
+uniform.
+
+You are responsible for having the right to access the vehicle you run this on
+and for complying with the law that applies to you. Do not use Roadcast on a
+vehicle you do not own or do not have explicit authorization to access.
+
+The software is provided "AS IS", without warranty of any kind, as stated in
+LICENSE. Safety of vehicle operation is always the operator's responsibility.
+
+## Reporting
+
+If you are a rights holder and believe any part of this repository exceeds the
+scope described above, open an issue and it will be addressed.

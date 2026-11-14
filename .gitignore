@@ -37,6 +37,9 @@ modehelper/obj/
 modehelper/classes.dex
 modehelper/platkey/
 modehelper/*.idsig
+# roadcastd is compiled from third_party/roadcast by tools/build-roadcastd.sh
+# and packed into the helper apk; the binary itself is never tracked.
+modehelper/assets/roadcastd
 
 # Installer build artefacts
 installer/obj/
