@@ -7,6 +7,7 @@ import android.widget.TextView;
 import android.content.SharedPreferences;
 
 import com.geely.drivemem.R;
+import com.geely.drivemem.sensors.CanEnergyReader;
 import com.geely.drivemem.sensors.Obd2Reader;
 import com.geely.drivemem.util.Style;
 
@@ -25,6 +26,7 @@ import java.util.List;
 public final class TelemetryObdSection extends LinearLayout {
     private final TextView obdStatus;
     private final LinearLayout obdFields;
+    private final LinearLayout canFields;
 
     public TelemetryObdSection(Activity activity) {
         super(activity);
@@ -69,6 +71,19 @@ public final class TelemetryObdSection extends LinearLayout {
         obdFields = new LinearLayout(activity);
         obdFields.setOrientation(VERTICAL);
         right.addView(obdFields);
+
+        // The car's own CAN values under the dongle's, to compare the two by
+        // eye while driving. CAN is not an integration and has no page of its
+        // own (its switch is in System); this is only the comparison.
+        TextView canLabel = new TextView(activity);
+        canLabel.setTextColor(Style.TEXT_DIM); canLabel.setTextSize(13);
+        canLabel.setTypeface(null, android.graphics.Typeface.BOLD);
+        canLabel.setText(activity.getString(R.string.obd_compare_can));
+        canLabel.setPadding(0, Style.dp(activity, 14), 0, 0);
+        right.addView(canLabel);
+        canFields = new LinearLayout(activity);
+        canFields.setOrientation(VERTICAL);
+        right.addView(canFields);
     }
 
     /** Updates the OBD status and connection display. Called when OBD2Reader
@@ -85,6 +100,14 @@ public final class TelemetryObdSection extends LinearLayout {
         obdLines.add(fieldLine("Power", Obd2Reader.freshPowerKw(600_000), "kW"));
         obdLines.add(fieldLine("Battery temp", Obd2Reader.freshBattTempC(600_000), "°C"));
         setDebugLines(obdFields, obdLines);
+
+        List<String> canLines = new ArrayList<>();
+        canLines.add("Status: " + CanEnergyReader.status());
+        canLines.add(fieldLine("Voltage", CanEnergyReader.freshPackVolts(), "V"));
+        canLines.add(fieldLine("Current", CanEnergyReader.freshPackAmps(), "A"));
+        canLines.add(fieldLine("Power", CanEnergyReader.freshPowerKw(), "kW"));
+        canLines.add(fieldLine("Climate", CanEnergyReader.freshClimateKw(), "kW"));
+        setDebugLines(canFields, canLines);
     }
 
     /** Updates the OBD status text (Connected/Searching/Off). Called when

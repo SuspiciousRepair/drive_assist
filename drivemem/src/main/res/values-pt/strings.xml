@@ -516,4 +516,5 @@
     <string name="int_status_failing">Com falha</string>
     <string name="int_status_on">Ligado</string>
     <string name="obd_live_header">Dados ao vivo</string>
+    <string name="obd_compare_can">Comparar com CAN</string>
 </resources>

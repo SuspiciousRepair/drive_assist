@@ -520,4 +520,5 @@
     <string name="int_status_failing">ล้มเหลว</string>
     <string name="int_status_on">เปิด</string>
     <string name="obd_live_header">ข้อมูลสด</string>
+    <string name="obd_compare_can">เทียบกับ CAN</string>
 </resources>
