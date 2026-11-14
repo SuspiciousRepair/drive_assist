@@ -1545,7 +1545,7 @@ public class DailyStatsView extends LinearLayout {
         // pill was tried beside the time too, and dropped: "since 09:27"
         // plus the outline already say it.)
         android.graphics.drawable.GradientDrawable bg = Style.tile(c);
-        if (live) bg.setStroke(Style.dp(c, 2), color);
+        if (live) bg.setStroke(Style.dp(c, 1), color);
         card.setBackground(bg);
         return card;
     }
