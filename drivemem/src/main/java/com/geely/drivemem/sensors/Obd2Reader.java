@@ -159,8 +159,12 @@ public final class Obd2Reader {
     private Obd2Reader() {
     }
 
+    // isConnected()/freshXxx() are package-private on purpose: only ObdHub
+    // reads them. Everyone else reads the hub (ObdHub, EnergyHub), so a
+    // search for a key finds every reader: CLAUDE.md rule 7.
+
     /** Returns whether an OBD2 connection is currently active. */
-    public static boolean isConnected() {
+    static boolean isConnected() {
         return connected;
     }
 
@@ -168,23 +172,23 @@ public final class Obd2Reader {
         return lastReadingAtMs > 0 && System.currentTimeMillis() - lastReadingAtMs <= maxAgeMs;
     }
     /** Returns the last measured power (kW) if within maxAgeMs, or null. */
-    public static Float freshPowerKw(long maxAgeMs) {
+    static Float freshPowerKw(long maxAgeMs) {
         return (fresh(maxAgeMs) && powerKw != null) ? powerKw.floatValue() : null;
     }
     /** Returns the last measured SOC (%) if within maxAgeMs, or null. */
-    public static Float freshSoc(long maxAgeMs) {
+    static Float freshSoc(long maxAgeMs) {
         return (fresh(maxAgeMs) && soc != null) ? soc.floatValue() : null;
     }
     /** Returns the last measured voltage (V) if within maxAgeMs, or null. */
-    public static Float freshVoltage(long maxAgeMs) {
+    static Float freshVoltage(long maxAgeMs) {
         return (fresh(maxAgeMs) && voltage != null) ? voltage.floatValue() : null;
     }
     /** Returns the last measured current (A) if within maxAgeMs, or null. */
-    public static Float freshCurrent(long maxAgeMs) {
+    static Float freshCurrent(long maxAgeMs) {
         return (fresh(maxAgeMs) && current != null) ? current.floatValue() : null;
     }
     /** Returns the last measured battery temperature (C) if within maxAgeMs, or null. */
-    public static Float freshBattTempC(long maxAgeMs) {
+    static Float freshBattTempC(long maxAgeMs) {
         return (fresh(maxAgeMs) && battTempC != null) ? battTempC.floatValue() : null;
     }
 
@@ -194,6 +198,8 @@ public final class Obd2Reader {
     /** Starts the reader thread if enabled and not already running (idempotent). */
     public static synchronized void ensureStarted(Context ctx) {
         enabledWanted = Prefs.getObd2Enabled(ctx);
+        // Hub first (CLAUDE.md rule 7): consumers read ObdHub's obd.* keys.
+        if (enabledWanted) ObdHub.register(com.geely.drivemem.car.CarActor.get(ctx));
         if (enabledWanted && !running) {
             running = true;
             Context app = ctx.getApplicationContext();
@@ -260,6 +266,7 @@ public final class Obd2Reader {
             ensureStarted(ctx);
         } else {
             enabledWanted = false;
+            ObdHub.unregister(com.geely.drivemem.car.CarActor.get());
         }
     }
 

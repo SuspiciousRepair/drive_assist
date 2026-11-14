@@ -2,7 +2,7 @@ package com.geely.drivemem.car;
 
 import com.geely.drivemem.sensors.EnergyIntegrator;
 import com.geely.drivemem.sensors.CanHub;
-import com.geely.drivemem.sensors.Obd2Reader;
+import com.geely.drivemem.sensors.EnergyHub;
 
 /** Reads telemetry properties from the car's OBD system via Geely's
  * adaptation layer. Properties are read via CarPropertyManager through CarAccess. */
@@ -192,9 +192,9 @@ public class Telemetry {
         // 3. Regen (energy recovered: kW and kWh >= 0)
         // CAN (roadcastd, "Exact energy") first, then OBD2: the same battery
         // V x I from two readers. See EnergyIntegrator's SOURCE_* tier.
-        // Read from the hub (CLAUDE.md rule 7): CanHub's keys, <= 2 s old.
-        Float obdPower = CanHub.get(CanHub.POWER_KW);
-        if (obdPower == null) obdPower = Obd2Reader.freshPowerKw(POWER_WINDOW_MS / 2);
+        // Measured battery power from the hub (CLAUDE.md rule 7): CAN if
+        // live, else OBD2 (EnergyHub decides), <= 2 s old.
+        Float obdPower = EnergyHub.get(EnergyHub.POWER_KW);
         // Climate (compressor + heater) electrical power: only CAN has it.
         Float climateKw = CanHub.get(CanHub.CLIMATE_KW);
         if (climateKw != null) out.put("climate_kw", climateKw);

@@ -1,7 +1,9 @@
 package com.geely.drivemem;
 
 import com.geely.drivemem.net.AbrpUploader;
-import com.geely.drivemem.sensors.Obd2Reader;
+import com.geely.drivemem.car.CarActor;
+import com.geely.drivemem.sensors.EnergyHub;
+import com.geely.drivemem.sensors.ObdHub;
 import com.geely.drivemem.util.Modes;
 
 import org.json.JSONObject;
@@ -133,12 +135,13 @@ public class AbrpUploaderTest {
     }
 
     @Test
-    public void testAcChargingReportsNotDcfcEvenWithFreshObdPackVoltage() throws Exception {
+    public void testAcChargingReportsNotDcfcEvenWithFreshPackVoltage() throws Exception {
+        // Measured pack voltage well above 250 V (395 V) in the hub, as CAN or
+        // OBD2 report it during AC charging.
+        com.geely.drivemem.car.CarActorTestHarness h = new com.geely.drivemem.car.CarActorTestHarness();
+        CarActor.setInstanceForTesting(h.actor());
         try {
-            // Fresh OBD2 reading with battery pack voltage well above 250V (e.g. 395V)
-            Obd2Reader.Reading obd = new Obd2Reader.Reading(
-                70.0, 395.0, 32.0, 25.0, 7.5, 0, System.currentTimeMillis());
-            AbrpUploader.setLastObdReadingForTesting(obd);
+            h.actor().putForTesting(EnergyHub.PACK_V, CarActor.Reading.ok(395.0f));
 
             Map<String, Object> data = new HashMap<>();
             data.put("battery", 70);
@@ -149,10 +152,52 @@ public class AbrpUploaderTest {
             assertNotNull(tlm);
             assertEquals(1, tlm.getInt("is_charging"));
             assertEquals(0, tlm.getInt("is_dcfc"));
-            // OBD2 pack voltage is still preferred for the general "voltage" field
+            // Measured pack voltage still goes out as the general "voltage" field
             assertEquals(395.0, tlm.getDouble("voltage"), 0.01);
         } finally {
-            AbrpUploader.setLastObdReadingForTesting(null);
+            CarActor.setInstanceForTesting(null);
+        }
+    }
+
+    /** ABRP reads measured values from the hub (CLAUDE.md rule 7): CAN or
+     * OBD2, whichever EnergyHub picked. Battery temp only from the dongle. */
+    @Test
+    public void testMeasuredValuesComeFromTheHub() throws Exception {
+        com.geely.drivemem.car.CarActorTestHarness h = new com.geely.drivemem.car.CarActorTestHarness();
+        CarActor.setInstanceForTesting(h.actor());
+        try {
+            h.actor().putForTesting(EnergyHub.POWER_KW, CarActor.Reading.ok(12.34f));
+            h.actor().putForTesting(EnergyHub.PACK_V, CarActor.Reading.ok(401.2f));
+            h.actor().putForTesting(EnergyHub.PACK_A, CarActor.Reading.ok(30.8f));
+            h.actor().putForTesting(ObdHub.SOC, CarActor.Reading.ok(68.3f));
+            h.actor().putForTesting(ObdHub.BATT_TEMP_C, CarActor.Reading.ok(25.0f));
+            Map<String, Object> data = new HashMap<>();
+            data.put("battery", 68);
+            JSONObject tlm = AbrpUploader.buildTlm(null, data, false, null);
+            assertEquals(12.34, tlm.getDouble("power"), 0.001);
+            assertEquals(401.2, tlm.getDouble("voltage"), 0.001);
+            assertEquals(30.8, tlm.getDouble("current"), 0.001);
+            assertEquals(68.3, tlm.getDouble("soc"), 0.001);
+            assertEquals(25.0, tlm.getDouble("batt_temp"), 0.001);
+        } finally {
+            CarActor.setInstanceForTesting(null);
+        }
+    }
+
+    /** No measurement in the hub: no power is sent, never an estimate. */
+    @Test
+    public void testNoMeasuredPowerMeansNoPowerField() throws Exception {
+        com.geely.drivemem.car.CarActorTestHarness h = new com.geely.drivemem.car.CarActorTestHarness();
+        CarActor.setInstanceForTesting(h.actor());
+        try {
+            Map<String, Object> data = new HashMap<>();
+            data.put("battery", 50);
+            JSONObject tlm = AbrpUploader.buildTlm(null, data, false, null);
+            assertFalse(tlm.has("power"));
+            assertFalse(tlm.has("voltage"));
+            assertEquals(50, tlm.getInt("soc"));
+        } finally {
+            CarActor.setInstanceForTesting(null);
         }
     }
 }

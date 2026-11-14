@@ -15,6 +15,8 @@ import com.geely.drivemem.R;
 import com.geely.drivemem.net.AbrpUploader;
 import com.geely.drivemem.sensors.CanEnergyReader;
 import com.geely.drivemem.sensors.CanHub;
+import com.geely.drivemem.sensors.EnergyHub;
+import com.geely.drivemem.sensors.ObdHub;
 import com.geely.drivemem.sensors.Obd2Reader;
 import com.geely.drivemem.util.Style;
 
@@ -174,12 +176,16 @@ public final class TelemetryObdSection extends LinearLayout {
         // which handles runOnUiThread().
         // Render OBD data display
         List<String> obdLines = new ArrayList<>();
-        obdLines.add("Connected: " + (Obd2Reader.isConnected() ? "Yes" : "No"));
-        obdLines.add(fieldLine("SOC", Obd2Reader.freshSoc(600_000), "%"));
-        obdLines.add(fieldLine("Voltage", Obd2Reader.freshVoltage(600_000), "V"));
-        obdLines.add(fieldLine("Current", Obd2Reader.freshCurrent(600_000), "A"));
-        obdLines.add(fieldLine("Power", Obd2Reader.freshPowerKw(600_000), "kW"));
-        obdLines.add(fieldLine("Battery temp", Obd2Reader.freshBattTempC(600_000), "°C"));
+        // All from the hub (CLAUDE.md rule 7).
+        com.geely.drivemem.car.CarActor hub = com.geely.drivemem.car.CarActor.get();
+        obdLines.add("Connected: " + (ObdHub.connected(hub) ? "Yes" : "No"));
+        obdLines.add(fieldLine("SOC", ObdHub.get(ObdHub.SOC), "%"));
+        obdLines.add(fieldLine("Voltage", ObdHub.get(ObdHub.PACK_V), "V"));
+        obdLines.add(fieldLine("Current", ObdHub.get(ObdHub.PACK_A), "A"));
+        obdLines.add(fieldLine("Power", ObdHub.get(ObdHub.POWER_KW), "kW"));
+        obdLines.add(fieldLine("Battery temp", ObdHub.get(ObdHub.BATT_TEMP_C), "°C"));
+        Object src = hub != null ? hub.get(EnergyHub.SOURCE).value : null;
+        obdLines.add("Energy source: " + (src != null ? src : "estimate (SoC)"));
         obdLines.add("CAN: " + CanEnergyReader.statusLine());
         obdLines.add(fieldLine("CAN voltage", CanHub.get(CanHub.PACK_V), "V"));
         obdLines.add(fieldLine("CAN current", CanHub.get(CanHub.PACK_A), "A"));
@@ -226,7 +232,7 @@ public final class TelemetryObdSection extends LinearLayout {
      * OBD2Reader connection state changes. */
     public void updateObdStatus(Activity activity, boolean enabled) {
         obdStatus.setText(activity.getString(!enabled ? R.string.obd_status_off
-            : Obd2Reader.isConnected() ? R.string.obd_status_connected
+            : ObdHub.connected(com.geely.drivemem.car.CarActor.get()) ? R.string.obd_status_connected
             : R.string.obd_status_searching));
     }
 

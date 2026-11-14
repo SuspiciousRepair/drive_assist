@@ -18,7 +18,6 @@ import com.geely.drivemem.hvac.ComfortRuler;
 import com.geely.drivemem.hvac.EffortTable;
 import com.geely.drivemem.net.AbrpUploader;
 import com.geely.drivemem.net.MqttReporter;
-import com.geely.drivemem.sensors.Obd2Reader;
 import com.geely.drivemem.sensors.DailyStatsProvider;
 import com.geely.drivemem.services.TelemetryService;
 import com.geely.drivemem.state.CarState;
@@ -721,7 +720,7 @@ public class ComfortActivity extends Activity {
 
         boolean obd2On = Prefs.getObd2Enabled(this);
         obd2StatusIcon.setVisibility(obd2On ? View.VISIBLE : View.GONE);
-        if (obd2On) obd2StatusIcon.setColorFilter(Obd2Reader.isConnected() ? Style.ACCENT : Style.TEXT_DIM);
+        if (obd2On) obd2StatusIcon.setColorFilter(com.geely.drivemem.sensors.ObdHub.connected(CarActor.get(this)) ? Style.ACCENT : Style.TEXT_DIM);
 
         updateDockButtons();
     }
