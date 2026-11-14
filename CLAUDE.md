@@ -141,6 +141,12 @@ cd drivemem && ./build.sh             # compile, verify guard, publish, and inst
 * `update_last_url` is stored in SharedPreferences *before* delegating install to `modehelper` to avoid reinstall loops upon process restart.
 * Every published build announces its update URL to MQTT (`drivemem/<vin>/update/set`), keeping the retained Home Assistant entity synchronized.
 
+### 7. Car Data Goes Through the Hub First
+* **The hub is the first option for any car data.** The hub is `CarActor`'s cache plus `EntityBus` (change-only delivery). A new source (CAN via roadcast, OBD2, a sensor) puts its values there (`registerPoll` or `inject`), and consumers (UI, MQTT/HA, sessions) read the hub, not the source's static getters.
+* **Care for the hub.** It runs every listener synchronously on one thread, so what goes in must be cheap: about 1 Hz summaries, quantized so jitter does not republish, and polls registered only while the source is on (a 1 s poll lowers `CarActor`'s master tick for everyone).
+* **A direct path is allowed only for a rate the hub cannot take**, for example 10 Hz power samples into `EnergyIntegrator`. It then runs *in addition to* a hub summary, never instead of it.
+* Example: `CanEnergyReader` feeds `EnergyIntegrator` at 10 Hz directly, and publishes `can.*` keys to the hub once a second. `Obd2Reader` predates this rule and still bypasses the hub.
+
 ---
 
 ## Screen Architecture

@@ -470,8 +470,8 @@ public final class Diagnostics {
     // "Exact energy": why CAN is or is not feeding the energy numbers.
     private static void canStatus(Runnable onDone) {
         Log.i(CarAccess.TAG, "canstatus: " + com.geely.drivemem.sensors.CanEnergyReader.statusLine()
-            + " power=" + com.geely.drivemem.sensors.CanEnergyReader.freshPowerKw() + "kW"
-            + " climate=" + com.geely.drivemem.sensors.CanEnergyReader.freshClimateKw() + "kW"
+            + " power=" + com.geely.drivemem.sensors.CanHub.get(com.geely.drivemem.sensors.CanHub.POWER_KW) + "kW"
+            + " climate=" + com.geely.drivemem.sensors.CanHub.get(com.geely.drivemem.sensors.CanHub.CLIMATE_KW) + "kW"
             + " charge_batt_kwh=" + ChargeSession.currentBatteryKwh());
         onDone.run();
     }

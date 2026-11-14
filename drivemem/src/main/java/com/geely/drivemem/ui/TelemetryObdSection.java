@@ -14,6 +14,7 @@ import android.content.SharedPreferences;
 import com.geely.drivemem.R;
 import com.geely.drivemem.net.AbrpUploader;
 import com.geely.drivemem.sensors.CanEnergyReader;
+import com.geely.drivemem.sensors.CanHub;
 import com.geely.drivemem.sensors.Obd2Reader;
 import com.geely.drivemem.util.Style;
 
@@ -180,10 +181,10 @@ public final class TelemetryObdSection extends LinearLayout {
         obdLines.add(fieldLine("Power", Obd2Reader.freshPowerKw(600_000), "kW"));
         obdLines.add(fieldLine("Battery temp", Obd2Reader.freshBattTempC(600_000), "°C"));
         obdLines.add("CAN: " + CanEnergyReader.statusLine());
-        obdLines.add(fieldLine("CAN voltage", CanEnergyReader.freshPackVolts(), "V"));
-        obdLines.add(fieldLine("CAN current", CanEnergyReader.freshPackAmps(), "A"));
-        obdLines.add(fieldLine("CAN power", CanEnergyReader.freshPowerKw(), "kW"));
-        obdLines.add(fieldLine("CAN climate", CanEnergyReader.freshClimateKw(), "kW"));
+        obdLines.add(fieldLine("CAN voltage", CanHub.get(CanHub.PACK_V), "V"));
+        obdLines.add(fieldLine("CAN current", CanHub.get(CanHub.PACK_A), "A"));
+        obdLines.add(fieldLine("CAN power", CanHub.get(CanHub.POWER_KW), "kW"));
+        obdLines.add(fieldLine("CAN climate", CanHub.get(CanHub.CLIMATE_KW), "kW"));
         setDebugLines(obdFields, obdLines);
     }
 

@@ -578,7 +578,8 @@ public final class ChargeSession {
             sampleCount++;
         }
         // Negative pack power = into the battery. Fresh = within the last 3 s.
-        Float packKw = com.geely.drivemem.sensors.CanEnergyReader.freshPowerKw();
+        // From the hub (CLAUDE.md rule 7), at most 2 s old.
+        Float packKw = com.geely.drivemem.sensors.CanHub.get(com.geely.drivemem.sensors.CanHub.POWER_KW);
         if (packKw != null && lastSampleMonoMs != 0 && !frozenTail) {
             double hours = (nowMono - lastSampleMonoMs) / 3_600_000.0;
             if (packKw < 0) battWhAccum += -packKw * 1000.0 * hours;
