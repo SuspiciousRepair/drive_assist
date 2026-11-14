@@ -16,65 +16,6 @@ public final class Prefs {
         return ctx.getSharedPreferences("drivemem", Context.MODE_PRIVATE);
     }
 
-    /** The settings a backup keeps (AppBackup, settings.json), with their type.
-     *
-     * ONLY choices the user made. Never runtime state: the open trip/charge
-     * keys hold row ids that a restore renumbers, and beat_/restart_/
-     * update_last_url/rollup_ are the app's own bookkeeping. Adding a new
-     * setting? Add its key here, or a wiped car comes back without it. */
-    public static final java.util.Map<String, Class<?>> BACKUP_SETTINGS;
-    static {
-        java.util.Map<String, Class<?>> m = new java.util.LinkedHashMap<>();
-        // MQTT / Home Assistant
-        for (String k : new String[]{"mqtt_uri", "mqtt_uri_alt", "mqtt_user", "mqtt_pass",
-                "mqtt_tls_test_target"}) m.put(k, String.class);
-        m.put("tele_enabled", Boolean.class);
-        m.put("tele_interval_s", Integer.class);
-        m.put("commands_enabled", Boolean.class);
-        // ABRP
-        m.put("abrp_enabled", Boolean.class);
-        m.put("abrp_user_token", String.class);
-        m.put("abrp_send_location", Boolean.class);
-        // Spotify
-        m.put("spotify_client_id", String.class);
-        m.put("spotify_access_token", String.class);
-        m.put("spotify_refresh_token", String.class);
-        m.put("spotify_token_expiry", Long.class);
-        m.put("spotify_large_card", Boolean.class);
-        // Top bar icons and overlay
-        for (String k : new String[]{"outtemp_on", "soc_on", "wifiicon_on", "overlay_on"})
-            m.put(k, Boolean.class);
-        m.put("overlay_x", Integer.class);
-        m.put("overlay_y", Integer.class);
-        // Look
-        m.put("appearance", String.class);
-        m.put("theme", String.class);
-        m.put("skyline_enabled", Boolean.class);
-        m.put("skyline_random_per_drive", Boolean.class);
-        m.put("skyline_seed", Long.class);
-        m.put("drive_card_enabled", Boolean.class);
-        // Driving modes and what is restored after a wake
-        m.put("drive", Integer.class);
-        m.put("regen", Integer.class);
-        m.put("aeb_on", Boolean.class);
-        m.put("avas_on", Boolean.class);
-        for (String k : new String[]{RESTORE_DRIVE, RESTORE_REGEN, RESTORE_AEB, RESTORE_AVAS})
-            m.put(k, Boolean.class);
-        m.put("turbo_enabled", Boolean.class);
-        m.put("turbo_duration_s", Integer.class);
-        m.put("switch_lock_s", Integer.class);
-        m.put(KEY_WINDOW_ON_DOOR, Boolean.class);
-        // Dashcam, OBD2, network, updates
-        m.put("parked_monitoring", Boolean.class);
-        m.put("dashcam_limit_gb", Integer.class);
-        m.put("obd2_enabled", Boolean.class);
-        m.put(KEY_WIFI_KEEP_ON, Boolean.class);
-        m.put(KEY_TRUSTED_SSID, String.class);
-        m.put(KEY_HOME_GW, String.class);
-        m.put("update_url", String.class);
-        BACKUP_SETTINGS = java.util.Collections.unmodifiableMap(m);
-    }
-
     /** Wipes every saved preference (MQTT credentials, saved modes, etc). */
     public static void clearAll(Context ctx) {
         file(ctx).edit().clear().commit();
@@ -242,4 +183,63 @@ public final class Prefs {
     public static void setDbMigratedV1(Context ctx) { file(ctx).edit().putBoolean("db_migrated_v1", true).apply(); }
     public static String getRollupLastDay(Context ctx) { return file(ctx).getString("rollup_last_day_v10", ""); }
     public static void setRollupLastDay(Context ctx, String day) { file(ctx).edit().putString("rollup_last_day_v10", day).apply(); }
+
+    /** The settings a backup keeps (AppBackup, settings.json), with their type.
+     *
+     * ONLY choices the user made. Never runtime state: the open trip/charge
+     * keys hold row ids that a restore renumbers, and beat_/restart_/
+     * update_last_url/rollup_ are the app's own bookkeeping. Adding a new
+     * setting? Add its key here, or a wiped car comes back without it. */
+    public static final java.util.Map<String, Class<?>> BACKUP_SETTINGS;
+    static {
+        java.util.Map<String, Class<?>> m = new java.util.LinkedHashMap<>();
+        // MQTT / Home Assistant
+        for (String k : new String[]{"mqtt_uri", "mqtt_uri_alt", "mqtt_user", "mqtt_pass",
+                "mqtt_tls_test_target"}) m.put(k, String.class);
+        m.put("tele_enabled", Boolean.class);
+        m.put("tele_interval_s", Integer.class);
+        m.put("commands_enabled", Boolean.class);
+        // ABRP
+        m.put("abrp_enabled", Boolean.class);
+        m.put("abrp_user_token", String.class);
+        m.put("abrp_send_location", Boolean.class);
+        // Spotify
+        m.put("spotify_client_id", String.class);
+        m.put("spotify_access_token", String.class);
+        m.put("spotify_refresh_token", String.class);
+        m.put("spotify_token_expiry", Long.class);
+        m.put("spotify_large_card", Boolean.class);
+        // Top bar icons and overlay
+        for (String k : new String[]{"outtemp_on", "soc_on", "wifiicon_on", "overlay_on"})
+            m.put(k, Boolean.class);
+        m.put("overlay_x", Integer.class);
+        m.put("overlay_y", Integer.class);
+        // Look
+        m.put("appearance", String.class);
+        m.put("theme", String.class);
+        m.put("skyline_enabled", Boolean.class);
+        m.put("skyline_random_per_drive", Boolean.class);
+        m.put("skyline_seed", Long.class);
+        m.put("drive_card_enabled", Boolean.class);
+        // Driving modes and what is restored after a wake
+        m.put("drive", Integer.class);
+        m.put("regen", Integer.class);
+        m.put("aeb_on", Boolean.class);
+        m.put("avas_on", Boolean.class);
+        for (String k : new String[]{RESTORE_DRIVE, RESTORE_REGEN, RESTORE_AEB, RESTORE_AVAS})
+            m.put(k, Boolean.class);
+        m.put("turbo_enabled", Boolean.class);
+        m.put("turbo_duration_s", Integer.class);
+        m.put("switch_lock_s", Integer.class);
+        m.put(KEY_WINDOW_ON_DOOR, Boolean.class);
+        // Dashcam, OBD2, network, updates
+        m.put("parked_monitoring", Boolean.class);
+        m.put("dashcam_limit_gb", Integer.class);
+        m.put("obd2_enabled", Boolean.class);
+        m.put(KEY_WIFI_KEEP_ON, Boolean.class);
+        m.put(KEY_TRUSTED_SSID, String.class);
+        m.put(KEY_HOME_GW, String.class);
+        m.put("update_url", String.class);
+        BACKUP_SETTINGS = java.util.Collections.unmodifiableMap(m);
+    }
 }
