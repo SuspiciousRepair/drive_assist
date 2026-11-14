@@ -814,32 +814,7 @@ public final class DailyStatsProvider {
      * across short parked gaps. Zero-speed rows in a driving gear remain included. */
     static DrivingConsumption queryDrivingConsumption(SQLiteDatabase db, String where,
                                                        String[] args) {
-        DrivingConsumption totals = new DrivingConsumption();
-        Cursor c = db.rawQuery(
-            "SELECT ts_ms, odo_km, speed_kmh, gear, is_charging, "
-          + "       energy_spent_kwh, energy_regen_kwh, instant_power_kw_est, energy_measured, "
-          + "       battery_temp_c "
-          + "FROM telemetry_sample WHERE " + where + " ORDER BY ts_ms ASC, id ASC", args);
-        try {
-            while (c.moveToNext()) {
-                long ts = c.getLong(0);
-                double odo = c.isNull(1) ? Double.NaN : c.getDouble(1);
-                double speed = c.isNull(2) ? Double.NaN : c.getDouble(2);
-                Integer gear = c.isNull(3) ? null : c.getInt(3);
-                boolean charging = !c.isNull(4) && c.getInt(4) != 0;
-                double spent = c.isNull(5) ? Double.NaN : c.getDouble(5);
-                double regen = c.isNull(6) ? Double.NaN : c.getDouble(6);
-                double power = c.isNull(7) ? Double.NaN : c.getDouble(7);
-                Integer measured = c.isNull(8) ? null : c.getInt(8);
-                // battery_temp_c is OBD2-exclusive (see CarDb's v22 migration
-                // comment) -- trust it over a stale/wrongly-set energy_measured
-                // flag so a live-path bug self-heals on every read, not just
-                // for rows a one-time migration happened to already reach.
-                if (!c.isNull(9) && (measured == null || measured == 0)) measured = 1;
-                totals.add(ts, odo, speed, gear, charging, spent, regen, power, measured);
-            }
-        } finally { c.close(); }
-        return totals;
+        return DrivingConsumption.fromSamples(db, where, args);
     }
 
     public static String todayDateStr() {

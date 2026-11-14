@@ -144,13 +144,7 @@
     <string name="cfg_current">Actual: %1$s + %2$s</string>
     <string name="cfg_bar_header">Datos en la barra de menú</string>
     <string name="cfg_drive_card">Mostrar tarjeta del trayecto actual</string>
-    <string name="drive_card_title">Trayecto actual</string>
-    <string name="drive_card_detail">%1$.1f km · %2$s · desde %3$s · recuperados %4$.2f kWh</string>
     <string name="parked_card_title">Estacionado</string>
-    <string name="valet_start">Iniciar modo Valet</string>
-    <string name="valet_end">Finalizar modo Valet</string>
-    <string name="valet_active_title">Modo Valet activo</string>
-    <string name="valet_active_detail">Activo durante %1$s · potencia máx. %2$s</string>
     <string name="value_unavailable">No disponible</string>
     <string name="value_calculating">Calculando…</string>
     <string name="cfg_bar_outtemp">Temperatura exterior en la barra</string>
@@ -158,6 +152,7 @@
     <string name="cfg_bar_topbar_header">Barra de estado</string>
     <string name="cfg_bar_soc">Batería %% en la barra</string>
     <string name="cfg_bar_home_header">Pantalla principal</string>
+    <string name="cfg_card_grayscale">Tarjetas en escala de grises</string>
     <string name="cfg_overlay_label">Botón flotante de acceso rápido</string>
     <string name="overlay_climate_label">Climatización</string>
     <string name="overlay_open_app">Abrir app</string>
@@ -506,5 +501,7 @@
     <string name="int_status_on">Activado</string>
     <string name="obd_live_header">Datos en vivo</string>
     <string name="obd_compare_can">Comparar con CAN</string>
+    <string name="energy_net_short">neta</string>
+    <string name="valet_end_short">Terminar</string>
     <string name="valet_short">Valet</string>
 </resources>

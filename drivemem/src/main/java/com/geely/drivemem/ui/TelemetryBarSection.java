@@ -68,6 +68,10 @@ public final class TelemetryBarSection extends LinearLayout {
             prefs.getBoolean("drive_card_enabled", true), on ->
                 prefs.edit().putBoolean("drive_card_enabled", on).apply()));
 
+        home.addView(toggleRow(activity, activity.getString(R.string.cfg_card_grayscale),
+            com.geely.drivemem.util.Prefs.getCardGrayscale(activity), on ->
+                com.geely.drivemem.util.Prefs.setCardGrayscale(activity, on)));
+
         home.addView(toggleRow(activity, activity.getString(R.string.cfg_overlay_label),
             prefs.getBoolean("overlay_on", false), on -> {
                 prefs.edit().putBoolean("overlay_on", on).apply();

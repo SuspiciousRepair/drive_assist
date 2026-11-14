@@ -66,6 +66,7 @@
     <string name="notif_soc_value">%1$s%%</string>
 
     <!-- overlay: floating quick-access button -->
+    <string name="cfg_card_grayscale">การ์ดสีเทา</string>
     <string name="cfg_overlay_label">ปุ่มลอยเข้าถึงด่วน</string>
     <string name="notif_overlay_channel">ปุ่มลอย</string>
     <string name="notif_overlay_fg_text">ปุ่มเข้าถึงด่วน</string>
@@ -299,10 +300,6 @@
     <string name="gate_closing">กำลังปิด…</string>
 
     <!-- valet -->
-    <string name="valet_start">เริ่มโหมด Valet</string>
-    <string name="valet_end">สิ้นสุดโหมด Valet</string>
-    <string name="valet_active_title">โหมด Valet กำลังทำงาน</string>
-    <string name="valet_active_detail">ทำงานมาแล้ว %1$s · กำลังสูงสุด %2$s</string>
 
     <!-- purge: drop every window half way, press again to put them back -->
     <string name="purge_label">เปิดกระจก</string>
@@ -393,8 +390,6 @@
     <string name="charge_card_unknown">ไม่ทราบ</string>
 
     <!-- home screen cards (current drive / parked) -->
-    <string name="drive_card_title">การขับขี่ปัจจุบัน</string>
-    <string name="drive_card_detail">%1$.1f กม. · %2$s · ตั้งแต่ %3$s · คืนพลังงาน %4$.2f kWh</string>
     <string name="parked_card_title">จอดอยู่</string>
     <string name="value_calculating">กำลังคำนวณ…</string>
     <string name="value_unavailable">ไม่พร้อมใช้งาน</string>
@@ -522,5 +517,7 @@
     <string name="int_status_on">เปิด</string>
     <string name="obd_live_header">ข้อมูลสด</string>
     <string name="obd_compare_can">เทียบกับ CAN</string>
+    <string name="energy_net_short">สุทธิ</string>
+    <string name="valet_end_short">สิ้นสุด</string>
     <string name="valet_short">วาเลต์</string>
 </resources>

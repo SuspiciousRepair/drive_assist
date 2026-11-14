@@ -110,6 +110,10 @@ public final class Prefs {
     // --- Drive card ---
     public static boolean getDriveCardEnabled(Context ctx) { return file(ctx).getBoolean("drive_card_enabled", true); }
     public static void setDriveCardEnabled(Context ctx, boolean v) { file(ctx).edit().putBoolean("drive_card_enabled", v).apply(); }
+    /** Home cards drop their colour scales (temperature bar, consumption
+     * tile) and draw them in the theme's text colours instead. Off by default. */
+    public static boolean getCardGrayscale(Context ctx) { return file(ctx).getBoolean("card_grayscale", false); }
+    public static void setCardGrayscale(Context ctx, boolean v) { file(ctx).edit().putBoolean("card_grayscale", v).apply(); }
     public static long getDriveCardDismissedTrip(Context ctx) { return file(ctx).getLong("drive_card_dismissed_trip", -1); }
     public static void setDriveCardDismissedTrip(Context ctx, long v) { file(ctx).edit().putLong("drive_card_dismissed_trip", v).apply(); }
     public static int getPanelDismissed(Context ctx) { return file(ctx).getInt("panel_dismissed", 0); }

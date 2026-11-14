@@ -95,6 +95,17 @@ plugged in. Updated every 2 s; a value older than 15 s becomes
 | `energy.power_kw`, `energy.pack_v`, `energy.pack_a` | from CAN when `can.live` is 1, else from the dongle, else `NOT_AVAILABLE` |
 | `energy.source` | `can` or `obd2` |
 
+### Sessions (built on the hub thread from `telemetry.tick`)
+
+| Key | What | Update |
+|---|---|---|
+| `trip.live` | the open trip (`LiveTrip`): start, driving time, distance, spent / regen / net kWh, SoC start → now, energy source. `LiveTrip.NONE` when no trip is open | on each tick while a trip is open, only when a shown value changes (0.1 km, 0.01 kWh, whole minutes) |
+| `parking.temp_trail` | outside temperature during the stay in Park (`TempTrail`): 10-min buckets, empty while the head unit sleeps | on each tick while parked, when the trail changes |
+
+`trip.live` uses the same `DrivingConsumption` rules as the stats pages, so
+the home card and the finished trip agree. After an app restart mid-trip it
+replays the trip's rows once, then adds one tick at a time.
+
 ### Events
 
 `trip.completed`, `charge.completed`, `charge.cost_updated`,

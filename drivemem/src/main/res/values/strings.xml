@@ -248,13 +248,7 @@
     <string name="cfg_current">Current: %1$s + %2$s</string>
     <string name="cfg_bar_header">Elements</string>
     <string name="cfg_drive_card">Show current drive card</string>
-    <string name="drive_card_title">Current drive</string>
-    <string name="drive_card_detail">%1$.1f km · %2$s · since %3$s · recovered %4$.2f kWh</string>
     <string name="parked_card_title">Parked</string>
-    <string name="valet_start">Start Valet Mode</string>
-    <string name="valet_end">End Valet Mode</string>
-    <string name="valet_active_title">Valet Mode Active</string>
-    <string name="valet_active_detail">Active for %1$s · max power %2$s</string>
     <string name="value_unavailable">Unavailable</string>
     <string name="value_calculating">Calculating…</string>
     <string name="cfg_bar_outtemp">Outside temperature in the bar</string>
@@ -262,6 +256,7 @@
     <string name="cfg_bar_topbar_header">Status bar</string>
     <string name="cfg_bar_soc">Battery %% in the bar</string>
     <string name="cfg_bar_home_header">Home screen</string>
+    <string name="cfg_card_grayscale">Grayscale cards</string>
     <string name="cfg_overlay_label">Floating quick-access button</string>
     <string name="overlay_climate_label">Climate</string>
     <string name="overlay_open_app">Open app</string>
@@ -533,5 +528,7 @@
     <string name="int_status_on">On</string>
     <string name="obd_live_header">Live data</string>
     <string name="obd_compare_can">Compare with CAN</string>
+    <string name="energy_net_short">net</string>
+    <string name="valet_end_short">End</string>
     <string name="valet_short">Valet</string>
 </resources>
