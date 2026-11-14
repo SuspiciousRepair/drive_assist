@@ -12,9 +12,13 @@ javac -d "$MH_OUT" \
   modehelper/src/com/geely/modehelper/RestorePolicy.java \
   modehelper/src/com/geely/modehelper/AvasPolicy.java \
   modehelper/test/com/geely/modehelper/RestorePolicyTest.java \
-  modehelper/test/com/geely/modehelper/AvasPolicyTest.java
+  modehelper/test/com/geely/modehelper/AvasPolicyTest.java \
+  modehelper/src/com/geely/modehelper/CanReaderPolicy.java \
+  modehelper/src/com/geely/modehelper/LocalAdbShell.java \
+  modehelper/test/com/geely/modehelper/CanReaderPolicyTest.java
 java -cp "$MH_OUT" com.geely.modehelper.RestorePolicyTest
 java -cp "$MH_OUT" com.geely.modehelper.AvasPolicyTest
+java -cp "$MH_OUT" com.geely.modehelper.CanReaderPolicyTest
 rm -rf "$MH_OUT"   # not a trap: the exec below would skip it
 echo "modehelper policy tests: OK"
 

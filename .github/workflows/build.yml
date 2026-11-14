@@ -68,6 +68,9 @@ jobs:
           test -f car-stubs/car-stubs.jar || { echo "car-stubs.jar missing!"; exit 1; }
           echo "car-stubs.jar ready ($(stat -c%s car-stubs/car-stubs.jar) bytes)."
 
+      - name: Build roadcastd (CAN energy reader, packed into modehelper)
+        run: ./tools/build-roadcastd.sh
+
       - name: Build modehelper
         run: |
           chmod +x modehelper/build-modehelper.sh

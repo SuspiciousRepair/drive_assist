@@ -263,4 +263,15 @@ public class DailyStatsProviderTest {
         assertEquals(10.0 * DailyStatsProvider.AC_CHARGER_EFFICIENCY,
             DailyStatsProvider.batteryKwhInWindow(0, 24 * h, 1 * h, 5 * h, 10.0, Double.NaN), 1e-9);
     }
+
+    @Test public void measuredBatteryKwhReplacesTheDerate() {
+        long h = 3_600_000L;
+        // CAN measured 9.3 kWh into the battery: used as is, no AC guess.
+        assertEquals(9.3, DailyStatsProvider.batteryKwhInWindow(0, 24 * h, 1 * h, 5 * h, 10.0, 230, 9.3), 1e-9);
+        // Still split by time at a period edge.
+        assertEquals(9.3 / 2, DailyStatsProvider.batteryKwhInWindow(0, 24 * h, 22 * h, 26 * h, 10.0, 230, 9.3), 1e-9);
+        // No CAN value: same as before.
+        assertEquals(10.0 * DailyStatsProvider.AC_CHARGER_EFFICIENCY,
+            DailyStatsProvider.batteryKwhInWindow(0, 24 * h, 1 * h, 5 * h, 10.0, 230, null), 1e-9);
+    }
 }

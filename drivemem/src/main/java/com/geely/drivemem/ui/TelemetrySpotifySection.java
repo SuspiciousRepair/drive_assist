@@ -32,14 +32,19 @@ public final class TelemetrySpotifySection extends LinearLayout {
         super(activity);
         setOrientation(VERTICAL);
 
-        addView(Style.header(activity, activity.getString(R.string.cfg_spotify_header)));
+        // One column, two cards: the account link, and what the home
+        // screen does with it.
+        LinearLayout col = ConfigCards.column(activity);
+        addView(ConfigCards.columns(activity, col));
+        LinearLayout account = ConfigCards.card(activity, activity.getString(R.string.cfg_spotify_header));
+        ConfigCards.add(col, account);
         spotifyStatus = new TextView(activity);
         spotifyStatus.setTextColor(Style.TEXT); spotifyStatus.setTextSize(16);
         spotifyStatus.setTypeface(null, android.graphics.Typeface.BOLD);
         spotifyStatus.setText(activity.getString(SpotifyClient.connected(activity)
             ? R.string.cfg_spotify_status_on : R.string.cfg_spotify_status_off));
-        addView(spotifyStatus);
-        fSpotifyClientId = Style.field(activity, this, activity.getString(R.string.cfg_spotify_client_id),
+        account.addView(spotifyStatus);
+        fSpotifyClientId = Style.field(activity, account, activity.getString(R.string.cfg_spotify_client_id),
             SpotifyClient.clientId(activity), InputType.TYPE_CLASS_TEXT);
         // Saved on blur -- the Connect button below reads it fresh from prefs,
         // not from the field directly, so it always uses whatever was last
@@ -65,21 +70,19 @@ public final class TelemetrySpotifySection extends LinearLayout {
                 .remove("spotify_token_expiry").apply();
             spotifyStatus.setText(activity.getString(R.string.cfg_spotify_status_off));
         }));
-        addView(spRow);
-        Style.gap(this, activity, 20);
+        account.addView(spRow);
+
+        LinearLayout home = ConfigCards.card(activity, activity.getString(R.string.cfg_bar_home_header));
+        ConfigCards.add(col, home);
 
         // Home screen card style -- read once at ComfortActivity's own
         // onCreate (musicLargeCardAtBuild), same pattern as turbo_enabled
         // and skyline_enabled, so this only needs the plain pref written
         // here, no live-update plumbing back to a screen that isn't open.
-        addView(Style.toggleRow(activity, activity.getString(R.string.cfg_spotify_large_card),
+        home.addView(Style.toggleRow(activity, activity.getString(R.string.cfg_spotify_large_card),
             Prefs.getSpotifyLargeCard(activity),
             on -> Prefs.setSpotifyLargeCard(activity, on)));
-        TextView largeCardHint = new TextView(activity);
-        largeCardHint.setTextColor(Style.TEXT_DIM); largeCardHint.setTextSize(13);
-        largeCardHint.setPadding(0, 0, 0, Style.dp(activity, 4));
-        largeCardHint.setText(activity.getString(R.string.cfg_spotify_large_card_hint));
-        addView(largeCardHint);
+        home.addView(ConfigCards.hint(activity, activity.getString(R.string.cfg_spotify_large_card_hint)));
     }
 
     /** Refreshes the connection status text -- called after returning from

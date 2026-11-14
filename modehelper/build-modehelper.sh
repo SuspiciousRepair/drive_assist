@@ -69,8 +69,18 @@ sed -e "s/android:versionCode=\"1\"/android:versionCode=\"$VC\"/" \
 echo "version: versionCode=$VC versionName=$VN"
 
 rm -rf obj *.apk classes.dex; mkdir -p obj
+# assets/roadcastd (CAN energy reader) is optional: tools/build-roadcastd.sh
+# puts it there when an NDK is available. Without it the helper still builds,
+# and the "Exact energy" switch reports "reader not bundled".
+ASSET_ARGS=()
+if [ -s assets/roadcastd ]; then
+  ASSET_ARGS=(-A assets)
+  echo "bundling roadcastd ($(sha256sum assets/roadcastd | cut -c1-16)...)"
+else
+  echo "Notice: no assets/roadcastd - building the helper without the CAN reader."
+fi
 "$BT/aapt2" link -o base.apk -I "$AJ" --manifest "$MANIFEST_BUILD" \
-  --min-sdk-version 28 --target-sdk-version 28
+  --min-sdk-version 28 --target-sdk-version 28 "${ASSET_ARGS[@]}"
 "$JAVA_HOME/bin/javac" -classpath "$AJ:$CARJAR" -d obj $(find src -name '*.java')
 "$BT/d8" --min-api 28 --lib "$AJ" --output . $(find obj -name '*.class')
 cp base.apk unsigned.apk && zip -qj unsigned.apk classes.dex

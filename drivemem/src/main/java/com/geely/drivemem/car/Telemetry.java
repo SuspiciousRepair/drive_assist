@@ -189,7 +189,13 @@ public class Telemetry {
         // 1. Power (net: kW and net kWh = spent - regen)
         // 2. Power spent (gross consumption: kW and kWh >= 0)
         // 3. Regen (energy recovered: kW and kWh >= 0)
-        Float obdPower = Obd2Reader.freshPowerKw(POWER_WINDOW_MS / 2);
+        // CAN (roadcastd, "Exact energy") first, then OBD2: the same battery
+        // V x I from two readers. See EnergyIntegrator's SOURCE_* tier.
+        Float obdPower = com.geely.drivemem.sensors.CanEnergyReader.freshPowerKw();
+        if (obdPower == null) obdPower = Obd2Reader.freshPowerKw(POWER_WINDOW_MS / 2);
+        // Climate (compressor + heater) electrical power: only CAN has it.
+        Float climateKw = com.geely.drivemem.sensors.CanEnergyReader.freshClimateKw();
+        if (climateKw != null) out.put("climate_kw", climateKw);
         Float fallbackSocPower = null;
         double fallbackWindowHours = 0;
         // Tracked always, not only when OBD2 is absent -- so a mid-trip

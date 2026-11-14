@@ -28,7 +28,7 @@ para o carro e permita acesso somente aos tópicos necessários do Drive Assist.
 
 ## Conecte o carro
 
-1. Na central, abra **Configurações → MQTT**.
+1. Na central, abra **Configurações → Integrações → Home Assistant**.
 2. Ative **Telemetria MQTT**.
 3. Informe o endereço do broker. Use `ssl://` ou `tls://` com a porta `8883` para
    uma conexão criptografada. Use `tcp://` com a porta `1883` somente em uma rede

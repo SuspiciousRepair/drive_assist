@@ -477,8 +477,19 @@ public final class DailyStatsProvider {
      * pair 100% of the energy with only part of the SoC rise. */
     public static double batteryKwhInWindow(long windowStart, long windowEnd,
                                      long sessionStart, long sessionEnd, double kwh, double maxChargeV) {
-        if (!(kwh > 0)) return 0;
+        return batteryKwhInWindow(windowStart, windowEnd, sessionStart, sessionEnd, kwh, maxChargeV, null);
+    }
+
+    /** Same, but when the CAN reader measured the battery side of the session
+     * (charge_session.kwh_battery, CAN V x I) that number is used as it is:
+     * no AC_CHARGER_EFFICIENCY guess needed. Null or <= 0 falls back to the
+     * wall-side kwh with the derate. */
+    public static double batteryKwhInWindow(long windowStart, long windowEnd,
+                                     long sessionStart, long sessionEnd, double kwh, double maxChargeV,
+                                     Double measuredBatteryKwh) {
         double share = overlapFraction(windowStart, windowEnd, sessionStart, sessionEnd);
+        if (measuredBatteryKwh != null && measuredBatteryKwh > 0) return measuredBatteryKwh * share;
+        if (!(kwh > 0)) return 0;
         return kwh * share * (com.geely.drivemem.state.ChargeSession.isDcfc(maxChargeV) ? 1.0 : AC_CHARGER_EFFICIENCY);
     }
 
@@ -491,14 +502,15 @@ public final class DailyStatsProvider {
         try {
             SQLiteDatabase db = CarDb.get(ctx).db();
             Cursor c = db.rawQuery(
-                "SELECT id, start_ms, end_ms, kwh, max_charge_v FROM charge_session "
+                "SELECT id, start_ms, end_ms, kwh, max_charge_v, kwh_battery FROM charge_session "
               + "WHERE start_ms < ? AND end_ms > ?",
                 new String[]{String.valueOf(end), String.valueOf(start)});
             try {
                 while (c.moveToNext()) {
                     if (activeId > 0 && c.getLong(0) == activeId) continue; // live copy below
                     total += batteryKwhInWindow(start, end, c.getLong(1), c.getLong(2),
-                        c.isNull(3) ? 0 : c.getDouble(3), c.isNull(4) ? Double.NaN : c.getDouble(4));
+                        c.isNull(3) ? 0 : c.getDouble(3), c.isNull(4) ? Double.NaN : c.getDouble(4),
+                        c.isNull(5) ? null : c.getDouble(5));
                 }
             } finally { c.close(); }
         } catch (Exception e) {
@@ -508,7 +520,8 @@ public final class DailyStatsProvider {
         if (active) {
             com.geely.drivemem.state.ChargeSession.SessionSnapshot snap =
                 com.geely.drivemem.state.ChargeSession.captureSnapshot(System.currentTimeMillis());
-            total += batteryKwhInWindow(start, end, snap.startWallMs, snap.endWallMs, snap.kwh, snap.maxChargeV);
+            total += batteryKwhInWindow(start, end, snap.startWallMs, snap.endWallMs, snap.kwh, snap.maxChargeV,
+                com.geely.drivemem.state.ChargeSession.currentBatteryKwh());
         }
         return total;
     }
@@ -1236,12 +1249,18 @@ public final class DailyStatsProvider {
         return getActiveDriveSession(ctx, CarDb.get(ctx).db());
     }
 
-    private static List<DaySession> queryDaySessions(Context ctx, SQLiteDatabase db, String dateStr) {
-        List<DaySession> out = new ArrayList<>();
-        long[] bounds = dayBoundsMs(dateStr);
-        String boundStart = String.valueOf(bounds[0]), boundEnd = String.valueOf(bounds[1]);
+    /** Every trip of all time, oldest first, with the same per-trip numbers
+     * the daily timeline shows (energy recomputed from samples, Valet trips
+     * left out). For the CSV export: one query per trip, so call it off the
+     * UI thread. */
+    public static List<DriveSession> readAllTrips(Context ctx) {
+        List<DriveSession> out = new ArrayList<>();
+        queryTrips(CarDb.get(ctx).db(), 0, Long.MAX_VALUE, out);
+        return out;
+    }
 
-        // 1. Driving trips
+    // Completed and open trips that START in [fromMs, toMs), oldest first.
+    private static void queryTrips(SQLiteDatabase db, long fromMs, long toMs, List<? super DriveSession> out) {
         Cursor tc = db.rawQuery(
             "SELECT t.id, t.start_ms, t.end_ms, t.ascent_m, t.descent_m, t.regen_kwh, "
           + "       s1.odo_km, s2.odo_km, s1.battery_pct, s2.battery_pct, "
@@ -1250,7 +1269,7 @@ public final class DailyStatsProvider {
           + "LEFT JOIN telemetry_sample s2 ON t.end_sample_id = s2.id "
           + "WHERE t.start_ms >= ? AND t.start_ms < ? "
           + "AND NOT " + TRIP_IN_VALET_SQL + " "
-          + "ORDER BY t.start_ms ASC", new String[]{boundStart, boundEnd});
+          + "ORDER BY t.start_ms ASC", new String[]{String.valueOf(fromMs), String.valueOf(toMs)});
         try {
             while (tc.moveToNext()) {
                 long id = tc.getLong(0);
@@ -1295,6 +1314,15 @@ public final class DailyStatsProvider {
                         ascent, descent, regen, tripSpent, tripNet, eff, tripSource));
             }
         } finally { tc.close(); }
+    }
+
+    private static List<DaySession> queryDaySessions(Context ctx, SQLiteDatabase db, String dateStr) {
+        List<DaySession> out = new ArrayList<>();
+        long[] bounds = dayBoundsMs(dateStr);
+        String boundStart = String.valueOf(bounds[0]), boundEnd = String.valueOf(bounds[1]);
+
+        // 1. Driving trips
+        queryTrips(db, bounds[0], bounds[1], out);
 
         // 2. Active in-progress trip (if driving today)
         String today = todayDateStr();
