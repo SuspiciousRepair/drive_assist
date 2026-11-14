@@ -54,8 +54,10 @@ forever to start and watch it. We don't need to.
      directly.
    - If not, modehelper reads it and relays the values to drivemem (broadcast
      or a bound service).
-   - Patch the daemon to allow only our uids (`SO_PEERCRED`), so other apps
-     can't read car data from it.
+   - ~~Patch the daemon to allow only our uids~~. Decided 2026-11-14: **open
+     to every app**, so apps share one reader instead of fighting over the
+     car. Capy is unmaintained, so no protocol to agree on. See
+     `docs/CAN-API.md`. The switch text warns that other apps can read.
 4. **Capy coexistence.** If `@roadcast` already answers with protocol v3,
    connect to it and don't start a second daemon. Never kill theirs.
 5. **App.**
@@ -82,7 +84,8 @@ forever to start and watch it. We don't need to.
 - [x] Daemon outlives ADB: started with the `/acct/cgroup.procs` move, it
       kept its pid while ADB was switched off and adbd restarted.
 - [x] Labels: 111/111 frames resolved on the owner's VHAL.
-- [x] Allow-list (`--allow-uid`) refuses another app's uid on the car.
+- [x] Allow-list (`--allow-uid`) refused another app's uid on the car.
+      Then dropped by decision: the daemon is open to all apps.
 - [x] CPU, parked (charging): 0.4 % of one core at 10 Hz, 2.2 % at 60 Hz,
       RSS 5 MB. We run 10 Hz. Driving: still to measure.
 - [ ] Accuracy: one drive with the OBD2 dongle connected, comparing CAN V×I
@@ -113,8 +116,8 @@ forever to start and watch it. We don't need to.
 
 ## What was built (2026-11-14)
 
-- `third_party/roadcast/` (upstream 22153ec) + `--allow-uid` patch;
-  `VENDORED.md` lists every change. Built by `tools/build-roadcastd.sh`
+- `third_party/roadcast/` (upstream 22153ec), code unchanged;
+  `VENDORED.md` lists what was dropped. Open API doc: `docs/CAN-API.md`. Built by `tools/build-roadcastd.sh`
   (libuv from a pinned, checksummed source tarball, no cmake), in CI by
   `verify.yml` and `build.yml`, packed into modehelper as an asset.
 - modehelper: `LocalAdbShell` (port of Capy's), `CanReader` (launcher and

@@ -24,7 +24,7 @@ import java.util.Set;
  * and watches that daemon (CanReader); this class only connects to it and
  * reads. An ordinary app may connect to that su-domain socket under
  * Enforcing: checked on the car 2026-11-14 with a plain untrusted_app probe.
- * The daemon itself only accepts Drive Assist's and modehelper's uids.
+ * Any other app may read it too, on purpose (docs/CAN-API.md).
  *
  * Energy tier: CAN when it is live, else OBD2, else the SoC estimate
  * (EnergyIntegrator, Telemetry.tick). Everything is optional: with the switch
@@ -42,7 +42,7 @@ public final class CanEnergyReader {
     private static volatile Thread thread;
     private static volatile LocalSocket socket;
 
-    /** What this side sees: off, connecting, live, no_daemon, refused, error. */
+    /** What this side sees: off, connecting, live, no_daemon, dropped, error. */
     private static volatile String status = "off";
     private static volatile String statusDetail;
     /** What modehelper says about the daemon (CanReader.report). */
@@ -118,11 +118,10 @@ public final class CanEnergyReader {
                 });
             } catch (IOException e) {
                 String m = String.valueOf(e.getMessage());
-                // connect() failing = no daemon; a reset right after connect =
-                // the daemon's allow-list refused this uid (CanReader restarts
-                // it with the right one at the next ADB window).
+                // connect() failing = no daemon; a reset or close mid-session =
+                // the daemon went away (restarted, or the HAL changed).
                 if (m.contains("Connection refused") || m.contains("No such file")) status = "no_daemon";
-                else if (m.contains("reset") || m.contains("closed by daemon")) status = "refused";
+                else if (m.contains("reset") || m.contains("closed by daemon")) status = "dropped";
                 else status = "error";
                 statusDetail = m;
             } catch (Throwable t) {

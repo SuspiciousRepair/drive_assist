@@ -53,8 +53,8 @@ jobs:
             ./tools/check-pii.sh --base HEAD
           fi
 
-      - name: Build roadcastd (host) and check its uid allow-list
-        run: HOST=1 ./tools/build-roadcastd.sh && ./tools/test-roadcastd-allowlist.sh
+      - name: Build roadcastd (host, compile check)
+        run: HOST=1 ./tools/build-roadcastd.sh
 
       - name: Build roadcastd (Android arm64)
         run: ./tools/build-roadcastd.sh

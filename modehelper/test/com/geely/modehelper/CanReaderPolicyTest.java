@@ -7,18 +7,16 @@ public final class CanReaderPolicyTest {
 
     public static void main(String[] args) {
         // Launch: leaves adbd's cgroup BEFORE exec, so the daemon inherits it.
-        String launch = CanReaderPolicy.launchCommand(1000, 10032);
+        String launch = CanReaderPolicy.launchCommand();
         int move = launch.indexOf("echo $$ > /acct/cgroup.procs");
         int exec = launch.indexOf("exec " + CanReaderPolicy.BIN);
         check(move > 0 && exec > move, "cgroup move must come before exec: " + launch);
         check(launch.contains("setsid sh -c '"), "inner shell is single-quoted so $$ is the inner pid");
-        check(launch.contains("--allow-uid 1000 --allow-uid 10032"), "allow-list passed");
+        check(!launch.contains("--allow-uid"), "open to every app");
         check(launch.contains("--hz 10 "), "10 Hz");
         check(launch.contains("--socket @roadcast"), "socket");
         check(!launch.contains("/data/local/tmp/roadcastd"), "never Capy's path");
-        boolean threw = false;
-        try { CanReaderPolicy.launchCommand(0); } catch (IllegalArgumentException e) { threw = true; }
-        check(threw, "uid 0 is not passed on (root is always allowed anyway)");
+        boolean threw;
 
         // Stop only matches our executable path.
         check(CanReaderPolicy.stopOursCommand().contains("readlink /proc/$p/exe)\" = \"" + CanReaderPolicy.BIN + "\""),

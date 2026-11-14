@@ -30,8 +30,6 @@
 #define DEFAULT_HZ 60
 #define MAX_CLIENTS 16
 #define MAX_CLIENTS_PER_UID 8
-/* drive_assist patch: --allow-uid. Empty list = upstream behaviour (any uid). */
-#define MAX_ALLOWED_UIDS 8
 #define CLIENT_INPUT_CAP 4096
 #define CLIENT_MESSAGE_CAP 2048
 #define CLIENT_SOCKET_SEND_BUFFER 16384
@@ -160,8 +158,6 @@ struct roadcast_server {
     uint32_t hz;
     uint32_t client_queue_slots;
     stats_t stats;
-    uid_t allowed_uids[MAX_ALLOWED_UIDS];
-    size_t allowed_uid_count;
     char socket_path[sizeof(((struct sockaddr_un *)0)->sun_path)];
     int listener_initialized;
     int async_initialized;
@@ -1001,19 +997,6 @@ static size_t active_clients_for_uid(const roadcast_server_t *server,
     return count;
 }
 
-/* drive_assist patch. Root (uid 0) is always allowed: it can read the VHAL
- * itself, so refusing it protects nothing and only blocks roadcastctl from an
- * adb shell. Every other uid must be on the --allow-uid list when one is given. */
-static int peer_uid_allowed(const roadcast_server_t *server, uid_t uid) {
-    if (server->allowed_uid_count == 0 || uid == 0)
-        return 1;
-    for (size_t i = 0; i < server->allowed_uid_count; i++) {
-        if (server->allowed_uids[i] == uid)
-            return 1;
-    }
-    return 0;
-}
-
 static void on_connection(uv_stream_t *listener, int status) {
     roadcast_server_t *server = listener->data;
     if (status < 0 || server->shutting_down)
@@ -1038,7 +1021,6 @@ static void on_connection(uv_stream_t *listener, int status) {
     uid_t peer_uid;
     pid_t peer_pid;
     if (read_peer_credentials(&client->stream, &peer_uid, &peer_pid) < 0 ||
-        !peer_uid_allowed(server, peer_uid) ||
         active_clients_for_uid(server, peer_uid) >= MAX_CLIENTS_PER_UID) {
         server->stats.peer_limit_rejections++;
         client->active = 1;
@@ -1483,7 +1465,7 @@ static void usage(const char *program) {
     fprintf(stderr,
             "Usage: %s [--fake|--fake-dense] [--hz 1..240] "
             "[--socket @name|path] [--proc substring] "
-            "[--client-queue-slots 1..%zu] [--allow-uid uid]...\n",
+            "[--client-queue-slots 1..%zu]\n",
             program, (size_t)CLIENT_QUEUE_SLOTS);
 }
 
@@ -1493,8 +1475,6 @@ int main(int argc, char **argv) {
     int hz = DEFAULT_HZ;
     int client_queue_slots = CLIENT_QUEUE_SLOTS;
     int fake = 0;
-    uid_t allowed_uids[MAX_ALLOWED_UIDS];
-    size_t allowed_uid_count = 0;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--fake")) {
             fake = 1;
@@ -1515,14 +1495,6 @@ int main(int argc, char **argv) {
                 usage(argv[0]);
                 return 2;
             }
-        } else if (!strcmp(argv[i], "--allow-uid") && i + 1 < argc) {
-            int uid;
-            if (allowed_uid_count >= MAX_ALLOWED_UIDS ||
-                parse_positive_int(argv[++i], 1, 2147483647, &uid) < 0) {
-                usage(argv[0]);
-                return 2;
-            }
-            allowed_uids[allowed_uid_count++] = (uid_t)uid;
         } else if (!strcmp(argv[i], "--help")) {
             usage(argv[0]);
             return 0;
@@ -1539,9 +1511,6 @@ int main(int argc, char **argv) {
     server.hz = (uint32_t)hz;
     server.client_queue_slots = (uint32_t)client_queue_slots;
     server.effective_hz_millihz = server.hz * 1000;
-    memcpy(server.allowed_uids, allowed_uids,
-           allowed_uid_count * sizeof(allowed_uids[0]));
-    server.allowed_uid_count = allowed_uid_count;
 
     if (sampler_init(&server.sampler, &server.sample_notification, server.hz,
                      fake, process_name) < 0) {

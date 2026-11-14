@@ -8,13 +8,14 @@
 
 Every change to this directory runs as root on the car. Review it as such.
 
-1. `src/roadcastd.c`: `--allow-uid <uid>` (repeatable, up to 8). When given,
-   the daemon closes any client whose `SO_PEERCRED` uid is not on the list.
-   uid 0 is always allowed. Without the flag, behaviour is upstream's.
-   Test: `tools/test-roadcastd-allowlist.sh`.
-2. Removed scripts we do not use: the upstream Android build/install scripts
+None to the code: `src/` and `include/` are upstream's, byte for byte.
+Any app on the car may connect and read (a deliberate choice: one shared,
+open, read-only source instead of apps fighting over who owns the car; see
+`docs/CAN-API.md`).
+
+1. Removed scripts we do not use: the upstream Android build/install scripts
    (replaced by `tools/build-roadcastd.sh`), the release-manifest generator,
    and the log collectors (they carry the upstream author's device address).
 
-Nothing else is changed. To update: copy the new upstream tree here, re-apply
-the two changes above, and re-run the allow-list test.
+To update: copy the new upstream `src/`, `include/`, `data/`, `docs/` here,
+drop the scripts listed above again, and rebuild with tools/build-roadcastd.sh.

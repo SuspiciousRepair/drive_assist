@@ -68,17 +68,16 @@ final class CanReaderPolicy {
      *
      * The daemon stays uid 0 in u:r:su:s0. It has to: no other domain may read
      * the vehicle HAL's memory. What keeps it apart from adbd is the cgroup,
-     * not the credentials. */
-    static String launchCommand(int... allowUids) {
-        StringBuilder allow = new StringBuilder();
-        for (int uid : allowUids) {
-            if (uid <= 0) throw new IllegalArgumentException("bad uid");
-            allow.append(" --allow-uid ").append(uid);
-        }
+     * not the credentials.
+     *
+     * No client allow-list: any app on the car may read @roadcast. One open,
+     * read-only source, so apps share it instead of fighting over the car
+     * (docs/CAN-API.md). */
+    static String launchCommand() {
         return stopOursCommand() + "; sleep 1; "
              + "if [ ! -x " + BIN + " ]; then echo " + MISSING + "; else "
              + "setsid sh -c 'echo $$ > /acct/cgroup.procs; exec " + BIN
-             + " --hz " + HZ + " --socket " + SOCKET + allow + "' "
+             + " --hz " + HZ + " --socket " + SOCKET + "' "
              + "</dev/null >/dev/null 2>&1 & echo " + LAUNCHED + "; fi";
     }
 

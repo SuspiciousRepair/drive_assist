@@ -29,8 +29,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * ADB is closed does this open ADB, start the daemon, and close ADB again
  * within seconds. Every such opening is counted and logged.
  *
- * Never kills a roadcastd it did not start (Capy's): if @roadcast already
- * answers protocol 3, that daemon is used as it is. */
+ * Never kills a roadcastd it did not start (another app's): if @roadcast
+ * already answers protocol 3, that daemon is used as it is. Any app may read
+ * the daemon this starts (docs/CAN-API.md). */
 final class CanReader {
     static final String TAG = "ModeHelper";
     static final String PREF_ENABLED = "can_energy";
@@ -85,12 +86,12 @@ final class CanReader {
         if (!on) {
             // Stop our daemon, but never open ADB just for that: if ADB is
             // closed it stays running until the next window. It only reads.
-            // can_allowed_uid is set only after we started one, so with the
+            // can_started is set only after we started one, so with the
             // switch never used this touches nothing at all.
-            if (prefs(ctx).contains("can_allowed_uid") && adbOn && adb.portOpen(1000)) {
+            if (prefs(ctx).getBoolean("can_started", false) && adbOn && adb.portOpen(1000)) {
                 try {
                     adb.execute(CanReaderPolicy.stopOursCommand());
-                    prefs(ctx).edit().remove("can_allowed_uid").apply();
+                    prefs(ctx).edit().remove("can_started").apply();
                     Log.i(TAG, "can: switch is off, reader stopped");
                 } catch (Exception ignored) {}
             }
@@ -100,23 +101,20 @@ final class CanReader {
 
         if (!hasAsset(ctx)) { report(ctx, "no_binary", null); return; }
 
-        int dmUid = drivememUid(ctx);
         boolean answers = probe();
         if (answers) {
             // Running. Opening ADB only to inspect it is not worth it; while
-            // ADB happens to be open anyway, check it is ours, current and
-            // allows Drive Assist's uid (a reinstall changes the uid, a
+            // ADB happens to be open anyway, check it is ours and current (a
             // helper update brings a new binary).
             if (!adbOn || !adb.portOpen(1000)) { ok(ctx, "running"); return; }
-            if (!isOurs(adb)) { ok(ctx, "running_other"); return; }   // Capy's: use it, never touch it
-            boolean uidOk = dmUid == prefs(ctx).getInt("can_allowed_uid", -1);
+            if (!isOurs(adb)) { ok(ctx, "running_other"); return; }   // another app's: use it, never touch it
             if (!binaryVerified) {
                 String remote = CanReaderPolicy.parseSha256(adb.execute(CanReaderPolicy.sha256Command()));
                 binaryVerified = assetSha(ctx).equals(remote);
             }
-            if (uidOk && binaryVerified) { ok(ctx, "running"); return; }
-            Log.i(TAG, "can: restarting the reader (" + (uidOk ? "new binary" : "new Drive Assist uid") + ")");
-            start(ctx, adb, dmUid);
+            if (binaryVerified) { ok(ctx, "running"); return; }
+            Log.i(TAG, "can: restarting the reader (new binary)");
+            start(ctx, adb);
             return;
         }
 
@@ -141,14 +139,14 @@ final class CanReader {
                 Log.i(TAG, "can: opened ADB to start the CAN reader (opening #" + opens + ")");
             }
             if (!waitPort(adb, 15_000)) { fail(ctx, "adb_unreachable", "nothing on 127.0.0.1:5555"); return; }
-            start(ctx, adb, dmUid);
+            start(ctx, adb);
         } finally {
             if (weOpened) closeIfStillOurs(ctx, openToken);
         }
     }
 
     /** Installs the binary if needed, launches it, checks it came up right. */
-    private static void start(Context ctx, LocalAdbShell adb, int dmUid) throws Exception {
+    private static void start(Context ctx, LocalAdbShell adb) throws Exception {
         String want = assetSha(ctx);
         String have = CanReaderPolicy.parseSha256(adb.execute(CanReaderPolicy.sha256Command()));
         if (!want.equals(have)) {
@@ -167,8 +165,7 @@ final class CanReader {
         }
         binaryVerified = true;
 
-        int[] uids = dmUid > 0 ? new int[]{1000, dmUid} : new int[]{1000};
-        String out = adb.execute(CanReaderPolicy.launchCommand(uids));
+        String out = adb.execute(CanReaderPolicy.launchCommand());
         if (out.contains(CanReaderPolicy.MISSING)) { fail(ctx, "install_failed", "binary missing after install"); return; }
         if (!out.contains(CanReaderPolicy.LAUNCHED)) { fail(ctx, "launch_failed", out); return; }
 
@@ -181,8 +178,8 @@ final class CanReader {
             fail(ctx, "launch_failed", "not root/su outside adbd's group: " + inspect);
             return;
         }
-        prefs(ctx).edit().putInt("can_allowed_uid", dmUid).apply();
-        Log.i(TAG, "can: reader started (allow uid " + dmUid + ")");
+        prefs(ctx).edit().putBoolean("can_started", true).apply();
+        Log.i(TAG, "can: reader started");
         ok(ctx, "running");
     }
 
@@ -249,11 +246,6 @@ final class CanReader {
         StringBuilder sb = new StringBuilder();
         for (byte x : md.digest()) sb.append(String.format("%02x", x));
         return cachedSha = sb.toString();
-    }
-
-    private static int drivememUid(Context ctx) {
-        try { return ctx.getPackageManager().getPackageUid(DRIVEMEM, 0); }
-        catch (Exception e) { return -1; }
     }
 
     private static void ok(Context ctx, String status) {
