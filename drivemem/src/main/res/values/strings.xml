@@ -503,4 +503,19 @@
     <string name="can_header">Exact energy (experimental)</string>
     <string name="can_enable_label">Read battery power from the car (CAN)</string>
     <string name="can_hint">Exact battery volts × amps from the car itself, with no OBD2 dongle. It needs the ModeHelper app. To start its reader, it may switch ADB on for a few seconds, then off again. If it does not work, the app falls back to the dongle or to the battery % estimate. While it is on, other apps on the car can also read this car data.</string>
+    <!-- Day session cards (DailyStatsView) -->
+    <string name="session_since">since %1$s</string>
+    <string name="session_yesterday">yesterday</string>
+    <string name="session_parked">Parked %1$s</string>
+    <string name="session_stat_battery">Battery</string>
+    <string name="session_stat_efficiency">Efficiency</string>
+    <string name="session_stat_net_energy">Net energy</string>
+    <string name="session_stat_net_breakdown">%1$s used − %2$s regen</string>
+    <string name="session_stat_elevation">Climb / descent</string>
+    <string name="session_stat_avg_power">Average power</string>
+    <string name="session_stat_eta">Expected end</string>
+    <string name="session_stat_cost">Cost</string>
+    <string name="session_cost_tap">Tap to add</string>
+    <string name="session_stat_max_speed">Top speed</string>
+    <string name="session_stat_max_power">Peak power</string>
 </resources>

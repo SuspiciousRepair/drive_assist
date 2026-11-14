@@ -476,4 +476,19 @@
     <string name="can_header">Energía exacta (experimental)</string>
     <string name="can_enable_label">Leer la potencia de la batería del coche (CAN)</string>
     <string name="can_hint">Voltios × amperios exactos de la batería, leídos del propio coche, sin dongle OBD2. Necesita la app ModeHelper. Para iniciar el lector, puede activar ADB unos segundos y desactivarlo de nuevo. Si no funciona, la app vuelve al dongle o a la estimación por el % de batería. Mientras esté activado, otras apps del coche también pueden leer estos datos del coche.</string>
+    <!-- Tarjetas de sesiones del día (DailyStatsView) -->
+    <string name="session_since">desde %1$s</string>
+    <string name="session_yesterday">ayer</string>
+    <string name="session_parked">Estacionado %1$s</string>
+    <string name="session_stat_battery">Batería</string>
+    <string name="session_stat_efficiency">Eficiencia</string>
+    <string name="session_stat_net_energy">Energía neta</string>
+    <string name="session_stat_net_breakdown">%1$s gastado − %2$s regen</string>
+    <string name="session_stat_elevation">Subida / bajada</string>
+    <string name="session_stat_avg_power">Potencia media</string>
+    <string name="session_stat_eta">Fin previsto</string>
+    <string name="session_stat_cost">Costo</string>
+    <string name="session_cost_tap">Toca para informar</string>
+    <string name="session_stat_max_speed">Vel. máxima</string>
+    <string name="session_stat_max_power">Potencia máx.</string>
 </resources>
