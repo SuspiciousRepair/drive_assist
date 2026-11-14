@@ -343,18 +343,14 @@
     <string name="cam_right">ขวา</string>
     <string name="cam_orbit">หมุนรอบคัน</string>
     <!-- charging history -->
-    <string name="cfg_nav_charge">การชาร์จ</string>
-    <string name="charge_title">ประวัติการชาร์จ</string>
     <string name="charge_sessions_title">ประวัติการชาร์จ · ล่าสุดก่อน</string>
     <string name="charge_soc_chart_title">ระดับแบตเตอรี่ · ตามลำดับเวลา</string>
-    <string name="charge_summary">ชาร์จ %1$d ครั้ง · รวม %2$.1f kWh</string>
     <string name="charge_ltm_title">12 เดือนล่าสุด</string>
     <string name="charge_period_30d">30 วันล่าสุด</string>
     <string name="charge_ltm_count_label">ครั้ง</string>
     <string name="charge_row_subtitle">SoC %1$d%%→%2$d%% · %3$.1f kWh · %4$.1f kW</string>
     <string name="charge_none">ยังไม่มีประวัติการชาร์จ</string>
     <!-- stats -->
-    <string name="cfg_nav_stats">สถิติ</string>
     <string name="stats_title">สถิติการขับขี่</string>
     <string name="stats_driving_header">สัปดาห์นี้</string>
     <string name="stats_trips_label">การเดินทาง</string>
