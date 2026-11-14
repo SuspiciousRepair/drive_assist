@@ -51,21 +51,14 @@ public final class TelemetryObdSection extends LinearLayout {
         // shared `content` field -- this section is the only one that
         // splits into columns, and every other buildXxx() still expects
         // `content` to mean the whole right-hand panel.
-        LinearLayout cols = new LinearLayout(activity);
-        cols.setOrientation(HORIZONTAL);
-        LinearLayout left = new LinearLayout(activity);
-        left.setOrientation(VERTICAL);
-        left.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        left.setPadding(0, 0, Style.dp(activity, 16), 0);
-        LinearLayout right = new LinearLayout(activity);
-        right.setOrientation(VERTICAL);
-        right.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        right.setPadding(Style.dp(activity, 16), 0, 0, 0);
-        cols.addView(left);
-        cols.addView(right);
-        addView(cols);
+        LinearLayout leftCol = ConfigCards.column(activity);
+        LinearLayout rightCol = ConfigCards.column(activity);
+        addView(ConfigCards.columns(activity, leftCol, rightCol));
 
-        left.addView(Style.header(activity, activity.getString(R.string.obd_title)));
+        // `left` is the OBD card, then the ABRP card below it; `right` is the
+        // live debug card.
+        LinearLayout left = ConfigCards.card(activity, activity.getString(R.string.obd_title));
+        ConfigCards.add(leftCol, left);
 
         obdStatus = new TextView(activity);
         obdStatus.setTextColor(Style.TEXT); obdStatus.setTextSize(16);
@@ -87,24 +80,18 @@ public final class TelemetryObdSection extends LinearLayout {
                 obdStatus.setText(activity.getString(on
                     ? R.string.obd_status_searching : R.string.obd_status_off));
             }));
-        TextView obdHint = new TextView(activity);
-        obdHint.setTextColor(Style.TEXT_DIM); obdHint.setTextSize(13);
-        obdHint.setText(activity.getString(R.string.obd_hint));
-        obdHint.setPadding(0, 0, 0, Style.dp(activity, 4));
-        left.addView(obdHint);
+        left.addView(ConfigCards.hint(activity, activity.getString(R.string.obd_hint)));
 
         // "Exact energy": battery V x I from the CAN bus via roadcastd, no
         // dongle needed. Takes priority over OBD2 when both are on.
-        left.addView(Style.header(activity, activity.getString(R.string.can_header)));
-        left.addView(Style.toggleRow(activity, activity.getString(R.string.can_enable_label),
+        LinearLayout can = ConfigCards.card(activity, activity.getString(R.string.can_header));
+        ConfigCards.add(leftCol, can);
+        can.addView(Style.toggleRow(activity, activity.getString(R.string.can_enable_label),
             CanEnergyReader.isEnabled(activity), on -> CanEnergyReader.setEnabled(activity, on)));
-        TextView canHint = new TextView(activity);
-        canHint.setTextColor(Style.TEXT_DIM); canHint.setTextSize(13);
-        canHint.setText(activity.getString(R.string.can_hint));
-        canHint.setPadding(0, 0, 0, Style.dp(activity, 4));
-        left.addView(canHint);
+        can.addView(ConfigCards.hint(activity, activity.getString(R.string.can_hint)));
 
-        left.addView(Style.header(activity, activity.getString(R.string.abrp_header)));
+        left = ConfigCards.card(activity, activity.getString(R.string.abrp_header));
+        ConfigCards.add(leftCol, left);
         left.addView(Style.toggleRow(activity, activity.getString(R.string.abrp_enable_label),
             prefs.getBoolean("abrp_enabled", false),
             on -> prefs.edit().putBoolean("abrp_enabled", on).apply()));
@@ -113,11 +100,7 @@ public final class TelemetryObdSection extends LinearLayout {
             prefs.getBoolean(AbrpUploader.PREF_SEND_LOCATION, true),
             on -> prefs.edit().putBoolean(AbrpUploader.PREF_SEND_LOCATION, on).apply()));
 
-        TextView abrpLocHint = new TextView(activity);
-        abrpLocHint.setTextColor(Style.TEXT_DIM); abrpLocHint.setTextSize(13);
-        abrpLocHint.setText(activity.getString(R.string.abrp_location_hint));
-        abrpLocHint.setPadding(0, 0, 0, Style.dp(activity, 4));
-        left.addView(abrpLocHint);
+        left.addView(ConfigCards.hint(activity, activity.getString(R.string.abrp_location_hint)));
 
         fAbrpToken = Style.field(activity, left, activity.getString(R.string.abrp_field_user_token),
             prefs.getString("abrp_user_token", ""), InputType.TYPE_CLASS_TEXT);
@@ -130,7 +113,7 @@ public final class TelemetryObdSection extends LinearLayout {
         LinearLayout row = new LinearLayout(activity);
         row.setOrientation(HORIZONTAL);
         row.setPadding(0, Style.dp(activity, 4), 0, 0);
-        row.addView(Style.action(activity, activity.getString(R.string.cfg_btn_save), Style.ACCENT, () -> {
+        row.addView(Style.button(activity, activity.getString(R.string.cfg_btn_save), Style.ACCENT, () -> {
             prefs.edit()
                 .putString("abrp_user_token", fAbrpToken.getText().toString().trim())
                 .apply();
@@ -148,7 +131,8 @@ public final class TelemetryObdSection extends LinearLayout {
         left.addView(row);
 
         // ---- right column: live debug, updated via pushed listener callbacks ----
-        right.addView(Style.header(activity, activity.getString(R.string.abrp_debug_header)));
+        LinearLayout right = ConfigCards.card(activity, activity.getString(R.string.abrp_debug_header));
+        ConfigCards.add(rightCol, right);
 
         TextView obdDataLabel = sectionLabel(activity, activity.getString(R.string.obd_title));
         right.addView(obdDataLabel);

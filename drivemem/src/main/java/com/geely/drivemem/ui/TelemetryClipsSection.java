@@ -38,7 +38,14 @@ public final class TelemetryClipsSection extends LinearLayout {
         this.onRefresh = onRefresh;
         setOrientation(VERTICAL);
 
-        addView(Style.header(activity, activity.getString(R.string.clips_title)));
+        // Two columns: the recording settings on the left, the clip list on
+        // the right, so the list starts at the top of the screen instead of
+        // below the settings.
+        LinearLayout leftCol = ConfigCards.column(activity);
+        LinearLayout rightCol = ConfigCards.column(activity);
+        addView(ConfigCards.columns(activity, leftCol, rightCol));
+        LinearLayout settings = ConfigCards.card(activity, activity.getString(R.string.clips_title));
+        ConfigCards.add(leftCol, settings);
 
         List<Clips.Clip> clips = Clips.list(activity);
         boolean on = Clips.recording(activity);
@@ -58,7 +65,7 @@ public final class TelemetryClipsSection extends LinearLayout {
                 .putExtra("on", wantOn ? 1 : 0));
             postDelayed(() -> onRefresh.run(), 1500);
         });
-        addView(recordRow);
+        settings.addView(recordRow);
 
         // A GB count is a couple of digits, not a URL -- a field and a
         // button that both stretch to the full row width (field()'s and
@@ -70,7 +77,7 @@ public final class TelemetryClipsSection extends LinearLayout {
         limitLbl.setTextColor(Style.TEXT_DIM);
         limitLbl.setTextSize(14);
         limitLbl.setPadding(0, Style.dp(activity, 10), 0, Style.dp(activity, 2));
-        addView(limitLbl);
+        settings.addView(limitLbl);
 
         LinearLayout limitRow = new LinearLayout(activity);
         limitRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -82,7 +89,7 @@ public final class TelemetryClipsSection extends LinearLayout {
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         rowLp.bottomMargin = Style.dp(activity, 10);
         limitRow.setLayoutParams(rowLp);
-        addView(limitRow);
+        settings.addView(limitRow);
 
         final EditText fDashLimit = new EditText(activity);
         fDashLimit.setText(String.valueOf(Prefs.getDashcamLimitGb(activity)));
@@ -129,30 +136,20 @@ public final class TelemetryClipsSection extends LinearLayout {
                         "com.geely.modehelper.ParkedMonitoringReceiver")
                     .putExtra("on", enabled ? 1 : 0));
             });
-        addView(parkedMonitor);
+        settings.addView(parkedMonitor);
 
-        // Settings end here, the clip list starts below -- a divider and its
-        // own header so the two don't read as one long undifferentiated
-        // column, same problem the compact limit-field row above just fixed
-        // for the field/button pair.
-        View divider = new View(activity);
-        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(activity, 1));
-        divLp.topMargin = Style.dp(activity, 18);
-        divLp.bottomMargin = Style.dp(activity, 10);
-        divider.setLayoutParams(divLp);
-        divider.setBackgroundColor(Style.blend(Style.cardFillColor(), Style.TEXT_DIM, 0.18f));
-        addView(divider);
-        addView(sectionLabel(activity, activity.getString(R.string.clips_list_header)));
+        TextView listHeader = Style.header(activity, activity.getString(R.string.clips_list_header));
+        listHeader.setPadding(0, 0, 0, Style.dp(activity, 6));
+        rightCol.addView(listHeader);
         // Count/size is a fact about the clip list below, not the settings
         // above it -- moved down here to sit with what it describes.
-        addView(Style.label(activity, activity.getString(R.string.clips_usage,
+        rightCol.addView(Style.label(activity, activity.getString(R.string.clips_usage,
             clips.size(), Clips.mb(Clips.usedBytes(activity)), Clips.mb(Clips.heldBytes(activity)),
             Clips.mb(new StatFs(Clips.dir(activity).getAbsolutePath()).getAvailableBytes()))));
-        Style.gap(this, activity, 8);
+        Style.gap(rightCol, activity, 8);
 
-        if (clips.isEmpty()) { addView(Style.label(activity, activity.getString(R.string.clips_none))); return; }
-        for (Clips.Clip c : clips) addView(clipRow(activity, c));
+        if (clips.isEmpty()) { rightCol.addView(Style.label(activity, activity.getString(R.string.clips_none))); return; }
+        for (Clips.Clip c : clips) rightCol.addView(clipRow(activity, c));
     }
 
     /** Triggers a refresh of the clips section. Called when the user performs an action
@@ -171,12 +168,11 @@ public final class TelemetryClipsSection extends LinearLayout {
                                   : Style.card(Style.CARD, activity));
         int p = Style.dp(activity, 14);
         card.setPadding(p, p, p, p);
-        // Capped, not MATCH_PARENT: a thumbnail, a couple of text lines, and
-        // two or three small buttons don't need the whole content width --
-        // stretched that far, every clip read as an empty bar with its
-        // content stranded on one side.
+        // Fills its column, and the column is what caps it (ConfigCards):
+        // a thumbnail, a couple of text lines and two or three small buttons
+        // never need the whole screen width.
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-            Style.dp(activity, 820), ViewGroup.LayoutParams.WRAP_CONTENT);
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.topMargin = Style.dp(activity, 10);
         card.setLayoutParams(lp);
 
@@ -249,13 +245,5 @@ public final class TelemetryClipsSection extends LinearLayout {
                     .show()));
         }
         return card;
-    }
-
-    private static TextView sectionLabel(Activity activity, String text) {
-        TextView t = new TextView(activity);
-        t.setTextColor(Style.TEXT_DIM); t.setTextSize(13);
-        t.setTypeface(null, android.graphics.Typeface.BOLD);
-        t.setText(text);
-        return t;
     }
 }

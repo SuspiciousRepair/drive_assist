@@ -30,16 +30,23 @@ public final class TelemetryBarSection extends LinearLayout {
 
         addView(Style.header(activity, activity.getString(R.string.cfg_bar_header)));
 
-        addView(Style.header(activity, activity.getString(R.string.cfg_bar_topbar_header)));
+        // One column (the car render fills the rest), one card per place
+        // the toggles act on.
+        LinearLayout col = ConfigCards.column(activity);
+        addView(ConfigCards.columns(activity, col));
+        LinearLayout top = ConfigCards.card(activity, activity.getString(R.string.cfg_bar_topbar_header));
+        ConfigCards.add(col, top);
+        LinearLayout home = ConfigCards.card(activity, activity.getString(R.string.cfg_bar_home_header));
+        ConfigCards.add(col, home);
 
-        addView(toggleRow(activity, activity.getString(R.string.cfg_bar_outtemp),
+        top.addView(toggleRow(activity, activity.getString(R.string.cfg_bar_outtemp),
             prefs.getBoolean("outtemp_on", false), on -> {
                 prefs.edit().putBoolean("outtemp_on", on).apply();
                 Intent svc = new Intent(activity, OutTempService.class);
                 if (on) activity.startService(svc); else activity.stopService(svc);
             }));
 
-        addView(toggleRow(activity, activity.getString(R.string.cfg_bar_wifi),
+        top.addView(toggleRow(activity, activity.getString(R.string.cfg_bar_wifi),
             prefs.getBoolean("wifiicon_on", false), on -> {
                 prefs.edit().putBoolean("wifiicon_on", on).apply();
                 Intent svc = new Intent(activity, WifiIconService.class);
@@ -48,7 +55,7 @@ public final class TelemetryBarSection extends LinearLayout {
                 } else activity.stopService(svc);
             }));
 
-        addView(toggleRow(activity, activity.getString(R.string.cfg_bar_soc),
+        top.addView(toggleRow(activity, activity.getString(R.string.cfg_bar_soc),
             prefs.getBoolean("soc_on", false), on -> {
                 prefs.edit().putBoolean("soc_on", on).apply();
                 Intent svc = new Intent(activity, SocIconService.class);
@@ -57,13 +64,11 @@ public final class TelemetryBarSection extends LinearLayout {
                 } else activity.stopService(svc);
             }));
 
-        addView(Style.header(activity, activity.getString(R.string.cfg_bar_home_header)));
-
-        addView(toggleRow(activity, activity.getString(R.string.cfg_drive_card),
+        home.addView(toggleRow(activity, activity.getString(R.string.cfg_drive_card),
             prefs.getBoolean("drive_card_enabled", true), on ->
                 prefs.edit().putBoolean("drive_card_enabled", on).apply()));
 
-        addView(toggleRow(activity, activity.getString(R.string.cfg_overlay_label),
+        home.addView(toggleRow(activity, activity.getString(R.string.cfg_overlay_label),
             prefs.getBoolean("overlay_on", false), on -> {
                 prefs.edit().putBoolean("overlay_on", on).apply();
                 Intent svc = new Intent(activity, com.geely.drivemem.services.OverlayService.class);
