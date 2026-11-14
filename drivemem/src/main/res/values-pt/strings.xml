@@ -236,13 +236,7 @@
     <string name="cfg_current">Atual: %1$s + %2$s</string>
     <string name="cfg_bar_header">Elementos</string>
     <string name="cfg_drive_card">Mostrar cartão da viagem atual</string>
-    <string name="drive_card_title">Viagem atual</string>
-    <string name="drive_card_detail">%1$.1f km · %2$s · desde %3$s · recuperados %4$.2f kWh</string>
     <string name="parked_card_title">Estacionado</string>
-    <string name="valet_start">Ativar modo manobrista</string>
-    <string name="valet_end">Encerrar modo manobrista</string>
-    <string name="valet_active_title">Modo manobrista ativo</string>
-    <string name="valet_active_detail">Ativo há %1$s · potência máxima %2$s</string>
     <string name="value_unavailable">Indisponível</string>
     <string name="value_calculating">Calculando…</string>
     <string name="cfg_bar_outtemp">Temperatura externa na barra</string>
@@ -518,5 +512,7 @@
     <string name="int_status_on">Ligado</string>
     <string name="obd_live_header">Dados ao vivo</string>
     <string name="obd_compare_can">Comparar com CAN</string>
+    <string name="energy_net_short">líq.</string>
+    <string name="valet_end_short">Encerrar</string>
     <string name="valet_short">Manobrista</string>
 </resources>
