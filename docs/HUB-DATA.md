@@ -122,6 +122,10 @@ except the SoC-based driving energy, which is marked "estimated".
   reading directly, because it integrates each one and the hub delivers
   changes only. CAN wins while it is live; the dongle's samples are dropped
   then, so energy is never counted twice.
+- `CanExplorer` (debug, off by default, switched on over adb with
+  `CANEXPLORE --ei minutes N`) records raw CAN frame changes next to hub
+  reference values, to find unnamed bits. Nothing consumes it; analyse with
+  `tools/can-explore-analyze.py`.
 
 ## 5. What is saved on the car
 
@@ -131,5 +135,6 @@ except the SoC-based driving energy, which is marked "estimated".
 | `car.db` `trip`, `charge_session` | per trip / per charge totals | when the trip or charge ends |
 | `files/obd2-reading.log` | every dongle reading | while the dongle is connected (5 MB, then restarts) |
 | `files/abrp-attempt.log` | every ABRP send and its payload | while ABRP is on (5 MB, then restarts) |
+| `files/can-explore-*.tsv` | raw CAN frame changes + hub reference values (~2 MB/hour) | only while the CAN explorer is on; a new file at each app start |
 
 `files/` is `Android/data/com.geely.drivemem/files/` on the car's storage.
