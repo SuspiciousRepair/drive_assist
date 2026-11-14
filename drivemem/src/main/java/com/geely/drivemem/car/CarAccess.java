@@ -289,6 +289,12 @@ public class CarAccess {
         return null;
     }
 
+    /** The light's mode (AmbientLight.MODE_PROP): picked colour, or follow
+     * the drive mode. Null if the car does not answer. */
+    public Integer readAmbientMode() {
+        return readIntRaw(AmbientLight.MODE_PROP, 0);
+    }
+
     // BRIGHTNESS of the ambient light: 0 = off (there is no separate on/off).
     // Scale observed in Geely's app: 0..20 (the slider goes up to ~20).
     public static final int AMBIENT_BRIGHT = 704708864; // SETTING_FUNC_AMBIENCE_LIGHT_INTENSITY_SET

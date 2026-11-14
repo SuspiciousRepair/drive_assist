@@ -26,6 +26,14 @@
   apps. While on, anyone on the same network can get a root shell; the
   setting says so.
 
+### Fixed
+- **The buildings follow the cabin light in "follow drive mode".** With the
+  cabin light set to follow the drive mode, the buildings stayed on the last
+  colour picked by hand (often red). The car does not report the colour it
+  shows in that mode, so the app now reads the light's mode and uses the
+  drive mode's colour: Eco green, Comfort blue, Sport red. Home Assistant's
+  light shows the same colour. (#17)
+
 ## [v0.4.10] — 2026-11-09
 
 ### Fixed
