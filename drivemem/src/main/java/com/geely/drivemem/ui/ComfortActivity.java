@@ -148,10 +148,11 @@ public class ComfortActivity extends Activity {
     // One compact identity whose content follows driving, parked and Valet state.
     private LinearLayout journeyCard;
     private TextView journeyTitle, journeyPrimary, journeySecondary, journeyAction, journeyDismiss;
-    // Parked only: "since 09:27" beside the title and the Battery stat under the hero.
-    private TextView journeySince, journeyBatteryValue, journeyTempValue, journeyTempStart;
-    private TempSparkView journeyTempSpark;
-    private LinearLayout journeyStats;
+    // Parked has its own compact two-line layout (journeyParked), shown
+    // instead of the heading/primary/secondary/action used by drive and Valet.
+    private LinearLayout journeyHeading, journeyParked;
+    private TextView parkedHero, parkedBattery;
+    private TempRangeView parkedTemp;
     private boolean driveCardEnabledAtBuild;
     private boolean lastJourneyAvailable;
 
@@ -1275,10 +1276,6 @@ public class ComfortActivity extends Activity {
         journeyTitle.setTypeface(null, android.graphics.Typeface.BOLD);
         heading.addView(journeyTitle, new LinearLayout.LayoutParams(0,
             ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        journeySince = new TextView(this);
-        journeySince.setTextColor(Style.TEXT_DIM);
-        journeySince.setTextSize(18);
-        heading.addView(journeySince);
         journeyDismiss = new TextView(this);
         journeyDismiss.setText("×");
         journeyDismiss.setTextColor(Style.TEXT_DIM);
@@ -1290,6 +1287,7 @@ public class ComfortActivity extends Activity {
         });
         heading.addView(journeyDismiss, new LinearLayout.LayoutParams(Style.dp(this, 48), Style.dp(this, 48)));
         card.addView(heading);
+        journeyHeading = heading;
 
         journeyPrimary = new TextView(this);
         journeyPrimary.setTextColor(Style.TEXT);
@@ -1302,37 +1300,6 @@ public class ComfortActivity extends Activity {
         journeySecondary.setPadding(0, Style.dp(this, 8), 0, 0);
         card.addView(journeySecondary);
 
-        // Parked: one labelled stat under the hero, the same "small label
-        // above the value" shape as the day-session cards in Statistics.
-        journeyStats = new LinearLayout(this);
-        journeyStats.setOrientation(LinearLayout.VERTICAL);
-        journeyStats.setPadding(0, Style.dp(this, 10), 0, 0);
-        LinearLayout statRow = new LinearLayout(this);
-        statRow.setOrientation(LinearLayout.HORIZONTAL);
-        statRow.setBaselineAligned(false);
-        journeyBatteryValue = journeyStat(statRow, R.string.session_stat_battery);
-        journeyTempValue = journeyStat(statRow, R.string.parked_stat_outside_temp);
-        journeyStats.addView(statRow);
-
-        // Outside temperature since parking, from the hub's parking.temp_trail.
-        // Shaded, line-less stretches are hours the head unit slept.
-        journeyTempSpark = new TempSparkView(this);
-        LinearLayout.LayoutParams sparkLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 56));
-        sparkLp.topMargin = Style.dp(this, 10);
-        journeyStats.addView(journeyTempSpark, sparkLp);
-        LinearLayout axis = new LinearLayout(this);
-        journeyTempStart = new TextView(this);
-        journeyTempStart.setTextColor(Style.TEXT_DIM);
-        journeyTempStart.setTextSize(15);
-        axis.addView(journeyTempStart, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView now = new TextView(this);
-        now.setText(R.string.parked_axis_now);
-        now.setTextColor(Style.TEXT_DIM);
-        now.setTextSize(15);
-        axis.addView(now);
-        journeyStats.addView(axis);
-        card.addView(journeyStats);
         journeyAction = Style.cardButton(this, getString(R.string.valet_start), true, () -> {
             // Stop is allowed any time Valet is active, moving or not -- it's
             // easy to forget Valet is on and pull away, and making the owner
@@ -1347,7 +1314,95 @@ public class ComfortActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         actionLp.topMargin = Style.dp(this, 14);
         card.addView(journeyAction, actionLp);
+        card.addView(parkedLayout());
         return card;
+    }
+
+    /**
+     * Parked, in two lines:
+     *   [P] 5h 48m  desde 09:27                    | [shield]   |
+     *   [battery] 44% → 99%   [thermo] 27° ━●━ 33°  | Manobrista |
+     * The Valet button is two lines tall on the right and quiet (purple
+     * outline): starting Valet is rare. The temperature bar covers only the
+     * range the car sat through, coloured on an absolute scale (TempRangeView).
+     */
+    private View parkedLayout() {
+        journeyParked = new LinearLayout(this);
+        journeyParked.setOrientation(LinearLayout.HORIZONTAL);
+        journeyParked.setBaselineAligned(false);
+
+        LinearLayout left = new LinearLayout(this);
+        left.setOrientation(LinearLayout.VERTICAL);
+        left.setGravity(Gravity.CENTER_VERTICAL);
+
+        LinearLayout line1 = new LinearLayout(this);
+        line1.setGravity(Gravity.CENTER_VERTICAL);
+        line1.addView(rowIcon(R.drawable.ic_parking));
+        parkedHero = new TextView(this);
+        parkedHero.setTextColor(Style.TEXT);
+        parkedHero.setTextSize(30);
+        parkedHero.setTypeface(null, android.graphics.Typeface.BOLD);
+        parkedHero.setSingleLine(true);
+        line1.addView(parkedHero);
+        left.addView(line1);
+
+        LinearLayout line2 = new LinearLayout(this);
+        line2.setGravity(Gravity.CENTER_VERTICAL);
+        line2.setPadding(0, Style.dp(this, 8), 0, 0);
+        line2.addView(rowIcon(R.drawable.ic_battery));
+        parkedBattery = new TextView(this);
+        parkedBattery.setTextColor(Style.TEXT);
+        parkedBattery.setTextSize(22);
+        parkedBattery.setTypeface(null, android.graphics.Typeface.BOLD);
+        parkedBattery.setSingleLine(true);
+        line2.addView(parkedBattery);
+        line2.addView(new View(this), new LinearLayout.LayoutParams(Style.dp(this, 20), 1));
+        line2.addView(rowIcon(R.drawable.ic_thermometer));
+        parkedTemp = new TempRangeView(this);
+        line2.addView(parkedTemp, new LinearLayout.LayoutParams(0, Style.dp(this, 32), 1f));
+        left.addView(line2);
+        journeyParked.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        LinearLayout valet = new LinearLayout(this);
+        valet.setOrientation(LinearLayout.VERTICAL);
+        valet.setGravity(Gravity.CENTER);
+        valet.setPadding(0, Style.dp(this, 8), 0, Style.dp(this, 8));
+        android.graphics.drawable.GradientDrawable g = Style.card(Style.cardFillColor(), this);
+        g.setStroke(Style.dp(this, 2), Style.PURPLE);
+        valet.setBackground(g);
+        android.widget.ImageView shield = new android.widget.ImageView(this);
+        shield.setImageResource(R.drawable.ic_shield_car);
+        shield.setColorFilter(Style.PURPLE, android.graphics.PorterDuff.Mode.SRC_IN);
+        valet.addView(shield, new LinearLayout.LayoutParams(Style.dp(this, 32), Style.dp(this, 32)));
+        TextView label = new TextView(this);
+        label.setText(R.string.valet_short);
+        label.setTextColor(Style.TEXT);
+        label.setTextSize(16);
+        label.setGravity(Gravity.CENTER);
+        label.setSingleLine(true);
+        label.setPadding(0, Style.dp(this, 4), 0, 0);
+        valet.addView(label);
+        valet.setOnClickListener(v -> {
+            // Start still requires Park: ValetSession.start() refuses otherwise.
+            if (CarState.isParked()) ValetSession.start(this);
+            refreshJourneyCard();
+        });
+        // Fixed width: wrap_content let the label break mid-word ("Ma-no-").
+        LinearLayout.LayoutParams vlp = new LinearLayout.LayoutParams(
+            Style.dp(this, 140), ViewGroup.LayoutParams.MATCH_PARENT);
+        vlp.leftMargin = Style.dp(this, 16);
+        journeyParked.addView(valet, vlp);
+        return journeyParked;
+    }
+
+    private android.widget.ImageView rowIcon(int res) {
+        android.widget.ImageView i = new android.widget.ImageView(this);
+        i.setImageResource(res);
+        i.setColorFilter(Style.TEXT_DIM, android.graphics.PorterDuff.Mode.SRC_IN);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Style.dp(this, 24), Style.dp(this, 24));
+        lp.rightMargin = Style.dp(this, 8);
+        i.setLayoutParams(lp);
+        return i;
     }
 
     /**
@@ -1356,54 +1411,6 @@ public class ComfortActivity extends Activity {
      * not the full blue fill that made it the loudest thing on the screen.
      * Ending Valet keeps the filled button -- that one must be found fast.
      */
-    /** A "small label above a bold value" column, added to {@code row} with equal weight. */
-    private TextView journeyStat(LinearLayout row, int labelRes) {
-        LinearLayout col = new LinearLayout(this);
-        col.setOrientation(LinearLayout.VERTICAL);
-        TextView label = new TextView(this);
-        label.setText(labelRes);
-        label.setTextColor(Style.TEXT_DIM);
-        label.setTextSize(16);
-        col.addView(label);
-        TextView value = new TextView(this);
-        value.setTextColor(Style.TEXT);
-        value.setTextSize(22);
-        value.setTypeface(null, android.graphics.Typeface.BOLD);
-        col.addView(value);
-        row.addView(col, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        return value;
-    }
-
-    private void styleJourneyAction(boolean valetActive) {
-        // Parked: a chip sized to its text, so the shield sits next to the
-        // words. Valet active: full width again.
-        ViewGroup.LayoutParams lp = journeyAction.getLayoutParams();
-        if (lp != null) {
-            int w = valetActive ? ViewGroup.LayoutParams.MATCH_PARENT : ViewGroup.LayoutParams.WRAP_CONTENT;
-            if (lp.width != w) { lp.width = w; journeyAction.setLayoutParams(lp); }
-        }
-        if (valetActive) {
-            journeyAction.setBackground(Style.card(Style.CARD_ON, this));
-            journeyAction.setTextColor(Style.onFill(Style.CARD_ON));
-            journeyAction.setCompoundDrawablesRelative(null, null, null, null);
-            int pv = Style.dp(this, 18);
-            journeyAction.setPadding(pv, pv, pv, pv);
-            return;
-        }
-        android.graphics.drawable.GradientDrawable g = Style.card(Style.cardFillColor(), this);
-        g.setStroke(Style.dp(this, 2), Style.PURPLE);
-        journeyAction.setBackground(g);
-        journeyAction.setTextColor(Style.TEXT);
-        android.graphics.drawable.Drawable shield = getDrawable(R.drawable.ic_shield_car).mutate();
-        shield.setTint(Style.PURPLE);
-        int size = Style.dp(this, 24);
-        shield.setBounds(0, 0, size, size);
-        journeyAction.setCompoundDrawablesRelative(shield, null, null, null);
-        journeyAction.setCompoundDrawablePadding(Style.dp(this, 10));
-        int ph = Style.dp(this, 24), pv = Style.dp(this, 14);
-        journeyAction.setPadding(ph, pv, ph, pv);
-    }
-
     private void refreshJourneyCard() {
         if (journeyCard == null) return;
         boolean valet = ValetSession.isActive(this);
@@ -1427,10 +1434,12 @@ public class ComfortActivity extends Activity {
         // mid-drive; there's no Start-while-driving to show instead.
         journeyAction.setVisibility(ComfortCardVisibility.showJourneyActionButton(parked, valet) ? View.VISIBLE : View.GONE);
         boolean parkedView = !valet && !driving;
-        journeySince.setVisibility(parkedView ? View.VISIBLE : View.GONE);
-        journeyStats.setVisibility(parkedView ? View.VISIBLE : View.GONE);
-        journeySecondary.setVisibility(parkedView ? View.GONE : View.VISIBLE);
-        styleJourneyAction(valet);
+        journeyParked.setVisibility(parkedView ? View.VISIBLE : View.GONE);
+        int other = parkedView ? View.GONE : View.VISIBLE;
+        journeyHeading.setVisibility(other);
+        journeyPrimary.setVisibility(other);
+        journeySecondary.setVisibility(other);
+        if (parkedView) journeyAction.setVisibility(View.GONE);
         if (valet) {
             ValetSession.Snapshot s = ValetSession.snapshot(this);
             journeyTitle.setText(R.string.valet_active_title);
@@ -1483,46 +1492,28 @@ public class ComfortActivity extends Activity {
             }
         } else {
             ParkingState.Snapshot s = ParkingState.snapshot(this);
-            journeyTitle.setText(R.string.parked_card_title);
-            journeyPrimary.setText(s.startMs > 0 ? formatElapsed(System.currentTimeMillis() - s.startMs)
-                : getString(R.string.value_unavailable));
-            journeySince.setText(s.startMs > 0 ? getString(R.string.session_since, formatClock(s.startMs)) : "");
+            SpannableStringBuilder hero = new SpannableStringBuilder(s.startMs > 0
+                ? formatElapsed(System.currentTimeMillis() - s.startMs) : getString(R.string.value_unavailable));
+            if (s.startMs > 0) {
+                Style.appendUnit(hero, "   " + getString(R.string.session_since, formatClock(s.startMs)), 0.6f);
+            }
+            parkedHero.setText(hero);
             // "44% → 100%" instead of "+56 pp": the two ends say more than the
-            // difference, and "pp" is a word few drivers know. The old outside
-            // temperature delta is gone -- the climate card already shows the
-            // outside temperature, and how much it changed meant little.
+            // difference, and "pp" is a word few drivers know.
             if (s.startSoc != null && s.currentSoc != null) {
-                journeyBatteryValue.setText(Style.percentRange(s.startSoc, s.currentSoc, Style.UNIT_SCALE_ROW));
+                parkedBattery.setText(Style.percentRange(s.startSoc, s.currentSoc, Style.UNIT_SCALE_ROW));
             } else if (s.currentSoc != null) {
-                journeyBatteryValue.setText(Style.valueWithUnit(String.valueOf(s.currentSoc), null, "%",
+                parkedBattery.setText(Style.valueWithUnit(String.valueOf(s.currentSoc), null, "%",
                     Style.UNIT_SCALE_ROW));
             } else {
-                journeyBatteryValue.setText(R.string.value_unavailable);
+                parkedBattery.setText(R.string.value_unavailable);
             }
-            // Read from the hub, never from ParkingState directly.
+            // Both read from the hub, never from ParkingState directly.
             CarActor.Reading trailR = CarActor.get(this).get(ParkingState.TRAIL_KEY);
             TempTrail trail = trailR.status == CarActor.Reading.Status.OK && trailR.value instanceof TempTrail
                 ? (TempTrail) trailR.value : TempTrail.EMPTY;
-            float tMin = trail.min(), tMax = trail.max();
-            if (Float.isNaN(tMin)) {
-                journeyTempValue.setText(R.string.value_unavailable);
-            } else {
-                // Lowest to highest it got while parked: what the car endured.
-                SpannableStringBuilder tv = new SpannableStringBuilder();
-                tv.append(String.format(Locale.US, "%.0f", tMin));
-                Style.appendUnit(tv, "°", Style.UNIT_SCALE_ROW);
-                if (Math.round(tMax) != Math.round(tMin)) {
-                    tv.append(" – ").append(String.format(Locale.US, "%.0f", tMax));
-                    Style.appendUnit(tv, "°", Style.UNIT_SCALE_ROW);
-                }
-                journeyTempValue.setText(tv);
-            }
-            journeyTempSpark.setTrail(trail);
-            boolean hasTrail = !trail.isEmpty();
-            journeyTempSpark.setVisibility(hasTrail ? View.VISIBLE : View.GONE);
-            ((View) journeyTempStart.getParent()).setVisibility(hasTrail ? View.VISIBLE : View.GONE);
-            journeyTempStart.setText(s.startMs > 0 ? formatClock(s.startMs) : "");
-            journeyAction.setText(R.string.valet_start);
+            Number nowT = cachedNumber("telemetry.outside_temp");
+            parkedTemp.setValues(trail.min(), trail.max(), nowT == null ? Float.NaN : nowT.floatValue());
         }
         if (!lastJourneyAvailable) { lastJourneyAvailable = true; repackColumns(); }
     }

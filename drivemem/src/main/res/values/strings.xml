@@ -531,6 +531,5 @@
     <string name="int_status_on">On</string>
     <string name="obd_live_header">Live data</string>
     <string name="obd_compare_can">Compare with CAN</string>
-    <string name="parked_stat_outside_temp">Outside temp.</string>
-    <string name="parked_axis_now">now</string>
+    <string name="valet_short">Valet</string>
 </resources>
