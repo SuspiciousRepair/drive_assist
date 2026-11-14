@@ -347,16 +347,12 @@
     <string name="cam_right">Direita</string>
     <string name="cam_orbit">Girar</string>
     <!-- histórico de carga -->
-    <string name="cfg_nav_charge">Carga</string>
-    <string name="charge_title">Histórico de carga</string>
-    <string name="charge_summary">%1$d carregamentos · %2$.1f kWh no total</string>
     <string name="charge_ltm_title">Últimos 12 meses</string>
     <string name="charge_period_30d">Últimos 30 dias</string>
     <string name="charge_ltm_count_label">carregamentos</string>
     <string name="charge_row_subtitle">SoC %1$d%%→%2$d%% · %3$.1f kWh · %4$.1f kW</string>
     <string name="charge_none">Nenhuma sessão de carga registrada ainda.</string>
     <!-- estatísticas -->
-    <string name="cfg_nav_stats">Estatísticas</string>
     <string name="stats_title">Estatísticas de condução</string>
     <string name="stats_driving_header">Esta semana</string>
     <string name="stats_trips_label">viagens</string>

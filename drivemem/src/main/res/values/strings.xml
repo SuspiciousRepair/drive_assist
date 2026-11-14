@@ -362,16 +362,12 @@
     <string name="cam_right">Right</string>
     <string name="cam_orbit">Orbit</string>
     <!-- charging history -->
-    <string name="cfg_nav_charge">Charging</string>
-    <string name="charge_title">Charging history</string>
-    <string name="charge_summary">%1$d charge(s) · %2$.1f kWh total</string>
     <string name="charge_ltm_title">Last 12 months</string>
     <string name="charge_period_30d">Last 30 days</string>
     <string name="charge_ltm_count_label">charges</string>
     <string name="charge_row_subtitle">SoC %1$d%%→%2$d%% · %3$.1f kWh · %4$.1f kW</string>
     <string name="charge_none">No charging session recorded yet.</string>
     <!-- stats -->
-    <string name="cfg_nav_stats">Stats</string>
     <string name="stats_title">Driving stats</string>
     <string name="stats_driving_header">This week</string>
     <string name="stats_trips_label">trips</string>

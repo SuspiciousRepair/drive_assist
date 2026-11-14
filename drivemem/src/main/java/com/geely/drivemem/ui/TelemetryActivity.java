@@ -82,10 +82,9 @@ public class TelemetryActivity extends Activity {
     // is always there to leave by — which is why this one needs no back button
     // while a standalone Activity did.
     private static final int SEC_CLIPS = 5;
-    // Charging session history — same "appended, never renumbered" rule.
-    private static final int SEC_CHARGE = 6;
-    // Driving + charging stats at a glance — same rule again.
-    private static final int SEC_STATS = 7;
+    // 6 and 7 were Charging and Stats. Both moved to the main screen's dock
+    // and their sections were removed — the numbers stay retired, never
+    // reused, by the same "never renumbered" rule.
     // OBD2 dongle + ABRP upload — same rule again.
     private static final int SEC_OBD = 8;
     // Pulled out of buildMqtt(), where it used to just be appended at the
@@ -101,7 +100,6 @@ public class TelemetryActivity extends Activity {
     private static final int REQ_CODE_PICK_CERT = 4201;  // used by mqttSection file picker
     private TelemetrySpotifySection spotifySection;
     private TelemetryClipsSection clipsSection;
-    private TelemetryChargeSection chargeSection;
     private TelemetryDriveSection driveSection;
     private TelemetryObdSection obdSection;
     private TelemetrySystemSection systemSection;
@@ -297,10 +295,6 @@ public class TelemetryActivity extends Activity {
             case SEC_CLIPS:
                 clipsSection = new TelemetryClipsSection(this, () -> selectSection(SEC_CLIPS));
                 content.addView(clipsSection);
-                break;
-            case SEC_CHARGE:
-                chargeSection = new TelemetryChargeSection(this);
-                content.addView(chargeSection);
                 break;
             case SEC_OBD:
                 obdSection = new TelemetryObdSection(this);
