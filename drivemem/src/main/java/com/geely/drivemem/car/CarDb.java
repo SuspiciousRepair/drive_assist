@@ -32,7 +32,7 @@ public final class CarDb extends SQLiteOpenHelper {
     // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
     // every write failed until this was bumped past 14. See the v15 entry in
     // onUpgrade below for what v15 itself actually does.
-    private static final int VERSION = 25;
+    private static final int VERSION = 26;
 
     /** SQL predicate for telemetry rows representing driving: gear is not Park (4),
      * or if gear is missing, car is not charging. */
@@ -123,7 +123,8 @@ public final class CarDb extends SQLiteOpenHelper {
             + "energy_net_kwh REAL,"
             + "battery_temp_c REAL,"
             + "energy_measured INTEGER,"
-            + "energy_spent_est_kwh REAL, energy_regen_est_kwh REAL)");
+            + "energy_spent_est_kwh REAL, energy_regen_est_kwh REAL,"
+            + "climate_kw REAL)");
         db.execSQL("CREATE INDEX idx_sample_ts ON telemetry_sample(ts_ms)");
         db.execSQL("CREATE INDEX idx_sample_odo ON telemetry_sample(odo_km)");
 
@@ -137,7 +138,8 @@ public final class CarDb extends SQLiteOpenHelper {
             + "samples INTEGER,"
             + "odo_start_km REAL,"
             + "cost REAL,"
-            + "dismissed INTEGER NOT NULL DEFAULT 0)");
+            + "dismissed INTEGER NOT NULL DEFAULT 0,"
+            + "kwh_battery REAL)");
 
         // No daily_odometer table: "odometer for day X" is just the earliest
         // telemetry_sample row that day (see OdoStats.kmSince()/readLog()),
@@ -454,6 +456,14 @@ public final class CarDb extends SQLiteOpenHelper {
         // frozen current and voltage (see ChargeSession.FULL_TAIL_MS). Take
         // that tail out of the charges whose samples are still kept.
         if (oldVersion < 25) removeFrozenFullTail(db);
+        // v26: "Exact energy" (CAN via roadcastd). climate_kw is the climate
+        // system's electrical power; charge_session.kwh_battery is what went
+        // INTO the battery (CAN V x I), next to kwh, which is the wall side.
+        // Both NULL unless the CAN reader was live. Forward-only.
+        if (oldVersion < 26) {
+            db.execSQL("ALTER TABLE telemetry_sample ADD COLUMN climate_kw REAL");
+            db.execSQL("ALTER TABLE charge_session ADD COLUMN kwh_battery REAL");
+        }
     }
 
     // The kWh changes; the R$/kWh does not -- the cost is almost always

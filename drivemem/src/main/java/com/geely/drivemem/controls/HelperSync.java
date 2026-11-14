@@ -29,6 +29,9 @@ public final class HelperSync {
                                      Prefs.RESTORE_AEB, Prefs.RESTORE_AVAS}) {
             i.putExtra(k, Prefs.getRestore(ctx, k));
         }
+        // "Exact energy": modehelper starts/stops roadcastd. Synced on every
+        // watchdog tick, so a helper reinstalled later still learns it.
+        i.putExtra(Prefs.KEY_CAN_ENERGY, Prefs.getCanEnergyEnabled(ctx));
         send(ctx, i);
     }
 

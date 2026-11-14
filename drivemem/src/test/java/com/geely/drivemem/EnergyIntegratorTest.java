@@ -259,4 +259,17 @@ public class EnergyIntegratorTest {
         EnergyIntegrator.WindowSnapshot snap = EnergyIntegrator.drainWindow(20_000, null);
         assertTrue("Window must still reflect parked draw", snap.spentKwh > trip.spentKwh);
     }
+
+    /** A sample from another source starts a new trapezoid: CAN dropping
+     * out and OBD2 taking over is not a power ramp between them. */
+    @Test
+    public void testSourceSwitchDoesNotBridge() {
+        EnergyIntegrator.onPowerReading(10_000, 10.0, EnergyIntegrator.SOURCE_CAN);
+        EnergyIntegrator.onPowerReading(11_000, 10.0, EnergyIntegrator.SOURCE_CAN);
+        EnergyIntegrator.onPowerReading(12_000, 50.0, EnergyIntegrator.SOURCE_OBD2);  // not joined to 11s
+        EnergyIntegrator.onPowerReading(14_000, 50.0, EnergyIntegrator.SOURCE_OBD2);
+        EnergyIntegrator.WindowSnapshot snap = EnergyIntegrator.drainWindow(15_000, null);
+        assertEquals(2, snap.sampleCount);
+        assertEquals(10.0 / 3600.0 + 100.0 / 3600.0, snap.spentKwh, EPSILON);
+    }
 }

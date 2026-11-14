@@ -53,6 +53,18 @@ jobs:
             ./tools/check-pii.sh --base HEAD
           fi
 
+      - name: Build roadcastd (host, compile check)
+        run: HOST=1 ./tools/build-roadcastd.sh
+
+      - name: Build roadcastd (Android arm64)
+        run: ./tools/build-roadcastd.sh
+
+      - name: Upload roadcastd
+        uses: actions/upload-artifact@v4
+        with:
+          name: roadcastd-android-arm64
+          path: build/roadcast/android-arm64-api28/roadcastd
+
       - name: Verify tests, reports, and release assembly
         run: ./tools/verify.sh
 

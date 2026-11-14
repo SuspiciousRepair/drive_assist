@@ -493,4 +493,7 @@
     <string name="backup_pw_enter_title">รหัสผ่านข้อมูลสำรอง</string>
     <string name="backup_pw_enter_msg">พิมพ์รหัสผ่านของข้อมูลสำรองจาก %1$s</string>
     <string name="backup_pw_wrong">รหัสผ่านไม่ถูกต้อง ลองอีกครั้ง</string>
+    <string name="can_header">พลังงานที่แม่นยำ (ทดลอง)</string>
+    <string name="can_enable_label">อ่านกำลังไฟแบตเตอรี่จากรถ (CAN)</string>
+    <string name="can_hint">อ่านโวลต์ × แอมป์ของแบตเตอรี่จากตัวรถโดยตรง ไม่ต้องใช้ดองเกิล OBD2 ต้องมีแอป ModeHelper ในการเริ่มตัวอ่าน แอปอาจเปิด ADB สักครู่แล้วปิดอีกครั้ง หากใช้ไม่ได้ แอปจะกลับไปใช้ดองเกิลหรือการประมาณจาก % แบตเตอรี่ ขณะเปิดอยู่ แอปอื่นในรถก็สามารถอ่านข้อมูลรถนี้ได้เช่นกัน</string>
 </resources>

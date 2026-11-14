@@ -13,6 +13,7 @@ import android.content.SharedPreferences;
 
 import com.geely.drivemem.R;
 import com.geely.drivemem.net.AbrpUploader;
+import com.geely.drivemem.sensors.CanEnergyReader;
 import com.geely.drivemem.sensors.Obd2Reader;
 import com.geely.drivemem.util.Style;
 
@@ -80,6 +81,14 @@ public final class TelemetryObdSection extends LinearLayout {
                     ? R.string.obd_status_searching : R.string.obd_status_off));
             }));
         left.addView(ConfigCards.hint(activity, activity.getString(R.string.obd_hint)));
+
+        // "Exact energy": battery V x I from the CAN bus via roadcastd, no
+        // dongle needed. Takes priority over OBD2 when both are on.
+        LinearLayout can = ConfigCards.card(activity, activity.getString(R.string.can_header));
+        ConfigCards.add(leftCol, can);
+        can.addView(Style.toggleRow(activity, activity.getString(R.string.can_enable_label),
+            CanEnergyReader.isEnabled(activity), on -> CanEnergyReader.setEnabled(activity, on)));
+        can.addView(ConfigCards.hint(activity, activity.getString(R.string.can_hint)));
 
         left = ConfigCards.card(activity, activity.getString(R.string.abrp_header));
         ConfigCards.add(leftCol, left);
@@ -170,6 +179,11 @@ public final class TelemetryObdSection extends LinearLayout {
         obdLines.add(fieldLine("Current", Obd2Reader.freshCurrent(600_000), "A"));
         obdLines.add(fieldLine("Power", Obd2Reader.freshPowerKw(600_000), "kW"));
         obdLines.add(fieldLine("Battery temp", Obd2Reader.freshBattTempC(600_000), "°C"));
+        obdLines.add("CAN: " + CanEnergyReader.statusLine());
+        obdLines.add(fieldLine("CAN voltage", CanEnergyReader.freshPackVolts(), "V"));
+        obdLines.add(fieldLine("CAN current", CanEnergyReader.freshPackAmps(), "A"));
+        obdLines.add(fieldLine("CAN power", CanEnergyReader.freshPowerKw(), "kW"));
+        obdLines.add(fieldLine("CAN climate", CanEnergyReader.freshClimateKw(), "kW"));
         setDebugLines(obdFields, obdLines);
     }
 

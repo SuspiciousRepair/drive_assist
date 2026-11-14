@@ -3,6 +3,7 @@ package com.geely.drivemem;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.hvac.ComfortHub;
 import com.geely.drivemem.net.AbrpUploader;
+import com.geely.drivemem.sensors.CanEnergyReader;
 import com.geely.drivemem.sensors.EnergyIntegrator;
 import com.geely.drivemem.sensors.Obd2Reader;
 import com.geely.drivemem.sensors.TelemetryRollup;
@@ -60,6 +61,7 @@ public final class DriveMemApplication extends Application {
         ValetSession.ensureSubscribed(this);
         EnergyIntegrator.ensureSubscribed(this);
         Obd2Reader.ensureStarted(this);   // no-ops unless obd2_enabled is set
+        CanEnergyReader.ensureStarted(this);   // no-ops unless can_energy is set
         AbrpUploader.ensureSubscribed(this);
         CarplayState.ensureSubscribed(this);
     }

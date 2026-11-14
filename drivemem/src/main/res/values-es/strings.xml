@@ -477,4 +477,7 @@
     <string name="backup_pw_enter_title">Contraseña de la copia</string>
     <string name="backup_pw_enter_msg">Escribe la contraseña de la copia de %1$s.</string>
     <string name="backup_pw_wrong">Contraseña incorrecta. Inténtalo de nuevo.</string>
+    <string name="can_header">Energía exacta (experimental)</string>
+    <string name="can_enable_label">Leer la potencia de la batería del coche (CAN)</string>
+    <string name="can_hint">Voltios × amperios exactos de la batería, leídos del propio coche, sin dongle OBD2. Necesita la app ModeHelper. Para iniciar el lector, puede activar ADB unos segundos y desactivarlo de nuevo. Si no funciona, la app vuelve al dongle o a la estimación por el % de batería. Mientras esté activado, otras apps del coche también pueden leer estos datos del coche.</string>
 </resources>
