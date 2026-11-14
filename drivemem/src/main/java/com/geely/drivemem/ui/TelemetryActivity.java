@@ -18,7 +18,6 @@ import com.geely.drivemem.net.CertImporter;
 import com.geely.drivemem.net.MqttReporter;
 import com.geely.drivemem.net.MqttTls;
 import com.geely.drivemem.net.Updater;
-import com.geely.drivemem.sensors.Obd2Reader;
 import com.geely.drivemem.services.OutTempService;
 import com.geely.drivemem.services.SocIconService;
 import com.geely.drivemem.services.TelemetryService;
@@ -333,8 +332,16 @@ public class TelemetryActivity extends Activity {
     // See onDestroy() — unsubscribed there, and re-subscribed fresh each
     // time buildObdListeners() runs (the section can be rebuilt without the
     // Activity being destroyed, same reason driveListener/regenListener need this).
-    private Obd2Reader.Listener obdListener;
-    private Obd2Reader.Listener obdDebugListener;
+    // One hub listener (CLAUDE.md rule 7) for the OBD/CAN panel: status and
+    // values both come from the hub's obd.*, can.* and energy.* keys.
+    private com.geely.drivemem.car.EntityBus.Listener energyHubListener;
+    private static String[] energyPanelKeys() {
+        java.util.List<String> k = new java.util.ArrayList<>();
+        java.util.Collections.addAll(k, com.geely.drivemem.sensors.ObdHub.KEYS);
+        java.util.Collections.addAll(k, com.geely.drivemem.sensors.CanHub.KEYS);
+        k.add(com.geely.drivemem.sensors.EnergyHub.SOURCE);
+        return k.toArray(new String[0]);
+    }
     private AbrpUploader.Listener abrpDebugListener;
 
     // Subscribe listeners for the OBD section — UI building happens in
@@ -342,26 +349,18 @@ public class TelemetryActivity extends Activity {
     private void buildObdListeners() {
         if (obdSection == null) return;  // Section not created (shouldn't happen)
 
-        // OBD status listener: updates when connection state changes
-        if (obdListener != null) Obd2Reader.unsubscribe(obdListener);
-        obdListener = connected -> runOnUiThread(() -> {
-            boolean enabled = Prefs.getObd2Enabled(this);
-            obdSection.updateObdStatus(this, enabled);
+        // OBD/CAN status and values: refreshed from the hub. EntityBus
+        // delivers on the car thread and only on change (at most every 2 s
+        // per key), so this costs the hub almost nothing.
+        if (energyHubListener != null) {
+            for (String k : energyPanelKeys()) com.geely.drivemem.car.EntityBus.unsubscribe(k, energyHubListener);
+        }
+        energyHubListener = (key, reading) -> runOnUiThread(() -> {
+            obdSection.updateObdStatus(this, Prefs.getObd2Enabled(this));
+            obdSection.updateObdDisplay();
         });
-        Obd2Reader.subscribe(obdListener);
+        for (String k : energyPanelKeys()) com.geely.drivemem.car.EntityBus.subscribe(k, energyHubListener);
         obdSection.updateObdStatus(this, Prefs.getObd2Enabled(this));
-
-        // OBD debug display listener: updates when OBD data changes
-        if (obdDebugListener != null) Obd2Reader.unsubscribe(obdDebugListener);
-        obdDebugListener = new Obd2Reader.Listener() {
-            @Override public void onObd2ConnectedChanged(boolean connected) {
-                runOnUiThread(obdSection::updateObdDisplay);
-            }
-            @Override public void onObd2Reading(Obd2Reader.Reading r) {
-                runOnUiThread(obdSection::updateObdDisplay);
-            }
-        };
-        Obd2Reader.subscribe(obdDebugListener);
 
         // ABRP debug display listener: updates when ABRP data changes
         if (abrpDebugListener != null) AbrpUploader.unsubscribe(abrpDebugListener);
@@ -497,8 +496,9 @@ public class TelemetryActivity extends Activity {
             EntityBus.unsubscribe("car.drive_mode", driveListener);
             EntityBus.unsubscribe("car.regen_mode", regenListener);
         }
-        if (obdListener != null) Obd2Reader.unsubscribe(obdListener);
-        if (obdDebugListener != null) Obd2Reader.unsubscribe(obdDebugListener);
+        if (energyHubListener != null) {
+            for (String k : energyPanelKeys()) com.geely.drivemem.car.EntityBus.unsubscribe(k, energyHubListener);
+        }
         if (abrpDebugListener != null) AbrpUploader.unsubscribe(abrpDebugListener);
     }
 }

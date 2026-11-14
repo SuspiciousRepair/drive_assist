@@ -153,6 +153,7 @@ Full architectural documentation and reverse-engineering guides are located in t
 - [Contributing Guidelines](CONTRIBUTING.md) — Branching rules (`dev`/`master`), Conventional Commits, and pull request checklist
 - [Changelog](CHANGELOG.md) — Full version history, release notes, and unreleased enhancements
 - [License](LICENSE) — GNU General Public License v3.0 terms
+- [Car data: what is available, and when](docs/HUB-DATA.md) — every hub key, its source, update rate and conditions (CAN, OBD2, VHAL)
 - [Third-party notices and credits](THIRD-PARTY-NOTICES.md) — roadcast and Capy by Timoteo Sousa, libuv
 
 ### Engineering References

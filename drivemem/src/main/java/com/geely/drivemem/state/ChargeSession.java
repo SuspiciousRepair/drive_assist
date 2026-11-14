@@ -227,7 +227,8 @@ public final class ChargeSession {
     private static long fullSinceMonoMs = 0;   // when the battery first read 100%, 0 if not full
     private static int socStart = -1, socEnd = -1;
     private static double whAccum = 0;   // running energy, Wh
-    // Battery side of the same charge, from CAN pack V x I ("Exact energy").
+    // Battery side of the same charge, from measured pack V x I (CAN, or the
+    // OBD2 dongle when CAN is off; EnergyHub picks).
     // whAccum is the port/wall side (charge_a x charge_v); the difference is
     // charger loss. Only counted on ticks where the CAN reader was live, so
     // battSamples == 0 means "unknown", stored as NULL, never as 0 kWh.
@@ -578,7 +579,9 @@ public final class ChargeSession {
             sampleCount++;
         }
         // Negative pack power = into the battery. Fresh = within the last 3 s.
-        Float packKw = com.geely.drivemem.sensors.CanEnergyReader.freshPowerKw();
+        // Measured pack power from the hub (CLAUDE.md rule 7): CAN if live,
+        // else the OBD2 dongle -- both measure the battery side. <= 2 s old.
+        Float packKw = com.geely.drivemem.sensors.EnergyHub.get(com.geely.drivemem.sensors.EnergyHub.POWER_KW);
         if (packKw != null && lastSampleMonoMs != 0 && !frozenTail) {
             double hours = (nowMono - lastSampleMonoMs) / 3_600_000.0;
             if (packKw < 0) battWhAccum += -packKw * 1000.0 * hours;

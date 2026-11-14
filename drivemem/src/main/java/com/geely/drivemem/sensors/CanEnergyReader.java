@@ -69,6 +69,8 @@ public final class CanEnergyReader {
     public static synchronized void ensureStarted(Context ctx) {
         if (!Prefs.getCanEnergyEnabled(ctx)) return;
         wanted = true;
+        // Hub first (CLAUDE.md rule 7): consumers read the can.* keys.
+        CanHub.register(com.geely.drivemem.car.CarActor.get(ctx));
         if (thread != null && thread.isAlive()) return;
         Thread t = new Thread(CanEnergyReader::loop, "can-energy");
         t.setDaemon(true);
@@ -84,6 +86,7 @@ public final class CanEnergyReader {
         POWER.reset();
         status = "off";
         statusDetail = null;
+        CanHub.unregister(com.geely.drivemem.car.CarActor.get());
     }
 
     private static void loop() {
@@ -157,12 +160,17 @@ public final class CanEnergyReader {
 
     private static long now() { return SystemClock.elapsedRealtime(); }
 
+    /** For the fast path (EnergyIntegrator's OBD2 gate). Everyone else reads
+     * the hub: CanHub's can.* keys. */
     public static boolean isLive() { return POWER.live(now()); }
-    public static Float freshPowerKw() { return f(POWER.powerKw(now())); }
-    public static Float freshPackVolts() { return f(POWER.packVolts(now())); }
-    public static Float freshPackAmps() { return f(POWER.packAmps(now())); }
-    public static Float freshClimateKw() { return f(POWER.climateKw(now())); }
-    public static Float freshChargerInputW() { return f(POWER.chargerInputW(now())); }
+    // Package-private on purpose: only CanHub reads these. Consumers use the
+    // hub (CanHub.get), per CLAUDE.md rule 7.
+    static Float freshPowerKw() { return f(POWER.powerKw(now())); }
+    static Float freshPackVolts() { return f(POWER.packVolts(now())); }
+    static Float freshPackAmps() { return f(POWER.packAmps(now())); }
+    static Float freshClimateKw() { return f(POWER.climateKw(now())); }
+    static Float freshDriveKw() { return f(POWER.driveKw(now())); }
+    static Float freshChargerInputW() { return f(POWER.chargerInputW(now())); }
 
     private static Float f(Double d) { return d == null ? null : d.floatValue(); }
 

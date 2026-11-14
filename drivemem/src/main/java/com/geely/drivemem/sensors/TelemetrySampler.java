@@ -72,7 +72,7 @@ public final class TelemetrySampler {
         // dongle (Obd2Reader), not any VHAL property -- null (and the column
         // stays empty) whenever the dongle isn't connected or enabled. 30s
         // freshness is generous next to the dongle's own ~2s reading cadence.
-        Float battTempC = Obd2Reader.freshBattTempC(30_000);
+        Float battTempC = ObdHub.get(ObdHub.BATT_TEMP_C);   // from the hub, rule 7
         if (battTempC != null) v.put("battery_temp_c", battTempC);
         // drive/battery/other_energy_pct: left NULL for now — not yet a
         // tracked telemetry field (see field-catalog.md's open question on
