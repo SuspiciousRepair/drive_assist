@@ -129,4 +129,30 @@ public final class DrivingConsumption {
         if (netKwh > 0) return netKwh / distanceKm * 100.0;
         return spentKwh > 0 ? spentKwh / distanceKm * 100.0 : 0;
     }
+
+    /** Nameplate pack energy, same value ChargeSession uses for time-to-full. */
+    public static final double PACK_KWH = 39.6;
+    /** Below this, one SoC percent (~0.4 kWh) swamps the result. */
+    public static final double CHARGE_BASED_MIN_KM = 50;
+
+    /** Consumption over a period from charging alone, for when there is no
+     * driving energy (no OBD2 and no SoC estimate): energy that went in
+     * (charge kWh, measured by the car's own charge current x voltage, no
+     * dongle needed) plus the net battery drop across the period, over the
+     * distance driven. The SoC term is what makes the period's edges line up:
+     * without it a charge on Monday for last week's driving would be counted
+     * against this week. It also counts energy used while parked (A/C, idle
+     * drain), so it reads a bit higher than driving-only figures -- the card
+     * labels it as charge-based. Returns 0 when it can't be trusted. */
+    public static double chargeBasedKwh100km(double distanceKm, double chargeKwh,
+                                             int firstBatteryPct, int lastBatteryPct) {
+        if (distanceKm < CHARGE_BASED_MIN_KM) return 0;
+        if (firstBatteryPct < 0 || lastBatteryPct < 0) return 0;
+        double usedKwh = chargeKwh + (firstBatteryPct - lastBatteryPct) / 100.0 * PACK_KWH;
+        if (usedKwh <= 0) return 0;
+        double v = usedKwh / distanceKm * 100.0;
+        // An EX2 can't sustain these; outside them the inputs are broken
+        // (missed charge, odometer jump), not the driving.
+        return (v >= 5 && v <= 40) ? v : 0;
+    }
 }
