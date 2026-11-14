@@ -325,13 +325,14 @@ public class ComfortActivity extends Activity {
         // must never move with the card layout. A plain fixed overlay on
         // `screen`, outside `band`'s scrolling row entirely, on purpose: it
         // does not scroll, does not track any card's position, and simply
-        // sits on top of whatever's physically there (the art, ordinarily).
-        // Known, accepted tradeoff: if a rare 4th+ overflow column ever
-        // scrolled a REAL card underneath this zone, this would swallow
-        // taps meant for it — not handled, because it cannot happen with
-        // today's card set and handling a case nobody has hit yet is not
-        // worth the complexity (see this project's own house rule against
-        // that). Only offered outside Noturno; there is nowhere to go from
+        // sits on top of whatever's physically there.
+        // It only WATCHES taps, it never takes them: KonamiView counts each
+        // ACTION_DOWN and declines it, so the tap still reaches the card
+        // underneath. When the cards fill the right third (enough of them
+        // enabled), a consuming pad here made their buttons dead. It can't
+        // go below `band` instead -- band's HorizontalScrollView claims every
+        // ACTION_DOWN, even on empty space, so the pad would never see one.
+        // Only offered outside Noturno; there is nowhere to go from
         // there, and it is not installed at all, so a second run is
         // impossible.
         if (Style.ART != Style.ART_VAPOR) {

@@ -18,10 +18,14 @@ import android.view.View;
  * a new direction requires movement. Each tap is measured relative to the previous tap,
  * not from a fixed origin.
  *
- * Layout: positioned as the lowest child of rightPanel so it sits beneath the HA card
- * but above full-bleed art. Touch is dispatched top-first; when HA card is showing,
- * it consumes touches and the gesture detector is inert. Wrong taps restart from that
- * point, allowing correction mid-sequence. Incomplete sequences timeout after RESET_MS.
+ * Layout: a fixed overlay on the right third of the screen, ABOVE the cards. It only
+ * watches: every ACTION_DOWN is counted and then declined (onTouchEvent returns false),
+ * so the same tap falls through to whatever card or button is underneath. It used to
+ * consume the tap, and once the cards filled the right third their buttons went dead.
+ * It cannot simply sit below the cards instead: the cards' HorizontalScrollView claims
+ * every ACTION_DOWN, even on empty space, so nothing below it would ever see a tap.
+ * Wrong taps restart from that point, allowing correction mid-sequence. Incomplete
+ * sequences timeout after RESET_MS.
  */
 public class KonamiView extends View {
     private static final int UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3;
@@ -70,16 +74,21 @@ public class KonamiView extends View {
         minMove = Math.max(floorPx, MIN_MOVE_FRAC * Math.min(w, h));
     }
 
+    // Watch, never consume: returning false on ACTION_DOWN hands the tap to the
+    // view underneath (a card button), and keeps the rest of the gesture away
+    // from us -- only the DOWN is needed to count a tap.
     @Override public boolean onTouchEvent(MotionEvent e) {
-        if (e.getActionMasked() != MotionEvent.ACTION_DOWN) return true;
+        if (e.getActionMasked() == MotionEvent.ACTION_DOWN) tap(e.getX(), e.getY());
+        return false;
+    }
 
+    private void tap(float x, float y) {
         // Use timestamp-based reset instead of postDelayed (simpler lifecycle).
         long now = SystemClock.uptimeMillis();
         if (now - lastTap > RESET_MS) idx = 0;
         lastTap = now;
 
-        float x = e.getX(), y = e.getY();
-        if (idx == 0) { mark(x, y); return true; }      // tap 1: free, sets the mark
+        if (idx == 0) { mark(x, y); return; }      // tap 1: free, sets the mark
 
         float dx = x - ax, dy = y - ay;
         float adx = Math.abs(dx), ady = Math.abs(dy);
@@ -87,14 +96,14 @@ public class KonamiView extends View {
 
         if (SEQ[idx] == SEQ[idx - 1]) {
             // Repeat: no travel required for same direction.
-            if (travelled) { mark(x, y); return true; }
+            if (travelled) { mark(x, y); return; }
         } else {
             // Direction change: travel is required.
-            if (!travelled) { mark(x, y); return true; }
+            if (!travelled) { mark(x, y); return; }
             // Too diagonal: unclear which axis was intended. Restart from here.
-            if (Math.max(adx, ady) < DOMINANCE * Math.min(adx, ady)) { mark(x, y); return true; }
+            if (Math.max(adx, ady) < DOMINANCE * Math.min(adx, ady)) { mark(x, y); return; }
             int dir = adx > ady ? (dx > 0 ? RIGHT : LEFT) : (dy > 0 ? DOWN : UP);
-            if (dir != SEQ[idx]) { mark(x, y); return true; }
+            if (dir != SEQ[idx]) { mark(x, y); return; }
         }
         // Mark moves on every accepted tap, including repeats.
         ax = x; ay = y;
@@ -104,7 +113,6 @@ public class KonamiView extends View {
         flash(x, y, idx);
 
         if (idx == SEQ.length) { idx = 0; onUnlock.run(); }
-        return true;
     }
 
     // Restart from here: this tap becomes tap 1.
