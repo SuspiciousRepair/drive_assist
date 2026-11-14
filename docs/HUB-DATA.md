@@ -126,6 +126,11 @@ except the SoC-based driving energy, which is marked "estimated".
   `CANEXPLORE --ei minutes N`) records raw CAN frame changes next to hub
   reference values, to find unnamed bits. Nothing consumes it; analyse with
   `tools/can-explore-analyze.py`.
+- `tools/canrec` is the same recorder **outside the app**: a root process
+  (`app_process`) that app installs and ADB off do not stop. Start it with
+  `tools/canrec/canrec.sh start MINUTES`. Its files are in
+  `/data/local/tmp/drive_assist/canrec/` and have no dongle values; give the
+  analyser the dongle log with `--obd2 obd2-reading.log`.
 
 ## 5. What is saved on the car
 

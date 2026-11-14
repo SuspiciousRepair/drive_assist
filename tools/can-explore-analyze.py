@@ -3,6 +3,11 @@
 reference value (default: the OBD2 dongle's battery temperature).
 
     tools/can-explore-analyze.py can-explore-*.tsv [--ref obd.batt_temp_c] [--top 25]
+        [--obd2 obd2-reading.log]
+
+--obd2 adds the dongle's readings (drivemem's files/obd2-reading.log) as
+reference values, by time. The standalone recorder (tools/canrec) needs it:
+it runs outside the app, so its files have no dongle values.
 
 The recording (drivemem CanExplorer) has two kinds of lines:
   F <wall_ms> <can_id> <state> <16 hex>   a frame's 8 bytes changed
@@ -51,6 +56,34 @@ def load(paths):
     return frames, refs
 
 
+OBD2_KEYS = ("obd.soc", "obd.pack_v", "obd.pack_a", "obd.power_kw", "obd.batt_temp_c")
+
+
+def load_obd2(path, tz_hours):
+    """obd2-reading.log: wall (local time), soc, voltage, current, powerKw,
+    battTempC, speedKmh, tab-separated. Returns [(wall_ms, {key: float})]."""
+    from datetime import datetime, timedelta, timezone
+    tz = timezone(timedelta(hours=tz_hours))
+    out = []
+    with open(path) as f:
+        for line in f:
+            p = line.rstrip("\n").split("\t")
+            if len(p) < 6 or p[0] == "wall":
+                continue
+            try:
+                t = datetime.strptime(p[0], "%Y-%m-%d %H:%M:%S").replace(tzinfo=tz)
+            except ValueError:
+                continue
+            vals = {}
+            for k, v in zip(OBD2_KEYS, p[1:6]):
+                try:
+                    vals[k] = float(v)
+                except ValueError:
+                    pass
+            out.append((int(t.timestamp() * 1000), vals))
+    return out
+
+
 def pearson(xs, ys):
     n = len(xs)
     mx, my = sum(xs) / n, sum(ys) / n
@@ -77,9 +110,16 @@ def main():
     ap.add_argument("--ref", default="obd.batt_temp_c")
     ap.add_argument("--top", type=int, default=25)
     ap.add_argument("--min-points", type=int, default=30)
+    ap.add_argument("--obd2", help="drivemem obd2-reading.log to join by time")
+    ap.add_argument("--tz", type=float, default=-3, help="obd2 log's UTC offset, hours (car: -3)")
     a = ap.parse_args()
 
     frames, refs = load(a.files)
+    if a.obd2:
+        t0 = min(t for seq in frames.values() for t, _ in seq)
+        t1 = max(t for seq in frames.values() for t, _ in seq)
+        refs = sorted(refs + [r for r in load_obd2(a.obd2, a.tz) if t0 <= r[0] <= t1],
+                      key=lambda x: x[0])
     pts = [(t, v[a.ref]) for t, v in refs if a.ref in v]
     if len(pts) < a.min_points:
         sys.exit(f"only {len(pts)} reference points for {a.ref}; need {a.min_points}")
