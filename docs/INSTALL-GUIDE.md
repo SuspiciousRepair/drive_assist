@@ -443,42 +443,62 @@ Typing long passwords, MQTT URLs, and private tokens on a vehicle touchscreen is
 
 ---
 
-## 💾 Backup & Restore (`car-backup.sh`)
+## 💾 Backup & Restore
 
-A workshop visit or a factory reset wipes Drive Assist: settings, the MQTT
-client certificate, and every trip. Take a backup before the car goes in, and
-restore it when the car comes back.
+A workshop visit, a factory reset, or deleting the app wipes Drive Assist:
+settings, MQTT certificates, and every trip. The app keeps its own backup,
+so you can get all of it back without a computer.
+
+**Where:** Settings (gear) → **System** → **Backup**.
+
+- **Back up now** writes one backup folder to the **USB stick** and to the
+  **car storage**.
+- The app also backs up **by itself once a day**, while the car is in P. It
+  keeps the 7 newest backups in each place.
+- **Restore** lists the backups it finds. Pick one.
+
+**After you install the app again**, it finds the newest backup by itself
+and asks *"Restore your backup?"*. Press **Restore**.
+
+Which backup survives what:
+
+| Backup on | Delete the app | Workshop reset |
+| --- | --- | --- |
+| Car storage | ✅ stays | ❌ erased |
+| USB stick | ✅ stays | ✅ stays (keep the stick in the car) |
+
+**What a backup is:** one plain folder, `Drive Assist/Backups/<date>/`.
+
+| File | What it holds |
+| --- | --- |
+| `settings.json` | Your settings, readable text: MQTT, ABRP, Spotify, top bar icons, theme, drive modes, dashcam, OBD2 |
+| `car.db` | Trips, charges and telemetry (SQLite) |
+| `mqtt_client.p12`, `mqtt_ca.crt` | MQTT certificates, if you use them |
+
+**What a restore does:**
+
+1. Your settings change to the ones in the backup.
+2. The trips in the backup are **added** to the trips on the car, so trips
+   you drove after the wipe stay too. A trip is never added twice: if the
+   car already has the trips of that backup, the trips are skipped.
+3. The app restarts.
+
+A backup from an older app version is updated to the current database
+format first. A backup from a newer app version is refused: update the app
+first. Restore runs only in P. Dashcam clips are not in the backup. Export
+them to USB.
+
+**From a computer (optional):** `tools/car-backup.sh` runs the same backup
+over ADB and also keeps the two APKs:
 
 ```bash
-# Back up (one dated folder in ~/drive-assist-backups/)
-./tools/car-backup.sh <CAR_IP>
-
-# Restore, after the ADB patch is back on (see GUIA-ADB-IHU629G.md)
-./tools/car-backup.sh --restore ~/drive-assist-backups/<DATE> <CAR_IP>
+./tools/car-backup.sh <CAR_IP>                                  # to ~/drive-assist-backups/<date>/
+./tools/car-backup.sh --restore ~/drive-assist-backups/<date> <CAR_IP>
 ```
-
-The folder holds the settings, the client certificate, the trip database
-(`car.db`), and the exact APKs that wrote them. A restore onto a wiped car
-installs those APKs first, then the data, and then checks that MQTT connects.
-An app that is already installed is kept as it is. The backup does not
-include dashcam clips. Export those to USB.
-
-**Car already used after the wipe?** A plain restore would erase the new
-trips. Merge them instead. Pull the current `car.db` (with its `-wal` and
-`-shm`), then run:
-
-```bash
-python3 -I tools/merge-car-db.py OLD/car.db CURRENT/car.db merged.db
-```
-
-The old rows keep their ids. The new rows move up after them, with their
-links to samples, trips and charge sessions. Push `merged.db` back as
-`car.db` while the app is stopped. Delete the old `-wal` and `-shm`, and fix
-the owner and label as the restore step does.
 
 > [!WARNING]
-> The backup contains your MQTT password, client certificate and API tokens.
-> Keep it private. The folder is created readable only by you.
+> `settings.json` contains your MQTT password and your ABRP and Spotify keys.
+> Keep the USB stick and the backup folders private.
 
 ---
 

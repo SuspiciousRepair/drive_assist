@@ -3,10 +3,12 @@
 ## [Unreleased]
 
 ### Added
-- **Backup and restore for a wiped car.** `tools/car-backup.sh` saves the
-  settings, the MQTT client certificate, the trip database and the installed
-  APKs into one dated folder. `--restore` puts all of it back on a wiped car
-  and checks that MQTT connects.
+- **Backup and restore in the app.** Settings → System → Backup. One plain
+  folder (`settings.json`, `car.db`, MQTT certificates) goes to the USB stick
+  and to the car storage, by hand or by itself once a day in P. After a
+  reinstall the app offers the newest backup. A restore puts the settings
+  back and adds the backup's trips to the ones on the car, never twice.
+  `tools/car-backup.sh` drives the same backup over ADB and keeps the APKs.
 
 ## [v0.4.10] — 2026-11-09
 

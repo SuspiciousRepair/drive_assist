@@ -439,4 +439,29 @@
     <!-- daily stats day navigator -->
     <string name="daily_stats_prev_day">Anterior</string>
     <string name="daily_stats_next_day">Siguiente</string>
+
+    <!-- Backup and restore (AppBackup, BackupDialogs) -->
+    <string name="backup_header">Copia de seguridad</string>
+    <string name="backup_info">Guarda tus ajustes, viajes y certificados MQTT en el pendrive y en la memoria del auto. También se ejecuta sola una vez al día, en P. La copia en la memoria del auto se conserva si borras la app. La copia en el pendrive se conserva también tras un reinicio en el taller.</string>
+    <string name="backup_last">Última copia: %1$s</string>
+    <string name="backup_none">Aún no hay copias</string>
+    <string name="backup_none_found">No se encontró ninguna copia. Conecta el pendrive que tiene la carpeta \"Drive Assist/Backups\".</string>
+    <string name="backup_where_usb">pendrive</string>
+    <string name="backup_where_car">memoria del auto</string>
+    <string name="backup_now">Copiar ahora</string>
+    <string name="backup_restore">Restaurar</string>
+    <string name="backup_running">Copiando…</string>
+    <string name="backup_ok">Copia guardada: %1$s</string>
+    <string name="backup_failed">Error en la copia: %1$s</string>
+    <string name="backup_pick_title">Elige una copia</string>
+    <string name="backup_restore_confirm">¿Restaurar la copia de %1$s?\n\nTus ajustes pasan a ser los de la copia. Los viajes de la copia se suman a los del auto. Luego la app se reinicia.</string>
+    <string name="backup_restoring">Restaurando… La app se reinicia.</string>
+    <string name="backup_restore_failed">Error al restaurar. No se cambió nada.\n\n%1$s</string>
+    <string name="backup_park_first">Pon el auto en P primero.</string>
+    <string name="backup_offer_title">¿Restaurar tu copia?</string>
+    <string name="backup_offer_msg">Drive Assist encontró una copia de %1$s.\n\nRecupera tus ajustes, tus viajes y tus certificados MQTT.</string>
+    <string name="backup_offer_no">No, empezar de cero</string>
+    <string name="backup_offer_other">Otra copia…</string>
+    <string name="backup_restored">Copia restaurada: %1$d ajustes, %2$d viajes añadidos.</string>
+    <string name="backup_restored_trips_there">Copia restaurada: %1$d ajustes. Los viajes ya estaban en el auto.</string>
 </resources>

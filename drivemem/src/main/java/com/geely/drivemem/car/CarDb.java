@@ -82,7 +82,19 @@ public final class CarDb extends SQLiteOpenHelper {
         return i;
     }
 
-    private CarDb(Context ctx) { super(ctx, NAME, null, VERSION); }
+    private CarDb(Context ctx) { this(ctx, NAME); }
+    private CarDb(Context ctx, String name) { super(ctx, name, null, VERSION); }
+
+    /** The schema version this build reads and writes. */
+    public static int version() { return VERSION; }
+
+    /** Runs this build's own migrations (onUpgrade) on a copy of an older
+     * car.db, such as a backup being restored, so it has the live schema
+     * before a merge. The caller refuses a copy NEWER than version(). */
+    public static void migrateCopy(Context ctx, java.io.File f) {
+        CarDb h = new CarDb(ctx.getApplicationContext(), f.getAbsolutePath());
+        try { h.getWritableDatabase(); } finally { h.close(); }
+    }
 
     /** Returns the database file path for external access (e.g., USB export). */
     public static java.io.File file(Context ctx) { return ctx.getDatabasePath(NAME); }

@@ -1787,6 +1787,7 @@ public class ComfortActivity extends Activity {
                 try { activeCostDialog.dismiss(); } catch (Throwable ignored) {}
                 activeCostDialog = null;
             }
+            BackupDialogs.dismissOffer();
         } else {
             // SAFELY PARKED: present pending update if one was deferred while driving
             if (pendingUpdate != null && (activeUpdateDialog == null || !activeUpdateDialog.isShowing())) {
@@ -2130,6 +2131,10 @@ public class ComfortActivity extends Activity {
             BootReceiver.scheduleWatchdog(this);
             BootReceiver.ensureAll(this);
         } catch (Throwable t) { android.util.Log.w(CarAccess.TAG, "resume ensure: " + t); }
+        // After a restore: say what came back. After a fresh install: offer
+        // the newest backup once (Park only, closed on leaving Park).
+        try { BackupDialogs.onResume(this); }
+        catch (Throwable t) { android.util.Log.w(CarAccess.TAG, "resume backup: " + t); }
         startCarActorPolls();
         ui.removeCallbacks(rulerPoll);
         ui.post(rulerPoll);

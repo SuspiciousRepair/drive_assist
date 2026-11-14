@@ -455,4 +455,29 @@
     <string name="update_downloading">กำลังดาวน์โหลดการอัปเดต (%1$s) …</string>
     <string name="update_installing">กำลังส่งต่อไปยัง ModeHelper เพื่อติดตั้ง…</string>
     <string name="update_not_parked">สามารถตรวจสอบและติดตั้งการอัปเดตได้เฉพาะขณะจอดรถเท่านั้น</string>
+
+    <!-- Backup and restore (AppBackup, BackupDialogs) -->
+    <string name="backup_header">สำรองข้อมูล</string>
+    <string name="backup_info">บันทึกการตั้งค่า การเดินทาง และใบรับรอง MQTT ลงแฟลชไดรฟ์ USB และหน่วยความจำของรถ และทำงานเองวันละครั้งขณะอยู่ในเกียร์ P ข้อมูลสำรองในหน่วยความจำรถยังอยู่แม้ลบแอป ข้อมูลสำรองในแฟลชไดรฟ์ยังอยู่แม้ศูนย์บริการรีเซ็ตเครื่อง</string>
+    <string name="backup_last">สำรองล่าสุด: %1$s</string>
+    <string name="backup_none">ยังไม่มีข้อมูลสำรอง</string>
+    <string name="backup_none_found">ไม่พบข้อมูลสำรอง เสียบแฟลชไดรฟ์ที่มีโฟลเดอร์ \"Drive Assist/Backups\"</string>
+    <string name="backup_where_usb">แฟลชไดรฟ์ USB</string>
+    <string name="backup_where_car">หน่วยความจำรถ</string>
+    <string name="backup_now">สำรองตอนนี้</string>
+    <string name="backup_restore">กู้คืน</string>
+    <string name="backup_running">กำลังสำรองข้อมูล…</string>
+    <string name="backup_ok">บันทึกข้อมูลสำรองแล้ว: %1$s</string>
+    <string name="backup_failed">สำรองข้อมูลไม่สำเร็จ: %1$s</string>
+    <string name="backup_pick_title">เลือกข้อมูลสำรอง</string>
+    <string name="backup_restore_confirm">กู้คืนข้อมูลสำรองจาก %1$s?\n\nการตั้งค่าจะเปลี่ยนเป็นของข้อมูลสำรอง การเดินทางในข้อมูลสำรองจะถูกเพิ่มเข้ากับการเดินทางในรถ จากนั้นแอปจะเริ่มใหม่</string>
+    <string name="backup_restoring">กำลังกู้คืน… แอปจะเริ่มใหม่</string>
+    <string name="backup_restore_failed">กู้คืนไม่สำเร็จ ไม่มีการเปลี่ยนแปลงใด\n\n%1$s</string>
+    <string name="backup_park_first">เข้าเกียร์ P ก่อน</string>
+    <string name="backup_offer_title">กู้คืนข้อมูลสำรอง?</string>
+    <string name="backup_offer_msg">Drive Assist พบข้อมูลสำรองจาก %1$s\n\nจะนำการตั้งค่า การเดินทาง และใบรับรอง MQTT กลับมา</string>
+    <string name="backup_offer_no">ไม่ เริ่มใหม่</string>
+    <string name="backup_offer_other">ข้อมูลสำรองอื่น…</string>
+    <string name="backup_restored">กู้คืนแล้ว: การตั้งค่า %1$d รายการ เพิ่มการเดินทาง %2$d รายการ</string>
+    <string name="backup_restored_trips_there">กู้คืนแล้ว: การตั้งค่า %1$d รายการ การเดินทางมีอยู่ในรถแล้ว</string>
 </resources>
