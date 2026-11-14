@@ -56,6 +56,9 @@ public class WifiGuardReceiver extends BroadcastReceiver {
     }
 
     /** Starts the WiFi guard check loop. Called once from BootReceiver. */
+    /** True while on the trusted network, where ADB is held on on purpose. */
+    static boolean isActive() { return active; }
+
     static void start(Context ctx) { scheduleNext(ctx.getApplicationContext()); }
 
     private static void scheduleNext(Context ctx) {

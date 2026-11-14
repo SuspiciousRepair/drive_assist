@@ -83,6 +83,14 @@
 
         <!-- adb-only backup/restore (tools/car-backup.sh). DUMP: the shell has it,
              no ordinary app can get it. -->
+        <!-- modehelper reports how the CAN reader (roadcastd) is doing, for
+             Diagnostics. Exported because modehelper is another app; the
+             payload is a status word only, never vehicle data. -->
+        <receiver android:name=".sensors.CanEnergyReader$StatusReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.geely.drivemem.CAN_STATUS" />
+            </intent-filter>
+        </receiver>
         <receiver android:name=".util.BackupReceiver" android:exported="true"
             android:permission="android.permission.DUMP">
             <intent-filter>

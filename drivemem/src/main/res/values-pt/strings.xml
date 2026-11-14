@@ -489,4 +489,7 @@
     <string name="backup_pw_enter_title">Senha do backup</string>
     <string name="backup_pw_enter_msg">Digite a senha do backup de %1$s.</string>
     <string name="backup_pw_wrong">Senha errada. Tente de novo.</string>
+    <string name="can_header">Energia exata (experimental)</string>
+    <string name="can_enable_label">Ler a potência da bateria do carro (CAN)</string>
+    <string name="can_hint">Volts × ampères exatos da bateria, lidos do próprio carro, sem dongle OBD2. Precisa do app ModeHelper. Para iniciar o leitor, pode ligar o ADB por alguns segundos e desligar de novo. Se não funcionar, o app volta para o dongle ou para a estimativa pelo % da bateria.</string>
 </resources>

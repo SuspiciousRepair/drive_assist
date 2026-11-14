@@ -118,6 +118,11 @@ public final class Prefs {
     public static boolean getObd2Enabled(Context ctx) { return file(ctx).getBoolean("obd2_enabled", false); }
     public static void setObd2Enabled(Context ctx, boolean v) { file(ctx).edit().putBoolean("obd2_enabled", v).apply(); }
 
+    // --- Exact energy from CAN (roadcastd, sensors/CanEnergyReader) ---
+    public static final String KEY_CAN_ENERGY = "can_energy";
+    public static boolean getCanEnergyEnabled(Context ctx) { return file(ctx).getBoolean(KEY_CAN_ENERGY, false); }
+    public static void setCanEnergyEnabled(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_CAN_ENERGY, v).apply(); }
+
     // --- Status bar icons ---
     public static boolean getOutTempOn(Context ctx) { return file(ctx).getBoolean("outtemp_on", false); }
     public static void setOutTempOn(Context ctx, boolean v) { file(ctx).edit().putBoolean("outtemp_on", v).apply(); }
@@ -236,6 +241,7 @@ public final class Prefs {
         m.put("parked_monitoring", Boolean.class);
         m.put("dashcam_limit_gb", Integer.class);
         m.put("obd2_enabled", Boolean.class);
+        m.put(KEY_CAN_ENERGY, Boolean.class);
         m.put(KEY_WIFI_KEEP_ON, Boolean.class);
         m.put(KEY_TRUSTED_SSID, String.class);
         m.put(KEY_HOME_GW, String.class);

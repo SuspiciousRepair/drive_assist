@@ -1,6 +1,7 @@
 # Exact energy without a dongle (roadcastd)
 
-Status: plan, 2026-11-14. Nothing built yet.
+Status: phases 1-4 built on `feat/can-energy` (2026-11-14), off by default.
+Phase 0 items that need a drive or a night are still open (see below).
 
 ## Goal
 
@@ -71,13 +72,19 @@ forever to start and watch it. We don't need to.
 
 ## Phase 0, before writing the feature (car day)
 
-- [ ] Socket access under Enforcing: can a normal app (`untrusted_app`)
-      connect to a socket owned by `su`? Can `system_app`? Use a tiny probe
-      APK, because a test from an adb shell runs as `su` and proves nothing.
-- [ ] Can modehelper (`system_app`) open a TCP socket to 127.0.0.1:5555 and
-      get a shell?
-- [ ] CPU and battery cost of roadcastd at 10 Hz and at 60 Hz, parked and
-      driving.
+- [x] Socket access under Enforcing: **a plain `untrusted_app` can connect
+      to `@roadcast` and read it** (probe APK, uid 10033, 2026-11-14). So
+      drivemem reads the daemon directly; no relay through modehelper.
+      `system_app` also works (Capy runs as system; modehelper's probe).
+- [x] Can modehelper (`system_app`) get a shell on 127.0.0.1:5555? Yes:
+      Capy does it as system, and drivemem's own `LocalAdb` already does it
+      from `untrusted_app`. Confirmed end to end by the feature itself.
+- [x] Daemon outlives ADB: started with the `/acct/cgroup.procs` move, it
+      kept its pid while ADB was switched off and adbd restarted.
+- [x] Labels: 111/111 frames resolved on the owner's VHAL.
+- [x] Allow-list (`--allow-uid`) refuses another app's uid on the car.
+- [x] CPU, parked (charging): 0.4 % of one core at 10 Hz, 2.2 % at 60 Hz,
+      RSS 5 MB. We run 10 Hz. Driving: still to measure.
 - [ ] Accuracy: one drive with the OBD2 dongle connected, comparing CAN V×I
       kWh with OBD2 kWh. The owner's car has both.
 - [ ] Suspend: is the daemon still alive and reading after a night in
@@ -103,3 +110,21 @@ forever to start and watch it. We don't need to.
 - **Unauthenticated local adbd is already a hole on this unit.** Any app can
   get root through it whenever ADB is on. This plan does not make that worse,
   but the "Keep ADB always on" switch (PR #28) does.
+
+## What was built (2026-11-14)
+
+- `third_party/roadcast/` (upstream 22153ec) + `--allow-uid` patch;
+  `VENDORED.md` lists every change. Built by `tools/build-roadcastd.sh`
+  (libuv from a pinned, checksummed source tarball, no cmake), in CI by
+  `verify.yml` and `build.yml`, packed into modehelper as an asset.
+- modehelper: `LocalAdbShell` (port of Capy's), `CanReader` (launcher and
+  1-minute watchdog), `CanReaderPolicy` (commands, tested). Binary lives at
+  `/data/local/tmp/drive_assist/roadcastd`, not Capy's path.
+- drivemem: `RoadcastClient` (pure-Java protocol 3), `CanPower`,
+  `CanEnergyReader`; tier CAN > OBD2 > SoC in `EnergyIntegrator` and
+  `Telemetry.tick`; `telemetry_sample.climate_kw` and
+  `charge_session.kwh_battery` (DB v26); switch in Config > OBD2;
+  `CANSTATUS` diagnostic broadcast.
+- Not done: swapping PR #27's 0.90 AC derate for `kwh_battery` (that code
+  is not on `next` yet), the accuracy drive, the suspend night, the driving
+  CPU number.

@@ -504,4 +504,7 @@
     <string name="backup_pw_enter_title">Backup password</string>
     <string name="backup_pw_enter_msg">Type the password of the backup from %1$s.</string>
     <string name="backup_pw_wrong">Wrong password. Try again.</string>
+    <string name="can_header">Exact energy (experimental)</string>
+    <string name="can_enable_label">Read battery power from the car (CAN)</string>
+    <string name="can_hint">Exact battery volts × amps from the car itself, with no OBD2 dongle. It needs the ModeHelper app. To start its reader, it may switch ADB on for a few seconds, then off again. If it does not work, the app falls back to the dongle or to the battery % estimate.</string>
 </resources>
