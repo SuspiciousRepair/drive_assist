@@ -196,6 +196,12 @@
     <string name="cfg_doors_header">ประตู</string>
     <string name="cfg_window_on_door">เปิดกระจกเล็กน้อยเมื่อเปิดประตู</string>
     <string name="cfg_window_on_door_hint">ลดกระจกของประตูนั้นลง ~1 ซม. เพื่อให้ประตูปิดได้โดยไม่ต้องต่อสู้กับห้องโดยสารที่ปิดสนิท และคืนกลับเมื่อประตูปิด มันจะปิดเฉพาะกระจกที่มันเปิดเองเท่านั้น และจะไม่แตะกระจกที่คุณเลื่อนเอง</string>
+    <string name="cfg_lock_sound_header">เสียงล็อกรถ</string>
+    <string name="cfg_lock_sound_car">เสียงของรถ</string>
+    <string name="cfg_lock_sound_fart1">ตด 1</string>
+    <string name="cfg_lock_sound_fart2">ตด 2</string>
+    <string name="cfg_lock_sound_hint">เล่นเมื่อคุณล็อกรถด้วยกุญแจ การเลือกเสียงในการตั้งค่าของรถเองจะแทนที่เสียงนี้ เสียงของรถจะคืนเสียงเดิมที่คุณเคยใช้</string>
+    <string name="cfg_lock_sound_needs_helper">ต้องใช้ ModeHelper เวอร์ชันใหม่กว่า อัปเดตได้ที่ Config &gt; ระบบ</string>
     <string name="cfg_purge_open_header">เป้าหมายปุ่มเปิดกระจกทุกบาน (0–100)</string>
     <string name="cfg_purge_open_hint">กระจกแต่ละบานจะเปิดลงมากแค่ไหนเมื่อกดปุ่มเปิดกระจกทั้งหมด 0 = ปิดสนิท, 100 = เปิดสุด ตัวเลขเดียวกันไม่ได้เปิดกระจกแต่ละบานในระยะจริงเท่ากัน — ปรับแต่ละบานให้ตรงกับสิ่งที่คุณเห็นจริง</string>
     <string name="cfg_purge_open_fl">หน้าซ้าย</string>

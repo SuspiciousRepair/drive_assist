@@ -74,10 +74,13 @@ rm -rf obj *.apk classes.dex; mkdir -p obj
 # and the "Exact energy" switch reports "reader not bundled".
 ASSET_ARGS=()
 if [ -s assets/roadcastd ]; then
-  ASSET_ARGS=(-A assets)
   echo "bundling roadcastd ($(sha256sum assets/roadcastd | cut -c1-16)...)"
 else
   echo "Notice: no assets/roadcastd - building the helper without the CAN reader."
+fi
+# assets/locksound/ (tracked) is always there, so the assets dir is always packed.
+if [ -d assets ] && [ -n "$(ls -A assets)" ]; then
+  ASSET_ARGS=(-A assets)
 fi
 "$BT/aapt2" link -o base.apk -I "$AJ" --manifest "$MANIFEST_BUILD" \
   --min-sdk-version 28 --target-sdk-version 28 "${ASSET_ARGS[@]}"

@@ -150,5 +150,13 @@
                 <action android:name="com.geely.modehelper.BT_PAIR" />
             </intent-filter>
         </receiver>
+        <!-- Lock sound (Config > Doors). Exported for Drive Assist; the id is
+             checked against the bundled sounds, so the worst any other sender
+             can do is pick one of them or give the car its own sound back. -->
+        <receiver android:name=".LockSoundReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.geely.modehelper.SET_LOCK_SOUND" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

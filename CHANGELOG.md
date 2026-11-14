@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Added
+- **Lock sound.** Settings → Doors → Lock sound. Pick the sound the car
+  plays when you lock it with the key: the car's own, or one of two fart
+  sounds. It stays after a restart. Choosing a sound in the car's own
+  Settings replaces it, and the card shows that. Needs the new ModeHelper.
 - **Backup and restore in the app.** Settings → System → Backup. One file
   (settings, trips, MQTT certificates), locked with your backup password
   (AES-256), goes to the USB stick and to the car storage, by hand or by

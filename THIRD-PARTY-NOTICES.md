@@ -37,3 +37,15 @@ exact energy without a dongle.
   in this repo: `tools/build-roadcastd.sh` downloads the official v1.51.0
   source and checks its SHA-256. Its license ships in the helper apk with
   the binary (`assets/licenses/libuv-LICENSE`).
+
+## Lock sounds — by JohnSumisu (Wikimedia Commons)
+
+- `modehelper/assets/locksound/flatulence.wav` — from
+  https://commons.wikimedia.org/wiki/File:Flatulence.wav
+- `modehelper/assets/locksound/flatus.wav` — from
+  https://commons.wikimedia.org/wiki/File:Flatus.wav
+- Both by JohnSumisu, own work. CC BY-SA 3.0
+  (https://creativecommons.org/licenses/by-sa/3.0/).
+- **Changes:** silence trimmed at both ends, cut to 3 s with a short fade
+  out, made louder (loudness normalised), and saved as 44.1 kHz 16-bit mono
+  WAV. These two edited files are shared under the same CC BY-SA 3.0 license.

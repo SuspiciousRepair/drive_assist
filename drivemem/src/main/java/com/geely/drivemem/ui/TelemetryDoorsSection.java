@@ -12,6 +12,7 @@ import android.widget.TextView;
 
 import com.geely.drivemem.R;
 import com.geely.drivemem.controls.DoorWindow;
+import com.geely.drivemem.controls.LockSound;
 import com.geely.drivemem.controls.Purge;
 import com.geely.drivemem.hvac.ComfortHub;
 import com.geely.drivemem.util.Prefs;
@@ -68,6 +69,56 @@ public final class TelemetryDoorsSection extends LinearLayout {
             purgeTargetRow(activity, Purge.AREAS[2], activity.getString(R.string.cfg_purge_open_rl)),
             purgeTargetRow(activity, Purge.AREAS[3], activity.getString(R.string.cfg_purge_open_rr))));
         ConfigCards.add(col, purgeCard);
+
+        ConfigCards.add(col, lockSoundCard(activity));
+    }
+
+    // The sound the car plays when locked with the key. One button per sound,
+    // lit by what the car's setting really says (LockSound.current), not by
+    // what was last tapped here: a pick in the car's own Settings wins, and
+    // this card must show it. Moves nothing, so unlike the rest of the page it
+    // is not a safety question; it only needs modehelper to be new enough.
+    private static LinearLayout lockSoundCard(Activity activity) {
+        LinearLayout card = ConfigCards.card(activity, activity.getString(R.string.cfg_lock_sound_header));
+        String[] ids = {LockSound.CAR, LockSound.SOUNDS[0], LockSound.SOUNDS[1]};
+        String[] labels = {
+            activity.getString(R.string.cfg_lock_sound_car),
+            activity.getString(R.string.cfg_lock_sound_fart1),
+            activity.getString(R.string.cfg_lock_sound_fart2)};
+        boolean supported = LockSound.helperSupports(activity);
+        TextView[] buttons = new TextView[ids.length];
+        android.os.Handler ui = new android.os.Handler(android.os.Looper.getMainLooper());
+
+        LinearLayout row = new LinearLayout(activity);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        String now = LockSound.current(activity);
+        for (int k = 0; k < ids.length; k++) {
+            String id = ids[k];
+            TextView b = Style.cardButton(activity, labels[k], id.equals(now), supported ? () -> {
+                LockSound.set(activity, id);
+                paintLockButtons(activity, buttons, ids, id);
+                // modehelper answers in well under a second; read the car's
+                // setting back so the lit button is the truth, not our hope.
+                ui.postDelayed(() -> paintLockButtons(activity, buttons, ids, LockSound.current(activity)), 1500);
+            } : null);
+            if (!supported) b.setAlpha(0.4f);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            if (k > 0) lp.leftMargin = Style.dp(activity, 10);
+            row.addView(b, lp);
+            buttons[k] = b;
+        }
+        card.addView(row);
+        card.addView(ConfigCards.hint(activity, activity.getString(
+            supported ? R.string.cfg_lock_sound_hint : R.string.cfg_lock_sound_needs_helper)));
+        return card;
+    }
+
+    private static void paintLockButtons(Activity activity, TextView[] buttons, String[] ids, String selected) {
+        for (int k = 0; k < buttons.length; k++) {
+            int fill = ids[k].equals(selected) ? Style.CARD_ON : Style.CARD;
+            buttons[k].setBackground(Style.card(fill, activity));
+            buttons[k].setTextColor(Style.onFill(fill));
+        }
     }
 
     // Front pane on the left, the other side's pane on the right: one row
