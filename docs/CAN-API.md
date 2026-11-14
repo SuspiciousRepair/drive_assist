@@ -1,6 +1,7 @@
 # Car data for other apps (`@roadcast`)
 
-When Drive Assist's **Exact energy** switch is on, the car runs one shared,
+When Drive Assist's **Car data (CAN)** switch is on (the default; it is in
+Settings → System), the car runs one shared,
 read-only CAN reader: [roadcast](https://github.com/Timoteohss/roadcast) by
 Timoteo Sousa (Apache-2.0, vendored unchanged in `third_party/roadcast/`;
 credits in `THIRD-PARTY-NOTICES.md`). **Any app on the head unit

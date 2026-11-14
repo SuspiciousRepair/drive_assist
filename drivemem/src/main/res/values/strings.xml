@@ -90,17 +90,13 @@
     <!-- config -->
     <string name="cfg_title">Settings</string>
     <string name="cfg_nav_doors">Doors</string>
-    <string name="cfg_nav_mqtt">MQTT</string>
     <string name="cfg_nav_drive">Driving mode</string>
     <string name="cfg_nav_bar">Elements</string>
     <string name="cfg_nav_look">Appearance</string>
-    <string name="cfg_nav_spotify">Spotify</string>
     <string name="cfg_nav_system">System</string>
     <!-- sidebar group captions -->
     <string name="cfg_group_car">Car</string>
     <string name="cfg_group_display">Display</string>
-    <string name="cfg_group_integrations">Integrations</string>
-    <string name="cfg_group_system">System</string>
     <string name="cfg_system_header">System</string>
     <string name="cfg_app_info_header">Application info</string>
     <string name="cfg_version_label">Version: %1$s (build %2$d)</string>
@@ -373,8 +369,7 @@
     <string name="stats_trips_label">trips</string>
     <string name="stats_chart_header">Km per day</string>
     <!-- OBD2 + ABRP -->
-    <string name="cfg_nav_obd">OBD2 / ABRP</string>
-    <string name="obd_title">OBD2 dongle and ABRP</string>
+    <string name="obd_title">OBD2 dongle</string>
     <string name="obd_status_connected">Connected — reading real power from the battery</string>
     <string name="obd_status_searching">Looking for the dongle…</string>
     <string name="obd_status_off">Off</string>
@@ -500,9 +495,9 @@
     <string name="backup_pw_enter_title">Backup password</string>
     <string name="backup_pw_enter_msg">Type the password of the backup from %1$s.</string>
     <string name="backup_pw_wrong">Wrong password. Try again.</string>
-    <string name="can_header">Exact energy (experimental)</string>
+    <string name="can_header">Car data (CAN)</string>
     <string name="can_enable_label">Read battery power from the car (CAN)</string>
-    <string name="can_hint">Exact battery volts × amps from the car itself, with no OBD2 dongle. It needs the ModeHelper app. To start its reader, it may switch ADB on for a few seconds, then off again. If it does not work, the app falls back to the dongle or to the battery % estimate. While it is on, other apps on the car can also read this car data.</string>
+    <string name="can_hint">Exact battery volts × amps from the car itself. On by default; nothing to set up. It needs the ModeHelper app. To start its reader, it may switch ADB on for a few seconds, then off again. If it does not work, the app falls back to the dongle or to the battery % estimate. While it is on, other apps on the car can also read this car data.</string>
     <!-- Day session cards (DailyStatsView) -->
     <string name="session_since">since %1$s</string>
     <string name="session_yesterday">yesterday</string>
@@ -518,4 +513,22 @@
     <string name="session_cost_tap">Tap to add</string>
     <string name="session_stat_max_speed">Top speed</string>
     <string name="session_stat_max_power">Peak power</string>
+    <!-- Integrations page (TelemetryIntegrationsSection) -->
+    <string name="cfg_group_app">App</string>
+    <string name="cfg_nav_integrations">Integrations</string>
+    <string name="int_intro">Services and devices Drive Assist talks to. Tap one to set it up.</string>
+    <string name="int_ha_name">Home Assistant</string>
+    <string name="int_ha_desc">Send car data over MQTT and take commands.</string>
+    <string name="int_obd_name">OBD2 dongle</string>
+    <string name="int_obd_desc">Battery power and temperature from a Bluetooth dongle.</string>
+    <string name="int_abrp_name">ABRP</string>
+    <string name="int_abrp_desc">Live data for A Better Route Planner.</string>
+    <string name="int_spotify_name">Spotify</string>
+    <string name="int_spotify_desc">What is playing, on the home screen.</string>
+    <string name="int_status_connected">Connected</string>
+    <string name="int_status_searching">Searching…</string>
+    <string name="int_status_needs_setup">Needs setup</string>
+    <string name="int_status_failing">Failing</string>
+    <string name="int_status_on">On</string>
+    <string name="obd_live_header">Live data</string>
 </resources>

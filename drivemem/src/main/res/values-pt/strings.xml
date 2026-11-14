@@ -78,17 +78,13 @@
     <!-- config -->
     <string name="cfg_title">Config</string>
     <string name="cfg_nav_doors">Portas</string>
-    <string name="cfg_nav_mqtt">MQTT</string>
     <string name="cfg_nav_drive">Modo de Condução</string>
     <string name="cfg_nav_bar">Elementos</string>
     <string name="cfg_nav_look">Aparência</string>
-    <string name="cfg_nav_spotify">Spotify</string>
     <string name="cfg_nav_system">Sistema</string>
     <!-- legendas dos grupos da barra lateral -->
     <string name="cfg_group_car">Carro</string>
     <string name="cfg_group_display">Visual</string>
-    <string name="cfg_group_integrations">Integrações</string>
-    <string name="cfg_group_system">Sistema</string>
     <string name="cfg_system_header">Sistema</string>
     <string name="cfg_app_info_header">Informações do aplicativo</string>
     <string name="cfg_version_label">Versão: %1$s (compilação %2$d)</string>
@@ -358,8 +354,7 @@
     <string name="stats_trips_label">viagens</string>
     <string name="stats_chart_header">km por dia</string>
     <!-- OBD2 + ABRP -->
-    <string name="cfg_nav_obd">OBD2 / ABRP</string>
-    <string name="obd_title">Adaptador OBD2 e ABRP</string>
+    <string name="obd_title">Dongle OBD2</string>
     <string name="obd_status_connected">Conectado — lendo potência real da bateria</string>
     <string name="obd_status_searching">Procurando o adaptador…</string>
     <string name="obd_status_off">Desligado</string>
@@ -485,9 +480,9 @@
     <string name="backup_pw_enter_title">Senha do backup</string>
     <string name="backup_pw_enter_msg">Digite a senha do backup de %1$s.</string>
     <string name="backup_pw_wrong">Senha errada. Tente de novo.</string>
-    <string name="can_header">Energia exata (experimental)</string>
+    <string name="can_header">Dados do carro (CAN)</string>
     <string name="can_enable_label">Ler a potência da bateria do carro (CAN)</string>
-    <string name="can_hint">Volts × ampères exatos da bateria, lidos do próprio carro, sem dongle OBD2. Precisa do app ModeHelper. Para iniciar o leitor, pode ligar o ADB por alguns segundos e desligar de novo. Se não funcionar, o app volta para o dongle ou para a estimativa pelo % da bateria. Enquanto estiver ligado, outros apps no carro também podem ler esses dados do carro.</string>
+    <string name="can_hint">Volts × ampères exatos da bateria, lidos do próprio carro. Ligado por padrão; não há nada para configurar. Precisa do app ModeHelper. Para iniciar o leitor, pode ligar o ADB por alguns segundos e desligar de novo. Se não funcionar, o app volta para o dongle ou para a estimativa pelo % da bateria. Enquanto estiver ligado, outros apps no carro também podem ler esses dados do carro.</string>
     <!-- Cartões de sessão do dia (DailyStatsView) -->
     <string name="session_since">desde %1$s</string>
     <string name="session_yesterday">ontem</string>
@@ -503,4 +498,22 @@
     <string name="session_cost_tap">Toque para informar</string>
     <string name="session_stat_max_speed">Vel. máxima</string>
     <string name="session_stat_max_power">Potência máx.</string>
+    <!-- Integrations page (TelemetryIntegrationsSection) -->
+    <string name="cfg_group_app">App</string>
+    <string name="cfg_nav_integrations">Integrações</string>
+    <string name="int_intro">Serviços e aparelhos com que o Drive Assist conversa. Toque em um para configurar.</string>
+    <string name="int_ha_name">Home Assistant</string>
+    <string name="int_ha_desc">Envia os dados do carro por MQTT e recebe comandos.</string>
+    <string name="int_obd_name">Dongle OBD2</string>
+    <string name="int_obd_desc">Potência e temperatura da bateria por um dongle Bluetooth.</string>
+    <string name="int_abrp_name">ABRP</string>
+    <string name="int_abrp_desc">Dados ao vivo para o A Better Route Planner.</string>
+    <string name="int_spotify_name">Spotify</string>
+    <string name="int_spotify_desc">O que está tocando, na tela inicial.</string>
+    <string name="int_status_connected">Conectado</string>
+    <string name="int_status_searching">Procurando…</string>
+    <string name="int_status_needs_setup">Falta configurar</string>
+    <string name="int_status_failing">Com falha</string>
+    <string name="int_status_on">Ligado</string>
+    <string name="obd_live_header">Dados ao vivo</string>
 </resources>
