@@ -4,8 +4,11 @@
 
 ### Added
 - **Lock sound.** Settings → Doors → Lock sound. Pick the sound the car
-  plays when you lock it with the key: the car's own, or one of two fart
-  sounds. It stays after a restart. Choosing a sound in the car's own
+  plays when you lock it with the key: the car's own, or your own WAV file
+  (1 MB or less). Import it from a USB stick (`LockChime.wav` at the top
+  of the stick, the same name Tesla uses) or from a link. **Fart mode** is
+  one switch: on, the car farts when you lock it; off, your pick comes
+  back. It stays after a restart. Choosing a sound in the car's own
   Settings replaces it, and the card shows that. Needs the new ModeHelper.
 - **Backup and restore in the app.** Settings → System → Backup. One file
   (settings, trips, MQTT certificates), locked with your backup password

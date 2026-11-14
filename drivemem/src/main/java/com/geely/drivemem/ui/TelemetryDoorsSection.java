@@ -1,6 +1,8 @@
 package com.geely.drivemem.ui;
 
 import android.app.Activity;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
@@ -12,6 +14,7 @@ import android.widget.TextView;
 
 import com.geely.drivemem.R;
 import com.geely.drivemem.controls.DoorWindow;
+import com.geely.drivemem.controls.GeelySwitch;
 import com.geely.drivemem.controls.LockSound;
 import com.geely.drivemem.controls.Purge;
 import com.geely.drivemem.hvac.ComfortHub;
@@ -73,52 +76,143 @@ public final class TelemetryDoorsSection extends LinearLayout {
         ConfigCards.add(col, lockSoundCard(activity));
     }
 
-    // The sound the car plays when locked with the key. One button per sound,
-    // lit by what the car's setting really says (LockSound.current), not by
-    // what was last tapped here: a pick in the car's own Settings wins, and
-    // this card must show it. Moves nothing, so unlike the rest of the page it
-    // is not a safety question; it only needs modehelper to be new enough.
+    // The sound the car plays when locked with the key. Everything here is
+    // painted from what the car's setting really says (LockSound.current),
+    // not from what was last tapped: a pick in the car's own Settings wins,
+    // and this card must show it. Moves nothing, so unlike the rest of the
+    // page it is not a safety question; it only needs a new enough modehelper.
+    //
+    // Fart mode is a switch on top of the normal pick: on plays the bundled
+    // fart, off gives back the pick below it (car's sound or the imported one).
     private static LinearLayout lockSoundCard(Activity activity) {
         LinearLayout card = ConfigCards.card(activity, activity.getString(R.string.cfg_lock_sound_header));
-        String[] ids = {LockSound.CAR, LockSound.SOUNDS[0], LockSound.SOUNDS[1]};
-        String[] labels = {
-            activity.getString(R.string.cfg_lock_sound_car),
-            activity.getString(R.string.cfg_lock_sound_fart1),
-            activity.getString(R.string.cfg_lock_sound_fart2)};
         boolean supported = LockSound.helperSupports(activity);
-        TextView[] buttons = new TextView[ids.length];
-        android.os.Handler ui = new android.os.Handler(android.os.Looper.getMainLooper());
+        LockSoundViews v = new LockSoundViews();
+        v.supported = supported;
+        Handler ui = new Handler(Looper.getMainLooper());
+        // modehelper answers in well under a second; read the car's setting
+        // back so the screen is the truth, not our hope.
+        Runnable reread = () -> ui.postDelayed(() -> paintLockSound(activity, v), 1500);
+
+        LinearLayout fartRow = Style.toggleRow(activity, activity.getString(R.string.cfg_lock_sound_fart_mode),
+            LockSound.FART.equals(LockSound.current(activity)), on -> {
+                if (!supported) { paintLockSound(activity, v); return; }
+                LockSound.set(activity, on ? LockSound.FART : LockSound.base(activity));
+                reread.run();
+            });
+        v.fart = (GeelySwitch) fartRow.getChildAt(0);
+        card.addView(fartRow);
 
         LinearLayout row = new LinearLayout(activity);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        String now = LockSound.current(activity);
-        for (int k = 0; k < ids.length; k++) {
-            String id = ids[k];
-            TextView b = Style.cardButton(activity, labels[k], id.equals(now), supported ? () -> {
+        String[] labels = {activity.getString(R.string.cfg_lock_sound_car), activity.getString(R.string.cfg_lock_sound_custom)};
+        for (int k = 0; k < v.ids.length; k++) {
+            String id = v.ids[k];
+            TextView b = Style.cardButton(activity, labels[k], false, () -> {
+                if (!supported) return;
+                if (LockSound.CUSTOM.equals(id) && !LockSound.haveCustom(activity)) {
+                    v.status.setText(R.string.cfg_lock_sound_import_first);
+                    return;
+                }
                 LockSound.set(activity, id);
-                paintLockButtons(activity, buttons, ids, id);
-                // modehelper answers in well under a second; read the car's
-                // setting back so the lit button is the truth, not our hope.
-                ui.postDelayed(() -> paintLockButtons(activity, buttons, ids, LockSound.current(activity)), 1500);
-            } : null);
-            if (!supported) b.setAlpha(0.4f);
+                reread.run();
+            });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             if (k > 0) lp.leftMargin = Style.dp(activity, 10);
             row.addView(b, lp);
-            buttons[k] = b;
+            v.buttons[k] = b;
         }
+        v.pick = row;
         card.addView(row);
+
+        // Import: LockChime.wav from a USB stick, or a link. modehelper
+        // fetches and checks it (WAV, 1 MB or less) and says what happened.
+        LinearLayout imp = new LinearLayout(activity);
+        imp.setOrientation(LinearLayout.HORIZONTAL);
+        imp.setGravity(Gravity.CENTER_VERTICAL);
+        EditText link = new EditText(activity);
+        link.setHint(R.string.cfg_lock_sound_link_hint);
+        link.setSingleLine(true);
+        link.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        link.setTextColor(Style.TEXT); link.setHintTextColor(Style.TEXT_DIM); link.setTextSize(17);
+        link.setBackground(Style.card(Style.CARD, activity));
+        int fPad = Style.dp(activity, 12);
+        link.setPadding(fPad, fPad, fPad, fPad);
+        LinearLayout.LayoutParams linkLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        linkLp.topMargin = Style.dp(activity, 8);
+        imp.addView(Style.button(activity, activity.getString(R.string.cfg_lock_sound_import_usb), Style.CARD,
+            () -> runImport(activity, v, null, supported, reread)));
+        imp.addView(link, linkLp);
+        imp.addView(Style.button(activity, activity.getString(R.string.cfg_lock_sound_download), Style.CARD,
+            () -> {
+                String url = link.getText().toString().trim();
+                if (url.isEmpty()) { v.status.setText(R.string.cfg_lock_sound_link_empty); return; }
+                runImport(activity, v, url, supported, reread);
+            }));
+        card.addView(imp);
+
+        v.status = ConfigCards.hint(activity, null);
+        v.status.setTextColor(Style.TEXT);
+        card.addView(v.status);
         card.addView(ConfigCards.hint(activity, activity.getString(
             supported ? R.string.cfg_lock_sound_hint : R.string.cfg_lock_sound_needs_helper)));
+
+        if (!supported) {
+            fartRow.setAlpha(0.4f);
+            row.setAlpha(0.4f);
+            imp.setAlpha(0.4f);
+        }
+        paintLockSound(activity, v);
         return card;
     }
 
-    private static void paintLockButtons(Activity activity, TextView[] buttons, String[] ids, String selected) {
-        for (int k = 0; k < buttons.length; k++) {
-            int fill = ids[k].equals(selected) ? Style.CARD_ON : Style.CARD;
-            buttons[k].setBackground(Style.card(fill, activity));
-            buttons[k].setTextColor(Style.onFill(fill));
+    private static final class LockSoundViews {
+        final String[] ids = {LockSound.CAR, LockSound.CUSTOM};
+        final TextView[] buttons = new TextView[2];
+        boolean supported;
+        GeelySwitch fart;
+        LinearLayout pick;
+        TextView status;
+    }
+
+    private static void runImport(Activity activity, LockSoundViews v, String url, boolean supported, Runnable reread) {
+        if (!supported) return;
+        v.status.setText(R.string.cfg_lock_sound_importing);
+        // With fart mode on, the import only becomes what fart mode gives back.
+        boolean apply = !LockSound.FART.equals(LockSound.current(activity));
+        LockSound.importSound(activity, url, apply, code -> {
+            v.status.setText(importMessage(code, url != null));
+            reread.run();
+        });
+    }
+
+    private static int importMessage(String code, boolean fromLink) {
+        switch (code) {
+            case "ok":        return R.string.cfg_lock_sound_import_ok;
+            case "not_found": return R.string.cfg_lock_sound_import_not_found;
+            case "too_big":   return R.string.cfg_lock_sound_import_too_big;
+            case "not_wav":
+            case "empty":     return R.string.cfg_lock_sound_import_not_wav;
+            case "download":  return R.string.cfg_lock_sound_import_download;
+            case LockSound.NO_ANSWER: return R.string.cfg_lock_sound_needs_helper;
+            default:          return fromLink ? R.string.cfg_lock_sound_import_download
+                                              : R.string.cfg_lock_sound_import_failed;
         }
+    }
+
+    private static void paintLockSound(Activity activity, LockSoundViews v) {
+        String now = LockSound.current(activity);
+        boolean fartOn = LockSound.FART.equals(now);
+        v.fart.setCheckedSilently(fartOn);
+        String lit = LockSound.base(activity);
+        for (int k = 0; k < v.buttons.length; k++) {
+            int fill = v.ids[k].equals(lit) ? Style.CARD_ON : Style.CARD;
+            v.buttons[k].setBackground(Style.card(fill, activity));
+            v.buttons[k].setTextColor(Style.onFill(fill));
+        }
+        // Under fart mode the pick still shows, dimmed: it is what comes back.
+        if (v.supported) v.pick.setAlpha(fartOn ? 0.55f : 1f);
+        v.buttons[1].setAlpha(LockSound.haveCustom(activity) ? 1f : 0.5f);
     }
 
     // Front pane on the left, the other side's pane on the right: one row

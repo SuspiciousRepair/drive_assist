@@ -4,11 +4,11 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/** The Doors screen lights the button the car's setting really points at. */
+/** The Doors screen shows what the car's setting really points at. */
 public class LockSoundTest {
     @Test public void ourFilesMapToTheirIds() {
-        assertEquals("flatulence", LockSound.idForPath("/data/user/0/com.geely.modehelper/files/lock_flatulence.wav"));
-        assertEquals("flatus", LockSound.idForPath("/data/data/com.geely.modehelper/files/lock_flatus.wav"));
+        assertEquals(LockSound.FART, LockSound.idForPath("/data/user/0/com.geely.modehelper/files/lock_fart.wav"));
+        assertEquals(LockSound.CUSTOM, LockSound.idForPath("/data/data/com.geely.modehelper/files/lock_custom.wav"));
     }
 
     @Test public void anythingElseIsTheCarsOwnSound() {
@@ -19,7 +19,20 @@ public class LockSoundTest {
     }
 
     @Test public void unknownFilesInOurDirAreNotGuessed() {
-        assertEquals(LockSound.CAR, LockSound.idForPath("/data/user/0/com.geely.modehelper/files/lock_other.wav"));
-        assertEquals(LockSound.CAR, LockSound.idForPath("/data/user/0/com.geely.modehelper/files/lock_flatus.ogg"));
+        assertEquals(LockSound.CAR, LockSound.idForPath("/data/user/0/com.geely.modehelper/files/lock_flatulence.wav"));
+        assertEquals(LockSound.CAR, LockSound.idForPath("/data/user/0/com.geely.modehelper/files/lock_custom.ogg"));
+    }
+
+    @Test public void fartModeOffGivesBackTheRightSound() {
+        assertEquals(LockSound.CAR, LockSound.base(LockSound.FART, null));
+        assertEquals(LockSound.CAR, LockSound.base(LockSound.FART, LockSound.CAR));
+        assertEquals(LockSound.CUSTOM, LockSound.base(LockSound.FART, LockSound.CUSTOM));
+        assertEquals(LockSound.CAR, LockSound.base(LockSound.FART, "junk"));
+    }
+
+    @Test public void withoutFartModeTheCarSettingWins() {
+        // A pick in the car's own Settings must not be overruled by a stale pref.
+        assertEquals(LockSound.CAR, LockSound.base(LockSound.CAR, LockSound.CUSTOM));
+        assertEquals(LockSound.CUSTOM, LockSound.base(LockSound.CUSTOM, LockSound.CAR));
     }
 }

@@ -188,9 +188,21 @@
     <string name="cfg_window_on_door_hint">Baixa ~1 cm o vidro daquela porta para ela fechar sem brigar com a cabine selada, e devolve ao fechar. So fecha vidro que ele mesmo abriu, e nao mexe em vidro que voce moveu.</string>
     <string name="cfg_lock_sound_header">Som ao trancar</string>
     <string name="cfg_lock_sound_car">Som do carro</string>
-    <string name="cfg_lock_sound_fart1">Pum 1</string>
-    <string name="cfg_lock_sound_fart2">Pum 2</string>
-    <string name="cfg_lock_sound_hint">Toca quando você tranca o carro pela chave. Escolher um som nos Ajustes do próprio carro substitui este. Som do carro devolve o que você tinha antes.</string>
+    <string name="cfg_lock_sound_fart_mode">Modo Pum</string>
+    <string name="cfg_lock_sound_custom">Personalizado</string>
+    <string name="cfg_lock_sound_import_usb">Importar do USB</string>
+    <string name="cfg_lock_sound_link_hint">Link para um arquivo .wav</string>
+    <string name="cfg_lock_sound_download">Baixar</string>
+    <string name="cfg_lock_sound_link_empty">Cole um link primeiro.</string>
+    <string name="cfg_lock_sound_importing">Importando…</string>
+    <string name="cfg_lock_sound_import_ok">Importado. Toca na próxima vez que trancar.</string>
+    <string name="cfg_lock_sound_import_not_found">Nenhum LockChime.wav na raiz do pendrive.</string>
+    <string name="cfg_lock_sound_import_too_big">O arquivo tem mais de 1 MB. Encurte ou salve em mono.</string>
+    <string name="cfg_lock_sound_import_not_wav">Não é um arquivo WAV.</string>
+    <string name="cfg_lock_sound_import_download">Não foi possível baixar esse link.</string>
+    <string name="cfg_lock_sound_import_failed">Falha ao importar.</string>
+    <string name="cfg_lock_sound_import_first">Importe um som primeiro: do USB ou de um link.</string>
+    <string name="cfg_lock_sound_hint">Toca quando você tranca o carro pela chave. Som personalizado: um arquivo WAV de até 1 MB, chamado LockChime.wav na raiz do pendrive, ou um link. Escolher um som nos Ajustes do próprio carro substitui este. Som do carro devolve o que você tinha antes.</string>
     <string name="cfg_lock_sound_needs_helper">Precisa de um ModeHelper mais novo. Atualize em Config &gt; Sistema.</string>
     <string name="cfg_purge_open_header">Alvo do botão de abrir todos os vidros (0–100)</string>
     <string name="cfg_purge_open_hint">Até onde cada vidro abaixa ao apertar o botão de ventilar. 0 = fechado, 100 = totalmente aberto. O mesmo número não abre todo vidro na mesma quantidade real — ajuste cada um pelo que você realmente vê.</string>

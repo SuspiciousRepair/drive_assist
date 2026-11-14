@@ -1,45 +1,68 @@
 package com.geely.drivemem.controls;
 
+import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
 
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.net.Updater;
+import com.geely.drivemem.util.Prefs;
 
 /** The sound the car plays when it is locked with the key (Config > Doors).
  *
  * The car plays the file named by {@code Settings.System lock_car_audio_path}.
- * modehelper ships the sounds, copies the chosen one into its own files dir
- * and points that setting at it (see modehelper's LockSoundReceiver). We only
- * ask, and read the setting back to show what the car really has: a sound
- * picked in the car's own Settings replaces ours, and the screen must say so.
+ * modehelper owns the files: it ships the fart, imports a custom WAV (from a
+ * USB stick or a link), and points that setting at the chosen one (see
+ * modehelper's LockSoundReceiver). We only ask, and read the setting back to
+ * show what the car really has: a sound picked in the car's own Settings
+ * replaces ours, and the screen must say so.
  *
- * Nothing is saved here. The car's setting is the truth. */
+ * Two small prefs here: which sound fart mode gives back when switched off
+ * (car or custom), and whether an import has ever succeeded. */
 public final class LockSound {
     static final String HELPER_SET = "com.geely.modehelper.SET_LOCK_SOUND";
+    static final String HELPER_IMPORT = "com.geely.modehelper.IMPORT_LOCK_SOUND";
     static final String SETTING = "lock_car_audio_path";
 
     /** Give the car back the sound it had before we changed it. */
     public static final String CAR = "car";
-    /** Same ids as modehelper's LockSoundPolicy.SOUNDS, in button order. */
-    public static final String[] SOUNDS = {"flatulence", "flatus"};
+    /** The bundled fart (fart mode). */
+    public static final String FART = "fart";
+    /** The imported sound. */
+    public static final String CUSTOM = "custom";
+
+    /** Import result when modehelper did not answer (too old, or not installed). */
+    public static final String NO_ANSWER = "no_answer";
 
     private static final String OURS = "/com.geely.modehelper/files/lock_";
+    private static final String KEY_BASE = "lock_sound_base";
+    private static final String KEY_HAVE_CUSTOM = "lock_sound_have_custom";
+
+    public interface Result { void done(String code); }
 
     private LockSound() {}
 
-    /** The id the car's setting points at: one of {@link #SOUNDS}, or {@link #CAR}
-     * for anything else (the car's own sounds, an empty setting, a file we do
-     * not know). */
+    /** The id the car's setting points at: {@link #FART}, {@link #CUSTOM},
+     * or {@link #CAR} for anything else (the car's own sounds, an empty
+     * setting, a file we do not know). */
     public static String idForPath(String path) {
         if (path == null) return CAR;
         int at = path.indexOf(OURS);
         if (at < 0 || !path.endsWith(".wav")) return CAR;
         String id = path.substring(at + OURS.length(), path.length() - ".wav".length());
-        for (String s : SOUNDS) if (s.equals(id)) return id;
+        if (FART.equals(id) || CUSTOM.equals(id)) return id;
         return CAR;
+    }
+
+    /** What fart mode gives back when it is switched off. */
+    public static String base(String current, String savedBase) {
+        if (!FART.equals(current)) return current;
+        return CUSTOM.equals(savedBase) ? CUSTOM : CAR;
     }
 
     /** What the car will play now. */
@@ -52,19 +75,63 @@ public final class LockSound {
         }
     }
 
-    /** True when the installed modehelper is new enough to set the sound. */
+    /** The sound to give back when fart mode goes off. */
+    public static String base(Context ctx) {
+        return base(current(ctx), Prefs.file(ctx).getString(KEY_BASE, CAR));
+    }
+
+    public static boolean haveCustom(Context ctx) {
+        return Prefs.file(ctx).getBoolean(KEY_HAVE_CUSTOM, false) || CUSTOM.equals(current(ctx));
+    }
+
+    /** True when the installed modehelper is new enough (it can import). */
     public static boolean helperSupports(Context ctx) {
         try {
             return !ctx.getPackageManager().queryBroadcastReceivers(
-                new Intent(HELPER_SET).setPackage(Updater.HELPER_PKG), 0).isEmpty();
+                new Intent(HELPER_IMPORT).setPackage(Updater.HELPER_PKG), 0).isEmpty();
         } catch (Throwable t) {
             return false;
         }
     }
 
+    /** Picks a sound. Picking car or custom also makes it the one fart mode
+     * gives back; switching fart mode on saves what was playing, so a sound
+     * picked in the car's own Settings since then is what comes back. */
     public static void set(Context ctx, String id) {
+        String keep = FART.equals(id) ? current(ctx) : id;
+        if (CAR.equals(keep) || CUSTOM.equals(keep)) Prefs.file(ctx).edit().putString(KEY_BASE, keep).apply();
         try {
             ctx.sendBroadcast(new Intent(HELPER_SET).setPackage(Updater.HELPER_PKG).putExtra("sound", id));
         } catch (Throwable t) { Log.w(CarAccess.TAG, "lock sound set: " + t); }
+    }
+
+    /**
+     * Imports the custom sound: from {@code url}, or LockChime.wav on a USB
+     * stick when {@code url} is null. It becomes the lock sound unless
+     * {@code apply} is false (fart mode is on). {@code cb} runs on the main
+     * thread with modehelper's code ("ok", "not_found", "too_big",
+     * "not_wav", "empty", "download", "error") or {@link #NO_ANSWER}.
+     */
+    public static void importSound(Context ctx, String url, boolean apply, Result cb) {
+        Intent i = new Intent(HELPER_IMPORT).setPackage(Updater.HELPER_PKG).putExtra("apply", apply);
+        if (url != null) i.putExtra("url", url);
+        BroadcastReceiver back = new BroadcastReceiver() {
+            @Override public void onReceive(Context c, Intent r) {
+                String code = getResultData();
+                if (code == null) code = NO_ANSWER;
+                if ("ok".equals(code)) {
+                    Prefs.file(ctx).edit().putBoolean(KEY_HAVE_CUSTOM, true)
+                        .putString(KEY_BASE, CUSTOM).apply();
+                }
+                cb.done(code);
+            }
+        };
+        try {
+            ctx.sendOrderedBroadcast(i, null, back, new Handler(Looper.getMainLooper()),
+                Activity.RESULT_CANCELED, null, null);
+        } catch (Throwable t) {
+            Log.w(CarAccess.TAG, "lock sound import: " + t);
+            cb.done(NO_ANSWER);
+        }
     }
 }

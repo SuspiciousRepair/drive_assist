@@ -198,9 +198,21 @@
     <string name="cfg_window_on_door_hint">ลดกระจกของประตูนั้นลง ~1 ซม. เพื่อให้ประตูปิดได้โดยไม่ต้องต่อสู้กับห้องโดยสารที่ปิดสนิท และคืนกลับเมื่อประตูปิด มันจะปิดเฉพาะกระจกที่มันเปิดเองเท่านั้น และจะไม่แตะกระจกที่คุณเลื่อนเอง</string>
     <string name="cfg_lock_sound_header">เสียงล็อกรถ</string>
     <string name="cfg_lock_sound_car">เสียงของรถ</string>
-    <string name="cfg_lock_sound_fart1">ตด 1</string>
-    <string name="cfg_lock_sound_fart2">ตด 2</string>
-    <string name="cfg_lock_sound_hint">เล่นเมื่อคุณล็อกรถด้วยกุญแจ การเลือกเสียงในการตั้งค่าของรถเองจะแทนที่เสียงนี้ เสียงของรถจะคืนเสียงเดิมที่คุณเคยใช้</string>
+    <string name="cfg_lock_sound_fart_mode">โหมดตด</string>
+    <string name="cfg_lock_sound_custom">กำหนดเอง</string>
+    <string name="cfg_lock_sound_import_usb">นำเข้าจาก USB</string>
+    <string name="cfg_lock_sound_link_hint">ลิงก์ไปยังไฟล์ .wav</string>
+    <string name="cfg_lock_sound_download">ดาวน์โหลด</string>
+    <string name="cfg_lock_sound_link_empty">วางลิงก์ก่อน</string>
+    <string name="cfg_lock_sound_importing">กำลังนำเข้า…</string>
+    <string name="cfg_lock_sound_import_ok">นำเข้าแล้ว จะเล่นเมื่อล็อกรถครั้งถัดไป</string>
+    <string name="cfg_lock_sound_import_not_found">ไม่พบ LockChime.wav ที่ระดับบนสุดของ USB</string>
+    <string name="cfg_lock_sound_import_too_big">ไฟล์ใหญ่กว่า 1 MB ให้ตัดให้สั้นลงหรือบันทึกเป็นโมโน</string>
+    <string name="cfg_lock_sound_import_not_wav">ไม่ใช่ไฟล์ WAV</string>
+    <string name="cfg_lock_sound_import_download">ดาวน์โหลดลิงก์นี้ไม่ได้</string>
+    <string name="cfg_lock_sound_import_failed">นำเข้าไม่สำเร็จ</string>
+    <string name="cfg_lock_sound_import_first">นำเข้าเสียงก่อน: จาก USB หรือจากลิงก์</string>
+    <string name="cfg_lock_sound_hint">เล่นเมื่อคุณล็อกรถด้วยกุญแจ เสียงกำหนดเอง: ไฟล์ WAV ขนาดไม่เกิน 1 MB ชื่อ LockChime.wav ที่ระดับบนสุดของ USB หรือลิงก์ การเลือกเสียงในการตั้งค่าของรถเองจะแทนที่เสียงนี้ เสียงของรถจะคืนเสียงเดิมที่คุณเคยใช้</string>
     <string name="cfg_lock_sound_needs_helper">ต้องใช้ ModeHelper เวอร์ชันใหม่กว่า อัปเดตได้ที่ Config &gt; ระบบ</string>
     <string name="cfg_purge_open_header">เป้าหมายปุ่มเปิดกระจกทุกบาน (0–100)</string>
     <string name="cfg_purge_open_hint">กระจกแต่ละบานจะเปิดลงมากแค่ไหนเมื่อกดปุ่มเปิดกระจกทั้งหมด 0 = ปิดสนิท, 100 = เปิดสุด ตัวเลขเดียวกันไม่ได้เปิดกระจกแต่ละบานในระยะจริงเท่ากัน — ปรับแต่ละบานให้ตรงกับสิ่งที่คุณเห็นจริง</string>
