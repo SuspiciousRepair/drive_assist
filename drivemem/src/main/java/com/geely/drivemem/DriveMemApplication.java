@@ -65,6 +65,7 @@ public final class DriveMemApplication extends Application {
         com.geely.drivemem.sensors.EnergyHub.register(CarActor.get(this));
         Obd2Reader.ensureStarted(this);   // no-ops unless obd2_enabled is set
         CanEnergyReader.ensureStarted(this);   // no-ops unless can_energy is set
+        com.geely.drivemem.sensors.CanExplorer.ensureStarted(this);   // debug; no-op unless switched on
         AbrpUploader.ensureSubscribed(this);
         CarplayState.ensureSubscribed(this);
     }

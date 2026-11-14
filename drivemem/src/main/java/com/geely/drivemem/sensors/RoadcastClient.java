@@ -50,6 +50,16 @@ public final class RoadcastClient {
         void onSubscribed();
     }
 
+    /** Raw CAN frames (8 data bytes), for the CAN explorer. Optional. */
+    public interface FrameListener {
+        /** {@code state}: 0 unavailable, 1 never observed, 2 observed. */
+        void onFrame(int canId, int state, byte[] data, boolean snapshot);
+    }
+    private FrameListener frameListener;
+
+    /** Also deliver raw frames (snapshot pages and live UPDATE_BATCH). */
+    public RoadcastClient withFrames(FrameListener f) { this.frameListener = f; return this; }
+
     private final DataInputStream in;
     private final OutputStream out;
     private final Set<String> wanted;
@@ -133,10 +143,12 @@ public final class RoadcastClient {
         int next = 0;
         while (next < frameCount) {
             send(GET_SNAPSHOT, index(next));
-            ByteBuffer p = expect(SNAPSHOT).payload();
+            Msg m = expect(SNAPSHOT);
+            ByteBuffer p = m.payload();
             p.getLong();
             int total = p.getInt(), start = p.getInt(), count = p.getShort() & 0xffff;
             if (total != frameCount || start != next || count <= 0) throw new IOException("roadcast: bad frame page");
+            frameBatch(m.payload(), m.len, true);
             next = start + count;
         }
     }
@@ -167,8 +179,24 @@ public final class RoadcastClient {
                     break;
                 }
                 case RESYNC_REQUIRED: throw new IOException("roadcast: resync required");
-                default: break;       // frame batches, pongs: not needed
+                case UPDATE_BATCH: frameBatch(m.payload(), m.len, false); break;
+                default: break;       // pongs: not needed
             }
+        }
+    }
+
+    /** Raw frame records: 28 bytes each after the 20-byte prefix (protocol.c). */
+    private void frameBatch(ByteBuffer p, int len, boolean snapshot) throws IOException {
+        if (frameListener == null) return;
+        int count = p.getShort(16) & 0xffff;
+        if (20 + count * 28 != len) throw new IOException("roadcast: bad frame batch size");
+        for (int i = 0; i < count; i++) {
+            int base = 20 + i * 28;
+            int canId = p.getShort(base) & 0xffff;
+            int state = p.get(base + 2) & 0xff;
+            byte[] data = new byte[8];
+            for (int b = 0; b < 8; b++) data[b] = p.get(base + 4 + b);
+            frameListener.onFrame(canId, state, data, snapshot);
         }
     }
 
