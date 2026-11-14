@@ -9,15 +9,22 @@
 # packs into the helper apk.
 #
 # Why this script and not upstream's build-libuv-android.sh: that one needs
-# cmake and downloads libuv. We compile libuv's sources directly with the
-# same compiler, from our own copy in third_party/libuv (1.51.0, MIT), so the
-# build needs no network and no tool beyond the NDK clang. A root daemon must
-# be built from code that is in this repo, where it can be read.
+# cmake. We compile libuv's sources directly with the same compiler, so the
+# only tool the car build needs is the NDK clang.
+#
+# libuv (MIT, widely used: Node.js runs on it) is downloaded, not copied into
+# this repo: the official v1.51.0 source archive, checked against a fixed
+# SHA-256. Any other file is refused, so the build never uses code nobody
+# pinned. If GitHub ever regenerates the archive, the build stops with
+# "checksum mismatch"; check the new archive and update LIBUV_SHA256.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RC="$ROOT/third_party/roadcast"
 
-UV="$ROOT/third_party/libuv"
+LIBUV_VERSION=1.51.0
+LIBUV_SHA256=27e55cf7083913bfb6826ca78cde9de7647cded648d35f24163f2d31bb9f51cd
+DEPS="$ROOT/build/roadcast/deps"
+UV="$DEPS/libuv-$LIBUV_VERSION"
 
 if [ "${HOST:-0}" = 1 ]; then
   TARGET=host
@@ -44,8 +51,16 @@ fi
 OUT="$ROOT/build/roadcast/$TARGET"
 mkdir -p "$OUT/uv"
 
-# --- libuv, from third_party/libuv (no download) ---------------------------
-[ -f "$UV/include/uv.h" ] || { echo "build-roadcastd: third_party/libuv is missing" >&2; exit 1; }
+# --- libuv source, pinned by SHA-256 ----------------------------------------
+mkdir -p "$DEPS"
+if [ ! -f "$UV/include/uv.h" ]; then
+  tgz="$DEPS/libuv-$LIBUV_VERSION.tar.gz"
+  [ -f "$tgz" ] || curl -fsSL --retry 3 -o "$tgz" \
+    "https://github.com/libuv/libuv/archive/refs/tags/v$LIBUV_VERSION.tar.gz"
+  got="$(sha256sum "$tgz" | cut -d' ' -f1)"
+  [ "$got" = "$LIBUV_SHA256" ] || { echo "build-roadcastd: libuv checksum mismatch ($got)" >&2; rm -f "$tgz"; exit 1; }
+  tar -xzf "$tgz" -C "$DEPS"
+fi
 
 UV_SRC=(
   src/fs-poll.c src/idna.c src/inet.c src/random.c src/strscpy.c src/strtok.c

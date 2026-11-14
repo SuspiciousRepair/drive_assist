@@ -33,6 +33,7 @@ exact energy without a dongle.
 - https://github.com/libuv/libuv, v1.51.0
 - Copyright the libuv project contributors. MIT License (plus the notices in
   `LICENSE-extra`).
-- **What we use:** the event-loop library roadcastd is built on. Unchanged
-  source in `third_party/libuv/` (Windows parts removed).
-- Full license: `third_party/libuv/LICENSE`.
+- **What we use:** the event-loop library roadcastd is built on. Not stored
+  in this repo: `tools/build-roadcastd.sh` downloads the official v1.51.0
+  source and checks its SHA-256. Its license ships in the helper apk with
+  the binary (`assets/licenses/libuv-LICENSE`).
