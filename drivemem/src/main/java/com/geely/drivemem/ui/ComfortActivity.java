@@ -28,6 +28,7 @@ import com.geely.drivemem.state.MusicState;
 import com.geely.drivemem.state.PanelState;
 import com.geely.drivemem.state.ParkingState;
 import com.geely.drivemem.state.TripSession;
+import com.geely.drivemem.state.TempTrail;
 import com.geely.drivemem.state.ValetSession;
 import com.geely.drivemem.util.BootReceiver;
 import com.geely.drivemem.util.LayoutWait;
@@ -148,7 +149,8 @@ public class ComfortActivity extends Activity {
     private LinearLayout journeyCard;
     private TextView journeyTitle, journeyPrimary, journeySecondary, journeyAction, journeyDismiss;
     // Parked only: "since 09:27" beside the title and the Battery stat under the hero.
-    private TextView journeySince, journeyBatteryValue;
+    private TextView journeySince, journeyBatteryValue, journeyTempValue, journeyTempStart;
+    private TempSparkView journeyTempSpark;
     private LinearLayout journeyStats;
     private boolean driveCardEnabledAtBuild;
     private boolean lastJourneyAvailable;
@@ -1305,16 +1307,31 @@ public class ComfortActivity extends Activity {
         journeyStats = new LinearLayout(this);
         journeyStats.setOrientation(LinearLayout.VERTICAL);
         journeyStats.setPadding(0, Style.dp(this, 10), 0, 0);
-        TextView batteryLabel = new TextView(this);
-        batteryLabel.setText(R.string.session_stat_battery);
-        batteryLabel.setTextColor(Style.TEXT_DIM);
-        batteryLabel.setTextSize(16);
-        journeyStats.addView(batteryLabel);
-        journeyBatteryValue = new TextView(this);
-        journeyBatteryValue.setTextColor(Style.TEXT);
-        journeyBatteryValue.setTextSize(22);
-        journeyBatteryValue.setTypeface(null, android.graphics.Typeface.BOLD);
-        journeyStats.addView(journeyBatteryValue);
+        LinearLayout statRow = new LinearLayout(this);
+        statRow.setOrientation(LinearLayout.HORIZONTAL);
+        statRow.setBaselineAligned(false);
+        journeyBatteryValue = journeyStat(statRow, R.string.session_stat_battery);
+        journeyTempValue = journeyStat(statRow, R.string.parked_stat_outside_temp);
+        journeyStats.addView(statRow);
+
+        // Outside temperature since parking, from the hub's parking.temp_trail.
+        // Shaded, line-less stretches are hours the head unit slept.
+        journeyTempSpark = new TempSparkView(this);
+        LinearLayout.LayoutParams sparkLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 56));
+        sparkLp.topMargin = Style.dp(this, 10);
+        journeyStats.addView(journeyTempSpark, sparkLp);
+        LinearLayout axis = new LinearLayout(this);
+        journeyTempStart = new TextView(this);
+        journeyTempStart.setTextColor(Style.TEXT_DIM);
+        journeyTempStart.setTextSize(15);
+        axis.addView(journeyTempStart, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView now = new TextView(this);
+        now.setText(R.string.parked_axis_now);
+        now.setTextColor(Style.TEXT_DIM);
+        now.setTextSize(15);
+        axis.addView(now);
+        journeyStats.addView(axis);
         card.addView(journeyStats);
         journeyAction = Style.cardButton(this, getString(R.string.valet_start), true, () -> {
             // Stop is allowed any time Valet is active, moving or not -- it's
@@ -1339,6 +1356,24 @@ public class ComfortActivity extends Activity {
      * not the full blue fill that made it the loudest thing on the screen.
      * Ending Valet keeps the filled button -- that one must be found fast.
      */
+    /** A "small label above a bold value" column, added to {@code row} with equal weight. */
+    private TextView journeyStat(LinearLayout row, int labelRes) {
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        TextView label = new TextView(this);
+        label.setText(labelRes);
+        label.setTextColor(Style.TEXT_DIM);
+        label.setTextSize(16);
+        col.addView(label);
+        TextView value = new TextView(this);
+        value.setTextColor(Style.TEXT);
+        value.setTextSize(22);
+        value.setTypeface(null, android.graphics.Typeface.BOLD);
+        col.addView(value);
+        row.addView(col, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        return value;
+    }
+
     private void styleJourneyAction(boolean valetActive) {
         // Parked: a chip sized to its text, so the shield sits next to the
         // words. Valet active: full width again.
@@ -1464,6 +1499,29 @@ public class ComfortActivity extends Activity {
             } else {
                 journeyBatteryValue.setText(R.string.value_unavailable);
             }
+            // Read from the hub, never from ParkingState directly.
+            CarActor.Reading trailR = CarActor.get(this).get(ParkingState.TRAIL_KEY);
+            TempTrail trail = trailR.status == CarActor.Reading.Status.OK && trailR.value instanceof TempTrail
+                ? (TempTrail) trailR.value : TempTrail.EMPTY;
+            float tMin = trail.min(), tMax = trail.max();
+            if (Float.isNaN(tMin)) {
+                journeyTempValue.setText(R.string.value_unavailable);
+            } else {
+                // Lowest to highest it got while parked: what the car endured.
+                SpannableStringBuilder tv = new SpannableStringBuilder();
+                tv.append(String.format(Locale.US, "%.0f", tMin));
+                Style.appendUnit(tv, "°", Style.UNIT_SCALE_ROW);
+                if (Math.round(tMax) != Math.round(tMin)) {
+                    tv.append(" – ").append(String.format(Locale.US, "%.0f", tMax));
+                    Style.appendUnit(tv, "°", Style.UNIT_SCALE_ROW);
+                }
+                journeyTempValue.setText(tv);
+            }
+            journeyTempSpark.setTrail(trail);
+            boolean hasTrail = !trail.isEmpty();
+            journeyTempSpark.setVisibility(hasTrail ? View.VISIBLE : View.GONE);
+            ((View) journeyTempStart.getParent()).setVisibility(hasTrail ? View.VISIBLE : View.GONE);
+            journeyTempStart.setText(s.startMs > 0 ? formatClock(s.startMs) : "");
             journeyAction.setText(R.string.valet_start);
         }
         if (!lastJourneyAvailable) { lastJourneyAvailable = true; repackColumns(); }
@@ -2255,6 +2313,7 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe("valet.changed", journeyBusListener);
         EntityBus.subscribe("valet.progress", journeyBusListener);
         EntityBus.subscribe("parking.changed", journeyBusListener);
+        EntityBus.subscribe(ParkingState.TRAIL_KEY, journeyBusListener);
         // Same "did it actually change while this screen was away" re-check
         // as the gate and music cards just above, and the same reason: a
         // park↔drive edge (and therefore Turbo's own visibility) can happen
@@ -2312,6 +2371,7 @@ public class ComfortActivity extends Activity {
         EntityBus.unsubscribe("valet.changed", journeyBusListener);
         EntityBus.unsubscribe("valet.progress", journeyBusListener);
         EntityBus.unsubscribe("parking.changed", journeyBusListener);
+        EntityBus.unsubscribe(ParkingState.TRAIL_KEY, journeyBusListener);
         try { unregisterReceiver(updateReceiver); } catch (Throwable ignored) {}
         if (activeUpdateDialog != null && activeUpdateDialog.isShowing()) {
             try { activeUpdateDialog.dismiss(); } catch (Throwable ignored) {}

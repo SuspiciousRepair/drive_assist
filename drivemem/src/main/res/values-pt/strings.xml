@@ -516,4 +516,6 @@
     <string name="int_status_on">Ligado</string>
     <string name="obd_live_header">Dados ao vivo</string>
     <string name="obd_compare_can">Comparar com CAN</string>
+    <string name="parked_stat_outside_temp">Temp. externa</string>
+    <string name="parked_axis_now">agora</string>
 </resources>
