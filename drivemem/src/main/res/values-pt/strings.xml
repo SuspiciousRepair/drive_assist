@@ -493,7 +493,6 @@
     <string name="can_enable_label">Ler a potência da bateria do carro (CAN)</string>
     <string name="can_hint">Volts × ampères exatos da bateria, lidos do próprio carro, sem dongle OBD2. Precisa do app ModeHelper. Para iniciar o leitor, pode ligar o ADB por alguns segundos e desligar de novo. Se não funcionar, o app volta para o dongle ou para a estimativa pelo % da bateria. Enquanto estiver ligado, outros apps no carro também podem ler esses dados do carro.</string>
     <!-- Cartões de sessão do dia (DailyStatsView) -->
-    <string name="session_live">AGORA</string>
     <string name="session_since">desde %1$s</string>
     <string name="session_yesterday">ontem</string>
     <string name="session_parked">Estacionado %1$s</string>

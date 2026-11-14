@@ -1508,7 +1508,7 @@ public class DailyStatsView extends LinearLayout {
     //
     // Every kind of session (trip, charge, valet) is built from the same two
     // lines, so the eye learns one layout:
-    //   line 1: [icon] time range · duration  [NOW pill]        hero number
+    //   line 1: [icon] time range · duration                    hero number
     //   line 2: four equal stat columns, a small label above each value.
     // The columns are equal-weight in every card, so "Battery" sits in the
     // same place in all of them and the rows read as one table. Icons and
@@ -1541,7 +1541,9 @@ public class DailyStatsView extends LinearLayout {
         }
 
         // A session still running gets an outline in its own color code, so
-        // it does not look like one of the finished ones below it.
+        // it does not look like one of the finished ones below it. (A NOW
+        // pill was tried beside the time too, and dropped: "since 09:27"
+        // plus the outline already say it.)
         android.graphics.drawable.GradientDrawable bg = Style.tile(c);
         if (live) bg.setStroke(Style.dp(c, 2), color);
         card.setBackground(bg);
@@ -1577,24 +1579,6 @@ public class DailyStatsView extends LinearLayout {
         timeView.setText(time);
         timeView.setPadding(Style.dp(c, 10), 0, 0, 0);
         line1.addView(timeView);
-
-        if (live) {
-            TextView pill = new TextView(c);
-            pill.setText(R.string.session_live);
-            pill.setTextColor(0xFFFFFFFF);
-            pill.setTextSize(13f);
-            pill.setTypeface(null, Typeface.BOLD);
-            pill.setLetterSpacing(0.06f);
-            pill.setPadding(Style.dp(c, 8), Style.dp(c, 2), Style.dp(c, 8), Style.dp(c, 2));
-            android.graphics.drawable.GradientDrawable pg = new android.graphics.drawable.GradientDrawable();
-            pg.setColor(iconColor);
-            pg.setCornerRadius(Style.dp(c, 99));
-            pill.setBackground(pg);
-            LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            plp.leftMargin = Style.dp(c, 12);
-            line1.addView(pill, plp);
-        }
 
         line1.addView(new View(c), new LinearLayout.LayoutParams(0, 1, 1f));
 
