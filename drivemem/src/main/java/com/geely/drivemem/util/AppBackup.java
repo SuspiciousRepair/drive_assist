@@ -25,6 +25,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -33,29 +34,38 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /** Backup and restore that a user can do alone, with no computer.
  *
- * One backup is one folder, readable on any computer:
+ * One backup is one file, locked with the user's backup password
+ * (BackupCrypto), because other apps can read the USB stick and the car
+ * storage:
  *
- *   <drive>/Drive Assist/Backups/2026-11-14_013000/
+ *   <drive>/Drive Assist/Backups/2026-11-14_013000.dabackup
+ *
+ * Inside the lock is a zip with:
  *       settings.json      the user's settings (SettingsFile), plain JSON
  *       car.db             trips, charges, telemetry (SQLite)
  *       mqtt_client.p12    MQTT client certificate, when there is one
  *       mqtt_ca.crt        custom MQTT CA, when there is one
+ * Unlocked data only ever sits in the app's private cache, never on a drive.
+ * tools/backup-open.sh unlocks a backup on a computer.
  *
  * It is written to every place that is there: the USB stick (survives a
  * workshop wipe) and the car's own storage, outside the app (survives
  * deleting the app). Once a day, while parked, it runs by itself. The newest
- * KEEP folders per place are kept.
+ * KEEP files per place are kept. With no password set, there is no backup.
  *
  * Restore puts the settings and certificates back, and MERGES the trips: a
  * car that was driven after the wipe keeps those trips too (DbMerge). A
  * backup whose trips overlap the car's own is not merged again, so pressing
  * restore twice never doubles a trip. Then the app restarts.
  *
- * settings.json holds secrets (MQTT password, ABRP and Spotify tokens), and
- * the folder says so in its README.
+ * The app keeps the key made from the password (not the password) in its
+ * private prefs, so the daily backup needs no typing. After the app is
+ * deleted, only the password opens a backup.
  */
 public final class AppBackup {
     private AppBackup() {}
@@ -65,13 +75,20 @@ public final class AppBackup {
     static final String SETTINGS = "settings.json";
     static final String DB = "car.db";
     static final String[] CERTS = {MqttTls.CLIENT_P12, MqttTls.CUSTOM_CA_CRT};
+    public static final String EXT = ".dabackup";
     static final int KEEP = 7;
     static final long AUTO_EVERY_MS = 24L * 3600 * 1000;
     static final String PREF_LAST_AUTO = "backup_last_auto_ms";
     static final String PREF_OFFER_DONE = "backup_offer_done";
     /** Set by a restore just before the restart, read once by the new process. */
     static final String PREF_NOTE = "backup_restore_note";
+    /** The key made from the backup password, and its salt (base64). Never
+     * in the backup itself: see Prefs.BACKUP_SETTINGS. */
+    static final String PREF_KEY = "backup_key";
+    static final String PREF_SALT = "backup_salt";
+    public static final int MIN_PASSWORD = 6;
     private static final String STAMP = "yyyy-MM-dd_HHmmss";
+    private static final String STAMP_RE = "\\d{4}-\\d{2}-\\d{2}_\\d{6}";
 
     /** Prefs that hold row ids, and the table each id points into. A merge
      * renumbers the live rows, so these move by the same offset. */
@@ -85,14 +102,24 @@ public final class AppBackup {
 
     private static final AtomicBoolean running = new AtomicBoolean(false);
 
-    /** One backup folder found on a drive. */
+    /** One backup file found on a drive. */
     public static final class Found {
-        public final File dir;
+        public final File file;
         public final long createdMs;
         public final boolean onUsb;
-        Found(File dir, long createdMs, boolean onUsb) {
-            this.dir = dir; this.createdMs = createdMs; this.onUsb = onUsb;
+        Found(File file, long createdMs, boolean onUsb) {
+            this.file = file; this.createdMs = createdMs; this.onUsb = onUsb;
         }
+    }
+
+    /** No backup password is set, so there is no key to lock a backup with. */
+    public static final class NoPassword extends IllegalStateException {
+        NoPassword() { super("no backup password set"); }
+    }
+
+    /** This backup was locked with another password than the one set here. */
+    public static final class NeedPassword extends IllegalStateException {
+        NeedPassword() { super("backup password needed"); }
     }
 
     static final class RestoreResult {
@@ -113,61 +140,113 @@ public final class AppBackup {
         return r;
     }
 
-    /** True when dir is on the USB stick, not on the car's own storage. */
-    public static boolean onUsb(File dir) {
+    /** True when f is on the USB stick, not on the car's own storage. */
+    public static boolean onUsb(File f) {
         File usb = UsbExport.findDrive();
-        return usb != null && dir.getAbsolutePath().startsWith(usb.getAbsolutePath() + "/");
+        return usb != null && f.getAbsolutePath().startsWith(usb.getAbsolutePath() + "/");
     }
 
-    /** Every complete backup on every drive, newest first. */
+    /** Every complete backup on every drive, newest first. A backup is
+     * written as .part and renamed at the end, so a cut-short one never lists. */
     public static List<Found> list() {
         List<Found> out = new ArrayList<>();
         for (File root : roots()) {
-            File[] dirs = new File(root, DIR).listFiles();
-            if (dirs == null) continue;
-            for (File d : dirs) {
-                File s = new File(d, SETTINGS);
-                if (!d.isDirectory() || !s.isFile()) continue;   // no settings.json: incomplete
-                long created = 0;
-                try { created = SettingsFile.createdMs(readText(s)); } catch (Throwable ignored) {}
-                if (created == 0) created = s.lastModified();
-                out.add(new Found(d, created, onUsb(d)));
+            File[] files = new File(root, DIR).listFiles();
+            if (files == null) continue;
+            for (File f : files) {
+                if (!f.isFile() || !f.getName().matches(STAMP_RE + "\\" + EXT)) continue;
+                long created;
+                try {
+                    created = new SimpleDateFormat(STAMP, Locale.US)
+                        .parse(f.getName().substring(0, f.getName().length() - EXT.length())).getTime();
+                } catch (Throwable t) {
+                    created = f.lastModified();
+                }
+                out.add(new Found(f, created, onUsb(f)));
             }
         }
         Collections.sort(out, (a, b) -> Long.compare(b.createdMs, a.createdMs));
         return out;
     }
 
+    // ---- Password ---------------------------------------------------------
+
+    public static boolean hasPassword(Context ctx) {
+        return Prefs.file(ctx).getString(PREF_KEY, null) != null;
+    }
+
+    /** Sets or changes the backup password. Slow (key stretching): call off
+     * the UI thread. Backups made before still need the old password. */
+    public static void setPassword(Context ctx, char[] password) throws Exception {
+        if (password.length < MIN_PASSWORD) throw new IllegalArgumentException("password too short");
+        byte[] salt = BackupCrypto.newSalt();
+        byte[] key = BackupCrypto.deriveKey(password, salt, BackupCrypto.ROUNDS);
+        storeKey(Prefs.file(ctx).edit(), key, salt).commit();
+    }
+
+    private static SharedPreferences.Editor storeKey(SharedPreferences.Editor e, byte[] key, byte[] salt) {
+        return e.putString(PREF_KEY, Base64.getEncoder().encodeToString(key))
+            .putString(PREF_SALT, Base64.getEncoder().encodeToString(salt));
+    }
+
+    /** {key, salt} as set here, or null. */
+    private static byte[][] storedKey(Context ctx) {
+        SharedPreferences p = Prefs.file(ctx);
+        String k = p.getString(PREF_KEY, null);
+        String s = p.getString(PREF_SALT, null);
+        if (k == null || s == null) return null;
+        try {
+            return new byte[][]{Base64.getDecoder().decode(k), Base64.getDecoder().decode(s)};
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /** True when restoring f needs the password typed: the key set here did
+     * not lock it (fresh install, or the password changed since). */
+    public static boolean needsPassword(Context ctx, File f) {
+        byte[][] ks = storedKey(ctx);
+        if (ks == null) return true;
+        try {
+            return !java.util.Arrays.equals(BackupCrypto.readHeader(f).salt, ks[1]);
+        } catch (Throwable t) {
+            return true;
+        }
+    }
+
     // ---- Backup -----------------------------------------------------------
 
     /** Writes a backup to every drive that takes it. Call off the UI thread.
-     * Returns the folders written; throws when none could be. */
+     * Returns the files written; throws NoPassword when no password is set,
+     * and another exception when no drive took it. */
     public static List<File> backupNow(Context ctx) throws Exception {
+        final Context app = ctx.getApplicationContext();
+        byte[][] ks = storedKey(app);
+        if (ks == null) throw new NoPassword();
         if (!running.compareAndSet(false, true)) throw new IllegalStateException("backup already running");
         try {
-            final Context app = ctx.getApplicationContext();
-            String stamp = new SimpleDateFormat(STAMP, Locale.US).format(new Date());
+            String name = new SimpleDateFormat(STAMP, Locale.US).format(new Date()) + EXT;
             List<File> written = new ArrayList<>();
             File first = null;
             Throwable lastErr = null;
             for (File root : roots()) {
-                File dir = new File(new File(root, DIR), stamp);
+                File backups = new File(root, DIR);
+                File f = new File(backups, name);
+                File part = new File(backups, name + ".part");
                 try {
-                    if (!dir.isDirectory() && !dir.mkdirs()) throw new java.io.IOException("cannot create " + dir);
-                    if (first == null) {
-                        writeBackup(app, dir);
-                        first = dir;
-                    } else {
-                        copyBackup(first, dir);
-                    }
-                    writeReadme(new File(root, DIR));
-                    prune(new File(root, DIR));
-                    written.add(dir);
-                    Log.i(TAG, "backup: done " + dir);
+                    if (!backups.isDirectory() && !backups.mkdirs()) throw new java.io.IOException("cannot create " + backups);
+                    if (first == null) writeBackup(app, part, ks[0], ks[1]);
+                    else copy(first, part);
+                    if (!part.renameTo(f)) throw new java.io.IOException("rename " + part);
+                    if (first == null) first = f;
+                    writeReadme(backups);
+                    prune(backups);
+                    written.add(f);
+                    Log.i(TAG, "backup: done " + f);
                 } catch (Throwable t) {
                     lastErr = t;
-                    Log.w(TAG, "backup: " + dir + ": " + t);
-                    deleteTree(dir);
+                    Log.w(TAG, "backup: " + f + ": " + t);
+                    part.delete();
                 }
             }
             if (written.isEmpty()) {
@@ -186,6 +265,7 @@ public final class AppBackup {
         SharedPreferences p = Prefs.file(app);
         long now = System.currentTimeMillis();
         if (now - p.getLong(PREF_LAST_AUTO, 0) < AUTO_EVERY_MS) return;
+        if (!hasPassword(app)) return;   // the Backup card says backups are off
         if (!CarState.isParked() || running.get()) return;
         new Thread(() -> {
             try {
@@ -197,32 +277,38 @@ public final class AppBackup {
         }, "auto-backup").start();
     }
 
-    private static void writeBackup(Context app, File dir) throws Exception {
-        // Database first, settings.json LAST: a folder with settings.json is
-        // complete, so a cut-short backup never lists as one.
-        File db = new File(dir, DB);
-        File part = new File(dir, DB + ".part");
-        onDbThread(app, () -> { snapshotDb(app, part); return null; });
-        if (!part.renameTo(db)) throw new java.io.IOException("rename " + part);
-
-        for (String name : CERTS) {
-            File f = new File(app.getFilesDir(), name);
-            if (f.isFile()) copy(f, new File(dir, name));
+    /** The database snapshot goes to the private cache first; only the
+     * locked file reaches the drive. */
+    private static void writeBackup(Context app, File out, byte[] key, byte[] salt) throws Exception {
+        File snap = new File(app.getCacheDir(), "backup-snap.db");
+        try {
+            onDbThread(app, () -> { snapshotDb(app, snap); return null; });
+            String json = SettingsFile.toJson(Prefs.file(app).getAll(),
+                BuildConfig.VERSION_NAME, CarDb.version(), System.currentTimeMillis());
+            try (ZipOutputStream z = new ZipOutputStream(
+                    BackupCrypto.encrypt(new FileOutputStream(out), key, salt, BackupCrypto.ROUNDS))) {
+                z.putNextEntry(new ZipEntry(SETTINGS));
+                z.write(json.getBytes(StandardCharsets.UTF_8));
+                z.closeEntry();
+                addFile(z, snap, DB);
+                for (String name : CERTS) {
+                    File f = new File(app.getFilesDir(), name);
+                    if (f.isFile()) addFile(z, f, name);
+                }
+            }
+        } finally {
+            deleteDb(snap);
         }
-        String json = SettingsFile.toJson(Prefs.file(app).getAll(),
-            BuildConfig.VERSION_NAME, CarDb.version(), System.currentTimeMillis());
-        writeText(new File(dir, SETTINGS), json);
     }
 
-    private static void copyBackup(File from, File to) throws Exception {
-        File[] files = from.listFiles();
-        if (files == null) throw new java.io.IOException("cannot read " + from);
-        File settings = null;
-        for (File f : files) {
-            if (f.getName().equals(SETTINGS)) { settings = f; continue; }
-            copy(f, new File(to, f.getName()));
+    private static void addFile(ZipOutputStream z, File f, String name) throws Exception {
+        z.putNextEntry(new ZipEntry(name));
+        try (InputStream in = new FileInputStream(f)) {
+            byte[] buf = new byte[64 * 1024];
+            int n;
+            while ((n = in.read(buf)) > 0) z.write(buf, 0, n);
         }
-        if (settings != null) copy(settings, new File(to, SETTINGS));   // last, as above
+        z.closeEntry();
     }
 
     /** A consistent copy of the live car.db in ONE self-contained file.
@@ -265,42 +351,75 @@ public final class AppBackup {
     }
 
     private static void prune(File backups) {
-        File[] dirs = backups.listFiles();
-        if (dirs == null) return;
+        File[] files = backups.listFiles();
+        if (files == null) return;
         List<File> ours = new ArrayList<>();
-        for (File d : dirs) {
-            if (d.isDirectory() && d.getName().matches("\\d{4}-\\d{2}-\\d{2}_\\d{6}")) ours.add(d);
+        for (File f : files) {
+            if (f.isFile() && f.getName().matches(STAMP_RE + "\\" + EXT)) ours.add(f);
+            // A .part left by a backup that was cut off (power lost).
+            else if (f.isFile() && f.getName().endsWith(EXT + ".part")
+                && System.currentTimeMillis() - f.lastModified() > 3600_000L) f.delete();
         }
         Collections.sort(ours, (a, b) -> b.getName().compareTo(a.getName()));
-        for (int i = KEEP; i < ours.size(); i++) deleteTree(ours.get(i));
+        for (int i = KEEP; i < ours.size(); i++) ours.get(i).delete();
     }
 
     private static void writeReadme(File backups) {
         File f = new File(backups, "README.txt");
         if (f.exists()) return;
         try {
-            writeText(f, "Drive Assist backups. One folder per backup, newest kept.\n\n"
+            writeText(f, "Drive Assist backups. One .dabackup file per backup, the newest 7 kept.\n\n"
+                + "Each file is locked with your backup password (AES-256). It holds your\n"
+                + "settings, your trips and charges, and your MQTT certificates.\n\n"
                 + "To restore: Drive Assist > Settings (gear) > System > Restore.\n"
-                + "After installing Drive Assist again, it also offers the newest backup by itself.\n\n"
-                + "settings.json   your settings (plain text)\n"
-                + "car.db          trips and charges (SQLite)\n"
-                + "mqtt_*.p12/crt  MQTT certificates, if you use them\n\n"
-                + "PRIVATE: settings.json holds your MQTT password and your ABRP and Spotify keys.\n"
-                + "Do not share these folders.\n");
+                + "After installing Drive Assist again, it also offers the newest backup by itself.\n"
+                + "You need the backup password. Without it, nobody can open these files.\n\n"
+                + "On a computer: tools/backup-open.sh <file> <folder> (in the Drive Assist source).\n");
         } catch (Throwable ignored) {}
     }
 
     // ---- Restore ----------------------------------------------------------
 
-    /** Restores a backup folder and restarts the app: on success this call
-     * does not return. Call off the UI thread. Throws, with nothing changed,
-     * when the backup cannot be used. The restarted app shows what happened
+    /** Restores a backup file and restarts the app: on success this call
+     * does not return. Call off the UI thread. password may be null when the
+     * key set here locked the backup (see needsPassword). Throws, with nothing
+     * changed, when the backup cannot be used: NeedPassword, or
+     * BackupCrypto.WrongPassword. The restarted app shows what happened
      * through {@link #takeNote}. */
-    public static void restore(Context ctx, File dir) throws Exception {
+    public static void restore(Context ctx, File file, char[] password) throws Exception {
         final Context app = ctx.getApplicationContext();
         final RestoreResult res = new RestoreResult();
+        final File dir = new File(app.getCacheDir(), "restore");
+        deleteTree(dir);
+        if (!dir.mkdirs()) throw new java.io.IOException("cannot create " + dir);
+        try {
+            restoreUnpacked(app, file, password, dir, res);
+        } finally {
+            deleteTree(dir);   // only reached on failure: success restarts the app
+        }
+    }
+
+    private static void restoreUnpacked(Context app, File file, char[] password, File dir,
+                                        RestoreResult res) throws Exception {
+        // Unlock into the private cache.
+        final byte[] key;
+        final byte[] salt;
+        try (InputStream raw = new FileInputStream(file)) {
+            BackupCrypto.Header h = BackupCrypto.readHeader(raw);
+            byte[][] ks = storedKey(app);
+            if (ks != null && java.util.Arrays.equals(ks[1], h.salt)) {
+                key = ks[0];
+            } else if (password != null) {
+                key = BackupCrypto.deriveKey(password, h.salt, h.rounds);
+            } else {
+                throw new NeedPassword();
+            }
+            salt = h.salt;
+            BackupCrypto.unzip(BackupCrypto.decrypt(raw, h, key), dir);
+        }
+
         File settingsFile = new File(dir, SETTINGS);
-        if (!settingsFile.isFile()) throw new java.io.IOException("not a backup: " + dir);
+        if (!settingsFile.isFile()) throw new java.io.IOException("not a backup: " + file);
         String json = readText(settingsFile);
         final Map<String, Object> settings = SettingsFile.parseSettings(json);
         res.settings = settings.size();
@@ -330,6 +449,9 @@ public final class AppBackup {
                 if (merged != null) shiftIdPrefs(Prefs.file(app).getAll(), e, merged.offsets);
                 SettingsFile.apply(e, settings);
                 e.putBoolean(PREF_OFFER_DONE, true);
+                // The password that opened it locks the next backups too,
+                // so the daily backup goes on after a reinstall.
+                storeKey(e, key, salt);
                 e.putString(PREF_NOTE, res.settings + "|" + res.tripsAdded + "|" + res.tripsAlreadyThere);
                 for (String name : CERTS) {
                     File f = new File(dir, name);
@@ -337,7 +459,8 @@ public final class AppBackup {
                 }
                 e.commit();
                 deleteDb(tmp);
-                Log.i(TAG, "backup: restored " + dir + " settings=" + res.settings
+                deleteTree(dir);
+                Log.i(TAG, "backup: restored " + file + " settings=" + res.settings
                     + " trips+" + res.tripsAdded + (res.tripsAlreadyThere ? " (already there)" : ""));
                 // Restart HERE, on the writer thread: the merge renumbered the
                 // live rows, and the running sessions still hold the old ids in

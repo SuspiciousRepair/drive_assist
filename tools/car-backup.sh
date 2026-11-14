@@ -5,23 +5,24 @@
 #   ./tools/car-backup.sh [CAR_IP]                      back up the car
 #   ./tools/car-backup.sh --restore <BACKUP_DIR> [CAR_IP]  restore onto the car
 #
-# The app does the backup itself (Config > System > Backup): one plain folder,
-# the SAME on the USB stick, on the car storage and here:
+# The app does the backup itself (Config > System > Backup): ONE file, locked
+# with the user's backup password, the SAME on the USB stick, on the car
+# storage and here:
 #
-#   settings.json     the user's settings, readable JSON
-#   car.db            trips, charges, telemetry (SQLite)
-#   mqtt_client.p12   MQTT client certificate, when there is one
-#   mqtt_ca.crt       custom MQTT CA, when there is one
+#   <stamp>.dabackup   settings, trips (car.db), MQTT certificates; AES-256
 #
 # This script drives that same code over adb (BackupReceiver), and adds what
 # only a computer can keep: the two apks (MANIFEST has versions and checksums).
 # Restore merges the trips with any the car recorded since (no doubles), puts
 # the settings and certificates back, and restarts the app.
 #
-# The folder holds SECRETS (MQTT password, ABRP and Spotify tokens). It is
-# written outside the repo, mode 0700, and must never be shared.
+# Password: only needed when the app has none set (backup) or did not lock
+# that backup itself, e.g. after a reinstall (restore). The script asks for it
+# then, or reads BACKUP_PASSWORD. To look inside a backup on this computer:
+# tools/backup-open.sh <file> <dir>.
 #
-# Env: CAR_IP (instead of the argument), BACKUP_ROOT (default ~/drive-assist-backups).
+# Env: CAR_IP (instead of the argument), BACKUP_ROOT (default ~/drive-assist-backups),
+#      BACKUP_PASSWORD.
 set -Eeuo pipefail
 
 PKGS=(com.geely.modehelper com.geely.drivemem)   # install order: helper first
@@ -90,29 +91,50 @@ wait_log() {
 
 car_now() { ash "date '+%m-%d %H:%M:%S.000'" | tr -d '\r'; }
 
+# The password, asked once, never echoed. Passed to the app as an intent
+# extra over the root adb shell; the app never logs it.
+ask_password() {
+  [ -n "${BACKUP_PASSWORD:-}" ] && return 0
+  [ -t 0 ] || die "$1 Set BACKUP_PASSWORD."
+  read -rsp "Backup password: " BACKUP_PASSWORD; echo >&2
+  [ -n "$BACKUP_PASSWORD" ] || die "no password"
+}
+
+# Single quotes for the car's shell around a value that may hold any character.
+squote() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
+
 # --- Backup ---------------------------------------------------------------------
 backup() {
-  local out since line dir stamp pkg apk
+  local out since line file stamp pkg apk pwarg=()
   installed com.geely.drivemem || die "Drive Assist is not installed"
   since=$(car_now)
   say "Asking the app for a backup"
   ash am broadcast -a com.geely.drivemem.BACKUP -n "$RECV" >/dev/null
   line=$(wait_log "$since" 'backup: (ok|failed)') || die "no answer from the app in 3 minutes"
+  if [[ "$line" == *"no backup password set"* ]]; then
+    echo "    The app has no backup password yet. Choose one now (6+ characters)."
+    echo "    Write it down: without it, nobody can open the backups."
+    ask_password "The app has no backup password."
+    since=$(car_now)
+    pwarg=(--es password "$(squote "$BACKUP_PASSWORD")")
+    ash am broadcast -a com.geely.drivemem.BACKUP "${pwarg[@]}" -n "$RECV" >/dev/null
+    line=$(wait_log "$since" 'backup: (ok|failed)') || die "no answer from the app in 3 minutes"
+  fi
   [[ "$line" == "backup: ok"* ]] || die "$line"
 
-  # "backup: ok [/storage/XXXX-XXXX/Drive Assist/Backups/<stamp>, /storage/emulated/0/...]"
-  dir=$(grep -oE '/storage/emulated/0/Drive Assist/Backups/[0-9_-]+' <<<"$line" | head -1 || true)
-  [ -n "$dir" ] || dir=$(grep -oE '/storage/[^,]+/Drive Assist/Backups/[0-9_-]+' <<<"$line" | head -1 || true)
-  [ -n "$dir" ] || die "could not read the backup folder from: $line"
-  stamp=$(basename "$dir")
+  # "backup: ok [/storage/XXXX-XXXX/Drive Assist/Backups/<stamp>.dabackup, /storage/emulated/0/...]"
+  file=$(grep -oE '/storage/emulated/0/Drive Assist/Backups/[0-9_-]+\.dabackup' <<<"$line" | head -1 || true)
+  [ -n "$file" ] || file=$(grep -oE '/storage/[^,]+/Drive Assist/Backups/[0-9_-]+\.dabackup' <<<"$line" | head -1 || true)
+  [ -n "$file" ] || die "could not read the backup file from: $line"
+  stamp=$(basename "$file" .dabackup)
 
   mkdir -p "$BACKUP_ROOT"; chmod 700 "$BACKUP_ROOT"
   out="$BACKUP_ROOT/$stamp"
   mkdir -m 700 "$out"
   trap 'mv "$out" "$out.INCOMPLETE" 2>/dev/null; echo "ERROR: backup incomplete, kept as $out.INCOMPLETE" >&2' ERR
-  say "Copying $dir to $out"
-  timeout 300 adb pull "$dir/." "$out/" >/dev/null
-  [ -f "$out/settings.json" ] || die "settings.json missing in the pulled backup"
+  say "Copying $file to $out"
+  timeout 300 adb pull "$file" "$out/" >/dev/null
+  [ -s "$out/$stamp.dabackup" ] || die "the backup file did not arrive"
 
   {
     echo "date:   $(date -Iseconds)"
@@ -125,22 +147,19 @@ backup() {
     timeout 120 adb pull "$apk" "$out/$pkg.apk" >/dev/null
   done
 
-  if command -v sqlite3 >/dev/null && [ -f "$out/car.db" ]; then
-    [ "$(sqlite3 "$out/car.db" 'PRAGMA integrity_check;')" = ok ] \
-      && echo "    car.db: integrity ok, $(sqlite3 "$out/car.db" 'SELECT COUNT(*) FROM trip') trips" \
-      || echo "    WARNING: car.db failed its integrity check"
-  fi
   trap - ERR
   (cd "$out" && sha256sum -- * 2>/dev/null | grep -v ' MANIFEST$') >> "$out/MANIFEST"
   chmod -R go-rwx "$out"
-  say "Done: $out ($(du -sh "$out" | cut -f1)). It contains secrets; keep it private."
+  say "Done: $out ($(du -sh "$out" | cut -f1))."
+  echo "    The settings and trips are locked with the backup password. The apks are not."
 }
 
 # --- Restore --------------------------------------------------------------------
 restore() {
-  local pkg stamp dest since line f
-  [ -f "$SRC/settings.json" ] || die "no settings.json in $SRC (old .tar backups: use git show 2668e0f:tools/car-backup.sh)"
-  say "Restoring from $SRC"
+  local pkg file dest since line pwarg=()
+  file=$(ls -1 "$SRC"/*.dabackup 2>/dev/null | tail -1 || true)
+  [ -n "$file" ] || die "no .dabackup file in $SRC (old .tar backups: use git show 2668e0f:tools/car-backup.sh)"
+  say "Restoring from $file"
 
   if grep -qE '^[0-9a-f]{64}  ' "$SRC/MANIFEST" 2>/dev/null; then
     (cd "$SRC" && grep -E '^[0-9a-f]{64}  ' MANIFEST | sha256sum -c --quiet) \
@@ -160,19 +179,25 @@ restore() {
     fi
   done
 
-  # Put the folder where the app keeps its own backups, then let the app
+  # Put the file where the app keeps its own backups, then let the app
   # restore it: the same code as the Restore button.
-  stamp=$(basename "$SRC")
-  dest="$CAR_BACKUPS/$stamp"
-  ash "mkdir -p '$dest'"
-  for f in settings.json car.db mqtt_client.p12 mqtt_ca.crt; do
-    [ -f "$SRC/$f" ] && timeout 300 adb push "$SRC/$f" "$dest/$f" >/dev/null
-  done
+  dest="$CAR_BACKUPS/$(basename "$file")"
+  ash "mkdir -p '$CAR_BACKUPS'"
+  timeout 300 adb push "$file" "$dest" >/dev/null
 
-  since=$(car_now)
-  say "Asking the app to restore it (the app restarts)"
-  ash am broadcast -a com.geely.drivemem.RESTORE --es dir "'$dest'" -n "$RECV" >/dev/null
-  line=$(wait_log "$since" 'backup: (restored|failed)') || die "no answer from the app in 3 minutes"
+  while :; do
+    since=$(car_now)
+    say "Asking the app to restore it (the app restarts)"
+    ash am broadcast -a com.geely.drivemem.RESTORE --es file "'$dest'" "${pwarg[@]}" -n "$RECV" >/dev/null
+    line=$(wait_log "$since" 'backup: (restored|failed)') || die "no answer from the app in 3 minutes"
+    if [[ "$line" == *"backup password needed"* && ${#pwarg[@]} -eq 0 ]]; then
+      ask_password "This backup needs its password."
+      pwarg=(--es password "$(squote "$BACKUP_PASSWORD")")
+      continue
+    fi
+    [[ "$line" == *"wrong password"* ]] && die "wrong backup password"
+    break
+  done
   [[ "$line" == "backup: restored"* ]] || die "$line"
   echo "    $line"
   sleep 5
@@ -189,7 +214,7 @@ restart_apps() {
 
 check_mqtt() {
   local since="$1" i line
-  grep -q '"mqtt_uri"' "$SRC/settings.json" 2>/dev/null \
+  ash "grep -q mqtt_uri /data/data/com.geely.drivemem/shared_prefs/*.xml" >/dev/null 2>&1 \
     || { echo "    no MQTT broker in the restored settings"; return 0; }
   for i in $(seq 1 12); do
     line=$(ash "logcat -d -T '$since' -s DriveMem" 2>/dev/null || true)

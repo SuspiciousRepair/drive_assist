@@ -2,27 +2,36 @@ package com.geely.drivemem.ui;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.text.InputType;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import com.geely.drivemem.R;
 import com.geely.drivemem.state.CarState;
 import com.geely.drivemem.util.AppBackup;
+import com.geely.drivemem.util.BackupCrypto;
+import com.geely.drivemem.util.Style;
 
 import java.io.File;
 import java.text.DateFormat;
 import java.util.Date;
 import java.util.List;
 
-/** The backup screens: "back up now", "pick a backup to restore", and the
- * one-time "restore your backup?" question after a fresh install.
+/** The backup screens: "back up now", "set the backup password", "pick a
+ * backup to restore", and the one-time "restore your backup?" question after
+ * a fresh install.
  *
- * Restore restarts the app, so it only runs in Park, like an update. The
- * fresh-install question is a modal, so it is also Park-only and is closed
- * by {@link #dismissOffer()} when the car leaves Park. */
+ * Restore restarts the app, so it only runs in Park, like an update. Typing
+ * a password is also Park-only. The fresh-install question and the password
+ * boxes are modals, closed by {@link #dismissOffer()} when the car leaves
+ * Park. */
 public final class BackupDialogs {
     private BackupDialogs() {}
 
     private static AlertDialog offer;
+    private static AlertDialog pwDialog;
     private static boolean offerLookup;
 
     static String describe(Activity a, AppBackup.Found f) {
@@ -31,8 +40,13 @@ public final class BackupDialogs {
         return when + " — " + a.getString(f.onUsb ? R.string.backup_where_usb : R.string.backup_where_car);
     }
 
-    /** Back up now, with a toast for the result. */
+    /** Back up now, with a toast for the result. With no password set yet,
+     * asks for one first. */
     public static void backupNow(Activity a, Runnable after) {
+        if (!AppBackup.hasPassword(a)) {
+            setPassword(a, () -> backupNow(a, after));
+            return;
+        }
         Toast.makeText(a, a.getString(R.string.backup_running), Toast.LENGTH_SHORT).show();
         new Thread(() -> {
             String msg;
@@ -53,6 +67,94 @@ public final class BackupDialogs {
                 if (after != null) after.run();
             });
         }, "backup-now").start();
+    }
+
+    /** Sets or changes the backup password: typed twice, 6 characters or
+     * more. then runs after it is saved. */
+    public static void setPassword(Activity a, Runnable then) {
+        if (!CarState.isParked()) {
+            Toast.makeText(a, a.getString(R.string.backup_park_first), Toast.LENGTH_LONG).show();
+            return;
+        }
+        final boolean change = AppBackup.hasPassword(a);
+        EditText pw = passwordBox(a, R.string.backup_pw_hint);
+        EditText again = passwordBox(a, R.string.backup_pw_again_hint);
+        LinearLayout box = new LinearLayout(a);
+        box.setOrientation(LinearLayout.VERTICAL);
+        int pad = Style.dp(a, 24);
+        box.setPadding(pad, 0, pad, 0);
+        box.addView(pw);
+        box.addView(again);
+        String msg = a.getString(R.string.backup_pw_set_msg)
+            + (change ? "\n\n" + a.getString(R.string.backup_pw_change_msg) : "");
+        AlertDialog d = new AlertDialog.Builder(a)
+            .setTitle(a.getString(R.string.backup_pw_set_title))
+            .setMessage(msg)
+            .setView(box)
+            .setPositiveButton(android.R.string.ok, null)   // set below: stays open on a mistake
+            .setNegativeButton(android.R.string.cancel, null)
+            .create();
+        d.setOnShowListener(x -> {
+            Button ok = d.getButton(AlertDialog.BUTTON_POSITIVE);
+            ok.setOnClickListener(v -> {
+                String p1 = pw.getText().toString();
+                if (p1.length() < AppBackup.MIN_PASSWORD) { pw.setError(a.getString(R.string.backup_pw_short)); return; }
+                if (!p1.equals(again.getText().toString())) { again.setError(a.getString(R.string.backup_pw_mismatch)); return; }
+                ok.setEnabled(false);
+                new Thread(() -> {
+                    String err = null;
+                    try { AppBackup.setPassword(a, p1.toCharArray()); } catch (Throwable t) { err = String.valueOf(t.getMessage()); }
+                    final String e = err;
+                    a.runOnUiThread(() -> {
+                        try { d.dismiss(); } catch (Throwable ignored) {}
+                        Toast.makeText(a, e == null ? a.getString(R.string.backup_pw_saved)
+                            : a.getString(R.string.backup_failed, e), Toast.LENGTH_LONG).show();
+                        if (e == null && then != null) then.run();
+                    });
+                }, "backup-password").start();
+            });
+        });
+        showPw(d);
+    }
+
+    /** Asks the password that locked f, then restores. Asks again when wrong. */
+    private static void askPassword(Activity a, AppBackup.Found f, boolean wrongBefore) {
+        if (a.isFinishing() || !CarState.isParked()) return;
+        EditText pw = passwordBox(a, R.string.backup_pw_enter_title);
+        if (wrongBefore) pw.setError(a.getString(R.string.backup_pw_wrong));
+        LinearLayout box = new LinearLayout(a);
+        int pad = Style.dp(a, 24);
+        box.setPadding(pad, 0, pad, 0);
+        box.addView(pw);
+        AlertDialog d = new AlertDialog.Builder(a)
+            .setTitle(a.getString(R.string.backup_pw_enter_title))
+            .setMessage(a.getString(R.string.backup_pw_enter_msg, describe(a, f)))
+            .setView(box)
+            .setPositiveButton(a.getString(R.string.backup_restore),
+                (x, w) -> restoreWith(a, f, pw.getText().toString().toCharArray()))
+            .setNegativeButton(android.R.string.cancel, null)
+            .create();
+        showPw(d);
+    }
+
+    private static EditText passwordBox(Activity a, int hint) {
+        EditText e = new EditText(a);
+        e.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        e.setHint(a.getString(hint));
+        e.setTextSize(28);
+        e.setSingleLine(true);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        e.setLayoutParams(lp);
+        return e;
+    }
+
+    private static void showPw(AlertDialog d) {
+        if (pwDialog != null && pwDialog.isShowing()) {
+            try { pwDialog.dismiss(); } catch (Throwable ignored) {}
+        }
+        pwDialog = d;
+        d.show();
     }
 
     /** Lists the backups and restores the one the user picks. */
@@ -98,10 +200,23 @@ public final class BackupDialogs {
             Toast.makeText(a, a.getString(R.string.backup_park_first), Toast.LENGTH_LONG).show();
             return;
         }
+        new Thread(() -> {
+            if (AppBackup.needsPassword(a, f.file)) a.runOnUiThread(() -> askPassword(a, f, false));
+            else a.runOnUiThread(() -> restoreWith(a, f, null));
+        }, "backup-check").start();
+    }
+
+    private static void restoreWith(Activity a, AppBackup.Found f, char[] password) {
+        if (!CarState.isParked()) {
+            Toast.makeText(a, a.getString(R.string.backup_park_first), Toast.LENGTH_LONG).show();
+            return;
+        }
         Toast.makeText(a, a.getString(R.string.backup_restoring), Toast.LENGTH_LONG).show();
         new Thread(() -> {
             try {
-                AppBackup.restore(a, f.dir);   // restarts the app on success
+                AppBackup.restore(a, f.file, password);   // restarts the app on success
+            } catch (BackupCrypto.WrongPassword | AppBackup.NeedPassword t) {
+                a.runOnUiThread(() -> askPassword(a, f, true));
             } catch (Throwable t) {
                 a.runOnUiThread(() -> new AlertDialog.Builder(a)
                     .setTitle(a.getString(R.string.backup_restore))
@@ -150,9 +265,12 @@ public final class BackupDialogs {
 
     /** DRIVING SAFETY: the car left Park. */
     public static void dismissOffer() {
-        if (offer != null && offer.isShowing()) {
-            try { offer.dismiss(); } catch (Throwable ignored) {}
+        for (AlertDialog d : new AlertDialog[]{offer, pwDialog}) {
+            if (d != null && d.isShowing()) {
+                try { d.dismiss(); } catch (Throwable ignored) {}
+            }
         }
         offer = null;
+        pwDialog = null;
     }
 }

@@ -451,14 +451,18 @@ so you can get all of it back without a computer.
 
 **Where:** Settings (gear) → **System** → **Backup**.
 
-- **Back up now** writes one backup folder to the **USB stick** and to the
-  **car storage**.
+- **Password** sets your backup password, 6 characters or more. Backups are
+  off until you set one. **Write it down.** After you delete the app, only
+  this password opens your backups. If you lose it, nobody can open them.
+- **Back up now** writes one locked backup file to the **USB stick** and to
+  the **car storage**. With no password yet, it asks for one first.
 - The app also backs up **by itself once a day**, while the car is in P. It
   keeps the 7 newest backups in each place.
 - **Restore** lists the backups it finds. Pick one.
 
 **After you install the app again**, it finds the newest backup by itself
-and asks *"Restore your backup?"*. Press **Restore**.
+and asks *"Restore your backup?"*. Press **Restore** and type the backup
+password.
 
 Which backup survives what:
 
@@ -467,13 +471,19 @@ Which backup survives what:
 | Car storage | ✅ stays | ❌ erased |
 | USB stick | ✅ stays | ✅ stays (keep the stick in the car) |
 
-**What a backup is:** one plain folder, `Drive Assist/Backups/<date>/`.
+**What a backup is:** one file, `Drive Assist/Backups/<date>.dabackup`.
+Other apps on the car can read the USB stick and the car storage, so the file
+is locked with your backup password (AES-256). Inside the lock:
 
 | File | What it holds |
 | --- | --- |
-| `settings.json` | Your settings, readable text: MQTT, ABRP, Spotify, top bar icons, theme, drive modes, dashcam, OBD2 |
+| `settings.json` | Your settings: MQTT, ABRP, Spotify, top bar icons, theme, drive modes, dashcam, OBD2 |
 | `car.db` | Trips, charges and telemetry (SQLite) |
 | `mqtt_client.p12`, `mqtt_ca.crt` | MQTT certificates, if you use them |
+
+The app keeps a key made from your password, so the daily backup needs no
+typing. Deleting the app deletes that key too. If you change the password,
+new backups use the new one. Older backups still need the old one.
 
 **What a restore does:**
 
@@ -489,16 +499,19 @@ first. Restore runs only in P. Dashcam clips are not in the backup. Export
 them to USB.
 
 **From a computer (optional):** `tools/car-backup.sh` runs the same backup
-over ADB and also keeps the two APKs:
+over ADB and also keeps the two APKs. It asks for the backup password only
+when the app needs it. `tools/backup-open.sh` unlocks a backup file on the
+computer (needs a JDK):
 
 ```bash
 ./tools/car-backup.sh <CAR_IP>                                  # to ~/drive-assist-backups/<date>/
 ./tools/car-backup.sh --restore ~/drive-assist-backups/<date> <CAR_IP>
+./tools/backup-open.sh <date>.dabackup ./opened                 # asks the password
 ```
 
 > [!WARNING]
-> `settings.json` contains your MQTT password and your ABRP and Spotify keys.
-> Keep the USB stick and the backup folders private.
+> An unlocked backup (`./opened`) holds your MQTT password and your ABRP and
+> Spotify keys in plain text. Delete it when you are done.
 
 ---
 

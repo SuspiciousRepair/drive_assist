@@ -64,4 +64,11 @@ public class SettingsFileTest {
             assertFalse(k, Prefs.BACKUP_SETTINGS.containsKey(k));
         }
     }
+
+    /** The key that locks the backup must never be inside the backup. */
+    @Test public void backupListHoldsNoBackupKey() {
+        for (String k : Prefs.BACKUP_SETTINGS.keySet()) {
+            assertFalse(k, k.startsWith("backup_"));
+        }
+    }
 }
