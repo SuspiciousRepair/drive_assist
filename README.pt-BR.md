@@ -43,3 +43,10 @@ O Drive Assist é um projeto independente e de código aberto, sem vínculo ofic
 com a Geely. A documentação técnica, as descobertas sobre o veículo, o processo de
 compilação e as formas avançadas de instalação permanecem no
 [README técnico em inglês](README.md#quick-start).
+
+## Créditos
+
+- **[roadcast](https://github.com/Timoteohss/roadcast) e [Capy](https://github.com/Timoteohss/capy), de Timoteo Sousa** (Apache-2.0). A "Energia exata" usa o leitor CAN roadcast do Timoteo, sem alterações, e o inicia do jeito que o Capy mostrou. O Capy provou em carros EX2 que isso funciona.
+- **[libuv](https://github.com/libuv/libuv)** (MIT), o event loop por baixo do roadcast.
+
+Detalhes e licenças: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

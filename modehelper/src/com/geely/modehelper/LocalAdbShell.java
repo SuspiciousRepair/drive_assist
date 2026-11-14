@@ -13,8 +13,8 @@ import java.nio.charset.StandardCharsets;
 /** Runs one shell command through the head unit's own root adbd on
  * 127.0.0.1:5555, with ADB's "shell,v2" service.
  *
- * Ported to Java from Capy's LocalAdbShell.kt
- * (github.com/Timoteohss/capy, Apache-2.0). It is the only way to get a
+ * Ported to Java from Capy's LocalAdbShell.kt by Timoteo Sousa
+ * (github.com/Timoteohss/capy, Apache-2.0). See THIRD-PARTY-NOTICES.md. It is the only way to get a
  * process into the su domain from an app: su from system_app keeps
  * system_app (third_party/roadcast/docs/ANDROID_DEPLOYMENT.md), and only a
  * su-domain process may read the vehicle HAL's memory.

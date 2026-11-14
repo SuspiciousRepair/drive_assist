@@ -107,7 +107,18 @@ final class CanReader {
             // ADB happens to be open anyway, check it is ours and current (a
             // helper update brings a new binary).
             if (!adbOn || !adb.portOpen(1000)) { ok(ctx, "running"); return; }
-            if (!isOurs(adb)) { ok(ctx, "running_other"); return; }   // another app's: use it, never touch it
+            if (!isOurs(adb)) {
+                // Another app's (Capy's): use it, never stop it. But it was
+                // started inside adbd's cgroup, so ADB off would kill it and
+                // leave a gap until ours replaces it. Move it out while ADB is
+                // open anyway; that is the only thing done to it.
+                java.util.List<Integer> moved = CanReaderPolicy.parseAdopted(
+                    adb.execute(CanReaderPolicy.adoptOthersCommand()));
+                if (!moved.isEmpty()) Log.i(TAG, "can: adopted another app's reader " + moved
+                    + " (moved out of adbd's group so ADB off does not kill it)");
+                ok(ctx, "running_other");
+                return;
+            }
             if (!binaryVerified) {
                 String remote = CanReaderPolicy.parseSha256(adb.execute(CanReaderPolicy.sha256Command()));
                 binaryVerified = assetSha(ctx).equals(remote);

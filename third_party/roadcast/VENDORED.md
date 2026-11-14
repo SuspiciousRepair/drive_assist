@@ -1,6 +1,7 @@
 # Vendored: roadcast
 
-- Upstream: https://github.com/Timoteohss/roadcast (Apache-2.0, see LICENSE and NOTICE)
+- Upstream: https://github.com/Timoteohss/roadcast, by Timoteo Sousa
+  (Apache-2.0, see LICENSE and NOTICE; credits in /THIRD-PARTY-NOTICES.md)
 - Commit: 22153ec9cb93e79adca3b5161cd3c609c222f543
 - Built by: `tools/build-roadcastd.sh` (not by the upstream Makefile or scripts)
 

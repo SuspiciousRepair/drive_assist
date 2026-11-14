@@ -60,6 +60,9 @@ forever to start and watch it. We don't need to.
      `docs/CAN-API.md`. The switch text warns that other apps can read.
 4. **Capy coexistence.** If `@roadcast` already answers with protocol v3,
    connect to it and don't start a second daemon. Never kill theirs.
+   Built: while ADB is on anyway, the helper also "adopts" it: moves it out
+   of adbd's cgroup so ADB off does not kill it (tested on the car with a
+   stand-in started like Capy starts it).
 5. **App.**
    - New energy tier: CAN, then OBD2, then the SoC estimate.
      `EnergySource.MEASURED` covers CAN.

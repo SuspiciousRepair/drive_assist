@@ -13,7 +13,8 @@ import java.util.Map;
 import java.util.Set;
 
 /** Minimal client for roadcastd's wire protocol, version 3
- * (third_party/roadcast/docs/PROTOCOL.md). Pure Java, no JNI: the daemon's
+ * (third_party/roadcast/docs/PROTOCOL.md). roadcast and its protocol are by
+ * Timoteo Sousa (github.com/Timoteohss/roadcast, Apache-2.0). Pure Java, no JNI: the daemon's
  * own C client library would add a native .so to an apk that has none.
  *
  * It only does what this app needs: learn the schema, find the indices of a

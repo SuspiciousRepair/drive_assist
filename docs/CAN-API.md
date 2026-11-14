@@ -1,8 +1,9 @@
 # Car data for other apps (`@roadcast`)
 
 When Drive Assist's **Exact energy** switch is on, the car runs one shared,
-read-only CAN reader: [roadcast](https://github.com/Timoteohss/roadcast)
-(Apache-2.0, vendored in `third_party/roadcast/`). **Any app on the head unit
+read-only CAN reader: [roadcast](https://github.com/Timoteohss/roadcast) by
+Timoteo Sousa (Apache-2.0, vendored unchanged in `third_party/roadcast/`;
+credits in `THIRD-PARTY-NOTICES.md`). **Any app on the head unit
 may connect and read it.** No permission, no key, no Drive Assist API.
 
 Why open: one reader that every app shares is better than apps fighting over
@@ -44,6 +45,11 @@ daemon starts, its signals report "never observed" (state 1), not valid.
 - If nothing answers and you start your own, do not use
   `/data/local/tmp/drive_assist/roadcastd`: Drive Assist's helper owns and
   rewrites that path.
+- If your reader is still in adbd's cgroup (`/acct/uid_0/pid_<adbd>`),
+  Drive Assist's helper **moves it to the root group** while ADB is on
+  anyway ("adopts" it), so ADB off no longer kills it. It does nothing else
+  to it. Better: move it yourself at launch, as Drive Assist does:
+  `setsid sh -c 'echo $$ > /acct/cgroup.procs; exec <your roadcastd> ...'`.
 - Do not rely on Drive Assist being installed. The daemon runs only while its
   switch is on.
 

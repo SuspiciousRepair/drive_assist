@@ -9,18 +9,15 @@
 # packs into the helper apk.
 #
 # Why this script and not upstream's build-libuv-android.sh: that one needs
-# cmake. We compile libuv's sources directly with the same compiler instead,
-# so the only tool the car build needs is the NDK clang. libuv comes from a
-# pinned release tarball, checked against a fixed SHA-256 (source, not a
-# binary: a root daemon must be built from code someone can read).
+# cmake and downloads libuv. We compile libuv's sources directly with the
+# same compiler, from our own copy in third_party/libuv (1.51.0, MIT), so the
+# build needs no network and no tool beyond the NDK clang. A root daemon must
+# be built from code that is in this repo, where it can be read.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RC="$ROOT/third_party/roadcast"
 
-LIBUV_VERSION=1.51.0
-LIBUV_SHA256=27e55cf7083913bfb6826ca78cde9de7647cded648d35f24163f2d31bb9f51cd
-DEPS="$ROOT/build/roadcast/deps"
-UV="$DEPS/libuv-$LIBUV_VERSION"
+UV="$ROOT/third_party/libuv"
 
 if [ "${HOST:-0}" = 1 ]; then
   TARGET=host
@@ -45,17 +42,10 @@ else
 fi
 
 OUT="$ROOT/build/roadcast/$TARGET"
-mkdir -p "$DEPS" "$OUT/uv"
+mkdir -p "$OUT/uv"
 
-# --- libuv source, pinned ---------------------------------------------------
-if [ ! -f "$UV/include/uv.h" ]; then
-  tgz="$DEPS/libuv-$LIBUV_VERSION.tar.gz"
-  [ -f "$tgz" ] || curl -fsSL --retry 3 -o "$tgz" \
-    "https://github.com/libuv/libuv/archive/refs/tags/v$LIBUV_VERSION.tar.gz"
-  got="$(sha256sum "$tgz" | cut -d' ' -f1)"
-  [ "$got" = "$LIBUV_SHA256" ] || { echo "build-roadcastd: libuv checksum mismatch ($got)" >&2; rm -f "$tgz"; exit 1; }
-  tar -xzf "$tgz" -C "$DEPS"
-fi
+# --- libuv, from third_party/libuv (no download) ---------------------------
+[ -f "$UV/include/uv.h" ] || { echo "build-roadcastd: third_party/libuv is missing" >&2; exit 1; }
 
 UV_SRC=(
   src/fs-poll.c src/idna.c src/inet.c src/random.c src/strscpy.c src/strtok.c
@@ -89,8 +79,14 @@ FLAGS=(-std=c11 -O2 -Wall -Wextra -Wpedantic -Werror -I"$RC/include")
   "$RC/src/roadcastctl.c" "$RC/src/protocol.c"
 
 if [ "$TARGET" != host ]; then
-  mkdir -p "$ROOT/modehelper/assets"
+  mkdir -p "$ROOT/modehelper/assets/licenses"
   cp "$OUT/roadcastd" "$ROOT/modehelper/assets/roadcastd"
+  # The apk that ships the binary also carries its licenses and notices.
+  cp "$RC/LICENSE" "$ROOT/modehelper/assets/licenses/roadcast-LICENSE"
+  cp "$RC/NOTICE" "$ROOT/modehelper/assets/licenses/roadcast-NOTICE"
+  cp "$UV/LICENSE" "$ROOT/modehelper/assets/licenses/libuv-LICENSE"
+  cp "$UV/LICENSE-extra" "$ROOT/modehelper/assets/licenses/libuv-LICENSE-extra"
+  cp "$ROOT/THIRD-PARTY-NOTICES.md" "$ROOT/modehelper/assets/licenses/THIRD-PARTY-NOTICES.md"
 fi
 echo "roadcastd ($TARGET): $OUT/roadcastd"
 sha256sum "$OUT/roadcastd"

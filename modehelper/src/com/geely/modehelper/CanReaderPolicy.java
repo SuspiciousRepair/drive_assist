@@ -81,6 +81,31 @@ final class CanReaderPolicy {
              + "</dev/null >/dev/null 2>&1 & echo " + LAUNCHED + "; fi";
     }
 
+    static final String ADOPTED = "DA_ADOPTED";
+
+    /** "Adopts" a roadcastd another app started (Capy): if it still sits in
+     * adbd's cgroup, move it to the root group, so switching ADB off no longer
+     * kills it. Only that: it is not stopped, restarted or changed, and our
+     * own daemon is skipped (it moved itself at launch). Writing a pid to
+     * cgroup.procs moves all its threads. Prints "DA_ADOPTED pid" per move. */
+    static String adoptOthersCommand() {
+        return "for p in $(pidof roadcastd 2>/dev/null); do "
+             + "[ \"$(readlink /proc/$p/exe)\" = \"" + BIN + "\" ] && continue; "
+             + "grep -q 'cpuacct:/uid_0/pid_' /proc/$p/cgroup && "
+             + "echo $p > /acct/cgroup.procs && echo " + ADOPTED + " $p; done; true";
+    }
+
+    /** Pids moved by {@link #adoptOthersCommand}, from its output. */
+    static java.util.List<Integer> parseAdopted(String out) {
+        java.util.List<Integer> pids = new java.util.ArrayList<>();
+        if (out == null) return pids;
+        for (String line : out.split("\n")) {
+            String[] t = line.trim().split("\\s+");
+            if (t.length == 2 && t[0].equals(ADOPTED) && t[1].matches("[0-9]+")) pids.add(Integer.parseInt(t[1]));
+        }
+        return pids;
+    }
+
     /** Prints, for our daemon only: its SELinux context, then its cpuacct line. */
     static String inspectCommand() {
         return "for p in $(pidof roadcastd 2>/dev/null); do "

@@ -29,8 +29,8 @@ public final class CanPower {
     public static final String OBC_A = "OBC_iInAct";
     public static final String[] SIGNALS = {VOLT, CURR, CLIMATE, DRIVE, OBC_V, OBC_A};
 
-    /** Values outside these bands are not these signals (roadcast's own
-     * bands, the same ones Capy applies). */
+    /** Values outside these bands are not these signals. Bands from Capy
+     * (github.com/Timoteohss/capy, Apache-2.0, by Timoteo Sousa). */
     static final double V_MIN = 100, V_MAX = 1000, A_ABS = 500, CLIMATE_MAX = 30;
 
     /** Without a heartbeat for this long the values are no longer trusted. */

@@ -22,6 +22,15 @@ public final class CanReaderPolicyTest {
         check(CanReaderPolicy.stopOursCommand().contains("readlink /proc/$p/exe)\" = \"" + CanReaderPolicy.BIN + "\""),
               "stop is limited to our binary");
 
+        // Adopt: skips our binary, moves only what is in adbd's group, never kills.
+        String adopt = CanReaderPolicy.adoptOthersCommand();
+        check(adopt.contains("= \"" + CanReaderPolicy.BIN + "\" ] && continue"), "our daemon skipped");
+        check(adopt.contains("cpuacct:/uid_0/pid_"), "only processes still in adbd's group");
+        check(adopt.contains("> /acct/cgroup.procs"), "moves to the root group");
+        check(!adopt.contains("kill"), "never kills another app's reader");
+        check(CanReaderPolicy.parseAdopted("DA_ADOPTED 4242\nnoise\nDA_ADOPTED 17\n").equals(java.util.Arrays.asList(4242, 17)), "adopt parse");
+        check(CanReaderPolicy.parseAdopted("").isEmpty(), "nothing adopted");
+
         // Install: checksum checked before the move, bad input refused.
         String sha = "e8d3aab94944e6fbe46b977ece03362caba148f3bcb48100438be2b1c8e5de90";
         String inst = CanReaderPolicy.installCommand("/data/user/0/com.geely.modehelper/files/roadcastd.stage", sha);
