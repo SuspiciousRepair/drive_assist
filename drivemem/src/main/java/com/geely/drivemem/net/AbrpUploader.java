@@ -7,7 +7,9 @@ import com.geely.drivemem.car.EntityBus;
 import com.geely.drivemem.car.Telemetry;
 import com.geely.drivemem.hvac.ComfortRuler;
 import com.geely.drivemem.sensors.GpsReader;
-import com.geely.drivemem.sensors.Obd2Reader;
+import com.geely.drivemem.sensors.CanHub;
+import com.geely.drivemem.sensors.EnergyHub;
+import com.geely.drivemem.sensors.ObdHub;
 import com.geely.drivemem.state.CarState;
 import com.geely.drivemem.state.ChargeSession;
 import com.geely.drivemem.state.ParkSession;
@@ -131,10 +133,6 @@ public final class AbrpUploader {
     // itself, which is what lets sampling run faster than the CarActor.TICK_INTERVAL_MS tick.
     private static volatile Map<String, Object> lastData = null;
     private static final Object samplerWakeLock = new Object();
-    // This class's own cached copy of the one thing Obd2Reader pushes --
-    // see buildTlm()'s own comment for why this replaced five separate
-    // freshXxx() calls.
-    private static volatile Obd2Reader.Reading lastObdReading = null;
 
     // Debug/diagnostic state for the settings screen — what was actually
     // last sent (or attempted) and how it went. Only the sampler thread
@@ -154,7 +152,6 @@ public final class AbrpUploader {
     public static void unsubscribe(Listener l) { listeners.remove(l); }
 
     public static JSONObject lastTlmSent() { return lastTlm; }
-    public static void setLastObdReadingForTesting(Obd2Reader.Reading r) { lastObdReading = r; }
     public static long lastAttemptAtMs() { return lastAttemptAtMs; }
     public static boolean lastAttemptOk() { return lastOk; }
     public static String lastErrorDetail() { return lastError; }
@@ -258,10 +255,6 @@ public final class AbrpUploader {
                 lastData = data;
                 wakeSampler();
             }
-        });
-        Obd2Reader.subscribe(new Obd2Reader.Listener() {
-            @Override public void onObd2ConnectedChanged(boolean connected) {}
-            @Override public void onObd2Reading(Obd2Reader.Reading r) { lastObdReading = r; }
         });
         Thread t = new Thread(() -> samplerLoop(app), "abrp-sampler");
         t.setDaemon(true);
@@ -435,18 +428,17 @@ public final class AbrpUploader {
             JSONObject tlm = new JSONObject();
             tlm.put("utc", System.currentTimeMillis() / 1000);
 
-            // Read from the cached Reading Obd2Reader last PUSHED (see
-            // ensureSubscribed()), not by calling back into its freshXxx()
-            // getters -- this class caches its own local copy of the one
-            // upstream source instead of polling it repeatedly.
-            Obd2Reader.Reading obd = lastObdReading;
-            boolean obdFresh = obd != null && System.currentTimeMillis() - obd.atMs <= 20_000;
+            // Measured battery values come from the hub (CLAUDE.md rule 7):
+            // EnergyHub picks CAN when it is live, else the OBD2 dongle. Each
+            // is at most 2 s old, and this samples every SAMPLE_MS (6 s), so
+            // both sources are fresher than any sample ABRP gets.
+            CarActor hub = (ctx != null) ? CarActor.get(ctx) : CarActor.get();
 
             // OBD2 SOC is finer-grained (one decimal) than the VHAL's
             // whole-percent reading when it's actually connected and fresh
             // -- prefer it, same "replace when connected" rule Telemetry
             // .java's own power estimate uses.
-            Float obdSoc = (obdFresh && obd.soc != null) ? obd.soc.floatValue() : null;
+            Float obdSoc = CanHub.get(hub, ObdHub.SOC);
             Integer battery = asInt(data.get("battery"));
             if (obdSoc != null) tlm.put("soc", obdSoc);
             else if (battery != null) tlm.put("soc", battery);
@@ -454,7 +446,7 @@ public final class AbrpUploader {
             // The VHAL fallback is a SoC-delta energy estimate over a time
             // window, not a measured instantaneous power reading. Never send
             // it to ABRP as calibration data.
-            Float power = (obdFresh && obd.powerKw != null) ? obd.powerKw.floatValue() : null;
+            Float power = CanHub.get(hub, EnergyHub.POWER_KW);
             if (power != null) tlm.put("power", power);
 
             Float speed = asFloat(data.get("speed"));
@@ -510,11 +502,11 @@ public final class AbrpUploader {
                 } catch (Throwable ignored) {}
             }
 
-            Float v = (obdFresh && obd.voltage != null) ? obd.voltage.floatValue() : null;
+            Float v = CanHub.get(hub, EnergyHub.PACK_V);
             if (v != null) tlm.put("voltage", v);
-            Float a = (obdFresh && obd.current != null) ? obd.current.floatValue() : null;
+            Float a = CanHub.get(hub, EnergyHub.PACK_A);
             if (a != null) tlm.put("current", a);
-            Float bt = (obdFresh && obd.battTempC != null) ? obd.battTempC.floatValue() : null;
+            Float bt = CanHub.get(hub, ObdHub.BATT_TEMP_C);   // only the dongle has it
             if (bt != null) tlm.put("batt_temp", bt);
 
             return tlm;

@@ -4,7 +4,7 @@ import android.content.Context;
 
 import com.geely.drivemem.R;
 import com.geely.drivemem.net.AbrpUploader;
-import com.geely.drivemem.sensors.Obd2Reader;
+import com.geely.drivemem.sensors.ObdHub;
 import com.geely.drivemem.services.TelemetryService;
 import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.SpotifyClient;
@@ -81,7 +81,7 @@ final class Integrations {
 
     private static Status obd(Context c) {
         if (!Prefs.getObd2Enabled(c)) return off(c);
-        return Obd2Reader.isConnected()
+        return ObdHub.connected(com.geely.drivemem.car.CarActor.get())
             ? new Status(State.OK, c.getString(R.string.int_status_connected))
             : new Status(State.BUSY, c.getString(R.string.int_status_searching));
     }

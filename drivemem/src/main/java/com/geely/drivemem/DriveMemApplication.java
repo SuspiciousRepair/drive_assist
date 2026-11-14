@@ -60,6 +60,9 @@ public final class DriveMemApplication extends Application {
         ParkingState.ensureSubscribed(this);
         ValetSession.ensureSubscribed(this);
         EnergyIntegrator.ensureSubscribed(this);
+        // Battery power/V/A from the best measured source (CAN, else OBD2),
+        // derived in the hub: CLAUDE.md rule 7.
+        com.geely.drivemem.sensors.EnergyHub.register(CarActor.get(this));
         Obd2Reader.ensureStarted(this);   // no-ops unless obd2_enabled is set
         CanEnergyReader.ensureStarted(this);   // no-ops unless can_energy is set
         AbrpUploader.ensureSubscribed(this);

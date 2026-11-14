@@ -384,6 +384,12 @@ public final class CarActor {
         h.post(() -> ingest(key, Reading.ok(value)));
     }
 
+    /** Injects any reading (e.g. NOT_AVAILABLE when a source is switched
+     * off), published on EntityBus if it differs from the cached one. */
+    public void injectReading(String key, Reading reading) {
+        h.post(() -> ingest(key, reading));
+    }
+
     /** Writes a property value asynchronously. */
     public void cast(String key, Object value) { cast(key, value, null); }
 
