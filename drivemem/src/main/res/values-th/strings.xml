@@ -75,17 +75,13 @@
     <!-- config -->
     <string name="cfg_title">การตั้งค่า</string>
     <string name="cfg_nav_doors">ประตู</string>
-    <string name="cfg_nav_mqtt">MQTT</string>
     <string name="cfg_nav_drive">โหมดการขับขี่</string>
     <string name="cfg_nav_bar">แถบเมนู</string>
     <string name="cfg_nav_look">ลักษณะที่ปรากฏ</string>
-    <string name="cfg_nav_spotify">Spotify</string>
     <string name="cfg_nav_system">ระบบ</string>
     <!-- sidebar group captions -->
     <string name="cfg_group_car">รถยนต์</string>
     <string name="cfg_group_display">หน้าจอ</string>
-    <string name="cfg_group_integrations">การผสานการทำงาน</string>
-    <string name="cfg_group_system">ระบบ</string>
     <string name="cfg_system_header">ระบบ</string>
     <string name="cfg_app_info_header">ข้อมูลแอปพลิเคชัน</string>
     <string name="cfg_version_label">เวอร์ชัน: %1$s (บิลด์ %2$d)</string>
@@ -343,18 +339,14 @@
     <string name="cam_right">ขวา</string>
     <string name="cam_orbit">หมุนรอบคัน</string>
     <!-- charging history -->
-    <string name="cfg_nav_charge">การชาร์จ</string>
-    <string name="charge_title">ประวัติการชาร์จ</string>
     <string name="charge_sessions_title">ประวัติการชาร์จ · ล่าสุดก่อน</string>
     <string name="charge_soc_chart_title">ระดับแบตเตอรี่ · ตามลำดับเวลา</string>
-    <string name="charge_summary">ชาร์จ %1$d ครั้ง · รวม %2$.1f kWh</string>
     <string name="charge_ltm_title">12 เดือนล่าสุด</string>
     <string name="charge_period_30d">30 วันล่าสุด</string>
     <string name="charge_ltm_count_label">ครั้ง</string>
     <string name="charge_row_subtitle">SoC %1$d%%→%2$d%% · %3$.1f kWh · %4$.1f kW</string>
     <string name="charge_none">ยังไม่มีประวัติการชาร์จ</string>
     <!-- stats -->
-    <string name="cfg_nav_stats">สถิติ</string>
     <string name="stats_title">สถิติการขับขี่</string>
     <string name="stats_driving_header">สัปดาห์นี้</string>
     <string name="stats_trips_label">การเดินทาง</string>
@@ -362,8 +354,7 @@
     <string name="daily_stats_prev_day">ก่อนหน้า</string>
     <string name="daily_stats_next_day">ถัดไป</string>
     <!-- OBD2 + ABRP -->
-    <string name="cfg_nav_obd">OBD2 / ABRP</string>
-    <string name="obd_title">ดองเกิล OBD2 และ ABRP</string>
+    <string name="obd_title">ดองเกิล OBD2</string>
     <string name="obd_status_connected">เชื่อมต่อแล้ว — กำลังอ่านพลังงานจริงจากแบตเตอรี่</string>
     <string name="obd_status_searching">กำลังค้นหาดองเกิล…</string>
     <string name="obd_status_off">ปิด</string>
@@ -403,7 +394,6 @@
     <string name="drive_card_title">การขับขี่ปัจจุบัน</string>
     <string name="drive_card_detail">%1$.1f กม. · %2$s · ตั้งแต่ %3$s · คืนพลังงาน %4$.2f kWh</string>
     <string name="parked_card_title">จอดอยู่</string>
-    <string name="parked_card_detail">แบตเตอรี่ %1$s · อุณหภูมิ %2$s</string>
     <string name="value_calculating">กำลังคำนวณ…</string>
     <string name="value_unavailable">ไม่พร้อมใช้งาน</string>
 
@@ -493,7 +483,42 @@
     <string name="backup_pw_enter_title">รหัสผ่านข้อมูลสำรอง</string>
     <string name="backup_pw_enter_msg">พิมพ์รหัสผ่านของข้อมูลสำรองจาก %1$s</string>
     <string name="backup_pw_wrong">รหัสผ่านไม่ถูกต้อง ลองอีกครั้ง</string>
-    <string name="can_header">พลังงานที่แม่นยำ (ทดลอง)</string>
+    <string name="can_header">ข้อมูลรถ (CAN)</string>
     <string name="can_enable_label">อ่านกำลังไฟแบตเตอรี่จากรถ (CAN)</string>
-    <string name="can_hint">อ่านโวลต์ × แอมป์ของแบตเตอรี่จากตัวรถโดยตรง ไม่ต้องใช้ดองเกิล OBD2 ต้องมีแอป ModeHelper ในการเริ่มตัวอ่าน แอปอาจเปิด ADB สักครู่แล้วปิดอีกครั้ง หากใช้ไม่ได้ แอปจะกลับไปใช้ดองเกิลหรือการประมาณจาก % แบตเตอรี่ ขณะเปิดอยู่ แอปอื่นในรถก็สามารถอ่านข้อมูลรถนี้ได้เช่นกัน</string>
+    <string name="can_hint">อ่านโวลต์ × แอมป์ของแบตเตอรี่จากตัวรถโดยตรง เปิดไว้เป็นค่าเริ่มต้น ไม่ต้องตั้งค่าใดๆ ต้องมีแอป ModeHelper ในการเริ่มตัวอ่าน แอปอาจเปิด ADB สักครู่แล้วปิดอีกครั้ง หากใช้ไม่ได้ แอปจะกลับไปใช้ดองเกิลหรือการประมาณจาก % แบตเตอรี่ ขณะเปิดอยู่ แอปอื่นในรถก็สามารถอ่านข้อมูลรถนี้ได้เช่นกัน</string>
+    <!-- การ์ดเซสชันของวัน (DailyStatsView) -->
+    <string name="session_since">ตั้งแต่ %1$s</string>
+    <string name="session_yesterday">เมื่อวาน</string>
+    <string name="session_parked">จอด %1$s</string>
+    <string name="session_stat_battery">แบตเตอรี่</string>
+    <string name="session_stat_efficiency">ประสิทธิภาพ</string>
+    <string name="session_stat_net_energy">พลังงานสุทธิ</string>
+    <string name="session_stat_net_breakdown">ใช้ %1$s − คืน %2$s</string>
+    <string name="session_stat_elevation">ขึ้น / ลง</string>
+    <string name="session_stat_avg_power">กำลังเฉลี่ย</string>
+    <string name="session_stat_eta">คาดว่าเสร็จ</string>
+    <string name="session_stat_cost">ค่าใช้จ่าย</string>
+    <string name="session_cost_tap">แตะเพื่อกรอก</string>
+    <string name="session_stat_max_speed">ความเร็วสูงสุด</string>
+    <string name="session_stat_max_power">กำลังสูงสุด</string>
+    <!-- Integrations page (TelemetryIntegrationsSection) -->
+    <string name="cfg_group_app">แอป</string>
+    <string name="cfg_nav_integrations">การเชื่อมต่อ</string>
+    <string name="int_intro">บริการและอุปกรณ์ที่ Drive Assist เชื่อมต่อด้วย แตะเพื่อตั้งค่า</string>
+    <string name="int_ha_name">Home Assistant</string>
+    <string name="int_ha_desc">ส่งข้อมูลรถผ่าน MQTT และรับคำสั่ง</string>
+    <string name="int_obd_name">ดองเกิล OBD2</string>
+    <string name="int_obd_desc">กำลังและอุณหภูมิแบตเตอรี่จากดองเกิลบลูทูธ</string>
+    <string name="int_abrp_name">ABRP</string>
+    <string name="int_abrp_desc">ข้อมูลสดสำหรับ A Better Route Planner</string>
+    <string name="int_spotify_name">Spotify</string>
+    <string name="int_spotify_desc">เพลงที่กำลังเล่น บนหน้าจอหลัก</string>
+    <string name="int_status_connected">เชื่อมต่อแล้ว</string>
+    <string name="int_status_searching">กำลังค้นหา…</string>
+    <string name="int_status_needs_setup">ต้องตั้งค่า</string>
+    <string name="int_status_failing">ล้มเหลว</string>
+    <string name="int_status_on">เปิด</string>
+    <string name="obd_live_header">ข้อมูลสด</string>
+    <string name="obd_compare_can">เทียบกับ CAN</string>
+    <string name="valet_short">วาเลต์</string>
 </resources>

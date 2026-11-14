@@ -24,7 +24,7 @@ pack voltage, current, and temperature readings.
 
 1. In ABRP, open the vehicle's **Live data** settings, choose the generic
    connection, and copy its user token.
-2. On the car, open **Settings → OBD2 / ABRP**.
+2. On the car, open **Settings → Integrations → ABRP**.
 3. Enable ABRP telemetry and enter the token.
 4. Choose whether to send GPS location. Disabling it keeps coordinates, elevation,
    and heading out of the upload; battery and energy readings can still be sent.

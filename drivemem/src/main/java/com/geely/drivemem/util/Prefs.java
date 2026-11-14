@@ -119,8 +119,10 @@ public final class Prefs {
     public static void setObd2Enabled(Context ctx, boolean v) { file(ctx).edit().putBoolean("obd2_enabled", v).apply(); }
 
     // --- Exact energy from CAN (roadcastd, sensors/CanEnergyReader) ---
+    // On by default: CAN is the car's own data, not something the owner sets
+    // up. Only an explicit "off" in System keeps it off.
     public static final String KEY_CAN_ENERGY = "can_energy";
-    public static boolean getCanEnergyEnabled(Context ctx) { return file(ctx).getBoolean(KEY_CAN_ENERGY, false); }
+    public static boolean getCanEnergyEnabled(Context ctx) { return file(ctx).getBoolean(KEY_CAN_ENERGY, true); }
     public static void setCanEnergyEnabled(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_CAN_ENERGY, v).apply(); }
 
     // --- Status bar icons ---
