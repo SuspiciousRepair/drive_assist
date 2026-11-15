@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.6.1] — 2026-11-15
+
 ### Fixed
 - **The AVAS button on the Turbo card now turns AVAS on and off.** Drive
   Assist is not allowed to read AVAS (the car asks for a system

@@ -12,6 +12,12 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.6.1 — 2026-11-15
+
+- Fixed: the AVAS button on the Turbo card now turns the pedestrian warning sound on and off.
+- Changed: the AVAS button shows a sound icon when AVAS is on and a muted icon when it is off.
+- Fixed: the AVAS switch in Settings now shows what the car really has.
+
 ## v0.6.0 — 2026-11-15
 
 - New: pick the buttons on the Turbo card: Turbo, Regen and AVAS (Settings, Drive, Turbo).
