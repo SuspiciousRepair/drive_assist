@@ -141,8 +141,9 @@ except the SoC-based driving energy, which is marked "estimated".
 
 | Where | What | When |
 |---|---|---|
-| `car.db` `telemetry_sample` | the 30 s snapshot, incl. `battery_temp_c` (dongle) and `climate_kw` (CAN) | every 30 s |
+| `car.db` `telemetry_sample` | the 30 s snapshot, incl. `battery_temp_c` (dongle), `climate_kw` (CAN), and `drive_mode` / `regen_mode` (from `car.drive_mode` / `car.regen_mode`) | every 30 s; kept 90 days |
 | `car.db` `trip`, `charge_session` | per trip / per charge totals | when the trip or charge ends |
+| `car.db` `trip_mode_segment` | each part of a trip with one drive mode and one regen level: km, spent / regen / net kWh, energy source (`state.ModeSegments`) | when the trip ends; kept for good |
 | `files/obd2-reading.log` | every dongle reading | while the dongle is connected (5 MB, then restarts) |
 | `files/abrp-attempt.log` | every ABRP send and its payload | while ABRP is on (5 MB, then restarts) |
 

@@ -32,7 +32,7 @@ public final class CarDb extends SQLiteOpenHelper {
     // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
     // every write failed until this was bumped past 14. See the v15 entry in
     // onUpgrade below for what v15 itself actually does.
-    private static final int VERSION = 26;
+    private static final int VERSION = 27;
 
     /** SQL predicate for telemetry rows representing driving: gear is not Park (4),
      * or if gear is missing, car is not charging. */
@@ -124,7 +124,8 @@ public final class CarDb extends SQLiteOpenHelper {
             + "battery_temp_c REAL,"
             + "energy_measured INTEGER,"
             + "energy_spent_est_kwh REAL, energy_regen_est_kwh REAL,"
-            + "climate_kw REAL)");
+            + "climate_kw REAL,"
+            + "drive_mode INTEGER, regen_mode INTEGER)");
         db.execSQL("CREATE INDEX idx_sample_ts ON telemetry_sample(ts_ms)");
         db.execSQL("CREATE INDEX idx_sample_odo ON telemetry_sample(odo_km)");
 
@@ -176,6 +177,7 @@ public final class CarDb extends SQLiteOpenHelper {
             + "net_kwh REAL,"
             + "energy_source TEXT, estimated_net_kwh REAL)");
         createTripEnergySegment(db);
+        createTripModeSegment(db);
 
         db.execSQL("CREATE TABLE comfort_event ("
             + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -227,6 +229,19 @@ public final class CarDb extends SQLiteOpenHelper {
     }
 
     /** Immutable source-specific portions of a trip; never merge estimated and measured energy. */
+    // One row per part of a trip with one drive mode and one regen level
+    // (state.ModeSegments). Kept for good, unlike telemetry_sample (90 days),
+    // so efficiency per mode can be compared over the car's whole life.
+    private static void createTripModeSegment(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS trip_mode_segment ("
+            + "id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER NOT NULL,"
+            + "start_ms INTEGER NOT NULL, end_ms INTEGER NOT NULL,"
+            + "drive_mode INTEGER, regen_mode INTEGER,"
+            + "km REAL NOT NULL, spent_kwh REAL NOT NULL, regen_kwh REAL NOT NULL, net_kwh REAL NOT NULL,"
+            + "energy_source TEXT)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_trip_mode_segment_trip ON trip_mode_segment(trip_id)");
+    }
+
     private static void createTripEnergySegment(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE IF NOT EXISTS trip_energy_segment ("
             + "id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER,"
@@ -463,6 +478,14 @@ public final class CarDb extends SQLiteOpenHelper {
         if (oldVersion < 26) {
             db.execSQL("ALTER TABLE telemetry_sample ADD COLUMN climate_kw REAL");
             db.execSQL("ALTER TABLE charge_session ADD COLUMN kwh_battery REAL");
+        }
+        // v27: drive mode and regen level per sample, and per part of each
+        // trip (trip_mode_segment), for efficiency per mode. NULL on rows
+        // written before this version. Forward-only: old trips get no parts.
+        if (oldVersion < 27) {
+            db.execSQL("ALTER TABLE telemetry_sample ADD COLUMN drive_mode INTEGER");
+            db.execSQL("ALTER TABLE telemetry_sample ADD COLUMN regen_mode INTEGER");
+            createTripModeSegment(db);
         }
     }
 

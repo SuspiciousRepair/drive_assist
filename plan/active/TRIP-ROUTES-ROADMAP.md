@@ -27,13 +27,16 @@ so efficiency can be compared per mode. Today both are hub keys
 Independent of GPS, small, and every day without it is data lost, so it can
 ship first.
 
+Status: built on `feat/mode-stats` (DB v27).
+
 - `telemetry_sample` gets `drive_mode` and `regen_mode` (the 30 s rows), read
   from the hub cache.
 - New table `trip_mode_segment (trip_id, start_ms, end_ms, drive_mode,
-  regen_mode, km, spent_kwh, regen_kwh, net_kwh, energy_source)`, like
-  `trip_energy_segment`: `TripSession` closes a segment when either mode
-  changes (hub listener) and when the trip ends. Distance from the odometer,
-  energy from the same source the trip uses.
+  regen_mode, km, spent_kwh, regen_kwh, net_kwh, energy_source)`, written once
+  when the trip is saved, by cutting the trip's own driving rows where either
+  mode changes (`state.ModeSegments`). Same rows and filter as the trip's
+  energy. A change is placed at most one sample (30 s) late. Kept for good,
+  while `telemetry_sample` is pruned after 90 days.
 - This gives exact numbers per mode, not a guess from 30 s samples:
   kWh/100 km in Eco / Comfort / Sport, regen kWh share per regen level, and
   how much of the driving each mode took.
@@ -55,8 +58,8 @@ ship first.
 - `trip` gets `start_lat/lon`, `end_lat/lon`; `charge_session` gets `lat/lon`.
 - Points are deleted with their trip. They go into the password-locked
   backup and the DB merge on restore. Nothing new is sent anywhere.
-- A switch, Config → Drive (or System): "Record trip routes". **Default: open
-  decision** (recommended on: routes work for everyone, data stays in the car).
+- A switch, Config → Drive (or System): "Record trip routes". **On by
+  default** (owner, 2026-11-15): routes work for everyone, data stays in the car.
 - Valet trips record too: the owner can see where the valet drove.
 
 ## Phase 2 — trip details screen

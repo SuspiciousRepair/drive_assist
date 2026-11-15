@@ -304,6 +304,7 @@ public final class TripSession {
         if (qualified) {
             if (startSampleId >= 0 && ctx != null) {
                 final long endMs = now;
+                final long startMs0 = startMs;   // resetTripState() runs before the writer does
                 final long endSampleId = CarDb.get(ctx).latestSampleId();
                 final EnergySource tripSource = classifyTripEnergySource(ctx, startMs, endMs, ts);
                 final ContentValues v = new ContentValues();
@@ -323,7 +324,11 @@ public final class TripSession {
                 }
                 CarDb.get(ctx).write(() -> {
                     try {
-                        CarDb.get(ctx).db().insert("trip", null, v);
+                        long tripId = CarDb.get(ctx).db().insert("trip", null, v);
+                        // Same writer, right after: the parts per drive mode
+                        // and regen level. A failure here keeps the trip.
+                        try { ModeSegments.write(CarDb.get(ctx).db(), tripId, startMs0, endMs); }
+                        catch (Throwable t) { Log.w(TAG, "trip mode segments: " + t); }
                     } catch (Throwable t) {
                         Log.w(TAG, "triplog: " + t);
                     }
