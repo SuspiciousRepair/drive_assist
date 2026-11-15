@@ -74,12 +74,14 @@ public final class OverlayService extends Service {
 
     private final Runnable collapseRunnable = this::collapse;
     private final Runnable climateListener = this::refreshClimate;
-    // Rebuild on the way back to hidden (foreground == true), not on the way
-    // back to visible: cheaper to pay the cost once right after a theme
-    // change than to guess whether one happened every time the driver
-    // switches away to some other app.
+    // Rebuild on the way back to visible (foreground == false): every setting
+    // the panel depends on (theme, which buttons the Turbo card shows) is
+    // changed on OUR screens, so the moment the driver leaves them is the
+    // one moment the overlay can be stale. Rebuilding on the way to hidden
+    // instead ran BEFORE the change and kept a switched-off AVAS button on
+    // the panel until the next round trip.
     private final AppForeground.Listener foregroundListener = foreground -> {
-        if (foreground) rebuildContent();
+        if (rebuildOnForegroundChange(foreground)) rebuildContent();
         overlayView.setVisibility(foreground ? View.GONE : View.VISIBLE);
     };
 
@@ -196,8 +198,12 @@ public final class OverlayService extends Service {
     // whatever theme happened to be active the moment it first built its
     // views — including the class's hardcoded defaults on a cold boot where
     // no Activity has opened yet this process. Re-run from foregroundListener
-    // every time our own app comes back to front, so a theme changed while
-    // the overlay sat hidden is never stale by the time it reappears.
+    // every time our own app leaves the front, so a theme or button choice
+    // changed while the overlay sat hidden is never stale when it reappears.
+    /** True when the panel must be rebuilt: as our own screens close and the
+     * overlay comes back, after any change made on them. */
+    static boolean rebuildOnForegroundChange(boolean foreground) { return !foreground; }
+
     private void rebuildContent() {
         Style.load(this);
         boolean wasExpanded = isExpanded;
