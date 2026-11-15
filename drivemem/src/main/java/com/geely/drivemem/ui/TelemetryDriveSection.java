@@ -151,6 +151,11 @@ public final class TelemetryDriveSection extends LinearLayout {
         fTurbo.setLayoutParams(fTurboLp);
         turboRow.addView(fTurbo);
         left.addView(turboRow);
+        // Issue #15: the Turbo card's Regen half either toggles Strong regen
+        // (default) or steps through all three levels on each tap.
+        left.addView(Style.toggleRow(activity, activity.getString(R.string.regen_cycle_label),
+            Prefs.getRegenCycle(activity),
+            on -> Prefs.setRegenCycle(activity, on)));
         // Saves on every keystroke that parses, not on blur — blur never
         // reliably fired here (dismissing the on-screen number pad hides the
         // IME but does not necessarily move focus off the EditText, so a

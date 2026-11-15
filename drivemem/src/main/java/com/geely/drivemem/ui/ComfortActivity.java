@@ -810,7 +810,7 @@ public class ComfortActivity extends Activity {
 
         LinearLayout right = new LinearLayout(this);
         right.setOrientation(LinearLayout.VERTICAL);
-        right.setOnClickListener(v -> toggleStrongRegen());
+        right.setOnClickListener(v -> onRegenTap());
         t.addView(right, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         LinearLayout regenRow = new LinearLayout(this);
@@ -862,16 +862,46 @@ public class ComfortActivity extends Activity {
                 ? Prefs.getRegen(this, Modes.REGEN_MID)
                 : Modes.REGEN_HIGH;
             CarActor.get(this).cast("regen_mode", target, r -> {
-                if (r.applied) runOnUiThread(() -> tintRegenGlyph(target == Modes.REGEN_HIGH));
+                if (r.applied) runOnUiThread(() -> showRegen(target));
+            });
+        });
+    }
+
+    // Config > Drive > "Regen button steps through the levels" (issue #15)
+    // swaps the toggle for a cycle: each tap moves Low -> Mid -> High -> Low,
+    // read fresh from the car first, like the toggle. Read at tap time, so the
+    // switch works without rebuilding this screen.
+    private void onRegenTap() {
+        if (!Prefs.getRegenCycle(this)) { toggleStrongRegen(); return; }
+        CarActor.get(this).read("regen_mode", cur -> {
+            int target = Modes.nextRegen(cur instanceof Integer ? (Integer) cur : 0);
+            CarActor.get(this).cast("regen_mode", target, r -> {
+                if (r.applied) runOnUiThread(() -> showRegen(target));
             });
         });
     }
 
     private void refreshRegenGlyph() {
         CarActor.get(this).read("regen_mode", cur -> {
-            boolean isHigh = (cur instanceof Integer) && (Integer) cur == Modes.REGEN_HIGH;
-            runOnUiThread(() -> tintRegenGlyph(isHigh));
+            int v = (cur instanceof Integer) ? (Integer) cur : 0;
+            runOnUiThread(() -> showRegen(v));
         });
+    }
+
+    // Toggle mode: the High mark, lit when High. Cycle mode: the same marks
+    // Config's regen picker uses for each level, always lit, so the glyph
+    // says which level the car is on.
+    private void showRegen(int level) {
+        if (regenGlyphView == null) return;
+        if (!Prefs.getRegenCycle(this)) {
+            regenGlyphView.setText("●");
+            tintRegenGlyph(level == Modes.REGEN_HIGH);
+            return;
+        }
+        String mark = level == Modes.REGEN_LOW ? "◦" : level == Modes.REGEN_MID ? "◉"
+            : level == Modes.REGEN_HIGH ? "●" : "?";
+        regenGlyphView.setText(mark);
+        regenGlyphView.setTextColor(Style.ACCENT);
     }
 
     private void tintRegenGlyph(boolean high) {
