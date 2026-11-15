@@ -309,7 +309,11 @@ public final class OverlayService extends Service {
         l.setSingleLine(true);
         // ~75 dp per column with three buttons: a long label (Thai's Regen)
         // shrinks to fit instead of being cut.
-        int lh = l.getLineHeight();
+        // Height of one line at full size WITH the font padding a TextView
+        // adds (getLineHeight() leaves it out, and autosize then shrank even
+        // "Turbo" to make it fit).
+        android.graphics.Paint.FontMetricsInt fm = l.getPaint().getFontMetricsInt();
+        int lh = fm.bottom - fm.top;
         l.setAutoSizeTextTypeUniformWithConfiguration(9, 15, 1, android.util.TypedValue.COMPLEX_UNIT_SP);
         col.addView(l, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, lh));
         Style.gap(col, this, 8);
@@ -368,7 +372,8 @@ public final class OverlayService extends Service {
         tile.setBackground(Style.tile(this));
         ImageView icon = new ImageView(this);
         icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        int size = Style.dp(this, 48);
+        // 52 dp + 18 dp above and below = the 40 sp text tiles next to it.
+        int size = Style.dp(this, 52);
         android.widget.FrameLayout.LayoutParams ilp = new android.widget.FrameLayout.LayoutParams(size, size, Gravity.CENTER);
         ilp.topMargin = ilp.bottomMargin = Style.dp(this, 18);
         tile.addView(icon, ilp);

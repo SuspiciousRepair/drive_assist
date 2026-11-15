@@ -828,8 +828,9 @@ public class ComfortActivity extends Activity {
         // Three buttons leave ~150 dp per title: Thai's Regen label
         // ("การคืนพลังงาน") does not fit at 28 sp, so a long label shrinks
         // (down to 16 sp) instead of being cut. Fixed height = one line at
-        // 28 sp, so autosize has a bound and every button stays level.
-        int titleH = title.getLineHeight();
+        // 28 sp (font padding included), so autosize has a bound and every button stays level.
+        android.graphics.Paint.FontMetricsInt fm = title.getPaint().getFontMetricsInt();
+        int titleH = fm.bottom - fm.top;   // with font padding, or autosize shrinks every title
         title.setAutoSizeTextTypeUniformWithConfiguration(16, 28, 1, android.util.TypedValue.COMPLEX_UNIT_SP);
         row.addView(title, new LinearLayout.LayoutParams(0, titleH, 1f));
         if (glyph instanceof TextView) {
