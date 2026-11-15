@@ -61,6 +61,7 @@ public final class TelemetryClipsSection extends LinearLayout {
             // Drive Assist does not record — modehelper does. Ask over the same
             // broadcast adb uses, then re-read the directory rather than
             // assuming: a segment file takes a moment to appear.
+            Prefs.setDashcamOn(activity, wantOn);   // for the backup only
             activity.sendBroadcast(new Intent("com.geely.modehelper.DASHCAM")
                 .setClassName("com.geely.modehelper", "com.geely.modehelper.DashReceiver")
                 .putExtra("on", wantOn ? 1 : 0));
