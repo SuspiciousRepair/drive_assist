@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.6.0] — 2026-11-15
+
 ### Added
 - **Drive mode and regen level are saved for efficiency statistics.** Every
   30 s sample now records the drive mode and the regen level, and each trip
@@ -14,8 +16,6 @@
   subtitles (speed and time, shown by players such as VLC) and thumbnail.
   A clip already on the stick is not copied again, and the copy stops early
   when the stick is too full. (#18)
-
-### Added
 - **Regen button can step through all three levels.** Config → Drive →
   Turbo → "Regen button steps through Low, Medium and High". Off by
   default: the Regen half of the Turbo card keeps toggling Strong regen.
