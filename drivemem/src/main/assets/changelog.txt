@@ -1,6 +1,6 @@
 - New: backup and restore inside the app, locked with your password, on the USB stick and the car.
 - New: choose the sound the car plays when you lock it, or use your own sound.
-- New: exact energy from the car itself, without an OBD2 dongle (experimental, off by default).
+- New: exact energy from the car itself, without an OBD2 dongle (on by default).
 - New: export charges and trips as spreadsheet files to the USB stick.
 - New: clearer parked and driving cards on the home screen.
 - New: one Integrations page shows Home Assistant, OBD2, ABRP and Spotify at a glance.
