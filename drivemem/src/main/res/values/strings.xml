@@ -198,6 +198,26 @@
     <string name="cfg_doors_header">Doors</string>
     <string name="cfg_window_on_door">Crack the window when the door opens</string>
     <string name="cfg_window_on_door_hint">Lowers window slightly when door opens to ease closing, then raises it when shut.</string>
+    <string name="cfg_lock_sound_header">Lock sound</string>
+    <string name="cfg_lock_sound_car">Car\'s sound</string>
+    <string name="cfg_lock_sound_fart_mode">Combustion mode</string>
+    <string name="cfg_lock_sound_pick_label">Normal sound (when combustion mode is off)</string>
+    <string name="cfg_lock_sound_import_label">Custom sound</string>
+    <string name="cfg_lock_sound_custom">Custom</string>
+    <string name="cfg_lock_sound_import_usb">Import from USB</string>
+    <string name="cfg_lock_sound_link_hint">Link to a .wav file</string>
+    <string name="cfg_lock_sound_download">Download</string>
+    <string name="cfg_lock_sound_link_empty">Paste a link first.</string>
+    <string name="cfg_lock_sound_importing">Importing…</string>
+    <string name="cfg_lock_sound_import_ok">Imported. It plays on the next lock.</string>
+    <string name="cfg_lock_sound_import_not_found">No LockChime.wav found at the top of the USB stick.</string>
+    <string name="cfg_lock_sound_import_too_big">The file is bigger than 1 MB. Shorten it or save it as mono.</string>
+    <string name="cfg_lock_sound_import_not_wav">That is not a WAV file.</string>
+    <string name="cfg_lock_sound_import_download">Could not download that link.</string>
+    <string name="cfg_lock_sound_import_failed">Import failed.</string>
+    <string name="cfg_lock_sound_import_first">Import a sound first: from USB or from a link.</string>
+    <string name="cfg_lock_sound_hint">Plays when you lock the car with the key. Custom sound: a WAV file of 1 MB or less, named LockChime.wav at the top of a USB stick, or a link. Picking a sound in the car\'s own Settings replaces this. Car\'s sound gives back the one you had before.</string>
+    <string name="cfg_lock_sound_needs_helper">Needs a newer ModeHelper. Update it in Config &gt; System.</string>
     <string name="cfg_purge_open_header">Crack-all-windows target (0–100)</string>
     <string name="cfg_purge_open_hint">How far each window lowers when you press the crack-windows button. 0 = closed, 100 = fully open. The same number doesn\'t move every window the same real amount — tune each one to match what you actually see.</string>
     <string name="cfg_purge_open_fl">Front left</string>
