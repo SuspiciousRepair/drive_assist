@@ -1,7 +1,8 @@
 package com.geely.drivemem.car;
 
 import com.geely.drivemem.sensors.EnergyIntegrator;
-import com.geely.drivemem.sensors.Obd2Reader;
+import com.geely.drivemem.sensors.CanHub;
+import com.geely.drivemem.sensors.EnergyHub;
 
 /** Reads telemetry properties from the car's OBD system via Geely's
  * adaptation layer. Properties are read via CarPropertyManager through CarAccess. */
@@ -92,6 +93,10 @@ public class Telemetry {
                 try {
                     if (f.type == 'f') {
                         float val = Float.parseFloat(v) / f.div;
+                        // The unrounded SoC, which the no-OBD2 energy estimate
+                        // and TripSession read; nothing wrote it before, so that
+                        // estimate never ran (review finding 4).
+                        if ("battery".equals(f.key)) out.put("battery_raw_pct", val);
                         if (f.round == 0) {
                             out.put(f.key, Math.round(val));            // publish as integer
                         } else if (f.round > 0) {
@@ -185,7 +190,14 @@ public class Telemetry {
         // 1. Power (net: kW and net kWh = spent - regen)
         // 2. Power spent (gross consumption: kW and kWh >= 0)
         // 3. Regen (energy recovered: kW and kWh >= 0)
-        Float obdPower = Obd2Reader.freshPowerKw(POWER_WINDOW_MS / 2);
+        // CAN (roadcastd, "Exact energy") first, then OBD2: the same battery
+        // V x I from two readers. See EnergyIntegrator's SOURCE_* tier.
+        // Measured battery power from the hub (CLAUDE.md rule 7): CAN if
+        // live, else OBD2 (EnergyHub decides), <= 2 s old.
+        Float obdPower = EnergyHub.get(EnergyHub.POWER_KW);
+        // Climate (compressor + heater) electrical power: only CAN has it.
+        Float climateKw = CanHub.get(CanHub.CLIMATE_KW);
+        if (climateKw != null) out.put("climate_kw", climateKw);
         Float fallbackSocPower = null;
         double fallbackWindowHours = 0;
         // Tracked always, not only when OBD2 is absent -- so a mid-trip

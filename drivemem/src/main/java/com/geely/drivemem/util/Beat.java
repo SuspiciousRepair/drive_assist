@@ -23,11 +23,33 @@ public final class Beat {
 
     private Beat() {}
 
+    /** Minimum time between two writes of the same beat. Each write rewrites
+     * the whole "drivemem" prefs file on flash; five services marking every
+     * 10-30 s made that dozens of rewrites a minute (performance review
+     * finding 3). Well under the shortest watchdog limit (STALE_OUTTEMP_MS /
+     * STALE_WIFI_MS, 2 min), so a stuck service is still caught on time. */
+    static final long MIN_WRITE_GAP_MS = 30_000L;
+
+    // In memory on purpose: a dead process forgets it, and its first mark
+    // after a restart writes at once.
+    private static final java.util.concurrent.ConcurrentHashMap<String, Long> lastWrite =
+        new java.util.concurrent.ConcurrentHashMap<>();
+
     /** Records a heartbeat for a service. Called at the end of each loop iteration. */
     public static void mark(Context c, String who) {
         try {
-            Prefs.setBeat(c, who, System.currentTimeMillis());
+            long now = System.currentTimeMillis();
+            Long last = lastWrite.get(who);
+            if (!dueToWrite(last == null ? 0L : last, now, MIN_WRITE_GAP_MS)) return;
+            Prefs.setBeat(c, who, now);
+            lastWrite.put(who, now);
         } catch (Throwable ignored) {}
+    }
+
+    /** Pure rule for {@link #mark}: write when never written, when the gap has
+     * passed, or when the clock went backwards. */
+    static boolean dueToWrite(long lastWriteMs, long nowMs, long gapMs) {
+        return lastWriteMs == 0L || nowMs < lastWriteMs || nowMs - lastWriteMs >= gapMs;
     }
 
     // true if the service looks stuck: a beat exists, and it is older than

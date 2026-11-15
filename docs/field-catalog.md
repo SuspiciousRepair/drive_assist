@@ -168,14 +168,97 @@ property write: the platform-signed helper can do it, the normal app can't.
 
 | Property ID | Type | Area | Access | Values / Semantics | Status |
 |---|---|---|---|---|---|
-| `537528576` | `int` | 5 | RW | Cabin ambient LED color (Hex `0xRRGGBB`) | ✅ |
-| `704708864` | `int` | 5, 0, 1 | RW | Cabin ambient LED brightness (`0` = off, `1..20` = active) | ✅ |
+| `537528576` | `int` | 5 | RW | Cabin ambient LED color 1 (Hex `0xRRGGBB`, palette only — see below) | ✅ |
+| `705102592` | `int` | 0 | RW | Cabin ambient LED color 2, used by bicolor (`SETTING_FUNC_TRANSITION_END_COLOR` = VHAL `BODY_LIGHT_ATMO_COLOR_STATE2` `557885041`) | ✅ |
+| `537526784` | `int` | 0 | RW | Cabin light mode — see "Cabin light modes" below | ✅ |
+| `555745741` | `boolean` | 0 | RW | Cabin light "follow drive mode" switch | ✅ |
+| `704708864` | `int` | 5, 0, 1 | RW | Cabin ambient LED brightness (`0` = off, `1..20` = active; slider range 0..20 confirmed on the car) | ✅ |
 | `557885013` | `boolean` | 0 | RW | Ambient lighting master toggle (`true`=ON, `false`=OFF) | ✅ |
 | `557883730` | `int` | 0 | RW | Interior illumination on door open: `1` = ON, `0` = OFF | ✅ |
 | `557885462` | `int` | 0 | RW | Low Beam Headlight Height: `0` = Level 0; Levels 1..5 encoded as `0x2b020200 + level` | ✅ |
 | `557884456` | `int` | 0 | RW | Intelligent High Beam switch: `2` = ON, `1` = OFF | ✅ |
 | `557875206` | `int` | 0 | RW | Intelligent High Beam status echo: `139` = ON, `140` = OFF | ✅ |
 | `557883682` | `int` | 0 | RW | Follow Me Home delay: `0` = Off, `537134849` = 30s, `537134850` = 60s, `537134851` = 90s | ✅ |
+
+### Cabin light modes (measured 2026-11-14)
+
+The car's light settings offer four modes: **one colour**, **follow drive
+mode**, **bicolor** and **gradient**. Short "scene" effects (phone call,
+welcome, A/C) also exist; they last a few seconds and are not modelled.
+
+| Mode (as the UI names it) | `537526784` reads | Colours |
+|---|---|---|
+| One colour | `537526787` | colour 1 (`537528576`) |
+| Follow drive mode | `7` (not the SDK's `537526786`) | Eco green, Comfort blue, Sport red. `537528576` and `705102592` keep stale values, so the colour comes from the drive mode |
+| Bicolor (`NON_POLAR`) | `537526789` | colour 1 (`537528576`) and colour 2 (`705102592`) |
+| Gradient | `537526787` (one colour!) | See "Gradient" below |
+
+`Settings.System` `atmosphere_lamp_mode` holds the mode the OEM settings app
+shows. It can differ from the property, as it does for gradient.
+
+**Colours are palette-only.** The light module takes only colours from its
+own palette of about 127 entries. A write with any other RGB value returns
+without an error and changes nothing (for example, `0xFF0000` was ignored).
+The table in the decompiled ecarx `AmbienceLightColorHelper` belongs to a
+different model: its red `0xFF0A01` was also ignored. Values the car itself
+reported, so known good: red `0xFF010F` and `0xFF0263`, blue `0x0719FF` and
+`0x1818FD`, cyan `0x01FFFF`, yellow `0xFBF501`, orange `0xFFA80A`.
+
+**Writing bicolor.** Write the mode, then colour 1, then colour 2, about
+700 ms apart. When colour 1 and colour 2 went out 5 ms apart, the car kept
+only colour 2 and colour 1 did not change.
+
+#### Bicolor timing
+
+The light module runs the fade itself. No property and no OEM code carries
+its timing. It was measured from a 60 fps video of the cabin light next to
+an on-screen millisecond clock (red `0xFF010F` / blue `0x0719FF`, brightness
+20, 11 full cycles):
+
+- The fade is linear and symmetric: colour 1 → colour 2, then back.
+- **One full cycle is 10.2 s** (5.1 s each way). The cycle-to-cycle spread
+  was 10.15–10.25 s, which is the 0.05 s sampling step.
+- **A mode write restarts the cycle at full colour 1**, even a refused one
+  (the failed gradient write below left bicolor running, but restarted it).
+  Writing colour 1 again with the same value 1.4 s into a cycle did not
+  restart it. Whether a new colour 1 value restarts it is not yet separated
+  from the mode write.
+
+**Can the skyline stay in step with the car?** Only for a while, and not
+with the current hub:
+
+1. **No phase signal.** The car never says where in the cycle it is. The
+   only anchor is the moment a mode change restarts the cycle.
+2. **The hub is too slow for that anchor.** The ambient keys are polled every
+   4 s (`docs/HUB-DATA.md`). On a 10.2 s cycle, a 4 s error puts the art
+   up to 40% out of step. A tight anchor needs the property's change
+   callback, or a fast poll while the mode is bicolor.
+3. **Drift.** With the period known to about ±0.02 s, the art drifts by up
+   to about 7 s per hour after the anchor.
+4. **Restarts we cannot see.** A light module wake-up, a scene effect, or a
+   change made somewhere else may restart the cycle with no visible property
+   change. Not tested.
+
+So the art can start in step with the car after a change it sees, but it
+cannot promise to stay in step.
+
+**Decision (owner, 2026-11-14): the art does not animate the bicolor fade.**
+It follows only the light's mode and colour, as it already does (in bicolor
+it shows colour 1). Do not add a fade timer that tries to match the car.
+
+#### Gradient (not solved)
+
+The OEM UI's gradient fades the picked colour down to dark and back up
+("breathe"). Writing mode `537526790` (`BREATHE_MODE`, VHAL
+`LIGHTINSIDE_ATMOSPHERE_LAMP_MODE` `0x2140a098` value `2`) is refused: the
+mode falls back to `0`, one colour. `SETTING_FUNC_AMBIENCE_BREATHE_MODE`
+`705103872` is "not in config list". When the owner picks gradient in the OEM
+UI, `537526784` reads one colour while `atmosphere_lamp_mode` reads
+`537526790`. So gradient is one-colour mode plus a switch that has not been
+found yet. Next step: capture the OEM settings app's writes while gradient is
+picked. Related OEM ids: `SETTING_FUNC_TRANSITION_MODE` `705102080`,
+`SETTING_FUNC_TRANSITION_START_COLOR` `705102336`,
+`SETTING_FUNC_BREATHE_MODE_COLOR` `704709376`.
 
 ### Convenience & Peripheral Features
 

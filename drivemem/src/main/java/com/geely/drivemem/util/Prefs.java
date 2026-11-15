@@ -37,6 +37,31 @@ public final class Prefs {
     public static boolean getParkedMonitoring(Context ctx) { return file(ctx).getBoolean("parked_monitoring", false); }
     public static void setParkedMonitoring(Context ctx, boolean v) { file(ctx).edit().putBoolean("parked_monitoring", v).apply(); }
 
+    // --- Restore at start (HelperSync.java, modehelper RestorePolicy) ---
+    // Per setting: does modehelper write the saved value back to the car in the
+    // minute after it wakes? (issues #12, #13, #16). ON until the user turns it
+    // off: Drive Assist owns the car's start state; the switch exists for a
+    // user whose other app (e.g. Sapo) restores the same setting.
+    public static final String RESTORE_DRIVE = "restore_drive", RESTORE_REGEN = "restore_regen",
+                               RESTORE_AEB = "restore_aeb", RESTORE_AVAS = "restore_avas";
+    public static boolean getRestore(Context ctx, String key) { return file(ctx).getBoolean(key, true); }
+    public static void setRestore(Context ctx, String key, boolean v) { file(ctx).edit().putBoolean(key, v).apply(); }
+
+    // --- Keep Wi-Fi on (WifiKeep.java) ---
+    // Whether Drive Assist and modehelper turn Wi-Fi back on when it is off.
+    // ON until the user turns it off: this car does not rejoin Wi-Fi after it
+    // suspends, and MQTT, OTA and Home Assistant all need the network. A user
+    // who wants Wi-Fi off (issue #14) switches it off once.
+    public static final String KEY_WIFI_KEEP_ON = "wifi_keep_on";
+    public static boolean getWifiKeepOn(Context ctx) { return file(ctx).getBoolean(KEY_WIFI_KEEP_ON, true); }
+    public static void setWifiKeepOn(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_WIFI_KEEP_ON, v).apply(); }
+
+    /** "Keep ADB always on" (Wi-Fi & ADB > Advanced). Off by default: while
+     * on, adb is a root shell for anyone on the same network. */
+    public static final String KEY_ADB_ALWAYS_ON = "adb_always_on";
+    public static boolean getAdbAlwaysOn(Context ctx) { return file(ctx).getBoolean(KEY_ADB_ALWAYS_ON, false); }
+    public static void setAdbAlwaysOn(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_ADB_ALWAYS_ON, v).apply(); }
+
     // --- ADB gate (AdbGate.java) ---
     public static final String KEY_TRUSTED_SSID = "adb_trusted_ssid";
     public static final String KEY_HOME_GW = "adb_home_gw";
@@ -85,6 +110,10 @@ public final class Prefs {
     // --- Drive card ---
     public static boolean getDriveCardEnabled(Context ctx) { return file(ctx).getBoolean("drive_card_enabled", true); }
     public static void setDriveCardEnabled(Context ctx, boolean v) { file(ctx).edit().putBoolean("drive_card_enabled", v).apply(); }
+    /** Home cards drop their colour scales (temperature bar, consumption
+     * tile) and draw them in the theme's text colours instead. Off by default. */
+    public static boolean getCardGrayscale(Context ctx) { return file(ctx).getBoolean("card_grayscale", false); }
+    public static void setCardGrayscale(Context ctx, boolean v) { file(ctx).edit().putBoolean("card_grayscale", v).apply(); }
     public static long getDriveCardDismissedTrip(Context ctx) { return file(ctx).getLong("drive_card_dismissed_trip", -1); }
     public static void setDriveCardDismissedTrip(Context ctx, long v) { file(ctx).edit().putLong("drive_card_dismissed_trip", v).apply(); }
     public static int getPanelDismissed(Context ctx) { return file(ctx).getInt("panel_dismissed", 0); }
@@ -98,6 +127,13 @@ public final class Prefs {
     // --- OBD2 ---
     public static boolean getObd2Enabled(Context ctx) { return file(ctx).getBoolean("obd2_enabled", false); }
     public static void setObd2Enabled(Context ctx, boolean v) { file(ctx).edit().putBoolean("obd2_enabled", v).apply(); }
+
+    // --- Exact energy from CAN (roadcastd, sensors/CanEnergyReader) ---
+    // On by default: CAN is the car's own data, not something the owner sets
+    // up. Only an explicit "off" in System keeps it off.
+    public static final String KEY_CAN_ENERGY = "can_energy";
+    public static boolean getCanEnergyEnabled(Context ctx) { return file(ctx).getBoolean(KEY_CAN_ENERGY, true); }
+    public static void setCanEnergyEnabled(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_CAN_ENERGY, v).apply(); }
 
     // --- Status bar icons ---
     public static boolean getOutTempOn(Context ctx) { return file(ctx).getBoolean("outtemp_on", false); }
@@ -164,4 +200,64 @@ public final class Prefs {
     public static void setDbMigratedV1(Context ctx) { file(ctx).edit().putBoolean("db_migrated_v1", true).apply(); }
     public static String getRollupLastDay(Context ctx) { return file(ctx).getString("rollup_last_day_v10", ""); }
     public static void setRollupLastDay(Context ctx, String day) { file(ctx).edit().putString("rollup_last_day_v10", day).apply(); }
+
+    /** The settings a backup keeps (AppBackup, settings.json), with their type.
+     *
+     * ONLY choices the user made. Never runtime state: the open trip/charge
+     * keys hold row ids that a restore renumbers, and beat_/restart_/
+     * update_last_url/rollup_ are the app's own bookkeeping. Adding a new
+     * setting? Add its key here, or a wiped car comes back without it. */
+    public static final java.util.Map<String, Class<?>> BACKUP_SETTINGS;
+    static {
+        java.util.Map<String, Class<?>> m = new java.util.LinkedHashMap<>();
+        // MQTT / Home Assistant
+        for (String k : new String[]{"mqtt_uri", "mqtt_uri_alt", "mqtt_user", "mqtt_pass",
+                "mqtt_tls_test_target"}) m.put(k, String.class);
+        m.put("tele_enabled", Boolean.class);
+        m.put("tele_interval_s", Integer.class);
+        m.put("commands_enabled", Boolean.class);
+        // ABRP
+        m.put("abrp_enabled", Boolean.class);
+        m.put("abrp_user_token", String.class);
+        m.put("abrp_send_location", Boolean.class);
+        // Spotify
+        m.put("spotify_client_id", String.class);
+        m.put("spotify_access_token", String.class);
+        m.put("spotify_refresh_token", String.class);
+        m.put("spotify_token_expiry", Long.class);
+        m.put("spotify_large_card", Boolean.class);
+        // Top bar icons and overlay
+        for (String k : new String[]{"outtemp_on", "soc_on", "wifiicon_on", "overlay_on"})
+            m.put(k, Boolean.class);
+        m.put("overlay_x", Integer.class);
+        m.put("overlay_y", Integer.class);
+        // Look
+        m.put("appearance", String.class);
+        m.put("theme", String.class);
+        m.put("skyline_enabled", Boolean.class);
+        m.put("skyline_random_per_drive", Boolean.class);
+        m.put("skyline_seed", Long.class);
+        m.put("drive_card_enabled", Boolean.class);
+        // Driving modes and what is restored after a wake
+        m.put("drive", Integer.class);
+        m.put("regen", Integer.class);
+        m.put("aeb_on", Boolean.class);
+        m.put("avas_on", Boolean.class);
+        for (String k : new String[]{RESTORE_DRIVE, RESTORE_REGEN, RESTORE_AEB, RESTORE_AVAS})
+            m.put(k, Boolean.class);
+        m.put("turbo_enabled", Boolean.class);
+        m.put("turbo_duration_s", Integer.class);
+        m.put("switch_lock_s", Integer.class);
+        m.put(KEY_WINDOW_ON_DOOR, Boolean.class);
+        // Dashcam, OBD2, network, updates
+        m.put("parked_monitoring", Boolean.class);
+        m.put("dashcam_limit_gb", Integer.class);
+        m.put("obd2_enabled", Boolean.class);
+        m.put(KEY_CAN_ENERGY, Boolean.class);
+        m.put(KEY_WIFI_KEEP_ON, Boolean.class);
+        m.put(KEY_TRUSTED_SSID, String.class);
+        m.put(KEY_HOME_GW, String.class);
+        m.put("update_url", String.class);
+        BACKUP_SETTINGS = java.util.Collections.unmodifiableMap(m);
+    }
 }

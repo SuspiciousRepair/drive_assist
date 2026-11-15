@@ -198,6 +198,12 @@ public final class DailyStatsProvider {
         // (VHAL SoC-delta), a mix, or is there no telemetry at all -- same
         // after-construction idiom as maxAltitudeM/chargeCost above.
         public EnergySource energySource = EnergySource.NO_DATA;
+        // Week/Month only (buildPeriodOverview -> applyChargeFallback): when
+        // the period has no driving energy at all, kWh/100 km from charges +
+        // SoC drop (DrivingConsumption.chargeBasedKwh100km), and the flag
+        // that tells the card to show it instead of efficiencyKwh100km.
+        public boolean efficiencyFromCharges;
+        public double chargeBasedKwh100km;
 
         public DayOverview(String date, String displayDate, double distanceKm, double dischargeKwh,
                            double regenKwh, double netKwh,
@@ -434,7 +440,90 @@ public final class DailyStatsProvider {
     private static PeriodOverview buildPeriodOverview(Context ctx, List<String> dates, String label) {
         List<DayOverview> days = new ArrayList<>(dates.size());
         for (String d : dates) days.add(getDayOverview(ctx, d));
-        return new PeriodOverview(aggregate(days, label), days, label);
+        DayOverview total = aggregate(days, label);
+        // Never on a single day: a day you charge but barely drive is too
+        // noisy for this (issue #21).
+        if (dates.size() > 1 && total.efficiencyKwh100km <= 0) {
+            applyChargeFallback(total, periodBatteryChargeKwh(ctx, dates));
+        }
+        return new PeriodOverview(total, days, label);
+    }
+
+    /** A period with no driving energy at all (no OBD2, no SoC estimate):
+     * fill in kWh/100 km from what the charges say. batteryChargeKwh must be
+     * the battery-side energy charged inside the period's exact bounds --
+     * see periodBatteryChargeKwh. Pure, for tests. */
+    public static void applyChargeFallback(DayOverview total, double batteryChargeKwh) {
+        if (total.efficiencyKwh100km > 0) return;
+        double v = DrivingConsumption.chargeBasedKwh100km(total.distanceKm, batteryChargeKwh,
+            total.firstBatteryPct, total.lastBatteryPct);
+        total.chargeBasedKwh100km = v;
+        total.efficiencyFromCharges = v > 0;
+    }
+
+    /** Assumed AC on-board charger efficiency. AC sessions are integrated from
+     * the charge port's own voltage (~240 V mains, see ChargeSession.isDcfc),
+     * so their kWh is wall-side; this brings it to what reached the battery,
+     * which is what the SoC term in chargeBasedKwh100km is measured in. An
+     * estimate -- typical OBCs run 88-93%. DC sessions are already at pack
+     * voltage and are taken as-is. */
+    public static final double AC_CHARGER_EFFICIENCY = 0.90;
+
+    /** One session's battery-side kWh that falls inside [windowStart, windowEnd):
+     * split by wall-clock overlap (same overlapFraction getEnergyBalanceDays
+     * uses), so a charge that runs across midnight at a period's edge is
+     * shared between the two periods instead of landing whole on its start
+     * day -- whose own SoC samples stop at midnight, which would otherwise
+     * pair 100% of the energy with only part of the SoC rise. */
+    public static double batteryKwhInWindow(long windowStart, long windowEnd,
+                                     long sessionStart, long sessionEnd, double kwh, double maxChargeV) {
+        return batteryKwhInWindow(windowStart, windowEnd, sessionStart, sessionEnd, kwh, maxChargeV, null);
+    }
+
+    /** Same, but when the CAN reader measured the battery side of the session
+     * (charge_session.kwh_battery, CAN V x I) that number is used as it is:
+     * no AC_CHARGER_EFFICIENCY guess needed. Null or <= 0 falls back to the
+     * wall-side kwh with the derate. */
+    public static double batteryKwhInWindow(long windowStart, long windowEnd,
+                                     long sessionStart, long sessionEnd, double kwh, double maxChargeV,
+                                     Double measuredBatteryKwh) {
+        double share = overlapFraction(windowStart, windowEnd, sessionStart, sessionEnd);
+        if (measuredBatteryKwh != null && measuredBatteryKwh > 0) return measuredBatteryKwh * share;
+        if (!(kwh > 0)) return 0;
+        return kwh * share * (com.geely.drivemem.state.ChargeSession.isDcfc(maxChargeV) ? 1.0 : AC_CHARGER_EFFICIENCY);
+    }
+
+    private static double periodBatteryChargeKwh(Context ctx, List<String> dates) {
+        long start = dayBoundsMs(dates.get(0))[0];
+        long end = dayBoundsMs(dates.get(dates.size() - 1))[1];
+        boolean active = com.geely.drivemem.state.ChargeSession.isSessionActive();
+        long activeId = active ? com.geely.drivemem.state.ChargeSession.activeRowId() : -1;
+        double total = 0;
+        try {
+            SQLiteDatabase db = CarDb.get(ctx).db();
+            Cursor c = db.rawQuery(
+                "SELECT id, start_ms, end_ms, kwh, max_charge_v, kwh_battery FROM charge_session "
+              + "WHERE start_ms < ? AND end_ms > ?",
+                new String[]{String.valueOf(end), String.valueOf(start)});
+            try {
+                while (c.moveToNext()) {
+                    if (activeId > 0 && c.getLong(0) == activeId) continue; // live copy below
+                    total += batteryKwhInWindow(start, end, c.getLong(1), c.getLong(2),
+                        c.isNull(3) ? 0 : c.getDouble(3), c.isNull(4) ? Double.NaN : c.getDouble(4),
+                        c.isNull(5) ? null : c.getDouble(5));
+                }
+            } finally { c.close(); }
+        } catch (Exception e) {
+            android.util.Log.w("DailyStatsProvider", "period charge kWh failed: " + e);
+            return 0;
+        }
+        if (active) {
+            com.geely.drivemem.state.ChargeSession.SessionSnapshot snap =
+                com.geely.drivemem.state.ChargeSession.captureSnapshot(System.currentTimeMillis());
+            total += batteryKwhInWindow(start, end, snap.startWallMs, snap.endWallMs, snap.kwh, snap.maxChargeV,
+                com.geely.drivemem.state.ChargeSession.currentBatteryKwh());
+        }
+        return total;
     }
 
     /** Which grain of the stats screen is being shown -- the whole reason
@@ -725,32 +814,7 @@ public final class DailyStatsProvider {
      * across short parked gaps. Zero-speed rows in a driving gear remain included. */
     static DrivingConsumption queryDrivingConsumption(SQLiteDatabase db, String where,
                                                        String[] args) {
-        DrivingConsumption totals = new DrivingConsumption();
-        Cursor c = db.rawQuery(
-            "SELECT ts_ms, odo_km, speed_kmh, gear, is_charging, "
-          + "       energy_spent_kwh, energy_regen_kwh, instant_power_kw_est, energy_measured, "
-          + "       battery_temp_c "
-          + "FROM telemetry_sample WHERE " + where + " ORDER BY ts_ms ASC, id ASC", args);
-        try {
-            while (c.moveToNext()) {
-                long ts = c.getLong(0);
-                double odo = c.isNull(1) ? Double.NaN : c.getDouble(1);
-                double speed = c.isNull(2) ? Double.NaN : c.getDouble(2);
-                Integer gear = c.isNull(3) ? null : c.getInt(3);
-                boolean charging = !c.isNull(4) && c.getInt(4) != 0;
-                double spent = c.isNull(5) ? Double.NaN : c.getDouble(5);
-                double regen = c.isNull(6) ? Double.NaN : c.getDouble(6);
-                double power = c.isNull(7) ? Double.NaN : c.getDouble(7);
-                Integer measured = c.isNull(8) ? null : c.getInt(8);
-                // battery_temp_c is OBD2-exclusive (see CarDb's v22 migration
-                // comment) -- trust it over a stale/wrongly-set energy_measured
-                // flag so a live-path bug self-heals on every read, not just
-                // for rows a one-time migration happened to already reach.
-                if (!c.isNull(9) && (measured == null || measured == 0)) measured = 1;
-                totals.add(ts, odo, speed, gear, charging, spent, regen, power, measured);
-            }
-        } finally { c.close(); }
-        return totals;
+        return DrivingConsumption.fromSamples(db, where, args);
     }
 
     public static String todayDateStr() {
@@ -1160,12 +1224,18 @@ public final class DailyStatsProvider {
         return getActiveDriveSession(ctx, CarDb.get(ctx).db());
     }
 
-    private static List<DaySession> queryDaySessions(Context ctx, SQLiteDatabase db, String dateStr) {
-        List<DaySession> out = new ArrayList<>();
-        long[] bounds = dayBoundsMs(dateStr);
-        String boundStart = String.valueOf(bounds[0]), boundEnd = String.valueOf(bounds[1]);
+    /** Every trip of all time, oldest first, with the same per-trip numbers
+     * the daily timeline shows (energy recomputed from samples, Valet trips
+     * left out). For the CSV export: one query per trip, so call it off the
+     * UI thread. */
+    public static List<DriveSession> readAllTrips(Context ctx) {
+        List<DriveSession> out = new ArrayList<>();
+        queryTrips(CarDb.get(ctx).db(), 0, Long.MAX_VALUE, out);
+        return out;
+    }
 
-        // 1. Driving trips
+    // Completed and open trips that START in [fromMs, toMs), oldest first.
+    private static void queryTrips(SQLiteDatabase db, long fromMs, long toMs, List<? super DriveSession> out) {
         Cursor tc = db.rawQuery(
             "SELECT t.id, t.start_ms, t.end_ms, t.ascent_m, t.descent_m, t.regen_kwh, "
           + "       s1.odo_km, s2.odo_km, s1.battery_pct, s2.battery_pct, "
@@ -1174,7 +1244,7 @@ public final class DailyStatsProvider {
           + "LEFT JOIN telemetry_sample s2 ON t.end_sample_id = s2.id "
           + "WHERE t.start_ms >= ? AND t.start_ms < ? "
           + "AND NOT " + TRIP_IN_VALET_SQL + " "
-          + "ORDER BY t.start_ms ASC", new String[]{boundStart, boundEnd});
+          + "ORDER BY t.start_ms ASC", new String[]{String.valueOf(fromMs), String.valueOf(toMs)});
         try {
             while (tc.moveToNext()) {
                 long id = tc.getLong(0);
@@ -1219,6 +1289,15 @@ public final class DailyStatsProvider {
                         ascent, descent, regen, tripSpent, tripNet, eff, tripSource));
             }
         } finally { tc.close(); }
+    }
+
+    private static List<DaySession> queryDaySessions(Context ctx, SQLiteDatabase db, String dateStr) {
+        List<DaySession> out = new ArrayList<>();
+        long[] bounds = dayBoundsMs(dateStr);
+        String boundStart = String.valueOf(bounds[0]), boundEnd = String.valueOf(bounds[1]);
+
+        // 1. Driving trips
+        queryTrips(db, bounds[0], bounds[1], out);
 
         // 2. Active in-progress trip (if driving today)
         String today = todayDateStr();

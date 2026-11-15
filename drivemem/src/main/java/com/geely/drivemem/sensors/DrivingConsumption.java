@@ -1,5 +1,8 @@
 package com.geely.drivemem.sensors;
 
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+
 /** Driving energy and speed buckets from chronological telemetry, including traffic stops. */
 public final class DrivingConsumption {
     final double[] spent = new double[4];
@@ -16,6 +19,11 @@ public final class DrivingConsumption {
      * estimate, a mix, or no samples with a known source at all (e.g. rows
      * from before the energy_measured column existed). */
     public EnergySource energySource() { return EnergySource.resolve(measuredSamples, estimatedSamples); }
+
+    /** Gross driving energy so far, kWh. */
+    public double spentKwh() { return totalSpent; }
+    /** Regen recovered while driving so far, kWh. */
+    public double regenKwh() { return totalRegen; }
 
     /** Missing gear only qualifies when speed proves movement; zero speed alone is ambiguous.
      * Gear wins over the charging flag whenever gear is actually known: is_charging is
@@ -104,6 +112,39 @@ public final class DrivingConsumption {
         if (Double.isFinite(odo) && odo > 0) previousOdo = odo;
     }
 
+
+    /** Driving energy of the telemetry_sample rows matching {@code where},
+     * oldest first. The one row loop behind the stats pages and TripSession's
+     * replay after a process restart mid-trip. */
+    public static DrivingConsumption fromSamples(SQLiteDatabase db, String where, String[] args) {
+        DrivingConsumption totals = new DrivingConsumption();
+        Cursor c = db.rawQuery(
+            "SELECT ts_ms, odo_km, speed_kmh, gear, is_charging, "
+          + "       energy_spent_kwh, energy_regen_kwh, instant_power_kw_est, energy_measured, "
+          + "       battery_temp_c "
+          + "FROM telemetry_sample WHERE " + where + " ORDER BY ts_ms ASC, id ASC", args);
+        try {
+            while (c.moveToNext()) {
+                long ts = c.getLong(0);
+                double odo = c.isNull(1) ? Double.NaN : c.getDouble(1);
+                double speed = c.isNull(2) ? Double.NaN : c.getDouble(2);
+                Integer gear = c.isNull(3) ? null : c.getInt(3);
+                boolean charging = !c.isNull(4) && c.getInt(4) != 0;
+                double spent = c.isNull(5) ? Double.NaN : c.getDouble(5);
+                double regen = c.isNull(6) ? Double.NaN : c.getDouble(6);
+                double power = c.isNull(7) ? Double.NaN : c.getDouble(7);
+                Integer measured = c.isNull(8) ? null : c.getInt(8);
+                // battery_temp_c is OBD2-exclusive (see CarDb's v22 migration
+                // comment) -- trust it over a stale/wrongly-set energy_measured
+                // flag so a live-path bug self-heals on every read, not just
+                // for rows a one-time migration happened to already reach.
+                if (!c.isNull(9) && (measured == null || measured == 0)) measured = 1;
+                totals.add(ts, odo, speed, gear, charging, spent, regen, power, measured);
+            }
+        } finally { c.close(); }
+        return totals;
+    }
+
     static double per100km(double spent, double regen, double km) {
         return km > 0.2 ? Math.max(0, spent - regen) / km * 100 : 0;
     }
@@ -128,5 +169,31 @@ public final class DrivingConsumption {
         double netKwh = spentKwh - regenKwh;
         if (netKwh > 0) return netKwh / distanceKm * 100.0;
         return spentKwh > 0 ? spentKwh / distanceKm * 100.0 : 0;
+    }
+
+    /** Nameplate pack energy, same value ChargeSession uses for time-to-full. */
+    public static final double PACK_KWH = 39.6;
+    /** Below this, one SoC percent (~0.4 kWh) swamps the result. */
+    public static final double CHARGE_BASED_MIN_KM = 50;
+
+    /** Consumption over a period from charging alone, for when there is no
+     * driving energy (no OBD2 and no SoC estimate): energy that went in
+     * (charge kWh, measured by the car's own charge current x voltage, no
+     * dongle needed) plus the net battery drop across the period, over the
+     * distance driven. The SoC term is what makes the period's edges line up:
+     * without it a charge on Monday for last week's driving would be counted
+     * against this week. It also counts energy used while parked (A/C, idle
+     * drain), so it reads a bit higher than driving-only figures -- the card
+     * labels it as charge-based. Returns 0 when it can't be trusted. */
+    public static double chargeBasedKwh100km(double distanceKm, double chargeKwh,
+                                             int firstBatteryPct, int lastBatteryPct) {
+        if (distanceKm < CHARGE_BASED_MIN_KM) return 0;
+        if (firstBatteryPct < 0 || lastBatteryPct < 0) return 0;
+        double usedKwh = chargeKwh + (firstBatteryPct - lastBatteryPct) / 100.0 * PACK_KWH;
+        if (usedKwh <= 0) return 0;
+        double v = usedKwh / distanceKm * 100.0;
+        // An EX2 can't sustain these; outside them the inputs are broken
+        // (missed charge, odometer jump), not the driving.
+        return (v >= 5 && v <= 40) ? v : 0;
     }
 }

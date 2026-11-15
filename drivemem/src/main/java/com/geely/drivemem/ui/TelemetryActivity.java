@@ -18,7 +18,6 @@ import com.geely.drivemem.net.CertImporter;
 import com.geely.drivemem.net.MqttReporter;
 import com.geely.drivemem.net.MqttTls;
 import com.geely.drivemem.net.Updater;
-import com.geely.drivemem.sensors.Obd2Reader;
 import com.geely.drivemem.services.OutTempService;
 import com.geely.drivemem.services.SocIconService;
 import com.geely.drivemem.services.TelemetryService;
@@ -71,7 +70,7 @@ public class TelemetryActivity extends Activity {
     private static final int SEC_DRIVE = 0;   // driving mode
     private static final int SEC_BAR   = 1;   // what shows in the menu bar
     private static final int SEC_LOOK  = 2;   // appearance
-    private static final int SEC_MQTT  = 3;   // set once and forgotten
+    static final int SEC_MQTT  = 3;   // set once and forgotten
     // Doors and glass. Its own section rather than a header buried at the bottom
     // of MQTT: everything here MOVES THE CAR, which is a different kind of
     // setting from a broker address. Appended rather than inserted, because the
@@ -82,16 +81,21 @@ public class TelemetryActivity extends Activity {
     // is always there to leave by — which is why this one needs no back button
     // while a standalone Activity did.
     private static final int SEC_CLIPS = 5;
-    // Charging session history — same "appended, never renumbered" rule.
-    private static final int SEC_CHARGE = 6;
-    // Driving + charging stats at a glance — same rule again.
-    private static final int SEC_STATS = 7;
-    // OBD2 dongle + ABRP upload — same rule again.
-    private static final int SEC_OBD = 8;
+    // 6 and 7 were Charging and Stats. Both moved to the main screen's dock
+    // and their sections were removed — the numbers stay retired, never
+    // reused, by the same "never renumbered" rule.
+    // OBD2 dongle — same rule again. Was "OBD2 + ABRP" until ABRP got its
+    // own page (SEC_ABRP); the number stayed with the dongle.
+    static final int SEC_OBD = 8;
     // Pulled out of buildMqtt(), where it used to just be appended at the
     // bottom with no section of its own — same rule again.
-    private static final int SEC_SPOTIFY = 9;
+    static final int SEC_SPOTIFY = 9;
     private static final int SEC_SYSTEM = 10;
+    // The Integrations page: one sidebar item, one tile per integration
+    // (Integrations.ALL). MQTT, OBD and SPOTIFY above are no longer sidebar
+    // items; they are the pages those tiles open.
+    private static final int SEC_INTEGRATIONS = 11;
+    static final int SEC_ABRP = 12;
 
     private final List<TextView> navItems = new ArrayList<>();
     private TextView status;                  // recreated by each panel that needs it
@@ -101,9 +105,10 @@ public class TelemetryActivity extends Activity {
     private static final int REQ_CODE_PICK_CERT = 4201;  // used by mqttSection file picker
     private TelemetrySpotifySection spotifySection;
     private TelemetryClipsSection clipsSection;
-    private TelemetryChargeSection chargeSection;
     private TelemetryDriveSection driveSection;
     private TelemetryObdSection obdSection;
+    private TelemetryAbrpSection abrpSection;
+    private TelemetryIntegrationsSection integrationsSection;
     private TelemetrySystemSection systemSection;
     private TelemetryBarSection barSection;
     private TelemetryLookSection lookSection;
@@ -145,8 +150,13 @@ public class TelemetryActivity extends Activity {
         // ---- sidebar ----
         LinearLayout side = new LinearLayout(this);
         side.setOrientation(LinearLayout.VERTICAL);
-        side.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(this, 240), ViewGroup.LayoutParams.MATCH_PARENT));
-        int sp = Style.dp(this, 16);
+        // Sidebar type matches the car's own settings menu (~26-30sp rows), not
+        // phone sizes: at 18sp it read far smaller than the OEM menu beside it.
+        // 310 wide so "Modo de Condução" fits one line at 26sp; the content
+        // panel left over (1920-310-44 = 1566) still holds two ConfigCards
+        // columns (2x760+24) and four integration tiles (4x370+3x24).
+        side.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(this, 310), ViewGroup.LayoutParams.MATCH_PARENT));
+        int sp = Style.dp(this, 12);
         side.setPadding(sp, Style.dp(this, 22) + Style.statusBarHeight(this), sp, sp);
 
         LinearLayout head = new LinearLayout(this);
@@ -154,7 +164,7 @@ public class TelemetryActivity extends Activity {
         head.setGravity(Gravity.CENTER_VERTICAL);
         head.addView(Style.backButton(this, this::finish));
         TextView title = Style.title(this, getString(R.string.cfg_title));
-        title.setTextSize(20);
+        title.setTextSize(26);
         LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         tlp.leftMargin = Style.dp(this, 12);
@@ -190,11 +200,10 @@ public class TelemetryActivity extends Activity {
         nav.addView(navItem(getString(R.string.cfg_nav_bar),   SEC_BAR));
         nav.addView(navItem(getString(R.string.cfg_nav_look),  SEC_LOOK));
 
-        nav.addView(sideGroupLabel(getString(R.string.cfg_group_integrations)));
-        nav.addView(navItem(getString(R.string.cfg_nav_mqtt),  SEC_MQTT));
-        nav.addView(navItem(getString(R.string.cfg_nav_obd), SEC_OBD));
-        nav.addView(navItem(getString(R.string.cfg_nav_spotify), SEC_SPOTIFY));
-        nav.addView(sideGroupLabel(getString(R.string.cfg_group_system)));
+        // One item for every integration, however many there are: they
+        // are tiles on its page (Integrations.ALL), not sidebar rows.
+        nav.addView(sideGroupLabel(getString(R.string.cfg_group_app)));
+        nav.addView(navItem(getString(R.string.cfg_nav_integrations), SEC_INTEGRATIONS));
         nav.addView(navItem(getString(R.string.cfg_nav_system), SEC_SYSTEM));
         outer.addView(side);
 
@@ -215,12 +224,12 @@ public class TelemetryActivity extends Activity {
     private int section = 0;   // open section (survives the recreate caused by a theme change)
 
     // Small caption above a cluster of nav items — same idea as Style.header()
-    // but sized for the 240dp sidebar rather than the content panel.
+    // but sized for the 310dp sidebar rather than the content panel.
     private TextView sideGroupLabel(String label) {
         TextView t = new TextView(this);
         t.setText(label.toUpperCase(java.util.Locale.getDefault()));
         t.setTextColor(Style.blend(Style.TEXT_DIM, Style.TEXT, 0.3f));
-        t.setTextSize(12);
+        t.setTextSize(15);
         t.setLetterSpacing(0.05f);
         t.setTypeface(null, android.graphics.Typeface.BOLD);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
@@ -250,10 +259,10 @@ public class TelemetryActivity extends Activity {
     // sidebar item: stays highlighted while it is the selected one
     private TextView navItem(String label, final int idx) {
         TextView t = new TextView(this);
-        t.setText(label); t.setTextSize(18);
+        t.setText(label); t.setTextSize(26);
         t.setGravity(Gravity.CENTER_VERTICAL);
-        t.setMinHeight(Style.dp(this, 60));   // taller buttons, easy to hit
-        t.setPadding(Style.dp(this, 16), Style.dp(this, 16), Style.dp(this, 16), Style.dp(this, 16));
+        t.setMinHeight(Style.dp(this, 64));   // taller buttons, easy to hit
+        t.setPadding(Style.dp(this, 14), Style.dp(this, 14), Style.dp(this, 14), Style.dp(this, 14));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.bottomMargin = Style.dp(this, 8);
@@ -276,16 +285,54 @@ public class TelemetryActivity extends Activity {
         return idx == SEC_DRIVE || idx == SEC_DOORS || idx == SEC_BAR;
     }
 
+    // Top of an integration's own page: back to the tiles, then its icon and
+    // name, so the page says which integration it is without the sidebar.
+    private View integrationHeader(Integrations.Integration in) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, 0, 0, Style.dp(this, 18));
+        row.addView(Style.backButton(this, () -> selectSection(SEC_INTEGRATIONS)));
+
+        ImageView icon = new ImageView(this);
+        android.graphics.drawable.GradientDrawable badge = new android.graphics.drawable.GradientDrawable();
+        badge.setCornerRadius(Style.dp(this, 12));
+        badge.setColor(in.color);
+        icon.setBackground(badge);
+        int ip = Style.dp(this, 9);
+        icon.setPadding(ip, ip, ip, ip);
+        icon.setImageResource(in.iconRes);
+        icon.setImageTintList(android.content.res.ColorStateList.valueOf(0xFFFFFFFF));
+        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(Style.dp(this, 48), Style.dp(this, 48));
+        ilp.leftMargin = Style.dp(this, 16);
+        row.addView(icon, ilp);
+
+        TextView name = Style.title(this, getString(in.nameRes));
+        name.setTextSize(24);
+        LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        nlp.leftMargin = Style.dp(this, 14);
+        row.addView(name, nlp);
+        return row;
+    }
+
     private void selectSection(int idx) {
         section = idx;
         outer.setBackground(sectionHasCarBg(idx) ? Style.configScreenBg(this) : Style.configScreenBgSolid());
+        // An integration's own page keeps "Integrations" lit in the sidebar.
+        int navIdx = Integrations.forSection(idx) != null ? SEC_INTEGRATIONS : idx;
         for (TextView t : navItems) {
-            boolean sel = ((Integer) t.getTag() == idx);
+            boolean sel = ((Integer) t.getTag() == navIdx);
             t.setBackground(sel ? selectedNavBg() : null);
             t.setTextColor(sel ? Style.ACCENT : Style.TEXT_DIM);
             t.setTypeface(null, sel ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
         }
         content.removeAllViews();
+        integrationsSection = null;
+        obdSection = null;
+        abrpSection = null;
+        Integrations.Integration integration = Integrations.forSection(idx);
+        if (integration != null) content.addView(integrationHeader(integration));
         switch (idx) {
             case SEC_BAR:   barSection = new TelemetryBarSection(this); content.addView(barSection); break;
             case SEC_LOOK:  lookSection = new TelemetryLookSection(this); content.addView(lookSection); break;
@@ -298,14 +345,17 @@ public class TelemetryActivity extends Activity {
                 clipsSection = new TelemetryClipsSection(this, () -> selectSection(SEC_CLIPS));
                 content.addView(clipsSection);
                 break;
-            case SEC_CHARGE:
-                chargeSection = new TelemetryChargeSection(this);
-                content.addView(chargeSection);
+            case SEC_INTEGRATIONS:
+                integrationsSection = new TelemetryIntegrationsSection(this, this::selectSection);
+                content.addView(integrationsSection);
                 break;
             case SEC_OBD:
                 obdSection = new TelemetryObdSection(this);
                 content.addView(obdSection);
-                buildObdListeners();
+                break;
+            case SEC_ABRP:
+                abrpSection = new TelemetryAbrpSection(this);
+                content.addView(abrpSection);
                 break;
             case SEC_SPOTIFY:
                 spotifySection = new TelemetrySpotifySection(this);
@@ -322,55 +372,61 @@ public class TelemetryActivity extends Activity {
                 }
                 break;
         }
+        // Every page change: the OBD2/ABRP live listeners follow the page, so
+        // they stop as soon as you leave it instead of running until onDestroy.
+        buildObdListeners();
     }
 
 
 
 
     // =====================================================================
-    // OBD2 dongle + ABRP panel
+    // OBD2 dongle and ABRP pages
     // =====================================================================
     // See onDestroy() — unsubscribed there, and re-subscribed fresh each
     // time buildObdListeners() runs (the section can be rebuilt without the
     // Activity being destroyed, same reason driveListener/regenListener need this).
-    private Obd2Reader.Listener obdListener;
-    private Obd2Reader.Listener obdDebugListener;
+    // One hub listener (CLAUDE.md rule 7) for the OBD/CAN panel: status and
+    // values both come from the hub's obd.*, can.* and energy.* keys.
+    private com.geely.drivemem.car.EntityBus.Listener energyHubListener;
+    private static String[] energyPanelKeys() {
+        java.util.List<String> k = new java.util.ArrayList<>();
+        java.util.Collections.addAll(k, com.geely.drivemem.sensors.ObdHub.KEYS);
+        java.util.Collections.addAll(k, com.geely.drivemem.sensors.CanHub.KEYS);
+        k.add(com.geely.drivemem.sensors.EnergyHub.SOURCE);
+        return k.toArray(new String[0]);
+    }
     private AbrpUploader.Listener abrpDebugListener;
 
     // Subscribe listeners for the OBD section — UI building happens in
     // TelemetryObdSection.constructor. Listeners are unsubscribed in onDestroy().
     private void buildObdListeners() {
-        if (obdSection == null) return;  // Section not created (shouldn't happen)
-
-        // OBD status listener: updates when connection state changes
-        if (obdListener != null) Obd2Reader.unsubscribe(obdListener);
-        obdListener = connected -> runOnUiThread(() -> {
-            boolean enabled = Prefs.getObd2Enabled(this);
-            obdSection.updateObdStatus(this, enabled);
-        });
-        Obd2Reader.subscribe(obdListener);
-        obdSection.updateObdStatus(this, Prefs.getObd2Enabled(this));
-
-        // OBD debug display listener: updates when OBD data changes
-        if (obdDebugListener != null) Obd2Reader.unsubscribe(obdDebugListener);
-        obdDebugListener = new Obd2Reader.Listener() {
-            @Override public void onObd2ConnectedChanged(boolean connected) {
-                runOnUiThread(obdSection::updateObdDisplay);
-            }
-            @Override public void onObd2Reading(Obd2Reader.Reading r) {
-                runOnUiThread(obdSection::updateObdDisplay);
-            }
-        };
-        Obd2Reader.subscribe(obdDebugListener);
-
-        // ABRP debug display listener: updates when ABRP data changes
+        // Drop whatever the other page subscribed, then subscribe for this one.
+        if (energyHubListener != null) {
+            for (String k : energyPanelKeys()) com.geely.drivemem.car.EntityBus.unsubscribe(k, energyHubListener);
+        }
         if (abrpDebugListener != null) AbrpUploader.unsubscribe(abrpDebugListener);
-        abrpDebugListener = () -> runOnUiThread(obdSection::updateAbrpDisplay);
-        AbrpUploader.subscribe(abrpDebugListener);
+        energyHubListener = null; abrpDebugListener = null;
 
-        // Initial render of debug displays
-        obdSection.updateObdDisplay();
-        obdSection.updateAbrpDisplay();
+        if (abrpSection != null) {
+            final TelemetryAbrpSection sec = abrpSection;
+            abrpDebugListener = () -> runOnUiThread(sec::updateAbrpDisplay);
+            AbrpUploader.subscribe(abrpDebugListener);
+            sec.updateAbrpDisplay();
+        }
+        if (obdSection == null) return;
+        final TelemetryObdSection obd = obdSection;
+
+        // OBD/CAN status and values: refreshed from the hub. EntityBus
+        // delivers on the car thread and only on change (at most every 2 s
+        // per key), so this costs the hub almost nothing.
+        energyHubListener = (key, reading) -> runOnUiThread(() -> {
+            obd.updateObdStatus(this, Prefs.getObd2Enabled(this));
+            obd.updateObdDisplay();
+        });
+        for (String k : energyPanelKeys()) com.geely.drivemem.car.EntityBus.subscribe(k, energyHubListener);
+        obd.updateObdStatus(this, Prefs.getObd2Enabled(this));
+        obd.updateObdDisplay();
     }
 
     private TextView sectionLabel(String text) {
@@ -489,6 +545,7 @@ public class TelemetryActivity extends Activity {
         if (mqttSection != null) {
             mqttSection.refreshCertUi();
         }
+        if (integrationsSection != null) integrationsSection.refresh();
     }
 
     @Override protected void onDestroy() {
@@ -497,8 +554,9 @@ public class TelemetryActivity extends Activity {
             EntityBus.unsubscribe("car.drive_mode", driveListener);
             EntityBus.unsubscribe("car.regen_mode", regenListener);
         }
-        if (obdListener != null) Obd2Reader.unsubscribe(obdListener);
-        if (obdDebugListener != null) Obd2Reader.unsubscribe(obdDebugListener);
+        if (energyHubListener != null) {
+            for (String k : energyPanelKeys()) com.geely.drivemem.car.EntityBus.unsubscribe(k, energyHubListener);
+        }
         if (abrpDebugListener != null) AbrpUploader.unsubscribe(abrpDebugListener);
     }
 }

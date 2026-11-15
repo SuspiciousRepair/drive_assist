@@ -2,6 +2,92 @@
 
 ## [Unreleased]
 
+## [v0.5.0] — 2026-11-14
+
+### Added
+- **Lock sound.** Settings → Doors → Lock sound. Pick the sound the car
+  plays when you lock it with the key: the car's own, or your own WAV file
+  (1 MB or less). Import it from a USB stick (`LockChime.wav` at the top
+  of the stick, the same name Tesla uses) or from a link. **Combustion
+  mode** is one switch: on, the car farts when you lock it; off, your pick
+  comes back. It stays after a restart. Choosing a sound in the car's own
+  Settings replaces it, and the card shows that. Needs the new ModeHelper.
+- **Backup and restore in the app.** Settings → System → Backup. One file
+  (settings, trips, MQTT certificates), locked with your backup password
+  (AES-256), goes to the USB stick and to the car storage, by hand or by
+  itself once a day in P. After a reinstall the app offers the newest backup
+  and asks its password. A restore puts the settings back and adds the
+  backup's trips to the ones on the car, never twice. `tools/car-backup.sh`
+  drives the same backup over ADB and keeps the APKs; `tools/backup-open.sh`
+  unlocks a backup on a computer.
+- **Week and Month consumption without OBD2.** When a period has no driving
+  energy at all, Consumption & Efficiency now shows kWh/100 km from the
+  charges (kWh charged plus the battery drop across the period, over the km
+  driven), labeled as charge-based. It includes energy used while parked.
+  A charge that runs across the edge of a period is split by time. With
+  "Exact energy" (CAN) on, the energy measured going into the battery is
+  used; without it, AC charges count about 90 % of the wall energy (charger
+  loss). Single days are unchanged. (#21)
+- **"Keep ADB always on" (Wi-Fi & ADB > Advanced), off by default.** For
+  apps that start a root helper through the car's own ADB, such as
+  GeelyTelemetry (Capy). Before, the helper closed ADB 5 minutes after
+  every wake and when the car left the home Wi-Fi, which stopped those
+  apps. While on, anyone on the same network can get a root shell; the
+  setting says so.
+- **Exact energy from the CAN bus, no OBD2 dongle (experimental, off by
+  default).** Config → OBD2 → "Exact energy". The battery's volts and amps
+  are read from the car's own CAN bus through a small reader that
+  ModeHelper starts. Energy comes from CAN first, then OBD2, then the
+  SoC estimate. Charges also record the energy that went into the battery.
+- **Export charges and trips as CSV to USB.** The Export to USB button on the
+  charging screen now also writes `drive_assist_charges.csv` and
+  `drive_assist_trips.csv` next to `car.db`. They open in Excel, Numbers or
+  Google Sheets. (#7)
+- **"Keep Wi-Fi on" switch** (Settings → System → Wi-Fi & ADB), on by
+  default. Turn it off to let the car manage Wi-Fi itself. Wi-Fi and ADB
+  settings moved from the MQTT page to System. (#14, #11)
+- **"Restore at start" per setting** (Drive → Advanced), on by default.
+  ModeHelper writes the saved drive mode, regen, AEB and AVAS only in the
+  first minute after the car wakes, instead of every 4 s. A change made on
+  the car's own screen or by another app now stays. The AEB and AVAS
+  switches show the car's real value, and a tap applies at once.
+  (#12, #13, #16)
+- **One Integrations page.** Config has one Integrations item with a tile
+  per integration (Home Assistant, OBD2, ABRP, Spotify) and its live state:
+  off, searching, connected, needs setup, failing.
+- **Two-line parked card** with the time parked, battery start → now, and a
+  temperature range bar (lowest–highest while parked, dot = now).
+- **Two-line driving card** with distance, time, battery start → now, net
+  energy and a kWh/100 km tile on a fixed colour scale (≤12 green, ≥20 red).
+
+### Changed
+- **Day-session cards share one layout.** Trip, charge and valet cards show
+  one main number on line 1 and four labelled columns on line 2. Trip
+  energy now reads as net energy, with "spent − regen" under it.
+- **Settings are grouped into fixed-width cards** instead of rows across the
+  whole screen.
+- **Config sidebar text is the size of the car's own settings menu.**
+- **Car data goes through one hub** (CAN, OBD2, ABRP), so every reader sees
+  the same values and the same source choice. (#33)
+
+### Fixed
+- **The buildings follow the cabin light in "follow drive mode".** With the
+  cabin light set to follow the drive mode, the buildings stayed on the last
+  colour picked by hand (often red). The car does not report the colour it
+  shows in that mode, so the app now reads the light's mode and uses the
+  drive mode's colour: Eco green, Comfort blue, Sport red. Home Assistant's
+  light shows the same colour. (#17)
+- **The clip-recovery process no longer starts a second copy of the app**
+  (car reader, trip and charge tracking, ABRP and OBD2) in the background.
+- **The no-OBD2 energy estimate runs again.** It read an unrounded battery
+  value that nothing wrote.
+- **Speed jitter no longer republishes** every tick.
+- **Fewer flash writes.** Heartbeats write at most every 30 s (app) and
+  15 s (ModeHelper). MQTT skips unchanged repeats and still sends every
+  5 min.
+- **Card buttons in the right third of the home screen work again.** The
+  hidden theme pad took their taps.
+
 ## [v0.4.10] — 2026-11-09
 
 ### Fixed

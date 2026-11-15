@@ -39,12 +39,14 @@ public final class TelemetrySystemSection extends LinearLayout {
 
         int pad = Style.dp(activity, 14);
 
+        // Two columns. Left: what this app is and how it gets updated and
+        // backed up. Right: the car's network and the rarely used tools.
+        LinearLayout left = ConfigCards.column(activity);
+        LinearLayout right = ConfigCards.column(activity);
+        addView(ConfigCards.columns(activity, left, right));
+
         // ---- App Info Card ----
-        addView(Style.header(activity, activity.getString(R.string.cfg_app_info_header)));
-        LinearLayout infoCard = new LinearLayout(activity);
-        infoCard.setOrientation(LinearLayout.VERTICAL);
-        infoCard.setBackground(Style.card(Style.CARD, activity));
-        infoCard.setPadding(pad, pad, pad, pad);
+        LinearLayout infoCard = ConfigCards.card(activity, activity.getString(R.string.cfg_app_info_header));
 
         String verName = "Unknown";
         long verCode = 0;
@@ -99,14 +101,12 @@ public final class TelemetrySystemSection extends LinearLayout {
             activity.runOnUiThread(() -> shaView.setText(sha != null ? sha : "N/A"));
         }).start();
 
-        addView(infoCard);
+        ConfigCards.add(left, infoCard);
+
+        ConfigCards.add(right, NetworkSettingsBlock.card(activity));
 
         // ---- Software Update Card ----
-        addView(Style.header(activity, activity.getString(R.string.cfg_update_header)));
-        LinearLayout updateCard = new LinearLayout(activity);
-        updateCard.setOrientation(LinearLayout.VERTICAL);
-        updateCard.setBackground(Style.card(Style.CARD, activity));
-        updateCard.setPadding(pad, pad, pad, pad);
+        LinearLayout updateCard = ConfigCards.card(activity, activity.getString(R.string.cfg_update_header));
 
         TextView urlLbl = Style.label(activity, activity.getString(R.string.cfg_update_url_label));
         urlLbl.setTextSize(14);
@@ -157,14 +157,10 @@ public final class TelemetrySystemSection extends LinearLayout {
         status.setPadding(0, Style.dp(activity, 10), 0, 0);
         updateCard.addView(status);
 
-        addView(updateCard);
+        ConfigCards.add(left, updateCard);
 
         // ---- Maintenance Card ----
-        addView(Style.header(activity, activity.getString(R.string.cfg_maintenance_header)));
-        LinearLayout maintCard = new LinearLayout(activity);
-        maintCard.setOrientation(LinearLayout.VERTICAL);
-        maintCard.setBackground(Style.card(Style.CARD, activity));
-        maintCard.setPadding(pad, pad, pad, pad);
+        LinearLayout maintCard = ConfigCards.card(activity, activity.getString(R.string.cfg_maintenance_header));
 
         LinearLayout maintRow = new LinearLayout(activity);
         maintRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -173,7 +169,59 @@ public final class TelemetrySystemSection extends LinearLayout {
         }));
         maintCard.addView(maintRow);
 
-        addView(maintCard);
+        ConfigCards.add(right, maintCard);
+
+        // ---- Car data (CAN) ----
+        // The car's own data, not an integration: on by default, nothing to
+        // set up. The switch stays only as a way out if the reader misbehaves
+        // on some car (it may open ADB for a few seconds to start).
+        LinearLayout canCard = ConfigCards.card(activity, activity.getString(R.string.can_header));
+        canCard.addView(Style.toggleRow(activity, activity.getString(R.string.can_enable_label),
+            com.geely.drivemem.sensors.CanEnergyReader.isEnabled(activity),
+            on -> com.geely.drivemem.sensors.CanEnergyReader.setEnabled(activity, on)));
+        canCard.addView(ConfigCards.hint(activity, activity.getString(R.string.can_hint)));
+        TextView canStatus = ConfigCards.hint(activity,
+            "CAN: " + com.geely.drivemem.sensors.CanEnergyReader.statusLine());
+        canStatus.setTextSize(13);
+        canCard.addView(canStatus);
+        ConfigCards.add(right, canCard);
+
+        // ---- Backup Card ----
+        LinearLayout backupCard = ConfigCards.card(activity, activity.getString(R.string.backup_header));
+        // Plain body text, not Style.label(): label is 22sp bold, made for a
+        // one-line switch name, and a whole paragraph in it shouted.
+        TextView backupInfo = new TextView(activity);
+        backupInfo.setText(activity.getString(R.string.backup_info));
+        backupInfo.setTextColor(Style.TEXT_DIM);
+        backupInfo.setTextSize(16);
+        backupCard.addView(backupInfo);
+        TextView lastBackup = new TextView(activity);
+        lastBackup.setTextColor(Style.TEXT);
+        lastBackup.setTextSize(17);
+        lastBackup.setPadding(0, Style.dp(activity, 10), 0, 0);
+        backupCard.addView(lastBackup);
+        Runnable refreshLast = () -> new Thread(() -> {
+            java.util.List<com.geely.drivemem.util.AppBackup.Found> f =
+                com.geely.drivemem.util.AppBackup.list();
+            boolean pw = com.geely.drivemem.util.AppBackup.hasPassword(activity);
+            String last = f.isEmpty()
+                ? activity.getString(R.string.backup_none)
+                : activity.getString(R.string.backup_last, BackupDialogs.describe(activity, f.get(0)));
+            activity.runOnUiThread(() -> lastBackup.setText(pw ? last
+                : activity.getString(R.string.backup_no_password) + "\n" + last));
+        }, "backup-last").start();
+        refreshLast.run();
+        LinearLayout backupRow = new LinearLayout(activity);
+        backupRow.setOrientation(LinearLayout.HORIZONTAL);
+        backupRow.setPadding(0, Style.dp(activity, 12), 0, 0);
+        backupRow.addView(button(activity, activity.getString(R.string.backup_now), Style.ACCENT,
+            () -> BackupDialogs.backupNow(activity, refreshLast)));
+        backupRow.addView(button(activity, activity.getString(R.string.backup_restore), 0xFF3A5A7A,
+            () -> BackupDialogs.pickAndRestore(activity)));
+        backupRow.addView(button(activity, activity.getString(R.string.backup_password), 0xFF3A5A7A,
+            () -> BackupDialogs.setPassword(activity, refreshLast)));
+        backupCard.addView(backupRow);
+        ConfigCards.add(left, backupCard);
     }
 
     private void updateCheck() {

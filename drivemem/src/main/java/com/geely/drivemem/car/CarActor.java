@@ -213,10 +213,20 @@ public final class CarActor {
         });
 
         // Always-on polling of ambient light (independent of screen focus).
-        registerPoll("telemetry.ambient_color", 4000, c -> {
+        // ambient_color_set is the colour picked by hand; the light's mode
+        // says whether the light shows it or follows the drive mode, and
+        // telemetry.ambient_color is the colour really shown (#17).
+        registerPoll("telemetry.ambient_color_set", 4000, c -> {
             Integer v = c.readAmbientColor();
             return (v != null) ? Reading.ok(v) : Reading.error("read failed");
         });
+        registerPoll("telemetry.ambient_mode", 4000, c -> {
+            Integer v = c.readAmbientMode();
+            return (v != null) ? Reading.ok(v) : Reading.error("read failed");
+        });
+        deriveFrom("telemetry.ambient_color",
+            new String[]{"telemetry.ambient_color_set", "telemetry.ambient_mode", "car.drive_mode"},
+            (DeriveFn) deps -> AmbientLight.derive(deps[0], deps[1], deps[2]));
         registerPoll("telemetry.ambient_brightness", 4000, c -> {
             Integer v = c.readAmbientBrightness();
             return (v != null) ? Reading.ok(v) : Reading.error("read failed");
@@ -384,6 +394,12 @@ public final class CarActor {
         h.post(() -> ingest(key, Reading.ok(value)));
     }
 
+    /** Injects any reading (e.g. NOT_AVAILABLE when a source is switched
+     * off), published on EntityBus if it differs from the cached one. */
+    public void injectReading(String key, Reading reading) {
+        h.post(() -> ingest(key, reading));
+    }
+
     /** Writes a property value asynchronously. */
     public void cast(String key, Object value) { cast(key, value, null); }
 
@@ -451,8 +467,12 @@ public final class CarActor {
 
     // Change-detection deadband: exact match for discrete properties or
     // pre-quantized floats; 0.05 for raw unrounded values (sensor jitter).
-    private static double epsilonFor(String key) {
-        Integer round = Telemetry.roundFor(key);
+    // Cache keys are "telemetry.speed", FIELDS keys are "speed": strip the
+    // prefix, or no field ever matched and raw floats (speed jitter) published
+    // on every tick (review finding 12).
+    static double epsilonFor(String key) {
+        String field = key.startsWith("telemetry.") ? key.substring("telemetry.".length()) : key;
+        Integer round = Telemetry.roundFor(field);
         return (round == null || round >= 0) ? 0 : 0.05;
     }
 

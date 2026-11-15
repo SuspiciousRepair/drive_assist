@@ -19,6 +19,13 @@ public final class AdbControl {
 
     public static final String ACTION_SET      = "com.geely.modehelper.SET_ADB";
     public static final String ACTION_AUTO_OFF = "com.geely.modehelper.ADB_AUTO_OFF";
+    /** "Keep ADB always on" switch from Drive Assist (extra "on"). For apps
+     * that start a root helper through the car's own adbd, like
+     * GeelyTelemetry (Capy): with the usual auto-off they lose it a few
+     * minutes after every wake. Off by default -- while on, adb is a root
+     * shell for anyone on the same network (see this class's header). */
+    public static final String ACTION_SET_ALWAYS = "com.geely.modehelper.SET_ADB_ALWAYS";
+    static final String PREF_ALWAYS_ON = "adb_always_on";
 
     /** Auto-off window duration (15 min) and maximum duration (2 hours).
      * Every adb session has a countdown; forgetting to close it is the normal case. */
@@ -26,6 +33,14 @@ public final class AdbControl {
     public static final int MAX_MINUTES     = 120;
 
     private static final int ALARM_ID = 2001;
+
+    /** Bumped every time anything switches ADB on. CanReader compares it
+     * before closing a window it opened, so it never closes ADB that the
+     * owner or WifiGuard asked for in the meantime. */
+    private static final java.util.concurrent.atomic.AtomicInteger OPENS =
+        new java.util.concurrent.atomic.AtomicInteger();
+
+    static int openCount() { return OPENS.get(); }
 
     private AdbControl() {}
 
@@ -43,6 +58,7 @@ public final class AdbControl {
      * Returns the actual state after the operation, since WRITE_SECURE_SETTINGS
      * may be revoked if the build's signature or platform-signing status changes. */
     public static boolean set(Context ctx, boolean on, int minutes) {
+        if (on) OPENS.incrementAndGet();
         try {
             Settings.Global.putInt(ctx.getContentResolver(),
                                    Settings.Global.ADB_ENABLED, on ? 1 : 0);
@@ -70,6 +86,7 @@ public final class AdbControl {
      * WifiGuardReceiver for trusted home networks, where the network itself
      * (not a timeout) gates the adb session. */
     static boolean setIndefinite(Context ctx, boolean on) {
+        if (on) OPENS.incrementAndGet();
         try {
             Settings.Global.putInt(ctx.getContentResolver(),
                                    Settings.Global.ADB_ENABLED, on ? 1 : 0);
@@ -82,6 +99,19 @@ public final class AdbControl {
         Log.i(TAG, "adb: indefinite " + (on ? "ON" : "OFF") + ", setting now reads "
                  + (now ? "ON" : "OFF"));
         return now;
+    }
+
+    /** The user's "Keep ADB always on" switch, as last pushed by Drive Assist. */
+    static boolean alwaysOn(Context ctx) {
+        try {
+            return ctx.getSharedPreferences("modehelper", Context.MODE_PRIVATE)
+                      .getBoolean(PREF_ALWAYS_ON, false);
+        } catch (Throwable t) { return false; }
+    }
+
+    static void setAlwaysOn(Context ctx, boolean on) {
+        ctx.getSharedPreferences("modehelper", Context.MODE_PRIVATE)
+           .edit().putBoolean(PREF_ALWAYS_ON, on).apply();
     }
 
     static int clamp(int minutes) {

@@ -56,6 +56,9 @@ public class WifiGuardReceiver extends BroadcastReceiver {
     }
 
     /** Starts the WiFi guard check loop. Called once from BootReceiver. */
+    /** True while on the trusted network, where ADB is held on on purpose. */
+    static boolean isActive() { return active; }
+
     static void start(Context ctx) { scheduleNext(ctx.getApplicationContext()); }
 
     private static void scheduleNext(Context ctx) {
@@ -125,6 +128,10 @@ public class WifiGuardReceiver extends BroadcastReceiver {
         active = false;
         try { if (wakeLock != null && wakeLock.isHeld()) wakeLock.release(); }
         catch (Throwable t) { Log.w(TAG, "wifiguard: wakelock release: " + t); }
+        if (AdbControl.alwaysOn(ctx)) {
+            Log.i(TAG, "wifiguard: left trusted WiFi — wakelock released, adb kept (\"always on\")");
+            return;
+        }
         AdbControl.setIndefinite(ctx, false);
         Log.i(TAG, "wifiguard: left trusted WiFi — adb + wakelock released");
     }

@@ -16,7 +16,6 @@ import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.car.Telemetry;
-import com.geely.drivemem.controls.AdbGate;
 import com.geely.drivemem.net.CertImporter;
 import com.geely.drivemem.net.MqttReporter;
 import com.geely.drivemem.services.TelemetryService;
@@ -28,7 +27,7 @@ import java.io.InputStream;
 import java.util.List;
 
 /** MQTT and TLS certificate configuration panel of the Config screen -- Home Assistant
- * broker settings, MQTT credentials, trusted Wi-Fi for ADB, certificate management,
+ * broker settings, MQTT credentials, certificate management,
  * and live testing controls. Includes the live log display and connection test buttons,
  * plus the full certificate import/management UI (client cert, CA cert, TLS tests).
  *
@@ -47,7 +46,7 @@ public final class TelemetryMqttSection extends LinearLayout {
     private LinearLayout mqttConfigContainer;
 
     // Configuration fields
-    private EditText fUri, fUser, fPass, fInterval, fTrustedSsid, fTlsTarget;
+    private EditText fUri, fUser, fPass, fInterval, fTlsTarget;
 
     // Certificate UI
     private TextView clientCertStatus, caCertStatus, tlsTestStatus;
@@ -75,21 +74,14 @@ public final class TelemetryMqttSection extends LinearLayout {
     }
 
     private void buildMqtt() {
-        // Security / Master Toggles Card at Top
-        LinearLayout secCard = new LinearLayout(activity);
-        secCard.setOrientation(LinearLayout.VERTICAL);
-        secCard.setBackground(Style.card(Style.CARD, activity));
-        int scPad = Style.dp(activity, 12);
-        secCard.setPadding(scPad, scPad, scPad, scPad);
-
-        LinearLayout togglesRow = new LinearLayout(activity);
-        togglesRow.setOrientation(LinearLayout.HORIZONTAL);
+        // Two master switches, one card each, lined up with the two columns
+        // below them.
+        LinearLayout leftTop = ConfigCards.column(activity);
+        LinearLayout rightTop = ConfigCards.column(activity);
+        addView(ConfigCards.columns(activity, leftTop, rightTop));
 
         // Master Toggle: Enable MQTT
-        LinearLayout leftToggle = new LinearLayout(activity);
-        leftToggle.setOrientation(LinearLayout.VERTICAL);
-        leftToggle.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        leftToggle.setPadding(0, 0, Style.dp(activity, 8), 0);
+        LinearLayout leftToggle = ConfigCards.card(activity, null);
 
         boolean teleOn = Prefs.getTeleEnabled(activity);
         leftToggle.addView(Style.toggleRow(activity, activity.getString(R.string.cfg_mqtt_enable_label),
@@ -101,19 +93,11 @@ public final class TelemetryMqttSection extends LinearLayout {
                 activity.getApplicationContext();  // logMqtt will be called via Activity
             }));
 
-        TextView teleHint = new TextView(activity);
-        teleHint.setTextColor(Style.TEXT_DIM);
-        teleHint.setTextSize(12);
-        teleHint.setText(activity.getString(R.string.cfg_mqtt_enable_hint));
-        teleHint.setPadding(Style.dp(activity, 44), 0, 0, 0);
-        leftToggle.addView(teleHint);
-        togglesRow.addView(leftToggle);
+        leftToggle.addView(ConfigCards.hint(activity, activity.getString(R.string.cfg_mqtt_enable_hint)));
+        ConfigCards.add(leftTop, leftToggle);
 
         // Secondary Toggle: Accept Commands from HA
-        LinearLayout rightToggle = new LinearLayout(activity);
-        rightToggle.setOrientation(LinearLayout.VERTICAL);
-        rightToggle.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        rightToggle.setPadding(Style.dp(activity, 8), 0, 0, 0);
+        LinearLayout rightToggle = ConfigCards.card(activity, null);
 
         boolean cmdsOn = Prefs.getCommandsEnabled(activity);
         rightToggle.addView(Style.toggleRow(activity, activity.getString(R.string.cfg_commands_label),
@@ -123,40 +107,23 @@ public final class TelemetryMqttSection extends LinearLayout {
                 if (android.os.Build.VERSION.SDK_INT >= 26) activity.startForegroundService(svc); else activity.startService(svc);
             }));
 
-        TextView cmdHint = new TextView(activity);
-        cmdHint.setTextColor(Style.TEXT_DIM);
-        cmdHint.setTextSize(12);
-        cmdHint.setText(activity.getString(R.string.cfg_commands_hint));
-        cmdHint.setPadding(Style.dp(activity, 44), 0, 0, 0);
-        rightToggle.addView(cmdHint);
-        togglesRow.addView(rightToggle);
-
-        secCard.addView(togglesRow);
-        addView(secCard);
-
-        Style.gap(this, activity, 14);
+        rightToggle.addView(ConfigCards.hint(activity, activity.getString(R.string.cfg_commands_hint)));
+        ConfigCards.add(rightTop, rightToggle);
 
         // Two-column container for all settings and live feedback
-        mqttConfigContainer = new LinearLayout(activity);
-        mqttConfigContainer.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout leftCol = ConfigCards.column(activity);
+        LinearLayout rightCol = ConfigCards.column(activity);
+        mqttConfigContainer = ConfigCards.columns(activity, leftCol, rightCol);
+        LinearLayout.LayoutParams ccLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        ccLp.topMargin = Style.dp(activity, Style.CARD_GAP_DP);
+        mqttConfigContainer.setLayoutParams(ccLp);
         mqttConfigContainer.setVisibility(teleOn ? View.VISIBLE : View.GONE);
-
-        LinearLayout left = new LinearLayout(activity);
-        left.setOrientation(LinearLayout.VERTICAL);
-        left.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        left.setPadding(0, 0, Style.dp(activity, 12), 0);
-
-        LinearLayout right = new LinearLayout(activity);
-        right.setOrientation(LinearLayout.VERTICAL);
-        right.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        right.setPadding(Style.dp(activity, 12), 0, 0, 0);
-
-        mqttConfigContainer.addView(left);
-        mqttConfigContainer.addView(right);
         addView(mqttConfigContainer);
 
         // ---- Left Column: Broker & Controls ----
-        left.addView(Style.header(activity, activity.getString(R.string.cfg_broker_header)));
+        LinearLayout left = ConfigCards.card(activity, activity.getString(R.string.cfg_broker_header));
+        ConfigCards.add(leftCol, left);
         String hosts = Prefs.getMqttUri(activity, "tcp://homeassistant.local:1883");
         String legacyAlt = Prefs.getMqttUriAlt(activity);
         if (!legacyAlt.isEmpty()) hosts = hosts + "\n" + legacyAlt;
@@ -216,61 +183,15 @@ public final class TelemetryMqttSection extends LinearLayout {
         intervalRow.addView(ivUnit);
         left.addView(intervalRow);
 
-        buildCertSection(left);
+        buildCertSection(leftCol);
 
-        left.addView(Style.header(activity, activity.getString(R.string.cfg_security_header)));
-
-        final TextView adbHint = new TextView(activity);
-        adbHint.setTextColor(Style.TEXT_DIM);
-        adbHint.setTextSize(12);
-        adbHint.setPadding(0, 0, 0, Style.dp(activity, 4));
-        left.addView(Style.toggleRow(activity, activity.getString(R.string.cfg_adb_label),
-            AdbGate.isEnabled(activity), on -> {
-                if (!AdbGate.request(activity, on, AdbGate.DEFAULT_MINUTES)) {
-                    adbHint.setText(activity.getString(R.string.cfg_adb_no_helper));
-                    return;
-                }
-                adbHint.postDelayed(() -> adbHint.setText(activity.getString(
-                    AdbGate.isEnabled(activity)
-                        ? R.string.cfg_adb_on : R.string.cfg_adb_off,
-                    AdbGate.DEFAULT_MINUTES)), 900);
-            }));
-        adbHint.setText(activity.getString(AdbGate.isEnabled(activity)
-            ? R.string.cfg_adb_on : R.string.cfg_adb_off, AdbGate.DEFAULT_MINUTES));
-        left.addView(adbHint);
-
-        fTrustedSsid = Style.field(activity, left, activity.getString(R.string.cfg_trusted_wifi_label),
-            AdbGate.getTrustedWifi(activity), InputType.TYPE_CLASS_TEXT);
-
-        final TextView wifiHint = new TextView(activity);
-        wifiHint.setTextColor(Style.TEXT_DIM);
-        wifiHint.setTextSize(12);
-        wifiHint.setText(activity.getString(R.string.cfg_trusted_wifi_hint));
-        wifiHint.setPadding(0, 0, 0, Style.dp(activity, 4));
-        left.addView(wifiHint);
-
-        LinearLayout wifiBtnRow = new LinearLayout(activity);
-        wifiBtnRow.setOrientation(LinearLayout.HORIZONTAL);
-        wifiBtnRow.addView(Style.button(activity, activity.getString(R.string.cfg_btn_use_current_wifi), 0xFF3A5A7A, () -> {
-            String current = AdbGate.getCurrentSsid(activity);
-            if (!current.isEmpty()) {
-                fTrustedSsid.setText(current);
-                AdbGate.setTrustedWifi(activity, current);
-                Toast.makeText(activity, activity.getString(R.string.cfg_trusted_wifi_saved), Toast.LENGTH_SHORT).show();
-            }
-        }));
-        left.addView(wifiBtnRow);
-
-        Style.gap(left, activity, 14);
-        left.addView(Style.button(activity, activity.getString(R.string.cfg_btn_save_all), Style.ACCENT, () -> saveAll(true)));
+        LinearLayout saveRow = new LinearLayout(activity);
+        saveRow.setOrientation(LinearLayout.HORIZONTAL);
+        saveRow.addView(Style.button(activity, activity.getString(R.string.cfg_btn_save_all), Style.ACCENT, () -> saveAll(true)));
+        ConfigCards.add(leftCol, saveRow);
 
         // ---- Right Column: Status, Actions & Console ----
-        right.addView(Style.header(activity, activity.getString(R.string.cfg_active_status_title)));
-        LinearLayout statusCard = new LinearLayout(activity);
-        statusCard.setOrientation(LinearLayout.VERTICAL);
-        statusCard.setBackground(Style.card(Style.CARD, activity));
-        int cardPad = Style.dp(activity, 12);
-        statusCard.setPadding(cardPad, cardPad, cardPad, cardPad);
+        LinearLayout statusCard = ConfigCards.card(activity, activity.getString(R.string.cfg_active_status_title));
 
         activeBrokerView = new TextView(activity);
         activeBrokerView.setTextColor(Style.TEXT);
@@ -288,17 +209,19 @@ public final class TelemetryMqttSection extends LinearLayout {
         activeLastSentView.setTextSize(13);
         activeLastSentView.setPadding(0, Style.dp(activity, 4), 0, 0);
         statusCard.addView(activeLastSentView);
-        right.addView(statusCard);
+        ConfigCards.add(rightCol, statusCard);
         updateStatusCard();
 
-        right.addView(Style.header(activity, activity.getString(R.string.cfg_actions_header)));
+        LinearLayout right = ConfigCards.card(activity, activity.getString(R.string.cfg_actions_header));
+        ConfigCards.add(rightCol, right);
         LinearLayout actRow = new LinearLayout(activity);
         actRow.setOrientation(LinearLayout.HORIZONTAL);
         actRow.addView(Style.action(activity, activity.getString(R.string.cfg_btn_test), 0xFF3A6B4A, this::testOnce));
         actRow.addView(Style.action(activity, activity.getString(R.string.cfg_btn_discovery), 0xFF4A6B82, this::forceDiscoveryNow));
         right.addView(actRow);
 
-        right.addView(Style.header(activity, activity.getString(R.string.cfg_log_title)));
+        right = ConfigCards.card(activity, activity.getString(R.string.cfg_log_title));
+        ConfigCards.add(rightCol, right);
         mqttLogScroll = new ScrollView(activity);
         mqttLogScroll.setLayoutParams(new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(activity, 280)));
@@ -320,13 +243,7 @@ public final class TelemetryMqttSection extends LinearLayout {
     // Certificates & TLS Panel
     // =====================================================================
     private void buildCertSection(LinearLayout parent) {
-        parent.addView(Style.header(activity, activity.getString(R.string.cfg_certs_header)));
-
-        LinearLayout certCard = new LinearLayout(activity);
-        certCard.setOrientation(LinearLayout.VERTICAL);
-        certCard.setBackground(Style.card(Style.CARD, activity));
-        int pad = Style.dp(activity, 14);
-        certCard.setPadding(pad, pad, pad, pad);
+        LinearLayout certCard = ConfigCards.card(activity, activity.getString(R.string.cfg_certs_header));
 
         // Client Certificate
         TextView clientLbl = Style.label(activity, activity.getString(R.string.cfg_client_cert_label));
@@ -387,7 +304,7 @@ public final class TelemetryMqttSection extends LinearLayout {
         tlsTestStatus.setVisibility(View.GONE);
         certCard.addView(tlsTestStatus);
 
-        parent.addView(certCard);
+        ConfigCards.add(parent, certCard);
 
         refreshCertUi();
     }
@@ -790,11 +707,6 @@ public final class TelemetryMqttSection extends LinearLayout {
         if (fTlsTarget != null && fTlsTarget.getText() != null) {
             String val = fTlsTarget.getText().toString().trim();
             if (!val.isEmpty()) Prefs.setMqttTlsTestTarget(activity, val);
-        }
-
-        if (fTrustedSsid != null && fTrustedSsid.getText() != null) {
-            String val = fTrustedSsid.getText().toString().trim();
-            AdbGate.setTrustedWifi(activity, val);
         }
 
         Intent svc = new Intent(activity, TelemetryService.class);

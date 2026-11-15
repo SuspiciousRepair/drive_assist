@@ -3,6 +3,7 @@ package com.geely.drivemem;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.hvac.ComfortHub;
 import com.geely.drivemem.net.AbrpUploader;
+import com.geely.drivemem.sensors.CanEnergyReader;
 import com.geely.drivemem.sensors.EnergyIntegrator;
 import com.geely.drivemem.sensors.Obd2Reader;
 import com.geely.drivemem.sensors.TelemetryRollup;
@@ -39,6 +40,12 @@ import android.app.Application;
 public final class DriveMemApplication extends Application {
     @Override public void onCreate() {
         super.onCreate();
+        // ClipRecoveryService runs in its own ":cliprecovery" process (MediaMuxer
+        // can abort native code). Android runs this onCreate there too, and
+        // without this guard that process started a SECOND CarActor, trip and
+        // charge state machines, sampler, ABRP and OBD2 reader — double rows in
+        // car.db and two readers fighting for the dongle. Recovery needs none of it.
+        if (!isMainProcess(Application.getProcessName(), getPackageName())) return;
         AppForeground.ensureTracking(this);
 
         ComfortHub.get(this);
@@ -53,8 +60,18 @@ public final class DriveMemApplication extends Application {
         ParkingState.ensureSubscribed(this);
         ValetSession.ensureSubscribed(this);
         EnergyIntegrator.ensureSubscribed(this);
+        // Battery power/V/A from the best measured source (CAN, else OBD2),
+        // derived in the hub: CLAUDE.md rule 7.
+        com.geely.drivemem.sensors.EnergyHub.register(CarActor.get(this));
         Obd2Reader.ensureStarted(this);   // no-ops unless obd2_enabled is set
+        CanEnergyReader.ensureStarted(this);   // no-ops unless can_energy is set
         AbrpUploader.ensureSubscribed(this);
         CarplayState.ensureSubscribed(this);
+    }
+
+    /** True for the app's main process (no ":suffix"). An unknown name counts
+     * as main, so a failed lookup never switches the app off. */
+    static boolean isMainProcess(String processName, String packageName) {
+        return processName == null || processName.equals(packageName);
     }
 }

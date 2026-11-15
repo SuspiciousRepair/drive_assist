@@ -29,9 +29,16 @@ public final class EnergyIntegrator {
     private static final Object LOCK = new Object();
     private static volatile boolean subscribed = false;
 
+    /** Where a power sample came from. Tier: CAN, then OBD2, then the SoC
+     * estimate (which never reaches onPowerReading: it is drainWindow's
+     * fallback). Both measured sources read the same thing, battery V x I. */
+    public static final int SOURCE_OBD2 = 1;
+    public static final int SOURCE_CAN = 2;
+
     // Most recent sample state
     private static long lastSampleMonoMs = 0;
     private static Double lastPowerKw = null;
+    private static int lastSource = 0;
 
     // Window accumulators (drained on each telemetry tick by Telemetry / TelemetrySampler)
     private static double windowSpentKwh = 0.0;
@@ -88,13 +95,16 @@ public final class EnergyIntegrator {
         }
     }
 
-    /** Subscribes to Obd2Reader updates (idempotent). */
+    /** Subscribes to CanEnergyReader and Obd2Reader updates (idempotent). */
     public static void ensureSubscribed(Context ctx) {
         if (subscribed) return;
         synchronized (LOCK) {
             if (subscribed) return;
             subscribed = true;
             windowStartMonoMs = nowMono();
+            // CAN (roadcastd) first. When it is live the OBD2 readings are
+            // dropped below, so the two never integrate the same energy twice.
+            CanEnergyReader.setPowerListener((now, kw) -> onPowerReading(now, kw, SOURCE_CAN));
             Obd2Reader.subscribe(new Obd2Reader.Listener() {
                 @Override public void onObd2ConnectedChanged(boolean connected) {
                     if (!connected) {
@@ -106,8 +116,8 @@ public final class EnergyIntegrator {
                 }
 
                 @Override public void onObd2Reading(Obd2Reader.Reading r) {
-                    if (r != null && r.powerKw != null) {
-                        onPowerReading(nowMono(), r.powerKw);
+                    if (r != null && r.powerKw != null && !CanEnergyReader.isLive()) {
+                        onPowerReading(nowMono(), r.powerKw, SOURCE_OBD2);
                     }
                 }
             });
@@ -117,7 +127,20 @@ public final class EnergyIntegrator {
     /** Ingests a power reading (kW) and performs trapezoidal integration.
      * Accessible package-private / for testing. */
     public static void onPowerReading(long nowMonoMs, double kw) {
+        onPowerReading(nowMonoMs, kw, SOURCE_OBD2);
+    }
+
+    /** As above, tagged with its source. A sample from a different source
+     * than the previous one starts a new trapezoid instead of joining the
+     * two: they are sampled on different clocks, so a step between them
+     * (CAN dropping out, OBD2 taking over) is not a real power ramp. */
+    public static void onPowerReading(long nowMonoMs, double kw, int source) {
         synchronized (LOCK) {
+            if (source != lastSource) {
+                lastSampleMonoMs = 0;
+                lastPowerKw = null;
+                lastSource = source;
+            }
             // Rule: only suppress energy integration when both parked and actively charging.
             // Invariant: driving energy must never be suppressed by a lingering charging state.
             // ChargeSession.isCharging() tracks active session state (fed by CarActor's
@@ -342,6 +365,7 @@ public final class EnergyIntegrator {
     /** Resets all internal state (for testing). */
     public static void resetForTesting() {
         synchronized (LOCK) {
+            lastSource = 0;
             lastSampleMonoMs = 0;
             lastPowerKw = null;
             windowSpentKwh = 0.0;

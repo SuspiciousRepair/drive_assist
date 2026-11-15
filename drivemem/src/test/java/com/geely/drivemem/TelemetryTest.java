@@ -78,6 +78,21 @@ public class TelemetryTest {
         assertEquals("subsequent tick without readings must be 0", 0.0f, spent2, 0.0001f);
     }
 
+    // Review finding 4: the no-OBD2 energy estimate and TripSession read
+    // battery_raw_pct, which nothing used to write.
+    @Test public void snapshotCarriesUnroundedBattery() {
+        Telemetry.resetForTesting();
+        CarAccess car = new CarAccess() {
+            @Override public String readAny(int prop, int area, char t) {
+                return prop == 557885165 ? "87.36" : null;
+            }
+            @Override public Boolean readBool(int prop, int area) { return null; }
+        };
+        Map<String, Object> snap = Telemetry.snapshot(car, false);
+        assertEquals(87, snap.get("battery"));
+        assertEquals(87.36f, (Float) snap.get("battery_raw_pct"), 0.001f);
+    }
+
     @Test public void zeroOdometerIsLeftOut() {
         Map<String, Object> m = new java.util.HashMap<>();
         m.put("odometer", 0f);

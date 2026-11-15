@@ -46,30 +46,35 @@ public final class UsbExport {
     // thread; cb fires on THAT thread, same convention CarActor's callbacks
     // already use — a caller that needs the UI thread posts there itself.
     public static void exportFiles(Callback cb, File... files) {
-        new Thread(() -> {
-            File drive = findDrive();
-            if (drive == null) {
-                if (cb != null) cb.onDone(false, null, 0);
-                return;
+        new Thread(() -> exportNow(cb, files), "usb-export").start();
+    }
+
+    // Same as exportFiles, on the CALLER's thread — for a caller that is
+    // already off the UI thread and has more work to do first (CsvExport
+    // writes its files, then copies them here).
+    public static void exportNow(Callback cb, File... files) {
+        File drive = findDrive();
+        if (drive == null) {
+            if (cb != null) cb.onDone(false, null, 0);
+            return;
+        }
+        File dest = new File(drive, EXPORT_DIR);
+        if (!dest.exists() && !dest.mkdirs()) {
+            Log.w(TAG, "usbexport: could not create " + dest);
+            if (cb != null) cb.onDone(false, drive, 0);
+            return;
+        }
+        int copied = 0;
+        for (File f : files) {
+            if (f == null || !f.exists()) continue;
+            try {
+                copy(f, new File(dest, f.getName()));
+                copied++;
+            } catch (Throwable t) {
+                Log.w(TAG, "usbexport: " + f + ": " + t);
             }
-            File dest = new File(drive, EXPORT_DIR);
-            if (!dest.exists() && !dest.mkdirs()) {
-                Log.w(TAG, "usbexport: could not create " + dest);
-                if (cb != null) cb.onDone(false, drive, 0);
-                return;
-            }
-            int copied = 0;
-            for (File f : files) {
-                if (f == null || !f.exists()) continue;
-                try {
-                    copy(f, new File(dest, f.getName()));
-                    copied++;
-                } catch (Throwable t) {
-                    Log.w(TAG, "usbexport: " + f + ": " + t);
-                }
-            }
-            if (cb != null) cb.onDone(copied > 0, drive, copied);
-        }, "usb-export").start();
+        }
+        if (cb != null) cb.onDone(copied > 0, drive, copied);
     }
 
     private static void copy(File src, File dst) throws Exception {
