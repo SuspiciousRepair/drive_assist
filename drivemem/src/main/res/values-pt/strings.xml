@@ -188,8 +188,8 @@
     <string name="cfg_window_on_door_hint">Baixa ~1 cm o vidro daquela porta para ela fechar sem brigar com a cabine selada, e devolve ao fechar. So fecha vidro que ele mesmo abriu, e nao mexe em vidro que voce moveu.</string>
     <string name="cfg_lock_sound_header">Som ao trancar</string>
     <string name="cfg_lock_sound_car">Som do carro</string>
-    <string name="cfg_lock_sound_fart_mode">Modo Pum</string>
-    <string name="cfg_lock_sound_pick_label">Som normal (com o Modo Pum desligado)</string>
+    <string name="cfg_lock_sound_fart_mode">Modo Combustão</string>
+    <string name="cfg_lock_sound_pick_label">Som normal (com o Modo Combustão desligado)</string>
     <string name="cfg_lock_sound_import_label">Som personalizado</string>
     <string name="cfg_lock_sound_custom">Personalizado</string>
     <string name="cfg_lock_sound_import_usb">Importar do USB</string>

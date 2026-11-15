@@ -200,8 +200,8 @@
     <string name="cfg_window_on_door_hint">Lowers window slightly when door opens to ease closing, then raises it when shut.</string>
     <string name="cfg_lock_sound_header">Lock sound</string>
     <string name="cfg_lock_sound_car">Car\'s sound</string>
-    <string name="cfg_lock_sound_fart_mode">Fart mode</string>
-    <string name="cfg_lock_sound_pick_label">Normal sound (when fart mode is off)</string>
+    <string name="cfg_lock_sound_fart_mode">Combustion mode</string>
+    <string name="cfg_lock_sound_pick_label">Normal sound (when combustion mode is off)</string>
     <string name="cfg_lock_sound_import_label">Custom sound</string>
     <string name="cfg_lock_sound_custom">Custom</string>
     <string name="cfg_lock_sound_import_usb">Import from USB</string>

@@ -199,8 +199,8 @@
     <string name="cfg_window_on_door_hint">ลดกระจกของประตูนั้นลง ~1 ซม. เพื่อให้ประตูปิดได้โดยไม่ต้องต่อสู้กับห้องโดยสารที่ปิดสนิท และคืนกลับเมื่อประตูปิด มันจะปิดเฉพาะกระจกที่มันเปิดเองเท่านั้น และจะไม่แตะกระจกที่คุณเลื่อนเอง</string>
     <string name="cfg_lock_sound_header">เสียงล็อกรถ</string>
     <string name="cfg_lock_sound_car">เสียงของรถ</string>
-    <string name="cfg_lock_sound_fart_mode">โหมดตด</string>
-    <string name="cfg_lock_sound_pick_label">เสียงปกติ (เมื่อปิดโหมดตด)</string>
+    <string name="cfg_lock_sound_fart_mode">โหมดเครื่องยนต์สันดาป</string>
+    <string name="cfg_lock_sound_pick_label">เสียงปกติ (เมื่อปิดโหมดเครื่องยนต์สันดาป)</string>
     <string name="cfg_lock_sound_import_label">เสียงกำหนดเอง</string>
     <string name="cfg_lock_sound_custom">กำหนดเอง</string>
     <string name="cfg_lock_sound_import_usb">นำเข้าจาก USB</string>
