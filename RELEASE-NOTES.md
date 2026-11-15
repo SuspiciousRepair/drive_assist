@@ -12,6 +12,17 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.7.0 — 2026-11-15
+
+- New: phone access. Pair your phone with a QR code (Settings, System, Phone access).
+- New: from the phone, download trips, charges, backups and dashcam clips, and restore a backup.
+- New: type the long settings, like the MQTT password, with the phone keyboard.
+- New: the floating panel shows the same buttons as the Turbo card.
+- New: a regen icon that fills one, two or three parts for Low, Medium and High.
+- Changed: the backup now keeps every setting.
+- Fixed: the Regen button on the floating panel steps through Low, Medium and High.
+- Fixed: a button you switch off goes away from the floating panel at once.
+
 ## v0.6.1 — 2026-11-15
 
 - Fixed: the AVAS button on the Turbo card now turns the pedestrian warning sound on and off.
