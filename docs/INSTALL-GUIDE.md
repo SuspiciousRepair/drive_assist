@@ -517,6 +517,45 @@ computer (needs a JDK):
 
 ---
 
+## 📱 Phone access
+
+Open a page on your phone to:
+
+- download your trips and charges (CSV files for any spreadsheet),
+- download the newest backup, or restore a backup file from the phone,
+- download dashcam clips,
+- type long settings with the phone keyboard: MQTT address, user and
+  password, the ABRP token, the Spotify client ID, the update address.
+
+**Where:** Settings (gear) → **System** → **Phone access**.
+
+1. Put the car in **P**. The phone must be on the **same Wi-Fi** as the car.
+2. Press **Show QR code** and scan it with the phone camera.
+3. The page opens. The phone stays paired: next time, open the same address.
+
+**When the page runs:**
+
+| Mode | The page runs |
+| --- | --- |
+| **Off** (default) | Only while the QR code is on the car screen |
+| **Auto** | Also while the car is on your home Wi-Fi (the one set under *Wi-Fi & ADB*) |
+| **On** | Whenever the car is on a network |
+
+In every mode it works only in **P**, and only for a phone that scanned the
+QR code. **Forget paired phones** makes a new code: every phone must scan
+again.
+
+> [!WARNING]
+> The page uses plain `http`. On your home Wi-Fi or the car hotspot this is
+> fine. Do not use it on a public Wi-Fi: other people on that network could
+> read what you type.
+
+The car is slow, so the page only sends files. Clips download; they do not
+play in the page. A restore from the phone restarts the app on the car, and
+the car screen shows the result.
+
+---
+
 ## 🤝 Community Credits & Upstream References
 
 Drive Assist builds upon reverse-engineering research conducted by the open-source automotive community:

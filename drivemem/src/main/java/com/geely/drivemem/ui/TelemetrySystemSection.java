@@ -104,6 +104,7 @@ public final class TelemetrySystemSection extends LinearLayout {
         ConfigCards.add(left, infoCard);
 
         ConfigCards.add(right, NetworkSettingsBlock.card(activity));
+        ConfigCards.add(right, PhoneAccessBlock.card(activity));
 
         // ---- Software Update Card ----
         LinearLayout updateCard = ConfigCards.card(activity, activity.getString(R.string.cfg_update_header));

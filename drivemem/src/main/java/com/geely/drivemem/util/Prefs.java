@@ -62,6 +62,16 @@ public final class Prefs {
     public static boolean getAdbAlwaysOn(Context ctx) { return file(ctx).getBoolean(KEY_ADB_ALWAYS_ON, false); }
     public static void setAdbAlwaysOn(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_ADB_ALWAYS_ON, v).apply(); }
 
+    // --- Phone access (web/PhoneAccess.java) ---
+    // Mode: "off" (only while the QR code is shown), "auto" (also on the home
+    // Wi-Fi) or "on". The token is what a phone proves it scanned the QR code
+    // with; it is a credential, so it is never in a backup (isBackedUp).
+    public static final String KEY_PHONE_MODE = "phone_access_mode", KEY_PHONE_TOKEN = "phone_access_token";
+    public static String getPhoneAccessMode(Context ctx) { return file(ctx).getString(KEY_PHONE_MODE, "off"); }
+    public static void setPhoneAccessMode(Context ctx, String v) { file(ctx).edit().putString(KEY_PHONE_MODE, v).apply(); }
+    public static String getPhoneAccessToken(Context ctx) { return file(ctx).getString(KEY_PHONE_TOKEN, null); }
+    public static void setPhoneAccessToken(Context ctx, String v) { file(ctx).edit().putString(KEY_PHONE_TOKEN, v).commit(); }
+
     // --- ADB gate (AdbGate.java) ---
     public static final String KEY_TRUSTED_SSID = "adb_trusted_ssid";
     public static final String KEY_HOME_GW = "adb_home_gw";
@@ -236,6 +246,7 @@ public final class Prefs {
         "db_migrated_v1",
         "spotify_pkce_verifier",                 // only lives during one sign-in
         "panel_dismissed", "drive_card_dismissed_trip",
+        KEY_PHONE_TOKEN,                         // a credential: phones scan again after a restore
         "can_explore_until"));                   // CAN explorer timer (tools)
     private static final String[] NOT_BACKED_UP_PREFIXES = {
         "trip_open_", "charge_open_", "valet_", "parking_",
