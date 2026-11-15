@@ -12,6 +12,20 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.5.0 — 2026-11-14
+
+- New: backup and restore inside the app, locked with your password, on the USB stick and the car.
+- New: choose the sound the car plays when you lock it, or use your own sound.
+- New: exact energy from the car itself, without an OBD2 dongle (experimental, off by default).
+- New: export charges and trips as spreadsheet files to the USB stick.
+- New: clearer parked and driving cards on the home screen.
+- New: one Integrations page shows Home Assistant, OBD2, ABRP and Spotify at a glance.
+- New: switches to keep Wi-Fi on, and to restore drive mode, regen, AEB and AVAS only when the car wakes.
+- Changed: changes you make on the car's own screen now stay; the app no longer undoes them every few seconds.
+- Changed: bigger text in the settings sidebar.
+- Fixed: the buildings follow the cabin light in follow drive mode.
+- Fixed: card buttons on the right side of the home screen work again.
+
 ## v0.4.10 — 2026-11-09
 
 - Fixed: the comfort slider no longer jumps to the heating side while the
