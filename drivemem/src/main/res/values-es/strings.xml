@@ -143,6 +143,7 @@
     <string name="cfg_regen_mid">Media</string>
     <string name="cfg_regen_high">Alta</string>
     <string name="turbo_header">Turbo</string>
+    <string name="regen_cycle_label">El botón Regen pasa por Baja, Media y Alta</string>
     <string name="turbo_enable_label">Mostrar la tarjeta Turbo</string>
     <string name="turbo_duration_label">Duración (s)</string>
     <!-- driver assistance (ADAS) -->

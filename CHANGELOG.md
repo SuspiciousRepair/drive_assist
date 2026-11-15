@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+- **Regen button can step through all three levels.** Config → Drive →
+  Turbo → "Regen button steps through Low, Medium and High". Off by
+  default: the Regen half of the Turbo card keeps toggling Strong regen.
+  On: each tap moves Low → Medium → High → Low, and the mark shows the
+  car's current level. AVAS stays in Config → Drive. (#15)
+
 ## [v0.5.0] — 2026-11-14
 
 ### Added
