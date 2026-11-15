@@ -20,7 +20,13 @@
   Turbo → "Regen button steps through Low, Medium and High". Off by
   default: the Regen half of the Turbo card keeps toggling Strong regen.
   On: each tap moves Low → Medium → High → Low, and the mark shows the
-  car's current level. AVAS stays in Config → Drive. (#15)
+  car's current level. (#15)
+- **Pick the buttons on the Turbo card: Turbo, Regen and AVAS.** Config →
+  Drive → Turbo → "Buttons on the Turbo card". Turbo and Regen are on by
+  default, so the card looks as before. Turn on AVAS to get a button that
+  turns the pedestrian warning sound on and off; its dot is lit when AVAS
+  is on. It reads the car's real AVAS state, and it uses the same path as
+  the AVAS switch in Config. With no button picked, the card is hidden. (#15)
 
 ## [v0.5.0] — 2026-11-14
 

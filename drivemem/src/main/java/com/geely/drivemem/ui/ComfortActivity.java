@@ -11,6 +11,7 @@ import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.car.EntityBus;
 import com.geely.drivemem.car.Telemetry;
+import com.geely.drivemem.controls.HelperSync;
 import com.geely.drivemem.controls.KonamiView;
 import com.geely.drivemem.controls.Purge;
 import com.geely.drivemem.controls.TurboMode;
@@ -110,17 +111,20 @@ public class ComfortActivity extends Activity {
     /** Gate card: shown only while HA says the gate is reachable. */
     private GateCard gateCard;
 
-    /** Turbo card: 30s Sport-mode boost. The left half shows Turbo with a
-     * countdown bar; the right half is a Strong-Regen toggle (no timer).
-     * Both halves share one outer card and visibility rule (driving-only).
-     * TurboMode itself is process-wide (see its header comment). */
+    /** Turbo card: up to three buttons side by side, picked in Config >
+     * Drive (issue #15): Turbo (30s Sport-mode boost with a countdown bar),
+     * Regen (Strong-Regen toggle or level cycle) and AVAS (on/off). They
+     * share one outer card and visibility rule (driving-only). TurboMode
+     * itself is process-wide (see its header comment). */
     private android.widget.ImageView turboBarView;
     private LinearLayout turboCardView;   // visibility gated on CarState — driving only, see the listener below
     private boolean lastTurboVisible = false;   // same "did it actually change" tracking as gate/music, see onResume
     private boolean turboEnabledAtBuild;   // so onResume can notice a Config change and recreate()
     private boolean skylineEnabledAtBuild; // same idea, for "Show skyline art"
     private long skylineSeedAtBuild;       // and for the fixed/chosen seed
-    private TextView regenGlyphView;      // right half's glyph, retinted to reflect real car state
+    private TextView regenGlyphView;      // Regen button's glyph, retinted to reflect real car state
+    private TextView avasGlyphView;       // AVAS button's glyph, lit when the car's AVAS is on
+    private String turboSlotsAtBuild;     // which buttons the card was built with, see ComfortCardVisibility.turboCardSlots
 
     // Music card: spot #4, art + title/artist + skip/play-pause. Visible only
     // while HA actually has a track loaded (title non-empty) — same GONE-
@@ -181,6 +185,7 @@ public class ComfortActivity extends Activity {
         themeId = Style.current().id;
         themeLight = Style.LIGHT;
         turboEnabledAtBuild = Prefs.getTurboEnabled(this);
+        turboSlotsAtBuild = turboSlotsFromPrefs();
         musicLargeCardAtBuild = Prefs.getSpotifyLargeCard(this);
         skylineEnabledAtBuild = Prefs.getSkylineEnabled(this);
         skylineSeedAtBuild = Prefs.getSkylineSeed(this, com.geely.drivemem.art.Skyline.DEFAULT_SEED);
@@ -262,7 +267,7 @@ public class ComfortActivity extends Activity {
         lastGateAvailable = gateVisible();
         gateCard.setVisibility(lastGateAvailable ? View.VISIBLE : View.GONE);
         cards.add(gateCard);
-        if (turboEnabledAtBuild) {
+        if (ComfortCardVisibility.turboCardBuilt(turboEnabledAtBuild, turboSlotsAtBuild)) {
             cards.add(turboCard());
             lastTurboVisible = turboCardView.getVisibility() == View.VISIBLE;
         }
@@ -747,13 +752,23 @@ public class ComfortActivity extends Activity {
     }
 
 
-    // Turbo card: title + lightning glyph, and a bar that's always there —
-    // full when idle (ready), draining during a boost. Split into two mini
-    // cards: left keeps this exact Turbo content and tap target, right is a
-    // plain Strong-Regen toggle (no timer, no countdown — press once for
-    // High, press again to go back to whatever Config's own regen default
-    // is). One outer card, one background, one visibility rule for both —
-    // only the tap target and inner content split in two.
+    private String turboSlotsFromPrefs() {
+        return ComfortCardVisibility.turboCardSlots(
+            Prefs.getTurboCardShows(this, Prefs.CARD_TURBO),
+            Prefs.getTurboCardShows(this, Prefs.CARD_REGEN),
+            Prefs.getTurboCardShows(this, Prefs.CARD_AVAS));
+    }
+
+    // Turbo card: one outer card, one background, one visibility rule, split
+    // into up to three mini cards picked in Config > Drive (issue #15):
+    //  - Turbo: title + lightning glyph, and a bar that's always there —
+    //    full when idle (ready), draining during a boost.
+    //  - Regen: Strong-Regen toggle (press once for High, again to go back
+    //    to Config's own regen default), or Low -> Mid -> High cycle.
+    //  - AVAS: the pedestrian warning sound, on/off, written through
+    //    modehelper the same way as Config's AVAS switch.
+    // Every button has the same title row + 10dp bar slot, so all of them
+    // land at the same height whichever ones are shown.
     private LinearLayout turboCard() {
         LinearLayout t = new LinearLayout(this);
         t.setOrientation(LinearLayout.HORIZONTAL);
@@ -761,25 +776,74 @@ public class ComfortActivity extends Activity {
         t.setPadding(pad, pad, pad, pad);
         t.setBackground(Style.card(Style.cardFillColor(), this));
 
-        LinearLayout left = new LinearLayout(this);
-        left.setOrientation(LinearLayout.VERTICAL);
-        left.setOnClickListener(v -> TurboMode.get(this).start());
-        t.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        String slots = turboSlotsAtBuild;
+        for (int i = 0; i < slots.length(); i++) {
+            if (i > 0) {
+                // Thin divider so the buttons read as mini cards, not one
+                // wide accidental row.
+                View divider = new View(this);
+                LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(Style.dp(this, 1), ViewGroup.LayoutParams.MATCH_PARENT);
+                divLp.leftMargin = Style.dp(this, 22);
+                divLp.rightMargin = Style.dp(this, 22);
+                divider.setBackgroundColor(Style.TEXT_DIM);
+                divider.getBackground().setAlpha(60);
+                t.addView(divider, divLp);
+            }
+            char slot = slots.charAt(i);
+            if (slot == 'T') t.addView(turboHalf(), slotLp());
+            else if (slot == 'R') t.addView(regenHalf(), slotLp());
+            else if (slot == 'A') t.addView(avasHalf(), slotLp());
+        }
 
+        // Only means anything while driving — hidden while parked, per
+        // whatever CarState already knows at build time; the listener (see
+        // below) keeps it in sync as gear actually changes. All buttons
+        // share this one rule.
+        t.setVisibility(ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, CarState.isParked()) ? View.VISIBLE : View.GONE);
+        turboCardView = t;
+        refreshRegenGlyph();
+        refreshAvasGlyph();
+        return t;
+    }
+
+    private LinearLayout.LayoutParams slotLp() {
+        return new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+    }
+
+    // One mini card: bold title on the left, glyph on the right.
+    private LinearLayout slotHalf(String titleText, TextView glyph, View.OnClickListener tap) {
+        LinearLayout half = new LinearLayout(this);
+        half.setOrientation(LinearLayout.VERTICAL);
+        half.setOnClickListener(tap);
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         TextView title = new TextView(this);
-        title.setText(getString(R.string.turbo_title));
+        title.setText(titleText);
         title.setTextColor(Style.TEXT); title.setTextSize(28);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
+        title.setSingleLine(true);
         row.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        glyph.setTextSize(34);
+        row.addView(glyph);
+        half.addView(row);
+        return half;
+    }
+
+    // The 10dp bar slot under every title: Turbo's countdown bar, or a
+    // spacer of the same size for the buttons that have no countdown.
+    private LinearLayout.LayoutParams barSlotLp() {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 10));
+        lp.topMargin = Style.dp(this, 12);
+        return lp;
+    }
+
+    private LinearLayout turboHalf() {
         TextView glyph = new TextView(this);
         // "⚡" is an icon, not prose — same as Sport mode's glyph in Config.
-        glyph.setText("⚡"); glyph.setTextColor(Style.ACCENT); glyph.setTextSize(34);
-        row.addView(glyph);
-        left.addView(row);
-
+        glyph.setText("⚡"); glyph.setTextColor(Style.ACCENT);
+        LinearLayout half = slotHalf(getString(R.string.turbo_title), glyph, v -> TurboMode.get(this).start());
         turboBarView = new android.widget.ImageView(this);
         // ALWAYS visible, fixed height — never GONE. It used to hide while
         // idle, which changed the Turbo card's height at runtime; packColumns()
@@ -789,65 +853,66 @@ public class ComfortActivity extends Activity {
         // same View, same size, always, no layout surprise either way.
         // Thinner than the effort scale (10dp not 15) and a smaller top margin
         // (12dp not 20) — a decoration, not a touch target, so it is the first
-        // thing trimmed to make room. Width now follows the LEFT half only
-        // (post-split) — redrawTurboBar() reads its actual width at draw
-        // time, so this needed no change of its own.
-        LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 10));
-        barLp.topMargin = Style.dp(this, 12);
-        turboBarView.setLayoutParams(barLp);
-        left.addView(turboBarView);
+        // thing trimmed to make room. Width follows this button only —
+        // redrawTurboBar() reads its actual width at draw time.
+        turboBarView.setLayoutParams(barSlotLp());
+        half.addView(turboBarView);
+        return half;
+    }
 
-        // Thin divider so the two halves read as two mini cards, not one
-        // wide accidental row.
-        View divider = new View(this);
-        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(Style.dp(this, 1), ViewGroup.LayoutParams.MATCH_PARENT);
-        divLp.leftMargin = Style.dp(this, 22);
-        divLp.rightMargin = Style.dp(this, 22);
-        divider.setBackgroundColor(Style.TEXT_DIM);
-        divider.getBackground().setAlpha(60);
-        t.addView(divider, divLp);
-
-        LinearLayout right = new LinearLayout(this);
-        right.setOrientation(LinearLayout.VERTICAL);
-        right.setOnClickListener(v -> onRegenTap());
-        t.addView(right, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-        LinearLayout regenRow = new LinearLayout(this);
-        regenRow.setOrientation(LinearLayout.HORIZONTAL);
-        regenRow.setGravity(Gravity.CENTER_VERTICAL);
-        TextView regenTitle = new TextView(this);
-        regenTitle.setText(getString(R.string.regen_boost_title));
-        regenTitle.setTextColor(Style.TEXT); regenTitle.setTextSize(28);
-        regenTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        regenRow.addView(regenTitle, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView regenGlyph = new TextView(this);
+    private LinearLayout regenHalf() {
+        TextView glyph = new TextView(this);
         // Same glyph Config's own regen picker uses for High — retinted
         // (not swapped) to show on/off, so "High" always means the same
         // mark everywhere in this app.
-        regenGlyph.setText("●"); regenGlyph.setTextColor(Style.TEXT_DIM); regenGlyph.setTextSize(34);
-        regenRow.addView(regenGlyph);
-        right.addView(regenRow);
-        regenGlyphView = regenGlyph;
+        glyph.setText("●"); glyph.setTextColor(Style.TEXT_DIM);
+        regenGlyphView = glyph;
+        LinearLayout half = slotHalf(getString(R.string.regen_boost_title), glyph, v -> onRegenTap());
+        View spacer = new View(this);
+        spacer.setLayoutParams(barSlotLp());
+        half.addView(spacer);
+        return half;
+    }
 
-        // Matches the left half's bar slot so both halves land at the same
-        // height — a decoration-shaped spacer, not a second progress bar
-        // (this toggle has no countdown to show).
-        View regenSpacer = new View(this);
-        LinearLayout.LayoutParams spacerLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 10));
-        spacerLp.topMargin = Style.dp(this, 12);
-        regenSpacer.setLayoutParams(spacerLp);
-        right.addView(regenSpacer);
+    private LinearLayout avasHalf() {
+        TextView glyph = new TextView(this);
+        // The same on/off dot as the Regen toggle: lit = AVAS on.
+        glyph.setText("●"); glyph.setTextColor(Style.TEXT_DIM);
+        avasGlyphView = glyph;
+        LinearLayout half = slotHalf(getString(R.string.avas_title), glyph, v -> onAvasTap());
+        View spacer = new View(this);
+        spacer.setLayoutParams(barSlotLp());
+        half.addView(spacer);
+        return half;
+    }
 
-        // Turbo (and now Strong Regen alongside it) only means anything
-        // while driving — hidden while parked, per whatever CarState
-        // already knows at build time; the listener (see below) keeps it
-        // in sync as gear actually changes. Both halves share this one rule.
-        t.setVisibility(ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, CarState.isParked()) ? View.VISIBLE : View.GONE);
-        turboCardView = t;
-        refreshRegenGlyph();
-        return t;
+    // Reads the car first, like the Regen toggle, so the tap flips what the
+    // car really has, not a stale guess. The write goes through modehelper
+    // (it also saves the choice for "Restore at start"), the same path as
+    // Config's AVAS switch. modehelper writes it a moment later, so the dot
+    // shows the new state at once and is re-read from the car after 2 s:
+    // if the write did not land (helper missing), the dot goes back.
+    private void onAvasTap() {
+        CarActor.get(this).read("avas_mode", cur -> {
+            boolean on = (cur instanceof Integer) && (Integer) cur != 0;
+            boolean target = !on;
+            HelperSync.applyNow(this, "avas", target);
+            runOnUiThread(() -> showAvas(target));
+            ui.postDelayed(this::refreshAvasGlyph, 2000);
+        });
+    }
+
+    private void refreshAvasGlyph() {
+        if (avasGlyphView == null) return;
+        CarActor.get(this).read("avas_mode", cur -> {
+            if (!(cur instanceof Integer)) return;   // unknown: leave the dot as it is
+            boolean on = (Integer) cur != 0;
+            runOnUiThread(() -> showAvas(on));
+        });
+    }
+
+    private void showAvas(boolean on) {
+        if (avasGlyphView != null) avasGlyphView.setTextColor(on ? Style.ACCENT : Style.TEXT_DIM);
     }
 
     // Plain two-state toggle, no timer: High, or back to whatever Config's
@@ -2331,6 +2396,7 @@ public class ComfortActivity extends Activity {
         // same idea: the Turbo toggle in Config only takes effect on the next
         // build of this screen, same as a theme change
         if (Prefs.getTurboEnabled(this) != turboEnabledAtBuild) { recreate(); return; }
+        if (!turboSlotsFromPrefs().equals(turboSlotsAtBuild)) { recreate(); return; }
         if (Prefs.getDriveCardEnabled(this) != driveCardEnabledAtBuild) { recreate(); return; }
         // Same mistake as the skyline comment above describes, made fresh:
         // musicLargeCardAtBuild was read once at onCreate with no onResume
@@ -2385,6 +2451,7 @@ public class ComfortActivity extends Activity {
         // just re-read on resume, same "screen was off, world may have
         // moved on" reasoning as the gate/music checks around this.
         refreshRegenGlyph();
+        refreshAvasGlyph();
         MusicState.setListener(musicListener);
         // Same "changed while paused" re-check as the gate, and the same
         // reason: a track can start or end while the screen is off.
