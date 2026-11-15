@@ -34,8 +34,8 @@
   every wake and when the car left the home Wi-Fi, which stopped those
   apps. While on, anyone on the same network can get a root shell; the
   setting says so.
-- **Exact energy from the CAN bus, no OBD2 dongle (experimental, off by
-  default).** Config → OBD2 → "Exact energy". The battery's volts and amps
+- **Exact energy from the CAN bus, no OBD2 dongle, on by default.**
+  Settings → System → Car data (CAN). The battery's volts and amps
   are read from the car's own CAN bus through a small reader that
   ModeHelper starts. Energy comes from CAN first, then OBD2, then the
   SoC estimate. Charges also record the energy that went into the battery.
