@@ -1,5 +1,3 @@
-- New: pick the buttons on the Turbo card: Turbo, Regen and AVAS (Settings, Drive, Turbo).
-- New: an AVAS button on the Turbo card turns the pedestrian warning sound on and off.
-- New: the Regen button can step through Low, Medium and High.
-- New: copy dashcam clips to a USB stick, with speed and time subtitles.
-- New: each trip now saves its drive mode and regen level, for efficiency per mode later.
+- Fixed: the AVAS button on the Turbo card now turns the pedestrian warning sound on and off.
+- Changed: the AVAS button shows a sound icon when AVAS is on and a muted icon when it is off.
+- Fixed: the AVAS switch in Settings now shows what the car really has.
