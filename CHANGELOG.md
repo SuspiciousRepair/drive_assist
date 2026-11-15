@@ -3,6 +3,14 @@
 ## [Unreleased]
 
 ### Added
+- **Copy dashcam clips to a USB stick.** Config → Recordings: each finished
+  clip has a **USB** button, and **Copy held clips to USB** copies every held
+  clip at once. Clips go to `Drive Assist/Dashcam/` on the stick, with their
+  subtitles (speed and time, shown by players such as VLC) and thumbnail.
+  A clip already on the stick is not copied again, and the copy stops early
+  when the stick is too full. (#18)
+
+### Added
 - **Regen button can step through all three levels.** Config → Drive →
   Turbo → "Regen button steps through Low, Medium and High". Off by
   default: the Regen half of the Turbo card keeps toggling Strong regen.
