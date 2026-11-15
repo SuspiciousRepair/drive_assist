@@ -38,6 +38,14 @@ exact energy without a dongle.
   source and checks its SHA-256. Its license ships in the helper apk with
   the binary (`assets/licenses/libuv-LICENSE`).
 
+## QR Code generator library — by Project Nayuki
+
+- https://www.nayuki.io/page/qr-code-generator-library
+- Copyright (c) Project Nayuki. MIT License.
+- **What we use:** its Java version (upstream commit bcfe1b0), unchanged, in
+  `drivemem/src/main/java/io/nayuki/qrcodegen/`. It draws the QR code a
+  phone scans for Phone access. The license is at the top of each file.
+
 ## Fart mode sound — by JohnSumisu (Wikimedia Commons)
 
 - `modehelper/assets/locksound/fart.wav` — from

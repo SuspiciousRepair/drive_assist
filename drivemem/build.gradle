@@ -228,6 +228,7 @@ tasks.register('checkstyle', Checkstyle) {
     source 'src/main/java'
     include '**/*.java'
     exclude '**/gen/**', '**/R.java', '**/BuildConfig.java'
+    exclude 'io/nayuki/**'   // vendored third-party code, kept unchanged
     classpath = files()
     reports {
         xml.required = true

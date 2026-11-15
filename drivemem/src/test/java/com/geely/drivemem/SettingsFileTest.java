@@ -77,6 +77,7 @@ public class SettingsFileTest {
         "update_last_url", "auto_update_last_check_ms", "skip_update_vc", "skip_update_vc_modehelper",
         "db_migrated_v1", "rollup_last_day_v10",
         "spotify_pkce_verifier", "panel_dismissed", "drive_card_dismissed_trip", "can_explore_until",
+        "phone_access_token",
     };
 
     @Test public void stateKeysAreNotBackedUp() {
