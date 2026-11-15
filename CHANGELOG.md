@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- **Drive mode and regen level are saved for efficiency statistics.** Every
+  30 s sample now records the drive mode and the regen level, and each trip
+  is split into parts with one mode each (km, spent, regen and net kWh), kept
+  for good. This is the data for kWh/100 km per mode; the screens come later.
+  Only trips from this version on have it. (#19 plan, phase 0)
 - **Copy dashcam clips to a USB stick.** Config → Recordings: each finished
   clip has a **USB** button, and **Copy held clips to USB** copies every held
   clip at once. Clips go to `Drive Assist/Dashcam/` on the stick, with their
