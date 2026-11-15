@@ -115,6 +115,50 @@ public class RoadcastClientTest {
         assertFalse(s.hasRemaining());
     }
 
+    /** A frame page with real 28-byte records: id, state, then 8 data bytes at +4. */
+    private static byte[] frameRecords(int total, int start, int[] ids, byte[][] data) {
+        ByteBuffer b = ByteBuffer.allocate(20 + ids.length * 28);
+        b.putLong(1).putInt(total).putInt(start).putShort((short) ids.length).putShort((short) 0);
+        for (int i = 0; i < ids.length; i++) {
+            b.putShort((short) ids[i]).put((byte) 2).put((byte) 0).put(data[i]).putLong(0).putLong(0);
+        }
+        return b.array();
+    }
+
+    @Test public void framesFromSnapshotAndUpdatesReachTheFrameListener() throws Exception {
+        byte[] a = {1, 2, 3, 4, 5, 6, 7, 8};
+        byte[] b = {(byte) 0xd1, (byte) 0xf0, 0x40, 0, 0, 0, 0, 0};
+        ByteArrayOutputStream daemon = new ByteArrayOutputStream();
+        for (byte[] m : new byte[][]{
+                msg(2, welcome(2, 1)),
+                msg(13, schema(1, 0, "BMSH_BattVolt")),
+                msg(4, frameRecords(2, 0, new int[]{0x178, 0x160}, new byte[][]{a, b})),
+                msg(15, signals(1, 0, new int[]{0}, new double[]{400.0}, 2)),
+                msg(9, new byte[0]),
+                msg(6, frameRecords(2, -1, new int[]{0x160}, new byte[][]{a})),
+        }) daemon.write(m);
+
+        List<String> got = new ArrayList<>();
+        RoadcastClient c = new RoadcastClient(new ByteArrayInputStream(daemon.toByteArray()),
+            new ByteArrayOutputStream(), new HashSet<>(Arrays.asList("BMSH_BattVolt")))
+            .withFrames((id, state, data, snap) ->
+                got.add(Integer.toHexString(id) + ":" + state + ":" + Arrays.toString(data) + (snap ? ":snap" : "")));
+        try {
+            c.run(new RoadcastClient.Listener() {
+                @Override public void onSignal(String n, double p, long raw, boolean v, boolean cal) {}
+                @Override public void onHeartbeat(int s, int mhz) {}
+                @Override public void onSubscribed() {}
+            });
+            fail("run only ends with the stream");
+        } catch (IOException e) {
+            assertTrue(e.getMessage(), e.getMessage().contains("closed"));
+        }
+        assertEquals(Arrays.asList(
+            "178:2:" + Arrays.toString(a) + ":snap",
+            "160:2:" + Arrays.toString(b) + ":snap",
+            "160:2:" + Arrays.toString(a)), got);
+    }
+
     @Test(expected = IOException.class)
     public void resyncRequiredEndsTheSession() throws Exception {
         ByteArrayOutputStream daemon = new ByteArrayOutputStream();

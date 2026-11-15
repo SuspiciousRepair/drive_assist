@@ -136,6 +136,9 @@ except the SoC-based driving energy, which is marked "estimated".
   reading directly, because it integrates each one and the hub delivers
   changes only. CAN wins while it is live; the dongle's samples are dropped
   then, so energy is never counted twice.
+- `tools/canrec` (debug, outside the app, started by hand over adb) records
+  raw CAN frames to find unnamed bits. Nothing in the app reads its files.
+  How to use it: [CAN-EXPLORE.md](CAN-EXPLORE.md).
 
 ## 5. What is saved on the car
 
