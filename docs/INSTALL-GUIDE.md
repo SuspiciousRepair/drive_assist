@@ -459,6 +459,8 @@ so you can get all of it back without a computer.
 - The app also backs up **by itself once a day**, while the car is in P. It
   keeps the 7 newest backups in each place.
 - **Restore** lists the backups it finds. Pick one.
+- A backup keeps **every setting** in the app. It does not keep an imported
+  custom lock sound: after a restore, import it again.
 
 **After you install the app again**, it finds the newest backup by itself
 and asks *"Restore your backup?"*. Press **Restore** and type the backup
@@ -512,6 +514,45 @@ computer (needs a JDK):
 > [!WARNING]
 > An unlocked backup (`./opened`) holds your MQTT password and your ABRP and
 > Spotify keys in plain text. Delete it when you are done.
+
+---
+
+## 📱 Phone access
+
+Open a page on your phone to:
+
+- download your trips and charges (CSV files for any spreadsheet),
+- download the newest backup, or restore a backup file from the phone,
+- download dashcam clips,
+- type long settings with the phone keyboard: MQTT address, user and
+  password, the ABRP token, the Spotify client ID, the update address.
+
+**Where:** Settings (gear) → **System** → **Phone access**.
+
+1. Put the car in **P**. The phone must be on the **same Wi-Fi** as the car.
+2. Press **Show QR code** and scan it with the phone camera.
+3. The page opens. The phone stays paired: next time, open the same address.
+
+**When the page runs:**
+
+| Mode | The page runs |
+| --- | --- |
+| **Off** (default) | Only while the QR code is on the car screen |
+| **Auto** | Also while the car is on your home Wi-Fi (the one set under *Wi-Fi & ADB*) |
+| **On** | Whenever the car is on a network |
+
+In every mode it works only in **P**, and only for a phone that scanned the
+QR code. **Forget paired phones** makes a new code: every phone must scan
+again.
+
+> [!WARNING]
+> The page uses plain `http`. On your home Wi-Fi or the car hotspot this is
+> fine. Do not use it on a public Wi-Fi: other people on that network could
+> read what you type.
+
+The car is slow, so the page only sends files. Clips download; they do not
+play in the page. A restore from the phone restarts the app on the car, and
+the car screen shows the result.
 
 ---
 

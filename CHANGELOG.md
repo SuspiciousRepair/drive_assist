@@ -2,6 +2,42 @@
 
 ## [Unreleased]
 
+## [v0.7.0] — 2026-11-15
+
+### Added
+- **Phone access: use your phone with the car, on the same Wi-Fi.** Config
+  → System → Phone access → Show QR code. Scan it to pair the phone. The
+  page on the phone downloads trips and charges (CSV), the newest backup
+  and dashcam clips, restores a backup from the phone, and types the long
+  settings (MQTT, ABRP token, Spotify client ID, update address) with the
+  phone keyboard. Off by default: it runs only while the QR code shows.
+  Auto also runs it on the home Wi-Fi. It works only in Park and only on
+  private addresses. (#58)
+
+### Changed
+- **The backup keeps every setting.** It used a fixed list, so settings
+  added later were left out (for example the grayscale cards, the lock
+  sound and Keep ADB always on). Now only the app's own state is left out.
+  After a restore, ModeHelper gets back its own settings too (drive, regen,
+  dashcam). An imported custom lock sound is still not in the backup. (#56)
+- **The floating button's panel shows the same quick buttons as the Turbo
+  card.** Config → Drive → Turbo → "Buttons on the Turbo card" now picks
+  Turbo, Regen and AVAS for both places. The AVAS button works the same way
+  as on the card, with the sound and muted icons. (#15)
+
+### Fixed
+- **The floating panel's Regen button follows "Regen button steps through
+  Low, Medium and High".** It was always a Strong-regen on/off button. The
+  home card and the floating panel now share the same Regen code. (#15)
+- **A new regen icon** on the Turbo card and the floating panel: a ring in
+  three segments with a chevron at one tip and a bolt in the middle. One
+  segment is filled for Low, two for Medium, three for High. (#15)
+- **The floating panel updates as soon as you leave the app.** A button
+  you switched off in "Buttons on the Turbo card" stayed on the panel until
+  the next time you opened and left the app. (#15)
+- **Long button names shrink to fit** on the Turbo card and the floating
+  panel, so the Thai Regen name is no longer cut with three buttons.
+
 ## [v0.6.1] — 2026-11-15
 
 ### Fixed

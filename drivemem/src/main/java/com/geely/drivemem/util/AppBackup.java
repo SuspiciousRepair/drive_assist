@@ -83,7 +83,7 @@ public final class AppBackup {
     /** Set by a restore just before the restart, read once by the new process. */
     static final String PREF_NOTE = "backup_restore_note";
     /** The key made from the backup password, and its salt (base64). Never
-     * in the backup itself: see Prefs.BACKUP_SETTINGS. */
+     * in the backup itself: see Prefs.isBackedUp. */
     static final String PREF_KEY = "backup_key";
     static final String PREF_SALT = "backup_salt";
     public static final int MIN_PASSWORD = 6;
@@ -458,6 +458,10 @@ public final class AppBackup {
                     if (f.isFile()) copy(f, new File(app.getFilesDir(), name));
                 }
                 e.commit();
+                // modehelper keeps its own copy of a few settings, and after
+                // a wipe it starts from its defaults. Tell it now: the boot
+                // sync only covers the switches it re-sends on every tick.
+                com.geely.drivemem.controls.HelperSync.pushRestored(app, settings);
                 deleteDb(tmp);
                 deleteTree(dir);
                 Log.i(TAG, "backup: restored " + file + " settings=" + res.settings

@@ -60,8 +60,9 @@ public final class CsvExport {
         }, "csv-export").start();
     }
 
-    // The two files, in the app's cache dir (overwritten every export).
-    static File[] write(Context ctx) throws Exception {
+    /** The two files {charges, trips}, in the app's cache dir (overwritten
+     * every export). Also served to a paired phone (web/PhoneServer). */
+    public static File[] write(Context ctx) throws Exception {
         File dir = new File(ctx.getCacheDir(), "csv");
         if (!dir.exists() && !dir.mkdirs()) throw new IllegalStateException("mkdirs " + dir);
         TimeZone tz = TimeZone.getDefault();
