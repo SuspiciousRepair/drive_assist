@@ -57,6 +57,13 @@ public final class TelemetrySampler {
         // access — already used for the HA location tracker.
         double[] loc = GpsReader.read(ctx);
         if (loc != null) v.put("altitude_m", loc[2]);
+        // Drive mode and regen level, for efficiency per mode (ModeSegments).
+        // Hub cache reads (car.drive_mode / car.regen_mode, watched on change),
+        // not new car accesses.
+        CarActor.Reading dm = CarActor.get(ctx).get("car.drive_mode");
+        if (dm.status == CarActor.Reading.Status.OK) putIfPresent(v, "drive_mode", dm.value);
+        CarActor.Reading rm = CarActor.get(ctx).get("car.regen_mode");
+        if (rm.status == CarActor.Reading.Status.OK) putIfPresent(v, "regen_mode", rm.value);
         putIfPresent(v, "instant_power_kw_est", data.get("instant_power_kw_est"));
         putIfPresent(v, "power_spent_kw", data.get("power_spent_kw"));
         putIfPresent(v, "power_regen_kw", data.get("power_regen_kw"));

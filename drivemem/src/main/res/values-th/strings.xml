@@ -247,7 +247,10 @@
     <string name="cfg_regen_mid">ปานกลาง</string>
     <string name="cfg_regen_high">สูง</string>
     <string name="turbo_header">เทอร์โบ</string>
+    <string name="regen_cycle_label">ปุ่ม Regen สลับระดับ ต่ำ ปานกลาง สูง</string>
     <string name="turbo_enable_label">แสดงการ์ดเทอร์โบ</string>
+    <string name="avas_title">AVAS</string>
+    <string name="turbo_card_buttons_label">ปุ่มบนการ์ดเทอร์โบ</string>
     <string name="turbo_duration_label">ระยะเวลา (วินาที)</string>
     <string name="cfg_btn_restore_defaults">คืนค่าเริ่มต้น</string>
     <string name="cfg_car_connect_fail">เชื่อมต่อกับรถไม่ได้</string>
@@ -336,6 +339,14 @@
     <string name="clips_usage">%1$d คลิป · ใช้ไป %2$s · เก็บไว้ %3$s · ว่าง %4$s</string>
     <string name="clips_none">ยังไม่มีการบันทึกใดๆ</string>
     <string name="clips_play">เล่น</string>
+    <string name="clips_usb">USB</string>
+    <string name="clips_usb_held">คัดลอกคลิปที่ล็อกไว้ไปยัง USB</string>
+    <string name="clips_usb_no_held">ไม่มีคลิปที่ล็อกไว้ แตะ ล็อกคลิป ที่คลิปก่อน หรือใช้ปุ่ม USB ของคลิปนั้น</string>
+    <string name="clips_usb_copying">กำลังคัดลอก %1$d คลิป (%2$s) ไปยัง USB…</string>
+    <string name="clips_usb_done">คัดลอก %1$d คลิปไปยัง USB แล้ว: Drive Assist/Dashcam</string>
+    <string name="clips_usb_no_drive">ไม่พบแฟลชไดรฟ์ USB</string>
+    <string name="clips_usb_no_space">พื้นที่ว่างในแฟลชไดรฟ์ USB ไม่พอ</string>
+    <string name="clips_usb_failed">คัดลอกไปยัง USB ไม่สำเร็จ ตรวจสอบแฟลชไดรฟ์แล้วลองอีกครั้ง</string>
     <string name="clips_hold">ล็อกคลิป</string>
     <string name="clips_motion">ขณะจอด: มีการเคลื่อนไหว</string>
     <string name="clips_release">ปลดล็อก</string>

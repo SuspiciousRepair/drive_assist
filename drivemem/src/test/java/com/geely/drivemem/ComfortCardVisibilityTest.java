@@ -251,4 +251,22 @@ public class ComfortCardVisibilityTest {
         // Hidden when both empty and dismissed
         assertFalse(ComfortCardVisibility.showPanelCard(true, true));
     }
+
+    // === Turbo card buttons (issue #15) ===
+
+    @Test
+    public void testTurboCardSlotsKeepOrder() {
+        assertEquals("TRA", ComfortCardVisibility.turboCardSlots(true, true, true));
+        assertEquals("TR", ComfortCardVisibility.turboCardSlots(true, true, false));
+        assertEquals("RA", ComfortCardVisibility.turboCardSlots(false, true, true));
+        assertEquals("A", ComfortCardVisibility.turboCardSlots(false, false, true));
+        assertEquals("", ComfortCardVisibility.turboCardSlots(false, false, false));
+    }
+
+    @Test
+    public void testTurboCardNotBuiltWithNoButtons() {
+        assertTrue(ComfortCardVisibility.turboCardBuilt(true, "A"));
+        assertFalse(ComfortCardVisibility.turboCardBuilt(true, ""));
+        assertFalse(ComfortCardVisibility.turboCardBuilt(false, "TR"));
+    }
 }

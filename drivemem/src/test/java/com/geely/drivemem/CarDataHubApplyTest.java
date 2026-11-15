@@ -32,6 +32,31 @@ public class CarDataHubApplyTest {
         @Override public int setChargeCurrentLimit(int amps) { lastSetChargeLimit = amps; return writeShouldSucceed ? amps : 0; }
     }
 
+    // AVAS reads through CarAudioManager (audioCall); the write belongs to
+    // modehelper, so the hub must refuse it (issue #15, Turbo card button).
+    static class AvasCar extends FakeCarAccess {
+        Object avas;
+        AvasCar(Object avas) { this.avas = avas; }
+        @Override public Object audioCall(String method, Object... args) {
+            return "getAVASMode".equals(method) ? avas : "ERR:unexpected " + method;
+        }
+    }
+
+    @Test public void avasModeReadsTheCarValue() {
+        assertEquals(2, CarDataHub.read(new AvasCar(2), "avas_mode"));
+        assertEquals(0, CarDataHub.read(new AvasCar(0), "avas_mode"));
+    }
+
+    @Test public void avasModeIsNullWhenTheCarCallFails() {
+        assertNull(CarDataHub.read(new AvasCar("ERR:no audio manager"), "avas_mode"));
+    }
+
+    @Test public void avasModeIsReadOnly() {
+        CarDataHub.WriteResult r = CarDataHub.apply(new AvasCar(1), "avas_mode", 0);
+        assertFalse(r.applied);
+        assertTrue(r.error.contains("read-only"));
+    }
+
     @Test public void unknownEntityIsRejected() {
         CarDataHub.WriteResult r = CarDataHub.apply(new FakeCarAccess(), "not_a_real_entity", 1);
         assertFalse(r.applied);

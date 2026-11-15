@@ -248,7 +248,10 @@
     <string name="cfg_regen_mid">Medium</string>
     <string name="cfg_regen_high">High</string>
     <string name="turbo_header">Turbo</string>
+    <string name="regen_cycle_label">Regen button steps through Low, Medium and High</string>
     <string name="turbo_enable_label">Show the Turbo card</string>
+    <string name="avas_title">AVAS</string>
+    <string name="turbo_card_buttons_label">Buttons on the Turbo card</string>
     <string name="turbo_duration_label">Duration (s)</string>
     <string name="cfg_adas_header">Driver assistance</string>
     <string name="cfg_aeb_label">AEB (automatic emergency braking)</string>
@@ -350,6 +353,14 @@
     <string name="clips_list_header">Clips</string>
     <string name="clips_none">Nothing recorded yet.</string>
     <string name="clips_play">Play</string>
+    <string name="clips_usb">USB</string>
+    <string name="clips_usb_held">Copy held clips to USB</string>
+    <string name="clips_usb_no_held">No held clips. Tap Hold on a clip first, or use its USB button.</string>
+    <string name="clips_usb_copying">Copying %1$d clip(s), %2$s, to USB…</string>
+    <string name="clips_usb_done">%1$d clip(s) copied to USB: Drive Assist/Dashcam</string>
+    <string name="clips_usb_no_drive">No USB stick found</string>
+    <string name="clips_usb_no_space">Not enough free space on the USB stick</string>
+    <string name="clips_usb_failed">Copy to USB failed. Check the stick and try again.</string>
     <string name="clips_hold">Hold</string>
     <string name="clips_motion">parked: movement</string>
     <string name="clips_release">Release</string>

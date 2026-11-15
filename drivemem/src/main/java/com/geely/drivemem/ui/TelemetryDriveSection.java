@@ -151,6 +151,33 @@ public final class TelemetryDriveSection extends LinearLayout {
         fTurbo.setLayoutParams(fTurboLp);
         turboRow.addView(fTurbo);
         left.addView(turboRow);
+        // Issue #15: which buttons the Turbo card shows. Turbo and Regen by
+        // default (the card as it always was), AVAS opt-in. Read when Home
+        // is built; Home rebuilds itself on return when this changes.
+        TextView slotsLbl = new TextView(activity);
+        slotsLbl.setText(activity.getString(R.string.turbo_card_buttons_label));
+        slotsLbl.setTextColor(Style.TEXT_DIM); slotsLbl.setTextSize(14);
+        slotsLbl.setPadding(0, Style.dp(activity, 10), 0, 0);
+        left.addView(slotsLbl);
+        LinearLayout slotsRow = new LinearLayout(activity);
+        slotsRow.setOrientation(LinearLayout.HORIZONTAL);
+        slotsRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
+        String[][] slots = {
+            {Prefs.CARD_TURBO, activity.getString(R.string.turbo_title)},
+            {Prefs.CARD_REGEN, activity.getString(R.string.regen_boost_title)},
+            {Prefs.CARD_AVAS, activity.getString(R.string.avas_title)}};
+        for (String[] sl : slots) {
+            final String key = sl[0];
+            LinearLayout r = Style.toggleRow(activity, sl[1], Prefs.getTurboCardShows(activity, key),
+                on -> Prefs.setTurboCardShows(activity, key, on));
+            slotsRow.addView(r, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        }
+        left.addView(slotsRow);
+        // Issue #15: the Turbo card's Regen half either toggles Strong regen
+        // (default) or steps through all three levels on each tap.
+        left.addView(Style.toggleRow(activity, activity.getString(R.string.regen_cycle_label),
+            Prefs.getRegenCycle(activity),
+            on -> Prefs.setRegenCycle(activity, on)));
         // Saves on every keystroke that parses, not on blur — blur never
         // reliably fired here (dismissing the on-screen number pad hides the
         // IME but does not necessarily move focus off the EditText, so a

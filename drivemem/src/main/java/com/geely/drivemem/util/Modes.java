@@ -45,6 +45,14 @@ public final class Modes {
         if (v == DRIVE_SPORT) return "Sport";
         return "?(" + v + ")";
     }
+    /** The level after {@code cur} for the home screen's cycling Regen
+     * button: Low -> Mid -> High -> Low. An unknown value starts at Low. */
+    public static int nextRegen(int cur) {
+        if (cur == REGEN_LOW) return REGEN_MID;
+        if (cur == REGEN_MID) return REGEN_HIGH;
+        return REGEN_LOW;
+    }
+
     public static String regenName(int v) {
         if (v == REGEN_LOW) return "Low";
         if (v == REGEN_MID) return "Mid";

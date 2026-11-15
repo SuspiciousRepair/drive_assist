@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+## [v0.6.0] — 2026-11-15
+
+### Added
+- **Drive mode and regen level are saved for efficiency statistics.** Every
+  30 s sample now records the drive mode and the regen level, and each trip
+  is split into parts with one mode each (km, spent, regen and net kWh), kept
+  for good. This is the data for kWh/100 km per mode; the screens come later.
+  Only trips from this version on have it. (#19 plan, phase 0)
+- **Copy dashcam clips to a USB stick.** Config → Recordings: each finished
+  clip has a **USB** button, and **Copy held clips to USB** copies every held
+  clip at once. Clips go to `Drive Assist/Dashcam/` on the stick, with their
+  subtitles (speed and time, shown by players such as VLC) and thumbnail.
+  A clip already on the stick is not copied again, and the copy stops early
+  when the stick is too full. (#18)
+- **Regen button can step through all three levels.** Config → Drive →
+  Turbo → "Regen button steps through Low, Medium and High". Off by
+  default: the Regen half of the Turbo card keeps toggling Strong regen.
+  On: each tap moves Low → Medium → High → Low, and the mark shows the
+  car's current level. (#15)
+- **Pick the buttons on the Turbo card: Turbo, Regen and AVAS.** Config →
+  Drive → Turbo → "Buttons on the Turbo card". Turbo and Regen are on by
+  default, so the card looks as before. Turn on AVAS to get a button that
+  turns the pedestrian warning sound on and off; its dot is lit when AVAS
+  is on. It reads the car's real AVAS state, and it uses the same path as
+  the AVAS switch in Config. With no button picked, the card is hidden. (#15)
+
 ## [v0.5.0] — 2026-11-14
 
 ### Added
@@ -34,8 +60,8 @@
   every wake and when the car left the home Wi-Fi, which stopped those
   apps. While on, anyone on the same network can get a root shell; the
   setting says so.
-- **Exact energy from the CAN bus, no OBD2 dongle (experimental, off by
-  default).** Config → OBD2 → "Exact energy". The battery's volts and amps
+- **Exact energy from the CAN bus, no OBD2 dongle, on by default.**
+  Settings → System → Car data (CAN). The battery's volts and amps
   are read from the car's own CAN bus through a small reader that
   ModeHelper starts. Energy comes from CAN first, then OBD2, then the
   SoC estimate. Charges also record the energy that went into the battery.

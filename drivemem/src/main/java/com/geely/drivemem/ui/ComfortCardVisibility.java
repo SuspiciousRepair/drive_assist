@@ -38,6 +38,20 @@ public final class ComfortCardVisibility {
     }
 
     /**
+     * The buttons the Turbo card shows, in order, as one char each:
+     * 'T' Turbo, 'R' Regen, 'A' AVAS. Empty means the card has nothing to show,
+     * so it is not built at all (see turboCardBuilt).
+     */
+    public static String turboCardSlots(boolean turbo, boolean regen, boolean avas) {
+        return (turbo ? "T" : "") + (regen ? "R" : "") + (avas ? "A" : "");
+    }
+
+    /** The card is built only when it is enabled AND has at least one button. */
+    public static boolean turboCardBuilt(boolean turboCardEnabled, String slots) {
+        return turboCardEnabled && slots != null && !slots.isEmpty();
+    }
+
+    /**
      * Music card visible when Spotify has an actual track loaded.
      * Starts GONE — nothing to show until a real title arrives.
      */

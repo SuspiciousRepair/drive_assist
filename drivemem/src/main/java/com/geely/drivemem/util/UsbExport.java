@@ -53,12 +53,19 @@ public final class UsbExport {
     // already off the UI thread and has more work to do first (CsvExport
     // writes its files, then copies them here).
     public static void exportNow(Callback cb, File... files) {
+        exportNow(null, cb, files);
+    }
+
+    /** Same, into {@code <drive>/Drive Assist/<subdir>/} (subdir may be null).
+     * A file already on the drive with the same name and size is not copied
+     * again, but still counts as copied: exporting twice is cheap and safe. */
+    public static void exportNow(String subdir, Callback cb, File... files) {
         File drive = findDrive();
         if (drive == null) {
             if (cb != null) cb.onDone(false, null, 0);
             return;
         }
-        File dest = new File(drive, EXPORT_DIR);
+        File dest = destDir(drive, subdir);
         if (!dest.exists() && !dest.mkdirs()) {
             Log.w(TAG, "usbexport: could not create " + dest);
             if (cb != null) cb.onDone(false, drive, 0);
@@ -68,7 +75,8 @@ public final class UsbExport {
         for (File f : files) {
             if (f == null || !f.exists()) continue;
             try {
-                copy(f, new File(dest, f.getName()));
+                File to = new File(dest, f.getName());
+                if (!sameSize(f, to)) copy(f, to);
                 copied++;
             } catch (Throwable t) {
                 Log.w(TAG, "usbexport: " + f + ": " + t);
@@ -77,14 +85,33 @@ public final class UsbExport {
         if (cb != null) cb.onDone(copied > 0, drive, copied);
     }
 
+    /** Where {@link #exportNow(String, Callback, File...)} puts files. */
+    public static File destDir(File drive, String subdir) {
+        File d = new File(drive, EXPORT_DIR);
+        return subdir == null ? d : new File(d, subdir);
+    }
+
+    static boolean sameSize(File src, File dst) {
+        return dst.isFile() && dst.length() == src.length();
+    }
+
+    /** Free bytes on the drive, or -1 when that cannot be read. */
+    public static long freeBytes(File drive) {
+        try { return new android.os.StatFs(drive.getAbsolutePath()).getAvailableBytes(); }
+        catch (Throwable t) { return -1; }
+    }
+
     private static void copy(File src, File dst) throws Exception {
         FileInputStream in = new FileInputStream(src);
         try {
             FileOutputStream out = new FileOutputStream(dst);
             try {
-                byte[] buf = new byte[8192];
+                // 1 MB: dashcam clips are hundreds of MB; 8 KB writes to a
+                // USB stick are many times slower.
+                byte[] buf = new byte[1 << 20];
                 int n;
                 while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                out.getFD().sync();   // on the stick before we say "done"
             } finally { out.close(); }
         } finally { in.close(); }
     }
