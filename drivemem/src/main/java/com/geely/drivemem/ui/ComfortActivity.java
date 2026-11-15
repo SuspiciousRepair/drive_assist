@@ -15,6 +15,7 @@ import com.geely.drivemem.controls.AvasState;
 import com.geely.drivemem.controls.HelperSync;
 import com.geely.drivemem.controls.KonamiView;
 import com.geely.drivemem.controls.Purge;
+import com.geely.drivemem.controls.RegenTap;
 import com.geely.drivemem.controls.TurboMode;
 import com.geely.drivemem.hvac.ComfortHub;
 import com.geely.drivemem.hvac.ComfortRuler;
@@ -824,7 +825,13 @@ public class ComfortActivity extends Activity {
         title.setTextColor(Style.TEXT); title.setTextSize(28);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         title.setSingleLine(true);
-        row.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        // Three buttons leave ~150 dp per title: Thai's Regen label
+        // ("การคืนพลังงาน") does not fit at 28 sp, so a long label shrinks
+        // (down to 16 sp) instead of being cut. Fixed height = one line at
+        // 28 sp, so autosize has a bound and every button stays level.
+        int titleH = title.getLineHeight();
+        title.setAutoSizeTextTypeUniformWithConfiguration(16, 28, 1, android.util.TypedValue.COMPLEX_UNIT_SP);
+        row.addView(title, new LinearLayout.LayoutParams(0, titleH, 1f));
         if (glyph instanceof TextView) {
             ((TextView) glyph).setTextSize(34);
             row.addView(glyph);
@@ -922,62 +929,22 @@ public class ComfortActivity extends Activity {
             android.graphics.PorterDuff.Mode.SRC_IN);
     }
 
-    // Plain two-state toggle, no timer: High, or back to whatever Config's
-    // own regen default is ("regen" pref, same one TelemetryActivity saves).
-    // Reads the real car state first rather than tracking a local boolean —
-    // if regen was changed from Config since this screen last drew, the
-    // toggle must reflect reality, not a stale guess.
-    private void toggleStrongRegen() {
-        CarActor.get(this).read("regen_mode", cur -> {
-            boolean isHigh = (cur instanceof Integer) && (Integer) cur == Modes.REGEN_HIGH;
-            int target = isHigh
-                ? Prefs.getRegen(this, Modes.REGEN_MID)
-                : Modes.REGEN_HIGH;
-            CarActor.get(this).cast("regen_mode", target, r -> {
-                if (r.applied) runOnUiThread(() -> showRegen(target));
-            });
-        });
-    }
-
-    // Config > Drive > "Regen button steps through the levels" (issue #15)
-    // swaps the toggle for a cycle: each tap moves Low -> Mid -> High -> Low,
-    // read fresh from the car first, like the toggle. Read at tap time, so the
-    // switch works without rebuilding this screen.
+    // Shared with the floating panel (RegenTap): Strong-regen toggle, or the
+    // Low -> Mid -> High cycle when Config's "steps through" switch is on.
+    // Read at tap time, so the switch works without rebuilding this screen.
     private void onRegenTap() {
-        if (!Prefs.getRegenCycle(this)) { toggleStrongRegen(); return; }
-        CarActor.get(this).read("regen_mode", cur -> {
-            int target = Modes.nextRegen(cur instanceof Integer ? (Integer) cur : 0);
-            CarActor.get(this).cast("regen_mode", target, r -> {
-                if (r.applied) runOnUiThread(() -> showRegen(target));
-            });
-        });
+        RegenTap.tap(this, target -> runOnUiThread(() -> showRegen(target)));
     }
 
     private void refreshRegenGlyph() {
-        CarActor.get(this).read("regen_mode", cur -> {
-            int v = (cur instanceof Integer) ? (Integer) cur : 0;
-            runOnUiThread(() -> showRegen(v));
-        });
+        RegenTap.read(this, v -> runOnUiThread(() -> showRegen(v)));
     }
 
-    // Toggle mode: the High mark, lit when High. Cycle mode: the same marks
-    // Config's regen picker uses for each level, always lit, so the glyph
-    // says which level the car is on.
     private void showRegen(int level) {
         if (regenGlyphView == null) return;
-        if (!Prefs.getRegenCycle(this)) {
-            regenGlyphView.setText("●");
-            tintRegenGlyph(level == Modes.REGEN_HIGH);
-            return;
-        }
-        String mark = level == Modes.REGEN_LOW ? "◦" : level == Modes.REGEN_MID ? "◉"
-            : level == Modes.REGEN_HIGH ? "●" : "?";
-        regenGlyphView.setText(mark);
-        regenGlyphView.setTextColor(Style.ACCENT);
-    }
-
-    private void tintRegenGlyph(boolean high) {
-        if (regenGlyphView != null) regenGlyphView.setTextColor(high ? Style.ACCENT : Style.TEXT_DIM);
+        boolean cycle = Prefs.getRegenCycle(this);
+        regenGlyphView.setText(RegenTap.mark(level, cycle));
+        regenGlyphView.setTextColor(RegenTap.lit(level, cycle) ? Style.ACCENT : Style.TEXT_DIM);
     }
 
     // Music card: album art + title/artist, then skip/play-pause tiles. Starts

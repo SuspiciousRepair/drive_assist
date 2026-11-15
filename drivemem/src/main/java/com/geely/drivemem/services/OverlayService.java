@@ -1,7 +1,13 @@
 package com.geely.drivemem.services;
 
 import com.geely.drivemem.R;
+import com.geely.drivemem.car.CarActor;
+import com.geely.drivemem.car.EntityBus;
+import com.geely.drivemem.controls.AvasState;
+import com.geely.drivemem.controls.HelperSync;
+import com.geely.drivemem.controls.RegenTap;
 import com.geely.drivemem.controls.TurboMode;
+import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.hvac.ComfortHub;
 import com.geely.drivemem.hvac.ComfortRuler;
 import com.geely.drivemem.util.AppForeground;
@@ -58,6 +64,7 @@ public final class OverlayService extends Service {
     private ImageView scaleView;
     private View turboBar;
     private TextView regenGlyphView;
+    private ImageView avasIconView;
     private ComfortRuler ruler;
     private boolean isExpanded = false;
 
@@ -130,6 +137,7 @@ public final class OverlayService extends Service {
         handler.removeCallbacksAndMessages(null);
         ComfortHub.removeListener(climateListener);
         AppForeground.removeListener(foregroundListener);
+        EntityBus.unsubscribe(AvasState.KEY, avasListener);
         if (overlayView != null && windowManager != null) {
             try { windowManager.removeView(overlayView); } catch (Throwable ignored) {}
         }
@@ -174,6 +182,7 @@ public final class OverlayService extends Service {
         // the process could, which starting it lazily from here could not
         // promise (see that class's own comment for the bug that caused).
         AppForeground.addListener(foregroundListener);
+        EntityBus.subscribe(AvasState.KEY, avasListener);
         // Covers the toggle-it-on-from-Config case: our own Activity is the
         // one on screen at this exact moment, so start hidden rather than
         // waiting for the next start/stop edge to say so.
@@ -258,20 +267,57 @@ public final class OverlayService extends Service {
 
         Style.gap(panel, this, 20);
 
-        // Two columns, same split as the home screen's own turboCard(): left
-        // is Turbo (tap to boost, bar shows the countdown), right is the
-        // plain Strong-Regen toggle (press for High, press again for
-        // whatever Config's own regen default is). Same car key
-        // ("regen_mode"), same on/off dot glyph, just bigger touch targets.
+        // Quick buttons: the same ones, in the same order, as the home
+        // screen's Turbo card, picked in Config > Drive > "Buttons on the
+        // Turbo card" (issue #15). Turbo (tap to boost, the bar shows the
+        // countdown), Regen (RegenTap: Strong toggle or level cycle) and
+        // AVAS (modehelper flips it, AvasState reports it back).
         LinearLayout turboSection = new LinearLayout(this);
         turboSection.setOrientation(LinearLayout.HORIZONTAL);
+        String slots = com.geely.drivemem.ui.ComfortCardVisibility.turboCardSlots(
+            Prefs.getTurboCardShows(this, Prefs.CARD_TURBO),
+            Prefs.getTurboCardShows(this, Prefs.CARD_REGEN),
+            Prefs.getTurboCardShows(this, Prefs.CARD_AVAS));
+        turboBar = null; regenGlyphView = null; avasIconView = null;
+        for (int i = 0; i < slots.length(); i++) {
+            char slot = slots.charAt(i);
+            View col = slot == 'T' ? turboColumn() : slot == 'R' ? regenColumn() : avasColumn();
+            LinearLayout.LayoutParams colLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            // A margin, not Style.gap(): that adds a 1-px-WIDE view, which
+            // in a horizontal row is no gap at all.
+            if (i > 0) colLp.leftMargin = Style.dp(this, SLOT_GAP_DP);
+            turboSection.addView(col, colLp);
+        }
+        if (slots.length() > 0) {
+            panel.addView(turboSection);
+            Style.gap(panel, this, 20);
+        }
+        panel.addView(openAppButton());
 
-        LinearLayout turboRow = new LinearLayout(this);
-        turboRow.setOrientation(LinearLayout.VERTICAL);
-        turboRow.setOnClickListener(v -> { TurboMode.get(this).start(); resetAutoCollapse(); });
-        turboRow.addView(sectionLabel(getString(R.string.turbo_title)));
-        Style.gap(turboRow, this, 8);
+        return panel;
+    }
 
+    private static final int SLOT_GAP_DP = 14;
+
+    // One column: label, then a tile, then a 6dp slot under it (Turbo's bar
+    // lives inside its tile; the others keep the same height with a spacer).
+    private LinearLayout slotColumn(String label, View.OnClickListener tap) {
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setOnClickListener(v -> { tap.onClick(v); resetAutoCollapse(); });
+        TextView l = sectionLabel(label);
+        l.setSingleLine(true);
+        // ~75 dp per column with three buttons: a long label (Thai's Regen)
+        // shrinks to fit instead of being cut.
+        int lh = l.getLineHeight();
+        l.setAutoSizeTextTypeUniformWithConfiguration(9, 15, 1, android.util.TypedValue.COMPLEX_UNIT_SP);
+        col.addView(l, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, lh));
+        Style.gap(col, this, 8);
+        return col;
+    }
+
+    private View turboColumn() {
+        LinearLayout col = slotColumn(getString(R.string.turbo_title), v -> TurboMode.get(this).start());
         // Bar lives INSIDE the tile, pinned to its bottom edge (a FrameLayout
         // stack, not a separate element below it) — a countdown baked into
         // the button it belongs to, not a stray line underneath it.
@@ -296,16 +342,12 @@ public final class OverlayService extends Service {
             ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 6));
         barTrackLp.gravity = Gravity.BOTTOM;
         turboTile.addView(barTrack, barTrackLp);
-        turboRow.addView(turboTile);
-        turboSection.addView(turboRow, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        col.addView(turboTile);
+        return col;
+    }
 
-        Style.gap(turboSection, this, 20);
-
-        LinearLayout regenRow = new LinearLayout(this);
-        regenRow.setOrientation(LinearLayout.VERTICAL);
-        regenRow.setOnClickListener(v -> { toggleStrongRegen(); resetAutoCollapse(); });
-        regenRow.addView(sectionLabel(getString(R.string.regen_boost_title)));
-        Style.gap(regenRow, this, 8);
+    private View regenColumn() {
+        LinearLayout col = slotColumn(getString(R.string.regen_boost_title), v -> onRegenTap());
         TextView regenGlyph = new TextView(this);
         regenGlyph.setText("●");   // same mark Config's own regen picker uses for High
         regenGlyph.setTextColor(Style.TEXT_DIM);
@@ -313,21 +355,47 @@ public final class OverlayService extends Service {
         regenGlyph.setGravity(Gravity.CENTER);
         regenGlyph.setBackground(Style.tile(this));
         regenGlyph.setPadding(0, Style.dp(this, 18), 0, Style.dp(this, 18));
-        regenRow.addView(regenGlyph);
+        col.addView(regenGlyph);
         regenGlyphView = regenGlyph;
-        // Decoration-only spacer matching the bar's slot on the left, so both
-        // columns land at the same height — this toggle has no countdown.
-        View regenSpacer = new View(this);
-        regenSpacer.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 6)));
-        Style.gap(regenRow, this, 10);
-        regenRow.addView(regenSpacer);
-        turboSection.addView(regenRow, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        return col;
+    }
 
-        panel.addView(turboSection);
-        Style.gap(panel, this, 20);
-        panel.addView(openAppButton());
+    private View avasColumn() {
+        LinearLayout col = slotColumn(getString(R.string.avas_title), v -> onAvasTap());
+        // Same tile height as the text tiles next to it (40sp glyph + 18dp
+        // padding each side), so the row stays level.
+        android.widget.FrameLayout tile = new android.widget.FrameLayout(this);
+        tile.setBackground(Style.tile(this));
+        ImageView icon = new ImageView(this);
+        icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        int size = Style.dp(this, 48);
+        android.widget.FrameLayout.LayoutParams ilp = new android.widget.FrameLayout.LayoutParams(size, size, Gravity.CENTER);
+        ilp.topMargin = ilp.bottomMargin = Style.dp(this, 18);
+        tile.addView(icon, ilp);
+        col.addView(tile);
+        avasIconView = icon;
+        showAvas(AvasState.on(CarActor.get(this).get(AvasState.KEY)));
+        return col;
+    }
 
-        return panel;
+    private void onAvasTap() {
+        HelperSync.toggleAvas(this);
+        Boolean on = AvasState.on(CarActor.get(this).get(AvasState.KEY));
+        if (on != null) showAvas(!on);
+        // The hub publishes only changes: if the flip did not land, no event
+        // comes, so show what the hub has once modehelper had time to report.
+        handler.postDelayed(() -> showAvas(AvasState.on(CarActor.get(this).get(AvasState.KEY))), 3000);
+    }
+
+    private final EntityBus.Listener avasListener = (key, reading) ->
+        handler.post(() -> showAvas(AvasState.on(reading)));
+
+    // Same look as the Turbo card: sound icon in the accent colour when on,
+    // muted icon dimmed when off, sound icon dimmed when not known yet.
+    private void showAvas(Boolean on) {
+        if (avasIconView == null) return;
+        avasIconView.setImageResource(Boolean.FALSE.equals(on) ? R.drawable.ic_volume_off : R.drawable.ic_volume_high);
+        avasIconView.setColorFilter(Boolean.TRUE.equals(on) ? Style.ACCENT : Style.TEXT_DIM, PorterDuff.Mode.SRC_IN);
     }
 
     private TextView openAppButton() {
@@ -349,32 +417,23 @@ public final class OverlayService extends Service {
         return btn;
     }
 
-    // Reads the real car state rather than tracking a local boolean — same
-    // reasoning as ComfortActivity's own toggleStrongRegen(): if regen
-    // changed from Config or the home screen since this panel last opened,
-    // the toggle must reflect reality, not a stale guess.
-    private void toggleStrongRegen() {
-        com.geely.drivemem.car.CarActor.get(this).read("regen_mode", cur -> {
-            boolean isHigh = (cur instanceof Integer) && (Integer) cur == com.geely.drivemem.util.Modes.REGEN_HIGH;
-            int target = isHigh
-                ? getSharedPreferences(PREFS, MODE_PRIVATE).getInt("regen", com.geely.drivemem.util.Modes.REGEN_MID)
-                : com.geely.drivemem.util.Modes.REGEN_HIGH;
-            com.geely.drivemem.car.CarActor.get(this).cast("regen_mode", target, r -> {
-                if (r.applied) handler.post(() -> tintRegenGlyph(target == com.geely.drivemem.util.Modes.REGEN_HIGH));
-            });
-        });
+    // Shared with the home screen's Turbo card (RegenTap), so this button
+    // also follows Config's "Regen button steps through Low, Medium and
+    // High". It used to be a Strong-regen toggle only, whatever that said.
+    private void onRegenTap() {
+        RegenTap.tap(this, target -> handler.post(() -> showRegen(target)));
     }
 
     private void refreshRegen() {
         if (regenGlyphView == null) return;
-        com.geely.drivemem.car.CarActor.get(this).read("regen_mode", cur -> {
-            boolean isHigh = (cur instanceof Integer) && (Integer) cur == com.geely.drivemem.util.Modes.REGEN_HIGH;
-            handler.post(() -> tintRegenGlyph(isHigh));
-        });
+        RegenTap.read(this, v -> handler.post(() -> showRegen(v)));
     }
 
-    private void tintRegenGlyph(boolean high) {
-        if (regenGlyphView != null) regenGlyphView.setTextColor(high ? Style.ACCENT : Style.TEXT_DIM);
+    private void showRegen(int level) {
+        if (regenGlyphView == null) return;
+        boolean cycle = Prefs.getRegenCycle(this);
+        regenGlyphView.setText(RegenTap.mark(level, cycle));
+        regenGlyphView.setTextColor(RegenTap.lit(level, cycle) ? Style.ACCENT : Style.TEXT_DIM);
     }
 
     private static final int CLIMATE_ICON_DP = 88;
@@ -477,6 +536,7 @@ public final class OverlayService extends Service {
         expanded.setVisibility(View.VISIBLE);
         refreshClimate();
         refreshRegen();
+        if (avasIconView != null) HelperSync.queryAvas(this);
         handler.post(turboPoll);
         resetAutoCollapse();
     }
