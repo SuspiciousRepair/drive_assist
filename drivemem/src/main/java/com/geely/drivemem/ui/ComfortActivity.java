@@ -11,6 +11,7 @@ import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.car.EntityBus;
 import com.geely.drivemem.car.Telemetry;
+import com.geely.drivemem.controls.AvasState;
 import com.geely.drivemem.controls.HelperSync;
 import com.geely.drivemem.controls.KonamiView;
 import com.geely.drivemem.controls.Purge;
@@ -123,7 +124,7 @@ public class ComfortActivity extends Activity {
     private boolean skylineEnabledAtBuild; // same idea, for "Show skyline art"
     private long skylineSeedAtBuild;       // and for the fixed/chosen seed
     private TextView regenGlyphView;      // Regen button's glyph, retinted to reflect real car state
-    private TextView avasGlyphView;       // AVAS button's glyph, lit when the car's AVAS is on
+    private android.widget.ImageView avasIconView;   // AVAS button: sound icon when on, muted icon when off
     private String turboSlotsAtBuild;     // which buttons the card was built with, see ComfortCardVisibility.turboCardSlots
 
     // Music card: spot #4, art + title/artist + skip/play-pause. Visible only
@@ -765,8 +766,8 @@ public class ComfortActivity extends Activity {
     //    full when idle (ready), draining during a boost.
     //  - Regen: Strong-Regen toggle (press once for High, again to go back
     //    to Config's own regen default), or Low -> Mid -> High cycle.
-    //  - AVAS: the pedestrian warning sound, on/off, written through
-    //    modehelper the same way as Config's AVAS switch.
+    //  - AVAS: the pedestrian warning sound, on/off. modehelper flips it
+    //    and reports the state back (AvasState): Drive Assist cannot read it.
     // Every button has the same title row + 10dp bar slot, so all of them
     // land at the same height whichever ones are shown.
     private LinearLayout turboCard() {
@@ -811,7 +812,7 @@ public class ComfortActivity extends Activity {
     }
 
     // One mini card: bold title on the left, glyph on the right.
-    private LinearLayout slotHalf(String titleText, TextView glyph, View.OnClickListener tap) {
+    private LinearLayout slotHalf(String titleText, View glyph, View.OnClickListener tap) {
         LinearLayout half = new LinearLayout(this);
         half.setOrientation(LinearLayout.VERTICAL);
         half.setOnClickListener(tap);
@@ -824,8 +825,12 @@ public class ComfortActivity extends Activity {
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         title.setSingleLine(true);
         row.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        glyph.setTextSize(34);
-        row.addView(glyph);
+        if (glyph instanceof TextView) {
+            ((TextView) glyph).setTextSize(34);
+            row.addView(glyph);
+        } else {
+            row.addView(glyph, new LinearLayout.LayoutParams(Style.dp(this, 36), Style.dp(this, 36)));
+        }
         half.addView(row);
         return half;
     }
@@ -875,44 +880,46 @@ public class ComfortActivity extends Activity {
     }
 
     private LinearLayout avasHalf() {
-        TextView glyph = new TextView(this);
-        // The same on/off dot as the Regen toggle: lit = AVAS on.
-        glyph.setText("●"); glyph.setTextColor(Style.TEXT_DIM);
-        avasGlyphView = glyph;
-        LinearLayout half = slotHalf(getString(R.string.avas_title), glyph, v -> onAvasTap());
+        android.widget.ImageView icon = new android.widget.ImageView(this);
+        icon.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        avasIconView = icon;
+        showAvas(AvasState.on(CarActor.get(this).get(AvasState.KEY)));
+        LinearLayout half = slotHalf(getString(R.string.avas_title), icon, v -> onAvasTap());
         View spacer = new View(this);
         spacer.setLayoutParams(barSlotLp());
         half.addView(spacer);
         return half;
     }
 
-    // Reads the car first, like the Regen toggle, so the tap flips what the
-    // car really has, not a stale guess. The write goes through modehelper
-    // (it also saves the choice for "Restore at start"), the same path as
-    // Config's AVAS switch. modehelper writes it a moment later, so the dot
-    // shows the new state at once and is re-read from the car after 2 s:
-    // if the write did not land (helper missing), the dot goes back.
+    // Drive Assist cannot read AVAS (a system permission), so modehelper
+    // decides the flip from the car and reports the result into the hub
+    // (AvasState). The icon flips at once when the state is known; the
+    // report, a moment later, has the last word.
     private void onAvasTap() {
-        CarActor.get(this).read("avas_mode", cur -> {
-            boolean on = (cur instanceof Integer) && (Integer) cur != 0;
-            boolean target = !on;
-            HelperSync.applyNow(this, "avas", target);
-            runOnUiThread(() -> showAvas(target));
-            ui.postDelayed(this::refreshAvasGlyph, 2000);
-        });
+        HelperSync.toggleAvas(this);
+        Boolean on = AvasState.on(CarActor.get(this).get(AvasState.KEY));
+        if (on != null) showAvas(!on);
+        // The hub publishes only changes: if the flip did not land, no event
+        // comes, so show what the hub has once modehelper had time to report.
+        ui.postDelayed(() -> showAvas(AvasState.on(CarActor.get(this).get(AvasState.KEY))), 3000);
     }
 
     private void refreshAvasGlyph() {
-        if (avasGlyphView == null) return;
-        CarActor.get(this).read("avas_mode", cur -> {
-            if (!(cur instanceof Integer)) return;   // unknown: leave the dot as it is
-            boolean on = (Integer) cur != 0;
-            runOnUiThread(() -> showAvas(on));
-        });
+        if (avasIconView == null) return;
+        showAvas(AvasState.on(CarActor.get(this).get(AvasState.KEY)));
+        HelperSync.queryAvas(this);
     }
 
-    private void showAvas(boolean on) {
-        if (avasGlyphView != null) avasGlyphView.setTextColor(on ? Style.ACCENT : Style.TEXT_DIM);
+    private final EntityBus.Listener avasListener = (key, reading) ->
+        ui.post(() -> showAvas(AvasState.on(reading)));
+
+    // Sound icon in the accent colour when AVAS is on, muted icon dimmed when
+    // off. Not known yet (no report from modehelper): the sound icon, dimmed.
+    private void showAvas(Boolean on) {
+        if (avasIconView == null) return;
+        avasIconView.setImageResource(Boolean.FALSE.equals(on) ? R.drawable.ic_volume_off : R.drawable.ic_volume_high);
+        avasIconView.setColorFilter(Boolean.TRUE.equals(on) ? Style.ACCENT : Style.TEXT_DIM,
+            android.graphics.PorterDuff.Mode.SRC_IN);
     }
 
     // Plain two-state toggle, no timer: High, or back to whatever Config's
@@ -2353,6 +2360,7 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe("car.hvac_recirc", hvacRecircListener);
         EntityBus.subscribe("car.hvac_direction", hvacDirectionListener);
         EntityBus.subscribe("car.hvac_rear_defrost", hvacRearDefrostListener);
+        EntityBus.subscribe(AvasState.KEY, avasListener);
 
         // Subscriptions above cover future changes only. EntityBus does not
         // replay past values, so ask the car directly for current state to
@@ -2381,6 +2389,7 @@ public class ComfortActivity extends Activity {
         EntityBus.unsubscribe("telemetry.ambient_color", ambientColorListener);
         EntityBus.unsubscribe("telemetry.ambient_brightness", ambientBrightnessListener);
         EntityBus.unsubscribe("telemetry.speed", speedListener);
+        EntityBus.unsubscribe(AvasState.KEY, avasListener);
         EntityBus.unsubscribe("car.window_pos", windowPosListener);
         EntityBus.unsubscribe("car.hvac_recirc", hvacRecircListener);
         EntityBus.unsubscribe("car.hvac_direction", hvacDirectionListener);

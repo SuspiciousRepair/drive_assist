@@ -91,6 +91,14 @@
                 <action android:name="com.geely.drivemem.CAN_STATUS" />
             </intent-filter>
         </receiver>
+        <!-- modehelper reports the car's AVAS mode: Drive Assist is not allowed
+             to read it (CAR_CONTROL_AUDIO_VOLUME). Exported because modehelper
+             is another app; a spoof can only mislabel the icon. -->
+        <receiver android:name=".controls.AvasState$Receiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.geely.drivemem.AVAS_STATE" />
+            </intent-filter>
+        </receiver>
         <receiver android:name=".util.BackupReceiver" android:exported="true"
             android:permission="android.permission.DUMP">
             <intent-filter>
