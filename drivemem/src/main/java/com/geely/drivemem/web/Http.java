@@ -89,7 +89,7 @@ final class Http {
             byte[] body = new byte[(int) len];
             int off = 0;
             while (off < len) {
-                int n = in.read(body, off, len - off);
+                int n = in.read(body, off, body.length - off);
                 if (n < 0) throw new BadRequest(400, "short body");
                 off += n;
             }
