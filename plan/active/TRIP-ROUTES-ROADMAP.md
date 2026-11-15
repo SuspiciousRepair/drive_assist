@@ -1,4 +1,4 @@
-# Trip details and routes, no map API (issue #19)
+# Trip details, routes and per-mode efficiency, no map API (issue #19)
 
 Status: plan, 2026-11-15. Nothing built yet.
 
@@ -18,6 +18,27 @@ the car.
 - `trip` already keeps `ascent_m` / `descent_m` (GPS altitude, noise band).
 - Old trips will never have a route. Routes start with the build that records
   them.
+
+## Phase 0 — record drive mode and regen level (efficiency statistics)
+
+Owner's request (2026-11-15): keep drive mode and regen level in the database
+so efficiency can be compared per mode. Today both are hub keys
+(`car.drive_mode`, `car.regen_mode`, on change) but **nothing stores them**.
+Independent of GPS, small, and every day without it is data lost, so it can
+ship first.
+
+- `telemetry_sample` gets `drive_mode` and `regen_mode` (the 30 s rows), read
+  from the hub cache.
+- New table `trip_mode_segment (trip_id, start_ms, end_ms, drive_mode,
+  regen_mode, km, spent_kwh, regen_kwh, net_kwh, energy_source)`, like
+  `trip_energy_segment`: `TripSession` closes a segment when either mode
+  changes (hub listener) and when the trip ends. Distance from the odometer,
+  energy from the same source the trip uses.
+- This gives exact numbers per mode, not a guess from 30 s samples:
+  kWh/100 km in Eco / Comfort / Sport, regen kWh share per regen level, and
+  how much of the driving each mode took.
+- The CSV export gets the trip's main mode (most km) and the share per mode.
+- A Week/Month "by mode" view is a later step; the data comes first.
 
 ## Phase 1 — record positions
 
