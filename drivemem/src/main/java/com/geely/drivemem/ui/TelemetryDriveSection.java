@@ -17,6 +17,7 @@ import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.controls.GeelySwitch;
+import com.geely.drivemem.controls.AvasState;
 import com.geely.drivemem.controls.HelperSync;
 import com.geely.drivemem.controls.TurboMode;
 import com.geely.drivemem.util.Modes;
@@ -484,21 +485,22 @@ public final class TelemetryDriveSection extends LinearLayout {
         });
     }
 
-    // A fresh read (CarActor.read -> CarDataHub) of the AVAS mode from the car,
-    // not a cache lookup — this keeps the AVAS switch honest when the setting
-    // can change outside of this app.
+    // Shows the car's AVAS state, not the saved choice (#13). Drive Assist
+    // cannot read AVAS itself (CAR_CONTROL_AUDIO_VOLUME is a system
+    // permission), so modehelper reports it into the hub (AvasState): show
+    // what the hub has, ask for a fresh report, and show it again once the
+    // report had time to arrive. Unknown leaves the switch on the saved value.
     public void refreshAvasFromCar() {
         if (avasSwitch == null) return;
-        CarActor.get(activity).runOnCarThread(() -> {
-            CarAccess c = CarActor.get(activity).rawAccess();
-            if (!c.isReady() && !c.connect(activity.getApplicationContext())) return;
-            Object mode = c.audioCall("getAVASMode");
-            if (!(mode instanceof Integer)) return;
-            boolean on = ((Integer) mode) != 0;
+        Runnable show = () -> {
+            Boolean on = AvasState.on(CarActor.get(activity).get(AvasState.KEY));
             // Display only: the saved value is the user's choice for "Restore
             // at start", and the car's current state is not a choice (#13).
-            ui.post(() -> avasSwitch.setCheckedSilently(on));
-        });
+            if (on != null) avasSwitch.setCheckedSilently(on);
+        };
+        ui.post(show);
+        HelperSync.queryAvas(activity);
+        ui.postDelayed(show, 1500);
     }
 
     // Same idea for AEB: show what the car has now, not what was saved (#13).

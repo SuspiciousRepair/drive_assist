@@ -18,4 +18,11 @@ final class AvasPolicy {
         // car's own Settings is not overridden. Only a muted car is brought back.
         return car == 0 ? saved : null;
     }
+
+    /** The mode a toggle writes: off when the car has any sound on, else
+     * the last active sound type (1 when none was seen yet). */
+    static int toggled(int car, int lastOnType) {
+        if (car != 0) return 0;
+        return lastOnType > 0 ? lastOnType : 1;
+    }
 }

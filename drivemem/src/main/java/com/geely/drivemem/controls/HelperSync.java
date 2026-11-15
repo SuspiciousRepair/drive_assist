@@ -43,6 +43,18 @@ public final class HelperSync {
         send(ctx, i);
     }
 
+    /** Home-screen AVAS button: modehelper flips what the car has now and
+     * saves it as the AVAS choice. Drive Assist cannot read AVAS, so it does
+     * not pick the target itself (see AvasState). */
+    public static void toggleAvas(Context ctx) {
+        send(ctx, base().putExtra("avas_toggle", true));
+    }
+
+    /** Asks modehelper to report the car's AVAS mode now (AvasState). */
+    public static void queryAvas(Context ctx) {
+        send(ctx, base().putExtra("avas_query", true));
+    }
+
     private static Intent base() { return new Intent(SET_MODE).setPackage(Updater.HELPER_PKG); }
 
     private static void send(Context ctx, Intent i) {
