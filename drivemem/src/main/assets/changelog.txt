@@ -1,3 +1,8 @@
-- Fixed: the AVAS button on the Turbo card now turns the pedestrian warning sound on and off.
-- Changed: the AVAS button shows a sound icon when AVAS is on and a muted icon when it is off.
-- Fixed: the AVAS switch in Settings now shows what the car really has.
+- New: phone access. Pair your phone with a QR code (Settings, System, Phone access).
+- New: from the phone, download trips, charges, backups and dashcam clips, and restore a backup.
+- New: type the long settings, like the MQTT password, with the phone keyboard.
+- New: the floating panel shows the same buttons as the Turbo card.
+- New: a regen icon that fills one, two or three parts for Low, Medium and High.
+- Changed: the backup now keeps every setting.
+- Fixed: the Regen button on the floating panel steps through Low, Medium and High.
+- Fixed: a button you switch off goes away from the floating panel at once.

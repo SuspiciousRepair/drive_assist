@@ -2,7 +2,24 @@
 
 ## [Unreleased]
 
+## [v0.7.0] — 2026-11-15
+
+### Added
+- **Phone access: use your phone with the car, on the same Wi-Fi.** Config
+  → System → Phone access → Show QR code. Scan it to pair the phone. The
+  page on the phone downloads trips and charges (CSV), the newest backup
+  and dashcam clips, restores a backup from the phone, and types the long
+  settings (MQTT, ABRP token, Spotify client ID, update address) with the
+  phone keyboard. Off by default: it runs only while the QR code shows.
+  Auto also runs it on the home Wi-Fi. It works only in Park and only on
+  private addresses. (#58)
+
 ### Changed
+- **The backup keeps every setting.** It used a fixed list, so settings
+  added later were left out (for example the grayscale cards, the lock
+  sound and Keep ADB always on). Now only the app's own state is left out.
+  After a restore, ModeHelper gets back its own settings too (drive, regen,
+  dashcam). An imported custom lock sound is still not in the backup. (#56)
 - **The floating button's panel shows the same quick buttons as the Turbo
   card.** Config → Drive → Turbo → "Buttons on the Turbo card" now picks
   Turbo, Regen and AVAS for both places. The AVAS button works the same way
