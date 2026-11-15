@@ -240,8 +240,11 @@ with the current hub:
    change. Not tested.
 
 So the art can start in step with the car after a change it sees, but it
-cannot promise to stay in step. Re-anchoring on every observed change keeps
-the error small while the driver is adjusting the light.
+cannot promise to stay in step.
+
+**Decision (owner, 2026-11-14): the art does not animate the bicolor fade.**
+It follows only the light's mode and colour, as it already does (in bicolor
+it shows colour 1). Do not add a fade timer that tries to match the car.
 
 #### Gradient (not solved)
 
