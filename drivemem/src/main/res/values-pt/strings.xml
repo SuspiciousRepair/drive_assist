@@ -336,6 +336,14 @@
     <string name="clips_list_header">Clipes</string>
     <string name="clips_none">Nada gravado ainda.</string>
     <string name="clips_play">Ver</string>
+    <string name="clips_usb">USB</string>
+    <string name="clips_usb_held">Copiar clipes guardados para o USB</string>
+    <string name="clips_usb_no_held">Nenhum clipe guardado. Toque em Guardar num clipe, ou use o botão USB dele.</string>
+    <string name="clips_usb_copying">Copiando %1$d clipe(s), %2$s, para o USB…</string>
+    <string name="clips_usb_done">%1$d clipe(s) copiado(s) para o USB: Drive Assist/Dashcam</string>
+    <string name="clips_usb_no_drive">Nenhum pendrive encontrado</string>
+    <string name="clips_usb_no_space">Espaço livre insuficiente no pendrive</string>
+    <string name="clips_usb_failed">A cópia para o USB falhou. Verifique o pendrive e tente de novo.</string>
     <string name="clips_hold">Guardar</string>
     <string name="clips_motion">estacionado: movimento</string>
     <string name="clips_release">Liberar</string>

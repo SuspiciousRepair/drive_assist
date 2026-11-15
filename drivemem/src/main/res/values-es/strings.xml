@@ -242,6 +242,14 @@
     <string name="clips_list_header">Clips</string>
     <string name="clips_none">Todavía no hay nada grabado.</string>
     <string name="clips_play">Reproducir</string>
+    <string name="clips_usb">USB</string>
+    <string name="clips_usb_held">Copiar clips retenidos al USB</string>
+    <string name="clips_usb_no_held">No hay clips retenidos. Toca Retener en un clip, o usa su botón USB.</string>
+    <string name="clips_usb_copying">Copiando %1$d clip(s), %2$s, al USB…</string>
+    <string name="clips_usb_done">%1$d clip(s) copiado(s) al USB: Drive Assist/Dashcam</string>
+    <string name="clips_usb_no_drive">No se encontró una memoria USB</string>
+    <string name="clips_usb_no_space">No hay espacio libre suficiente en la memoria USB</string>
+    <string name="clips_usb_failed">La copia al USB falló. Revisa la memoria e inténtalo de nuevo.</string>
     <string name="clips_hold">Retener</string>
     <string name="clips_motion">estacionado: movimiento</string>
     <string name="clips_release">Liberar</string>

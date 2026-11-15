@@ -13,6 +13,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.geely.drivemem.R;
+import com.geely.drivemem.util.ClipExport;
 import com.geely.drivemem.util.ClipRecovery;
 import com.geely.drivemem.util.Clips;
 import com.geely.drivemem.util.Prefs;
@@ -138,6 +139,24 @@ public final class TelemetryClipsSection extends LinearLayout {
             });
         settings.addView(parkedMonitor);
 
+        // Issue #18: held clips are the ones worth keeping, so one button
+        // copies all of them to the USB stick. Single clips have their own
+        // USB button in the list.
+        TextView heldUsb = Style.cardButton(activity, activity.getString(R.string.clips_usb_held), false, () -> {
+            List<Clips.Clip> held = new java.util.ArrayList<>();
+            for (Clips.Clip c : Clips.list(activity)) if (c.held && c.playable()) held.add(c);
+            if (held.isEmpty()) {
+                Toast.makeText(activity, activity.getString(R.string.clips_usb_no_held), Toast.LENGTH_LONG).show();
+                return;
+            }
+            exportToUsb(activity, held);
+        });
+        LinearLayout.LayoutParams hLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        hLp.topMargin = Style.dp(activity, 10);
+        heldUsb.setLayoutParams(hLp);
+        settings.addView(heldUsb);
+
         TextView listHeader = Style.header(activity, activity.getString(R.string.clips_list_header));
         listHeader.setPadding(0, 0, 0, Style.dp(activity, 6));
         rightCol.addView(listHeader);
@@ -150,6 +169,26 @@ public final class TelemetryClipsSection extends LinearLayout {
 
         if (clips.isEmpty()) { rightCol.addView(Style.label(activity, activity.getString(R.string.clips_none))); return; }
         for (Clips.Clip c : clips) rightCol.addView(clipRow(activity, c));
+    }
+
+    // One toast when the copy starts (a clip is hundreds of MB, so it takes
+    // a while) and one with the result.
+    static void exportToUsb(Activity activity, List<Clips.Clip> clips) {
+        long bytes = 0;
+        for (Clips.Clip c : clips) bytes += c.bytes;
+        Toast.makeText(activity, activity.getString(R.string.clips_usb_copying, clips.size(), Clips.mb(bytes)),
+            Toast.LENGTH_LONG).show();
+        ClipExport.toUsb(activity, clips, (r, n) -> activity.runOnUiThread(() -> {
+            int msg;
+            switch (r) {
+                case OK:       msg = R.string.clips_usb_done; break;
+                case NO_DRIVE: msg = R.string.clips_usb_no_drive; break;
+                case NO_SPACE: msg = R.string.clips_usb_no_space; break;
+                default:       msg = R.string.clips_usb_failed; break;
+            }
+            Toast.makeText(activity, r == ClipExport.Result.OK
+                ? activity.getString(msg, n) : activity.getString(msg), Toast.LENGTH_LONG).show();
+        }));
     }
 
     /** Triggers a refresh of the clips section. Called when the user performs an action
@@ -213,6 +252,8 @@ public final class TelemetryClipsSection extends LinearLayout {
             card.addView(Style.cardButton(activity,
                 activity.getString(c.held ? R.string.clips_release : R.string.clips_hold), c.held,
                 () -> { Clips.hold(activity, c, !c.held); refresh(); }));
+            card.addView(Style.cardButton(activity, activity.getString(R.string.clips_usb), false,
+                () -> exportToUsb(activity, java.util.Collections.singletonList(c))));
         } else if (c.kind == Clips.Kind.RECORDING) {
             final boolean pending = pendingHold;
             card.addView(Style.cardButton(activity,
