@@ -103,6 +103,8 @@
     <string name="cfg_lock_sound_header">Sonido al cerrar</string>
     <string name="cfg_lock_sound_car">Sonido del auto</string>
     <string name="cfg_lock_sound_fart_mode">Modo pedo</string>
+    <string name="cfg_lock_sound_pick_label">Sonido normal (con el modo pedo apagado)</string>
+    <string name="cfg_lock_sound_import_label">Sonido personalizado</string>
     <string name="cfg_lock_sound_custom">Personalizado</string>
     <string name="cfg_lock_sound_import_usb">Importar desde USB</string>
     <string name="cfg_lock_sound_link_hint">Enlace a un archivo .wav</string>

@@ -22,8 +22,9 @@ import com.geely.drivemem.util.Prefs;
  * show what the car really has: a sound picked in the car's own Settings
  * replaces ours, and the screen must say so.
  *
- * Two small prefs here: which sound fart mode gives back when switched off
- * (car or custom), and whether an import has ever succeeded. */
+ * One small pref here: which sound fart mode gives back when switched off
+ * (car or custom). Whether a custom sound exists is modehelper's to say:
+ * it answers every request (ordered broadcast). */
 public final class LockSound {
     static final String HELPER_SET = "com.geely.modehelper.SET_LOCK_SOUND";
     static final String HELPER_IMPORT = "com.geely.modehelper.IMPORT_LOCK_SOUND";
@@ -41,7 +42,6 @@ public final class LockSound {
 
     private static final String OURS = "/com.geely.modehelper/files/lock_";
     private static final String KEY_BASE = "lock_sound_base";
-    private static final String KEY_HAVE_CUSTOM = "lock_sound_have_custom";
 
     public interface Result { void done(String code); }
 
@@ -80,10 +80,6 @@ public final class LockSound {
         return base(current(ctx), Prefs.file(ctx).getString(KEY_BASE, CAR));
     }
 
-    public static boolean haveCustom(Context ctx) {
-        return Prefs.file(ctx).getBoolean(KEY_HAVE_CUSTOM, false) || CUSTOM.equals(current(ctx));
-    }
-
     /** True when the installed modehelper is new enough (it can import). */
     public static boolean helperSupports(Context ctx) {
         try {
@@ -96,13 +92,18 @@ public final class LockSound {
 
     /** Picks a sound. Picking car or custom also makes it the one fart mode
      * gives back; switching fart mode on saves what was playing, so a sound
-     * picked in the car's own Settings since then is what comes back. */
-    public static void set(Context ctx, String id) {
+     * picked in the car's own Settings since then is what comes back.
+     * {@code cb} runs on the main thread with modehelper's code ("ok",
+     * "no_custom" when nothing was imported yet, ...) or {@link #NO_ANSWER}. */
+    public static void set(Context ctx, String id, Result cb) {
         String keep = FART.equals(id) ? current(ctx) : id;
-        if (CAR.equals(keep) || CUSTOM.equals(keep)) Prefs.file(ctx).edit().putString(KEY_BASE, keep).apply();
-        try {
-            ctx.sendBroadcast(new Intent(HELPER_SET).setPackage(Updater.HELPER_PKG).putExtra("sound", id));
-        } catch (Throwable t) { Log.w(CarAccess.TAG, "lock sound set: " + t); }
+        Intent i = new Intent(HELPER_SET).setPackage(Updater.HELPER_PKG).putExtra("sound", id);
+        ordered(ctx, i, code -> {
+            if ("ok".equals(code) && (CAR.equals(keep) || CUSTOM.equals(keep))) {
+                Prefs.file(ctx).edit().putString(KEY_BASE, keep).apply();
+            }
+            cb.done(code);
+        });
     }
 
     /**
@@ -115,22 +116,26 @@ public final class LockSound {
     public static void importSound(Context ctx, String url, boolean apply, Result cb) {
         Intent i = new Intent(HELPER_IMPORT).setPackage(Updater.HELPER_PKG).putExtra("apply", apply);
         if (url != null) i.putExtra("url", url);
+        ordered(ctx, i, code -> {
+            if ("ok".equals(code) && apply) Prefs.file(ctx).edit().putString(KEY_BASE, CUSTOM).apply();
+            cb.done(code);
+        });
+    }
+
+    // modehelper writes its answer into the ordered broadcast's result data.
+    // No answer (old or missing helper) leaves it null.
+    private static void ordered(Context ctx, Intent i, Result cb) {
         BroadcastReceiver back = new BroadcastReceiver() {
             @Override public void onReceive(Context c, Intent r) {
                 String code = getResultData();
-                if (code == null) code = NO_ANSWER;
-                if ("ok".equals(code)) {
-                    Prefs.file(ctx).edit().putBoolean(KEY_HAVE_CUSTOM, true)
-                        .putString(KEY_BASE, CUSTOM).apply();
-                }
-                cb.done(code);
+                cb.done(code != null ? code : NO_ANSWER);
             }
         };
         try {
             ctx.sendOrderedBroadcast(i, null, back, new Handler(Looper.getMainLooper()),
                 Activity.RESULT_CANCELED, null, null);
         } catch (Throwable t) {
-            Log.w(CarAccess.TAG, "lock sound import: " + t);
+            Log.w(CarAccess.TAG, "lock sound: " + t);
             cb.done(NO_ANSWER);
         }
     }

@@ -1,8 +1,6 @@
 package com.geely.drivemem.ui;
 
 import android.app.Activity;
-import android.os.Handler;
-import android.os.Looper;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
@@ -89,20 +87,25 @@ public final class TelemetryDoorsSection extends LinearLayout {
         boolean supported = LockSound.helperSupports(activity);
         LockSoundViews v = new LockSoundViews();
         v.supported = supported;
-        Handler ui = new Handler(Looper.getMainLooper());
-        // modehelper answers in well under a second; read the car's setting
-        // back so the screen is the truth, not our hope.
-        Runnable reread = () -> ui.postDelayed(() -> paintLockSound(activity, v), 1500);
+        // Every answer from modehelper repaints from the car's setting, so the
+        // screen is the truth, not our hope.
+        LockSound.Result after = code -> {
+            if ("no_custom".equals(code)) v.status.setText(R.string.cfg_lock_sound_import_first);
+            else if (LockSound.NO_ANSWER.equals(code)) v.status.setText(R.string.cfg_lock_sound_needs_helper);
+            paintLockSound(activity, v);
+        };
 
+        // 1. Fart mode.
         LinearLayout fartRow = Style.toggleRow(activity, activity.getString(R.string.cfg_lock_sound_fart_mode),
             LockSound.FART.equals(LockSound.current(activity)), on -> {
                 if (!supported) { paintLockSound(activity, v); return; }
-                LockSound.set(activity, on ? LockSound.FART : LockSound.base(activity));
-                reread.run();
+                LockSound.set(activity, on ? LockSound.FART : LockSound.base(activity), after);
             });
         v.fart = (GeelySwitch) fartRow.getChildAt(0);
         card.addView(fartRow);
 
+        // 2. The normal sound: what plays when fart mode is off.
+        card.addView(subLabel(activity, R.string.cfg_lock_sound_pick_label, 14));
         LinearLayout row = new LinearLayout(activity);
         row.setOrientation(LinearLayout.HORIZONTAL);
         String[] labels = {activity.getString(R.string.cfg_lock_sound_car), activity.getString(R.string.cfg_lock_sound_custom)};
@@ -110,60 +113,92 @@ public final class TelemetryDoorsSection extends LinearLayout {
             String id = v.ids[k];
             TextView b = Style.cardButton(activity, labels[k], false, () -> {
                 if (!supported) return;
-                if (LockSound.CUSTOM.equals(id) && !LockSound.haveCustom(activity)) {
-                    v.status.setText(R.string.cfg_lock_sound_import_first);
-                    return;
-                }
-                LockSound.set(activity, id);
-                reread.run();
+                v.status.setText(null);
+                LockSound.set(activity, id, after);
             });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            if (k > 0) lp.leftMargin = Style.dp(activity, 10);
+            if (k > 0) lp.leftMargin = Style.dp(activity, 12);
             row.addView(b, lp);
             v.buttons[k] = b;
         }
         v.pick = row;
         card.addView(row);
 
-        // Import: LockChime.wav from a USB stick, or a link. modehelper
-        // fetches and checks it (WAV, 1 MB or less) and says what happened.
+        // 3. Import the custom sound: LockChime.wav from a USB stick, or a
+        // link. modehelper copies it into the car and checks it (WAV, 1 MB or
+        // less), so the stick can come out afterwards.
+        card.addView(subLabel(activity, R.string.cfg_lock_sound_import_label, 26));
         LinearLayout imp = new LinearLayout(activity);
-        imp.setOrientation(LinearLayout.HORIZONTAL);
-        imp.setGravity(Gravity.CENTER_VERTICAL);
+        imp.setOrientation(LinearLayout.VERTICAL);
+        TextView usb = Style.cardButton(activity, activity.getString(R.string.cfg_lock_sound_import_usb), false,
+            () -> runImport(activity, v, null));
+        imp.addView(usb, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        LinearLayout linkRow = new LinearLayout(activity);
+        linkRow.setOrientation(LinearLayout.HORIZONTAL);
+        linkRow.setGravity(Gravity.CENTER_VERTICAL);
         EditText link = new EditText(activity);
         link.setHint(R.string.cfg_lock_sound_link_hint);
         link.setSingleLine(true);
         link.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
-        link.setTextColor(Style.TEXT); link.setHintTextColor(Style.TEXT_DIM); link.setTextSize(17);
+        link.setTextColor(Style.TEXT); link.setHintTextColor(Style.TEXT_DIM); link.setTextSize(18);
         link.setBackground(Style.card(Style.CARD, activity));
-        int fPad = Style.dp(activity, 12);
+        int fPad = Style.dp(activity, 18);
         link.setPadding(fPad, fPad, fPad, fPad);
-        LinearLayout.LayoutParams linkLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        linkLp.topMargin = Style.dp(activity, 8);
-        imp.addView(Style.button(activity, activity.getString(R.string.cfg_lock_sound_import_usb), Style.CARD,
-            () -> runImport(activity, v, null, supported, reread)));
-        imp.addView(link, linkLp);
-        imp.addView(Style.button(activity, activity.getString(R.string.cfg_lock_sound_download), Style.CARD,
-            () -> {
-                String url = link.getText().toString().trim();
-                if (url.isEmpty()) { v.status.setText(R.string.cfg_lock_sound_link_empty); return; }
-                runImport(activity, v, url, supported, reread);
-            }));
+        linkRow.addView(link, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView get = Style.cardButton(activity, activity.getString(R.string.cfg_lock_sound_download), false, () -> {
+            String url = link.getText().toString().trim();
+            if (url.isEmpty()) { v.status.setText(R.string.cfg_lock_sound_link_empty); return; }
+            runImport(activity, v, url);
+        });
+        get.setMinWidth(Style.dp(activity, 180));
+        LinearLayout.LayoutParams getLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        getLp.leftMargin = Style.dp(activity, 12);
+        linkRow.addView(get, getLp);
+        LinearLayout.LayoutParams linkRowLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        linkRowLp.topMargin = Style.dp(activity, 12);
+        imp.addView(linkRow, linkRowLp);
         card.addView(imp);
 
-        v.status = ConfigCards.hint(activity, null);
+        // What the last tap did: its own line, so it is not lost in the hint.
+        v.status = new TextView(activity);
         v.status.setTextColor(Style.TEXT);
-        card.addView(v.status);
-        card.addView(ConfigCards.hint(activity, activity.getString(
-            supported ? R.string.cfg_lock_sound_hint : R.string.cfg_lock_sound_needs_helper)));
+        v.status.setTextSize(17);
+        LinearLayout.LayoutParams stLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        stLp.topMargin = Style.dp(activity, 14);
+        card.addView(v.status, stLp);
+
+        TextView hint = ConfigCards.hint(activity, activity.getString(
+            supported ? R.string.cfg_lock_sound_hint : R.string.cfg_lock_sound_needs_helper));
+        LinearLayout.LayoutParams hLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        hLp.topMargin = Style.dp(activity, 10);
+        card.addView(hint, hLp);
 
         if (!supported) {
             fartRow.setAlpha(0.4f);
             row.setAlpha(0.4f);
             imp.setAlpha(0.4f);
+            usb.setClickable(false);
+            get.setClickable(false);
+            link.setEnabled(false);
         }
         paintLockSound(activity, v);
         return card;
+    }
+
+    // Small dim heading inside a card, with room above it to split the card
+    // into parts at a glance.
+    private static TextView subLabel(Activity activity, int text, int topDp) {
+        TextView t = new TextView(activity);
+        t.setText(text);
+        t.setTextColor(Style.TEXT_DIM);
+        t.setTextSize(15);
+        t.setPadding(0, Style.dp(activity, topDp), 0, Style.dp(activity, 8));
+        return t;
     }
 
     private static final class LockSoundViews {
@@ -175,14 +210,14 @@ public final class TelemetryDoorsSection extends LinearLayout {
         TextView status;
     }
 
-    private static void runImport(Activity activity, LockSoundViews v, String url, boolean supported, Runnable reread) {
-        if (!supported) return;
+    private static void runImport(Activity activity, LockSoundViews v, String url) {
+        if (!v.supported) return;
         v.status.setText(R.string.cfg_lock_sound_importing);
         // With fart mode on, the import only becomes what fart mode gives back.
         boolean apply = !LockSound.FART.equals(LockSound.current(activity));
         LockSound.importSound(activity, url, apply, code -> {
             v.status.setText(importMessage(code, url != null));
-            reread.run();
+            paintLockSound(activity, v);
         });
     }
 
@@ -212,7 +247,6 @@ public final class TelemetryDoorsSection extends LinearLayout {
         }
         // Under fart mode the pick still shows, dimmed: it is what comes back.
         if (v.supported) v.pick.setAlpha(fartOn ? 0.55f : 1f);
-        v.buttons[1].setAlpha(LockSound.haveCustom(activity) ? 1f : 0.5f);
     }
 
     // Front pane on the left, the other side's pane on the right: one row

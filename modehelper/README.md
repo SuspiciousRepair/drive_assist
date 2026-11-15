@@ -140,7 +140,7 @@ Drive Assist (`drivemem`) and ModeHelper (`modehelper`) are deliberately separat
 | `com.geely.modehelper.DASHCAM` | `DashReceiver` | **Yes** | `int on` (1=start, 0=stop) | Controls hardware dashcam recording |
 | `com.geely.modehelper.BT_PAIR` | `BtPairReceiver` | **Yes** | `String addr`<br>`String pin` (optional) | Initiates headless Bluetooth pairing with specified device |
 | `com.geely.modehelper.READPROP` | `ProbeReceiver` | **Yes** | `String ids`<br>`int area` (optional) | Safely reads raw VHAL properties by decimal/hex ID |
-| `com.geely.modehelper.SET_LOCK_SOUND` | `LockSoundReceiver` | **Yes** | `String sound` (`car`, `fart`, `custom`) | Sets the sound the car plays when locked with the key |
+| `com.geely.modehelper.SET_LOCK_SOUND` | `LockSoundReceiver` | **Yes** | `String sound` (`car`, `fart`, `custom`) | Sets the sound the car plays when locked with the key; sent ordered, result data is `ok`, `no_custom`, `unknown` or `error` |
 | `com.geely.modehelper.IMPORT_LOCK_SOUND` | `LockSoundReceiver` | **Yes** | `String url` (optional; else USB `LockChime.wav`), `boolean apply` (default true) | Imports the custom lock sound (WAV, max 1 MB); ordered, result data is the outcome code |
 | `android.intent.action.BOOT_COMPLETED` | `BootReceiver` | **Yes** | — | Starts service, opens 5-min ADB window, initializes guards |
 

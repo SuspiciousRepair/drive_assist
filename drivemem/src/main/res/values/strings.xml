@@ -201,6 +201,8 @@
     <string name="cfg_lock_sound_header">Lock sound</string>
     <string name="cfg_lock_sound_car">Car\'s sound</string>
     <string name="cfg_lock_sound_fart_mode">Fart mode</string>
+    <string name="cfg_lock_sound_pick_label">Normal sound (when fart mode is off)</string>
+    <string name="cfg_lock_sound_import_label">Custom sound</string>
     <string name="cfg_lock_sound_custom">Custom</string>
     <string name="cfg_lock_sound_import_usb">Import from USB</string>
     <string name="cfg_lock_sound_link_hint">Link to a .wav file</string>

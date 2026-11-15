@@ -20,7 +20,8 @@ import java.net.URL;
 /** Sets the sound the car plays when it is locked with the key.
  *
  * {@code SET_LOCK_SOUND}, {@code sound} = "car", "fart" or "custom" (see
- * {@link LockSoundPolicy}). We put the file in our files dir and point
+ * {@link LockSoundPolicy}). Sent ordered, the result data says "ok",
+ * "no_custom" (nothing imported yet), "unknown" or "error". We put the file in our files dir and point
  * {@code Settings.System lock_car_audio_path} at it. CarService runs as uid
  * system too and may read our files, so the car plays it with no root and no
  * remount. The setting survives a reboot.
@@ -45,11 +46,17 @@ public class LockSoundReceiver extends BroadcastReceiver {
     static final String NOT_FOUND = "not_found";
     static final String DOWNLOAD = "download";
     static final String ERROR = "error";
+    static final String NO_CUSTOM = "no_custom";
+    static final String UNKNOWN = "unknown";
 
     @Override public void onReceive(Context ctx, Intent i) {
         final Context app = ctx.getApplicationContext();
         if (ACTION.equals(i.getAction())) {
-            apply(app, i.getStringExtra("sound"));
+            String code = apply(app, i.getStringExtra("sound"));
+            // Sent ordered by Drive Assist, so it can say "import one first"
+            // instead of guessing whether we hold a custom sound.
+            if (isOrderedBroadcast()) setResult(LockSoundPolicy.OK.equals(code)
+                ? Activity.RESULT_OK : Activity.RESULT_FIRST_USER, code, null);
             return;
         }
         if (!ACTION_IMPORT.equals(i.getAction())) return;
@@ -74,7 +81,8 @@ public class LockSoundReceiver extends BroadcastReceiver {
         }, "lock-sound-import").start();
     }
 
-    static void apply(Context ctx, String id) {
+    /** Returns "ok", "no_custom" (custom asked, nothing imported), "unknown" or "error". */
+    static String apply(Context ctx, String id) {
         try {
             String current = Settings.System.getString(ctx.getContentResolver(), LockSoundPolicy.SETTING);
             SharedPreferences p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
@@ -82,7 +90,10 @@ public class LockSoundReceiver extends BroadcastReceiver {
             File dir = ctx.getFilesDir();
             boolean haveCustom = new File(dir, LockSoundPolicy.fileName(LockSoundPolicy.CUSTOM)).isFile();
             LockSoundPolicy.Decision d = LockSoundPolicy.decide(current, prev, id, dir.getAbsolutePath(), haveCustom);
-            if (d == null) { Log.w(TAG, "lock sound: cannot apply " + id); return; }
+            if (d == null) {
+                Log.w(TAG, "lock sound: cannot apply " + id);
+                return LockSoundPolicy.CUSTOM.equals(id) ? NO_CUSTOM : UNKNOWN;
+            }
 
             if (LockSoundPolicy.FART.equals(id)) copyAsset(ctx, id, new File(dir, LockSoundPolicy.fileName(id)));
             // Save what to give back BEFORE replacing it, so a crash in
@@ -93,8 +104,10 @@ public class LockSoundReceiver extends BroadcastReceiver {
                 Settings.System.putString(ctx.getContentResolver(), LockSoundPolicy.SETTING, d.write);
             }
             Log.i(TAG, "lock sound: " + id + " -> " + (d.write != null ? d.write : "unchanged (" + current + ")"));
+            return LockSoundPolicy.OK;
         } catch (Throwable t) {
             Log.w(TAG, "lock sound " + id + ": " + t);
+            return ERROR;
         }
     }
 
