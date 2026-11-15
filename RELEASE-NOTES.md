@@ -12,6 +12,14 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.6.0 — 2026-11-15
+
+- New: pick the buttons on the Turbo card: Turbo, Regen and AVAS (Settings, Drive, Turbo).
+- New: an AVAS button on the Turbo card turns the pedestrian warning sound on and off.
+- New: the Regen button can step through Low, Medium and High.
+- New: copy dashcam clips to a USB stick, with speed and time subtitles.
+- New: each trip now saves its drive mode and regen level, for efficiency per mode later.
+
 ## v0.5.0 — 2026-11-14
 
 - New: backup and restore inside the app, locked with your password, on the USB stick and the car.
