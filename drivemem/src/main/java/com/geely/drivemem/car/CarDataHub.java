@@ -232,14 +232,6 @@ public final class CarDataHub {
             (car, v) -> car.setChargeCurrentLimit(((Number) v).intValue()) > 0,
             new Range(CarAccess.CHARGE_MIN_A, CarAccess.CHARGE_MAX_A), null));
 
-        // AVAS (pedestrian warning sound): 0 = off, any other value is the
-        // sound type, so it reads as on. Read-only on purpose: the write goes
-        // through modehelper (HelperSync.applyNow), which also saves it for
-        // "Restore at start".
-        m.put("avas_mode", new Entity("avas_mode",
-            car -> { Object v = car.audioCall("getAVASMode"); return (v instanceof Integer) ? v : null; },
-            null, null, null));
-
         return Collections.unmodifiableMap(m);
     }
 

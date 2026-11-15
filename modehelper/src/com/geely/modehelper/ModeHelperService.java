@@ -47,6 +47,14 @@ public class ModeHelperService extends Service {
     private volatile long restoreUntil = android.os.SystemClock.elapsedRealtime() + RestorePolicy.WINDOW_MS;
     // A tap in Drive Assist's AEB/AVAS switch: write it once, now, whatever the window.
     private volatile boolean applyAebNow = false, applyAvasNow = false;
+    // Drive Assist's home-screen AVAS button. Drive Assist cannot read AVAS
+    // itself (CAR_CONTROL_AUDIO_VOLUME is a system permission), so the flip
+    // is decided here and the state is reported back (AVAS_STATE).
+    private volatile boolean toggleAvasNow = false, reportAvasNow = false;
+    private Integer lastAvasReported = null;
+    // Wakes the poll loop early for a tap, instead of waiting out the 4 s sleep.
+    private final Object tickLock = new Object();
+    static final String AVAS_STATE = "com.geely.drivemem.AVAS_STATE";
     // Deep-sleep time at the last tick (elapsedRealtime - uptimeMillis), for the
     // wake fallback when SUSPEND_EXIT is never delivered (review #3).
     private long lastSleepMs = sleepMs();
@@ -144,7 +152,14 @@ public class ModeHelperService extends Service {
                             if (it.hasExtra("avas")) applyAvasNow = true;
                             log.append(" apply_now");
                         }
+                        if (it.getBooleanExtra("avas_toggle", false)) {
+                            toggleAvasNow = true; log.append(" avas_toggle");
+                        }
+                        if (it.getBooleanExtra("avas_query", false)) {
+                            reportAvasNow = true; log.append(" avas_query");
+                        }
                         Log.i(TAG, log.toString());
+                        synchronized (tickLock) { tickLock.notifyAll(); }
                     }
                 }
             };
@@ -236,6 +251,9 @@ public class ModeHelperService extends Service {
                     applyAebNow = false; applyAvasNow = false;
                     enforceAeb(window, tapAeb);
                     enforceAvasParked(window, tapAvas);
+                    boolean toggle = toggleAvasNow, report = reportAvasNow || tapAvas;
+                    toggleAvasNow = false; reportAvasNow = false;
+                    syncAvas(toggle, report);
                 }
                 // AGGRESSIVE Wi-Fi while parked (~= at home, charging/paused): keep it
                 // on, switching it back on if it drops. While driving we do not force
@@ -261,7 +279,12 @@ public class ModeHelperService extends Service {
                     .putLong("beat_poll", beatNow).apply();
                 lastBeatWriteMs = beatNow;
             }
-            try { Thread.sleep(4000); } catch (InterruptedException e) { break; }
+            try {
+                synchronized (tickLock) {
+                    if (!toggleAvasNow && !reportAvasNow && !applyAebNow && !applyAvasNow)
+                        tickLock.wait(4000);
+                }
+            } catch (InterruptedException e) { break; }
         }
     }
 
@@ -437,6 +460,33 @@ public class ModeHelperService extends Service {
         if (write != null) {
             car.audioCall("setAVASMode", write);
             Log.i(TAG, "modo: avas " + cur + " -> " + write);
+        }
+    }
+
+    // Home-screen AVAS button and its display. A toggle flips what the car
+    // has now and saves it as the AVAS choice ("avas"), the same as Config's
+    // switch, so "Restore at start" keeps it. Every tick the car's mode is
+    // read once and sent to Drive Assist when it changed (the car re-arms
+    // AVAS on its own), or when Drive Assist asked.
+    private void syncAvas(boolean toggle, boolean report) {
+        Object cur = car.audioCall("getAVASMode");
+        if (!(cur instanceof Integer)) return;
+        int mode = (Integer) cur;
+        SharedPreferences p = getSharedPreferences("modehelper", MODE_PRIVATE);
+        if (mode != 0 && p.getInt("avas_type", 0) != mode) p.edit().putInt("avas_type", mode).apply();
+        if (toggle) {
+            int write = AvasPolicy.toggled(mode, p.getInt("avas_type", 1));
+            p.edit().putInt("avas", write).apply();
+            car.audioCall("setAVASMode", write);
+            Log.i(TAG, "modo: avas toggle " + mode + " -> " + write);
+            Object after = car.audioCall("getAVASMode");
+            if (after instanceof Integer) mode = (Integer) after;
+            report = true;
+        }
+        if (report || lastAvasReported == null || lastAvasReported != mode) {
+            lastAvasReported = mode;
+            Intent i = new Intent(AVAS_STATE).setPackage(CanReader.DRIVEMEM).putExtra("mode", mode);
+            try { sendBroadcast(i); } catch (Throwable ignored) {}
         }
     }
 

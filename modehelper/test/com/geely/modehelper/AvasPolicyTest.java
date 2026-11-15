@@ -19,5 +19,9 @@ public final class AvasPolicyTest {
               "saved on must keep a sound type chosen in the car's Settings");
         check(AvasPolicy.toWrite(1, 1) == null,
               "matching active mode must not be written");
+        check(AvasPolicy.toggled(1, 1) == 0, "toggle of an active sound must mute");
+        check(AvasPolicy.toggled(3, 1) == 0, "toggle of any active type must mute");
+        check(AvasPolicy.toggled(0, 3) == 3, "toggle of a muted car must bring back the last type");
+        check(AvasPolicy.toggled(0, 0) == 1, "toggle with no known type must use type 1");
     }
 }

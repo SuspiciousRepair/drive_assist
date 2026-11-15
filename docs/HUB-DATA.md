@@ -30,6 +30,7 @@ Property IDs and scales of the car's own (VHAL) properties are in
 | `car.gear` | gear (1 N, 2 R, 4 P, 8 D) | on change (push) |
 | `car.park_mode` | parking mode | on change |
 | `car.drive_mode`, `car.regen_mode` | drive mode, regen level | on change |
+| `car.avas_mode` | AVAS (pedestrian warning sound): 0 off, 1.. sound type. Reported by modehelper (`AvasState`): Drive Assist may not read it (`CAR_CONTROL_AUDIO_VOLUME`) | on change, read every 4 s by modehelper; on request |
 | `car.door_pos`, `car.window_pos` | doors, windows (per area) | on change |
 | `car.hvac_recirc`, `car.hvac_direction`, `car.hvac_rear_defrost` | climate state | on change |
 | `car.charge_a` | charging current at the port, A | every 2 s |

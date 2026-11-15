@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [v0.6.1] — 2026-11-15
+
+### Fixed
+- **The AVAS button on the Turbo card now turns AVAS on and off.** Drive
+  Assist is not allowed to read AVAS (the car asks for a system
+  permission), so the button always sent "on". ModeHelper now flips AVAS
+  and reports the car's state back. The button shows a sound icon when
+  AVAS is on and a muted icon when it is off. The AVAS switch in Config →
+  Drive now shows the car's real state too. (#15)
+
 ## [v0.6.0] — 2026-11-15
 
 ### Added
