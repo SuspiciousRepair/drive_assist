@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Changed
+- **The floating button's panel shows the same quick buttons as the Turbo
+  card.** Config → Drive → Turbo → "Buttons on the Turbo card" now picks
+  Turbo, Regen and AVAS for both places. The AVAS button works the same way
+  as on the card, with the sound and muted icons. (#15)
+
+### Fixed
+- **The floating panel's Regen button follows "Regen button steps through
+  Low, Medium and High".** It was always a Strong-regen on/off button. The
+  home card and the floating panel now share the same Regen code. (#15)
+- **A new regen icon** on the Turbo card and the floating panel: a ring in
+  three segments with a chevron at one tip and a bolt in the middle. One
+  segment is filled for Low, two for Medium, three for High. (#15)
+- **Long button names shrink to fit** on the Turbo card and the floating
+  panel, so the Thai Regen name is no longer cut with three buttons.
+
 ## [v0.6.1] — 2026-11-15
 
 ### Fixed
