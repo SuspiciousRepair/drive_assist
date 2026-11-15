@@ -25,7 +25,7 @@ final class TelemetryIntegrationsSection extends LinearLayout {
     // 4 x 380 + 3 x 24 = 1592: fits the ~1636dp Config panel with no scroll
     // sideways. Big targets on purpose -- this is tapped from the driver's seat.
     private static final int PER_ROW = 4;
-    private static final int TILE_W_DP = 380;
+    private static final int TILE_W_DP = 370;   // 4 x 370 + 3 x 24 = 1552, fits the ~1566dp panel
     private static final int TILE_H_DP = 230;
 
     interface OnOpen { void open(int section); }
