@@ -106,6 +106,14 @@ public final class Prefs {
      * true = each tap steps Low -> Mid -> High -> Low. Issue #15. */
     public static boolean getRegenCycle(Context ctx) { return file(ctx).getBoolean("regen_cycle", false); }
     public static void setRegenCycle(Context ctx, boolean v) { file(ctx).edit().putBoolean("regen_cycle", v).apply(); }
+    /** Which buttons the Turbo card shows (issue #15). Turbo and Regen are
+     * on by default (the card as it always was); AVAS is opt-in. */
+    public static final String CARD_TURBO = "turbo_card_turbo", CARD_REGEN = "turbo_card_regen",
+                               CARD_AVAS = "turbo_card_avas";
+    public static boolean getTurboCardShows(Context ctx, String key) {
+        return file(ctx).getBoolean(key, !CARD_AVAS.equals(key));
+    }
+    public static void setTurboCardShows(Context ctx, String key, boolean v) { file(ctx).edit().putBoolean(key, v).apply(); }
     public static int getTurboDurationS(Context ctx, int def) { return file(ctx).getInt("turbo_duration_s", def); }
     public static void setTurboDurationS(Context ctx, int v) { file(ctx).edit().putInt("turbo_duration_s", v).apply(); }
     public static int getSwitchLockS(Context ctx, int def) { return file(ctx).getInt("switch_lock_s", def); }
@@ -252,6 +260,8 @@ public final class Prefs {
         m.put("turbo_enabled", Boolean.class);
         m.put("turbo_duration_s", Integer.class);
         m.put("regen_cycle", Boolean.class);
+        for (String k : new String[]{CARD_TURBO, CARD_REGEN, CARD_AVAS})
+            m.put(k, Boolean.class);
         m.put("switch_lock_s", Integer.class);
         m.put(KEY_WINDOW_ON_DOOR, Boolean.class);
         // Dashcam, OBD2, network, updates

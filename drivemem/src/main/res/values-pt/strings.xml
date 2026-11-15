@@ -238,6 +238,8 @@
     <string name="turbo_header">Turbo</string>
     <string name="regen_cycle_label">Botão Regen alterna entre Fraca, Média e Forte</string>
     <string name="turbo_enable_label">Mostrar o card Turbo</string>
+    <string name="avas_title">AVAS</string>
+    <string name="turbo_card_buttons_label">Botões no card Turbo</string>
     <string name="turbo_duration_label">Duração (s)</string>
     <string name="cfg_adas_header">Assistência ao motorista</string>
     <string name="cfg_aeb_label">AEB (frenagem automática de emergência)</string>

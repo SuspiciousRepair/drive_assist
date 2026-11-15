@@ -250,6 +250,8 @@
     <string name="turbo_header">Turbo</string>
     <string name="regen_cycle_label">Regen button steps through Low, Medium and High</string>
     <string name="turbo_enable_label">Show the Turbo card</string>
+    <string name="avas_title">AVAS</string>
+    <string name="turbo_card_buttons_label">Buttons on the Turbo card</string>
     <string name="turbo_duration_label">Duration (s)</string>
     <string name="cfg_adas_header">Driver assistance</string>
     <string name="cfg_aeb_label">AEB (automatic emergency braking)</string>

@@ -249,6 +249,8 @@
     <string name="turbo_header">เทอร์โบ</string>
     <string name="regen_cycle_label">ปุ่ม Regen สลับระดับ ต่ำ ปานกลาง สูง</string>
     <string name="turbo_enable_label">แสดงการ์ดเทอร์โบ</string>
+    <string name="avas_title">AVAS</string>
+    <string name="turbo_card_buttons_label">ปุ่มบนการ์ดเทอร์โบ</string>
     <string name="turbo_duration_label">ระยะเวลา (วินาที)</string>
     <string name="cfg_btn_restore_defaults">คืนค่าเริ่มต้น</string>
     <string name="cfg_car_connect_fail">เชื่อมต่อกับรถไม่ได้</string>
