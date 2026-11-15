@@ -12,13 +12,14 @@ import com.geely.drivemem.util.Style;
 /** The one layout every Config section uses: settings grouped into CARDS, and
  * cards stacked in fixed-width COLUMNS (one or two of them).
  *
- * Why fixed width and not a weight: the Config panel is ~1636dp wide on this
+ * Why fixed width and not a weight: the Config panel is ~1566dp wide on this
  * 1920dp screen. Every row that was MATCH_PARENT -- a text field, a Save
  * button, a one-line hint -- ran the whole way across it, so a 3-digit number
  * sat in a 1600dp bar and a hint read as one 1600dp line. A column of COL_DP
  * is about the width of the drive-mode cards on the Drive page, which is the
  * widest a single setting ever needs. Two of them, plus the gap, still fit
- * the panel (2 x 780 + 24 = 1584).
+ * the panel (2 x 760 + 24 = 1544; the panel is ~1566dp since the sidebar
+ * grew to 310dp for OEM-sized text).
  *
  * Which page gets how many columns: a page with only a few settings uses ONE
  * column and leaves the rest of the screen empty (the Drive, Doors and
@@ -28,7 +29,7 @@ import com.geely.drivemem.util.Style;
 final class ConfigCards {
     private ConfigCards() {}
 
-    static final int COL_DP = 780;
+    static final int COL_DP = 760;
     private static final int PAD_DP = 22;
 
     /** An empty vertical column. Fill it with add(). */

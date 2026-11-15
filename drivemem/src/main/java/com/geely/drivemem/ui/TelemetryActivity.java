@@ -150,8 +150,13 @@ public class TelemetryActivity extends Activity {
         // ---- sidebar ----
         LinearLayout side = new LinearLayout(this);
         side.setOrientation(LinearLayout.VERTICAL);
-        side.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(this, 240), ViewGroup.LayoutParams.MATCH_PARENT));
-        int sp = Style.dp(this, 16);
+        // Sidebar type matches the car's own settings menu (~26-30sp rows), not
+        // phone sizes: at 18sp it read far smaller than the OEM menu beside it.
+        // 310 wide so "Modo de Condução" fits one line at 26sp; the content
+        // panel left over (1920-310-44 = 1566) still holds two ConfigCards
+        // columns (2x760+24) and four integration tiles (4x370+3x24).
+        side.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(this, 310), ViewGroup.LayoutParams.MATCH_PARENT));
+        int sp = Style.dp(this, 12);
         side.setPadding(sp, Style.dp(this, 22) + Style.statusBarHeight(this), sp, sp);
 
         LinearLayout head = new LinearLayout(this);
@@ -159,7 +164,7 @@ public class TelemetryActivity extends Activity {
         head.setGravity(Gravity.CENTER_VERTICAL);
         head.addView(Style.backButton(this, this::finish));
         TextView title = Style.title(this, getString(R.string.cfg_title));
-        title.setTextSize(20);
+        title.setTextSize(26);
         LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         tlp.leftMargin = Style.dp(this, 12);
@@ -219,12 +224,12 @@ public class TelemetryActivity extends Activity {
     private int section = 0;   // open section (survives the recreate caused by a theme change)
 
     // Small caption above a cluster of nav items — same idea as Style.header()
-    // but sized for the 240dp sidebar rather than the content panel.
+    // but sized for the 310dp sidebar rather than the content panel.
     private TextView sideGroupLabel(String label) {
         TextView t = new TextView(this);
         t.setText(label.toUpperCase(java.util.Locale.getDefault()));
         t.setTextColor(Style.blend(Style.TEXT_DIM, Style.TEXT, 0.3f));
-        t.setTextSize(12);
+        t.setTextSize(15);
         t.setLetterSpacing(0.05f);
         t.setTypeface(null, android.graphics.Typeface.BOLD);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
@@ -254,10 +259,10 @@ public class TelemetryActivity extends Activity {
     // sidebar item: stays highlighted while it is the selected one
     private TextView navItem(String label, final int idx) {
         TextView t = new TextView(this);
-        t.setText(label); t.setTextSize(18);
+        t.setText(label); t.setTextSize(26);
         t.setGravity(Gravity.CENTER_VERTICAL);
-        t.setMinHeight(Style.dp(this, 60));   // taller buttons, easy to hit
-        t.setPadding(Style.dp(this, 16), Style.dp(this, 16), Style.dp(this, 16), Style.dp(this, 16));
+        t.setMinHeight(Style.dp(this, 64));   // taller buttons, easy to hit
+        t.setPadding(Style.dp(this, 14), Style.dp(this, 14), Style.dp(this, 14), Style.dp(this, 14));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.bottomMargin = Style.dp(this, 8);
