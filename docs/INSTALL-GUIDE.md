@@ -459,6 +459,8 @@ so you can get all of it back without a computer.
 - The app also backs up **by itself once a day**, while the car is in P. It
   keeps the 7 newest backups in each place.
 - **Restore** lists the backups it finds. Pick one.
+- A backup keeps **every setting** in the app. It does not keep an imported
+  custom lock sound: after a restore, import it again.
 
 **After you install the app again**, it finds the newest backup by itself
 and asks *"Restore your backup?"*. Press **Restore** and type the backup

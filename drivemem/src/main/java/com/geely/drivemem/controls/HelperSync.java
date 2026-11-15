@@ -55,6 +55,33 @@ public final class HelperSync {
         send(ctx, base().putExtra("avas_query", true));
     }
 
+    /** After a restore: gives modehelper the restored settings it keeps its
+     * own copy of. Only keys the backup held, so nothing is invented. The
+     * switches that {@link #push}, WifiKeep and AdbGate re-send on every
+     * watchdog tick need nothing here. AEB/AVAS are left out for the same
+     * reason push leaves them out (values nobody chose, review #2). */
+    public static void pushRestored(Context ctx, java.util.Map<String, Object> s) {
+        Intent i = base();
+        boolean any = false;
+        for (String k : new String[]{"drive", "regen", "dashcam_limit_gb"}) {
+            Object v = s.get(k);
+            if (v instanceof Integer) { i.putExtra(k, (int) (Integer) v); any = true; }
+        }
+        if (any) send(ctx, i);
+        Object parked = s.get("parked_monitoring");
+        if (parked instanceof Boolean) {
+            send(ctx, new Intent("com.geely.modehelper.PARKED_MONITORING")
+                .setClassName(Updater.HELPER_PKG, "com.geely.modehelper.ParkedMonitoringReceiver")
+                .putExtra("on", (Boolean) parked ? 1 : 0));
+        }
+        Object dash = s.get(Prefs.KEY_DASHCAM_ON);
+        if (dash instanceof Boolean) {
+            send(ctx, new Intent("com.geely.modehelper.DASHCAM")
+                .setClassName(Updater.HELPER_PKG, "com.geely.modehelper.DashReceiver")
+                .putExtra("on", (Boolean) dash ? 1 : 0));
+        }
+    }
+
     private static Intent base() { return new Intent(SET_MODE).setPackage(Updater.HELPER_PKG); }
 
     private static void send(Context ctx, Intent i) {
