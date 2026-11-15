@@ -73,11 +73,12 @@ public class ModeSegmentsTest {
 
     @Test public void unknownOrBackwardsOdometerAddsNoDistance() {
         List<ModeSegments.Segment> s = ModeSegments.build(Arrays.asList(
-            row(30, 100.0, ECO, LOW, 0, 0, true),
-            row(60, -1, ECO, LOW, 0, 0, true),
-            row(90, 100.3, ECO, LOW, 0, 0, true),
-            row(120, 99.0, ECO, LOW, 0, 0, true)), 0);
+            row(30, 100.0, ECO, LOW, 0, 0, false),
+            row(60, -1, ECO, LOW, 0, 0, false),
+            row(90, 100.3, ECO, LOW, 0, 0, false),
+            row(120, 99.0, ECO, LOW, 0, 0, false)), 0);
         assertEquals(0.3, s.get(0).km, D);
+        // Not measured and no energy moved: not an estimate of anything.
         assertEquals(EnergySource.NO_DATA, s.get(0).source());
     }
 
