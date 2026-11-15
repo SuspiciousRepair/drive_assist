@@ -124,7 +124,7 @@ public class ComfortActivity extends Activity {
     private boolean turboEnabledAtBuild;   // so onResume can notice a Config change and recreate()
     private boolean skylineEnabledAtBuild; // same idea, for "Show skyline art"
     private long skylineSeedAtBuild;       // and for the fixed/chosen seed
-    private TextView regenGlyphView;      // Regen button's glyph, retinted to reflect real car state
+    private android.widget.ImageView regenGlyphView;   // Regen button's icon: segments filled with the car's level
     private android.widget.ImageView avasIconView;   // AVAS button: sound icon when on, muted icon when off
     private String turboSlotsAtBuild;     // which buttons the card was built with, see ComfortCardVisibility.turboCardSlots
 
@@ -874,12 +874,10 @@ public class ComfortActivity extends Activity {
     }
 
     private LinearLayout regenHalf() {
-        TextView glyph = new TextView(this);
-        // Same glyph Config's own regen picker uses for High — retinted
-        // (not swapped) to show on/off, so "High" always means the same
-        // mark everywhere in this app.
-        glyph.setText("●"); glyph.setTextColor(Style.TEXT_DIM);
+        android.widget.ImageView glyph = new android.widget.ImageView(this);
+        glyph.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
         regenGlyphView = glyph;
+        showRegen(0);
         LinearLayout half = slotHalf(getString(R.string.regen_boost_title), glyph, v -> onRegenTap());
         View spacer = new View(this);
         spacer.setLayoutParams(barSlotLp());
@@ -944,8 +942,9 @@ public class ComfortActivity extends Activity {
     private void showRegen(int level) {
         if (regenGlyphView == null) return;
         boolean cycle = Prefs.getRegenCycle(this);
-        regenGlyphView.setText(RegenTap.mark(level, cycle));
-        regenGlyphView.setTextColor(RegenTap.lit(level, cycle) ? Style.ACCENT : Style.TEXT_DIM);
+        regenGlyphView.setImageResource(RegenTap.icon(level));
+        regenGlyphView.setColorFilter(RegenTap.lit(level, cycle) ? Style.ACCENT : Style.TEXT,
+            android.graphics.PorterDuff.Mode.SRC_IN);
     }
 
     // Music card: album art + title/artist, then skip/play-pause tiles. Starts

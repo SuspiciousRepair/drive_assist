@@ -63,7 +63,7 @@ public final class OverlayService extends Service {
     private View expanded;
     private ImageView scaleView;
     private View turboBar;
-    private TextView regenGlyphView;
+    private ImageView regenGlyphView;
     private ImageView avasIconView;
     private ComfortRuler ruler;
     private boolean isExpanded = false;
@@ -352,15 +352,8 @@ public final class OverlayService extends Service {
 
     private View regenColumn() {
         LinearLayout col = slotColumn(getString(R.string.regen_boost_title), v -> onRegenTap());
-        TextView regenGlyph = new TextView(this);
-        regenGlyph.setText("●");   // same mark Config's own regen picker uses for High
-        regenGlyph.setTextColor(Style.TEXT_DIM);
-        regenGlyph.setTextSize(40);
-        regenGlyph.setGravity(Gravity.CENTER);
-        regenGlyph.setBackground(Style.tile(this));
-        regenGlyph.setPadding(0, Style.dp(this, 18), 0, Style.dp(this, 18));
-        col.addView(regenGlyph);
-        regenGlyphView = regenGlyph;
+        col.addView(iconTile(regenGlyphView = new ImageView(this)));
+        showRegen(0);
         return col;
     }
 
@@ -368,19 +361,24 @@ public final class OverlayService extends Service {
         LinearLayout col = slotColumn(getString(R.string.avas_title), v -> onAvasTap());
         // Same tile height as the text tiles next to it (40sp glyph + 18dp
         // padding each side), so the row stays level.
+        ImageView icon = new ImageView(this);
+        col.addView(iconTile(icon));
+        avasIconView = icon;
+        showAvas(AvasState.on(CarActor.get(this).get(AvasState.KEY)));
+        return col;
+    }
+
+    // A tile holding one icon, as tall as Turbo's 40 sp text tile beside it
+    // (52 dp + 18 dp above and below).
+    private View iconTile(ImageView icon) {
         android.widget.FrameLayout tile = new android.widget.FrameLayout(this);
         tile.setBackground(Style.tile(this));
-        ImageView icon = new ImageView(this);
         icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        // 52 dp + 18 dp above and below = the 40 sp text tiles next to it.
         int size = Style.dp(this, 52);
         android.widget.FrameLayout.LayoutParams ilp = new android.widget.FrameLayout.LayoutParams(size, size, Gravity.CENTER);
         ilp.topMargin = ilp.bottomMargin = Style.dp(this, 18);
         tile.addView(icon, ilp);
-        col.addView(tile);
-        avasIconView = icon;
-        showAvas(AvasState.on(CarActor.get(this).get(AvasState.KEY)));
-        return col;
+        return tile;
     }
 
     private void onAvasTap() {
@@ -437,8 +435,8 @@ public final class OverlayService extends Service {
     private void showRegen(int level) {
         if (regenGlyphView == null) return;
         boolean cycle = Prefs.getRegenCycle(this);
-        regenGlyphView.setText(RegenTap.mark(level, cycle));
-        regenGlyphView.setTextColor(RegenTap.lit(level, cycle) ? Style.ACCENT : Style.TEXT_DIM);
+        regenGlyphView.setImageResource(RegenTap.icon(level));
+        regenGlyphView.setColorFilter(RegenTap.lit(level, cycle) ? Style.ACCENT : Style.TEXT, PorterDuff.Mode.SRC_IN);
     }
 
     private static final int CLIMATE_ICON_DP = 88;

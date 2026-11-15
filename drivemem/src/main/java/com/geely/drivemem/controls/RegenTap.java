@@ -2,6 +2,7 @@ package com.geely.drivemem.controls;
 
 import android.content.Context;
 
+import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.util.Modes;
 import com.geely.drivemem.util.Prefs;
@@ -41,15 +42,26 @@ public final class RegenTap {
         return cur == Modes.REGEN_HIGH ? configDefault : Modes.REGEN_HIGH;
     }
 
-    /** Toggle mode: the High mark. Cycle mode: the mark Config's regen
-     * picker uses for each level. */
-    public static String mark(int level, boolean cycle) {
-        if (!cycle) return "●";
-        return level == Modes.REGEN_LOW ? "◦" : level == Modes.REGEN_MID ? "◉"
-            : level == Modes.REGEN_HIGH ? "●" : "?";
+    /** How many of the icon's three ring segments are filled: 1 Low,
+     * 2 Medium, 3 High, 0 when the level is not known. */
+    public static int segments(int level) {
+        return level == Modes.REGEN_LOW ? 1 : level == Modes.REGEN_MID ? 2
+            : level == Modes.REGEN_HIGH ? 3 : 0;
     }
 
-    /** Toggle mode: lit only on High. Cycle mode: always lit, the mark says the level. */
+    /** The regen icon for a level: a ring in three segments, filled with
+     * the level, a chevron at one tip and a bolt in the middle. */
+    public static int icon(int level) {
+        switch (segments(level)) {
+            case 1:  return R.drawable.ic_regen_low;
+            case 2:  return R.drawable.ic_regen_mid;
+            case 3:  return R.drawable.ic_regen_high;
+            default: return R.drawable.ic_regen_unknown;
+        }
+    }
+
+    /** Toggle mode: lit only on High (the button means "Strong regen").
+     * Cycle mode: always lit, the filled segments say the level. */
     public static boolean lit(int level, boolean cycle) {
         return cycle || level == Modes.REGEN_HIGH;
     }

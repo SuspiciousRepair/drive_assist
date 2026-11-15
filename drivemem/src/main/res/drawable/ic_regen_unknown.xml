@@ -1,0 +1,37 @@
+<!-- Drive Assist's own regen icon (issue #15), no level known: every segment dim.
+     A ring in three segments that fill with the regen level, a chevron at
+     one tip (energy going round, back into the battery) and a bolt in the
+     middle. Drawn here, not copied from the car: this repo is public. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M13.563,3.137 A9,9 0 0,1 20.457,15.078"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.3"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"/>
+    <path
+        android:pathData="M18.894,17.785 A9,9 0 0,1 5.106,17.785"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.3"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"/>
+    <path
+        android:pathData="M3.543,15.078 A9,9 0 0,1 10.437,3.137"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.3"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"/>
+    <path
+        android:pathData="M8.908,1.375 L11.619,2.928 L9.603,5.315"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <path
+        android:pathData="M10.1,8.2 V12.38 H11.24 V15.8 L13.9,11.24 H12.38 L13.9,8.2 Z"
+        android:fillColor="#FFFFFFFF"/>
+</vector>
