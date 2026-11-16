@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- **Soft tyre warning in Home Assistant.** The car's own flat-tyre warning,
+  per wheel, as five Home Assistant problem sensors ("Pneu baixo" and one per
+  wheel), so an automation can alert your phone. This car has no tyre
+  pressure sensors: its warning compares wheel speeds, so there are no
+  pressure numbers, only "this tyre is low".
 - **Trips record their route.** While you drive, the app saves a GPS point
   every 5 s (only after 25 m of movement), with the drive mode, the regen
   level and the energy used so far. Each charge saves where it was. It all
