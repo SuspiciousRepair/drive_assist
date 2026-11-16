@@ -44,6 +44,13 @@ final class TempRangeView extends View {
     private final Paint dot = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
+    // Built when the values, the grayscale switch or the size change, never
+    // in onDraw: each draw made a new int[], a new LinearGradient and two
+    // formatted Strings.
+    private static final int BAR_COLORS = 6;
+    private String sMin = "", sMax = "";
+    private Shader barShader;          // null: no bar to draw
+    private float barLeft, barRight;
 
     TempRangeView(Context c) {
         super(c);
@@ -56,13 +63,58 @@ final class TempRangeView extends View {
     void setValues(float min, float max, float now) {
         if (same(min, this.min) && same(max, this.max) && same(now, this.now)) return;
         this.min = min; this.max = max; this.now = now;
+        rebuild();
         invalidate();
+    }
+
+    /** "27°": whole degrees. */
+    static String label(float c) {
+        return String.format(Locale.US, "%.0f°", c);
+    }
+
+    /** The bar's colours, left to right: the absolute scale sampled at the
+     * range's own temperatures, so only the part of the scale the car
+     * actually saw is painted. One plain colour for grayscale cards. */
+    static int[] barColors(float min, float max, boolean grayscale, int plain) {
+        int[] colors = new int[BAR_COLORS];
+        for (int i = 0; i < BAR_COLORS; i++) {
+            colors[i] = grayscale ? plain : colorFor(min + (max - min) * i / (BAR_COLORS - 1));
+        }
+        return colors;
+    }
+
+    /** A flat stay: one number, no bar. */
+    static boolean flat(float min, float max) {
+        return Math.round(min) == Math.round(max);
+    }
+
+    private void rebuild() {
+        barShader = null;
+        if (Float.isNaN(min)) return;
+        sMin = label(min);
+        sMax = label(max);
+        float w = getWidth();
+        if (w <= 0 || flat(min, max)) return;
+        Context c = getContext();
+        float gap = Style.dp(c, 10);
+        float r = Style.dp(c, 8);
+        barLeft = text.measureText(sMin) + gap + r;
+        barRight = w - text.measureText(sMax) - gap - r;
+        if (barRight <= barLeft) return;
+        barShader = new LinearGradient(barLeft, 0, barRight, 0,
+            barColors(min, max, grayscale, Style.TEXT_DIM), null, Shader.TileMode.CLAMP);
+    }
+
+    @Override protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        rebuild();
     }
 
     /** Config > Elements "Grayscale cards": a plain bar, no colour scale. */
     void setGrayscale(boolean on) {
         if (on == grayscale) return;
         grayscale = on;
+        rebuild();
         invalidate();
     }
 
@@ -94,31 +146,20 @@ final class TempRangeView extends View {
         Context c = getContext();
         float w = getWidth(), h = getHeight();
         float cy = h / 2f;
-        float gap = Style.dp(c, 10);
         float r = Style.dp(c, 8);
 
-        String sMin = String.format(Locale.US, "%.0f°", min);
-        String sMax = String.format(Locale.US, "%.0f°", max);
         float baseline = cy - (text.descent() + text.ascent()) / 2f;
         text.setColor(Style.TEXT);
         text.setTextAlign(Paint.Align.LEFT);
         canvas.drawText(sMin, 0, baseline, text);
-        if (Math.round(min) == Math.round(max)) return;   // a flat stay: one number, no bar
+        if (flat(min, max)) return;   // a flat stay: one number, no bar
         text.setTextAlign(Paint.Align.RIGHT);
         canvas.drawText(sMax, w, baseline, text);
 
-        float left = text.measureText(sMin) + gap + r;
-        float right = w - text.measureText(sMax) - gap - r;
-        if (right <= left) return;
-
-        // The bar's colours are sampled from the absolute scale at the
-        // range's own temperatures, so only the part of the scale the car
-        // actually saw is painted.
-        int n = 6;
-        int[] colors = new int[n];
-        for (int i = 0; i < n; i++) colors[i] = grayscale ? Style.TEXT_DIM : colorFor(min + (max - min) * i / (n - 1));
+        if (barShader == null) return;   // no room between the two numbers
+        float left = barLeft, right = barRight;
         bar.setStrokeWidth(Style.dp(c, 10));
-        bar.setShader(new LinearGradient(left, 0, right, 0, colors, null, Shader.TileMode.CLAMP));
+        bar.setShader(barShader);
         canvas.drawLine(left, cy, right, cy, bar);
 
         if (!Float.isNaN(now)) {

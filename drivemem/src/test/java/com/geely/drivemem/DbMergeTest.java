@@ -33,6 +33,8 @@ public class DbMergeTest {
         "CREATE TABLE %s.trip (id INTEGER PRIMARY KEY AUTOINCREMENT, start_ms INTEGER NOT NULL, end_ms INTEGER, start_sample_id INTEGER, end_sample_id INTEGER, net_kwh REAL)",
         "CREATE TABLE %s.charge_session (id INTEGER PRIMARY KEY AUTOINCREMENT, start_ms INTEGER NOT NULL, end_ms INTEGER NOT NULL, start_sample_id INTEGER, end_sample_id INTEGER, kwh REAL)",
         "CREATE TABLE %s.charge_stop_event (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER NOT NULL, occurred_ms INTEGER NOT NULL, UNIQUE(session_id, occurred_ms))",
+        "CREATE TABLE %s.valet_session (id INTEGER PRIMARY KEY AUTOINCREMENT, start_ms INTEGER NOT NULL, end_ms INTEGER, start_odo_km REAL, end_odo_km REAL)",
+        "CREATE TABLE %s.trip_point (id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER, ts_ms INTEGER NOT NULL, lat REAL NOT NULL, lon REAL NOT NULL)",
         "CREATE TABLE %s.daily_stat (date TEXT PRIMARY KEY, first_odo_km REAL NOT NULL, last_odo_km REAL NOT NULL)",
     };
     private static final String[] OLD = {
@@ -40,6 +42,8 @@ public class DbMergeTest {
         "CREATE TABLE %s.trip (id INTEGER PRIMARY KEY AUTOINCREMENT, start_ms INTEGER NOT NULL, end_ms INTEGER, start_sample_id INTEGER, end_sample_id INTEGER, net_kwh REAL)",
         "CREATE TABLE %s.charge_session (id INTEGER PRIMARY KEY AUTOINCREMENT, start_ms INTEGER NOT NULL, end_ms INTEGER NOT NULL, start_sample_id INTEGER, end_sample_id INTEGER, kwh REAL)",
         "CREATE TABLE %s.charge_stop_event (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER NOT NULL, occurred_ms INTEGER NOT NULL, UNIQUE(session_id, occurred_ms))",
+        "CREATE TABLE %s.valet_session (id INTEGER PRIMARY KEY AUTOINCREMENT, start_ms INTEGER NOT NULL, end_ms INTEGER, start_odo_km REAL, end_odo_km REAL)",
+        "CREATE TABLE %s.trip_point (id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER, ts_ms INTEGER NOT NULL, lat REAL NOT NULL, lon REAL NOT NULL)",
         "CREATE TABLE %s.daily_stat (date TEXT PRIMARY KEY, last_odo_km REAL NOT NULL, first_odo_km REAL NOT NULL)",
     };
 
@@ -120,6 +124,53 @@ public class DbMergeTest {
         // new rows get ids above everything
         x("INSERT INTO main.trip (start_ms) VALUES (2000)");
         assertEquals(3, q("SELECT id FROM main.trip WHERE start_ms = 2000"));
+    }
+
+    /** Route points follow their trip to its new id. Points of the trip that
+     * is still open have no trip yet (NULL) and must stay that way. */
+    @Test public void routePointsFollowTheirTripAndOpenPointsStayOpen() throws Exception {
+        fill();
+        x("INSERT INTO old.trip_point (id, trip_id, ts_ms, lat, lon) VALUES (1,1,110,1.5,2.5),(2,1,120,1.6,2.6)");
+        x("INSERT INTO main.trip_point (id, trip_id, ts_ms, lat, lon) VALUES (1,1,1010,7.5,8.5),(2,NULL,1200,7.6,8.6)");
+
+        DbMerge.Result r = DbMerge.merge(sql);
+
+        assertEquals(2L, (long) r.offsets.get("trip_point"));
+        assertEquals(4, q("SELECT COUNT(*) FROM main.trip_point"));
+        // backup points: ids and trip unchanged
+        assertEquals(100, q("SELECT t.start_ms FROM main.trip_point p JOIN main.trip t ON t.id = p.trip_id WHERE p.ts_ms = 110"));
+        assertEquals(1, q("SELECT id FROM main.trip_point WHERE ts_ms = 110"));
+        // live point: moved up, and still on the SAME (moved) trip
+        assertEquals(3, q("SELECT id FROM main.trip_point WHERE ts_ms = 1010"));
+        assertEquals(1000, q("SELECT t.start_ms FROM main.trip_point p JOIN main.trip t ON t.id = p.trip_id WHERE p.ts_ms = 1010"));
+        // the open trip's point: moved up, still no trip
+        assertEquals(4, q("SELECT id FROM main.trip_point WHERE ts_ms = 1200"));
+        assertEquals(1, q("SELECT COUNT(*) FROM main.trip_point WHERE ts_ms = 1200 AND trip_id IS NULL"));
+        // new points get ids above everything
+        x("INSERT INTO main.trip_point (ts_ms, lat, lon) VALUES (2000,0,0)");
+        assertEquals(5, q("SELECT id FROM main.trip_point WHERE ts_ms = 2000"));
+    }
+
+    /** The app keeps the open valet row's id in its prefs (valet_row_id):
+     * the offset reported here is what moves that pref. */
+    @Test public void valetSessionsMoveByTheReportedOffset() throws Exception {
+        fill();
+        x("INSERT INTO old.valet_session (id, start_ms, end_ms, start_odo_km, end_odo_km) VALUES (2,150,160,10,11),(5,170,180,11,12)");
+        x("INSERT INTO main.valet_session (id, start_ms, end_ms, start_odo_km, end_odo_km) VALUES (1,1020,1030,500,501),(2,1040,NULL,501,NULL)");
+
+        DbMerge.Result r = DbMerge.merge(sql);
+
+        assertEquals(5L, (long) r.offsets.get("valet_session"));
+        assertEquals(2L, (long) r.added.get("valet_session"));
+        assertEquals(4, q("SELECT COUNT(*) FROM main.valet_session"));
+        assertEquals(2, q("SELECT id FROM main.valet_session WHERE start_ms = 150"));
+        assertEquals(5, q("SELECT id FROM main.valet_session WHERE start_ms = 170"));
+        assertEquals(6, q("SELECT id FROM main.valet_session WHERE start_ms = 1020"));
+        // the open valet session: old id 2 + offset 5
+        assertEquals(7, q("SELECT id FROM main.valet_session WHERE start_ms = 1040"));
+        assertEquals(1, q("SELECT COUNT(*) FROM main.valet_session WHERE id = 7 AND end_ms IS NULL"));
+        x("INSERT INTO main.valet_session (start_ms) VALUES (2000)");
+        assertEquals(8, q("SELECT id FROM main.valet_session WHERE start_ms = 2000"));
     }
 
     @Test public void backupOfTheSameHistoryOverlaps() throws Exception {

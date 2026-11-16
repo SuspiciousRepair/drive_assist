@@ -391,6 +391,16 @@ public final class AppBackup {
         } finally { dst.close(); }
     }
 
+    /** The same snapshot for the USB export (CsvExport): out is a private
+     * file the caller removes with {@link #deleteSnapshot}. Call off the UI
+     * thread; it waits for the db writer thread. */
+    static void snapshotForExport(Context ctx, File out) throws Exception {
+        final Context app = ctx.getApplicationContext();
+        onDbThread(app, () -> { snapshotDb(app, out); return null; });
+    }
+
+    static void deleteSnapshot(File snap) { deleteDb(snap); }
+
     private static void prune(File backups) {
         File[] files = backups.listFiles();
         if (files == null) return;
@@ -423,10 +433,24 @@ public final class AppBackup {
 
     /** Restores a backup file and restarts the app: on success this call
      * does not return. Call off the UI thread. password may be null when the
-     * key set here locked the backup (see needsPassword). Throws, with nothing
-     * changed, when the backup cannot be used: NeedPassword, or
-     * BackupCrypto.WrongPassword. The restarted app shows what happened
-     * through {@link #takeNote}. */
+     * key set here locked the backup (see needsPassword).
+     *
+     * Two parts, and the trip merge is the line between them:
+     *
+     *  1. Before the merge: unlock, read, migrate a copy of the backup's
+     *     database, and put the certificates next to their final place under
+     *     a temporary name. The merge itself is one transaction. A failure
+     *     anywhere here throws WITH NOTHING CHANGED (NeedPassword,
+     *     BackupCrypto.WrongPassword, a full disk, a bad file).
+     *
+     *  2. After the merge: the live rows have new ids, so there is no way
+     *     back. The settings and the moved row ids are saved (the save is
+     *     checked and tried again), the certificates get their final names,
+     *     and the app ALWAYS restarts, also when one of these steps fails.
+     *     Such a failure is in logcat ("backup: restore finished with an
+     *     error"); this call does not return to report it.
+     *
+     * The restarted app shows what happened through {@link #takeNote}. */
     public static void restore(Context ctx, File file, char[] password) throws Exception {
         final Context app = ctx.getApplicationContext();
         final RestoreResult res = new RestoreResult();
@@ -480,42 +504,136 @@ public final class AppBackup {
             if (dbVersion < CarDb.version()) CarDb.migrateCopy(app, tmp);
         }
 
+        // Every step that can fail for lack of space runs BEFORE the merge:
+        // the certificates are copied next to their final place now, and
+        // only renamed later.
+        final List<File[]> staged = stageFiles(dir, app.getFilesDir(), CERTS);
         try {
             onDbThread(app, () -> {
-                DbMerge.Result merged = null;
-                if (haveDb) {
-                    merged = mergeInto(app, tmp, res);
+                // Throws: the transaction rolled back, nothing is changed.
+                final DbMerge.Result merged = haveDb ? mergeInto(app, tmp, res) : null;
+
+                // From here the live rows may have new ids, and the running
+                // sessions still hold the old ones in memory. So nothing below
+                // may stop the id prefs from being saved, or the restart.
+                // Restart HERE, on the writer thread: nothing may write with
+                // the old ids, so nothing runs after this.
+                try {
+                    final SharedPreferences.Editor e = Prefs.file(app).edit();
+                    if (merged != null) shiftIdPrefs(Prefs.file(app).getAll(), e, merged.offsets);
+                    SettingsFile.apply(e, settings);
+                    e.putBoolean(PREF_OFFER_DONE, true);
+                    // The password that opened it locks the next backups too,
+                    // so the daily backup goes on after a reinstall.
+                    storeKey(e, key, salt);
+                    e.putString(PREF_NOTE, res.settings + "|" + res.tripsAdded + "|" + res.tripsAlreadyThere);
+                    final boolean[] first = {true};
+                    finishRestore(
+                        () -> {
+                            // A commit that failed left the new values in
+                            // memory: any later commit writes them all again.
+                            if (first[0]) { first[0] = false; return e.commit(); }
+                            return Prefs.file(app).edit().commit();
+                        },
+                        () -> restartApp(app),
+                        () -> moveStaged(staged),
+                        // modehelper keeps its own copy of a few settings, and
+                        // after a wipe it starts from its defaults. Tell it
+                        // now: the boot sync only covers the switches it
+                        // re-sends on every tick.
+                        () -> com.geely.drivemem.controls.HelperSync.pushRestored(app, settings),
+                        () -> { deleteDb(tmp); deleteTree(dir); },
+                        () -> Log.i(TAG, "backup: restored " + file + " settings=" + res.settings
+                            + " trips+" + res.tripsAdded + (res.tripsAlreadyThere ? " (already there)" : "")));
+                } catch (Throwable t) {
+                    Log.w(TAG, "backup: restore finished with an error: " + t);
+                    restartApp(app);
                 }
-                SharedPreferences.Editor e = Prefs.file(app).edit();
-                if (merged != null) shiftIdPrefs(Prefs.file(app).getAll(), e, merged.offsets);
-                SettingsFile.apply(e, settings);
-                e.putBoolean(PREF_OFFER_DONE, true);
-                // The password that opened it locks the next backups too,
-                // so the daily backup goes on after a reinstall.
-                storeKey(e, key, salt);
-                e.putString(PREF_NOTE, res.settings + "|" + res.tripsAdded + "|" + res.tripsAlreadyThere);
-                for (String name : CERTS) {
-                    File f = new File(dir, name);
-                    if (f.isFile()) copy(f, new File(app.getFilesDir(), name));
-                }
-                e.commit();
-                // modehelper keeps its own copy of a few settings, and after
-                // a wipe it starts from its defaults. Tell it now: the boot
-                // sync only covers the switches it re-sends on every tick.
-                com.geely.drivemem.controls.HelperSync.pushRestored(app, settings);
-                deleteDb(tmp);
-                deleteTree(dir);
-                Log.i(TAG, "backup: restored " + file + " settings=" + res.settings
-                    + " trips+" + res.tripsAdded + (res.tripsAlreadyThere ? " (already there)" : ""));
-                // Restart HERE, on the writer thread: the merge renumbered the
-                // live rows, and the running sessions still hold the old ids in
-                // memory. Nothing may write with them, so nothing runs after this.
-                restartApp(app);
                 return null;
             });
         } finally {
+            // Only reached when the merge did not happen.
             deleteDb(tmp);
+            discardStaged(staged);
         }
+    }
+
+    interface Step { void run() throws Exception; }
+    interface Save { boolean commit(); }
+    static final int SAVE_TRIES = 3;
+
+    /** The end of a restore, after the trip merge has committed. The order
+     * is the point:
+     *
+     *  - prefs first, because they hold the moved row ids. A save that
+     *    reports false is tried again, {@link #SAVE_TRIES} times in all.
+     *  - then every other step, each one also when a step before it failed.
+     *  - restart last, ALWAYS.
+     *
+     * Returns the first failure, or null. On the car restart ends the
+     * process, so nothing reads the result there; the tests do. */
+    static Throwable finishRestore(Save prefs, Runnable restart, Step... steps) {
+        Throwable first = null;
+        try {
+            boolean saved = false;
+            for (int i = 0; i < SAVE_TRIES && !saved; i++) {
+                try {
+                    saved = prefs.commit();
+                } catch (Throwable t) {
+                    if (first == null) first = t;
+                }
+            }
+            if (saved) first = null;
+            else if (first == null) first = new java.io.IOException("could not save the settings");
+            for (Step s : steps) {
+                try {
+                    s.run();
+                } catch (Throwable t) {
+                    if (first == null) first = t;
+                }
+            }
+            if (first != null) Log.w(TAG, "backup: restore finished with an error: " + first);
+        } finally {
+            restart.run();
+        }
+        return first;
+    }
+
+    static final String STAGED_SUFFIX = ".restore";
+
+    /** Copies each named file that is in fromDir into toDir under a temporary
+     * name, on the disk (synced). Returns {temporary, final} pairs for
+     * {@link #moveStaged}. On a failure it removes what it made and throws:
+     * the files with the final names are never touched here. */
+    static List<File[]> stageFiles(File fromDir, File toDir, String[] names) throws Exception {
+        List<File[]> staged = new ArrayList<>();
+        try {
+            for (String name : names) {
+                File src = new File(fromDir, name);
+                if (!src.isFile()) continue;
+                File part = new File(toDir, name + STAGED_SUFFIX);
+                staged.add(new File[]{part, new File(toDir, name)});
+                copy(src, part);
+            }
+        } catch (Throwable t) {
+            discardStaged(staged);
+            throw t;
+        }
+        return staged;
+    }
+
+    /** Gives every staged file its final name. A rename needs no new space.
+     * Tries them all, then throws when one did not move. */
+    static void moveStaged(List<File[]> staged) throws Exception {
+        File failed = null;
+        for (File[] pair : staged) {
+            if (!pair[0].renameTo(pair[1]) && failed == null) failed = pair[1];
+        }
+        if (failed != null) throw new java.io.IOException("rename to " + failed);
+    }
+
+    static void discardStaged(List<File[]> staged) {
+        for (File[] pair : staged) pair[0].delete();
     }
 
     /** What the last restore did, once: {settings, tripsAdded, alreadyThere},
@@ -563,11 +681,16 @@ public final class AppBackup {
                 if (!"ok".equals(ok)) throw new IllegalStateException("integrity_check: " + ok);
                 db.setTransactionSuccessful();
             } finally { db.endTransaction(); }
-            db.execSQL("DETACH DATABASE old");
+            // The merge is committed. Nothing after this line may throw, or
+            // the caller would take a finished merge for a failed one.
+            try { db.execSQL("DETACH DATABASE old"); }
+            catch (Throwable t) { Log.w(TAG, "backup: detach: " + t); }
             Long t = r.added.get("trip");
             res.tripsAdded = t == null ? 0 : t;
             return r;
-        } finally { db.close(); }
+        } finally {
+            try { db.close(); } catch (Throwable t) { Log.w(TAG, "backup: close: " + t); }
+        }
     }
 
     static void shiftIdPrefs(Map<String, ?> all, SharedPreferences.Editor e, Map<String, Long> offsets) {

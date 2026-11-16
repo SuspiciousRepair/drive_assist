@@ -35,8 +35,8 @@ public final class ClipExport {
         return out;
     }
 
-    /** Bytes still to write: files already on the stick with the same size
-     * are skipped by UsbExport, so they need no space. */
+    /** Bytes still to write: clips already on the stick with the same size
+     * are skipped by UsbExport (skipSameSize), so they need no space. */
     static long bytesNeeded(List<File> files, File dest) {
         long n = 0;
         for (File f : files) if (!UsbExport.sameSize(f, new File(dest, f.getName()))) n += f.length();
@@ -65,7 +65,7 @@ public final class ClipExport {
             return Result.NO_SPACE;
         final int[] copied = {0};
         final boolean[] ok = {false};
-        UsbExport.exportNow(SUBDIR, (good, d, n) -> { ok[0] = good; copied[0] = n; }, files.toArray(new File[0]));
+        UsbExport.exportNow(SUBDIR, true, (good, d, n) -> { ok[0] = good; copied[0] = n; }, files.toArray(new File[0]));
         return ok[0] && copied[0] == files.size() ? Result.OK : Result.FAILED;
     }
 }

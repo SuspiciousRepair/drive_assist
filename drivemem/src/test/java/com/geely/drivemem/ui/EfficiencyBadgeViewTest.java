@@ -35,4 +35,21 @@ public class EfficiencyBadgeViewTest {
         }
         assertTrue(red(EfficiencyBadgeView.colorFor(20)) > red(EfficiencyBadgeView.colorFor(12)));
     }
+
+    // The number and the bar colours are built once per change, not per draw.
+    @Test public void numberTextIsOneDecimalWithAMarkForAnEstimate() {
+        assertEquals("8.7", EfficiencyBadgeView.numberText(8.7, false, java.util.Locale.US));
+        assertEquals("8,7", EfficiencyBadgeView.numberText(8.7, false, new java.util.Locale("pt", "BR")));
+        assertEquals("14.0~", EfficiencyBadgeView.numberText(14, true, java.util.Locale.US));
+        assertEquals(EfficiencyBadgeView.NO_VALUE, EfficiencyBadgeView.numberText(Double.NaN, false, java.util.Locale.US));
+        assertEquals(EfficiencyBadgeView.NO_VALUE, EfficiencyBadgeView.numberText(Double.NaN, true, java.util.Locale.US));
+    }
+
+    @Test public void barRunsOverTheScaleOrIsPlainForGrayscale() {
+        int[] c = EfficiencyBadgeView.barColors(false, 0xFF808080);
+        assertEquals(EfficiencyBadgeView.colorFor(EfficiencyBadgeView.BAR_MIN), c[0]);
+        assertEquals(EfficiencyBadgeView.colorFor(EfficiencyBadgeView.BAR_MAX), c[c.length - 1]);
+        assertEquals(EfficiencyBadgeView.colorFor(16), c[c.length / 2]);
+        for (int g : EfficiencyBadgeView.barColors(true, 0xFF808080)) assertEquals(0xFF808080, g);
+    }
 }

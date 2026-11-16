@@ -23,6 +23,50 @@ public final class RouteGeometry {
         return SPEED_STEPS.length;
     }
 
+    /** Band of the segment from point i to point i + 1: the band of the
+     * mean of their speeds. */
+    public static int segmentBand(double[] speed, int i) {
+        return band((speed[i] + speed[i + 1]) / 2);
+    }
+
+    /** Cuts a route into runs of segments with the same speed band, so a
+     * view can draw one path per run and not one line per segment. Returns
+     * the point indices where a run starts, plus the last point: run j goes
+     * from point r[j] to point r[j + 1] and has the band of segment r[j].
+     * Empty with fewer than two points. */
+    public static int[] bandRuns(double[] speed) {
+        int n = speed.length;
+        if (n < 2) return new int[0];
+        int[] r = new int[n];
+        int k = 0;
+        r[k++] = 0;
+        int cur = segmentBand(speed, 0);
+        for (int i = 1; i < n - 1; i++) {
+            int b = segmentBand(speed, i);
+            if (b != cur) { r[k++] = i; cur = b; }
+        }
+        r[k++] = n - 1;
+        return java.util.Arrays.copyOf(r, k);
+    }
+
+    /** Thins the screen points from..to (both kept): a point is kept only
+     * when it is minPx or more from the last kept one. A route has far more
+     * points than the panel has pixels; the line drawn through the kept
+     * points is the same picture. Returns the kept indices, in order. */
+    public static int[] decimate(float[] x, float[] y, int from, int to, float minPx) {
+        if (to <= from) return new int[]{from};
+        int[] keep = new int[to - from + 1];
+        int k = 0;
+        keep[k++] = from;
+        float lx = x[from], ly = y[from], min2 = minPx * minPx;
+        for (int i = from + 1; i < to; i++) {
+            float dx = x[i] - lx, dy = y[i] - ly;
+            if (dx * dx + dy * dy >= min2) { keep[k++] = i; lx = x[i]; ly = y[i]; }
+        }
+        keep[k++] = to;
+        return java.util.Arrays.copyOf(keep, k);
+    }
+
     /** Metres east (x) and north (y) of the bounding box centre. */
     public static double[][] project(double[] lat, double[] lon) {
         int n = lat.length;

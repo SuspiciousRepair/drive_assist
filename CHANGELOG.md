@@ -26,9 +26,19 @@
   stay on the 30 s samples and now on every route point. (#19)
 
 ### Fixed
+- **Trip energy stays measured when CAN is on but gives no power.** With
+  "Exact energy" on and the OBD2 dongle connected, the app threw away the
+  dongle's readings each time the CAN reader was alive, also when CAN had
+  no battery volts or amps. The trip then used the estimate. Now the
+  dongle's readings count until CAN really has a value.
 - **The first 30 s sample after the app starts now has the drive mode and
   the regen level.** The app read them from the car only after it had saved
   that first sample, so it was empty after every app update or restart.
+- **A charge no longer gains energy while the head unit sleeps.** After a
+  long sleep, the first 30 s sample used the power from before the sleep
+  and counted it for the whole sleep (8 h at 6.5 kW gave 52 kWh that never
+  went in). Now the app reads the car first, and a sample that comes more
+  than 90 s after the last one adds no energy.
 
 ## [v0.7.0] — 2026-11-15
 

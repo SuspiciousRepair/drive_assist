@@ -13,7 +13,12 @@ import java.util.Locale;
 
 /** Height against distance, under the route (issue #19). The area under
  * the line has the same speed colours as the route, so a slow climb is
- * easy to spot. Touching it marks that place on the route. */
+ * easy to spot. Touching it marks that place on the route.
+ *
+ * The geometry is built once ({@link #rebuild}: on new data and on a size
+ * change), not in onDraw: a finger scrubbing the profile redraws on every
+ * move, and each of those frames only replays the cached paths and moves
+ * the mark. */
 public class ElevationView extends View {
     public interface OnPick { void onPick(int index); }
 
@@ -24,6 +29,14 @@ public class ElevationView extends View {
     private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mark = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+    // Built by rebuild(); screen pixels.
+    private float[] xs = new float[0], ys = new float[0];
+    private Path[] fillPaths = new Path[0];
+    private int[] fillColors = new int[0];
+    private final Path topPath = new Path();
+    private float top, bottom;
+    private String hiLabel = "", loLabel = "", kmLabel = "";
 
     public ElevationView(Context c) {
         super(c);
@@ -41,6 +54,7 @@ public class ElevationView extends View {
     /** km from the start, smoothed height in m, speed km/h; one per point. */
     public void setProfile(double[] km, double[] alt, double[] speed) {
         this.km = km; this.alt = alt; this.speed = speed;
+        rebuild();
         invalidate();
     }
 
@@ -52,9 +66,12 @@ public class ElevationView extends View {
         if (act == MotionEvent.ACTION_DOWN || act == MotionEvent.ACTION_MOVE) {
             float l = left(), r = getWidth() - right();
             double target = (Math.max(l, Math.min(r, e.getX())) - l) / Math.max(1, r - l) * total();
-            marked = TripRouteStats.indexAtKm(km, target);
-            if (onPick != null) onPick.onPick(marked);
-            invalidate();
+            int pick = TripRouteStats.indexAtKm(km, target);
+            if (pick != marked) {   // many move events land on the same point
+                marked = pick;
+                if (onPick != null) onPick.onPick(marked);
+                invalidate();
+            }
             getParent().requestDisallowInterceptTouchEvent(true);
             return true;
         }
@@ -65,45 +82,76 @@ public class ElevationView extends View {
     private float right() { return Style.dp(getContext(), 20); }
     private double total() { return km.length == 0 ? 0 : Math.max(km[km.length - 1], 0.01); }
 
-    @Override protected void onDraw(Canvas c) {
+    @Override protected void onSizeChanged(int w, int h, int oldW, int oldH) {
+        super.onSizeChanged(w, h, oldW, oldH);
+        rebuild();
+    }
+
+    /** Screen coordinates, one filled shape per run of one colour, the
+     * line on top and the labels. Runs on new data and on a size change
+     * only. */
+    private void rebuild() {
         int n = km.length;
-        if (n < 2) return;
+        topPath.rewind();
+        fillPaths = new Path[0];
+        fillColors = new int[0];
+        xs = new float[0]; ys = new float[0];
+        if (n < 2 || getWidth() <= 0 || getHeight() <= 0) return;
         Context ctx = getContext();
         float l = left(), r = getWidth() - right();
-        float top = Style.dp(ctx, 12), bottom = getHeight() - Style.dp(ctx, 26);
+        top = Style.dp(ctx, 12); bottom = getHeight() - Style.dp(ctx, 26);
         double lo = TripRouteStats.min(alt), hi = TripRouteStats.max(alt);
         // At least 20 m of height on screen, so flat roads look flat.
         double span = Math.max(hi - lo, 20), mid = (lo + hi) / 2;
         lo = mid - span / 2; hi = mid + span / 2;
         double tot = total();
 
-        float[] xs = new float[n], ys = new float[n];
+        xs = new float[n]; ys = new float[n];
         for (int i = 0; i < n; i++) {
             xs[i] = (float) (l + km[i] / tot * (r - l));
             ys[i] = (float) (bottom - (alt[i] - lo) / (hi - lo) * (bottom - top));
         }
-        for (int i = 1; i < n; i++) {
+        int[] runs = RouteGeometry.bandRuns(speed);
+        int count = Math.max(0, runs.length - 1);
+        fillPaths = new Path[count];
+        fillColors = new int[count];
+        for (int j = 0; j < count; j++) {
+            int a = runs[j], b = runs[j + 1];
             Path p = new Path();
-            p.moveTo(xs[i - 1], bottom);
-            p.lineTo(xs[i - 1], ys[i - 1]);
-            p.lineTo(xs[i], ys[i]);
-            p.lineTo(xs[i], bottom);
+            p.moveTo(xs[a], bottom);
+            for (int i = a; i <= b; i++) p.lineTo(xs[i], ys[i]);
+            p.lineTo(xs[b], bottom);
             p.close();
-            int col = RouteGeometry.SPEED_COLORS[RouteGeometry.band((speed[i - 1] + speed[i]) / 2)];
-            fill.setColor((col & 0x00FFFFFF) | 0x99000000);
-            c.drawPath(p, fill);
+            fillPaths[j] = p;
+            int col = RouteGeometry.SPEED_COLORS[RouteGeometry.segmentBand(speed, a)];
+            fillColors[j] = (col & 0x00FFFFFF) | 0x99000000;
         }
-        Path top2 = new Path();
-        top2.moveTo(xs[0], ys[0]);
-        for (int i = 1; i < n; i++) top2.lineTo(xs[i], ys[i]);
-        c.drawPath(top2, line);
+        topPath.moveTo(xs[0], ys[0]);
+        for (int i = 1; i < n; i++) topPath.lineTo(xs[i], ys[i]);
+
+        hiLabel = String.format(Locale.US, "%.0f m", hi);
+        loLabel = String.format(Locale.US, "%.0f m", lo);
+        kmLabel = String.format(Locale.US, "%.1f km", km[n - 1]);
+    }
+
+    @Override protected void onDraw(Canvas c) {
+        int n = xs.length;
+        if (n < 2) return;
+        Context ctx = getContext();
+        float l = left(), r = getWidth() - right();
+
+        for (int j = 0; j < fillPaths.length; j++) {
+            fill.setColor(fillColors[j]);
+            c.drawPath(fillPaths[j], fill);
+        }
+        c.drawPath(topPath, line);
 
         // Height labels on the left (top and bottom of the drawn range),
         // distance under the right end.
         text.setTextAlign(Paint.Align.RIGHT);
-        c.drawText(String.format(Locale.US, "%.0f m", hi), l - Style.dp(ctx, 10), top + Style.dp(ctx, 14), text);
-        c.drawText(String.format(Locale.US, "%.0f m", lo), l - Style.dp(ctx, 10), bottom, text);
-        c.drawText(String.format(Locale.US, "%.1f km", km[n - 1]), r, getHeight() - Style.dp(ctx, 4), text);
+        c.drawText(hiLabel, l - Style.dp(ctx, 10), top + Style.dp(ctx, 14), text);
+        c.drawText(loLabel, l - Style.dp(ctx, 10), bottom, text);
+        c.drawText(kmLabel, r, getHeight() - Style.dp(ctx, 4), text);
         text.setTextAlign(Paint.Align.LEFT);
         c.drawText("0", l, getHeight() - Style.dp(ctx, 4), text);
 

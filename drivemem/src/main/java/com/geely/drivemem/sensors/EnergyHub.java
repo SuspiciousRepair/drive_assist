@@ -51,5 +51,15 @@ public final class EnergyHub {
         return r.status == CarActor.Reading.Status.OK && r.value instanceof Number && ((Number) r.value).intValue() == 1;
     }
 
+    /** True while {@link #SOURCE} says "can": CAN is live AND has a power
+     * value. EnergyIntegrator asks this before it takes an OBD2 sample, so
+     * what it integrates and what energy.source says cannot differ. Safe from
+     * any thread (the hub cache is concurrent). */
+    public static boolean canIsSource(CarActor a) {
+        if (a == null) return false;
+        CarActor.Reading r = a.get(SOURCE);
+        return r.status == CarActor.Reading.Status.OK && "can".equals(r.value);
+    }
+
     public static Float get(String key) { return CanHub.get(key); }
 }

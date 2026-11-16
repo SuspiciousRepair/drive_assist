@@ -53,13 +53,17 @@ public final class UsbExport {
     // already off the UI thread and has more work to do first (CsvExport
     // writes its files, then copies them here).
     public static void exportNow(Callback cb, File... files) {
-        exportNow(null, cb, files);
+        exportNow(null, false, cb, files);
     }
 
     /** Same, into {@code <drive>/Drive Assist/<subdir>/} (subdir may be null).
-     * A file already on the drive with the same name and size is not copied
-     * again, but still counts as copied: exporting twice is cheap and safe. */
-    public static void exportNow(String subdir, Callback cb, File... files) {
+     *
+     * skipSameSize: a file already on the drive with the same name and size
+     * is not copied again, but still counts as copied. Only for files that
+     * never change once written (dashcam clips, hundreds of MB each). A
+     * database or a CSV file can change and keep its size, so those callers
+     * pass false and every export writes the file again. */
+    public static void exportNow(String subdir, boolean skipSameSize, Callback cb, File... files) {
         File drive = findDrive();
         if (drive == null) {
             if (cb != null) cb.onDone(false, null, 0);
@@ -76,7 +80,7 @@ public final class UsbExport {
             if (f == null || !f.exists()) continue;
             try {
                 File to = new File(dest, f.getName());
-                if (!sameSize(f, to)) copy(f, to);
+                if (shouldCopy(f, to, skipSameSize)) copy(f, to);
                 copied++;
             } catch (Throwable t) {
                 Log.w(TAG, "usbexport: " + f + ": " + t);
@@ -89,6 +93,11 @@ public final class UsbExport {
     public static File destDir(File drive, String subdir) {
         File d = new File(drive, EXPORT_DIR);
         return subdir == null ? d : new File(d, subdir);
+    }
+
+    /** The copy decision for one file. Without skipSameSize, always copy. */
+    static boolean shouldCopy(File src, File dst, boolean skipSameSize) {
+        return !skipSameSize || !sameSize(src, dst);
     }
 
     static boolean sameSize(File src, File dst) {

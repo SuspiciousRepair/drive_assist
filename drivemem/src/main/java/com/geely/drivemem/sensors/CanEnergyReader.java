@@ -160,11 +160,9 @@ public final class CanEnergyReader {
 
     private static long now() { return SystemClock.elapsedRealtime(); }
 
-    /** For the fast path (EnergyIntegrator's OBD2 gate). Everyone else reads
-     * the hub: CanHub's can.* keys. */
-    public static boolean isLive() { return POWER.live(now()); }
     // Package-private on purpose: only CanHub reads these. Consumers use the
     // hub (CanHub.get), per CLAUDE.md rule 7.
+    static boolean isLive() { return POWER.live(now()); }
     static Float freshPowerKw() { return f(POWER.powerKw(now())); }
     static Float freshPackVolts() { return f(POWER.packVolts(now())); }
     static Float freshPackAmps() { return f(POWER.packAmps(now())); }

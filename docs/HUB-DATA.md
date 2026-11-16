@@ -56,6 +56,13 @@ One map every 30 s with: `battery` (SoC, whole %), `battery_raw_pct`,
 CAN). `charge_a`/`charge_v` exist only while plugged in. Saved to
 `telemetry_sample` and sent to MQTT/Home Assistant.
 
+A tick runs its due polls first and publishes `telemetry.tick` after, so a
+listener that reads other hub keys gets this tick's values, also on the
+first tick after a suspend. `ChargeSession` counts a tick's power for the
+time since the last tick, but only up to 90 s
+(`ChargeSession.MAX_SAMPLE_GAP_MS`): a longer gap (the head unit slept) adds
+no energy.
+
 ### CAN (`CanHub`), only with "Exact energy" on
 
 Needs: the switch on (Config > OBD2), modehelper installed, the roadcastd
@@ -93,25 +100,33 @@ plugged in. Updated every 2 s; a value older than 15 s becomes
 
 | Key | What |
 |---|---|
-| `energy.power_kw`, `energy.pack_v`, `energy.pack_a` | from CAN when `can.live` is 1, else from the dongle, else `NOT_AVAILABLE` |
-| `energy.source` | `can` or `obd2` |
+| `energy.power_kw`, `energy.pack_v`, `energy.pack_a` | from CAN when `can.live` is 1 **and** CAN has the value, else from the dongle, else `NOT_AVAILABLE` |
+| `energy.source` | `can` or `obd2`, by the same rule on the power value |
 
-### GPS position (`LocationHub`), always while the app runs
+### GPS position (`LocationHub`), always while the app runs; live fixes while driving
 
 | Key | What | Update |
 |---|---|---|
-| `location.fix` | `LocationHub.Fix`: lat, lon, altitude m, bearing, speed km/h (GPS), accuracy m. Source: `GpsReader` (the live fix from `TelemetryService`, else the last known one). `NOT_AVAILABLE` with no fix | polled every 2 s; published only when the car moves to another ~5 m cell. The cache always holds the newest fix |
+| `location.fix` | `LocationHub.Fix`: lat, lon, altitude m, bearing, speed km/h (GPS), accuracy m. Altitude is NaN when the fix has none (saved as NULL, never 0). Source: `GpsReader`: the live GPS fix from `GpsOwner` when it is 10 s old or less, else the last known one (GPS, then passive, then network). `NOT_AVAILABLE` with no fix | polled every 2 s; published only when the car moves to another ~5 m cell. The cache always holds the newest fix |
 
 MQTT/HA, ABRP, the 30 s sampler (altitude), trip ascent / descent, trip
 routes and charge places all read this key. `GpsReader.read` is
 package-private.
+
+`GpsOwner` holds the one location listener (GPS every 2 s). It does not
+need MQTT. It listens while a consumer is on (trip routes, MQTT telemetry
+with a broker set, or ABRP with "send location") and the car is out of
+Park, or in Park for less than 2 minutes. After that it removes the
+listener, so the GPS is not held on in a parked car, and the key holds the
+last known fix until the car leaves Park. Only GPS fixes become the live
+fix; a network fix never replaces one.
 
 ### Sessions (built on the hub thread from `telemetry.tick`)
 
 | Key | What | Update |
 |---|---|---|
 | `trip.live` | the open trip (`LiveTrip`): start, driving time, distance, spent / regen / net kWh, SoC start → now, energy source. `LiveTrip.NONE` when no trip is open | on each tick while a trip is open, only when a shown value changes (0.1 km, 0.01 kWh, whole minutes) |
-| `parking.temp_trail` | outside temperature during the stay in Park (`TempTrail`): 10-min buckets, empty while the head unit sleeps | on each tick while parked, when the trail changes |
+| `parking.temp_trail` | outside temperature during the stay in Park (`TempTrail`): 10-min buckets, empty while the head unit sleeps, plus the true lowest and highest reading of the stay (`min()` / `max()`) | on each tick while parked, when the trail changes |
 
 `trip.live` uses the same `DrivingConsumption` rules as the stats pages, so
 the home card and the finished trip agree. After an app restart mid-trip it
@@ -145,8 +160,9 @@ except the SoC-based driving energy, which is marked "estimated".
 
 - `EnergyIntegrator` gets **every** CAN sample (10 Hz) and every OBD2
   reading directly, because it integrates each one and the hub delivers
-  changes only. CAN wins while it is live; the dongle's samples are dropped
-  then, so energy is never counted twice.
+  changes only. CAN wins while `energy.source` is `can` (`EnergyHub` decides,
+  once); the dongle's samples are dropped then, so energy is never counted
+  twice. When CAN is live but has no power value, the dongle's samples count.
 
 ## 5. What is saved on the car
 
