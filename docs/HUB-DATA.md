@@ -56,6 +56,13 @@ One map every 30 s with: `battery` (SoC, whole %), `battery_raw_pct`,
 CAN). `charge_a`/`charge_v` exist only while plugged in. Saved to
 `telemetry_sample` and sent to MQTT/Home Assistant.
 
+A tick runs its due polls first and publishes `telemetry.tick` after, so a
+listener that reads other hub keys gets this tick's values, also on the
+first tick after a suspend. `ChargeSession` counts a tick's power for the
+time since the last tick, but only up to 90 s
+(`ChargeSession.MAX_SAMPLE_GAP_MS`): a longer gap (the head unit slept) adds
+no energy.
+
 ### CAN (`CanHub`), only with "Exact energy" on
 
 Needs: the switch on (Config > OBD2), modehelper installed, the roadcastd
