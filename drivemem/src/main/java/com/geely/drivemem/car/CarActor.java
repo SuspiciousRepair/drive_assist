@@ -491,29 +491,37 @@ public final class CarActor {
     public void watchRaw(String key, int prop, int area) {
         h.post(() -> {
             ensureConnected();
-            android.car.hardware.property.CarPropertyManager.CarPropertyEventCallback cb =
-                new android.car.hardware.property.CarPropertyManager.CarPropertyEventCallback() {
-                    @Override public void onChangeEvent(android.car.hardware.CarPropertyValue v) {
-                        if (v.getAreaId() != area) return;
-                        h.post(() -> ingest(key, Reading.ok(v.getValue())));
-                    }
-                    @Override public void onErrorEvent(int p, int a) {
-                        if (a != area) return;
-                        h.post(() -> ingest(key, Reading.error("prop " + p + " area " + a)));
-                    }
-                };
-            if (!car.watch(prop, cb)) {
-                ingest(key, Reading.error("watch failed"));
-            } else {
-                Integer initial = car.readIntRaw(prop, area);
-                if (initial != null) {
-                    ingest(key, Reading.ok(initial));
-                } else {
-                    Boolean boolInitial = car.readHvacFlag(prop);
-                    if (boolInitial != null) ingest(key, Reading.ok(boolInitial));
-                }
-            }
+            watchRawNow(key, prop, area);
         });
+    }
+
+    // Car thread only. armDiscreteWatches() calls this directly, not through
+    // h.post(): a posted watch ran AFTER the tick that connected, so that
+    // tick's telemetry.tick (and its telemetry_sample row) had no drive mode
+    // or regen level yet. Seen after every app restart (2026-11-15).
+    private void watchRawNow(String key, int prop, int area) {
+        android.car.hardware.property.CarPropertyManager.CarPropertyEventCallback cb =
+            new android.car.hardware.property.CarPropertyManager.CarPropertyEventCallback() {
+                @Override public void onChangeEvent(android.car.hardware.CarPropertyValue v) {
+                    if (v.getAreaId() != area) return;
+                    h.post(() -> ingest(key, Reading.ok(v.getValue())));
+                }
+                @Override public void onErrorEvent(int p, int a) {
+                    if (a != area) return;
+                    h.post(() -> ingest(key, Reading.error("prop " + p + " area " + a)));
+                }
+            };
+        if (!car.watch(prop, cb)) {
+            ingest(key, Reading.error("watch failed"));
+        } else {
+            Integer initial = car.readIntRaw(prop, area);
+            if (initial != null) {
+                ingest(key, Reading.ok(initial));
+            } else {
+                Boolean boolInitial = car.readHvacFlag(prop);
+                if (boolInitial != null) ingest(key, Reading.ok(boolInitial));
+            }
+        }
     }
 
     /** Registers a continuous watch on a multi-area property. Each area change
@@ -521,20 +529,24 @@ public final class CarActor {
     public void watchRawMultiArea(String key, int prop) {
         h.post(() -> {
             ensureConnected();
-            android.car.hardware.property.CarPropertyManager.CarPropertyEventCallback cb =
-                new android.car.hardware.property.CarPropertyManager.CarPropertyEventCallback() {
-                    @Override public void onChangeEvent(android.car.hardware.CarPropertyValue v) {
-                        Object val = v.getValue();
-                        if (!(val instanceof Integer)) return;
-                        int area = v.getAreaId(); int iv = (Integer) val;
-                        h.post(() -> ingest(key, Reading.ok(new int[]{area, iv})));
-                    }
-                    @Override public void onErrorEvent(int p, int a) {
-                        h.post(() -> ingest(key, Reading.error("prop " + p + " area " + a)));
-                    }
-                };
-            if (!car.watch(prop, cb)) ingest(key, Reading.error("watch failed"));
+            watchRawMultiAreaNow(key, prop);
         });
+    }
+
+    private void watchRawMultiAreaNow(String key, int prop) {
+        android.car.hardware.property.CarPropertyManager.CarPropertyEventCallback cb =
+            new android.car.hardware.property.CarPropertyManager.CarPropertyEventCallback() {
+                @Override public void onChangeEvent(android.car.hardware.CarPropertyValue v) {
+                    Object val = v.getValue();
+                    if (!(val instanceof Integer)) return;
+                    int area = v.getAreaId(); int iv = (Integer) val;
+                    h.post(() -> ingest(key, Reading.ok(new int[]{area, iv})));
+                }
+                @Override public void onErrorEvent(int p, int a) {
+                    h.post(() -> ingest(key, Reading.error("prop " + p + " area " + a)));
+                }
+            };
+        if (!car.watch(prop, cb)) ingest(key, Reading.error("watch failed"));
     }
 
     /** Reads a property once without caching (debug/one-shot use). */
@@ -564,17 +576,20 @@ public final class CarActor {
         if (!car.isReady() && car.connect(ctx)) armDiscreteWatches();
     }
 
+    // Runs on the car thread (ensureConnected is only called there), so the
+    // watches and their first values are in the cache before the caller goes
+    // on -- see watchRawNow().
     private void armDiscreteWatches() {
         // Register push watches for properties that support it.
-        watchRaw("car.gear", 289408001, 0);
-        watchRaw("car.park_mode", CarAccess.PARK_MODE, 0);
-        watchRaw("car.drive_mode", Modes.PROP_DRIVE, 0);
-        watchRaw("car.regen_mode", Modes.PROP_REGEN, 0);
-        watchRawMultiArea("car.door_pos", CarAccess.DOOR_POS);
-        watchRawMultiArea("car.window_pos", CarAccess.WINDOW_POS);
-        watchRaw("car.hvac_recirc", CarAccess.HVAC_RECIRC_ON, 75);
-        watchRaw("car.hvac_direction", 557846560, 0);
-        watchRaw("car.hvac_rear_defrost", CarAccess.HVAC_ELECTRIC_DEFROSTER_ON, 2);
+        watchRawNow("car.gear", 289408001, 0);
+        watchRawNow("car.park_mode", CarAccess.PARK_MODE, 0);
+        watchRawNow("car.drive_mode", Modes.PROP_DRIVE, 0);
+        watchRawNow("car.regen_mode", Modes.PROP_REGEN, 0);
+        watchRawMultiAreaNow("car.door_pos", CarAccess.DOOR_POS);
+        watchRawMultiAreaNow("car.window_pos", CarAccess.WINDOW_POS);
+        watchRawNow("car.hvac_recirc", CarAccess.HVAC_RECIRC_ON, 75);
+        watchRawNow("car.hvac_direction", 557846560, 0);
+        watchRawNow("car.hvac_rear_defrost", CarAccess.HVAC_ELECTRIC_DEFROSTER_ON, 2);
     }
 
     // Adapter from real Handler to HandlerLike interface (production code path).

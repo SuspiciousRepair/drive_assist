@@ -15,6 +15,11 @@
   saved each trip cut into parts per mode. That table is removed; the modes
   stay on the 30 s samples and now on every route point. (#19)
 
+### Fixed
+- **The first 30 s sample after the app starts now has the drive mode and
+  the regen level.** The app read them from the car only after it had saved
+  that first sample, so it was empty after every app update or restart.
+
 ## [v0.7.0] — 2026-11-15
 
 ### Added
