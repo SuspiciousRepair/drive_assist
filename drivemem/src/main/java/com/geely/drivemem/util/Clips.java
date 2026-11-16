@@ -116,6 +116,9 @@ public final class Clips {
     // of the disk. Starting takes seconds (camera, encoder, first key frame),
     // and recorder.state is rewritten only every 5 s.
     public static final long ASK_GRACE_MS = 10_000;
+    /** When the screen looks again after a tap: just past the grace, so the
+     * switch then shows the real state. */
+    public static final long RECHECK_MS = ASK_GRACE_MS + 500;
     private static volatile long askedAtMs;
     private static volatile boolean askedOn;
 
