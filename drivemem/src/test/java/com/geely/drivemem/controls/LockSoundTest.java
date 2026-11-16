@@ -38,12 +38,13 @@ public class LockSoundTest {
         assertEquals(LockSound.CUSTOM, LockSound.base(LockSound.CUSTOM, LockSound.CAR));
     }
 
-    // modehelper downloads https links only; the screen refuses the rest
-    // itself and shows "Could not download that link."
-    @Test public void onlyHttpsLinksAreSent() {
+    // modehelper downloads http and https links; the screen refuses the
+    // rest itself and shows "Could not download that link."
+    @Test public void onlyWebLinksAreSent() {
         assertTrue(LockSound.linkAllowed("https://example.com/LockChime.wav"));
         assertTrue(LockSound.linkAllowed("  HTTPS://example.com/a.wav "));
-        assertFalse(LockSound.linkAllowed("http://example.com/LockChime.wav"));
+        assertTrue(LockSound.linkAllowed("http://example.com/LockChime.wav"));
+        assertFalse(LockSound.linkAllowed("http://"));
         assertFalse(LockSound.linkAllowed("example.com/LockChime.wav"));
         assertFalse(LockSound.linkAllowed("file:///sdcard/LockChime.wav"));
         assertFalse(LockSound.linkAllowed("https://"));

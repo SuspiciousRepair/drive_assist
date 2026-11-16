@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * remount. The setting survives a reboot.
  *
  * {@code IMPORT_LOCK_SOUND} fetches the "custom" sound: from {@code url} when
- * given (https only, and a redirect must stay https), else
+ * given (http or https, also after a redirect), else
  * {@code LockChime.wav} at the root of a USB stick. The file must be a WAV of
  * 1 MB or less. With {@code apply} (default true) it then becomes the lock
  * sound. Send it as an ordered broadcast: the result data is a
@@ -240,14 +240,14 @@ public class LockSoundReceiver extends BroadcastReceiver {
         return null;
     }
 
-    // https only, and each redirect is followed by hand so it can be
+    // http or https only, and each redirect is followed by hand so it can be
     // checked: the platform would follow one without asking.
     private static String download(String url, File tmp, Job job) {
         HttpURLConnection c = null;
         try {
             String at = url;
             for (int followed = 0; ; followed++) {
-                if (!LockSoundPolicy.httpsUrl(at) || job.late()) return DOWNLOAD;
+                if (!LockSoundPolicy.webUrl(at) || job.late()) return DOWNLOAD;
                 c = (HttpURLConnection) new URL(at).openConnection();
                 job.conn = c;
                 // Each wait is cut to what is left of the whole deadline;

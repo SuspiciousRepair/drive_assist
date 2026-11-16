@@ -57,15 +57,18 @@ final class LockSoundPolicy {
     static boolean isOurs(String path) { return path != null && path.contains(OURS); }
 
     /**
-     * May we download this link? https only, with a host. This runs as uid
-     * system on behalf of any sender, so no plain http (anyone on the
-     * network could swap the file) and no other scheme (file:, content:).
+     * May we download this link? http or https, with a host. Plain http is
+     * allowed by the owner's choice (a sound served from a box at home has
+     * no certificate); the file is still size-capped and must be a WAV. No
+     * other scheme (file:, content:): this runs as uid system.
      */
-    static boolean httpsUrl(String url) {
+    static boolean webUrl(String url) {
         if (url == null) return false;
         try {
             java.net.URI u = new java.net.URI(url.trim());
-            return "https".equalsIgnoreCase(u.getScheme()) && u.getHost() != null && !u.getHost().isEmpty();
+            String scheme = u.getScheme();
+            return ("https".equalsIgnoreCase(scheme) || "http".equalsIgnoreCase(scheme))
+                && u.getHost() != null && !u.getHost().isEmpty();
         } catch (Exception e) {
             return false;
         }
@@ -78,19 +81,19 @@ final class LockSoundPolicy {
 
     /**
      * Where a redirect may take the download, or null to refuse it. The
-     * target must be https too (a relative Location stays on the https
-     * site), and a chain ends after {@link #MAX_REDIRECTS}.
+     * target must be an http or https link too (never file: or content:),
+     * and a chain ends after {@link #MAX_REDIRECTS}.
      *
-     * @param from      the https link that answered with a redirect
+     * @param from      the link that answered with a redirect
      * @param location  its Location header (may be null)
      * @param followed  how many redirects this download followed already
      */
     static String redirectTarget(String from, String location, int followed) {
         if (followed >= MAX_REDIRECTS || location == null || location.trim().isEmpty()) return null;
-        if (!httpsUrl(from)) return null;
+        if (!webUrl(from)) return null;
         try {
             String next = new java.net.URI(from.trim()).resolve(location.trim()).toString();
-            return httpsUrl(next) ? next : null;
+            return webUrl(next) ? next : null;
         } catch (Exception e) {
             return null;
         }

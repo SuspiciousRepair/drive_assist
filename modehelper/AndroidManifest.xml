@@ -151,7 +151,7 @@
             </intent-filter>
         </receiver>
         <!-- Lock sound (Config > Doors). Exported for Drive Assist. The id is
-             checked, and an import is https only, one at a time, capped at
+             checked, and an import is http or https only, one at a time, capped at
              1 MB and 20 s, and must be a WAV, so the worst any other sender
              can do is change the lock sound or give the car its own sound
              back. -->
