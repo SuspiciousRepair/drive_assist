@@ -126,7 +126,7 @@ fix; a network fix never replaces one.
 | Key | What | Update |
 |---|---|---|
 | `trip.live` | the open trip (`LiveTrip`): start, driving time, distance, spent / regen / net kWh, SoC start → now, energy source. `LiveTrip.NONE` when no trip is open | on each tick while a trip is open, only when a shown value changes (0.1 km, 0.01 kWh, whole minutes) |
-| `parking.temp_trail` | outside temperature during the stay in Park (`TempTrail`): 10-min buckets, empty while the head unit sleeps | on each tick while parked, when the trail changes |
+| `parking.temp_trail` | outside temperature during the stay in Park (`TempTrail`): 10-min buckets, empty while the head unit sleeps, plus the true lowest and highest reading of the stay (`min()` / `max()`) | on each tick while parked, when the trail changes |
 
 `trip.live` uses the same `DrivingConsumption` rules as the stats pages, so
 the home card and the finished trip agree. After an app restart mid-trip it
