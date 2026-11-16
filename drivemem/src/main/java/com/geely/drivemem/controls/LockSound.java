@@ -106,14 +106,24 @@ public final class LockSound {
         });
     }
 
+    /** A link modehelper will download: https only (it refuses plain http
+     * and anything else, see its LockSoundPolicy.httpsUrl). */
+    public static boolean linkAllowed(String url) {
+        if (url == null) return false;
+        String u = url.trim();
+        return u.length() > "https://".length() && u.regionMatches(true, 0, "https://", 0, "https://".length());
+    }
+
     /**
-     * Imports the custom sound: from {@code url}, or LockChime.wav on a USB
+     * Imports the custom sound: from {@code url} (https only), or LockChime.wav on a USB
      * stick when {@code url} is null. It becomes the lock sound unless
      * {@code apply} is false (fart mode is on). {@code cb} runs on the main
      * thread with modehelper's code ("ok", "not_found", "too_big",
-     * "not_wav", "empty", "download", "error") or {@link #NO_ANSWER}.
+     * "not_wav", "empty", "download", "busy", "error") or {@link #NO_ANSWER}.
      */
     public static void importSound(Context ctx, String url, boolean apply, Result cb) {
+        // modehelper refuses these too; say so at once, with its own code.
+        if (url != null && !linkAllowed(url)) { cb.done("download"); return; }
         Intent i = new Intent(HELPER_IMPORT).setPackage(Updater.HELPER_PKG).putExtra("apply", apply);
         if (url != null) i.putExtra("url", url);
         ordered(ctx, i, code -> {

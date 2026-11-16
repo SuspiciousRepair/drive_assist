@@ -59,5 +59,39 @@ public final class LockSoundPolicyTest {
         check(eq("not_wav", LockSoundPolicy.checkWav("ID3\u0004xxxxxxxxx".getBytes(), 5000)), "an mp3 must fail");
         check(eq("not_wav", LockSoundPolicy.checkWav(new byte[] {'R', 'I', 'F', 'F'}, 5000)), "a short header must fail");
         check(eq("not_wav", LockSoundPolicy.checkWav(null, 5000)), "no header must fail");
+    
+        // Links: https only. modehelper downloads as uid system for any sender.
+        check(LockSoundPolicy.httpsUrl("https://example.com/LockChime.wav"), "https must pass");
+        check(LockSoundPolicy.httpsUrl("  HTTPS://example.com/a.wav "), "scheme case and spaces around must not matter");
+        check(!LockSoundPolicy.httpsUrl("http://example.com/LockChime.wav"), "plain http must be refused");
+        check(!LockSoundPolicy.httpsUrl("file:///data/system/users/0/settings_system.xml"), "file: must be refused");
+        check(!LockSoundPolicy.httpsUrl("content://settings/system"), "content: must be refused");
+        check(!LockSoundPolicy.httpsUrl("example.com/LockChime.wav"), "no scheme must be refused");
+        check(!LockSoundPolicy.httpsUrl("https:///LockChime.wav"), "no host must be refused");
+        check(!LockSoundPolicy.httpsUrl("https://exa mple.com/a.wav"), "a broken link must be refused");
+        check(!LockSoundPolicy.httpsUrl(null) && !LockSoundPolicy.httpsUrl(""), "nothing must be refused");
+
+        // Redirects: must stay https, and the chain is short.
+        String from = "https://example.com/sounds/a.wav";
+        check(eq("https://cdn.example.com/a.wav",
+            LockSoundPolicy.redirectTarget(from, "https://cdn.example.com/a.wav", 0)), "https to https must be followed");
+        check(eq("https://example.com/b.wav",
+            LockSoundPolicy.redirectTarget(from, "/b.wav", 0)), "a relative redirect stays on the https site");
+        check(eq("https://example.com/sounds/c.wav",
+            LockSoundPolicy.redirectTarget(from, "c.wav", 1)), "a relative path resolves against the link");
+        check(LockSoundPolicy.redirectTarget(from, "http://example.com/a.wav", 0) == null,
+            "a redirect down to http must be refused");
+        check(LockSoundPolicy.redirectTarget(from, "//example.com/a.wav", 0) != null,
+            "a scheme-relative redirect keeps https");
+        check(LockSoundPolicy.redirectTarget(from, "file:///sdcard/a.wav", 0) == null, "a redirect to a file must be refused");
+        check(LockSoundPolicy.redirectTarget(from, null, 0) == null, "a redirect with no Location must be refused");
+        check(LockSoundPolicy.redirectTarget(from, "https://cdn.example.com/a.wav", LockSoundPolicy.MAX_REDIRECTS) == null,
+            "a long redirect chain must end");
+        check(LockSoundPolicy.redirectTarget("http://example.com/a.wav", "https://example.com/a.wav", 0) == null,
+            "a redirect from a link we would not open must be refused");
+        check(LockSoundPolicy.isRedirect(301) && LockSoundPolicy.isRedirect(302) && LockSoundPolicy.isRedirect(307)
+            && LockSoundPolicy.isRedirect(308) && !LockSoundPolicy.isRedirect(200) && !LockSoundPolicy.isRedirect(304),
+            "only real redirects are redirects");
+        check(LockSoundPolicy.FETCH_DEADLINE_MS <= 20_000, "the whole import must end well inside the broadcast timeout");
     }
 }

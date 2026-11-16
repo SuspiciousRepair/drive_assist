@@ -151,9 +151,10 @@
             </intent-filter>
         </receiver>
         <!-- Lock sound (Config > Doors). Exported for Drive Assist. The id is
-             checked, and an import is capped at 1 MB and must be a WAV, so the
-             worst any other sender can do is change the lock sound or give
-             the car its own sound back. -->
+             checked, and an import is https only, one at a time, capped at
+             1 MB and 20 s, and must be a WAV, so the worst any other sender
+             can do is change the lock sound or give the car its own sound
+             back. -->
         <receiver android:name=".LockSoundReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="com.geely.modehelper.SET_LOCK_SOUND" />

@@ -36,6 +36,16 @@ final class LockSoundPolicy {
     static final String EMPTY = "empty";
     static final String TOO_BIG = "too_big";
     static final String NOT_WAV = "not_wav";
+    /** Another import is still running. */
+    static final String BUSY = "busy";
+
+    /** The whole import, first byte to last, must end inside this. A timeout
+     * per read does not bound it: a server that sends one byte now and then
+     * would hold the broadcast until the system kills our process for it
+     * (ANR), and that process also hosts the dashcam recorder. */
+    static final long FETCH_DEADLINE_MS = 20_000;
+    /** How many redirects one download may follow. */
+    static final int MAX_REDIRECTS = 3;
 
     // Matched by package, not by our current getFilesDir(): the same file is
     // reachable as /data/data/... and /data/user/0/..., and a path written
@@ -45,6 +55,46 @@ final class LockSoundPolicy {
     static String fileName(String id) { return "lock_" + id + ".wav"; }
 
     static boolean isOurs(String path) { return path != null && path.contains(OURS); }
+
+    /**
+     * May we download this link? https only, with a host. This runs as uid
+     * system on behalf of any sender, so no plain http (anyone on the
+     * network could swap the file) and no other scheme (file:, content:).
+     */
+    static boolean httpsUrl(String url) {
+        if (url == null) return false;
+        try {
+            java.net.URI u = new java.net.URI(url.trim());
+            return "https".equalsIgnoreCase(u.getScheme()) && u.getHost() != null && !u.getHost().isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    static boolean isRedirect(int httpStatus) {
+        return httpStatus == 301 || httpStatus == 302 || httpStatus == 303
+            || httpStatus == 307 || httpStatus == 308;
+    }
+
+    /**
+     * Where a redirect may take the download, or null to refuse it. The
+     * target must be https too (a relative Location stays on the https
+     * site), and a chain ends after {@link #MAX_REDIRECTS}.
+     *
+     * @param from      the https link that answered with a redirect
+     * @param location  its Location header (may be null)
+     * @param followed  how many redirects this download followed already
+     */
+    static String redirectTarget(String from, String location, int followed) {
+        if (followed >= MAX_REDIRECTS || location == null || location.trim().isEmpty()) return null;
+        if (!httpsUrl(from)) return null;
+        try {
+            String next = new java.net.URI(from.trim()).resolve(location.trim()).toString();
+            return httpsUrl(next) ? next : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     /**
      * Can this file be a lock sound? Checks the size and the RIFF/WAVE

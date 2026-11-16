@@ -3,6 +3,8 @@ package com.geely.drivemem.controls;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /** The Doors screen shows what the car's setting really points at. */
 public class LockSoundTest {
@@ -34,5 +36,17 @@ public class LockSoundTest {
         // A pick in the car's own Settings must not be overruled by a stale pref.
         assertEquals(LockSound.CAR, LockSound.base(LockSound.CAR, LockSound.CUSTOM));
         assertEquals(LockSound.CUSTOM, LockSound.base(LockSound.CUSTOM, LockSound.CAR));
+    }
+
+    // modehelper downloads https links only; the screen refuses the rest
+    // itself and shows "Could not download that link."
+    @Test public void onlyHttpsLinksAreSent() {
+        assertTrue(LockSound.linkAllowed("https://example.com/LockChime.wav"));
+        assertTrue(LockSound.linkAllowed("  HTTPS://example.com/a.wav "));
+        assertFalse(LockSound.linkAllowed("http://example.com/LockChime.wav"));
+        assertFalse(LockSound.linkAllowed("example.com/LockChime.wav"));
+        assertFalse(LockSound.linkAllowed("file:///sdcard/LockChime.wav"));
+        assertFalse(LockSound.linkAllowed("https://"));
+        assertFalse(LockSound.linkAllowed(null));
     }
 }
