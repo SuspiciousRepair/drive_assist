@@ -212,6 +212,7 @@ public class BootReceiver extends BroadcastReceiver {
         com.geely.drivemem.controls.HelperSync.push(ctx);
         try { AppBackup.autoIfDue(ctx); } catch (Throwable t) { Log.w(CarAccess.TAG, "backup: " + t); }
         try { com.geely.drivemem.web.PhoneServer.ensure(ctx); } catch (Throwable t) { Log.w(CarAccess.TAG, "phone: " + t); }
+        try { com.geely.drivemem.sensors.GpsOwner.ensure(ctx); } catch (Throwable t) { Log.w(CarAccess.TAG, "gps: " + t); }
 
         ensureService(ctx, Prefs.getOutTempOn(ctx),
             OutTempService.class, Beat.OUTTEMP, STALE_OUTTEMP_MS);

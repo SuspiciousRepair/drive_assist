@@ -5,7 +5,7 @@ import com.geely.drivemem.car.CarActor;
 import android.content.Context;
 
 /** The car's GPS position as a hub key (CLAUDE.md rule 7). GpsReader is the
- * source; every consumer (MQTT, ABRP, the 30 s sampler, trips, charges)
+ * source (GpsOwner keeps the GPS producing fixes); every consumer (MQTT, ABRP, the 30 s sampler, trips, charges)
  * reads {@link #FIX} from the hub cache instead.
  *
  * Polled every 2 s. The cache always holds the newest fix, but EntityBus
@@ -19,9 +19,12 @@ public final class LocationHub {
 
     private LocationHub() {}
 
-    /** One GPS fix. Raw values are kept; only equality uses the grid. */
+    /** One GPS fix. Raw values are kept; only equality uses the grid.
+     * {@link #altM} is NaN when the fix has no altitude. */
     public static final class Fix {
         public final double lat, lon, altM, bearing, speedKmh, accuracyM;
+
+        public boolean hasAlt() { return Double.isFinite(altM); }
 
         public Fix(double lat, double lon, double altM, double bearing, double speedKmh, double accuracyM) {
             this.lat = lat; this.lon = lon; this.altM = altM;
