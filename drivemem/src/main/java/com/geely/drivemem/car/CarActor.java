@@ -359,6 +359,19 @@ public final class CarActor {
         try {
             ensureConnected();
             long now = android.os.SystemClock.elapsedRealtime();
+            // Due polls first, the telemetry snapshot after. The cache has no
+            // age: after a long suspend it still holds the values from before
+            // the sleep, and telemetry.tick listeners (ChargeSession, the 30 s
+            // sampler) read it. Polling first gives them this tick's values.
+            for (PollEntry p : polls) {
+                if (p.lastRunMs < 0 || now - p.lastRunMs >= p.intervalMs) {
+                    p.lastRunMs = now;
+                    Reading r;
+                    try { r = p.poller.poll(car); }
+                    catch (Throwable t) { r = Reading.error(String.valueOf(t)); }
+                    ingest(p.key, r);
+                }
+            }
             if (lastTelemetryMs < 0 || now - lastTelemetryMs >= TICK_INTERVAL_MS) {
                 lastTelemetryMs = now;
                 java.util.LinkedHashMap<String, Object> data =
@@ -372,15 +385,6 @@ public final class CarActor {
                     Cached c = state.computeIfAbsent("telemetry.tick", k -> new Cached(0));
                     c.reading = Reading.ok(data);
                     EntityBus.publish("telemetry.tick", c.reading);
-                }
-            }
-            for (PollEntry p : polls) {
-                if (p.lastRunMs < 0 || now - p.lastRunMs >= p.intervalMs) {
-                    p.lastRunMs = now;
-                    Reading r;
-                    try { r = p.poller.poll(car); }
-                    catch (Throwable t) { r = Reading.error(String.valueOf(t)); }
-                    ingest(p.key, r);
                 }
             }
         } catch (Throwable t) {
