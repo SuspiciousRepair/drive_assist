@@ -122,6 +122,32 @@ public final class AppBackup {
         NoPassword() { super("no backup password set"); }
     }
 
+    /** The car left Park before the restore reached the step that changes
+     * things. Nothing was changed. */
+    public static final class NotParked extends IllegalStateException {
+        NotParked() { super("the car is not in Park"); }
+    }
+
+    /** Where a restore was asked from. */
+    public enum Origin {
+        /** The car's own screen, or adb (BackupReceiver): a person with the
+         * car. Every setting in the backup comes back. */
+        CAR,
+        /** A file sent by a phone (web/PhoneServer). The phone token goes
+         * over plain HTTP, so this file may be made by someone else: the
+         * settings in Prefs.isPhoneRestorable only, and the car keeps its
+         * own backup password. */
+        PHONE
+    }
+
+    /** True when a restore also stores the key that opened the backup, so
+     * the daily backup goes on with that password. Never from a phone: with
+     * a key of their choice, and the backup download on the phone pages,
+     * someone else could read every later backup of this car. */
+    static boolean storesKey(Origin origin) {
+        return origin == Origin.CAR;
+    }
+
     /** This backup was locked with another password than the one set here. */
     public static final class NeedPassword extends IllegalStateException {
         NeedPassword() { super("backup password needed"); }
@@ -452,20 +478,30 @@ public final class AppBackup {
      *
      * The restarted app shows what happened through {@link #takeNote}. */
     public static void restore(Context ctx, File file, char[] password) throws Exception {
+        restore(ctx, file, password, Origin.CAR);
+    }
+
+    /** Same, for a file from the given origin (see {@link Origin}).
+     *
+     * Also throws NotParked: the car must be in Park at the moment the
+     * restore starts to change things. The caller's own check is too early
+     * for that, because unlocking a big backup, or a slow upload before it,
+     * takes long enough for the driver to leave Park. */
+    public static void restore(Context ctx, File file, char[] password, Origin origin) throws Exception {
         final Context app = ctx.getApplicationContext();
         final RestoreResult res = new RestoreResult();
         final File dir = new File(app.getCacheDir(), "restore");
         deleteTree(dir);
         if (!dir.mkdirs()) throw new java.io.IOException("cannot create " + dir);
         try {
-            restoreUnpacked(app, file, password, dir, res);
+            restoreUnpacked(app, file, password, dir, res, origin);
         } finally {
             deleteTree(dir);   // only reached on failure: success restarts the app
         }
     }
 
     private static void restoreUnpacked(Context app, File file, char[] password, File dir,
-                                        RestoreResult res) throws Exception {
+                                        RestoreResult res, Origin origin) throws Exception {
         // Unlock into the private cache.
         final byte[] key;
         final byte[] salt;
@@ -486,7 +522,7 @@ public final class AppBackup {
         File settingsFile = new File(dir, SETTINGS);
         if (!settingsFile.isFile()) throw new java.io.IOException("not a backup: " + file);
         String json = readText(settingsFile);
-        final Map<String, Object> settings = SettingsFile.parseSettings(json);
+        final Map<String, Object> settings = SettingsFile.parseSettings(json, origin == Origin.PHONE);
         res.settings = settings.size();
 
         int dbVersion = SettingsFile.dbVersion(json);
@@ -510,6 +546,9 @@ public final class AppBackup {
         final List<File[]> staged = stageFiles(dir, app.getFilesDir(), CERTS);
         try {
             onDbThread(app, () -> {
+                // Last moment before anything changes. The restore ends in an
+                // app restart, and that must not happen while driving.
+                if (!CarState.isParked()) throw new NotParked();
                 // Throws: the transaction rolled back, nothing is changed.
                 final DbMerge.Result merged = haveDb ? mergeInto(app, tmp, res) : null;
 
@@ -525,7 +564,8 @@ public final class AppBackup {
                     e.putBoolean(PREF_OFFER_DONE, true);
                     // The password that opened it locks the next backups too,
                     // so the daily backup goes on after a reinstall.
-                    storeKey(e, key, salt);
+                    // Not for a file from a phone: see storesKey.
+                    if (storesKey(origin)) storeKey(e, key, salt);
                     e.putString(PREF_NOTE, res.settings + "|" + res.tripsAdded + "|" + res.tripsAlreadyThere);
                     final boolean[] first = {true};
                     finishRestore(

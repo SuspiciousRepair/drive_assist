@@ -589,7 +589,7 @@
     <string name="phone_download">Baixar</string>
     <string name="phone_restore_open">Restaurar de um arquivo</string>
     <string name="phone_restore_title">Restaurar um backup</string>
-    <string name="phone_restore_hint">Escolha um arquivo .dabackup. Suas configurações passam a ser as do backup. As viagens do backup são somadas às viagens do carro. Depois o app no carro reinicia.</string>
+    <string name="phone_restore_hint">Escolha um arquivo .dabackup. Suas configurações passam a ser as do backup. As viagens do backup são somadas às viagens do carro. Depois o app no carro reinicia. ADB, o acesso pelo celular, os comandos do Home Assistant e a senha do backup não mudam por aqui: ficam como estão no carro.</string>
     <string name="phone_restore_pw">Senha do backup</string>
     <string name="phone_restore_pw_hint">Vazio se for a senha definida neste carro</string>
     <string name="phone_restore_file">Arquivo de backup</string>

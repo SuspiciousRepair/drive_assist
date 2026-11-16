@@ -604,7 +604,7 @@
     <string name="phone_download">Download</string>
     <string name="phone_restore_open">Restore from a file</string>
     <string name="phone_restore_title">Restore a backup</string>
-    <string name="phone_restore_hint">Pick a .dabackup file. Your settings change to the ones in the backup. The trips in the backup are added to the trips on the car. Then the app on the car restarts.</string>
+    <string name="phone_restore_hint">Pick a .dabackup file. Your settings change to the ones in the backup. The trips in the backup are added to the trips on the car. Then the app on the car restarts. ADB, phone access, commands from Home Assistant and the backup password are not changed from here: they stay as they are on the car.</string>
     <string name="phone_restore_pw">Backup password</string>
     <string name="phone_restore_pw_hint">Empty if it is the password set on this car</string>
     <string name="phone_restore_file">Backup file</string>
