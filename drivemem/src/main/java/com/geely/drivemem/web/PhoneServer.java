@@ -322,6 +322,7 @@ public final class PhoneServer {
                 case "mqtt_pass": Prefs.setMqttPass(app, v); mqtt = true; break;
                 case "abrp_user_token": Prefs.setAbrpUserToken(app, v); break;
                 case "spotify_client_id": SpotifyClient.setClientId(app, v); break;
+                case "update_url": Prefs.setUpdateUrl(app, v); break;
                 default: break;
             }
             Log.i(TAG, "phone: saved " + f.key);

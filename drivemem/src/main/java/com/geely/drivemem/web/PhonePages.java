@@ -21,9 +21,9 @@ final class PhonePages {
     enum Msg { CLOSED, SCAN_AGAIN, PARK, NO_BACKUP, TOO_BIG, NO_SPACE, BUSY, NO_FILE }
 
     /** The long settings the phone can type. secret = never shown back.
-     * Only keys that Prefs.isPhoneRestorable allows: the update address is
-     * not here, because it says which APK the car installs. PhonePagesTest
-     * checks the list. */
+     * Only keys that Prefs.isPhoneRestorable allows (PhonePagesTest checks
+     * the list). The update address is here by the owner's choice: it is
+     * how a car away from home is pointed at its update server. */
     static final class Field {
         final String key; final int label; final boolean secret;
         Field(String key, int label, boolean secret) { this.key = key; this.label = label; this.secret = secret; }
@@ -35,6 +35,7 @@ final class PhonePages {
         new Field("mqtt_pass", R.string.phone_f_mqtt_pass, true),
         new Field("abrp_user_token", R.string.phone_f_abrp_token, true),
         new Field("spotify_client_id", R.string.phone_f_spotify_id, false),
+        new Field("update_url", R.string.phone_f_update_url, false),
     };
 
     private static final String CSS =

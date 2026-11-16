@@ -17,7 +17,6 @@ public class PhoneRestoreKeysTest {
     private static final String[] BLOCKED = {
         Prefs.KEY_ADB_ALWAYS_ON, Prefs.KEY_TRUSTED_SSID, Prefs.KEY_HOME_GW,
         "adb_a_switch_added_next_year",
-        "update_url",
         Prefs.KEY_PHONE_MODE, Prefs.KEY_PHONE_TOKEN,
         "commands_enabled",
         // never in any restore (Prefs.isBackedUp): the key that locks the backups
@@ -28,6 +27,8 @@ public class PhoneRestoreKeysTest {
     private static final String[] ALLOWED = {
         "mqtt_uri", "mqtt_uri_alt", "mqtt_user", "mqtt_pass", "tele_enabled", "tele_interval_s",
         "abrp_user_token", "abrp_enabled", "spotify_client_id",
+        // the owner's choice: the phone settings page edits it too
+        "update_url",
         "theme", "appearance", "drive", "regen", Prefs.KEY_DASHCAM_ON, Prefs.KEY_WIFI_KEEP_ON,
         "a_setting_added_next_year",
     };
@@ -71,7 +72,8 @@ public class PhoneRestoreKeysTest {
 
     @Test public void aCraftedBackupFromAPhoneSetsOnlyOrdinarySettings() throws Exception {
         Map<String, Object> back = SettingsFile.parseSettings(CRAFTED, true);
-        assertEquals(3, back.size());
+        assertEquals(4, back.size());
+        assertEquals("http://evil.example/drive_assist.apk", back.get("update_url"));
         assertEquals("tcp://broker:1883", back.get("mqtt_uri"));
         assertEquals("vapor", back.get("theme"));
         assertEquals(30, back.get("tele_interval_s"));
@@ -94,15 +96,16 @@ public class PhoneRestoreKeysTest {
     }
 
     /** Format 1 has no "types": its fixed list knows adb_trusted_ssid,
-     * adb_home_gw, update_url and commands_enabled, so they need the same filter. */
+     * adb_home_gw and commands_enabled, so they need the same filter. */
     @Test public void anOldFormatFileFromAPhoneIsFilteredToo() throws Exception {
         String json = "{\"format\":1,\"db_version\":25,\"settings\":{"
             + "\"adb_trusted_ssid\":\"evil\",\"adb_home_gw\":\"evil-gw\","
             + "\"update_url\":\"http://evil.example/a.apk\",\"commands_enabled\":true,"
             + "\"mqtt_user\":\"bob\"}}";
         Map<String, Object> back = SettingsFile.parseSettings(json, true);
-        assertEquals(1, back.size());
+        assertEquals(2, back.size());
         assertEquals("bob", back.get("mqtt_user"));
+        assertEquals("http://evil.example/a.apk", back.get("update_url"));
         assertEquals(5, SettingsFile.parseSettings(json, false).size());
     }
 

@@ -593,7 +593,7 @@
     <string name="phone_download">ดาวน์โหลด</string>
     <string name="phone_restore_open">กู้คืนจากไฟล์</string>
     <string name="phone_restore_title">กู้คืนไฟล์สำรอง</string>
-    <string name="phone_restore_hint">เลือกไฟล์ .dabackup การตั้งค่าของคุณจะเปลี่ยนเป็นค่าในไฟล์สำรอง การเดินทางในไฟล์สำรองจะเพิ่มเข้าไปในข้อมูลของรถ จากนั้นแอปในรถจะเริ่มใหม่ ADB ที่อยู่สำหรับอัปเดต การเข้าถึงจากโทรศัพท์ คำสั่งจาก Home Assistant และรหัสผ่านไฟล์สำรอง จะไม่เปลี่ยนจากหน้านี้ ค่าเหล่านี้คงเดิมตามที่ตั้งไว้ในรถ</string>
+    <string name="phone_restore_hint">เลือกไฟล์ .dabackup การตั้งค่าของคุณจะเปลี่ยนเป็นค่าในไฟล์สำรอง การเดินทางในไฟล์สำรองจะเพิ่มเข้าไปในข้อมูลของรถ จากนั้นแอปในรถจะเริ่มใหม่ ADB การเข้าถึงจากโทรศัพท์ คำสั่งจาก Home Assistant และรหัสผ่านไฟล์สำรอง จะไม่เปลี่ยนจากหน้านี้ ค่าเหล่านี้คงเดิมตามที่ตั้งไว้ในรถ</string>
     <string name="phone_restore_pw">รหัสผ่านไฟล์สำรอง</string>
     <string name="phone_restore_pw_hint">เว้นว่างไว้ถ้าเป็นรหัสผ่านที่ตั้งไว้ในรถคันนี้</string>
     <string name="phone_restore_file">ไฟล์สำรอง</string>
@@ -614,6 +614,7 @@
     <string name="phone_f_mqtt_pass">รหัสผ่าน MQTT</string>
     <string name="phone_f_abrp_token">โทเคนผู้ใช้ ABRP</string>
     <string name="phone_f_spotify_id">Spotify client ID</string>
+    <string name="phone_f_update_url">ที่อยู่สำหรับอัปเดต</string>
     <string name="phone_secret_set">(ตั้งค่าแล้ว ซ่อนไว้)</string>
     <string name="phone_secret_unset">(ยังไม่ได้ตั้งค่า)</string>
     <string name="phone_save">บันทึก</string>

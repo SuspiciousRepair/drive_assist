@@ -577,7 +577,7 @@
     <string name="phone_download">Descargar</string>
     <string name="phone_restore_open">Restaurar desde un archivo</string>
     <string name="phone_restore_title">Restaurar una copia</string>
-    <string name="phone_restore_hint">Elige un archivo .dabackup. Tus ajustes pasan a ser los de la copia. Los viajes de la copia se suman a los del coche. Después la app del coche se reinicia. ADB, la dirección de actualización, el acceso desde el móvil, los comandos de Home Assistant y la contraseña de la copia no cambian desde aquí: se quedan como están en el coche.</string>
+    <string name="phone_restore_hint">Elige un archivo .dabackup. Tus ajustes pasan a ser los de la copia. Los viajes de la copia se suman a los del coche. Después la app del coche se reinicia. ADB, el acceso desde el móvil, los comandos de Home Assistant y la contraseña de la copia no cambian desde aquí: se quedan como están en el coche.</string>
     <string name="phone_restore_pw">Contraseña de la copia</string>
     <string name="phone_restore_pw_hint">Vacío si es la contraseña definida en este coche</string>
     <string name="phone_restore_file">Archivo de copia</string>
@@ -598,6 +598,7 @@
     <string name="phone_f_mqtt_pass">Contraseña MQTT</string>
     <string name="phone_f_abrp_token">Token de usuario de ABRP</string>
     <string name="phone_f_spotify_id">Client ID de Spotify</string>
+    <string name="phone_f_update_url">Dirección de actualización</string>
     <string name="phone_secret_set">(definida, oculta)</string>
     <string name="phone_secret_unset">(no definida)</string>
     <string name="phone_save">Guardar</string>

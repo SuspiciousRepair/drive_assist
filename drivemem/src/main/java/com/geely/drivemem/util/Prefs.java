@@ -276,16 +276,17 @@ public final class Prefs {
      * phone pages already are:
      *  - adb_*: ADB on this head unit is a root shell on the network
      *    (always-on switch, trusted Wi-Fi name, home gateway),
-     *  - update_url: where the car fetches the APK it installs,
      *  - phone_access_*: how long and where the phone door itself is open,
      *  - commands_enabled: lets the MQTT broker send commands to the car.
      *
-     * A new setting that gives control of the car, or of what runs on it,
-     * goes here too. The Restore button on the car's own screen is not
+     * update_url (where the car fetches its APK) is NOT here, by the owner's
+     * choice: the phone settings page edits it, so a block here closes
+     * nothing. The Installer still checks the APK's package and signature.
+     *
+     * A new setting that gives control of the car goes here too. The Restore button on the car's own screen is not
      * limited: that needs a person in the car. PhoneRestoreKeysTest checks
      * the list. */
     private static final java.util.Set<String> NOT_FROM_PHONE = new java.util.HashSet<>(java.util.Arrays.asList(
-        "update_url",
         "commands_enabled"));
     private static final String[] NOT_FROM_PHONE_PREFIXES = {
         "adb_",
