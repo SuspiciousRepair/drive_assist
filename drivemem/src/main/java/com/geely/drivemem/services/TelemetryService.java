@@ -4,7 +4,7 @@ import com.geely.drivemem.R;
 
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.net.MqttReporter;
-import com.geely.drivemem.sensors.GpsReader;
+import com.geely.drivemem.sensors.GpsOwner;
 import com.geely.drivemem.sensors.LocationHub;
 import com.geely.drivemem.util.Beat;
 import com.geely.drivemem.util.Prefs;
@@ -17,8 +17,8 @@ import android.os.IBinder;
 import android.util.Log;
 
 /** Publishes telemetry to Home Assistant over MQTT-WS on a fixed schedule.
- * Pulls cached data from CarActor (never triggers fresh reads). GPS updates are
- * received on this service's own thread. Configuration stored in SharedPreferences. */
+ * Pulls cached data from CarActor (never triggers fresh reads). The GPS
+ * listener is GpsOwner's, not this service's. Configuration stored in SharedPreferences. */
 public class TelemetryService extends Service {
     static final String TAG = "DriveMem";
     private HandlerThread thread;
@@ -97,10 +97,12 @@ public class TelemetryService extends Service {
             return START_STICKY;
         }
         running = true;
-        thread = new HandlerThread("tele"); thread.start();   // GPS listener delivery only
+        thread = new HandlerThread("tele"); thread.start();
         h = new Handler(thread.getLooper());
         mqtt = buildReporter(this);
-        registerGps();
+        // The location listener lives in GpsOwner (it also serves drivers
+        // with MQTT off); telemetry is one of its consumers.
+        GpsOwner.ensure(getApplicationContext());
         h.post(this::publishTick);
         Log.i(TAG, "TelemetryService started, publish " + publishIntervalMs + "ms");
         return START_STICKY;
@@ -130,31 +132,6 @@ public class TelemetryService extends Service {
         // healthy, not stuck.
         Beat.mark(this, Beat.TELE);
         if (running) h.postDelayed(this::publishTick, publishIntervalMs);
-    }
-
-    private android.location.LocationListener gpsListener;
-
-    // Keeps the GPS producing FRESH fixes. Without this getLastKnownLocation
-    // keeps returning the same stale cache and the position freezes while moving.
-    private void registerGps() {
-        try {
-            android.location.LocationManager lm =
-                (android.location.LocationManager) getSystemService(LOCATION_SERVICE);
-            gpsListener = new android.location.LocationListener() {
-                @Override public void onLocationChanged(android.location.Location loc) { GpsReader.live = loc; }
-                @Override public void onStatusChanged(String prov, int st, android.os.Bundle ex) {}
-                @Override public void onProviderEnabled(String prov) {}
-                @Override public void onProviderDisabled(String prov) {}
-            };
-            lm.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER,
-                2000L, 0f, gpsListener, thread.getLooper());
-            try {
-                lm.requestLocationUpdates(android.location.LocationManager.NETWORK_PROVIDER,
-                    5000L, 0f, gpsListener, thread.getLooper());
-            } catch (Throwable ignored) {}
-            Log.i(TAG, "GPS: updates registered");
-        } catch (SecurityException se) { Log.w(TAG, "GPS permission denied: " + se);
-        } catch (Throwable t) { Log.w(TAG, "GPS register error: " + t); }
     }
 
     // signature of the config that matters for the connection (excludes interval/toggles)
@@ -205,11 +182,8 @@ public class TelemetryService extends Service {
         if (instance == this) instance = null;
         running = false;
         Beat.clear(this, Beat.TELE);       // a deliberate stop must not cause a restart
-        if (gpsListener != null) {
-            try { ((android.location.LocationManager) getSystemService(LOCATION_SERVICE)).removeUpdates(gpsListener); }
-            catch (Throwable ignored) {}
-            gpsListener = null;
-        }
+        // Telemetry may have been the only consumer of GPS fixes.
+        GpsOwner.ensure(getApplicationContext());
         // mqtt.close() is already non-blocking (it posts CLOSE to the actor's
         // mailbox and lets that thread finish on its own). CarActor's own
         // connection is process-lifetime now, same as ComfortHub's — this

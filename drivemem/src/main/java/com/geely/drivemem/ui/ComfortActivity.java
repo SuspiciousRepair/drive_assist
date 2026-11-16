@@ -11,11 +11,9 @@ import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.car.EntityBus;
 import com.geely.drivemem.car.Telemetry;
-import com.geely.drivemem.controls.AvasState;
-import com.geely.drivemem.controls.HelperSync;
 import com.geely.drivemem.controls.KonamiView;
 import com.geely.drivemem.controls.Purge;
-import com.geely.drivemem.controls.RegenTap;
+import com.geely.drivemem.controls.QuickButtons;
 import com.geely.drivemem.controls.TurboMode;
 import com.geely.drivemem.hvac.ComfortHub;
 import com.geely.drivemem.hvac.ComfortRuler;
@@ -124,8 +122,8 @@ public class ComfortActivity extends Activity {
     private boolean turboEnabledAtBuild;   // so onResume can notice a Config change and recreate()
     private boolean skylineEnabledAtBuild; // same idea, for "Show skyline art"
     private long skylineSeedAtBuild;       // and for the fixed/chosen seed
-    private android.widget.ImageView regenGlyphView;   // Regen button's icon: segments filled with the car's level
-    private android.widget.ImageView avasIconView;   // AVAS button: sound icon when on, muted icon when off
+    // Regen and AVAS buttons: taps, icons and hub listeners, shared with the floating panel.
+    private final QuickButtons quickButtons = new QuickButtons(this, ui);
     private String turboSlotsAtBuild;     // which buttons the card was built with, see ComfortCardVisibility.turboCardSlots
 
     // Music card: spot #4, art + title/artist + skip/play-pause. Visible only
@@ -803,8 +801,7 @@ public class ComfortActivity extends Activity {
         // share this one rule.
         t.setVisibility(ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, CarState.isParked()) ? View.VISIBLE : View.GONE);
         turboCardView = t;
-        refreshRegenGlyph();
-        refreshAvasGlyph();
+        quickButtons.refresh();
         return t;
     }
 
@@ -876,9 +873,8 @@ public class ComfortActivity extends Activity {
     private LinearLayout regenHalf() {
         android.widget.ImageView glyph = new android.widget.ImageView(this);
         glyph.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-        regenGlyphView = glyph;
-        showRegen(0);
-        LinearLayout half = slotHalf(getString(R.string.regen_boost_title), glyph, v -> onRegenTap());
+        quickButtons.bindRegen(glyph);
+        LinearLayout half = slotHalf(getString(R.string.regen_boost_title), glyph, v -> quickButtons.onRegenTap());
         View spacer = new View(this);
         spacer.setLayoutParams(barSlotLp());
         half.addView(spacer);
@@ -888,63 +884,12 @@ public class ComfortActivity extends Activity {
     private LinearLayout avasHalf() {
         android.widget.ImageView icon = new android.widget.ImageView(this);
         icon.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-        avasIconView = icon;
-        showAvas(AvasState.on(CarActor.get(this).get(AvasState.KEY)));
-        LinearLayout half = slotHalf(getString(R.string.avas_title), icon, v -> onAvasTap());
+        quickButtons.bindAvas(icon);
+        LinearLayout half = slotHalf(getString(R.string.avas_title), icon, v -> quickButtons.onAvasTap());
         View spacer = new View(this);
         spacer.setLayoutParams(barSlotLp());
         half.addView(spacer);
         return half;
-    }
-
-    // Drive Assist cannot read AVAS (a system permission), so modehelper
-    // decides the flip from the car and reports the result into the hub
-    // (AvasState). The icon flips at once when the state is known; the
-    // report, a moment later, has the last word.
-    private void onAvasTap() {
-        HelperSync.toggleAvas(this);
-        Boolean on = AvasState.on(CarActor.get(this).get(AvasState.KEY));
-        if (on != null) showAvas(!on);
-        // The hub publishes only changes: if the flip did not land, no event
-        // comes, so show what the hub has once modehelper had time to report.
-        ui.postDelayed(() -> showAvas(AvasState.on(CarActor.get(this).get(AvasState.KEY))), 3000);
-    }
-
-    private void refreshAvasGlyph() {
-        if (avasIconView == null) return;
-        showAvas(AvasState.on(CarActor.get(this).get(AvasState.KEY)));
-        HelperSync.queryAvas(this);
-    }
-
-    private final EntityBus.Listener avasListener = (key, reading) ->
-        ui.post(() -> showAvas(AvasState.on(reading)));
-
-    // Sound icon in the accent colour when AVAS is on, muted icon dimmed when
-    // off. Not known yet (no report from modehelper): the sound icon, dimmed.
-    private void showAvas(Boolean on) {
-        if (avasIconView == null) return;
-        avasIconView.setImageResource(Boolean.FALSE.equals(on) ? R.drawable.ic_volume_off : R.drawable.ic_volume_high);
-        avasIconView.setColorFilter(Boolean.TRUE.equals(on) ? Style.ACCENT : Style.TEXT_DIM,
-            android.graphics.PorterDuff.Mode.SRC_IN);
-    }
-
-    // Shared with the floating panel (RegenTap): Strong-regen toggle, or the
-    // Low -> Mid -> High cycle when Config's "steps through" switch is on.
-    // Read at tap time, so the switch works without rebuilding this screen.
-    private void onRegenTap() {
-        RegenTap.tap(this, target -> runOnUiThread(() -> showRegen(target)));
-    }
-
-    private void refreshRegenGlyph() {
-        RegenTap.read(this, v -> runOnUiThread(() -> showRegen(v)));
-    }
-
-    private void showRegen(int level) {
-        if (regenGlyphView == null) return;
-        boolean cycle = Prefs.getRegenCycle(this);
-        regenGlyphView.setImageResource(RegenTap.icon(level));
-        regenGlyphView.setColorFilter(RegenTap.lit(level, cycle) ? Style.ACCENT : Style.TEXT,
-            android.graphics.PorterDuff.Mode.SRC_IN);
     }
 
     // Music card: album art + title/artist, then skip/play-pause tiles. Starts
@@ -2327,7 +2272,7 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe("car.hvac_recirc", hvacRecircListener);
         EntityBus.subscribe("car.hvac_direction", hvacDirectionListener);
         EntityBus.subscribe("car.hvac_rear_defrost", hvacRearDefrostListener);
-        EntityBus.subscribe(AvasState.KEY, avasListener);
+        quickButtons.start();
 
         // Subscriptions above cover future changes only. EntityBus does not
         // replay past values, so ask the car directly for current state to
@@ -2356,7 +2301,7 @@ public class ComfortActivity extends Activity {
         EntityBus.unsubscribe("telemetry.ambient_color", ambientColorListener);
         EntityBus.unsubscribe("telemetry.ambient_brightness", ambientBrightnessListener);
         EntityBus.unsubscribe("telemetry.speed", speedListener);
-        EntityBus.unsubscribe(AvasState.KEY, avasListener);
+        quickButtons.stop();
         EntityBus.unsubscribe("car.window_pos", windowPosListener);
         EntityBus.unsubscribe("car.hvac_recirc", hvacRecircListener);
         EntityBus.unsubscribe("car.hvac_direction", hvacDirectionListener);
@@ -2423,11 +2368,9 @@ public class ComfortActivity extends Activity {
         turbo.setListener(turboListener);
         turboBarFraction = -1f; turboBarW = -1;   // force one redraw even if the fraction matches
         turboListener.onTurbo(turbo.active(), turbo.fraction());
-        // Strong-Regen toggle has no live listener like Turbo's countdown --
-        // just re-read on resume, same "screen was off, world may have
-        // moved on" reasoning as the gate/music checks around this.
-        refreshRegenGlyph();
-        refreshAvasGlyph();
+        // The Regen and AVAS icons follow the hub while this screen is up
+        // (QuickButtons); the hub does not replay, so show its values now.
+        quickButtons.refresh();
         MusicState.setListener(musicListener);
         // Same "changed while paused" re-check as the gate, and the same
         // reason: a track can start or end while the screen is off.

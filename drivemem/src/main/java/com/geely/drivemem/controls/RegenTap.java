@@ -14,32 +14,52 @@ import java.util.function.IntConsumer;
  * through Low, Medium and High" (issue #15).
  *
  * Off (default): Strong regen on/off, back to Config's own regen level.
- * On: Low -> Medium -> High -> Low. Either way the car is read first, so the
- * tap acts on what the car has now, not on a stale guess. */
+ * On: Low -> Medium -> High -> Low. Either way the level comes from the hub
+ * (car.regen_mode, a push watch), so the tap acts on what the car has now. */
 public final class RegenTap {
     private RegenTap() {}
 
-    /** Reads the car, writes the next level, and reports it once applied
-     * (on the car thread: callers post to their own UI thread). */
+    /** Hub key: the car's regen level, a push watch (CarActor). */
+    public static final String KEY = "car.regen_mode";
+
+    /** Takes the level from the hub, writes the next level, and reports it
+     * once applied (on the car thread: callers post to their own UI thread).
+     * No real level in the hub (not connected yet, or the read failed): no
+     * write, so a tap never acts on a guess. */
     public static void tap(Context ctx, IntConsumer onApplied) {
         final boolean cycle = Prefs.getRegenCycle(ctx);
         final int def = Prefs.getRegen(ctx, Modes.REGEN_MID);
         CarActor a = CarActor.get(ctx);
-        a.read("regen_mode", cur -> {
-            int target = target(cur instanceof Integer ? (Integer) cur : 0, cycle, def);
-            a.cast("regen_mode", target, r -> { if (r.applied) onApplied.accept(target); });
-        });
+        final int cur = level(a.get(KEY));
+        if (!known(cur)) return;
+        final int target = target(cur, cycle, def);
+        a.cast("regen_mode", target, r -> { if (r.applied) onApplied.accept(target); });
     }
 
-    /** Reads the car's level and reports it (0 when unknown). */
-    public static void read(Context ctx, IntConsumer onLevel) {
-        CarActor.get(ctx).read("regen_mode", cur -> onLevel.accept(cur instanceof Integer ? (Integer) cur : 0));
+    /** The car's level as the hub has it now (0 when unknown). */
+    public static int current(Context ctx) {
+        return level(CarActor.get(ctx).get(KEY));
     }
 
-    /** The level a tap writes. */
+    /** The level in a hub reading, 0 when it holds no real level. */
+    public static int level(CarActor.Reading r) {
+        if (r == null || r.status != CarActor.Reading.Status.OK || !(r.value instanceof Integer)) return 0;
+        int v = (Integer) r.value;
+        return known(v) ? v : 0;
+    }
+
+    /** True for Low, Medium or High: a level a tap can act on. */
+    public static boolean known(int level) {
+        return segments(level) != 0;
+    }
+
+    /** The level a tap writes. Toggle mode: High, or back from High to
+     * Config's level. Config's level can be High itself (Config > Drive):
+     * then back to Medium, or the button could never leave High. */
     public static int target(int cur, boolean cycle, int configDefault) {
         if (cycle) return Modes.nextRegen(cur);
-        return cur == Modes.REGEN_HIGH ? configDefault : Modes.REGEN_HIGH;
+        if (cur != Modes.REGEN_HIGH) return Modes.REGEN_HIGH;
+        return configDefault == Modes.REGEN_HIGH ? Modes.REGEN_MID : configDefault;
     }
 
     /** How many of the icon's three ring segments are filled: 1 Low,

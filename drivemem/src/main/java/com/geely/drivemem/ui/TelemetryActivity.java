@@ -327,6 +327,10 @@ public class TelemetryActivity extends Activity {
             t.setTextColor(sel ? Style.ACCENT : Style.TEXT_DIM);
             t.setTypeface(null, sel ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
         }
+        // A section that is replaced must not act later (its Record switch
+        // re-check). removeAllViews() detaches it; this also covers a section
+        // that was never attached to a window.
+        if (clipsSection != null) { clipsSection.cancelPending(); clipsSection = null; }
         content.removeAllViews();
         integrationsSection = null;
         obdSection = null;
@@ -550,6 +554,7 @@ public class TelemetryActivity extends Activity {
 
     @Override protected void onDestroy() {
         super.onDestroy();
+        if (clipsSection != null) { clipsSection.cancelPending(); clipsSection = null; }
         if (carActorSubscribed) {
             EntityBus.unsubscribe("car.drive_mode", driveListener);
             EntityBus.unsubscribe("car.regen_mode", regenListener);

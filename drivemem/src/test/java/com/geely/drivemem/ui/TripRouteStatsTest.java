@@ -5,6 +5,7 @@ import org.junit.Test;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 public class TripRouteStatsTest {
 
@@ -27,6 +28,46 @@ public class TripRouteStatsTest {
         // 5 s steps, then a 90 s stop at a light, then 5 s steps again.
         long[] ts = {0, 5_000, 10_000, 100_000, 105_000};
         assertEquals(15_000, TripRouteStats.movingMs(ts));
+    }
+
+    // 0.0005 deg of latitude is about 55.6 m; every 5 s that is 40 km/h.
+    private static double[] steps(int n, double from) {
+        double[] lat = new double[n];
+        for (int i = 0; i < n; i++) lat[i] = from + i * 0.0005;
+        return lat;
+    }
+
+    @Test public void averageSpeedComesFromThePointsOwnDistance() {
+        long[] ts = {0, 5_000, 10_000, 15_000};
+        assertEquals(40.0, TripRouteStats.avgMovingKmh(steps(4, 0), new double[4], ts), 0.1);
+    }
+
+    // The defect: a 30 km trip whose points cover 3 minutes showed 600 km/h
+    // (odometer km over the points' moving time).
+    @Test public void aGpsDropoutDoesNotInflateTheAverageSpeed() {
+        int n = 37;                       // 3 minutes of points, 5 s apart
+        double[] lat = new double[2 * n];
+        long[] ts = new long[2 * n];
+        for (int i = 0; i < n; i++) {
+            lat[i] = i * 0.0005;          // before the dropout
+            ts[i] = i * 5_000L;
+            lat[n + i] = 0.25 + i * 0.0005;   // about 26 km further on, 30 min later
+            ts[n + i] = 1_800_000L + i * 5_000L;
+        }
+        double kmh = TripRouteStats.avgMovingKmh(lat, new double[2 * n], ts);
+        assertEquals(40.0, kmh, 0.1);
+    }
+
+    @Test public void aStopDoesNotLowerTheMovingAverage() {
+        // 5 s steps, a 90 s stop without moving, then 5 s steps again.
+        double[] lat = {0, 0.0005, 0.0010, 0.0010, 0.0015};
+        long[] ts = {0, 5_000, 10_000, 100_000, 105_000};
+        assertEquals(40.0, TripRouteStats.avgMovingKmh(lat, new double[5], ts), 0.1);
+    }
+
+    @Test public void noAverageSpeedWithoutPointsCloseInTime() {
+        assertTrue(Double.isNaN(TripRouteStats.avgMovingKmh(new double[]{0, 0.1}, new double[2], new long[]{0, 600_000})));
+        assertTrue(Double.isNaN(TripRouteStats.avgMovingKmh(new double[0], new double[0], new long[0])));
     }
 
     @Test public void missingHeightsAreFilled() {

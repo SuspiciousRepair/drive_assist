@@ -69,4 +69,13 @@ public class ClipsTest {
         assertFalse(Clips.shown(tap, true, tap + Clips.ASK_GRACE_MS, () -> false));
         assertTrue(Clips.shown(0, false, tap, () -> true));
     }
+
+    // The one re-check after a tap comes after the grace, so it shows the
+    // recorder's real state and not the request again.
+    @Test public void recheckAfterATapShowsTheRealState() {
+        long tap = 1_790_000_000_000L;
+        assertTrue(Clips.RECHECK_MS > Clips.ASK_GRACE_MS);
+        assertFalse(Clips.shown(tap, true, tap + Clips.RECHECK_MS, () -> false));
+        assertTrue(Clips.shown(tap, false, tap + Clips.RECHECK_MS, () -> true));
+    }
 }
