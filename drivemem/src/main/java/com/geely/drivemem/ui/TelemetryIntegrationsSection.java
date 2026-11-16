@@ -30,7 +30,19 @@ final class TelemetryIntegrationsSection extends LinearLayout {
 
     interface OnOpen { void open(int section); }
 
+    // How often the tiles look again while the page is on screen. The states
+    // come from four places (MQTT service, OBD2 hub key, ABRP uploader,
+    // Spotify), most with no listener to hook, so one light tick asks them
+    // all. It runs only between attach and detach.
+    static final long REFRESH_MS = 2000;
+
     private final List<Runnable> refreshers = new ArrayList<>();
+    private final Runnable tick = new Runnable() {
+        @Override public void run() {
+            refresh();
+            postDelayed(this, REFRESH_MS);
+        }
+    };
 
     TelemetryIntegrationsSection(Activity a, OnOpen onOpen) {
         super(a);
@@ -58,8 +70,22 @@ final class TelemetryIntegrationsSection extends LinearLayout {
         }
     }
 
-    /** Re-reads every tile's state. Cheap: a few pref reads per tile. */
+    /** Re-reads every tile's state. Cheap: a few pref reads per tile, and a
+     * tile is redrawn only when its state changed. No view is rebuilt. */
     void refresh() { for (Runnable r : refreshers) r.run(); }
+
+    // A tile opened just after wake said "Connecting..." for good, though the
+    // integration connected seconds later: only onResume refreshed it.
+    @Override protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        removeCallbacks(tick);
+        post(tick);
+    }
+
+    @Override protected void onDetachedFromWindow() {
+        removeCallbacks(tick);
+        super.onDetachedFromWindow();
+    }
 
     private View tile(Activity a, Integrations.Integration in, OnOpen onOpen) {
         LinearLayout t = new LinearLayout(a);
@@ -123,8 +149,11 @@ final class TelemetryIntegrationsSection extends LinearLayout {
         desc.setMaxLines(2);
         t.addView(desc);
 
+        final Integrations.Status[] shown = new Integrations.Status[1];
         Runnable r = () -> {
             Integrations.Status s = in.status.of(a);
+            if (s.sameAs(shown[0])) return;
+            shown[0] = s;
             int c = colorOf(s.state);
             dotBg.setColor(c);
             state.setTextColor(s.state == Integrations.State.OFF ? Style.TEXT_DIM : c);
