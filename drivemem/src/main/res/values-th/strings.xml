@@ -627,4 +627,5 @@
     <string name="phone_msg_no_space">รถมีพื้นที่ว่างไม่พอสำหรับไฟล์นี้</string>
     <string name="phone_msg_busy">กำลังกู้คืนอยู่แล้ว</string>
     <string name="phone_msg_no_file">เลือกไฟล์สำรองก่อน</string>
+    <string name="unit_kwh_per_100km">kWh/100 km</string>
 </resources>

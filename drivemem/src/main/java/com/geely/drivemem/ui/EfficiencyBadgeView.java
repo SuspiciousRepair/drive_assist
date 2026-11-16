@@ -8,6 +8,7 @@ import android.graphics.RectF;
 import android.graphics.Shader;
 import android.view.View;
 
+import com.geely.drivemem.R;
 import com.geely.drivemem.util.Style;
 
 import java.util.Locale;
@@ -48,6 +49,14 @@ final class EfficiencyBadgeView extends View {
     private final Paint dot = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF rect = new RectF();
+    // Built when a value, the grayscale switch or the size changes, never in
+    // onDraw: the card redraws often, and each draw made a new int[], a new
+    // LinearGradient and a new formatted String.
+    private static final int BAR_COLORS = 7;
+    private final String unitText;
+    private String numberText = NO_VALUE;
+    private Shader barShader;
+    private float barLeft, barRight;
 
     EfficiencyBadgeView(Context c) {
         super(c);
@@ -60,6 +69,44 @@ final class EfficiencyBadgeView extends View {
         unit.setTextAlign(Paint.Align.CENTER);
         bar.setStrokeCap(Paint.Cap.ROUND);
         ring.setStyle(Paint.Style.STROKE);
+        unitText = c.getString(R.string.unit_kwh_per_100km);
+    }
+
+    static final String NO_VALUE = "—";
+
+    /** The number as drawn: one decimal, "~" after an estimate, a dash for none. */
+    static String numberText(double value, boolean estimated, Locale locale) {
+        if (Double.isNaN(value)) return NO_VALUE;
+        String s = String.format(locale, "%.1f", value);
+        return estimated ? s + "~" : s;
+    }
+
+    /** The small bar's colours, left to right: the scale from BAR_MIN to
+     * BAR_MAX, or one plain colour for grayscale cards. */
+    static int[] barColors(boolean grayscale, int plain) {
+        int[] colors = new int[BAR_COLORS];
+        for (int i = 0; i < BAR_COLORS; i++) {
+            colors[i] = grayscale ? plain : colorFor(BAR_MIN + (BAR_MAX - BAR_MIN) * i / (BAR_COLORS - 1));
+        }
+        return colors;
+    }
+
+    // The bar's place depends on the width only; its colours on grayscale.
+    private void rebuild() {
+        numberText = numberText(value, estimated, Locale.getDefault());
+        Context c = getContext();
+        float w = getWidth();
+        if (w <= 0) { barShader = null; return; }
+        float barW = Math.min(w - Style.dp(c, 40), Style.dp(c, 100));
+        barLeft = (w - barW) / 2f;
+        barRight = barLeft + barW;
+        barShader = new LinearGradient(barLeft, 0, barRight, 0,
+            barColors(grayscale, Style.TEXT_DIM), null, Shader.TileMode.CLAMP);
+    }
+
+    @Override protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        rebuild();
     }
 
     /** kWh/100 km, or 0/NaN for "not yet" (under 200 m). */
@@ -69,6 +116,7 @@ final class EfficiencyBadgeView extends View {
         if (same && estimated == this.estimated) return;
         value = v;
         this.estimated = estimated;
+        rebuild();
         invalidate();
     }
 
@@ -76,6 +124,7 @@ final class EfficiencyBadgeView extends View {
     void setGrayscale(boolean on) {
         if (on == grayscale) return;
         grayscale = on;
+        rebuild();
         invalidate();
     }
 
@@ -110,7 +159,6 @@ final class EfficiencyBadgeView extends View {
         float rad = Style.dp(c, 18);
         canvas.drawRoundRect(rect, rad, rad, border);
 
-        float barW = Math.min(w - Style.dp(c, 40), Style.dp(c, 100));
         float barH = Style.dp(c, 6);
         float unitGap = Style.dp(c, 4), barGap = Style.dp(c, 8);
         float numH = -number.ascent();
@@ -118,21 +166,16 @@ final class EfficiencyBadgeView extends View {
         float total = numH + unitGap + unitH + (has ? barGap + barH : 0);
         float top = (h - total) / 2f;
 
-        String s = has ? String.format(Locale.getDefault(), "%.1f", value) : "—";
-        if (has && estimated) s += "~";
         number.setColor(has && grayscale ? Style.TEXT : color);
-        canvas.drawText(s, w / 2f, top + numH, number);
+        canvas.drawText(numberText, w / 2f, top + numH, number);
         unit.setColor(Style.TEXT_DIM);
-        canvas.drawText("kWh/100 km", w / 2f, top + numH + unitGap - unit.ascent(), unit);
-        if (!has) return;
+        canvas.drawText(unitText, w / 2f, top + numH + unitGap - unit.ascent(), unit);
+        if (!has || barShader == null) return;
 
         float cy = top + numH + unitGap + unitH + barGap + barH / 2f;
-        float left = (w - barW) / 2f, right = left + barW;
-        int n = 7;
-        int[] colors = new int[n];
-        for (int i = 0; i < n; i++) colors[i] = grayscale ? Style.TEXT_DIM : colorFor(BAR_MIN + (BAR_MAX - BAR_MIN) * i / (n - 1));
+        float left = barLeft, right = barRight, barW = right - left;
         bar.setStrokeWidth(barH);
-        bar.setShader(new LinearGradient(left, 0, right, 0, colors, null, Shader.TileMode.CLAMP));
+        bar.setShader(barShader);
         canvas.drawLine(left, cy, right, cy, bar);
 
         float t = (float) Math.max(0, Math.min(1, (value - BAR_MIN) / (BAR_MAX - BAR_MIN)));
