@@ -237,6 +237,9 @@ public final class CarActor {
         // This just puts its state on the same bus everything else reads from.
         registerPoll("car.carplay_connected", 4000, c ->
             Reading.ok(CarplayState.connected() ? 1 : 0));
+
+        // The car's soft-tyre warning, per wheel (indirect: no pressures).
+        TireWarning.register(this);
         } catch (Throwable t) {
             Log.w(CarAccess.TAG, "car actor init failed: " + t, t);
             throw t;

@@ -43,6 +43,8 @@ Property IDs and scales of the car's own (VHAL) properties are in
 | `telemetry.ambient_brightness` | cabin light brightness, 0..20 | every 4 s |
 | `telemetry.speed` | speed, km/h | every 1 s, **only while the Comfort screen is open** |
 | `car.carplay_connected` | CarPlay link (from `CarplayState`) | every 4 s |
+| `car.tire_warn_fl`, `car.tire_warn_fr`, `car.tire_warn_rl`, `car.tire_warn_rr` | soft-tyre warning per wheel (`TireWarning`), raw value: 0 = no warning. **No pressures**: this car's warning is indirect (ITPMS_TYRE_WARN, wheel speeds), the pressure properties are "not supported". The value of a real warning is not yet seen; anything not 0 counts as a warning | every 10 s |
+| `car.tire_warn` | 1 when any wheel warns, else 0 (derived) | when a wheel changes |
 
 ### `telemetry.tick`: the 30-second snapshot
 

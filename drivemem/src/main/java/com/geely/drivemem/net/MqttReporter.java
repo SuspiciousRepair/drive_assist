@@ -5,6 +5,7 @@ import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.car.CarDataHub;
 import com.geely.drivemem.car.EntityBus;
 import com.geely.drivemem.car.Telemetry;
+import com.geely.drivemem.car.TireWarning;
 import com.geely.drivemem.controls.AdbGate;
 import com.geely.drivemem.hvac.ComfortHub;
 import com.geely.drivemem.hvac.ComfortRuler;
@@ -1188,6 +1189,7 @@ public class MqttReporter {
             if (v instanceof String) j.append("\"").append(esc((String) v)).append("\"");
             else j.append(v);
         }
+        appendTireWarnings(j, first);
         j.append("}");
         pubIfChanged(STATE_TOPIC, j.toString(), false);
         drainLimits();
@@ -1197,6 +1199,49 @@ public class MqttReporter {
         // tell HA about it, so the telemetry tick is what makes the switch fall
         // back to OFF instead of lying until somebody touches it.
         publishAdbState();
+    }
+
+    // The soft-tyre warning from the hub (TireWarning), 1/0 per wheel and
+    // for any wheel. Added to the same state JSON so HA's binary sensors
+    // read it like plug_connected. A key the hub cannot read is left out,
+    // never sent as a false "no warning".
+    private static final String[] TIRE_JSON = {"tire_warn_fl", "tire_warn_fr", "tire_warn_rl", "tire_warn_rr"};
+
+    private void appendTireWarnings(StringBuilder j, boolean first) {
+        CarActor a = CarActor.get();
+        if (a == null) return;
+        for (int i = 0; i <= TIRE_JSON.length; i++) {
+            CarActor.Reading r = a.get(i < TIRE_JSON.length ? TireWarning.KEYS[i] : TireWarning.ANY);
+            if (r == null || r.status != CarActor.Reading.Status.OK) continue;
+            if (!first) j.append(","); first = false;
+            j.append("\"").append(i < TIRE_JSON.length ? TIRE_JSON[i] : "tire_warn").append("\":")
+             .append(TireWarning.warns(r) ? 1 : 0);
+        }
+    }
+
+    // Read-only, from the state JSON (appendTireWarnings). device_class
+    // problem: HA shows "Problem" / "OK" and can alert on it.
+    private void sendTireDiscovery() {
+        String[][] e = {
+            {"tire_warn", "Pneu baixo"},
+            {"tire_warn_fl", "Pneu baixo: dianteiro esquerdo"},
+            {"tire_warn_fr", "Pneu baixo: dianteiro direito"},
+            {"tire_warn_rl", "Pneu baixo: traseiro esquerdo"},
+            {"tire_warn_rr", "Pneu baixo: traseiro direito"},
+        };
+        for (String[] x : e) {
+            String j = "{"
+                + "\"name\":\"" + x[1] + "\","
+                + "\"uniq_id\":\"" + DEV_ID + "_" + x[0] + "\","
+                + "\"stat_t\":\"" + STATE_TOPIC + "\","
+                + "\"avty_t\":\"" + AVAIL_TOPIC + "\","
+                + "\"val_tpl\":\"{{ value_json." + x[0] + " }}\","
+                + "\"pl_on\":\"1\",\"pl_off\":\"0\",\"dev_cla\":\"problem\","
+                + "\"ic\":\"mdi:car-tire-alert\","
+                + getDeviceJson()
+                + "}";
+            pub("homeassistant/binary_sensor/" + DEV_ID + "/" + x[0] + "/config", j, true);
+        }
     }
 
     private void sendTrackerDiscovery() {
@@ -1397,6 +1442,7 @@ public class MqttReporter {
         sendChargeNumberDiscovery();
         sendChargeSwitchDiscovery();
         sendPlugDiscovery();
+        sendTireDiscovery();
         sendLightDiscovery();
         sendParkDiscovery();
         sendUpdateDiscovery();
