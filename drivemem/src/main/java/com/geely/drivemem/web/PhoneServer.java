@@ -234,8 +234,10 @@ public final class PhoneServer {
     /** The phone sends a .dabackup and, when the backup was locked with
      * another password than the one set here, that password. The file goes
      * to the private cache in big blocks (never all in memory), then the
-     * same restore as the car's own Restore button runs. On success it
-     * restarts the app, and the car's screen says what came back. */
+     * restore runs as AppBackup.Origin.PHONE: like the car's own Restore
+     * button, but the file cannot set the settings a phone must not set
+     * (Prefs.isPhoneRestorable) and the car keeps its backup password. On
+     * success it restarts the app, and the car's screen says what came back. */
     private static void restoreUpload(Context app, Http.Request r, InputStream in, OutputStream out) throws Exception {
         if (r.contentLength > MAX_UPLOAD + 64 * 1024) {
             Http.html(out, 413, PhonePages.message(app, PhonePages.Msg.TOO_BIG));
@@ -271,7 +273,11 @@ public final class PhoneServer {
             Log.i(TAG, "phone: restore upload " + size + " bytes");
             Thread t = new Thread(() -> {
                 try {
-                    AppBackup.restore(app, dest, pass);   // on success the app restarts here
+                    // on success the app restarts here
+                    AppBackup.restore(app, dest, pass, AppBackup.Origin.PHONE);
+                } catch (AppBackup.NotParked e) {
+                    // The upload ended after the driver left Park.
+                    restoreError = app.getString(R.string.backup_park_first);
                 } catch (AppBackup.NeedPassword e) {
                     restoreError = app.getString(R.string.phone_restore_need_pw);
                 } catch (BackupCrypto.WrongPassword e) {
@@ -316,7 +322,6 @@ public final class PhoneServer {
                 case "mqtt_pass": Prefs.setMqttPass(app, v); mqtt = true; break;
                 case "abrp_user_token": Prefs.setAbrpUserToken(app, v); break;
                 case "spotify_client_id": SpotifyClient.setClientId(app, v); break;
-                case "update_url": Prefs.setUpdateUrl(app, v); break;
                 default: break;
             }
             Log.i(TAG, "phone: saved " + f.key);

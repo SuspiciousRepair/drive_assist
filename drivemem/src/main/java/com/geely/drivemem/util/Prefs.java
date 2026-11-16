@@ -266,4 +266,37 @@ public final class Prefs {
         for (String p : NOT_BACKED_UP_PREFIXES) if (key.startsWith(p)) return false;
         return true;
     }
+
+    /** Settings a backup that comes from a PHONE (web/PhoneServer upload)
+     * must never set. The car keeps its own value for each of them.
+     *
+     * The phone proves who it is with a token that travels over plain HTTP
+     * on the Wi-Fi. Someone who captured the token can upload a backup they
+     * made themselves. So such a backup must not open a bigger door than the
+     * phone pages already are:
+     *  - adb_*: ADB on this head unit is a root shell on the network
+     *    (always-on switch, trusted Wi-Fi name, home gateway),
+     *  - update_url: where the car fetches the APK it installs,
+     *  - phone_access_*: how long and where the phone door itself is open,
+     *  - commands_enabled: lets the MQTT broker send commands to the car.
+     *
+     * A new setting that gives control of the car, or of what runs on it,
+     * goes here too. The Restore button on the car's own screen is not
+     * limited: that needs a person in the car. PhoneRestoreKeysTest checks
+     * the list. */
+    private static final java.util.Set<String> NOT_FROM_PHONE = new java.util.HashSet<>(java.util.Arrays.asList(
+        "update_url",
+        "commands_enabled"));
+    private static final String[] NOT_FROM_PHONE_PREFIXES = {
+        "adb_",
+        "phone_access_",
+    };
+
+    /** True when a restore that comes from a phone may set this key: a key a
+     * backup keeps ({@link #isBackedUp}) and not in {@link #NOT_FROM_PHONE}. */
+    public static boolean isPhoneRestorable(String key) {
+        if (!isBackedUp(key) || NOT_FROM_PHONE.contains(key)) return false;
+        for (String p : NOT_FROM_PHONE_PREFIXES) if (key.startsWith(p)) return false;
+        return true;
+    }
 }
