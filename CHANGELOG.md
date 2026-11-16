@@ -29,6 +29,11 @@
 - **The first 30 s sample after the app starts now has the drive mode and
   the regen level.** The app read them from the car only after it had saved
   that first sample, so it was empty after every app update or restart.
+- **CAN power no longer shows an old value.** When the battery volts or
+  amps from CAN became invalid, the app kept the last power for as long as
+  the CAN reader was alive. Now there is no CAN power until both are back.
+  Also: the CAN reader stops for sure when "Exact energy" is switched off,
+  and it connects again when the reader sends nothing for 5 s.
 
 ## [v0.7.0] — 2026-11-15
 

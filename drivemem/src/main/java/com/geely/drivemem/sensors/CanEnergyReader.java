@@ -41,6 +41,9 @@ public final class CanEnergyReader {
     private static volatile boolean wanted = false;
     private static volatile Thread thread;
     private static volatile LocalSocket socket;
+    /** The daemon sends a heartbeat every second. This long with nothing to
+     * read means it stalled: the read fails and loop() reconnects. */
+    static final int READ_TIMEOUT_MS = 5_000;
 
     /** What this side sees: off, connecting, live, no_daemon, dropped, error. */
     private static volatile String status = "off";
@@ -95,24 +98,33 @@ public final class CanEnergyReader {
         while (wanted) {
             LocalSocket s = new LocalSocket();
             socket = s;
+            // stop() may have run between the loop test and the line above:
+            // it then found no socket to close. `wanted` is volatile and
+            // stop() clears it before it closes, so one of the two sees the
+            // other: either stop() closes s, or this test stops the thread.
+            if (!wanted) { closeSocket(); break; }
             final boolean[] sub = {false};
             try {
                 status = "connecting";
                 s.connect(new LocalSocketAddress("roadcast", LocalSocketAddress.Namespace.ABSTRACT));
+                s.setSoTimeout(READ_TIMEOUT_MS);   // after connect: needs the socket's fd
                 RoadcastClient c = new RoadcastClient(s.getInputStream(), s.getOutputStream(), want);
                 c.run(new RoadcastClient.Listener() {
                     @Override public void onSignal(String name, double physical, long raw, boolean valid, boolean calibrated) {
+                        if (!wanted) { close(s); return; }   // switched off: end the read
                         long now = SystemClock.elapsedRealtime();
                         Double kw = POWER.onSignal(name, physical, valid, now);
                         if (kw != null && sub[0]) deliver(now, kw);
                     }
                     @Override public void onHeartbeat(int sourceState, int milliHz) {
+                        if (!wanted) { close(s); return; }
                         long now = SystemClock.elapsedRealtime();
                         Double kw = POWER.onHeartbeat(sourceState, now);
                         if (kw != null && sub[0]) deliver(now, kw);
                         status = sourceState == 1 ? "live" : "no_source";
                     }
                     @Override public void onSubscribed() {
+                        if (!wanted) { close(s); return; }
                         sub[0] = true;
                         status = "live";
                         statusDetail = c.missing().isEmpty() ? null : "missing " + c.missing();
@@ -124,7 +136,8 @@ public final class CanEnergyReader {
                 // connect() failing = no daemon; a reset or close mid-session =
                 // the daemon went away (restarted, or the HAL changed).
                 if (m.contains("Connection refused") || m.contains("No such file")) status = "no_daemon";
-                else if (m.contains("reset") || m.contains("closed by daemon")) status = "dropped";
+                // "Try again" (EAGAIN) = the read timed out: a stalled daemon.
+                else if (m.contains("reset") || m.contains("closed by daemon") || m.contains("Try again")) status = "dropped";
                 else status = "error";
                 statusDetail = m;
             } catch (Throwable t) {
@@ -152,10 +165,13 @@ public final class CanEnergyReader {
     private static void closeSocket() {
         LocalSocket s = socket;
         socket = null;
-        if (s != null) {
-            try { s.shutdownInput(); } catch (Throwable ignored) {}
-            try { s.close(); } catch (Throwable ignored) {}
-        }
+        close(s);
+    }
+
+    private static void close(LocalSocket s) {
+        if (s == null) return;
+        try { s.shutdownInput(); } catch (Throwable ignored) {}
+        try { s.close(); } catch (Throwable ignored) {}
     }
 
     private static long now() { return SystemClock.elapsedRealtime(); }
