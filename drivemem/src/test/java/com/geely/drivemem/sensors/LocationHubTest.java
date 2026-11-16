@@ -4,7 +4,9 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 public class LocationHubTest {
 
@@ -27,6 +29,13 @@ public class LocationHubTest {
         LocationHub.Fix f = LocationHub.Fix.of(in);
         assertEquals(36.0, f.speedKmh, 1e-9);
         assertArrayEquals(in, f.toArray(), 1e-9);
+    }
+
+    // GpsReader gives NaN for a fix with no altitude; the hub value keeps it.
+    @Test public void aFixWithoutAltitudeSaysSo() {
+        LocationHub.Fix f = LocationHub.Fix.of(new double[]{-23.5, -46.6, Double.NaN, 90, 10, 4});
+        assertFalse(f.hasAlt());
+        assertTrue(fix(-23.5, -46.6, 0).hasAlt());
     }
 
     @Test public void distanceOfOneDegreeOfLatitude() {

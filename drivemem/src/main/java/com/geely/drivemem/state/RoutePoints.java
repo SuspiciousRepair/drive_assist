@@ -60,7 +60,7 @@ public final class RoutePoints {
         v.put("ts_ms", now);
         v.put("lat", f.lat);
         v.put("lon", f.lon);
-        v.put("alt_m", f.altM);
+        if (f.hasAlt()) v.put("alt_m", f.altM);   // no altitude: NULL, not 0
         v.put("speed_kmh", f.speedKmh);
         v.put("bearing", f.bearing);
         v.put("accuracy_m", f.accuracyM);

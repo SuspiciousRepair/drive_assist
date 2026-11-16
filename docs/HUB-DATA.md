@@ -103,15 +103,23 @@ plugged in. Updated every 2 s; a value older than 15 s becomes
 | `energy.power_kw`, `energy.pack_v`, `energy.pack_a` | from CAN when `can.live` is 1 **and** CAN has the value, else from the dongle, else `NOT_AVAILABLE` |
 | `energy.source` | `can` or `obd2`, by the same rule on the power value |
 
-### GPS position (`LocationHub`), always while the app runs
+### GPS position (`LocationHub`), always while the app runs; live fixes while driving
 
 | Key | What | Update |
 |---|---|---|
-| `location.fix` | `LocationHub.Fix`: lat, lon, altitude m, bearing, speed km/h (GPS), accuracy m. Source: `GpsReader` (the live fix from `TelemetryService`, else the last known one). `NOT_AVAILABLE` with no fix | polled every 2 s; published only when the car moves to another ~5 m cell. The cache always holds the newest fix |
+| `location.fix` | `LocationHub.Fix`: lat, lon, altitude m, bearing, speed km/h (GPS), accuracy m. Altitude is NaN when the fix has none (saved as NULL, never 0). Source: `GpsReader`: the live GPS fix from `GpsOwner` when it is 10 s old or less, else the last known one (GPS, then passive, then network). `NOT_AVAILABLE` with no fix | polled every 2 s; published only when the car moves to another ~5 m cell. The cache always holds the newest fix |
 
 MQTT/HA, ABRP, the 30 s sampler (altitude), trip ascent / descent, trip
 routes and charge places all read this key. `GpsReader.read` is
 package-private.
+
+`GpsOwner` holds the one location listener (GPS every 2 s). It does not
+need MQTT. It listens while a consumer is on (trip routes, MQTT telemetry
+with a broker set, or ABRP with "send location") and the car is out of
+Park, or in Park for less than 2 minutes. After that it removes the
+listener, so the GPS is not held on in a parked car, and the key holds the
+last known fix until the car leaves Park. Only GPS fixes become the live
+fix; a network fix never replaces one.
 
 ### Sessions (built on the hub thread from `telemetry.tick`)
 

@@ -1214,7 +1214,8 @@ public class MqttReporter {
         if (!ensureConnected()) return;
         if (!trackerDiscovered) sendTrackerDiscovery();
         String j = "{\"latitude\":" + loc[0] + ",\"longitude\":" + loc[1]
-            + ",\"gps_accuracy\":" + loc[5] + ",\"altitude\":" + loc[2]
+            + ",\"gps_accuracy\":" + loc[5]
+            + (Double.isFinite(loc[2]) ? ",\"altitude\":" + loc[2] : "")   // NaN is not JSON
             + ",\"course\":" + loc[3] + ",\"speed\":" + loc[4] + "}";
         pubIfChanged(TRACKER_ATTR_TOPIC, j, true);
     }

@@ -192,7 +192,10 @@ public final class TelemetrySystemSection extends LinearLayout {
         LinearLayout routesCard = ConfigCards.card(activity, activity.getString(R.string.routes_header));
         routesCard.addView(Style.toggleRow(activity, activity.getString(R.string.routes_enable_label),
             com.geely.drivemem.util.Prefs.getRecordRoutes(activity),
-            on -> com.geely.drivemem.util.Prefs.setRecordRoutes(activity, on)));
+            on -> {
+                com.geely.drivemem.util.Prefs.setRecordRoutes(activity, on);
+                com.geely.drivemem.sensors.GpsOwner.ensure(activity);
+            }));
         routesCard.addView(ConfigCards.hint(activity, activity.getString(R.string.routes_hint)));
         ConfigCards.add(right, routesCard);
 
