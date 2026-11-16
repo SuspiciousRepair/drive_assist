@@ -100,8 +100,8 @@ plugged in. Updated every 2 s; a value older than 15 s becomes
 
 | Key | What |
 |---|---|
-| `energy.power_kw`, `energy.pack_v`, `energy.pack_a` | from CAN when `can.live` is 1, else from the dongle, else `NOT_AVAILABLE` |
-| `energy.source` | `can` or `obd2` |
+| `energy.power_kw`, `energy.pack_v`, `energy.pack_a` | from CAN when `can.live` is 1 **and** CAN has the value, else from the dongle, else `NOT_AVAILABLE` |
+| `energy.source` | `can` or `obd2`, by the same rule on the power value |
 
 ### GPS position (`LocationHub`), always while the app runs
 
@@ -152,8 +152,9 @@ except the SoC-based driving energy, which is marked "estimated".
 
 - `EnergyIntegrator` gets **every** CAN sample (10 Hz) and every OBD2
   reading directly, because it integrates each one and the hub delivers
-  changes only. CAN wins while it is live; the dongle's samples are dropped
-  then, so energy is never counted twice.
+  changes only. CAN wins while `energy.source` is `can` (`EnergyHub` decides,
+  once); the dongle's samples are dropped then, so energy is never counted
+  twice. When CAN is live but has no power value, the dongle's samples count.
 
 ## 5. What is saved on the car
 
