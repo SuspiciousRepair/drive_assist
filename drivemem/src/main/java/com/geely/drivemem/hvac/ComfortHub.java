@@ -57,6 +57,7 @@ public final class ComfortHub {
             beat.postDelayed(ensureArmed, 5_000);
             beat.postDelayed(ensureArmed, 15_000);
             DoorWindow.ensureSubscribed(app);
+            FrontDefrost.ensureSubscribed(app);
             beat.postDelayed(tick, BEAT_MS);
             Log.i(TAG, "comfort hub: ruler now owned by the process");
         }

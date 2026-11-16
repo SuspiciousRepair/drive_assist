@@ -9,6 +9,7 @@ import com.geely.drivemem.car.TireWarning;
 import com.geely.drivemem.controls.AdbGate;
 import com.geely.drivemem.hvac.ComfortHub;
 import com.geely.drivemem.hvac.ComfortRuler;
+import com.geely.drivemem.hvac.FrontDefrost;
 import com.geely.drivemem.sensors.LocationHub;
 import com.geely.drivemem.state.GateState;
 import com.geely.drivemem.state.PanelState;
@@ -1189,7 +1190,8 @@ public class MqttReporter {
             if (v instanceof String) j.append("\"").append(esc((String) v)).append("\"");
             else j.append(v);
         }
-        appendTireWarnings(j, first);
+        first = appendTireWarnings(j, first);
+        appendFrontDefrost(j, first);
         j.append("}");
         pubIfChanged(STATE_TOPIC, j.toString(), false);
         drainLimits();
@@ -1207,9 +1209,9 @@ public class MqttReporter {
     // never sent as a false "no warning".
     private static final String[] TIRE_JSON = {"tire_warn_fl", "tire_warn_fr", "tire_warn_rl", "tire_warn_rr"};
 
-    private void appendTireWarnings(StringBuilder j, boolean first) {
+    private boolean appendTireWarnings(StringBuilder j, boolean first) {
         CarActor a = CarActor.get();
-        if (a == null) return;
+        if (a == null) return first;
         for (int i = 0; i <= TIRE_JSON.length; i++) {
             CarActor.Reading r = a.get(i < TIRE_JSON.length ? TireWarning.KEYS[i] : TireWarning.ANY);
             if (r == null || r.status != CarActor.Reading.Status.OK) continue;
@@ -1217,6 +1219,31 @@ public class MqttReporter {
             j.append("\"").append(i < TIRE_JSON.length ? TIRE_JSON[i] : "tire_warn").append("\":")
              .append(TireWarning.warns(r) ? 1 : 0);
         }
+        return first;
+    }
+
+    // The front-windshield defogger button (car.hvac_front_defrost), 1/0, in
+    // the same state JSON. Left out when the hub cannot read it.
+    private void appendFrontDefrost(StringBuilder j, boolean first) {
+        CarActor a = CarActor.get();
+        if (a == null) return;
+        Boolean on = FrontDefrost.on(a.get(CarActor.HVAC_FRONT_DEFROST));
+        if (on == null) return;
+        if (!first) j.append(",");
+        j.append("\"front_defrost\":").append(on ? 1 : 0);
+    }
+
+    private void sendFrontDefrostDiscovery() {
+        String j = "{"
+            + "\"name\":\"Desembaçador dianteiro\","
+            + "\"uniq_id\":\"" + DEV_ID + "_front_defrost\","
+            + "\"stat_t\":\"" + STATE_TOPIC + "\","
+            + "\"avty_t\":\"" + AVAIL_TOPIC + "\","
+            + "\"val_tpl\":\"{{ value_json.front_defrost }}\","
+            + "\"pl_on\":\"1\",\"pl_off\":\"0\",\"ic\":\"mdi:car-defrost-front\","
+            + getDeviceJson()
+            + "}";
+        pub("homeassistant/binary_sensor/" + DEV_ID + "/front_defrost/config", j, true);
     }
 
     // Read-only, from the state JSON (appendTireWarnings). device_class
@@ -1443,6 +1470,7 @@ public class MqttReporter {
         sendChargeSwitchDiscovery();
         sendPlugDiscovery();
         sendTireDiscovery();
+        sendFrontDefrostDiscovery();
         sendLightDiscovery();
         sendParkDiscovery();
         sendUpdateDiscovery();

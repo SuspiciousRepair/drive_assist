@@ -33,6 +33,9 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class CarActor {
 
+    /** Front-windshield defogger button (MAX_DEFROST), true/false, on change. */
+    public static final String HVAC_FRONT_DEFROST = "car.hvac_front_defrost";
+
     public interface ResultCallback { void onResult(CarDataHub.WriteResult r); }
     public interface ReadCallback { void onRead(Object value); }
     public interface BoolCallback { void onResult(boolean ok); }
@@ -597,6 +600,7 @@ public final class CarActor {
         watchRawNow("car.hvac_recirc", CarAccess.HVAC_RECIRC_ON, 75);
         watchRawNow("car.hvac_direction", 557846560, 0);
         watchRawNow("car.hvac_rear_defrost", CarAccess.HVAC_ELECTRIC_DEFROSTER_ON, 2);
+        watchRawNow(HVAC_FRONT_DEFROST, CarAccess.HVAC_MAX_DEFROST, 75);
     }
 
     // Adapter from real Handler to HandlerLike interface (production code path).
