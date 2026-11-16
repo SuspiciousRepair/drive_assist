@@ -1,6 +1,8 @@
 # Trip details, routes and per-mode efficiency, no map API (issue #19)
 
-Status: phase 0 built (DB v27); phase 1 built on `feat/trip-routes` (DB v28).
+Status (2026-11-16): phases 0, 1 and 2 merged into `next` (#51, #62, #64,
+#65); #19 closed. Leftovers (charge place screen, GPX and CSV export) are
+tracked in #82.
 
 ## Goal
 
