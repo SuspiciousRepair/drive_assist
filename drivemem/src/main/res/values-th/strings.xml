@@ -517,6 +517,9 @@
     <string name="routes_header">เส้นทางการเดินทาง</string>
     <string name="routes_enable_label">บันทึกเส้นทางการเดินทาง (GPS)</string>
     <string name="routes_hint">บันทึกว่าแต่ละทริปไปที่ไหน และชาร์จที่ไหน ข้อมูลอยู่ในรถเท่านั้น ไม่มีการส่งไปที่ใด และรวมอยู่ในข้อมูลสำรองของคุณ ทริปก่อนเปิดตัวเลือกนี้จะไม่มีเส้นทาง</string>
+    <string name="route_title">เส้นทาง</string>
+    <string name="route_none">ทริปนี้ไม่มีเส้นทาง ระบบจะบันทึกเส้นทางเฉพาะทริปที่ขับขณะเปิด Config → ระบบ → เส้นทางการเดินทาง</string>
+    <string name="route_parked_only">เปิดเส้นทางได้เมื่อรถอยู่ในเกียร์ P</string>
     <!-- การ์ดเซสชันของวัน (DailyStatsView) -->
     <string name="session_since">ตั้งแต่ %1$s</string>
     <string name="session_yesterday">เมื่อวาน</string>

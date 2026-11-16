@@ -528,6 +528,9 @@
     <string name="routes_header">Trip routes</string>
     <string name="routes_enable_label">Record trip routes (GPS)</string>
     <string name="routes_hint">Saves where each trip went and where each charge was. It stays in the car: nothing is sent anywhere. It goes into your backup. Trips from before this setting have no route.</string>
+    <string name="route_title">Route</string>
+    <string name="route_none">No route for this trip. Routes are saved for trips driven with Config → System → Trip routes on.</string>
+    <string name="route_parked_only">Open the route in Park</string>
     <!-- Day session cards (DailyStatsView) -->
     <string name="session_since">since %1$s</string>
     <string name="session_yesterday">yesterday</string>
