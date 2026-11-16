@@ -1709,6 +1709,23 @@ public class DailyStatsView extends LinearLayout {
             stat(R.string.session_stat_net_energy, net, breakdown),
             stat(R.string.session_stat_efficiency, eff, null),
             stat(R.string.session_stat_elevation, alt, null)));
+
+        // Tapping a finished trip opens its route (issue #19), Park only,
+        // same rule as the charge card's cost dialog.
+        if (t.endMs > 0 && t.tripId > 0) {
+            card.setOnClickListener(v -> {
+                if (!CarState.isParked()) {
+                    Toast.makeText(getContext(), R.string.route_parked_only, Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                android.content.Intent i = new android.content.Intent(getContext(), TripRouteActivity.class);
+                i.putExtra(TripRouteActivity.EXTRA_TRIP_ID, t.tripId);
+                i.putExtra(TripRouteActivity.EXTRA_START_MS, t.startMs);
+                i.putExtra(TripRouteActivity.EXTRA_END_MS, t.endMs);
+                i.putExtra(TripRouteActivity.EXTRA_KM, t.distanceKm);
+                getContext().startActivity(i);
+            });
+        }
     }
 
     private void buildChargeSessionCard(LinearLayout card, DailyStatsProvider.ChargeSessionItem ch, long dayStartMs) {

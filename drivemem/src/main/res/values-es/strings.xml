@@ -501,6 +501,9 @@
     <string name="routes_header">Rutas de los viajes</string>
     <string name="routes_enable_label">Grabar las rutas de los viajes (GPS)</string>
     <string name="routes_hint">Guarda por dónde pasó cada viaje y dónde se hizo cada carga. Se queda en el coche: no se envía nada a ningún sitio. Entra en tu copia de seguridad. Los viajes de antes de esta opción no tienen ruta.</string>
+    <string name="route_title">Ruta</string>
+    <string name="route_none">Este viaje no tiene ruta. Las rutas se guardan en los viajes hechos con Config → Sistema → Rutas de los viajes activado.</string>
+    <string name="route_parked_only">Abre la ruta con el coche en P</string>
     <!-- Tarjetas de sesiones del día (DailyStatsView) -->
     <string name="session_since">desde %1$s</string>
     <string name="session_yesterday">ayer</string>

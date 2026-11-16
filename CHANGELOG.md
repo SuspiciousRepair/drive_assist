@@ -9,6 +9,11 @@
   stays in the car and goes into the backup. Config → System → Trip routes.
   On by default. The trip details screen that draws the route comes next.
   (#19)
+- **Tap a trip to see its route.** On the stats page, tap a finished trip
+  (in Park). The route is drawn as lines on a plain background, no map,
+  north up. Each part has the colour of its speed: red up to 20 km/h,
+  orange to 50, green to 80, blue to 110, purple above. Only trips driven
+  with route recording on have a route. (#19)
 
 ### Changed
 - **The drive mode and regen level are kept as raw data only.** v0.6.0 also
