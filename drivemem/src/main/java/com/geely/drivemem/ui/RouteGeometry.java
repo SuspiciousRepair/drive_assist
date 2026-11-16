@@ -46,6 +46,42 @@ public final class RouteGeometry {
         return java.util.Arrays.copyOf(r, k);
     }
 
+    /** Same as {@link #bandRuns(double[])} for the points from..to (both
+     * included) of a longer array: one trip out of many. The indices
+     * returned are indices into the whole array. */
+    public static int[] bandRuns(double[] speed, int from, int to) {
+        if (to <= from) return new int[0];
+        int[] r = bandRuns(java.util.Arrays.copyOfRange(speed, from, to + 1));
+        for (int i = 0; i < r.length; i++) r[i] += from;
+        return r;
+    }
+
+    /** Trip of a point, when many trips are in one array. starts holds the
+     * first point of each trip, in rising order; trip t goes from
+     * starts[t] to the point before starts[t + 1] (or to the last point).
+     * -1 when there is no such point. */
+    public static int tripOf(int[] starts, int point) {
+        if (starts.length == 0 || point < starts[0]) return -1;
+        int lo = 0, hi = starts.length - 1;
+        while (lo < hi) {
+            int mid = (lo + hi + 1) >>> 1;
+            if (starts[mid] <= point) lo = mid; else hi = mid - 1;
+        }
+        return lo;
+    }
+
+    /** The screen point nearest to (px, py), or -1 when none is within
+     * maxDist: the point a finger picked. */
+    public static int nearest(float[] x, float[] y, float px, float py, float maxDist) {
+        int best = -1;
+        float bestD = maxDist * maxDist;
+        for (int i = 0; i < x.length; i++) {
+            float dx = x[i] - px, dy = y[i] - py, d = dx * dx + dy * dy;
+            if (d <= bestD) { bestD = d; best = i; }
+        }
+        return best;
+    }
+
     /** Thins the screen points from..to (both kept): a point is kept only
      * when it is minPx or more from the last kept one. A route has far more
      * points than the panel has pixels; the line drawn through the kept

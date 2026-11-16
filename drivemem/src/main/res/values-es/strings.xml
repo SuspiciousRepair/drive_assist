@@ -504,6 +504,12 @@
     <string name="route_title">Ruta</string>
     <string name="route_none">Este viaje no tiene ruta. Las rutas se guardan en los viajes hechos con Config → Sistema → Rutas de los viajes activado.</string>
     <string name="route_parked_only">Abre la ruta con el coche en P</string>
+    <string name="routes_all_title">Todas las rutas</string>
+    <string name="routes_all_count">%1$d viajes</string>
+    <string name="routes_all_show">Ver todas</string>
+    <string name="routes_all_none">Aún no hay rutas. Las rutas se guardan en los viajes hechos con Config → Sistema → Rutas de los viajes activado.</string>
+    <string name="routes_all_open">Abrir este viaje</string>
+    <string name="routes_all_hint">Toca una ruta o un viaje para seleccionarlo.</string>
     <string name="route_stat_distance">Distancia</string>
     <string name="route_stat_time">Tiempo</string>
     <string name="route_stat_time_split">En marcha %1$s · parado %2$s</string>

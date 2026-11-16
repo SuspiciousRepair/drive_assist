@@ -54,6 +54,7 @@ public class ElevationView extends View {
     /** km from the start, smoothed height in m, speed km/h; one per point. */
     public void setProfile(double[] km, double[] alt, double[] speed) {
         this.km = km; this.alt = alt; this.speed = speed;
+        marked = -1;   // the old mark points into the old profile
         rebuild();
         invalidate();
     }

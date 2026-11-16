@@ -236,6 +236,21 @@ public class DailyStatsView extends LinearLayout {
         periodDropdownBtn.setOnClickListener(v -> showPeriodMenu(periodDropdownBtn));
         navRow.addView(periodDropdownBtn);
 
+        // Every recorded route in one picture. Park only, same rule as
+        // opening one trip's route.
+        Style.gap(navRow, c, 14);
+        TextView allRoutesBtn = Style.cardButton(c, c.getString(R.string.routes_all_title), false, () -> {
+            if (!CarState.isParked()) {
+                Toast.makeText(getContext(), R.string.route_parked_only, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            getContext().startActivity(new android.content.Intent(getContext(), AllRoutesActivity.class));
+        });
+        allRoutesBtn.setTextSize(15.5f);
+        allRoutesBtn.setTypeface(null, Typeface.BOLD);
+        allRoutesBtn.setPadding(ddPadH, ddPadV, ddPadH, ddPadV);
+        navRow.addView(allRoutesBtn);
+
         addView(navRow);
         Style.gap(this, c, 18);
 
@@ -1710,21 +1725,7 @@ public class DailyStatsView extends LinearLayout {
                     Toast.makeText(getContext(), R.string.route_parked_only, Toast.LENGTH_SHORT).show();
                     return;
                 }
-                android.content.Intent i = new android.content.Intent(getContext(), TripRouteActivity.class);
-                i.putExtra(TripRouteActivity.EXTRA_TRIP_ID, t.tripId);
-                i.putExtra(TripRouteActivity.EXTRA_START_MS, t.startMs);
-                i.putExtra(TripRouteActivity.EXTRA_END_MS, t.endMs);
-                i.putExtra(TripRouteActivity.EXTRA_KM, t.distanceKm);
-                i.putExtra(TripRouteActivity.EXTRA_SOC_START, t.socStart);
-                i.putExtra(TripRouteActivity.EXTRA_SOC_END, t.socEnd);
-                i.putExtra(TripRouteActivity.EXTRA_SPENT, t.spentKwh);
-                i.putExtra(TripRouteActivity.EXTRA_REGEN, t.regenKwh);
-                i.putExtra(TripRouteActivity.EXTRA_NET, t.energyKwh);
-                i.putExtra(TripRouteActivity.EXTRA_EFF, t.efficiencyKwh100km);
-                i.putExtra(TripRouteActivity.EXTRA_ASCENT, t.ascentDPlusM);
-                i.putExtra(TripRouteActivity.EXTRA_DESCENT, t.descentDMinusM);
-                i.putExtra(TripRouteActivity.EXTRA_ESTIMATED, t.energySource == EnergySource.ESTIMATED
-                        || t.energySource == EnergySource.MIXED);
+                android.content.Intent i = TripRouteActivity.intent(getContext(), t);
                 getContext().startActivity(i);
             });
         }
