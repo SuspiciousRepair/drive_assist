@@ -1,5 +1,7 @@
 package com.geely.drivemem.ui;
 
+import com.geely.drivemem.sensors.SpeedBuckets;
+
 /** Pure maths for drawing a trip route on a plain background (issue #19):
  * no map, no tiles. Kept out of the View so it can be unit tested.
  *
@@ -9,18 +11,13 @@ package com.geely.drivemem.ui;
 public final class RouteGeometry {
     private RouteGeometry() {}
 
-    /** Upper limits of the speed bands, km/h. Fixed for every trip, so two
-     * trips compare at a glance. */
-    public static final double[] SPEED_STEPS = {20, 50, 80, 110};
-    /** One colour per band: stop-and-go red, orange, green, blue, purple. */
-    public static final int[] SPEED_COLORS = {0xFFE53935, 0xFFFF9800, 0xFF43A047, 0xFF1E88E5, 0xFFAB47BC};
-
     static final double EARTH_M = 6371000.0;
 
-    /** Index into SPEED_COLORS. A band's upper limit belongs to it (20 is red). */
+    /** Speed band of a speed in km/h: the stats page's speed bucket
+     * (SpeedBuckets), so a trip has the same bands and colours on both
+     * screens. Fixed for every trip, so two trips compare at a glance. */
     public static int band(double kmh) {
-        for (int i = 0; i < SPEED_STEPS.length; i++) if (kmh <= SPEED_STEPS[i]) return i;
-        return SPEED_STEPS.length;
+        return SpeedBuckets.of(kmh);
     }
 
     /** Band of the segment from point i to point i + 1: the band of the

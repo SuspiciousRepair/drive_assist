@@ -75,9 +75,9 @@ On the statistics page, tap a finished trip (in **P**) to open its route:
 
 - **Route as lines, no map.** GPS points drawn on a plain background, north
   up, with start and end marks. No map tiles, no API key, no internet.
-- **Speed colours.** Each part has the colour of its speed: red up to
-  20 km/h, orange to 50, green to 80, blue to 110, purple above. The scale is
-  fixed, so two trips compare at a glance.
+- **Speed colours.** Each part has the colour of its speed. The buckets and
+  colours are the same as on the statistics page: 0–40, 40–80, 80–120 and
+  120+ km/h. The scale is fixed, so two trips compare at a glance.
 - **Height profile.** Under the route, the GPS height along the trip, in the
   same speed colours. Touch it to mark that place on the route.
 - **Trip numbers.** Distance, moving and stopped time, average and top speed,

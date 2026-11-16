@@ -595,19 +595,9 @@ public final class DailyStatsProvider {
         SpeedBucket(double kwh100km, double distanceKm) { this.kwh100km = kwh100km; this.distanceKm = distanceKm; }
     }
 
-    // Upper bound of each bucket in km/h; the last one is open-ended (120+).
-    private static final double[] SPEED_BUCKET_MAX = {40, 80, 120, Double.MAX_VALUE};
-
-    private static int speedBucketFor(double speedKmh) {
-        for (int i = 0; i < SPEED_BUCKET_MAX.length; i++) {
-            if (speedKmh < SPEED_BUCKET_MAX[i]) return i;
-        }
-        return SPEED_BUCKET_MAX.length - 1;
-    }
-
     /** Distance per hour, split into the same four speed buckets used by efficiency. */
     public static final class HourlySpeedData {
-        public final double[][] km = new double[24][SPEED_BUCKET_MAX.length];
+        public final double[][] km = new double[24][SpeedBuckets.COUNT];
         public double maxHourlyTotalKm;
     }
 
@@ -636,7 +626,7 @@ public final class DailyStatsProvider {
                 if (previousOdo >= 0 && odo >= previousOdo && odo - previousOdo < 50) {
                     calendar.setTimeInMillis(c.getLong(2));
                     int hour = calendar.get(Calendar.HOUR_OF_DAY);
-                    int bucket = speedBucketFor(speed);
+                    int bucket = SpeedBuckets.of(speed);
                     out.km[hour][bucket] += odo - previousOdo;
                 }
                 previousOdo = odo;
@@ -722,8 +712,8 @@ public final class DailyStatsProvider {
             "ts_ms >= ? AND ts_ms < ?",
             new String[]{String.valueOf(bounds[0]), String.valueOf(bounds[1])});
 
-        SpeedBucket[] out = new SpeedBucket[SPEED_BUCKET_MAX.length];
-        for (int i = 0; i < SPEED_BUCKET_MAX.length; i++) {
+        SpeedBucket[] out = new SpeedBucket[SpeedBuckets.COUNT];
+        for (int i = 0; i < SpeedBuckets.COUNT; i++) {
             double kwh100 = DrivingConsumption.per100km(
                 totals.spent[i], totals.regen[i], totals.distance[i]);
             out[i] = new SpeedBucket(kwh100, totals.distance[i]);

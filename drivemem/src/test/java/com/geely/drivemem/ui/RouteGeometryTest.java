@@ -1,5 +1,7 @@
 package com.geely.drivemem.ui;
 
+import com.geely.drivemem.sensors.SpeedBuckets;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -8,13 +10,18 @@ import static org.junit.Assert.assertTrue;
 
 public class RouteGeometryTest {
 
-    @Test public void speedBandsIncludeTheirUpperLimit() {
+    // Same buckets as the stats page: 0-40, 40-80, 80-120, 120+.
+    @Test public void speedBandsAreTheStatsPageBuckets() {
         assertEquals(0, RouteGeometry.band(0));
-        assertEquals(0, RouteGeometry.band(20));
-        assertEquals(1, RouteGeometry.band(20.1));
+        assertEquals(0, RouteGeometry.band(39.9));
+        assertEquals(1, RouteGeometry.band(40));
+        assertEquals(1, RouteGeometry.band(79.9));
         assertEquals(2, RouteGeometry.band(80));
-        assertEquals(3, RouteGeometry.band(110));
-        assertEquals(4, RouteGeometry.band(140));
+        assertEquals(3, RouteGeometry.band(120));
+        assertEquals(3, RouteGeometry.band(140));
+        for (double kmh = 0; kmh <= 200; kmh += 0.5) {
+            assertEquals(SpeedBuckets.of(kmh), RouteGeometry.band(kmh));
+        }
     }
 
     // 0.01 deg of latitude is about 1112 m; at -23.5 a degree of longitude
@@ -53,8 +60,8 @@ public class RouteGeometryTest {
     }
 
     @Test public void aSegmentHasTheBandOfItsMeanSpeed() {
-        assertEquals(0, RouteGeometry.segmentBand(new double[]{10, 30}, 0));    // mean 20: red
-        assertEquals(1, RouteGeometry.segmentBand(new double[]{10, 40}, 0));    // mean 25: orange
+        assertEquals(0, RouteGeometry.segmentBand(new double[]{30, 40}, 0));    // mean 35: 0-40
+        assertEquals(1, RouteGeometry.segmentBand(new double[]{30, 60}, 0));    // mean 45: 40-80
     }
 
     @Test public void oneRunWhenEverySegmentHasTheSameBand() {
@@ -62,8 +69,8 @@ public class RouteGeometryTest {
     }
 
     @Test public void aNewRunStartsWhereTheBandChanges() {
-        // Segment means: 10 (red), 10 (red), 35 (orange), 60 (green), 60 (green).
-        double[] speed = {10, 10, 10, 60, 60, 60};
+        // Segment means: 10 (0-40), 10 (0-40), 50 (40-80), 90 (80-120), 90 (80-120).
+        double[] speed = {10, 10, 10, 90, 90, 90};
         assertArrayEquals(new int[]{0, 2, 3, 5}, RouteGeometry.bandRuns(speed));
     }
 
