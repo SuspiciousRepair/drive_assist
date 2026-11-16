@@ -350,6 +350,16 @@ public final class AppBackup {
         } finally { dst.close(); }
     }
 
+    /** The same snapshot for the USB export (CsvExport): out is a private
+     * file the caller removes with {@link #deleteSnapshot}. Call off the UI
+     * thread; it waits for the db writer thread. */
+    static void snapshotForExport(Context ctx, File out) throws Exception {
+        final Context app = ctx.getApplicationContext();
+        onDbThread(app, () -> { snapshotDb(app, out); return null; });
+    }
+
+    static void deleteSnapshot(File snap) { deleteDb(snap); }
+
     private static void prune(File backups) {
         File[] files = backups.listFiles();
         if (files == null) return;

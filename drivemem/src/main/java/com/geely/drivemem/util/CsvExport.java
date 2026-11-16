@@ -53,10 +53,26 @@ public final class CsvExport {
             } catch (Throwable t) {
                 Log.w(TAG, "csvexport: " + t);
             }
+            // car.db goes as a snapshot: the live file alone misses what is
+            // still in its write-ahead log. If the snapshot fails, the live
+            // file is still better than no database on the stick.
+            File snapDir = new File(app.getCacheDir(), "export-db");
+            File db = new File(snapDir, CarDb.file(app).getName());
+            try {
+                if (!snapDir.isDirectory() && !snapDir.mkdirs()) throw new IllegalStateException("mkdirs " + snapDir);
+                AppBackup.snapshotForExport(app, db);
+            } catch (Throwable t) {
+                Log.w(TAG, "csvexport: db snapshot: " + t);
+                db = CarDb.file(app);
+            }
             File[] all = new File[csv.length + 1];
-            all[0] = CarDb.file(app);
+            all[0] = db;
             System.arraycopy(csv, 0, all, 1, csv.length);
-            UsbExport.exportNow(cb, all);
+            try {
+                UsbExport.exportNow(cb, all);
+            } finally {
+                AppBackup.deleteSnapshot(new File(snapDir, CarDb.file(app).getName()));
+            }
         }, "csv-export").start();
     }
 
