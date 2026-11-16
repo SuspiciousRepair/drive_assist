@@ -61,6 +61,26 @@ public final class TripRouteStats {
         return sum;
     }
 
+    /** Average speed while moving, km/h: the distance between the points
+     * over the same short gaps that {@link #movingMs} counts, divided by
+     * that time. Distance and time come from the same stretches, so points
+     * lost to a GPS dropout cannot inflate the number (the odometer distance
+     * of the whole trip over a few minutes of points did). NaN when no two
+     * points are close enough in time. */
+    public static double avgMovingKmh(double[] lat, double[] lon, long[] ts) {
+        double m = 0;
+        long ms = 0;
+        int n = Math.min(ts.length, Math.min(lat.length, lon.length));
+        for (int i = 1; i < n; i++) {
+            long dt = ts[i] - ts[i - 1];
+            if (dt > 0 && dt <= STOP_GAP_MS) {
+                ms += dt;
+                m += LocationHub.distanceM(lat[i - 1], lon[i - 1], lat[i], lon[i]);
+            }
+        }
+        return ms > 0 ? (m / 1000.0) / (ms / 3_600_000.0) : Double.NaN;
+    }
+
     public static double max(double[] v) {
         double m = Double.NEGATIVE_INFINITY;
         for (double x : v) m = Math.max(m, x);
