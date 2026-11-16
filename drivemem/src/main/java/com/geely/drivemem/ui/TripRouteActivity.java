@@ -2,6 +2,7 @@ package com.geely.drivemem.ui;
 
 import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarDb;
+import com.geely.drivemem.sensors.SpeedBuckets;
 import com.geely.drivemem.util.Style;
 
 import android.app.Activity;
@@ -117,23 +118,19 @@ public class TripRouteActivity extends Activity {
         new Thread(() -> load(tripId, startMs, endMs), "trip-route").start();
     }
 
-    // Speed colour key, one chip per band, same scale for every trip.
+    // Speed colour key, one chip per speed bucket: the stats page's buckets
+    // and colours, same scale for every trip.
     private LinearLayout legend() {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER);
         row.setPadding(0, Style.dp(this, 10), 0, 0);
-        double[] s = RouteGeometry.SPEED_STEPS;
-        String[] labels = {
-            String.format(Locale.US, "≤%.0f", s[0]),
-            String.format(Locale.US, "%.0f–%.0f", s[0], s[1]),
-            String.format(Locale.US, "%.0f–%.0f", s[1], s[2]),
-            String.format(Locale.US, "%.0f–%.0f", s[2], s[3]),
-            String.format(Locale.US, ">%.0f km/h", s[3])};
+        String[] labels = SpeedBuckets.LABELS;
+        int[] colors = SpeedBucketColors.get();
         for (int i = 0; i < labels.length; i++) {
             TextView sw = new TextView(this);
-            sw.setText("━━ " + labels[i]);
-            sw.setTextColor(RouteGeometry.SPEED_COLORS[i]);
+            sw.setText("━━ " + labels[i] + (i == labels.length - 1 ? " km/h" : ""));
+            sw.setTextColor(colors[i]);
             sw.setTextSize(19);
             sw.setPadding(Style.dp(this, 16), 0, Style.dp(this, 16), 0);
             row.addView(sw);

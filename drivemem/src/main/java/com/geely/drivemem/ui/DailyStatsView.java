@@ -328,7 +328,7 @@ public class DailyStatsView extends LinearLayout {
         speedLegend.setOrientation(LinearLayout.HORIZONTAL);
         speedLegend.setGravity(Gravity.CENTER_VERTICAL);
         speedLegend.setPadding(0, Style.dp(c, 12), 0, Style.dp(c, 8));
-        int[] speedColors = hourlySpeedColors();
+        int[] speedColors = SpeedBucketColors.get();
         for (int i = 0; i < SPEED_BUCKET_LABELS.length; i++) {
             speedLegend.addView(speedLegendItem(c, SPEED_BUCKET_LABELS[i], speedColors[i]));
         }
@@ -897,7 +897,7 @@ public class DailyStatsView extends LinearLayout {
             labels.add(String.format(Locale.US, "%02d", hour));
         }
         BarDataSet set = new BarDataSet(entries, "");
-        set.setColors(hourlySpeedColors());
+        set.setColors(SpeedBucketColors.get());
         set.setDrawValues(false);
         BarData chartData = new BarData(set);
         chartData.setBarWidth(.72f);
@@ -909,14 +909,6 @@ public class DailyStatsView extends LinearLayout {
         else hourlyChart.getAxisLeft().setAxisMaximum(1f);
         hourlyChart.setData(chartData);
         hourlyChart.invalidate();
-    }
-
-    private static int[] hourlySpeedColors() {
-        // Keep categorical colors distinct even when ambient lighting makes
-        // the theme's ACCENT and COOL identical. Darker variants suit light cards.
-        return Style.LIGHT
-                ? new int[]{0xFF087F78, 0xFF2463CC, 0xFFC46A09, 0xFFB02CA8}
-                : new int[]{0xFF2DD4BF, 0xFF609FFF, 0xFFFFB454, 0xFFE879F9};
     }
 
     private View speedLegendItem(Context c, String label, int color) {
@@ -1241,7 +1233,7 @@ public class DailyStatsView extends LinearLayout {
     }
 
     /** Puts an MDI chevron on a nav button (left of text if onLeft, else right), tinted to match the label. */
-    private static final String[] SPEED_BUCKET_LABELS = {"0–40", "40–80", "80–120", "120+"};
+    private static final String[] SPEED_BUCKET_LABELS = com.geely.drivemem.sensors.SpeedBuckets.LABELS;
 
     /**
      * Small bar chart: average efficiency per speed bucket, with the day's

@@ -10,7 +10,7 @@ import android.view.View;
 
 /** A trip's route as lines on a plain background (issue #19): no map. Each
  * segment between two points gets the colour of their average speed
- * (RouteGeometry.SPEED_COLORS). North is up. A dot marks the start, a ring
+ * (SpeedBucketColors). North is up. A dot marks the start, a ring
  * the end, and a bar in the corner gives the scale.
  *
  * The geometry is built once ({@link #rebuild}: on new data and on a size
@@ -91,6 +91,7 @@ public class RouteView extends View {
         for (int i = 0; i < n; i++) { sx[i] = f.x(xs[i]); sy[i] = f.y(ys[i]); }
 
         int[] runs = RouteGeometry.bandRuns(speed);
+        int[] colors = SpeedBucketColors.get();
         int count = Math.max(0, runs.length - 1);
         runPaths = new Path[count];
         runColors = new int[count];
@@ -104,7 +105,7 @@ public class RouteView extends View {
                 casingPath.lineTo(sx[keep[k]], sy[keep[k]]);
             }
             runPaths[j] = p;
-            runColors[j] = RouteGeometry.SPEED_COLORS[RouteGeometry.segmentBand(speed, runs[j])];
+            runColors[j] = colors[RouteGeometry.segmentBand(speed, runs[j])];
         }
 
         // Scale bar: a round length up to a quarter of the width.

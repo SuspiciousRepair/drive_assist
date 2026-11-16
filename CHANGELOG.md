@@ -10,9 +10,9 @@
   On by default. (#19)
 - **Tap a trip to see its route.** On the stats page, tap a finished trip
   (in Park). The route is drawn as lines on a plain background, no map,
-  north up. Each part has the colour of its speed: red up to 20 km/h,
-  orange to 50, green to 80, blue to 110, purple above. Only trips driven
-  with route recording on have a route. (#19)
+  north up. Each part has the colour of its speed, with the same buckets
+  and colours as the stats page: 0–40, 40–80, 80–120 and 120+ km/h. Only
+  trips driven with route recording on have a route. (#19)
 - **The route screen shows the height and the trip's numbers.** Under the
   route: the height along the trip, in the same speed colours. Touch it to
   mark that place on the route. On the right: distance, time (moving and

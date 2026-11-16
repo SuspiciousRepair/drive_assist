@@ -112,6 +112,7 @@ public class ElevationView extends View {
             ys[i] = (float) (bottom - (alt[i] - lo) / (hi - lo) * (bottom - top));
         }
         int[] runs = RouteGeometry.bandRuns(speed);
+        int[] colors = SpeedBucketColors.get();
         int count = Math.max(0, runs.length - 1);
         fillPaths = new Path[count];
         fillColors = new int[count];
@@ -123,7 +124,7 @@ public class ElevationView extends View {
             p.lineTo(xs[b], bottom);
             p.close();
             fillPaths[j] = p;
-            int col = RouteGeometry.SPEED_COLORS[RouteGeometry.segmentBand(speed, a)];
+            int col = colors[RouteGeometry.segmentBand(speed, a)];
             fillColors[j] = (col & 0x00FFFFFF) | 0x99000000;
         }
         topPath.moveTo(xs[0], ys[0]);
