@@ -13,6 +13,7 @@ import android.view.View;
  * the end, and a bar in the corner gives the scale. */
 public class RouteView extends View {
     private double[] xs = new double[0], ys = new double[0], speed = new double[0];
+    private int marker = -1;
     private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint casing = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint dot = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -37,6 +38,12 @@ public class RouteView extends View {
     public void setRoute(double[] lat, double[] lon, double[] speedKmh) {
         double[][] xy = RouteGeometry.project(lat, lon);
         xs = xy[0]; ys = xy[1]; speed = speedKmh;
+        invalidate();
+    }
+
+    /** Marks one point (picked on the height profile); -1 for none. */
+    public void setMarker(int index) {
+        marker = index;
         invalidate();
     }
 
@@ -67,6 +74,15 @@ public class RouteView extends View {
         dot.setStyle(Paint.Style.STROKE);
         dot.setStrokeWidth(Style.dp(ctx, 4));
         c.drawCircle(f.x(xs[n - 1]), f.y(ys[n - 1]), r - Style.dp(ctx, 2), dot);
+
+        if (marker >= 0 && marker < n) {
+            float mx = f.x(xs[marker]), my = f.y(ys[marker]);
+            dot.setStyle(Paint.Style.FILL);
+            dot.setColor(0xCC000000);
+            c.drawCircle(mx, my, Style.dp(ctx, 15), dot);
+            dot.setColor(Style.TEXT);
+            c.drawCircle(mx, my, Style.dp(ctx, 9), dot);
+        }
 
         // Scale bar, bottom left: a round length up to a quarter of the width.
         double barM = RouteGeometry.niceLengthM(getWidth() / 4.0 / f.pxPerM);

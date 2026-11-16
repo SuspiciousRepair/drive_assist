@@ -520,6 +520,13 @@
     <string name="route_title">เส้นทาง</string>
     <string name="route_none">ทริปนี้ไม่มีเส้นทาง ระบบจะบันทึกเส้นทางเฉพาะทริปที่ขับขณะเปิด Config → ระบบ → เส้นทางการเดินทาง</string>
     <string name="route_parked_only">เปิดเส้นทางได้เมื่อรถอยู่ในเกียร์ P</string>
+    <string name="route_stat_distance">ระยะทาง</string>
+    <string name="route_stat_time">เวลา</string>
+    <string name="route_stat_time_split">ขณะวิ่ง %1$s · จอด %2$s</string>
+    <string name="route_stat_speed">ความเร็ว</string>
+    <string name="route_stat_speed_value">เฉลี่ย %1$s · สูงสุด %2$s กม./ชม.</string>
+    <string name="route_stat_height_range">ความสูง %1$s – %2$s ม.</string>
+    <string name="route_stat_outside">ภายนอก</string>
     <!-- การ์ดเซสชันของวัน (DailyStatsView) -->
     <string name="session_since">ตั้งแต่ %1$s</string>
     <string name="session_yesterday">เมื่อวาน</string>

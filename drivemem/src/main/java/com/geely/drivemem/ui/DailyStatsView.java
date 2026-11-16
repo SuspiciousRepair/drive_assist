@@ -1723,6 +1723,16 @@ public class DailyStatsView extends LinearLayout {
                 i.putExtra(TripRouteActivity.EXTRA_START_MS, t.startMs);
                 i.putExtra(TripRouteActivity.EXTRA_END_MS, t.endMs);
                 i.putExtra(TripRouteActivity.EXTRA_KM, t.distanceKm);
+                i.putExtra(TripRouteActivity.EXTRA_SOC_START, t.socStart);
+                i.putExtra(TripRouteActivity.EXTRA_SOC_END, t.socEnd);
+                i.putExtra(TripRouteActivity.EXTRA_SPENT, t.spentKwh);
+                i.putExtra(TripRouteActivity.EXTRA_REGEN, t.regenKwh);
+                i.putExtra(TripRouteActivity.EXTRA_NET, t.energyKwh);
+                i.putExtra(TripRouteActivity.EXTRA_EFF, t.efficiencyKwh100km);
+                i.putExtra(TripRouteActivity.EXTRA_ASCENT, t.ascentDPlusM);
+                i.putExtra(TripRouteActivity.EXTRA_DESCENT, t.descentDMinusM);
+                i.putExtra(TripRouteActivity.EXTRA_ESTIMATED, t.energySource == EnergySource.ESTIMATED
+                        || t.energySource == EnergySource.MIXED);
                 getContext().startActivity(i);
             });
         }

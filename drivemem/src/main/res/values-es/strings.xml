@@ -504,6 +504,13 @@
     <string name="route_title">Ruta</string>
     <string name="route_none">Este viaje no tiene ruta. Las rutas se guardan en los viajes hechos con Config → Sistema → Rutas de los viajes activado.</string>
     <string name="route_parked_only">Abre la ruta con el coche en P</string>
+    <string name="route_stat_distance">Distancia</string>
+    <string name="route_stat_time">Tiempo</string>
+    <string name="route_stat_time_split">En marcha %1$s · parado %2$s</string>
+    <string name="route_stat_speed">Velocidad</string>
+    <string name="route_stat_speed_value">media %1$s · máx. %2$s km/h</string>
+    <string name="route_stat_height_range">Altitud %1$s – %2$s m</string>
+    <string name="route_stat_outside">Fuera</string>
     <!-- Tarjetas de sesiones del día (DailyStatsView) -->
     <string name="session_since">desde %1$s</string>
     <string name="session_yesterday">ayer</string>
