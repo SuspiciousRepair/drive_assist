@@ -49,23 +49,25 @@ public final class TelemetryClipsSection extends LinearLayout {
         ConfigCards.add(leftCol, settings);
 
         List<Clips.Clip> clips = Clips.list(activity);
-        boolean on = Clips.recording(activity);
+        boolean on = Clips.shownOn(activity);
 
         // A real toggle, not a momentary button: modehelper now persists
         // whatever is sent here ("dashcam_on") and checks it before
         // auto-starting on the next boot too — see ModeHelperService's own
-        // comment on maybeAutoStart(). Displayed state is the live directory
-        // read (Clips.recording()), the same honest-over-cached approach as
-        // the AVAS toggle, not a locally-remembered guess.
+        // comment on maybeAutoStart(). Displayed state is the recorder's own
+        // (Clips.recording(): recorder.state, then the live .mp4.tmp), the same
+        // honest-over-cached approach as the AVAS toggle, not a guess.
         LinearLayout recordRow = Style.toggleRow(activity, activity.getString(R.string.clips_record), on, wantOn -> {
             // Drive Assist does not record — modehelper does. Ask over the same
-            // broadcast adb uses, then re-read the directory rather than
-            // assuming: a segment file takes a moment to appear.
+            // broadcast adb uses. Starting takes seconds, so the switch keeps
+            // the request for Clips.ASK_GRACE_MS (a re-read at 1.5 s used to
+            // flip it back to off), then shows the real state again.
             Prefs.setDashcamOn(activity, wantOn);   // for the backup only
+            Clips.asked(wantOn);
             activity.sendBroadcast(new Intent("com.geely.modehelper.DASHCAM")
                 .setClassName("com.geely.modehelper", "com.geely.modehelper.DashReceiver")
                 .putExtra("on", wantOn ? 1 : 0));
-            postDelayed(() -> onRefresh.run(), 1500);
+            postDelayed(() -> onRefresh.run(), Clips.ASK_GRACE_MS + 500);
         });
         settings.addView(recordRow);
 
