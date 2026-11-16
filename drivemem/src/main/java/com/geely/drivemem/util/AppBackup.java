@@ -79,6 +79,11 @@ public final class AppBackup {
     static final int KEEP = 7;
     static final long AUTO_EVERY_MS = 24L * 3600 * 1000;
     static final String PREF_LAST_AUTO = "backup_last_auto_ms";
+    /** When the daily backup last started, and how many starts in a row did
+     * not finish. Both are the app's own state (backup_*: never in a backup). */
+    static final String PREF_LAST_TRY = "backup_last_try_ms";
+    static final String PREF_AUTO_FAILS = "backup_auto_fails";
+    static final long RETRY_FIRST_MS = 3600L * 1000;
     static final String PREF_OFFER_DONE = "backup_offer_done";
     /** Set by a restore just before the restart, read once by the new process. */
     static final String PREF_NOTE = "backup_restore_note";
@@ -235,8 +240,14 @@ public final class AppBackup {
                 File part = new File(backups, name + ".part");
                 try {
                     if (!backups.isDirectory() && !backups.mkdirs()) throw new java.io.IOException("cannot create " + backups);
-                    if (first == null) writeBackup(app, part, ks[0], ks[1]);
-                    else copy(first, part);
+                    if (first == null) {
+                        writeBackup(app, part, ks[0], ks[1]);
+                        // On the drive before it gets its final name: prune
+                        // below may delete an older good backup.
+                        syncFile(part);
+                    } else {
+                        copy(first, part);
+                    }
                     if (!part.renameTo(f)) throw new java.io.IOException("rename " + part);
                     if (first == null) first = f;
                     writeReadme(backups);
@@ -259,22 +270,52 @@ public final class AppBackup {
         }
     }
 
-    /** Called by the watchdog. Once a day, parked only, on its own thread. */
+    /** Called by the watchdog (every 10 min, and on every resume). Once a
+     * day, parked only, on its own thread. A backup that fails (drive full,
+     * stick read-only) is tried again later, not on every call: see
+     * {@link #autoDue}. */
     public static void autoIfDue(Context ctx) {
         final Context app = ctx.getApplicationContext();
         SharedPreferences p = Prefs.file(app);
         long now = System.currentTimeMillis();
-        if (now - p.getLong(PREF_LAST_AUTO, 0) < AUTO_EVERY_MS) return;
+        final int fails = p.getInt(PREF_AUTO_FAILS, 0);
+        if (!autoDue(now, p.getLong(PREF_LAST_AUTO, 0), p.getLong(PREF_LAST_TRY, 0), fails)) return;
         if (!hasPassword(app)) return;   // the Backup card says backups are off
         if (!CarState.isParked() || running.get()) return;
+        // Counted as failed until it finishes: a backup cut off by a suspend
+        // or a killed process waits like one that failed.
+        p.edit().putLong(PREF_LAST_TRY, now).putInt(PREF_AUTO_FAILS, Math.min(fails + 1, 100)).apply();
         new Thread(() -> {
             try {
                 backupNow(app);
-                Prefs.file(app).edit().putLong(PREF_LAST_AUTO, System.currentTimeMillis()).apply();
+                Prefs.file(app).edit().putLong(PREF_LAST_AUTO, System.currentTimeMillis())
+                    .putInt(PREF_AUTO_FAILS, 0).apply();
             } catch (Throwable t) {
-                Log.w(TAG, "backup: auto: " + t);
+                Log.w(TAG, "backup: auto: " + t + " (try " + (fails + 1) + ", next in "
+                    + retryDelayMs(fails + 1) / 60_000L + " min)");
             }
         }, "auto-backup").start();
+    }
+
+    /** True when the daily backup must start now.
+     *
+     * lastOkMs: when the last one finished. lastTryMs: when the last one
+     * started. fails: how many starts in a row did not finish (0 after a
+     * good one). After a failure the next try waits {@link #retryDelayMs}.
+     * A last try in the future (the clock was set back) does not block. */
+    static boolean autoDue(long nowMs, long lastOkMs, long lastTryMs, int fails) {
+        if (nowMs - lastOkMs < AUTO_EVERY_MS) return false;
+        if (fails <= 0) return true;
+        long since = nowMs - lastTryMs;
+        return since < 0 || since >= retryDelayMs(fails);
+    }
+
+    /** The wait after this many failed tries in a row: 1 h, 2 h, 4 h, ...
+     * and never more than one day. */
+    static long retryDelayMs(int fails) {
+        if (fails <= 0) return 0;
+        if (fails > 5) return AUTO_EVERY_MS;             // 32 h is already over the cap
+        return Math.min(RETRY_FIRST_MS << (fails - 1), AUTO_EVERY_MS);
     }
 
     /** The database snapshot goes to the private cache first; only the
@@ -740,6 +781,13 @@ public final class AppBackup {
             int n;
             while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
             out.getFD().sync();   // on the drive before the caller renames it
+        }
+    }
+
+    /** Forces a file that is already written and closed onto its drive. */
+    static void syncFile(File f) throws Exception {
+        try (FileOutputStream out = new FileOutputStream(f, true)) {
+            out.getFD().sync();
         }
     }
 
