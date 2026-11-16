@@ -92,6 +92,34 @@ public class RouteGeometryTest {
         }
     }
 
+    @Test public void runsOfOneTripInsideALongerArray() {
+        // Trip A: points 0..2. Trip B: points 3..6, means 10, 50, 90.
+        double[] speed = {100, 100, 100, 10, 10, 90, 90};
+        assertArrayEquals(new int[]{0, 2}, RouteGeometry.bandRuns(speed, 0, 2));
+        assertArrayEquals(new int[]{3, 4, 5, 6}, RouteGeometry.bandRuns(speed, 3, 6));
+        assertEquals(0, RouteGeometry.bandRuns(speed, 4, 4).length);
+    }
+
+    @Test public void aPointBelongsToTheTripThatStartsAtOrBeforeIt() {
+        int[] starts = {0, 3, 10};
+        assertEquals(0, RouteGeometry.tripOf(starts, 0));
+        assertEquals(0, RouteGeometry.tripOf(starts, 2));
+        assertEquals(1, RouteGeometry.tripOf(starts, 3));
+        assertEquals(1, RouteGeometry.tripOf(starts, 9));
+        assertEquals(2, RouteGeometry.tripOf(starts, 10));
+        assertEquals(2, RouteGeometry.tripOf(starts, 500));
+        assertEquals(-1, RouteGeometry.tripOf(starts, -1));
+        assertEquals(-1, RouteGeometry.tripOf(new int[0], 4));
+    }
+
+    @Test public void aTouchPicksTheNearestPointInReach() {
+        float[] x = {0, 100, 200}, y = {0, 0, 0};
+        assertEquals(1, RouteGeometry.nearest(x, y, 110, 5, 40));
+        assertEquals(2, RouteGeometry.nearest(x, y, 190, -20, 40));
+        assertEquals(-1, RouteGeometry.nearest(x, y, 100, 80, 40));   // too far
+        assertEquals(-1, RouteGeometry.nearest(new float[0], new float[0], 0, 0, 40));
+    }
+
     @Test public void noRunsWithFewerThanTwoPoints() {
         assertEquals(0, RouteGeometry.bandRuns(new double[0]).length);
         assertEquals(0, RouteGeometry.bandRuns(new double[]{50}).length);

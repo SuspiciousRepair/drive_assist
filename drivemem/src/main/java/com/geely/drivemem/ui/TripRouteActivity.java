@@ -2,6 +2,8 @@ package com.geely.drivemem.ui;
 
 import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarDb;
+import com.geely.drivemem.sensors.DailyStatsProvider;
+import com.geely.drivemem.sensors.EnergySource;
 import com.geely.drivemem.sensors.SpeedBuckets;
 import com.geely.drivemem.util.Style;
 
@@ -38,6 +40,25 @@ public class TripRouteActivity extends Activity {
     public static final String EXTRA_ASCENT = "ascent_m";
     public static final String EXTRA_DESCENT = "descent_m";
     public static final String EXTRA_ESTIMATED = "estimated";
+
+    /** The intent that opens the route of one finished trip. */
+    static android.content.Intent intent(android.content.Context c, DailyStatsProvider.DriveSession t) {
+        return new android.content.Intent(c, TripRouteActivity.class)
+            .putExtra(EXTRA_TRIP_ID, t.tripId)
+            .putExtra(EXTRA_START_MS, t.startMs)
+            .putExtra(EXTRA_END_MS, t.endMs)
+            .putExtra(EXTRA_KM, t.distanceKm)
+            .putExtra(EXTRA_SOC_START, t.socStart)
+            .putExtra(EXTRA_SOC_END, t.socEnd)
+            .putExtra(EXTRA_SPENT, t.spentKwh)
+            .putExtra(EXTRA_REGEN, t.regenKwh)
+            .putExtra(EXTRA_NET, t.energyKwh)
+            .putExtra(EXTRA_EFF, t.efficiencyKwh100km)
+            .putExtra(EXTRA_ASCENT, t.ascentDPlusM)
+            .putExtra(EXTRA_DESCENT, t.descentDMinusM)
+            .putExtra(EXTRA_ESTIMATED, t.energySource == EnergySource.ESTIMATED
+                    || t.energySource == EnergySource.MIXED);
+    }
 
     /** Window (points) of the moving median on the height: 2 each side. */
     static final int HEIGHT_SMOOTH = 5;
@@ -120,19 +141,21 @@ public class TripRouteActivity extends Activity {
 
     // Speed colour key, one chip per speed bucket: the stats page's buckets
     // and colours, same scale for every trip.
-    private LinearLayout legend() {
-        LinearLayout row = new LinearLayout(this);
+    private LinearLayout legend() { return legend(this); }
+
+    static LinearLayout legend(android.content.Context ctx) {
+        LinearLayout row = new LinearLayout(ctx);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER);
-        row.setPadding(0, Style.dp(this, 10), 0, 0);
+        row.setPadding(0, Style.dp(ctx, 10), 0, 0);
         String[] labels = SpeedBuckets.LABELS;
         int[] colors = SpeedBucketColors.get();
         for (int i = 0; i < labels.length; i++) {
-            TextView sw = new TextView(this);
+            TextView sw = new TextView(ctx);
             sw.setText("━━ " + labels[i] + (i == labels.length - 1 ? " km/h" : ""));
             sw.setTextColor(colors[i]);
             sw.setTextSize(19);
-            sw.setPadding(Style.dp(this, 16), 0, Style.dp(this, 16), 0);
+            sw.setPadding(Style.dp(ctx, 16), 0, Style.dp(ctx, 16), 0);
             row.addView(sw);
         }
         return row;

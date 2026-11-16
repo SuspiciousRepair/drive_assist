@@ -78,6 +78,11 @@ On the statistics page, tap a finished trip (in **P**) to open its route:
 - **Speed colours.** Each part has the colour of its speed. The buckets and
   colours are the same as on the statistics page: 0–40, 40–80, 80–120 and
   120+ km/h. The scale is fixed, so two trips compare at a glance.
+- **All routes in one picture.** The **All routes** button on the statistics
+  page (in **P**) draws every recorded route together, with the same speed
+  colours, and lists the trips. Touch a route or a trip in the list to
+  select it: it is drawn thick over the others. **Open this trip** shows
+  its own route screen.
 - **Height profile.** Under the route, the GPS height along the trip, in the
   same speed colours. Touch it to mark that place on the route.
 - **Trip numbers.** Distance, moving and stopped time, average and top speed,
