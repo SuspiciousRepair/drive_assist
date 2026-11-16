@@ -533,7 +533,7 @@
     <string name="route_parked_only">Open the route in Park</string>
     <string name="routes_all_title">All routes</string>
     <string name="routes_all_count">%1$d trips</string>
-    <string name="routes_all_days">All days</string>
+    <string name="routes_all_show">Show all</string>
     <string name="routes_all_none">No routes yet. Routes are saved for trips driven with Config → System → Trip routes on.</string>
     <string name="routes_all_open">Open this trip</string>
     <string name="routes_all_hint">Touch a route or a trip to select it.</string>

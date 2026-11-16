@@ -16,7 +16,7 @@
 - **All routes in one picture.** New **All routes** button on the stats page
   (in Park). It draws every recorded route together, in the speed colours,
   next to the list of those trips, with the height profile underneath.
-  Step through the days with Previous / Next, or show All days. Touch a
+  Step through the days with Previous / Next; Show all goes back to every trip. Touch a
   route or a trip to select it, then **Open this trip** to see its own
   route screen.
 - **The route screen shows the height and the trip's numbers.** Under the

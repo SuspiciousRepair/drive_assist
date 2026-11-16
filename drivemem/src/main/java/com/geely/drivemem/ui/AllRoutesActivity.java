@@ -97,10 +97,12 @@ public class AllRoutesActivity extends Activity {
         dayLabel.setTypeface(null, Typeface.BOLD);
         dayLabel.setGravity(Gravity.CENTER);
         dayLabel.setMinWidth(Style.dp(this, 240));
+        int lp = Style.dp(this, 16);
+        dayLabel.setPadding(lp, 0, lp, 0);
         head.addView(dayLabel);
         nextBtn = navButton(getString(R.string.daily_stats_next_day), this::newerDay);
         head.addView(nextBtn);
-        allBtn = navButton(getString(R.string.routes_all_days), () -> setDay(-1));
+        allBtn = navButton(getString(R.string.routes_all_show), () -> setDay(-1));
         LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         alp.leftMargin = Style.dp(this, 14);
@@ -270,21 +272,30 @@ public class AllRoutesActivity extends Activity {
     }
 
     private void updateDayBar() {
-        if (dayIdx < 0) {
-            dayLabel.setText(R.string.routes_all_days);
+        // One day: its date. Every day: the first and the last date.
+        if (days.isEmpty()) {
+            dayLabel.setText("");
+        } else if (dayIdx >= 0) {
+            dayLabel.setText(dayText(days.get(dayIdx)));
         } else {
-            try {
-                Date d = new SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(days.get(dayIdx));
-                dayLabel.setText(android.text.format.DateFormat.getMediumDateFormat(this).format(d));
-            } catch (java.text.ParseException e) {
-                dayLabel.setText(days.get(dayIdx));
-            }
+            String first = days.get(days.size() - 1), last = days.get(0);
+            dayLabel.setText(first.equals(last) ? dayText(last) : dayText(first) + " – " + dayText(last));
         }
         boolean any = !days.isEmpty();
         enable(prevBtn, any && dayIdx < days.size() - 1);
         enable(nextBtn, dayIdx > 0);
-        // Only useful on one day; on all days the label already says so.
+        // Only useful on one day: it goes back to every trip.
         allBtn.setVisibility(dayIdx >= 0 ? View.VISIBLE : View.GONE);
+    }
+
+    /** "yyyy-MM-dd" as the car's medium date, "16 de nov de 2026". */
+    private String dayText(String day) {
+        try {
+            Date d = new SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(day);
+            return android.text.format.DateFormat.getMediumDateFormat(this).format(d);
+        } catch (java.text.ParseException e) {
+            return day;
+        }
     }
 
     private static void enable(View v, boolean on) {
