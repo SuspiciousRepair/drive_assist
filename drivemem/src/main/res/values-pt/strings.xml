@@ -516,6 +516,13 @@
     <string name="route_title">Rota</string>
     <string name="route_none">Esta viagem não tem rota. As rotas são salvas nas viagens feitas com Config → Sistema → Rotas das viagens ligado.</string>
     <string name="route_parked_only">Abra a rota com o carro em P</string>
+    <string name="route_stat_distance">Distância</string>
+    <string name="route_stat_time">Tempo</string>
+    <string name="route_stat_time_split">Em movimento %1$s · parado %2$s</string>
+    <string name="route_stat_speed">Velocidade</string>
+    <string name="route_stat_speed_value">média %1$s · máx. %2$s km/h</string>
+    <string name="route_stat_height_range">Altitude %1$s – %2$s m</string>
+    <string name="route_stat_outside">Lá fora</string>
     <!-- Cartões de sessão do dia (DailyStatsView) -->
     <string name="session_since">desde %1$s</string>
     <string name="session_yesterday">ontem</string>

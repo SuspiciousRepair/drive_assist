@@ -531,6 +531,13 @@
     <string name="route_title">Route</string>
     <string name="route_none">No route for this trip. Routes are saved for trips driven with Config → System → Trip routes on.</string>
     <string name="route_parked_only">Open the route in Park</string>
+    <string name="route_stat_distance">Distance</string>
+    <string name="route_stat_time">Time</string>
+    <string name="route_stat_time_split">Moving %1$s · stopped %2$s</string>
+    <string name="route_stat_speed">Speed</string>
+    <string name="route_stat_speed_value">avg %1$s · top %2$s km/h</string>
+    <string name="route_stat_height_range">Height %1$s – %2$s m</string>
+    <string name="route_stat_outside">Outside</string>
     <!-- Day session cards (DailyStatsView) -->
     <string name="session_since">since %1$s</string>
     <string name="session_yesterday">yesterday</string>
