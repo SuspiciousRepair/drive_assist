@@ -187,6 +187,15 @@ public final class TelemetrySystemSection extends LinearLayout {
         canCard.addView(canStatus);
         ConfigCards.add(right, canCard);
 
+        // ---- Trip routes (issue #19) ----
+        // On by default (owner, 2026-11-15). The points stay in car.db.
+        LinearLayout routesCard = ConfigCards.card(activity, activity.getString(R.string.routes_header));
+        routesCard.addView(Style.toggleRow(activity, activity.getString(R.string.routes_enable_label),
+            com.geely.drivemem.util.Prefs.getRecordRoutes(activity),
+            on -> com.geely.drivemem.util.Prefs.setRecordRoutes(activity, on)));
+        routesCard.addView(ConfigCards.hint(activity, activity.getString(R.string.routes_hint)));
+        ConfigCards.add(right, routesCard);
+
         // ---- Backup Card ----
         LinearLayout backupCard = ConfigCards.card(activity, activity.getString(R.string.backup_header));
         // Plain body text, not Style.label(): label is 22sp bold, made for a

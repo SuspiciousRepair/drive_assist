@@ -21,7 +21,8 @@ public class GpsReader {
     public static volatile Location live;
 
     /** Returns location data as [latitude, longitude, altitude, bearing, speed, accuracy] or null. */
-    public static double[] read(Context ctx) {
+    // Package-private: consumers read LocationHub.FIX from the hub.
+    static double[] read(Context ctx) {
         try {
             LocationManager lm = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
             Location best = live;   // the live GPS fix, if TelemetryService's listener has one yet

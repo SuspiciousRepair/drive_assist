@@ -510,6 +510,9 @@
     <string name="can_header">Dados do carro (CAN)</string>
     <string name="can_enable_label">Ler a potência da bateria do carro (CAN)</string>
     <string name="can_hint">Volts × ampères exatos da bateria, lidos do próprio carro. Ligado por padrão; não há nada para configurar. Precisa do app ModeHelper. Para iniciar o leitor, pode ligar o ADB por alguns segundos e desligar de novo. Se não funcionar, o app volta para o dongle ou para a estimativa pelo % da bateria. Enquanto estiver ligado, outros apps no carro também podem ler esses dados do carro.</string>
+    <string name="routes_header">Rotas das viagens</string>
+    <string name="routes_enable_label">Gravar as rotas das viagens (GPS)</string>
+    <string name="routes_hint">Salva por onde cada viagem passou e onde cada carga foi feita. Fica no carro: nada é enviado para lugar nenhum. Entra no seu backup. Viagens de antes desta opção não têm rota.</string>
     <!-- Cartões de sessão do dia (DailyStatsView) -->
     <string name="session_since">desde %1$s</string>
     <string name="session_yesterday">ontem</string>

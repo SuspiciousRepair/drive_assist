@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Added
+- **Trips record their route.** While you drive, the app saves a GPS point
+  every 5 s (only after 25 m of movement), with the drive mode, the regen
+  level and the energy used so far. Each charge saves where it was. It all
+  stays in the car and goes into the backup. Config → System → Trip routes.
+  On by default. The trip details screen that draws the route comes next.
+  (#19)
+
+### Changed
+- **The drive mode and regen level are kept as raw data only.** v0.6.0 also
+  saved each trip cut into parts per mode. That table is removed; the modes
+  stay on the 30 s samples and now on every route point. (#19)
+
 ## [v0.7.0] — 2026-11-15
 
 ### Added

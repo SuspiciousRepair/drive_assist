@@ -5,6 +5,7 @@ import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.net.MqttReporter;
 import com.geely.drivemem.sensors.GpsReader;
+import com.geely.drivemem.sensors.LocationHub;
 import com.geely.drivemem.util.Beat;
 import com.geely.drivemem.util.Prefs;
 
@@ -117,7 +118,7 @@ public class TelemetryService extends Service {
                 @SuppressWarnings("unchecked")
                 java.util.Map<String, Object> data = (java.util.Map<String, Object>) r.value;
                 mqtt.publish(data);
-                double[] loc = GpsReader.read(getApplicationContext());
+                double[] loc = LocationHub.read(getApplicationContext());
                 if (loc != null) mqtt.publishLocation(loc);
             }
         } catch (Throwable t) {

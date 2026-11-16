@@ -96,6 +96,16 @@ plugged in. Updated every 2 s; a value older than 15 s becomes
 | `energy.power_kw`, `energy.pack_v`, `energy.pack_a` | from CAN when `can.live` is 1, else from the dongle, else `NOT_AVAILABLE` |
 | `energy.source` | `can` or `obd2` |
 
+### GPS position (`LocationHub`), always while the app runs
+
+| Key | What | Update |
+|---|---|---|
+| `location.fix` | `LocationHub.Fix`: lat, lon, altitude m, bearing, speed km/h (GPS), accuracy m. Source: `GpsReader` (the live fix from `TelemetryService`, else the last known one). `NOT_AVAILABLE` with no fix | polled every 2 s; published only when the car moves to another ~5 m cell. The cache always holds the newest fix |
+
+MQTT/HA, ABRP, the 30 s sampler (altitude), trip ascent / descent, trip
+routes and charge places all read this key. `GpsReader.read` is
+package-private.
+
 ### Sessions (built on the hub thread from `telemetry.tick`)
 
 | Key | What | Update |
@@ -143,8 +153,8 @@ except the SoC-based driving energy, which is marked "estimated".
 | Where | What | When |
 |---|---|---|
 | `car.db` `telemetry_sample` | the 30 s snapshot, incl. `battery_temp_c` (dongle), `climate_kw` (CAN), and `drive_mode` / `regen_mode` (from `car.drive_mode` / `car.regen_mode`) | every 30 s; kept 90 days |
-| `car.db` `trip`, `charge_session` | per trip / per charge totals | when the trip or charge ends |
-| `car.db` `trip_mode_segment` | each part of a trip with one drive mode and one regen level: km, spent / regen / net kWh, energy source (`state.ModeSegments`) | when the trip ends; kept for good |
+| `car.db` `trip`, `charge_session` | per trip / per charge totals; `charge_session.lat` / `lon` where it charged (with "Record trip routes" on) | when the trip or charge ends |
+| `car.db` `trip_point` | the route (`state.RoutePoints`): time, lat, lon, altitude, GPS speed, bearing, accuracy, `drive_mode`, `regen_mode`, `power_kw` (`energy.power_kw`), and the trip's `spent_kwh` / `regen_kwh` so far. Raw, for later analysis | every 5 s while out of Park, only after 25 m of movement, with "Record trip routes" on (default on). `trip_id` is NULL until the trip is saved; points of a trip too short to keep are deleted. Kept for good |
 | `files/obd2-reading.log` | every dongle reading | while the dongle is connected (5 MB, then restarts) |
 | `files/abrp-attempt.log` | every ABRP send and its payload | while ABRP is on (5 MB, then restarts) |
 

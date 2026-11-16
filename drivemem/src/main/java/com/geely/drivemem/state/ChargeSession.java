@@ -412,6 +412,13 @@ public final class ChargeSession {
                 v.put("dismissed", 0);
                 if (snap.cost != null) v.put("cost", snap.cost);
                 if (battKwh != null) v.put("kwh_battery", battKwh);
+                // Where the charge was (issue #19): the hub's GPS fix, same
+                // switch as the trip routes. Saved in the car only.
+                if (com.geely.drivemem.util.Prefs.getRecordRoutes(ctx)) {
+                    com.geely.drivemem.sensors.LocationHub.Fix fix =
+                        com.geely.drivemem.sensors.LocationHub.get(ctx);
+                    if (fix != null) { v.put("lat", fix.lat); v.put("lon", fix.lon); }
+                }
 
                 long rowId = snap.sessionRowId;
                 if (rowId <= 0) {
