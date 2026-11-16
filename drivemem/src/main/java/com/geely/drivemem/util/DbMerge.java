@@ -18,7 +18,7 @@ import java.util.Map;
  * column ORDER differences between a migrated and a freshly created table.
  *
  * Plain SQL through {@link Sql}, so the same code runs on the car and in the
- * JVM unit tests (sqlite-jdbc). Same algorithm as tools/merge-car-db.py.
+ * JVM unit tests (sqlite-jdbc).
  */
 public final class DbMerge {
     private DbMerge() {}
