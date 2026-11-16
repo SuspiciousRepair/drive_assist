@@ -638,4 +638,5 @@
     <string name="phone_msg_no_space">The car does not have enough free space for this file.</string>
     <string name="phone_msg_busy">A restore is already running.</string>
     <string name="phone_msg_no_file">Pick a backup file first.</string>
+    <string name="unit_kwh_per_100km">kWh/100 km</string>
 </resources>

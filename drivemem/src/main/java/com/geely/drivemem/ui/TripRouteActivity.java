@@ -217,8 +217,10 @@ public class TripRouteActivity extends Activity {
             long moving = Math.min(TripRouteStats.movingMs(d.ts), total);
             timeSub = getString(R.string.route_stat_time_split,
                 TripRouteStats.duration(moving), TripRouteStats.duration(total - moving));
-            double hours = moving / 3_600_000.0;
-            String avg = hours > 0 && km > 0 ? String.format(Locale.US, "%.0f", km / hours) : "—";
+            // From the points' own distance, not the odometer km: with
+            // points missing (GPS dropout) km / moving time was absurd.
+            double avgKmh = TripRouteStats.avgMovingKmh(d.lat, d.lon, d.ts);
+            String avg = Double.isNaN(avgKmh) ? "—" : String.format(Locale.US, "%.0f", avgKmh);
             stat(R.string.route_stat_time, TripRouteStats.duration(total), timeSub);
             stat(R.string.route_stat_speed, getString(R.string.route_stat_speed_value, avg,
                 String.format(Locale.US, "%.0f", TripRouteStats.max(d.speed))), null);

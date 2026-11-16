@@ -457,7 +457,7 @@ public final class AbrpUploader {
             if (loc != null) {
                 tlm.put("lat", loc[0]);
                 tlm.put("lon", loc[1]);
-                tlm.put("elevation", loc[2]);
+                if (Double.isFinite(loc[2])) tlm.put("elevation", loc[2]);
                 tlm.put("heading", loc[3]);
             }
 

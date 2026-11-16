@@ -1,11 +1,7 @@
 package com.geely.drivemem.services;
 
 import com.geely.drivemem.R;
-import com.geely.drivemem.car.CarActor;
-import com.geely.drivemem.car.EntityBus;
-import com.geely.drivemem.controls.AvasState;
-import com.geely.drivemem.controls.HelperSync;
-import com.geely.drivemem.controls.RegenTap;
+import com.geely.drivemem.controls.QuickButtons;
 import com.geely.drivemem.controls.TurboMode;
 import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.hvac.ComfortHub;
@@ -56,6 +52,8 @@ public final class OverlayService extends Service {
     private static final String PREF_Y = "overlay_y";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
+    // Regen and AVAS buttons: taps, icons and hub listeners, shared with the home screen.
+    private final QuickButtons quickButtons = new QuickButtons(this, handler);
     private WindowManager windowManager;
     private View overlayView;
     private WindowManager.LayoutParams lp;
@@ -63,8 +61,6 @@ public final class OverlayService extends Service {
     private View expanded;
     private ImageView scaleView;
     private View turboBar;
-    private ImageView regenGlyphView;
-    private ImageView avasIconView;
     private ComfortRuler ruler;
     private boolean isExpanded = false;
 
@@ -139,7 +135,7 @@ public final class OverlayService extends Service {
         handler.removeCallbacksAndMessages(null);
         ComfortHub.removeListener(climateListener);
         AppForeground.removeListener(foregroundListener);
-        EntityBus.unsubscribe(AvasState.KEY, avasListener);
+        quickButtons.stop();
         if (overlayView != null && windowManager != null) {
             try { windowManager.removeView(overlayView); } catch (Throwable ignored) {}
         }
@@ -177,14 +173,13 @@ public final class OverlayService extends Service {
         windowManager.addView(overlayView, lp);
         refreshClimate();
         refreshTurbo();
-        refreshRegen();
 
         // Tracking itself is already running by now — DriveMemApplication
         // .onCreate() started it, guaranteed to run before any Activity in
         // the process could, which starting it lazily from here could not
         // promise (see that class's own comment for the bug that caused).
         AppForeground.addListener(foregroundListener);
-        EntityBus.subscribe(AvasState.KEY, avasListener);
+        quickButtons.start();
         // Covers the toggle-it-on-from-Config case: our own Activity is the
         // one on screen at this exact moment, so start hidden rather than
         // waiting for the next start/stop edge to say so.
@@ -217,7 +212,6 @@ public final class OverlayService extends Service {
         expanded.setVisibility(wasExpanded ? View.VISIBLE : View.GONE);
         refreshClimate();
         refreshTurbo();
-        refreshRegen();
     }
 
     // 30% transparency (70% opaque) for the COLLAPSED circle only — Style
@@ -284,7 +278,7 @@ public final class OverlayService extends Service {
             Prefs.getTurboCardShows(this, Prefs.CARD_TURBO),
             Prefs.getTurboCardShows(this, Prefs.CARD_REGEN),
             Prefs.getTurboCardShows(this, Prefs.CARD_AVAS));
-        turboBar = null; regenGlyphView = null; avasIconView = null;
+        turboBar = null; quickButtons.bindRegen(null); quickButtons.bindAvas(null);
         for (int i = 0; i < slots.length(); i++) {
             char slot = slots.charAt(i);
             View col = slot == 'T' ? turboColumn() : slot == 'R' ? regenColumn() : avasColumn();
@@ -357,20 +351,23 @@ public final class OverlayService extends Service {
     }
 
     private View regenColumn() {
-        LinearLayout col = slotColumn(getString(R.string.regen_boost_title), v -> onRegenTap());
-        col.addView(iconTile(regenGlyphView = new ImageView(this)));
-        showRegen(0);
+        // Shared with the home screen's Turbo card (QuickButtons), so this
+        // button also follows Config's "Regen button steps through Low,
+        // Medium and High".
+        LinearLayout col = slotColumn(getString(R.string.regen_boost_title), v -> quickButtons.onRegenTap());
+        ImageView glyph = new ImageView(this);
+        col.addView(iconTile(glyph));
+        quickButtons.bindRegen(glyph);
         return col;
     }
 
     private View avasColumn() {
-        LinearLayout col = slotColumn(getString(R.string.avas_title), v -> onAvasTap());
+        LinearLayout col = slotColumn(getString(R.string.avas_title), v -> quickButtons.onAvasTap());
         // Same tile height as the text tiles next to it (40sp glyph + 18dp
         // padding each side), so the row stays level.
         ImageView icon = new ImageView(this);
         col.addView(iconTile(icon));
-        avasIconView = icon;
-        showAvas(AvasState.on(CarActor.get(this).get(AvasState.KEY)));
+        quickButtons.bindAvas(icon);
         return col;
     }
 
@@ -385,26 +382,6 @@ public final class OverlayService extends Service {
         ilp.topMargin = ilp.bottomMargin = Style.dp(this, 18);
         tile.addView(icon, ilp);
         return tile;
-    }
-
-    private void onAvasTap() {
-        HelperSync.toggleAvas(this);
-        Boolean on = AvasState.on(CarActor.get(this).get(AvasState.KEY));
-        if (on != null) showAvas(!on);
-        // The hub publishes only changes: if the flip did not land, no event
-        // comes, so show what the hub has once modehelper had time to report.
-        handler.postDelayed(() -> showAvas(AvasState.on(CarActor.get(this).get(AvasState.KEY))), 3000);
-    }
-
-    private final EntityBus.Listener avasListener = (key, reading) ->
-        handler.post(() -> showAvas(AvasState.on(reading)));
-
-    // Same look as the Turbo card: sound icon in the accent colour when on,
-    // muted icon dimmed when off, sound icon dimmed when not known yet.
-    private void showAvas(Boolean on) {
-        if (avasIconView == null) return;
-        avasIconView.setImageResource(Boolean.FALSE.equals(on) ? R.drawable.ic_volume_off : R.drawable.ic_volume_high);
-        avasIconView.setColorFilter(Boolean.TRUE.equals(on) ? Style.ACCENT : Style.TEXT_DIM, PorterDuff.Mode.SRC_IN);
     }
 
     private TextView openAppButton() {
@@ -424,25 +401,6 @@ public final class OverlayService extends Service {
             startActivity(i);
         });
         return btn;
-    }
-
-    // Shared with the home screen's Turbo card (RegenTap), so this button
-    // also follows Config's "Regen button steps through Low, Medium and
-    // High". It used to be a Strong-regen toggle only, whatever that said.
-    private void onRegenTap() {
-        RegenTap.tap(this, target -> handler.post(() -> showRegen(target)));
-    }
-
-    private void refreshRegen() {
-        if (regenGlyphView == null) return;
-        RegenTap.read(this, v -> handler.post(() -> showRegen(v)));
-    }
-
-    private void showRegen(int level) {
-        if (regenGlyphView == null) return;
-        boolean cycle = Prefs.getRegenCycle(this);
-        regenGlyphView.setImageResource(RegenTap.icon(level));
-        regenGlyphView.setColorFilter(RegenTap.lit(level, cycle) ? Style.ACCENT : Style.TEXT, PorterDuff.Mode.SRC_IN);
     }
 
     private static final int CLIMATE_ICON_DP = 88;
@@ -544,8 +502,10 @@ public final class OverlayService extends Service {
         collapsed.setVisibility(View.GONE);
         expanded.setVisibility(View.VISIBLE);
         refreshClimate();
-        refreshRegen();
-        if (avasIconView != null) HelperSync.queryAvas(this);
+        quickButtons.refresh();
+        // One loop only: expand, collapse, expand inside one poll period
+        // left the first loop alive and started a second.
+        handler.removeCallbacks(turboPoll);
         handler.post(turboPoll);
         resetAutoCollapse();
     }

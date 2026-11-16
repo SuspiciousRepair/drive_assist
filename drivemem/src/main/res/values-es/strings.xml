@@ -611,4 +611,5 @@
     <string name="phone_msg_no_space">El coche no tiene espacio libre suficiente para este archivo.</string>
     <string name="phone_msg_busy">Ya hay una restauración en curso.</string>
     <string name="phone_msg_no_file">Elige primero un archivo de copia.</string>
+    <string name="unit_kwh_per_100km">kWh/100 km</string>
 </resources>

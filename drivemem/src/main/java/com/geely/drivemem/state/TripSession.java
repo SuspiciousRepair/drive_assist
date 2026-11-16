@@ -245,6 +245,7 @@ public final class TripSession {
         double[] loc = LocationHub.read(ctx);
         if (loc == null) return;
         double alt = loc[2];
+        if (!Double.isFinite(alt)) return; // a fix with no altitude is not a height of 0
         if (lastAltitude != null) {
             double delta = alt - lastAltitude;
             if (delta > ALTITUDE_NOISE_M) ascentM += delta;

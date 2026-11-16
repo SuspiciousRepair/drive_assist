@@ -102,8 +102,9 @@ public final class EnergyIntegrator {
             if (subscribed) return;
             subscribed = true;
             windowStartMonoMs = nowMono();
-            // CAN (roadcastd) first. When it is live the OBD2 readings are
-            // dropped below, so the two never integrate the same energy twice.
+            // CAN (roadcastd) first. While the hub's energy.source is "can"
+            // the OBD2 readings are dropped (onObd2Power), so the two never
+            // integrate the same energy twice.
             CanEnergyReader.setPowerListener((now, kw) -> onPowerReading(now, kw, SOURCE_CAN));
             Obd2Reader.subscribe(new Obd2Reader.Listener() {
                 @Override public void onObd2ConnectedChanged(boolean connected) {
@@ -116,12 +117,23 @@ public final class EnergyIntegrator {
                 }
 
                 @Override public void onObd2Reading(Obd2Reader.Reading r) {
-                    if (r != null && r.powerKw != null && !CanEnergyReader.isLive()) {
-                        onPowerReading(nowMono(), r.powerKw, SOURCE_OBD2);
+                    if (r != null && r.powerKw != null) {
+                        onObd2Power(nowMono(), r.powerKw, com.geely.drivemem.car.CarActor.get());
                     }
                 }
             });
         }
+    }
+
+    /** One OBD2 power reading. Dropped only while CAN is the measured source
+     * by EnergyHub's own choice (CAN live AND with a power value). The gate
+     * used to be "the CAN reader has a heartbeat": with the daemon up but no
+     * usable volts or amps, CAN gave no sample and the OBD2 ones were thrown
+     * away, so trip energy fell back to the estimate while energy.source
+     * said obd2. */
+    static void onObd2Power(long nowMonoMs, double kw, com.geely.drivemem.car.CarActor hub) {
+        if (EnergyHub.canIsSource(hub)) return;
+        onPowerReading(nowMonoMs, kw, SOURCE_OBD2);
     }
 
     /** Ingests a power reading (kW) and performs trapezoidal integration.
