@@ -518,6 +518,7 @@
     <string name="route_parked_only">Abra a rota com o carro em P</string>
     <string name="routes_all_title">Todas as rotas</string>
     <string name="routes_all_count">%1$d viagens</string>
+    <string name="routes_all_days">Todos os dias</string>
     <string name="routes_all_none">Ainda não há rotas. As rotas são salvas nas viagens feitas com Config → Sistema → Rotas das viagens ligado.</string>
     <string name="routes_all_open">Abrir esta viagem</string>
     <string name="routes_all_hint">Toque em uma rota ou em uma viagem para selecionar.</string>

@@ -80,8 +80,11 @@ On the statistics page, tap a finished trip (in **P**) to open its route:
   120+ km/h. The scale is fixed, so two trips compare at a glance.
 - **All routes in one picture.** The **All routes** button on the statistics
   page (in **P**) draws every recorded route together, with the same speed
-  colours, and lists the trips. Touch a route or a trip in the list to
-  select it: it is drawn thick over the others. **Open this trip** shows
+  colours, and lists the trips. Under the picture, the height profile of
+  every trip shown, one after the other. **Previous** / **Next** step
+  through the days that have a route; **All days** shows them all again.
+  Touch a route or a trip in the list to select it: it is drawn thick over
+  the others and the profile shows that trip only. **Open this trip** shows
   its own route screen.
 - **Height profile.** Under the route, the GPS height along the trip, in the
   same speed colours. Touch it to mark that place on the route.
