@@ -121,6 +121,10 @@ public final class Prefs {
      * true = each tap steps Low -> Mid -> High -> Low. Issue #15. */
     public static boolean getRegenCycle(Context ctx) { return file(ctx).getBoolean("regen_cycle", false); }
     public static void setRegenCycle(Context ctx, boolean v) { file(ctx).edit().putBoolean("regen_cycle", v).apply(); }
+    // Issue #19: trip routes (GPS points) and where each charge was. Saved
+    // in the car only. On by default (owner, 2026-11-15).
+    public static boolean getRecordRoutes(Context ctx) { return file(ctx).getBoolean("record_routes", true); }
+    public static void setRecordRoutes(Context ctx, boolean v) { file(ctx).edit().putBoolean("record_routes", v).apply(); }
     /** Which buttons the Turbo card shows (issue #15). Turbo and Regen are
      * on by default (the card as it always was); AVAS is opt-in. */
     public static final String CARD_TURBO = "turbo_card_turbo", CARD_REGEN = "turbo_card_regen",

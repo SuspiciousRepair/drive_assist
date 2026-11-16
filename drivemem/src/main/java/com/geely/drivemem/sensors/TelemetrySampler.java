@@ -53,11 +53,10 @@ public final class TelemetrySampler {
         // is a cache read, not a new car access.
         CarActor.Reading out = CarActor.get(ctx).get("telemetry.outside_temp");
         if (out.status == CarActor.Reading.Status.OK) putIfPresent(v, "outside_temp_c", out.value);
-        // Altitude: GpsReader's own LocationManager fix, not a new car
-        // access — already used for the HA location tracker.
-        double[] loc = GpsReader.read(ctx);
+        // Altitude: the hub's GPS fix (LocationHub), not a new car access.
+        double[] loc = LocationHub.read(ctx);
         if (loc != null) v.put("altitude_m", loc[2]);
-        // Drive mode and regen level, for efficiency per mode (ModeSegments).
+        // Drive mode and regen level, for efficiency per mode.
         // Hub cache reads (car.drive_mode / car.regen_mode, watched on change),
         // not new car accesses.
         CarActor.Reading dm = CarActor.get(ctx).get("car.drive_mode");

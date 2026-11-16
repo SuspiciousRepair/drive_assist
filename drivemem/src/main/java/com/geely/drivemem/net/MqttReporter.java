@@ -8,7 +8,7 @@ import com.geely.drivemem.car.Telemetry;
 import com.geely.drivemem.controls.AdbGate;
 import com.geely.drivemem.hvac.ComfortHub;
 import com.geely.drivemem.hvac.ComfortRuler;
-import com.geely.drivemem.sensors.GpsReader;
+import com.geely.drivemem.sensors.LocationHub;
 import com.geely.drivemem.state.GateState;
 import com.geely.drivemem.state.PanelState;
 import com.geely.drivemem.ui.ComfortActivity;
@@ -789,7 +789,7 @@ public class MqttReporter {
             // Pushes a fresh fix right away so HA can re-decide our zone the
             // instant the link is back, instead of waiting up to a full
             // telemetry interval for the next scheduled one.
-            if (ctx != null) publishLocation(GpsReader.read(ctx));
+            if (ctx != null) publishLocation(LocationHub.read(ctx));
             // The gate rides with the panel, OUTSIDE commandsEnabled. That lock
             // exists to stop HA writing to the CAR; the gate is the driver asking
             // the world to open something. Putting it behind the lock would make

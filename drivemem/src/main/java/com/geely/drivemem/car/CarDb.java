@@ -32,7 +32,7 @@ public final class CarDb extends SQLiteOpenHelper {
     // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
     // every write failed until this was bumped past 14. See the v15 entry in
     // onUpgrade below for what v15 itself actually does.
-    private static final int VERSION = 27;
+    private static final int VERSION = 28;
 
     /** SQL predicate for telemetry rows representing driving: gear is not Park (4),
      * or if gear is missing, car is not charging. */
@@ -140,7 +140,8 @@ public final class CarDb extends SQLiteOpenHelper {
             + "odo_start_km REAL,"
             + "cost REAL,"
             + "dismissed INTEGER NOT NULL DEFAULT 0,"
-            + "kwh_battery REAL)");
+            + "kwh_battery REAL,"
+            + "lat REAL, lon REAL)");
 
         // No daily_odometer table: "odometer for day X" is just the earliest
         // telemetry_sample row that day (see OdoStats.kmSince()/readLog()),
@@ -177,7 +178,7 @@ public final class CarDb extends SQLiteOpenHelper {
             + "net_kwh REAL,"
             + "energy_source TEXT, estimated_net_kwh REAL)");
         createTripEnergySegment(db);
-        createTripModeSegment(db);
+        createTripPoint(db);
 
         db.execSQL("CREATE TABLE comfort_event ("
             + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -229,17 +230,30 @@ public final class CarDb extends SQLiteOpenHelper {
     }
 
     /** Immutable source-specific portions of a trip; never merge estimated and measured energy. */
-    // One row per part of a trip with one drive mode and one regen level
-    // (state.ModeSegments). Kept for good, unlike telemetry_sample (90 days),
-    // so efficiency per mode can be compared over the car's whole life.
-    private static void createTripModeSegment(SQLiteDatabase db) {
-        db.execSQL("CREATE TABLE IF NOT EXISTS trip_mode_segment ("
-            + "id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER NOT NULL,"
-            + "start_ms INTEGER NOT NULL, end_ms INTEGER NOT NULL,"
-            + "drive_mode INTEGER, regen_mode INTEGER,"
-            + "km REAL NOT NULL, spent_kwh REAL NOT NULL, regen_kwh REAL NOT NULL, net_kwh REAL NOT NULL,"
-            + "energy_source TEXT)");
-        db.execSQL("CREATE INDEX IF NOT EXISTS idx_trip_mode_segment_trip ON trip_mode_segment(trip_id)");
+    // The route of each trip (state.RoutePoints, issue #19): one row every
+    // 5 s while driving, only after 25 m of movement. Raw data, kept for
+    // good: the drive mode, regen level, battery power and the trip's energy
+    // so far ride on each point, to be analysed later. trip_id is NULL while
+    // the trip is open, then set by CLAIM_TRIP_POINTS_SQL.
+    public static final String TRIP_POINT_DDL = "CREATE TABLE IF NOT EXISTS trip_point ("
+        + "id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER,"
+        + "ts_ms INTEGER NOT NULL, lat REAL NOT NULL, lon REAL NOT NULL,"
+        + "alt_m REAL, speed_kmh REAL, bearing REAL, accuracy_m REAL,"
+        + "drive_mode INTEGER, regen_mode INTEGER,"
+        + "power_kw REAL, spent_kwh REAL, regen_kwh REAL)";
+
+    /** Gives the open trip's points to the trip row just saved. Args: trip id, start ms, end ms. */
+    public static final String CLAIM_TRIP_POINTS_SQL =
+        "UPDATE trip_point SET trip_id = ? WHERE trip_id IS NULL AND ts_ms BETWEEN ? AND ?";
+
+    /** Drops unclaimed points before a time: a trip too short to keep, or
+     * one a crash never closed. Arg: ms. */
+    public static final String DROP_LOOSE_TRIP_POINTS_SQL =
+        "DELETE FROM trip_point WHERE trip_id IS NULL AND ts_ms <= ?";
+
+    private static void createTripPoint(SQLiteDatabase db) {
+        db.execSQL(TRIP_POINT_DDL);
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_trip_point_trip ON trip_point(trip_id, ts_ms)");
     }
 
     private static void createTripEnergySegment(SQLiteDatabase db) {
@@ -479,13 +493,20 @@ public final class CarDb extends SQLiteOpenHelper {
             db.execSQL("ALTER TABLE telemetry_sample ADD COLUMN climate_kw REAL");
             db.execSQL("ALTER TABLE charge_session ADD COLUMN kwh_battery REAL");
         }
-        // v27: drive mode and regen level per sample, and per part of each
-        // trip (trip_mode_segment), for efficiency per mode. NULL on rows
-        // written before this version. Forward-only: old trips get no parts.
+        // v27: drive mode and regen level per sample, for efficiency per
+        // mode. NULL on rows written before this version.
         if (oldVersion < 27) {
             db.execSQL("ALTER TABLE telemetry_sample ADD COLUMN drive_mode INTEGER");
             db.execSQL("ALTER TABLE telemetry_sample ADD COLUMN regen_mode INTEGER");
-            createTripModeSegment(db);
+        }
+        // v28: trip routes (trip_point) and where each charge was. The v27
+        // trip_mode_segment summary goes: the modes are kept raw on the
+        // samples and on the points instead, and analysed later.
+        if (oldVersion < 28) {
+            db.execSQL("DROP TABLE IF EXISTS trip_mode_segment");
+            createTripPoint(db);
+            db.execSQL("ALTER TABLE charge_session ADD COLUMN lat REAL");
+            db.execSQL("ALTER TABLE charge_session ADD COLUMN lon REAL");
         }
     }
 

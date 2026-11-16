@@ -6,7 +6,7 @@ import com.geely.drivemem.car.CarDb;
 import com.geely.drivemem.car.EntityBus;
 import com.geely.drivemem.car.Telemetry;
 import com.geely.drivemem.hvac.ComfortRuler;
-import com.geely.drivemem.sensors.GpsReader;
+import com.geely.drivemem.sensors.LocationHub;
 import com.geely.drivemem.sensors.CanHub;
 import com.geely.drivemem.sensors.EnergyHub;
 import com.geely.drivemem.sensors.ObdHub;
@@ -419,7 +419,7 @@ public final class AbrpUploader {
     }
 
     static JSONObject buildTlm(Context ctx, Map<String, Object> data, Boolean charging) {
-        double[] loc = (ctx != null && isLocationEnabled(ctx)) ? GpsReader.read(ctx) : null;
+        double[] loc = (ctx != null && isLocationEnabled(ctx)) ? LocationHub.read(ctx) : null;
         return buildTlm(ctx, data, charging, loc);
     }
 
