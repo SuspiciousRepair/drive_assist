@@ -39,6 +39,11 @@
   and counted it for the whole sleep (8 h at 6.5 kW gave 52 kWh that never
   went in). Now the app reads the car first, and a sample that comes more
   than 90 s after the last one adds no energy.
+- **CAN power no longer shows an old value.** When the battery volts or
+  amps from CAN became invalid, the app kept the last power for as long as
+  the CAN reader was alive. Now there is no CAN power until both are back.
+  Also: the CAN reader stops for sure when "Exact energy" is switched off,
+  and it connects again when the reader sends nothing for 5 s.
 
 ## [v0.7.0] — 2026-11-15
 

@@ -73,7 +73,7 @@ switch is off or the reader has not sent a heartbeat for 3 s.
 |---|---|
 | `can.live` | reader live (1/0) |
 | `can.pack_v`, `can.pack_a` | pack voltage, current (+ = discharge) |
-| `can.power_kw` | pack power, V × I |
+| `can.power_kw` | pack power, V × I. `NOT_AVAILABLE` while volts or amps are not valid, also when `can.live` is 1 |
 | `can.climate_kw` | climate (compressor + heater) electrical power |
 | `can.drive_kw` | drive power |
 | `can.charger_w` | on-board charger's mains input, only while AC charging |
