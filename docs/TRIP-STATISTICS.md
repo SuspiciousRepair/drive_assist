@@ -70,6 +70,27 @@ Inspired by A Better Routeplanner's daily diary, the selected day's activities a
 ### 4. Home Screen View Switcher
 - A dedicated statistics icon in the left status rail of `ComfortActivity` allows swapping the home screen between the standard comfort card grid and the new statistics screen with a single tap.
 
+### 5. Trip Route Screen
+On the statistics page, tap a finished trip (in **P**) to open its route:
+
+- **Route as lines, no map.** GPS points drawn on a plain background, north
+  up, with start and end marks. No map tiles, no API key, no internet.
+- **Speed colours.** Each part has the colour of its speed: red up to
+  20 km/h, orange to 50, green to 80, blue to 110, purple above. The scale is
+  fixed, so two trips compare at a glance.
+- **Height profile.** Under the route, the GPS height along the trip, in the
+  same speed colours. Touch it to mark that place on the route.
+- **Trip numbers.** Distance, moving and stopped time, average and top speed,
+  energy, kWh/100 km, battery start and end, climb and descent, lowest and
+  highest point, outside temperature.
+
+Routes are recorded with **Config → System → Trip routes** (on by default):
+one point every 5 s, only after 25 m of movement, with drive mode, regen
+level and energy so far. The points stay in the car (`car.db` table
+`trip_point`) and go into the backup. Trips driven before route recording
+existed show no route. GPS fixes do not need MQTT. Data details:
+[HUB-DATA.md](HUB-DATA.md).
+
 ---
 
 ## 🛣️ Phase 2: Continuous Trip Segments & Named Sections (Intent)

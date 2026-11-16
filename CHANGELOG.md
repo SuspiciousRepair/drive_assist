@@ -7,8 +7,7 @@
   every 5 s (only after 25 m of movement), with the drive mode, the regen
   level and the energy used so far. Each charge saves where it was. It all
   stays in the car and goes into the backup. Config → System → Trip routes.
-  On by default. The trip details screen that draws the route comes next.
-  (#19)
+  On by default. (#19)
 - **Tap a trip to see its route.** On the stats page, tap a finished trip
   (in Park). The route is drawn as lines on a plain background, no map,
   north up. Each part has the colour of its speed: red up to 20 km/h,
@@ -24,6 +23,20 @@
 - **The drive mode and regen level are kept as raw data only.** v0.6.0 also
   saved each trip cut into parts per mode. That table is removed; the modes
   stay on the 30 s samples and now on every route point. (#19)
+- **The Regen and AVAS quick buttons follow the car.** The home card and
+  the floating panel now share one controller and read the level from the
+  hub, so a change made on the car's own screen shows at once. (#68)
+- **Integrations tiles update while the page is open.** A tile no longer
+  stays on "Connecting..." after the integration connected. (#75)
+- **A restore sent from a phone cannot change ADB, phone access or the
+  commands switch.** It also does not store the backup key. The update
+  address can still be set from the phone. The car's own Restore is
+  unchanged. (#80)
+- **The lock sound link may be http or https.** The download follows at
+  most 3 redirects, ends in 20 s, runs one at a time, and the file must be
+  a WAV of 1 MB or less. (#78)
+- **The route and height views and the home badges draw faster.** They
+  build their shapes and text once, not on every frame. (#76, #81)
 
 ### Fixed
 - **Trip energy stays measured when CAN is on but gives no power.** With
@@ -44,6 +57,25 @@
   the CAN reader was alive. Now there is no CAN power until both are back.
   Also: the CAN reader stops for sure when "Exact energy" is switched off,
   and it connects again when the reader sends nothing for 5 s.
+- **Trip routes get real GPS fixes without MQTT.** The GPS listener lived
+  in the MQTT telemetry service, which is off by default. Now it runs while
+  trip routes, MQTT or ABRP need it, and stops 2 minutes after Park. A fix
+  with no altitude is saved as empty, not 0 m. (#67)
+- **The average speed on the route screen is right after a GPS gap.** A
+  30 km trip with few points showed 600 km/h. (#70)
+- **The USB export always copies car.db and the CSV files.** A file with
+  the same size as the old copy was skipped, so the stick kept old data.
+  (#69)
+- **A failed daily backup waits before it tries again** (1 h, then 2 h,
+  4 h, up to one day), and a backup file is written to the drive before it
+  gets its final name. (#73)
+- **A restore that fails late still saves the trip ids and restarts the
+  app.** Before, the open trip and charge could point to the wrong rows.
+  (#77)
+- **The dashcam Record switch no longer throws you back to Clips** 10 s
+  after a tap, and no longer clears a GB limit you are typing. (#72)
+- **The parked card keeps the true lowest and highest temperature** of the
+  whole stay. On a long park the range got narrower. (#79)
 
 ## [v0.7.0] — 2026-11-15
 
