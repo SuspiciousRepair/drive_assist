@@ -34,7 +34,9 @@ public final class CanEnergyReader {
     static final String TAG = "DriveMem";
     public static final String STATUS_ACTION = "com.geely.drivemem.CAN_STATUS";
 
-    public interface PowerListener { void onCanPower(long nowMono, double kw); }
+    /** One battery power sample (kW, + = discharge), with the drive and
+     * climate values CAN held at that moment (raw signals, null = unknown). */
+    public interface PowerListener { void onCanPower(long nowMono, double kw, Double driveKw, Double climateKw); }
 
     private static final CanPower POWER = new CanPower();
     private static volatile PowerListener powerListener;
@@ -158,7 +160,7 @@ public final class CanEnergyReader {
     private static void deliver(long now, double kw) {
         PowerListener l = powerListener;
         if (l != null) {
-            try { l.onCanPower(now, kw); } catch (Throwable t) { Log.w(TAG, "can: listener " + t); }
+            try { l.onCanPower(now, kw, POWER.heldDriveKw(), POWER.heldClimateKw()); } catch (Throwable t) { Log.w(TAG, "can: listener " + t); }
         }
     }
 

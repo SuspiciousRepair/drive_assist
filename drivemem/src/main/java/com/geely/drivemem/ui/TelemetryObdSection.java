@@ -113,7 +113,9 @@ public final class TelemetryObdSection extends LinearLayout {
         canLines.add(fieldLine("Voltage", CanHub.get(CanHub.PACK_V), "V"));
         canLines.add(fieldLine("Current", CanHub.get(CanHub.PACK_A), "A"));
         canLines.add(fieldLine("Power", CanHub.get(CanHub.POWER_KW), "kW"));
-        canLines.add(fieldLine("Climate", CanHub.get(CanHub.CLIMATE_KW), "kW"));
+        canLines.add(fieldLine("Drive", CanHub.get(CanHub.DRIVE_KW), "kW"));
+        canLines.add(fieldLine("Climate", EnergyHub.get(EnergyHub.CLIMATE_KW), "kW"));
+        canLines.add(fieldLine("Other (12 V, losses)", EnergyHub.get(EnergyHub.OTHER_KW), "kW"));
         setDebugLines(canFields, canLines);
     }
 

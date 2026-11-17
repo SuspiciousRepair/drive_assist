@@ -202,11 +202,22 @@ ABRP gets `energy.power_kw` = battery V × I (CAN, else dongle), + = out,
 correct. Weak point: it is one instant value per 6 s sample, up to 2 s old.
 A mean over the sample interval (CAN gives 10 Hz) would be cleaner.
 
+### Built (2026-11-17)
+
+- `ClimatePower`: the climate fit, in one place.
+- Hub: `energy.climate_kw` and `energy.other_kw` (CAN only, they add up to
+  `can.power_kw`). Shown in Config > OBD2, CAN block.
+- Per trip (DB v29): `can_net_kwh`, `drive_spent_kwh`, `drive_regen_kwh`,
+  `climate_raw_kwh`, `climate_on_s`. All integrated from the SAME CAN
+  samples. Saved when CAN covered ≥ 90 % of the trip's measured time and
+  the trip was not recovered after a restart. `EnergySplit` scales the three
+  parts to the trip's `net_kwh`, so they add up to the trip's number with
+  or without the dongle. The trip screen shows "Energy by use".
+- ABRP: mean battery power over the last 6 s (`EnergyIntegrator.meanPowerKw`).
+
 ### Next
 
-1. Hub keys for the split: corrected climate, and 12 V = battery − drive −
-   climate (an `EnergyHub` derive, so the formula lives in one place).
-2. ABRP: send the mean power since the previous sample.
-3. Long drive (30+ km) with CAN and the dongle on: which source matches
+1. Check the split on a real drive.
+2. Long drive (30+ km) with CAN and the dongle on: which source matches
    SoC drop × 39.6 kWh.
-4. A cleaner 12 V test: phone unplugged, one load at a time.
+3. A cleaner 12 V test: phone unplugged, one load at a time.

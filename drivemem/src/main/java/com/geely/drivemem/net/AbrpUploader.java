@@ -9,6 +9,7 @@ import com.geely.drivemem.hvac.ComfortRuler;
 import com.geely.drivemem.sensors.LocationHub;
 import com.geely.drivemem.sensors.CanHub;
 import com.geely.drivemem.sensors.EnergyHub;
+import com.geely.drivemem.sensors.EnergyIntegrator;
 import com.geely.drivemem.sensors.ObdHub;
 import com.geely.drivemem.state.CarState;
 import com.geely.drivemem.state.ChargeSession;
@@ -447,7 +448,16 @@ public final class AbrpUploader {
             // window, not a measured instantaneous power reading. Never send
             // it to ABRP as calibration data.
             Float power = CanHub.get(hub, EnergyHub.POWER_KW);
-            if (power != null) tlm.put("power", power);
+            if (power != null) {
+                // The mean over the last sample interval, from every sample
+                // the integrator took (CAN 10 Hz, or the dongle's ~2 s): a
+                // steadier calibration point than one instant reading, and
+                // from the same source energy.power_kw names (the integrator
+                // starts over when the source changes). The instant value
+                // when there are too few samples.
+                Double mean = EnergyIntegrator.meanPowerKw(SAMPLE_MS);
+                tlm.put("power", mean != null ? Math.round(mean * 100) / 100.0 : power);
+            }
 
             Float speed = asFloat(data.get("speed"));
             if (speed != null) tlm.put("speed", speed);

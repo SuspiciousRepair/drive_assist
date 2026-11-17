@@ -531,6 +531,8 @@
     <string name="route_stat_speed_value">média %1$s · máx. %2$s km/h</string>
     <string name="route_stat_height_range">Altitude %1$s – %2$s m</string>
     <string name="route_stat_outside">Lá fora</string>
+    <string name="route_stat_by_use">Energia por uso</string>
+    <string name="route_stat_by_use_parts">tração · clima · outros</string>
     <!-- Cartões de sessão do dia (DailyStatsView) -->
     <string name="session_since">desde %1$s</string>
     <string name="session_yesterday">ontem</string>
