@@ -35,6 +35,8 @@ public final class CarActor {
 
     /** Front-windshield defogger button (MAX_DEFROST), true/false, on change. */
     public static final String HVAC_FRONT_DEFROST = "car.hvac_front_defrost";
+    /** AEB (automatic emergency braking) on/off, watched so screens know it at once. */
+    public static final String AEB = "car.aeb";
     /** Fan level, 0 (climate off) to 8. Feeds sensors.FanPower. */
     public static final String HVAC_FAN = "car.hvac_fan";
 
@@ -608,6 +610,7 @@ public final class CarActor {
         watchRawNow("car.hvac_direction", 557846560, 0);
         watchRawNow("car.hvac_rear_defrost", CarAccess.HVAC_ELECTRIC_DEFROSTER_ON, 2);
         watchRawNow(HVAC_FRONT_DEFROST, CarAccess.HVAC_MAX_DEFROST, 75);
+        watchRawNow(AEB, CarAccess.AEB_PROP, 0);
         watchRawNow(HVAC_FAN, Modes.HVAC_FAN, 75, true);
     }
 

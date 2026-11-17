@@ -96,6 +96,8 @@ public class TelemetryActivity extends Activity {
     // items; they are the pages those tiles open.
     private static final int SEC_INTEGRATIONS = 11;
     static final int SEC_ABRP = 12;
+    // The comfort ruler's learn mode (ComfortLearn). Appended, same reason as SEC_DOORS.
+    private static final int SEC_CLIMATE = 13;
 
     private final List<TextView> navItems = new ArrayList<>();
     private TextView status;                  // recreated by each panel that needs it
@@ -193,6 +195,7 @@ public class TelemetryActivity extends Activity {
         // sorting the rest of this out too.
         nav.addView(sideGroupLabel(getString(R.string.cfg_group_car)));
         nav.addView(navItem(getString(R.string.cfg_nav_drive), SEC_DRIVE));
+        nav.addView(navItem(getString(R.string.cfg_nav_climate), SEC_CLIMATE));
         nav.addView(navItem(getString(R.string.cfg_nav_doors), SEC_DOORS));
         nav.addView(navItem(getString(R.string.cfg_nav_clips), SEC_CLIPS));
 
@@ -345,6 +348,7 @@ public class TelemetryActivity extends Activity {
                 content.addView(mqttSection);
                 break;
             case SEC_DOORS: content.addView(new TelemetryDoorsSection(this)); break;
+            case SEC_CLIMATE: content.addView(new TelemetryClimateSection(this)); break;
             case SEC_CLIPS:
                 clipsSection = new TelemetryClipsSection(this, () -> selectSection(SEC_CLIPS));
                 content.addView(clipsSection);

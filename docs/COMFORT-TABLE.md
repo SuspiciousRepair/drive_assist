@@ -111,7 +111,7 @@ To avoid erratic changes, an automatic re-slide only occurs when **all** of the 
 
 ## 6. Learn Mode (`ComfortLearn`)
 
-On by default. Switch: **Config → Drive → Climate ruler → Learn from my changes**. With it off the ruler uses the default table above; what was learned is kept until **Reset ruler to default**.
+On by default. Switch: **Config → Climate → Learn from my changes**. With it off the ruler uses the default table above; what was learned is kept until **Reset ruler to default**.
 
 * **The signal (a "hold")**: a change made by hand on the car's own climate panel, after the ruler set a column exactly, held for 10 minutes with no tap and no suspend in between. The ruler checks every beat (30 s, 10 s with the screen open); a gap over 2 minutes is a suspend and starts the hold again. One hold counts once, however long it lasts.
 * **The column it counts for**: on the fitted side, the column with the fewest different levers (ties go to the column the ruler last set). A different machine (AC) state, or more than 2 different levers, is not a tweak: it is logged as `skip` and not counted. The pinned columns (`0`, `C5`, `W5`) are never counted.

@@ -74,6 +74,7 @@
     <!-- config -->
     <string name="cfg_title">การตั้งค่า</string>
     <string name="cfg_nav_doors">ประตู</string>
+    <string name="cfg_nav_climate">แอร์</string>
     <string name="cfg_nav_drive">โหมดการขับขี่</string>
     <string name="cfg_nav_bar">แถบเมนู</string>
     <string name="cfg_nav_look">ลักษณะที่ปรากฏ</string>
@@ -273,10 +274,8 @@
     <string name="avas_title">AVAS</string>
     <string name="turbo_card_buttons_label">ปุ่มบนการ์ดเทอร์โบ</string>
     <string name="turbo_duration_label">ระยะเวลา (วินาที)</string>
-    <string name="cfg_btn_restore_defaults">คืนค่าเริ่มต้น</string>
     <string name="cfg_car_connect_fail">เชื่อมต่อกับรถไม่ได้</string>
     <string name="cfg_applied">ใช้แล้ว: %1$s + %2$s</string>
-    <string name="cfg_restored_defaults">คืนค่าเริ่มต้นแล้ว: %1$s + %2$s</string>
     <string name="cfg_mode_unknown">ไม่ทราบโหมดปัจจุบัน — เลือกโหมดหนึ่งเพื่อใช้งาน</string>
     <string name="cfg_current">ปัจจุบัน: %1$s + %2$s</string>
     <string name="cfg_bar_header">การแสดงผลในแถบเมนู</string>
