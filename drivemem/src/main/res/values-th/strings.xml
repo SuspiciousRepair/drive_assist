@@ -36,7 +36,7 @@
     <string name="cleanup_action_stop_wipe">หยุดบริการและล้างข้อมูลของ Drive Assist</string>
     <string name="cleanup_action_uninstall_self">ลบ Drive Assist และตัวช่วย (เปิด ADB ไว้)</string>
     <string name="cleanup_action_remove_close_adb">ลบและปิด ADB (ก่อนเข้าศูนย์บริการ)</string>
-    <string name="cleanup_adb_note">ปิด ADB เฉพาะก่อนเข้าศูนย์บริการ หากต้องการกลับเข้ามา ให้ติดตั้งใหม่จาก USB บนหน้าจอรถ แล้วเปิด ADB ในแอป ไม่มีอะไรค้างอยู่ในรถที่จะเปิดให้เอง</string>
+    <string name="cleanup_adb_note">ปิด ADB เฉพาะก่อนเข้าศูนย์บริการ การทำเช่นนี้จะปิดช่องทางที่ Drive Assist ใช้เข้าถึงรถ และไม่มีอะไรค้างอยู่ในรถที่จะเปิดให้เอง หากต้องการใช้ Drive Assist อีกครั้ง ให้ปลดล็อกรถด้วยวิธีเดียวกับที่คุณทำครั้งแรก</string>
     <string name="cleanup_log_idle">ยังไม่ได้ทำอะไรเลย\nปุ่มแต่ละปุ่มจะขอการยืนยัน (แตะสองครั้ง)</string>
     <string name="cleanup_confirm_prompt">แตะ \"%1$s\" อีกครั้งเพื่อยืนยัน</string>
     <string name="cleanup_stopping">กำลังหยุดบริการ...</string>

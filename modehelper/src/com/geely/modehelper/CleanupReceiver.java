@@ -22,9 +22,9 @@ import java.io.IOException;
  *   5. Drive Assist and then this helper are uninstalled, silently.
  *
  * Nothing is left on the car to listen for a signal. After a close, the owner
- * gets back in by hand: car Settings, Developer options, turn ADB on, then
- * reinstall from the USB stick. That is the deliberate trade for a car that a
- * workshop cannot tell was ever modified.
+ * gets back in only by unlocking the car again the same way as the first
+ * time. That is the deliberate trade for a car a workshop cannot tell was
+ * ever modified.
  *
  * It does NOT undo the deep root (ro.secure=0, test-keys): that lives in the
  * system image from recovery, not in our apps, and is not ours to change.

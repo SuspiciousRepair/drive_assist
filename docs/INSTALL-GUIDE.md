@@ -546,24 +546,10 @@ unknown apps, which is the point.
 
 ### Getting back in after you closed ADB
 
-Nothing is left on the car to re-open ADB for you — that is deliberate, so a
-workshop cannot find a trigger. There is **no on-car menu** to turn network
-ADB on, so the way back is the same **USB stick** method that set the car up
-the first time, which needs **no ADB**:
-
-1. Put **`drive_assist_installer.apk`** on a USB stick.
-2. Plug it into the car and, on the car's touchscreen, open the file manager
-   (Cx File Explorer) and tap the APK to install it — exactly like the
-   [1-File USB Drive Method](#method-1-the-1-file-usb-drive-method-no-computer-needed--recommended).
-   This installs Drive Assist and ModeHelper again with no computer and no ADB.
-3. In Drive Assist, turn **ADB** back on (Settings → System). ModeHelper holds
-   the privilege to switch ADB on, so network ADB (`:5555`) returns from here.
-4. Restore your backup when Drive Assist asks.
-
-> [!NOTE]
-> This works because the installer runs on the car's own screen through the
-> file manager, and ModeHelper — not ADB — is what writes the ADB switch. So
-> closing ADB never locks you out: the USB stick always gets you back in.
+Closing ADB turns off the access Drive Assist and your computer use to reach
+the car, and nothing is left on the car to re-open it — that is the point. To
+install and use Drive Assist again, **unlock the car by the same means you
+used the first time**, then reinstall and restore your backup.
 
 ---
 
