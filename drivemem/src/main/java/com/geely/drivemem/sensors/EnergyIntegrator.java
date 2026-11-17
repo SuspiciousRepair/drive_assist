@@ -82,7 +82,9 @@ public final class EnergyIntegrator {
     private static double tripClimateRawKwh = 0.0;
     private static double tripClimateOnMs = 0.0;
     private static double tripFanKwh = 0.0;
-    private static boolean tripSeeded = false;
+    /** Time covered by seedTrip (recovery after a restart), not by samples.
+     * Long.MAX_VALUE when unknown: then the split is never valid. */
+    private static long tripSeededMs = 0;
 
     /** Snapshot of energy accumulated over a sampling window (e.g. CarActor.TICK_INTERVAL_MS). */
     public static final class WindowSnapshot {
@@ -495,11 +497,12 @@ public final class EnergyIntegrator {
         tripCanNetKwh = 0.0;
         tripMeasuredMs = 0;
         tripCanMs = 0;
-        tripSeeded = false;
+        tripSeededMs = 0;
     }
 
     private static TripSnapshot tripSnapshot() {
-        boolean valid = !tripSeeded && tripCanMs > 0 && tripCanMs >= SPLIT_MIN_COVERAGE * tripMeasuredMs;
+        boolean valid = tripSeededMs != Long.MAX_VALUE && tripCanMs > 0
+            && tripCanMs >= SPLIT_MIN_COVERAGE * ((double) tripMeasuredMs + tripSeededMs);
         return new TripSnapshot(tripSpentKwh, tripRegenKwh, tripNetKwh, tripSampleCount,
             valid, tripCanNetKwh, tripDriveSpentKwh, tripDriveRegenKwh, tripClimateRawKwh, tripClimateOnMs / 1000.0,
             tripFanKwh);
@@ -515,9 +518,17 @@ public final class EnergyIntegrator {
             tripSpentKwh += spentKwh;
             tripRegenKwh += regenKwh;
             tripNetKwh += netKwh;
-            // The seeded part has no split: the trip's split is not whole.
-            tripSeeded = true;
+            // The seeded part has no split, and its time is unknown here.
+            tripSeededMs = Long.MAX_VALUE;
         }
+    }
+
+    /** As above, with how long the seeded part lasted. Its time counts as
+     * time CAN did not measure, so a trip recovered early still gets a
+     * split once CAN has covered SPLIT_MIN_COVERAGE of it. */
+    public static void seedTrip(double spentKwh, double regenKwh, double netKwh, long seededMs) {
+        seedTrip(spentKwh, regenKwh, netKwh);
+        synchronized (LOCK) { tripSeededMs = Math.max(0, seededMs); }
     }
 
     /** Stops tracking and returns the accumulated trip energy. */

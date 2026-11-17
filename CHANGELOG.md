@@ -14,7 +14,8 @@
   and the net split into drive, climate and other (12 V loads and losses),
   each part in kWh and Wh/km. Every band is to scale. It sits next to
   Consumption, which no longer repeats net / used / regen. The trip screen
-  shows the same chart.
+  shows the same chart. The trip you are driving shows it too, live, and a
+  trip keeps it after an app update mid-drive when CAN measured most of it.
 - **Stats page: "Time & Speed" and "Relief" are one "Trip" card.** Driving
   time, average speed, and the net climb with the climb and descent under it.
   The distance is no longer repeated there: the chart above shows it.

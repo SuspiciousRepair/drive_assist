@@ -1209,8 +1209,16 @@ public final class DailyStatsProvider {
         double eff = DrivingConsumption.efficiencyKwh100km(distanceKm, spent, regen);
 
         // endMs = 0 indicates active session ("em andamento")
-        return new DriveSession(0, startMs, 0, distanceKm, socStart, socEnd,
+        DriveSession ds = new DriveSession(0, startMs, 0, distanceKm, socStart, socEnd,
                 ascent, descent, regen, spent, net, eff, activeEnergy.energySource());
+        // Where the energy went so far: the live trip split, the same numbers
+        // the trip will save when it ends, scaled to this net like a saved one.
+        EnergyIntegrator.TripSnapshot live = EnergyIntegrator.currentTrip();
+        if (live.splitValid && ds.energySource != EnergySource.ESTIMATED) {
+            ds.split = EnergySplit.of(net, live.canNetKwh, live.driveSpentKwh, live.driveRegenKwh,
+                live.climateRawKwh, live.climateOnSeconds, live.fanKwh);
+        }
+        return ds;
     }
 
     /** Convenience overload for callers without an already-open db handle. */
