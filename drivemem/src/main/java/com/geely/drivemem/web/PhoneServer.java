@@ -12,6 +12,7 @@ import com.geely.drivemem.util.AppBackup;
 import com.geely.drivemem.util.BackupCrypto;
 import com.geely.drivemem.util.Clips;
 import com.geely.drivemem.util.CsvExport;
+import com.geely.drivemem.util.GpxExport;
 import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.SpotifyClient;
 
@@ -196,6 +197,28 @@ public final class PhoneServer {
                 }
                 return;
             }
+            case "/routes": {
+                String m = r.query.get("m");
+                if (GpxExport.isMonth(m)) {
+                    Http.html(out, 200, PhonePages.routesMonth(app, m, GpxExport.tripsOfMonth(app, m)));
+                } else {
+                    Http.html(out, 200, PhonePages.routes(app, GpxExport.months(app)));
+                }
+                return;
+            }
+            case "/routes.gpx": {
+                // One at a time, as the CSV files: the same cache file is
+                // rewritten by the next request.
+                synchronized (GpxExport.class) {
+                    String m = r.query.get("m");
+                    File f = null;
+                    if (GpxExport.isMonth(m)) f = GpxExport.writeMonth(app, m);
+                    else f = GpxExport.writeTrip(app, tripId(r.query.get("trip")));
+                    if (f == null) { Http.html(out, 404, PhonePages.message(app, PhonePages.Msg.NO_ROUTE)); return; }
+                    Http.file(out, f, "application/gpx+xml", f.getName());
+                }
+                return;
+            }
             case "/backup": {
                 List<AppBackup.Found> all = AppBackup.list();
                 if (all.isEmpty()) { Http.html(out, 404, PhonePages.message(app, PhonePages.Msg.NO_BACKUP)); return; }
@@ -332,6 +355,14 @@ public final class PhoneServer {
             try { app.startForegroundService(new Intent(app, TelemetryService.class)); }
             catch (Throwable t) { Log.w(TAG, "phone: mqtt restart: " + t); }
         }
+    }
+
+    /** A trip id from the address, or -1. Digits only, so nothing else
+     * reaches the query. */
+    static long tripId(String v) {
+        if (v == null || v.isEmpty() || v.length() > 18) return -1;
+        for (int i = 0; i < v.length(); i++) if (v.charAt(i) < '0' || v.charAt(i) > '9') return -1;
+        return Long.parseLong(v);
     }
 
     static boolean hasControl(String s) {

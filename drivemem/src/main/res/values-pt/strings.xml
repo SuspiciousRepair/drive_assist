@@ -644,4 +644,9 @@
     <string name="phone_msg_no_space">O carro não tem espaço livre suficiente para este arquivo.</string>
     <string name="phone_msg_busy">Uma restauração já está em andamento.</string>
     <string name="phone_msg_no_file">Escolha um arquivo de backup primeiro.</string>
+    <string name="phone_routes">Rotas (GPX)</string>
+    <string name="phone_routes_hint">Suas viagens em arquivos GPX. Abrem no Google Earth, Google My Maps e na maioria dos apps de mapa.</string>
+    <string name="phone_routes_open">Abrir rotas</string>
+    <string name="phone_routes_month">Mês inteiro</string>
+    <string name="phone_msg_no_route">Nenhuma viagem com rota gravada ainda.</string>
 </resources>

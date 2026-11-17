@@ -1,8 +1,8 @@
 # Trip details, routes and per-mode efficiency, no map API (issue #19)
 
-Status (2026-11-16): phases 0, 1 and 2 merged into `next` (#51, #62, #64,
-#65); #19 closed. Leftovers (charge place screen, GPX and CSV export) are
-tracked in #82.
+Status (2026-11-17): phases 0, 1 and 2 merged into `next` (#51, #62, #64,
+#65); #19 closed. Charge places on the route maps: #101, #103. Phase 3
+(GPX and CSV export, USB and phone): `feat/gpx-export`, for #82.
 
 ## Goal
 
@@ -95,8 +95,10 @@ Trips recorded before Phase 1 open the same screen with numbers only.
 
 ## Phase 3 — export
 
-- **Export GPX** (one trip, or every trip of a month) to
-  `Drive Assist/Routes/` on the USB stick, via `UsbExport`. Speed and time per
+- **Export GPX**: the Charges screen's **Export to USB** writes one file per
+  month (`drive_assist_routes_yyyy-MM.gpx`, one track per trip) to
+  `Drive Assist/Routes/` on the USB stick, via `UsbExport`. The phone page
+  (**Routes (GPX)**) downloads a whole month or one trip. Speed and time per
   point go in GPX `<extensions>`. Google Maps (My Maps), Google Earth and most
   map apps open GPX.
 - Trips CSV gets `start_lat, start_lon, end_lat, end_lon`; charges CSV gets
