@@ -169,9 +169,13 @@ public class VaporArtView extends ArtView {
     // near the horizon even at close Z, so distance alone never hides it. The
     // car materializes as it backs away from the camera.
     // The sunrise is the only animation tied to wall time, not the car's motion.
-    // It starts at the horizon and takes six minutes to climb. While running
-    // alone, it redraws at 5 Hz instead of 60, keeping CPU light.
-    private static final float SUNRISE_MS      = 6f * 60f * 1000f;
+    // It starts a THIRD of the way up, not at the horizon: from below, the disc
+    // spent its first minutes hidden behind the city and the scene opened with
+    // no sun. The remaining two thirds climb at the old speed (the full climb
+    // used to take six minutes), so four minutes. While running alone, it
+    // redraws at 5 Hz instead of 60, keeping CPU light.
+    private static final float SUNRISE_START   = 1f / 3f;    // sunUp at the first frame
+    private static final float SUNRISE_MS      = 4f * 60f * 1000f;
     private static final long  SUNRISE_TICK_MS = 200L;   // under ArtView's 250 ms
                                                          // accumulator clamp, so no
                                                          // time is dropped
@@ -380,7 +384,7 @@ public class VaporArtView extends ArtView {
         // where n came out 0.
         if (sunUp < 1f || sunriseT0 != 0L) {
             float t = (SystemClock.uptimeMillis() - sunriseT0) / SUNRISE_MS;
-            sunUp = t <= 0f ? 0f : (t >= 1f ? 1f : t);
+            sunUp = SUNRISE_START + (1f - SUNRISE_START) * (t <= 0f ? 0f : (t >= 1f ? 1f : t));
         }
 
         if (!introDone) {
