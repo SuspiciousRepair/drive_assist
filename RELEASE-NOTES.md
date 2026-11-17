@@ -12,6 +12,21 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.8.0 — 2026-11-17
+
+- New: each trip saves its route. Tap a finished trip on the stats page to see it, with a height profile and the trip numbers.
+- New: All routes shows every trip in one picture, and you can pick which trips.
+- New: Extra dark. At night the Dashboard goes as dark as the screen allows while you drive (Config, Look, Dark mode).
+- New: the front defogger button shows at once on the climate ruler and in Home Assistant.
+- New: the car's low-tyre warning, per wheel, in Home Assistant.
+- Fixed: a home charge is no longer shown as a DC fast charge.
+- Fixed: the first Cooler or Warmer tap of a trip no longer makes the cabin warmer.
+- Fixed: a change you make right after the car starts now stays (AVAS, regen, drive mode).
+- Fixed: a charge no longer gains energy while the screen sleeps.
+- Fixed: the dashcam Record switch stays on after a tap.
+- Fixed: the USB export always copies the newest data.
+- Changed: the Regen and AVAS buttons follow changes made on the car's own screen.
+
 ## v0.7.0 — 2026-11-15
 
 - New: phone access. Pair your phone with a QR code (Settings, System, Phone access).
