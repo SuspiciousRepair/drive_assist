@@ -651,6 +651,7 @@
     <string name="phone_routes">เส้นทาง (GPX)</string>
     <string name="phone_routes_hint">การเดินทางของคุณเป็นไฟล์ GPX เปิดได้ใน Google Earth, Google My Maps และแอปแผนที่ส่วนใหญ่</string>
     <string name="phone_routes_open">เปิดเส้นทาง</string>
-    <string name="phone_routes_month">ทั้งเดือน</string>
+    <string name="phone_routes_day">ทั้งวัน</string>
+    <string name="phone_routes_trip">การเดินทางนี้</string>
     <string name="phone_msg_no_route">ยังไม่มีการเดินทางที่บันทึกเส้นทาง</string>
 </resources>

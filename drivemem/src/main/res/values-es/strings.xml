@@ -635,6 +635,7 @@
     <string name="phone_routes">Rutas (GPX)</string>
     <string name="phone_routes_hint">Tus viajes en archivos GPX. Se abren en Google Earth, Google My Maps y la mayoría de las apps de mapas.</string>
     <string name="phone_routes_open">Abrir rutas</string>
-    <string name="phone_routes_month">Mes completo</string>
+    <string name="phone_routes_day">Día completo</string>
+    <string name="phone_routes_trip">Este viaje</string>
     <string name="phone_msg_no_route">Todavía no hay viajes con ruta grabada.</string>
 </resources>

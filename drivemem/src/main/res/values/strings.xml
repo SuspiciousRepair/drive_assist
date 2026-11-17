@@ -662,6 +662,7 @@
     <string name="phone_routes">Routes (GPX)</string>
     <string name="phone_routes_hint">Your trips as GPX files. They open in Google Earth, Google My Maps and most map apps.</string>
     <string name="phone_routes_open">Open routes</string>
-    <string name="phone_routes_month">Whole month</string>
+    <string name="phone_routes_day">Whole day</string>
+    <string name="phone_routes_trip">This trip</string>
     <string name="phone_msg_no_route">No trip with a recorded route yet.</string>
 </resources>

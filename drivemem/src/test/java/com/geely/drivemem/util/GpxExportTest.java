@@ -76,6 +76,33 @@ public class GpxExportTest {
         assertEquals(r[1], dec[0]);
     }
 
+    @Test public void dayRangeIsLocalCalendarDay() {
+        long[] r = GpxExport.dayRange("2026-11-14", SP);
+        assertEquals(1_794_625_200_000L, r[0]);   // 2026-11-14 00:00 -03:00
+        assertEquals(r[0] + 86_400_000L, r[1]);
+    }
+
+    // A trip that starts at 23:50 belongs to that day, even when it ends
+    // after midnight; days come out in order.
+    @Test public void tracksGroupByTheDayTheTripStarted() {
+        GpxExport.Track late = new GpxExport.Track(2, 1_794_625_200_000L + 86_400_000L - 600_000L, 1);
+        GpxExport.Track early = new GpxExport.Track(1, T0, 1);
+        GpxExport.Track next = new GpxExport.Track(3, 1_794_625_200_000L + 86_400_000L + 3_600_000L, 1);
+        java.util.Map<String, java.util.List<GpxExport.Track>> d =
+            GpxExport.byDay(Arrays.asList(early, late, next), SP);
+        assertEquals(Arrays.asList("2026-11-14", "2026-11-15"), new java.util.ArrayList<>(d.keySet()));
+        assertEquals(2, d.get("2026-11-14").size());
+        assertEquals(1, d.get("2026-11-15").size());
+    }
+
+    @Test public void onlyRealDaysPass() {
+        assertTrue(GpxExport.isDay("2026-11-17"));
+        assertFalse(GpxExport.isDay("2026-11-32"));
+        assertFalse(GpxExport.isDay("2026-11"));
+        assertFalse(GpxExport.isDay("2026-11-17/../x"));
+        assertFalse(GpxExport.isDay(null));
+    }
+
     @Test public void onlyRealMonthsPass() {
         assertTrue(GpxExport.isMonth("2026-11"));
         assertFalse(GpxExport.isMonth("2026-13"));

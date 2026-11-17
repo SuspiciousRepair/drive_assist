@@ -96,9 +96,11 @@ Trips recorded before Phase 1 open the same screen with numbers only.
 ## Phase 3 — export
 
 - **Export GPX**: the Charges screen's **Export to USB** writes one file per
-  month (`drive_assist_routes_yyyy-MM.gpx`, one track per trip) to
-  `Drive Assist/Routes/` on the USB stick, via `UsbExport`. The phone page
-  (**Routes (GPX)**) downloads a whole month or one trip. Speed and time per
+  day (`drive_assist_routes_yyyy-MM-dd.gpx`, one track per trip) to
+  `Drive Assist/Routes/yyyy-MM/` on the USB stick, via `UsbExport`. A month
+  file was dropped: a busy month is several MB, too big for some map apps.
+  The phone page (**Routes (GPX)**) lists months, then days: download a whole
+  day or one trip. Speed and time per
   point go in GPX `<extensions>`. Google Maps (My Maps), Google Earth and most
   map apps open GPX.
 - Trips CSV gets `start_lat, start_lon, end_lat, end_lon`; charges CSV gets

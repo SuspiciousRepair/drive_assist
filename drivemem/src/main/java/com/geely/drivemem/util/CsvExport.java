@@ -47,8 +47,8 @@ public final class CsvExport {
     private CsvExport() {}
 
     /** Writes both CSV files, then copies them and car.db to the USB drive,
-     * and the trip routes as GPX (one file per month) to
-     * "Drive Assist/Routes/". Runs on its own thread; cb fires once, on THAT
+     * and the trip routes as GPX (one file per day) to
+     * "Drive Assist/Routes/<yyyy-MM>/". Runs on its own thread; cb fires once, on THAT
      * thread, as in UsbExport, with the files copied in both folders. */
     public static void exportToUsb(Context ctx, UsbExport.Callback cb) {
         Context app = ctx.getApplicationContext();
@@ -83,13 +83,13 @@ public final class CsvExport {
                 AppBackup.deleteSnapshot(new File(snapDir, CarDb.file(app).getName()));
             }
             if (drive[0] != null) {
-                File[] gpx = new File[0];
-                try { gpx = GpxExport.writeAllMonths(app); }
+                List<GpxExport.MonthFiles> gpx = java.util.Collections.emptyList();
+                try { gpx = GpxExport.writeAllDays(app); }
                 catch (Throwable t) { Log.w(TAG, "csvexport: gpx: " + t); }
-                if (gpx.length > 0) {
-                    UsbExport.exportNow(GpxExport.USB_DIR, false, (o, d, n) -> {
+                for (GpxExport.MonthFiles m : gpx) {
+                    UsbExport.exportNow(GpxExport.USB_DIR + "/" + m.month, false, (o, d, n) -> {
                         if (o) { ok[0] = true; copied[0] += n; }
-                    }, gpx);
+                    }, m.days);
                 }
             }
             if (cb != null) cb.onDone(ok[0], drive[0], copied[0]);

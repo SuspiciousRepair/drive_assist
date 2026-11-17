@@ -31,7 +31,8 @@ import java.util.regex.Pattern;
  * and most map apps. The app has no map of its own (no map API), so a real
  * map app is where a month of driving is seen on streets.
  *
- * One file per month, one track per trip, in the order driven. Each point
+ * One file per day, one track per trip, in the order driven. On the USB
+ * stick the days go in a folder per month: Routes/2026-11/...-2026-11-17.gpx. Each point
  * keeps its time (GPX {@code <time>}, UTC) and height ({@code <ele>}); the
  * raw values a map app does not know go in {@code <extensions>}: speed,
  * battery power, drive mode and regen level, as saved in trip_point.
@@ -44,6 +45,7 @@ public final class GpxExport {
     public static final String USB_DIR = "Routes";
     static final String NS = "https://github.com/SuspiciousRepair/drive_assist/gpx/1";
     private static final Pattern MONTH = Pattern.compile("\\d{4}-(0[1-9]|1[0-2])");
+    private static final Pattern DAY = Pattern.compile("\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])");
 
     private GpxExport() {}
 
@@ -74,7 +76,9 @@ public final class GpxExport {
 
     public static boolean isMonth(String ym) { return ym != null && MONTH.matcher(ym).matches(); }
 
-    public static String monthFileName(String ym) { return "drive_assist_routes_" + ym + ".gpx"; }
+    public static boolean isDay(String ymd) { return ymd != null && DAY.matcher(ymd).matches(); }
+
+    public static String dayFileName(String ymd) { return "drive_assist_routes_" + ymd + ".gpx"; }
 
     public static String tripFileName(long tripId) { return "drive_assist_trip_" + tripId + ".gpx"; }
 
@@ -102,27 +106,60 @@ public final class GpxExport {
         return out;
     }
 
-    /** Every month to its own file, in the cache dir (overwritten each time).
-     * For the USB export. One month in memory at a time. */
-    public static File[] writeAllMonths(Context ctx) throws IOException {
-        List<String> ms = months(ctx);
-        List<File> out = new ArrayList<>(ms.size());
-        for (String ym : ms) {
-            File f = writeMonth(ctx, ym);
-            if (f != null) out.add(f);
-        }
-        return out.toArray(new File[0]);
+    /** One day's files, grouped by month, for the USB export. */
+    public static final class MonthFiles {
+        public final String month;
+        public final File[] days;
+        MonthFiles(String month, File[] days) { this.month = month; this.days = days; }
     }
 
-    /** One month's file, or null when the month has no route. */
-    public static File writeMonth(Context ctx, String ym) throws IOException {
-        if (!isMonth(ym)) return null;
-        long[] r = monthRange(ym, TimeZone.getDefault());
+    /** Every day with a route to its own file, in the cache dir (cleared
+     * first, so a day that is gone is not copied again). One month in
+     * memory at a time. */
+    public static List<MonthFiles> writeAllDays(Context ctx) throws IOException {
+        File d = dir(ctx);
+        File[] old = d.listFiles();
+        if (old != null) for (File f : old) f.delete();
+        TimeZone tz = TimeZone.getDefault();
+        List<MonthFiles> out = new ArrayList<>();
+        for (String ym : months(ctx)) {
+            long[] r = monthRange(ym, tz);
+            List<File> files = new ArrayList<>();
+            for (Map.Entry<String, List<Track>> e : byDay(read(ctx, r[0], r[1], -1), tz).entrySet()) {
+                File f = new File(d, dayFileName(e.getKey()));
+                writeFile(f, e.getValue());
+                files.add(f);
+            }
+            if (!files.isEmpty()) out.add(new MonthFiles(ym, files.toArray(new File[0])));
+        }
+        return out;
+    }
+
+    /** One day's file ("yyyy-MM-dd", local time), or null when that day
+     * has no route. */
+    public static File writeDay(Context ctx, String ymd) throws IOException {
+        if (!isDay(ymd)) return null;
+        TimeZone tz = TimeZone.getDefault();
+        long[] r = dayRange(ymd, tz);
         List<Track> tracks = read(ctx, r[0], r[1], -1);
         if (tracks.isEmpty()) return null;
-        File f = new File(dir(ctx), monthFileName(ym));
+        File f = new File(dir(ctx), dayFileName(ymd));
         writeFile(f, tracks);
         return f;
+    }
+
+    /** Tracks grouped by the local day their trip started, days in order. */
+    static Map<String, List<Track>> byDay(List<Track> tracks, TimeZone tz) {
+        SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        f.setTimeZone(tz);
+        Map<String, List<Track>> out = new java.util.TreeMap<>();
+        for (Track t : tracks) {
+            String k = f.format(new Date(t.startMs));
+            List<Track> l = out.get(k);
+            if (l == null) { l = new ArrayList<>(); out.put(k, l); }
+            l.add(t);
+        }
+        return out;
     }
 
     /** One trip's file, or null when the trip has no route. */
@@ -157,6 +194,17 @@ public final class GpxExport {
         c.set(y, m, 1, 0, 0, 0);
         long from = c.getTimeInMillis();
         c.add(Calendar.MONTH, 1);
+        return new long[]{from, c.getTimeInMillis()};
+    }
+
+    /** [start, end) of a "yyyy-MM-dd" day in ms, in tz. */
+    static long[] dayRange(String ymd, TimeZone tz) {
+        Calendar c = Calendar.getInstance(tz, Locale.US);
+        c.clear();
+        c.set(Integer.parseInt(ymd.substring(0, 4)), Integer.parseInt(ymd.substring(5, 7)) - 1,
+            Integer.parseInt(ymd.substring(8, 10)), 0, 0, 0);
+        long from = c.getTimeInMillis();
+        c.add(Calendar.DAY_OF_MONTH, 1);
         return new long[]{from, c.getTimeInMillis()};
     }
 

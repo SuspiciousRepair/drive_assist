@@ -210,10 +210,9 @@ public final class PhoneServer {
                 // One at a time, as the CSV files: the same cache file is
                 // rewritten by the next request.
                 synchronized (GpxExport.class) {
-                    String m = r.query.get("m");
-                    File f = null;
-                    if (GpxExport.isMonth(m)) f = GpxExport.writeMonth(app, m);
-                    else f = GpxExport.writeTrip(app, tripId(r.query.get("trip")));
+                    String d = r.query.get("d");
+                    File f = GpxExport.isDay(d) ? GpxExport.writeDay(app, d)
+                           : GpxExport.writeTrip(app, tripId(r.query.get("trip")));
                     if (f == null) { Http.html(out, 404, PhonePages.message(app, PhonePages.Msg.NO_ROUTE)); return; }
                     Http.file(out, f, "application/gpx+xml", f.getName());
                 }

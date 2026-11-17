@@ -155,8 +155,7 @@ final class PhonePages {
         return page(c, title, b.toString());
     }
 
-    /** The months that have routes, newest first: a GPX of the whole month,
-     * or open the month to pick one trip. */
+    /** The months that have routes, newest first. A month opens its days. */
     static String routes(Context c, List<String> months) {
         StringBuilder b = new StringBuilder(back(c));
         String title = c.getString(R.string.phone_routes);
@@ -166,9 +165,9 @@ final class PhonePages {
         } else {
             b.append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.phone_routes_hint))).append("</p><ul>");
             for (String m : months) {
-                b.append("<li><a href=\"/routes?m=").append(Http.esc(m)).append("\">").append(Http.esc(m)).append("</a>")
-                 .append("<a class=\"btn\" href=\"/routes.gpx?m=").append(Http.esc(m)).append("\">")
-                 .append(Http.esc(c.getString(R.string.phone_routes_month))).append("</a></li>");
+                b.append("<li><span>").append(Http.esc(m)).append("</span>")
+                 .append("<a class=\"btn\" href=\"/routes?m=").append(Http.esc(m)).append("\">")
+                 .append(Http.esc(c.getString(R.string.phone_routes_open))).append("</a></li>");
             }
             b.append("</ul>");
         }
@@ -176,24 +175,33 @@ final class PhonePages {
         return page(c, title, b.toString());
     }
 
-    /** One month: its whole GPX, and one GPX per trip. */
+    /** One month: a card per day, with the day's GPX and one GPX per trip. */
     static String routesMonth(Context c, String month, List<com.geely.drivemem.sensors.DailyStatsProvider.DriveSession> trips) {
         StringBuilder b = new StringBuilder("<p><a href=\"/routes\">&larr; ")
             .append(Http.esc(c.getString(R.string.phone_routes))).append("</a></p>");
-        b.append("<h1>").append(Http.esc(month)).append("</h1><div class=\"card\">");
+        b.append("<h1>").append(Http.esc(month)).append("</h1>");
         if (trips.isEmpty()) {
-            b.append("<p>").append(Http.esc(c.getString(R.string.phone_msg_no_route))).append("</p></div>");
+            b.append("<div class=\"card\"><p>").append(Http.esc(c.getString(R.string.phone_msg_no_route))).append("</p></div>");
             return page(c, month, b.toString());
         }
-        b.append("<a class=\"btn\" href=\"/routes.gpx?m=").append(Http.esc(month)).append("\">")
-         .append(Http.esc(c.getString(R.string.phone_routes_month))).append("</a><ul style=\"margin-top:12px\">");
-        DateFormat fmt = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
+        java.text.SimpleDateFormat key = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US);
+        DateFormat dayFmt = DateFormat.getDateInstance(DateFormat.FULL);
+        DateFormat timeFmt = DateFormat.getTimeInstance(DateFormat.SHORT);
+        String open = null;
         for (com.geely.drivemem.sensors.DailyStatsProvider.DriveSession t : trips) {
-            String what = fmt.format(new Date(t.startMs))
-                + String.format(java.util.Locale.US, " · %.1f km", t.distanceKm);
+            Date start = new Date(t.startMs);
+            String day = key.format(start);
+            if (!day.equals(open)) {
+                if (open != null) b.append("</ul></div>");
+                open = day;
+                b.append("<div class=\"card\"><h2>").append(Http.esc(dayFmt.format(start))).append("</h2>")
+                 .append("<a class=\"btn\" href=\"/routes.gpx?d=").append(day).append("\">")
+                 .append(Http.esc(c.getString(R.string.phone_routes_day))).append("</a><ul style=\"margin-top:12px\">");
+            }
+            String what = timeFmt.format(start) + String.format(java.util.Locale.US, " · %.1f km", t.distanceKm);
             b.append("<li><span>").append(Http.esc(what)).append("</span>")
              .append("<a class=\"btn\" href=\"/routes.gpx?trip=").append(t.tripId).append("\">")
-             .append(Http.esc(c.getString(R.string.phone_download))).append("</a></li>");
+             .append(Http.esc(c.getString(R.string.phone_routes_trip))).append("</a></li>");
         }
         b.append("</ul></div>");
         return page(c, month, b.toString());
