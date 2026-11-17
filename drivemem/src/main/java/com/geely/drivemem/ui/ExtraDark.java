@@ -15,15 +15,14 @@ import com.geely.drivemem.util.Prefs;
  * Dashboard dims the panel further. A touch, a gear change or leaving the
  * screen brings the car's own brightness back.
  *
- * Two layers, both only on this window, both gone when the Dashboard is left:
- *  1. the panel backlight to its floor, via a WINDOW override
- *     (WindowManager.LayoutParams.screenBrightness). The car's own brightness
- *     setting is never written, so there is no second copy of it to drift.
- *     Measured on the car 2026-11-16: the backlight
- *     (/sys/class/leds/lcd-backlight) follows Android's brightness, 10..255;
- *     10 is the floor (dumpsys display: mScreenBrightnessRangeMinimum).
- *  2. a black shade over the whole window, to go darker than the floor.
- * The OEM bars outside this window get only layer 1.
+ * The panel backlight goes to its floor via a WINDOW override
+ * (WindowManager.LayoutParams.screenBrightness), so it is gone when the
+ * Dashboard is left. The car's own brightness setting is never written, so
+ * there is no second copy of it to drift. Measured on the car 2026-11-16:
+ * the backlight (/sys/class/leds/lcd-backlight) follows Android's
+ * brightness, 10..255; 10 is the floor (dumpsys display:
+ * mScreenBrightnessRangeMinimum). A black shade on top was tried in sample
+ * images and dropped: the owner found the floor dark enough.
  *
  * "Night" is the car's dark mode (Configuration.uiMode night), the same
  * signal the Auto appearance follows. */
@@ -33,15 +32,11 @@ public final class ExtraDark {
     /** Asks for the lowest backlight: the system clamps it to the panel's
      * floor (10 of 255 on this unit), the darkest it goes. */
     static final float BACKLIGHT_FLOOR = 1f / 255f;
-    /** Opacity of the black shade on top of the floor: 0.7 leaves ~4 % of
-     * the light a level-82 screen gives. */
-    static final float SHADE_ALPHA = 0.7f;
     private static final String GEAR_KEY = "car.gear";
 
     private final Activity activity;
     private final Handler ui;
     private boolean enabled, dimmed, swallowing;
-    private android.view.View shade;
     private long lastWakeMs;
     private final Runnable check = this::check;
     private final EntityBus.Listener gearListener;
@@ -111,26 +106,12 @@ public final class ExtraDark {
 
     private void dim() {
         setWindow(BACKLIGHT_FLOOR);
-        android.view.ViewGroup root = (android.view.ViewGroup) activity.getWindow().getDecorView();
-        if (shade == null) {
-            shade = new android.view.View(activity);
-            shade.setBackgroundColor(android.graphics.Color.BLACK);
-            shade.setAlpha(SHADE_ALPHA);
-        }
-        if (shade.getParent() == null) {
-            root.addView(shade, new android.view.ViewGroup.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT));
-        }
         dimmed = true;
     }
 
     private void undim() {
         if (!dimmed) return;
         setWindow(WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE);
-        if (shade != null && shade.getParent() instanceof android.view.ViewGroup) {
-            ((android.view.ViewGroup) shade.getParent()).removeView(shade);
-        }
         dimmed = false;
     }
 

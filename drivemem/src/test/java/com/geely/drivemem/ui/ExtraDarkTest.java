@@ -20,7 +20,5 @@ public class ExtraDarkTest {
         // the system clamps any override to the panel's floor (10 of 255)
         assertTrue(ExtraDark.BACKLIGHT_FLOOR > 0f);
         assertTrue(ExtraDark.BACKLIGHT_FLOOR <= 10f / 255f);
-        // the shade darkens further but never hides the screen completely
-        assertTrue(ExtraDark.SHADE_ALPHA >= 0.5f && ExtraDark.SHADE_ALPHA < 1f);
     }
 }
