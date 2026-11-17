@@ -133,6 +133,31 @@ public class EnergySplitTest {
         assertTrue(t.netKwh > 0);
     }
 
+    /** Recovered after a restart one second in, then 20 s of CAN: the
+     * split counts (CAN covered over 90 % of the trip's time). */
+    @Test public void tripRecoveredEarlyKeepsItsSplit() {
+        EnergyIntegrator.startTrip();
+        EnergyIntegrator.seedTrip(0.01, 0, 0.01, 1_000);
+        for (int i = 0; i <= 200; i++) can(i * 100L, 10, 9, 0);
+        assertTrue(EnergyIntegrator.endTrip().splitValid);
+    }
+
+    /** Recovered after half the trip: not enough CAN for a split. */
+    @Test public void tripRecoveredLateHasNoSplit() {
+        EnergyIntegrator.startTrip();
+        EnergyIntegrator.seedTrip(0.1, 0, 0.1, 20_000);
+        for (int i = 0; i <= 200; i++) can(i * 100L, 10, 9, 0);
+        assertFalse(EnergyIntegrator.endTrip().splitValid);
+    }
+
+    @Test public void liveTripShowsItsSplitSoFar() {
+        EnergyIntegrator.startTrip();
+        for (int i = 0; i <= 100; i++) can(i * 100L, 10, 9, 0.5);
+        EnergyIntegrator.TripSnapshot t = EnergyIntegrator.currentTrip();
+        assertTrue(t.splitValid);
+        assertTrue(t.driveSpentKwh > 0);
+    }
+
     @Test public void recoveredTripHasNoSplit() {
         EnergyIntegrator.startTrip();
         EnergyIntegrator.seedTrip(1.0, 0, 1.0);

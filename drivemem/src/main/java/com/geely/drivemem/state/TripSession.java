@@ -456,8 +456,9 @@ public final class TripSession {
         }
 
         EnergyIntegrator.startTrip();
-        double[] energy = sumEnergySince(ctx, persistedStartMs, System.currentTimeMillis());
-        EnergyIntegrator.seedTrip(energy[0], energy[1], energy[2]);
+        long nowMs = System.currentTimeMillis();
+        double[] energy = sumEnergySince(ctx, persistedStartMs, nowMs);
+        EnergyIntegrator.seedTrip(energy[0], energy[1], energy[2], Math.max(0, nowMs - persistedStartMs));
         // One replay of the rows already written, so trip.live does not
         // restart from zero after an app update mid-drive. Every later
         // tick is added by feedLive().
