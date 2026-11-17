@@ -64,6 +64,8 @@ import java.util.Locale;
  * mode, music playback, charging status, gate access, and HA context cards. */
 public class ComfortActivity extends Activity {
     private final Handler ui = new Handler(Looper.getMainLooper());
+    // Config > Look > Extra dark (#89): dims this screen at night while driving.
+    private final ExtraDark extraDark = new ExtraDark(this, ui);
     private TextView hint;
     // elements that follow the colour of the cabin ambient light
     private ArtView art;
@@ -2347,6 +2349,7 @@ public class ComfortActivity extends Activity {
         try { BackupDialogs.onResume(this); }
         catch (Throwable t) { android.util.Log.w(CarAccess.TAG, "resume backup: " + t); }
         startCarActorPolls();
+        extraDark.resume();
         ui.removeCallbacks(rulerPoll);
         ui.post(rulerPoll);
         PanelState.setListener(panelListener);
@@ -2446,8 +2449,16 @@ public class ComfortActivity extends Activity {
         }
     };
 
+    // Extra dark (#89): every touch restarts its quiet time, and the touch
+    // that wakes a dimmed screen is not passed on to the buttons under it.
+    @Override public boolean dispatchTouchEvent(android.view.MotionEvent e) {
+        if (extraDark.onTouch(e)) return true;
+        return super.dispatchTouchEvent(e);
+    }
+
     @Override protected void onPause() {
         super.onPause();
+        extraDark.pause();
         EntityBus.unsubscribe("charge.cost_updated", chargeBusListener);
         EntityBus.unsubscribe("charge.dismissed", chargeBusListener);
         EntityBus.unsubscribe("charge.completed", chargeBusListener);
