@@ -161,5 +161,14 @@
                 <action android:name="com.geely.modehelper.IMPORT_LOCK_SOUND" />
             </intent-filter>
         </receiver>
+        <!-- Owner's "remove everything" from Drive Assist's Cleanup screen:
+             stops the CAN reader, gives the car's lock sound back, sets ADB,
+             and uninstalls both apps. Exported for the same reason as the
+             others; see CleanupReceiver's header for why that is acceptable. -->
+        <receiver android:name=".CleanupReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.geely.modehelper.CLEANUP" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

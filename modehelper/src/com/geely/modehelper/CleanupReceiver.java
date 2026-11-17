@@ -1,0 +1,118 @@
+package com.geely.modehelper;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.util.Log;
+
+import java.io.IOException;
+
+/** Removes everything of ours from the car, for an owner who is about to hand
+ * it to a workshop. Drive Assist's Cleanup screen sends this; it cannot do
+ * these steps itself — stopping a root daemon, writing ADB_ENABLED, and a
+ * silent uninstall all need the system privileges only this app has.
+ *
+ * In order:
+ *   1. the car's own lock sound comes back (our file stops being referenced);
+ *   2. roadcastd is stopped and {@link CanReaderPolicy#DIR} is deleted — a
+ *      reader another app started, in another dir, is never touched;
+ *   3. "keep ADB always on" is cleared, so nothing re-opens ADB after we go;
+ *   4. ADB is left OFF ({@code close_adb} true, for a workshop visit) or ON
+ *      with no auto-off (false, so the owner keeps the shell);
+ *   5. Drive Assist and then this helper are uninstalled, silently.
+ *
+ * Nothing is left on the car to listen for a signal. After a close, the owner
+ * gets back in by hand: car Settings, Developer options, turn ADB on, then
+ * reinstall from the USB stick. That is the deliberate trade for a car that a
+ * workshop cannot tell was ever modified.
+ *
+ * It does NOT undo the deep root (ro.secure=0, test-keys): that lives in the
+ * system image from recovery, not in our apps, and is not ours to change.
+ *
+ * Exported for the same reason as the other receivers: Drive Assist is a
+ * different signer and must reach it. The worst a rogue caller can do is
+ * remove OUR two apps and the CAN reader and set ADB to a known state — no
+ * capability a caller does not already have on this always-root unit, and the
+ * normal path is behind a two-tap confirm in Drive Assist's own UI. */
+public class CleanupReceiver extends BroadcastReceiver {
+    static final String TAG = "ModeHelper";
+    static final String ACTION = "com.geely.modehelper.CLEANUP";
+    static final String DRIVEMEM = "com.geely.drivemem";
+    static final String SELF = "com.geely.modehelper";
+    /** The short ADB window we open only to stop the daemon, if ADB was off. */
+    static final int ADB_WIPE_MINUTES = 2;
+
+    @Override public void onReceive(Context ctx, Intent i) {
+        final Context app = ctx.getApplicationContext();
+        final boolean closeAdb = i.getBooleanExtra("close_adb", false);
+        final PendingResult pr = goAsync();
+        new Thread(() -> {
+            String detail = null;
+            try {
+                detail = run(app, closeAdb);
+            } catch (Throwable t) {
+                detail = "error: " + t;
+                Log.w(TAG, "cleanup: " + t);
+            } finally {
+                Log.i(TAG, "cleanup: done, close_adb=" + closeAdb
+                    + (detail != null ? " (" + detail + ")" : ""));
+                try { pr.finish(); } catch (Throwable ignored) {}
+                // Last of all, remove the apps. Drive Assist first; this
+                // helper very last, after a pause, so our own death does not
+                // drop the other request before the system has taken it.
+                try { Installer.uninstall(app, DRIVEMEM); } catch (Throwable ignored) {}
+                try { Thread.sleep(2500); } catch (InterruptedException ignored) {}
+                try { Installer.uninstall(app, SELF); } catch (Throwable ignored) {}
+            }
+        }, "cleanup").start();
+    }
+
+    /** The privileged steps 1–4. Returns a short note when something went
+     * wrong, or null when all was well. Does not uninstall (the caller does
+     * that after, so a failure here still leaves the car cleaner). */
+    static String run(Context app, boolean closeAdb) {
+        String note = null;
+        // 1. the car's own lock sound back
+        try { LockSoundReceiver.apply(app, "car"); }
+        catch (Throwable t) { note = "lock sound: " + t; }
+
+        // 2. stop and delete roadcastd — needs the root adb shell
+        LocalAdbShell adb = new LocalAdbShell();
+        try {
+            if (!adb.portOpen(1000) && AdbControl.set(app, true, ADB_WIPE_MINUTES)) {
+                waitPort(adb, 8000);
+            }
+            if (adb.portOpen(1000)) {
+                String out = adb.execute(CanReaderPolicy.wipeCommand());
+                if (!out.contains(CanReaderPolicy.WIPED)) note = append(note, "wipe: " + out);
+            } else {
+                note = append(note, "could not open ADB to stop the CAN reader");
+            }
+        } catch (IOException e) {
+            note = append(note, "CAN reader: " + e);
+        }
+
+        // 3. nothing may re-open ADB after we leave
+        try { AdbControl.setAlwaysOn(app, false); } catch (Throwable ignored) {}
+
+        // 4. the final ADB state the owner asked for
+        try {
+            if (closeAdb) AdbControl.set(app, false, 0);
+            else AdbControl.setIndefinite(app, true);
+        } catch (Throwable t) { note = append(note, "adb: " + t); }
+        return note;
+    }
+
+    private static boolean waitPort(LocalAdbShell adb, long ms) {
+        long until = System.currentTimeMillis() + ms;
+        while (System.currentTimeMillis() < until) {
+            if (adb.portOpen(1000)) return true;
+            try { Thread.sleep(500); } catch (InterruptedException e) { return false; }
+        }
+        return false;
+    }
+
+    private static String append(String note, String s) {
+        return note == null ? s : note + "; " + s;
+    }
+}

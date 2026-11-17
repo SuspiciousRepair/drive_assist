@@ -30,21 +30,19 @@
 
     <!-- misc -->
     <string name="cleanup_title">ล้างข้อมูล</string>
-    <string name="cleanup_subtitle">ลบทุกอย่างที่เพิ่มเข้ามาหลังอิมเมจจากโรงงาน ไม่ยกเลิก ADB (มาจาก recovery) และไม่แตะแอปของระบบ</string>
-    <string name="cleanup_step1_header">ขั้นตอนที่ 1 — สิ่งที่หลงเหลือ</string>
-    <string name="cleanup_step2_header">ขั้นตอนที่ 2 — ลบแอป</string>
+    <string name="cleanup_subtitle">ลบ Drive Assist, ตัวช่วย และตัวอ่าน CAN แล้วคืนเสียงล็อกเดิมของรถ แตะเฉพาะของเราเท่านั้น ไม่แตะแอปอื่น รูทลึกจาก recovery ยังคงอยู่</string>
+    <string name="cleanup_step1_header">ขั้นตอนที่ 1 — หยุดและล้างข้อมูล</string>
+    <string name="cleanup_step2_header">ขั้นตอนที่ 2 — ลบ</string>
     <string name="cleanup_action_stop_wipe">หยุดบริการและล้างข้อมูลของ Drive Assist</string>
-    <string name="cleanup_action_uninstall_apps">ถอนการติดตั้งแอปที่กำหนดเอง</string>
-    <string name="cleanup_action_uninstall_self">ถอนการติดตั้ง Drive Assist เอง</string>
+    <string name="cleanup_action_uninstall_self">ลบ Drive Assist และตัวช่วย (เปิด ADB ไว้)</string>
+    <string name="cleanup_action_remove_close_adb">ลบและปิด ADB (ก่อนเข้าศูนย์บริการ)</string>
+    <string name="cleanup_adb_note">ปิด ADB เฉพาะก่อนเข้าศูนย์บริการ หากต้องการกลับเข้ามาภายหลัง ให้เปิด ADB ด้วยตนเอง: การตั้งค่ารถ → ตัวเลือกนักพัฒนา → ADB แล้วติดตั้งใหม่จาก USB ไม่มีอะไรค้างอยู่ในรถที่จะเปิดให้เอง</string>
     <string name="cleanup_log_idle">ยังไม่ได้ทำอะไรเลย\nปุ่มแต่ละปุ่มจะขอการยืนยัน (แตะสองครั้ง)</string>
     <string name="cleanup_confirm_prompt">แตะ \"%1$s\" อีกครั้งเพื่อยืนยัน</string>
     <string name="cleanup_stopping">กำลังหยุดบริการ...</string>
     <string name="cleanup_wiped">หยุดบริการแล้ว ลบไอคอนแล้ว ยกเลิกการปลุกแล้ว และล้างข้อมูลแล้ว\nDrive Assist ยังคงติดตั้งอยู่ แต่ไม่ทำงาน</string>
-    <string name="cleanup_uninstall_header">กำลังขอถอนการติดตั้ง:</string>
-    <string name="cleanup_uninstall_item_failed">ล้มเหลว: %1$s</string>
-    <string name="cleanup_uninstall_footer">ยืนยันกล่องโต้ตอบของระบบทุกกล่อง ทีละกล่อง</string>
-    <string name="cleanup_none_found">ไม่พบแอปที่กำหนดเอง</string>
-    <string name="cleanup_removing_self">กำลังขอลบ Drive Assist...</string>
+    <string name="cleanup_helper_missing">ไม่มีตัวช่วย จึงล้างตัวอ่าน CAN และ ADB จากที่นี่ไม่ได้ จะลบเฉพาะ Drive Assist</string>
+    <string name="cleanup_removing_self">กำลังลบ Drive Assist และตัวช่วย...</string>
     <string name="cleanup_failed">ล้มเหลว: %1$s</string>
     <string name="notif_tele_channel">การวัดระยะไกล</string>
     <string name="notif_tele_title">Drive Assist — การวัดระยะไกล</string>

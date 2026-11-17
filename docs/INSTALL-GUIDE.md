@@ -517,6 +517,57 @@ computer (needs a JDK):
 
 ---
 
+## 🧹 Remove Drive Assist (before a workshop visit)
+
+**Where:** Settings (gear) → **System** → **Cleanup and removal…**
+
+Cleanup removes **only our own things** and leaves the car looking the way a
+workshop expects. It never touches another app you installed.
+
+**Step 2 has two buttons** (each needs two taps):
+
+| Button | What it does | When |
+| --- | --- | --- |
+| **Remove Drive Assist and its helper (keep ADB on)** | Stops the CAN reader and deletes its file, gives the car's own lock sound back, then uninstalls Drive Assist and ModeHelper. ADB stays on. | You keep working over ADB afterwards. |
+| **Remove and close ADB (before a workshop visit)** | Same, and also turns ADB **off**. | Before a dealer, tow, or any outside access. |
+
+The privileged steps (stopping the root CAN reader, the lock sound, the ADB
+switch, the silent uninstall) are done by ModeHelper, so you need no computer.
+
+**What it does NOT undo:** the deep root from recovery (`ro.secure=0`,
+test-keys). That lives in the system image, not in our apps, so a deep
+inspection can still see it. A normal dealer check sees ADB off and no
+unknown apps, which is the point.
+
+> [!IMPORTANT]
+> **Back up first** (see Backup & Restore above). Removal wipes Drive
+> Assist's settings and trips. The backup on your USB stick is how you get
+> them back after you reinstall.
+
+### Getting back in after you closed ADB
+
+Nothing is left on the car to re-open ADB for you — that is deliberate, so a
+workshop cannot find a trigger. You turn it back on by hand:
+
+1. On the car, open the system **Settings → Developer options** and turn
+   **ADB / USB debugging** on. *(This head unit is `ro.debuggable=1`, so
+   Developer options is available. Confirm the exact menu on your car.)*
+2. Connect and reinstall:
+   ```bash
+   adb devices                                   # confirm the car shows up
+   adb install -r drive_assist_installer.apk     # or the USB 1-file method
+   ```
+3. Restore your backup when Drive Assist asks.
+
+If network ADB (`:5555`) does not come back on its own, open it once over USB
+(the head unit's ADB shell is root), then reinstall:
+```bash
+adb shell setprop persist.adb.tcp.port 5555
+adb shell "stop adbd; start adbd"
+```
+
+---
+
 ## 📱 Phone access
 
 Open a page on your phone to:

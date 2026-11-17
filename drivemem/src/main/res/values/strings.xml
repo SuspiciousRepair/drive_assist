@@ -52,21 +52,19 @@
 
     <!-- misc -->
     <string name="cleanup_title">Cleanup</string>
-    <string name="cleanup_subtitle">Removes what was added after the factory image. Does not undo ADB (that came from recovery) and does not touch system apps.</string>
-    <string name="cleanup_step1_header">Step 1 — leftovers</string>
-    <string name="cleanup_step2_header">Step 2 — remove apps</string>
+    <string name="cleanup_subtitle">Removes Drive Assist, its helper and the CAN reader, and gives the car\'s own lock sound back. It touches only our own things, never another app. The deep root from recovery stays.</string>
+    <string name="cleanup_step1_header">Step 1 — stop and wipe data</string>
+    <string name="cleanup_step2_header">Step 2 — remove</string>
     <string name="cleanup_action_stop_wipe">Stop services and wipe Drive Assist\'s data</string>
-    <string name="cleanup_action_uninstall_apps">Uninstall custom apps</string>
-    <string name="cleanup_action_uninstall_self">Uninstall Drive Assist itself</string>
+    <string name="cleanup_action_uninstall_self">Remove Drive Assist and its helper (keep ADB on)</string>
+    <string name="cleanup_action_remove_close_adb">Remove and close ADB (before a workshop visit)</string>
+    <string name="cleanup_adb_note">Close ADB only before a workshop visit. To get back in after, turn ADB on by hand: car Settings → Developer options → ADB, then reinstall from the USB stick. Nothing is left on the car to open it for you.</string>
     <string name="cleanup_log_idle">Nothing done yet.\nEvery button asks for confirmation (tap twice).</string>
     <string name="cleanup_confirm_prompt">Tap \"%1$s\" again to confirm.</string>
     <string name="cleanup_stopping">Stopping services…</string>
     <string name="cleanup_wiped">Services stopped, icons removed, alarm canceled and data wiped.\nDrive Assist is still installed, but inert.</string>
-    <string name="cleanup_uninstall_header">Requesting uninstall of:</string>
-    <string name="cleanup_uninstall_item_failed">Failed: %1$s</string>
-    <string name="cleanup_uninstall_footer">Confirm each system dialog. One at a time.</string>
-    <string name="cleanup_none_found">No custom apps found.</string>
-    <string name="cleanup_removing_self">Requesting Drive Assist\'s removal…</string>
+    <string name="cleanup_helper_missing">The helper is missing, so the CAN reader and ADB can\'t be cleaned from here. Removing Drive Assist only.</string>
+    <string name="cleanup_removing_self">Removing Drive Assist and its helper…</string>
     <string name="cleanup_failed">Failed: %1$s</string>
     <string name="notif_tele_channel">Telemetry</string>
     <string name="notif_tele_title">Drive Assist — telemetry</string>
