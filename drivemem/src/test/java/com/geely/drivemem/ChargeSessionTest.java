@@ -38,9 +38,13 @@ public class ChargeSessionTest {
         assertFalse(ChargeSession.isDcfc(230.0));
         assertFalse(ChargeSession.isDcfc(240.0));
         assertFalse(ChargeSession.isDcfc(249.9));
+        // Mains above nominal: real home sessions peaked at 250.1 V and 251.1 V
+        assertFalse(ChargeSession.isDcfc(250.1));
+        assertFalse(ChargeSession.isDcfc(251.1));
+        assertFalse(ChargeSession.isDcfc(264.0));  // 240 V + 10 %
 
-        // DC fast charging voltages (>= 250V)
-        assertTrue(ChargeSession.isDcfc(250.0));
+        // DC fast charging voltages (pack, ~400V)
+        assertTrue(ChargeSession.isDcfc(300.0));
         assertTrue(ChargeSession.isDcfc(380.0));
         assertTrue(ChargeSession.isDcfc(400.0));
         assertTrue(ChargeSession.isDcfc(450.0));

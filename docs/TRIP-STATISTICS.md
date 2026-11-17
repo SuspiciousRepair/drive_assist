@@ -65,7 +65,7 @@ Inspired by A Better Routeplanner's daily diary, the selected day's activities a
   - Start & completion time, duration.
   - Energy added in `+kWh`.
   - SoC change (`28% ➔ 80%`).
-  - Charging speed (`kW avg`) with AC mains vs DC Fast Charge detection (`charge_v >= 250V`).
+  - Charging speed (`kW avg`) with AC mains vs DC Fast Charge detection (peak `charge_v >= 300V`).
 
 ### 4. Home Screen View Switcher
 - A dedicated statistics icon in the left status rail of `ComfortActivity` allows swapping the home screen between the standard comfort card grid and the new statistics screen with a single tap.

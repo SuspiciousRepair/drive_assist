@@ -60,7 +60,7 @@ The telemetry payload conforms to the official **ITERNIO Telemetry Specification
 | `elevation` | Altitude above sea level (meters) | IHU GNSS receiver | None |
 | `heading` | Compass heading (degrees, 0–360) | IHU GNSS receiver | None |
 | `is_charging`| Active charging flag (1 or 0) | VHAL charge detection | — |
-| `is_dcfc` | DC Fast Charging flag (1 or 0) | High-voltage pack sensor (>250V DC) | 0 (AC charging) |
+| `is_dcfc` | DC Fast Charging flag (1 or 0) | High-voltage pack sensor (>=300V DC) | 0 (AC charging) |
 | `is_parked` | Parked indicator (1 or 0) | Transmission gear == `P` | 0 |
 | `odometer` | Total accumulated mileage (km) | Instrument cluster ECU | — |
 | `est_battery_range`| Dashboard estimated range (km)| Instrument cluster range prediction | — |

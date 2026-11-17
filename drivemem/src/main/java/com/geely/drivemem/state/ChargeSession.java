@@ -253,9 +253,17 @@ public final class ChargeSession {
 
     private ChargeSession() {}
 
-    /** Distinguishes AC charging (~240V mains) from DC fast charging (~400V pack) by port voltage. */
+    /**
+     * Distinguishes AC charging (~240V mains) from DC fast charging (~400V pack)
+     * by the session's PEAK port voltage. The cut sits at 300 V, midway between
+     * the two: mains swings above its nominal (a home overnight charge peaked at
+     * 250.1 V for one sample out of 985), and the old 250 V cut turned that one
+     * sample into a "DC fast charge" for the whole session.
+     */
+    static final double DCFC_MIN_V = 300.0;
+
     public static boolean isDcfc(double chargeV) {
-        return !Double.isNaN(chargeV) && chargeV >= 250.0;
+        return !Double.isNaN(chargeV) && chargeV >= DCFC_MIN_V;
     }
 
     /** Returns whether charging current is actively flowing right now. */
