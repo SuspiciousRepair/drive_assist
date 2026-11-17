@@ -200,6 +200,8 @@ public class EnergySplitTest {
         assertNotNull(t);
         assertEquals(1.5, t[0] + t[1] + t[2], 1e-9);
         assertEquals(10, t[3], 1e-9);
+        // Used - regen of the same trips = the three parts (the Sankey adds up).
+        assertEquals(t[4] - t[5], t[0] + t[1] + t[2], 1e-9);
         assertNull(DailyStatsProvider.splitTotals(java.util.Collections.singletonList(b)));
     }
 

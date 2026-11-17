@@ -1011,42 +1011,8 @@ public class DailyStatsView extends LinearLayout {
                 : buildSpeedBucketChart(c, buckets, ov.efficiencyKwh100km));
         Style.gap(consumptionCard, c, 14);
 
-        // Every secondary number gets its own chip, distributed across the
-        // card instead of stacked one composited row per line.
-        boolean hasDischarge = ov.dischargeKwh > 0;
-        boolean hasRegen = ov.regenKwh > 0;
-
-        CharSequence netVal;
-        if (ov.netKwh > 0) {
-            netVal = valueWithUnit(String.format(Locale.US, "%.1f", ov.netKwh), null, "kWh", ROW_UNIT_SCALE);
-        } else if (hasDischarge) {
-            netVal = valueWithUnit(String.format(Locale.US, "%.1f", ov.dischargeKwh), null, "kWh", ROW_UNIT_SCALE);
-        } else if (hasRegen) {
-            netVal = valueWithUnit(String.format(Locale.US, "%.1f", ov.netKwh), null, "kWh", ROW_UNIT_SCALE);
-        } else {
-            netVal = "—";
-        }
-        CharSequence gastoVal = hasDischarge
-                ? valueWithUnit(String.format(Locale.US, "%.1f", ov.dischargeKwh), null, "kWh", ROW_UNIT_SCALE)
-                : "—";
-        CharSequence regenVal = hasRegen
-                ? valueWithUnit(String.format(Locale.US, "+%.1f", ov.regenKwh), Style.COOL, "kWh", ROW_UNIT_SCALE)
-                : "—";
-        // Same estimate as the card's own caption/speed-bucket gating above
-        // (ov.energySource) -- these three chips are the exact numbers that
-        // gating describes, so they need the same "~" mark, not just the
-        // card title.
-        if (ov.energySource == EnergySource.ESTIMATED || ov.energySource == EnergySource.MIXED) {
-            netVal = withEnergySourceMark(netVal, ov.energySource);
-            if (hasDischarge) gastoVal = withEnergySourceMark(gastoVal, ov.energySource);
-            if (hasRegen) regenVal = withEnergySourceMark(regenVal, ov.energySource);
-        }
-
-        List<View> chips = new ArrayList<>();
-        chips.add(metricChip(c, "Líquido", netVal));
-        chips.add(metricChip(c, "Gasto", gastoVal));
-        chips.add(metricChip(c, "Regen", regenVal));
-        distributeInPairs(c, consumptionCard, chips, 10);
+        // Net / used / regen are not repeated here: the Energy by use card's
+        // Sankey shows them, with where the net went.
     }
 
     private void renderBatteryCard(DailyStatsProvider.DayOverview ov) {
@@ -1112,9 +1078,9 @@ public class DailyStatsView extends LinearLayout {
         Style.gap(card, c, 8);
     }
 
-    /** Where the period's energy went: drive, climate, other (the trips CAN
-     * measured; EnergySplit). A bar of the shares, then each part in kWh and
-     * in Wh/km over the km those trips covered. */
+    /** Where the period's energy went, as a Sankey (EnergySankeyView): used
+     * -> regen + net -> drive, climate, other, over the trips CAN measured
+     * (EnergySplit), each part also in Wh/km over the km those trips covered. */
     private void renderEnergyCard(DailyStatsProvider.DayOverview ov) {
         Context c = getContext();
         energyCard.removeAllViews();
@@ -1125,66 +1091,12 @@ public class DailyStatsView extends LinearLayout {
             energyCard.addView(createHeroView(c, "—", c.getString(R.string.stats_by_use_none)));
             return;
         }
-        double[] kwh = {t[0], t[1], t[2]};
-        double km = t[3];
-        int[] colors = {Style.ACCENT, Style.COOL, Style.TEXT_DIM};
-        int[] names = {R.string.stats_part_drive, R.string.stats_part_climate, R.string.stats_part_other};
-
-        // The shares as one bar (a negative part, possible on a short trip,
-        // draws as nothing).
-        LinearLayout bar = new LinearLayout(c);
-        bar.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 22));
-        barLp.topMargin = Style.dp(c, 6);
-        bar.setLayoutParams(barLp);
-        bar.setClipToOutline(true);
-        bar.setBackground(Style.tile(c));
-        for (int i = 0; i < 3; i++) {
-            View seg = new View(c);
-            seg.setBackgroundColor(colors[i]);
-            bar.addView(seg, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT,
-                (float) Math.max(0, kwh[i])));
-        }
-        energyCard.addView(bar);
-        Style.gap(energyCard, c, 14);
-
-        String f = Math.abs(kwh[0] + kwh[1] + kwh[2]) < 2 ? "%.2f" : "%.1f";
-        for (int i = 0; i < 3; i++) {
-            LinearLayout row = new LinearLayout(c);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(0, Style.dp(c, 4), 0, Style.dp(c, 4));
-
-            View sw = new View(c);
-            sw.setBackgroundColor(colors[i]);
-            LinearLayout.LayoutParams swLp = new LinearLayout.LayoutParams(Style.dp(c, 12), Style.dp(c, 12));
-            swLp.rightMargin = Style.dp(c, 10);
-            row.addView(sw, swLp);
-
-            TextView name = new TextView(c);
-            name.setText(names[i]);
-            name.setTextColor(Style.TEXT);
-            name.setTextSize(17f);
-            row.addView(name, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-            TextView energy = new TextView(c);
-            energy.setText(valueWithUnit(String.format(Locale.US, f, kwh[i]), Style.TEXT_DIM, "kWh", ROW_UNIT_SCALE));
-            energy.setTextSize(16f);
-            energy.setPadding(0, 0, Style.dp(c, 14), 0);
-            row.addView(energy);
-
-            double wh = com.geely.drivemem.util.EnergyUnits.whPerKm(kwh[i], km);
-            TextView perKm = new TextView(c);
-            perKm.setText(Double.isNaN(wh) ? "—" : valueWithUnit(com.geely.drivemem.util.EnergyUnits.wholeWh(wh),
-                null, com.geely.drivemem.util.EnergyUnits.WH_PER_KM, ROW_UNIT_SCALE));
-            perKm.setTextColor(Style.TEXT);
-            perKm.setTextSize(19f);
-            perKm.setTypeface(null, Typeface.BOLD);
-            row.addView(perKm);
-
-            energyCard.addView(row);
-        }
+        EnergySankeyView sankey = new EnergySankeyView(c);
+        sankey.setData(t[4], t[5], t[0], t[1], t[2], t[3]);
+        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        slp.topMargin = Style.dp(c, 6);
+        energyCard.addView(sankey, slp);
     }
 
     /** Time & Speed and Relief in one card. No distance: the chart above

@@ -536,7 +536,10 @@
     <string name="route_stat_height_range">ความสูง %1$s – %2$s ม.</string>
     <string name="route_stat_outside">ภายนอก</string>
     <string name="route_stat_by_use">พลังงานตามการใช้</string>
-    <string name="route_stat_by_use_parts">ขับเคลื่อน · แอร์ · อื่นๆ</string>
+    <string name="sankey_used">ใช้</string>
+    <string name="sankey_net">สุทธิ</string>
+    <string name="sankey_regen">คืน</string>
+    <string name="sankey_came_back">กลับมา</string>
     <string name="stats_part_drive">ขับเคลื่อน</string>
     <string name="stats_part_climate">แอร์</string>
     <string name="stats_part_other">อื่นๆ</string>
