@@ -16,6 +16,13 @@ public final class RestorePolicyTest {
         check(RestorePolicy.inWindow(99, 100), "before the end: in window");
         check(!RestorePolicy.inWindow(100, 100), "at the end: out of window");
 
+        // #88: the window is short, so a change the driver makes once the
+        // car is ready (AVAS on, then out of Park) is not undone
+        check(RestorePolicy.WINDOW_MS <= 15_000L, "the hold lasts at most 15 s");
+        check(RestorePolicy.WINDOW_MS >= 8_000L, "the hold still spans two 4 s ticks after the wake");
+        check(!RestorePolicy.inWindow(20_000, RestorePolicy.WINDOW_MS),
+              "20 s after the wake the window is closed");
+
         // #12: after the window a change made in the car stays
         check(!RestorePolicy.shouldWrite(true, true, false, false),
               "restore on, window closed, no tap: do not write");

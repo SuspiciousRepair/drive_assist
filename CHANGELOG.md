@@ -55,6 +55,14 @@
   build their shapes and text once, not on every frame. (#76, #81)
 
 ### Fixed
+- **A change you make right after the car starts now stays.** "Restore at
+  car start" put your saved drive mode, regen, AEB and AVAS back for the
+  whole first minute after the car woke, so turning AVAS on and then
+  shifting out of Park within that minute muted it again. The car applies
+  its own defaults when it wakes (AVAS on, regen Medium), sometimes a few
+  seconds late, so Drive Assist still writes your choice for a short while:
+  now 15 seconds instead of 60. After that, the car's screen, other apps
+  and the home buttons win. (#88)
 - **Trip energy stays measured when CAN is on but gives no power.** With
   "Exact energy" on and the OBD2 dongle connected, the app threw away the
   dongle's readings each time the CAN reader was alive, also when CAN had
