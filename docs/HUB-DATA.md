@@ -77,8 +77,8 @@ switch is off or the reader has not sent a heartbeat for 3 s.
 | `can.live` | reader live (1/0) |
 | `can.pack_v`, `can.pack_a` | pack voltage, current (+ = discharge) |
 | `can.power_kw` | pack power, V × I. `NOT_AVAILABLE` while volts or amps are not valid, also when `can.live` is 1 |
-| `can.climate_kw` | climate (compressor + heater) electrical power |
-| `can.drive_kw` | drive power |
+| `can.climate_kw` | climate (compressor + heater) power, raw `VCU_ThermalPwrAct`. Reads low (see `plan/active/CAN-ENERGY-ROADMAP.md`, "Power map") |
+| `can.drive_kw` | drive motor power, raw `VCU_DrvPwrAct`. Not battery power: use `can.power_kw` for that |
 | `can.charger_w` | on-board charger's mains input, only while AC charging |
 
 A CAN value also needs its frame to have **changed once** since the reader
