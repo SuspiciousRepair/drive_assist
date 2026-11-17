@@ -236,20 +236,6 @@ public class DailyStatsView extends LinearLayout {
         periodDropdownBtn.setOnClickListener(v -> showPeriodMenu(periodDropdownBtn));
         navRow.addView(periodDropdownBtn);
 
-        // Every recorded route in one picture. Park only, same rule as
-        // opening one trip's route.
-        Style.gap(navRow, c, 14);
-        TextView allRoutesBtn = Style.cardButton(c, c.getString(R.string.routes_all_title), false, () -> {
-            if (!CarState.isParked()) {
-                Toast.makeText(getContext(), R.string.route_parked_only, Toast.LENGTH_SHORT).show();
-                return;
-            }
-            getContext().startActivity(new android.content.Intent(getContext(), AllRoutesActivity.class));
-        });
-        allRoutesBtn.setTextSize(15.5f);
-        allRoutesBtn.setTypeface(null, Typeface.BOLD);
-        allRoutesBtn.setPadding(ddPadH, ddPadV, ddPadH, ddPadV);
-        navRow.addView(allRoutesBtn);
 
         addView(navRow);
         Style.gap(this, c, 18);
@@ -295,8 +281,26 @@ public class DailyStatsView extends LinearLayout {
         sessionsCard.setOrientation(LinearLayout.VERTICAL);
         sessionsCard.setPadding(cardPad, cardPad, cardPad, cardPad);
         sessionsCard.setBackground(Style.card(Style.cardFillColor(), c));
+        // The "N viagens · N recargas" count is the button to every route
+        // (AllRoutesActivity), with a map icon: it sits on the list of the
+        // trips it shows, instead of a loose "Todas as rotas" in the top bar.
+        // In Day view it opens on that day. Each trip row keeps its own map.
         sessionsSummary = sectionSummary(c);
+        sessionsSummary.setTextColor(Style.onFill(Style.CARD));
+        sessionsSummary.setTextSize(15f);
+        sessionsSummary.setTypeface(null, Typeface.BOLD);
+        sessionsSummary.setBackground(Style.card(Style.CARD, c));
+        android.graphics.drawable.Drawable mapIcon = c.getDrawable(R.drawable.ic_map).mutate();
+        int iconPx = Style.dp(c, 20);
+        mapIcon.setBounds(0, 0, iconPx, iconPx);
+        mapIcon.setTint(Style.onFill(Style.CARD));
+        sessionsSummary.setCompoundDrawables(mapIcon, null, null, null);
+        sessionsSummary.setCompoundDrawablePadding(Style.dp(c, 8));
+        sessionsSummary.setGravity(Gravity.CENTER_VERTICAL);
+        sessionsSummary.setOnClickListener(v -> openAllRoutes());
         sessionsCard.addView(sectionHeading(c, "Sessões do Dia", sessionsSummary));
+        int pillH = Style.dp(c, 14), pillV = Style.dp(c, 8);
+        sessionsSummary.setPadding(pillH, pillV, pillH, pillV);
         sessionsCard.addView(sectionCaption(c, "Viagens e recargas · mais recentes primeiro"));
         Style.gap(sessionsCard, c, 12);
         sessionsContainer = new LinearLayout(c);
@@ -926,6 +930,20 @@ public class DailyStatsView extends LinearLayout {
         caption.setTextColor(Style.TEXT);
         item.addView(caption);
         return item;
+    }
+
+    /** Every recorded route in one picture. Park only, same rule as opening
+     * one trip's route. Day view opens on the day shown here. */
+    private void openAllRoutes() {
+        if (!CarState.isParked()) {
+            Toast.makeText(getContext(), R.string.route_parked_only, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        android.content.Intent i = new android.content.Intent(getContext(), AllRoutesActivity.class);
+        if (period == Period.DAY && selectedIdx >= 0 && selectedIdx < days.size()) {
+            i.putExtra(AllRoutesActivity.EXTRA_DAY, days.get(selectedIdx).date);
+        }
+        getContext().startActivity(i);
     }
 
     private TextView sectionSummary(Context c) {
