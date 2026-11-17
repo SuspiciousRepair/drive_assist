@@ -1,6 +1,8 @@
 # Trip details, routes and per-mode efficiency, no map API (issue #19)
 
-Status: plan, 2026-11-15. Nothing built yet.
+Status (2026-11-16): phases 0, 1 and 2 merged into `next` (#51, #62, #64,
+#65); #19 closed. Leftovers (charge place screen, GPX and CSV export) are
+tracked in #82.
 
 ## Goal
 
@@ -27,20 +29,15 @@ so efficiency can be compared per mode. Today both are hub keys
 Independent of GPS, small, and every day without it is data lost, so it can
 ship first.
 
-Status: built on `feat/mode-stats` (DB v27).
+Status: built (DB v27, PR #51), then changed in phase 1.
 
 - `telemetry_sample` gets `drive_mode` and `regen_mode` (the 30 s rows), read
   from the hub cache.
-- New table `trip_mode_segment (trip_id, start_ms, end_ms, drive_mode,
-  regen_mode, km, spent_kwh, regen_kwh, net_kwh, energy_source)`, written once
-  when the trip is saved, by cutting the trip's own driving rows where either
-  mode changes (`state.ModeSegments`). Same rows and filter as the trip's
-  energy. A change is placed at most one sample (30 s) late. Kept for good,
-  while `telemetry_sample` is pruned after 90 days.
-- This gives exact numbers per mode, not a guess from 30 s samples:
-  kWh/100 km in Eco / Comfort / Sport, regen kWh share per regen level, and
-  how much of the driving each mode took.
-- The CSV export gets the trip's main mode (most km) and the share per mode.
+- **Owner decision (2026-11-15): keep raw data, analyse later.** v27 also
+  wrote a `trip_mode_segment` summary table (the trip cut into parts per
+  mode). DB v28 drops it. The modes ride on each route point instead
+  (`trip_point.drive_mode` / `regen_mode`, every 5 s, kept for good), next to
+  the trip's energy so far, so per-mode numbers are computed when needed.
 - A Week/Month "by mode" view is a later step; the data comes first.
 
 ## Phase 1 — record positions
@@ -50,15 +47,22 @@ Status: built on `feat/mode-stats` (DB v27).
   2 s, quantized to about 5 m so a parked car does not republish. Add it to
   `docs/HUB-DATA.md`. The existing direct readers (MQTT, ABRP, sampler, trip
   ascent) move to the hub key.
-- New table `trip_point (trip_id, ts_ms, lat, lon, alt_m, speed_kmh)`, filled
-  by `TripSession` from the hub while a trip is open:
+- New table `trip_point (trip_id, ts_ms, lat, lon, alt_m, speed_kmh, bearing,
+  accuracy_m, drive_mode, regen_mode, power_kw, spent_kwh, regen_kwh)`,
+  filled by `state.RoutePoints` from the hub while a trip is open:
   - one point every 5 s, skipped when the car moved less than ~25 m;
-  - `speed_kmh` from the car's own speed, not GPS speed;
-  - about 30 KB per hour of driving.
-- `trip` gets `start_lat/lon`, `end_lat/lon`; `charge_session` gets `lat/lon`.
+  - `speed_kmh` is GPS speed: the car's own speed is only in the hub every
+    30 s (faster only while the home screen polls it);
+  - `spent_kwh` / `regen_kwh` are the trip's totals so far
+    (`EnergyIntegrator`), so the energy of any stretch is a subtraction;
+  - written with `trip_id` NULL, claimed when the trip row is saved, so an
+    app restart mid-drive loses nothing; a trip too short to keep drops them;
+  - about 60 KB per hour of driving.
+- Start and end of a trip are its first and last point (no extra columns).
+  `charge_session` gets `lat/lon`.
 - Points are deleted with their trip. They go into the password-locked
   backup and the DB merge on restore. Nothing new is sent anywhere.
-- A switch, Config → Drive (or System): "Record trip routes". **On by
+- A switch, Config → System → Trip routes: "Record trip routes". **On by
   default** (owner, 2026-11-15): routes work for everyone, data stays in the car.
 - Valet trips record too: the owner can see where the valet drove.
 

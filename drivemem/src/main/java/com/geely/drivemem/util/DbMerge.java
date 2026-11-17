@@ -18,7 +18,7 @@ import java.util.Map;
  * column ORDER differences between a migrated and a freshly created table.
  *
  * Plain SQL through {@link Sql}, so the same code runs on the car and in the
- * JVM unit tests (sqlite-jdbc). Same algorithm as tools/merge-car-db.py.
+ * JVM unit tests (sqlite-jdbc).
  */
 public final class DbMerge {
     private DbMerge() {}
@@ -34,7 +34,7 @@ public final class DbMerge {
     static final String[] ID_TABLES = {
         "telemetry_sample", "trip", "charge_session", "park_session",
         "comfort_event", "battery_health_reading", "charge_stop_event",
-        "valet_session", "trip_energy_segment", "trip_mode_segment"};
+        "valet_session", "trip_energy_segment", "trip_point"};
 
     /** column -> table it points at, per table. */
     static final Map<String, Map<String, String>> REFS = new LinkedHashMap<>();
@@ -48,9 +48,9 @@ public final class DbMerge {
         Map<String, String> seg = new LinkedHashMap<>();
         seg.put("trip_id", "trip");
         REFS.put("trip_energy_segment", seg);
-        Map<String, String> modeSeg = new LinkedHashMap<>();
-        modeSeg.put("trip_id", "trip");
-        REFS.put("trip_mode_segment", modeSeg);
+        Map<String, String> points = new LinkedHashMap<>();
+        points.put("trip_id", "trip");
+        REFS.put("trip_point", points);
         Map<String, String> stop = new LinkedHashMap<>();
         stop.put("session_id", "charge_session");
         REFS.put("charge_stop_event", stop);

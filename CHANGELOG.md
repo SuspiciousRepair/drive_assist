@@ -2,6 +2,127 @@
 
 ## [Unreleased]
 
+## [v0.8.0] — 2026-11-17
+
+### Added
+- **Extra dark at night.** New switch in Config → Look → Dark mode. When the
+  car is in dark mode and you drive for a minute without touching the
+  screen, the Dashboard goes as dark as the screen allows: the backlight
+  goes to its lowest level. A touch or a gear change brings the light back; the first
+  touch only lights the screen, it does not press a button. Only the
+  Dashboard is dimmed, and the car's brightness setting is not changed.
+  Off by default. (#89)
+- **Front defogger in Home Assistant.** When you press the front-windshield
+  defogger button, the app sees it at once: the climate ruler shows
+  "defrosting" without the old wait of up to 30 s, the climate log saves each
+  press with the outside temperature, and Home Assistant gets a
+  "Desembaçador dianteiro" on/off sensor.
+- **Soft tyre warning in Home Assistant.** The car's own flat-tyre warning,
+  per wheel, as five Home Assistant problem sensors ("Pneu baixo" and one per
+  wheel), so an automation can alert your phone. This car has no tyre
+  pressure sensors: its warning compares wheel speeds, so there are no
+  pressure numbers, only "this tyre is low".
+- **Trips record their route.** While you drive, the app saves a GPS point
+  every 5 s (only after 25 m of movement), with the drive mode, the regen
+  level and the energy used so far. Each charge saves where it was. It all
+  stays in the car and goes into the backup. Config → System → Trip routes.
+  On by default. (#19)
+- **Tap a trip to see its route.** On the stats page, tap a finished trip
+  (in Park). The route is drawn as lines on a plain background, no map,
+  north up. Each part has the colour of its speed, with the same buckets
+  and colours as the stats page: 0–40, 40–80, 80–120 and 120+ km/h. Only
+  trips driven with route recording on have a route. (#19)
+- **All routes in one picture.** New **All routes** button on the stats page
+  (in Park). It draws every recorded route together, in the speed colours,
+  next to the list of those trips, with the height profile underneath.
+  Step through the days with Previous / Next; Show all goes back to every trip. Touch a
+  route or a trip to select it, then **Open this trip** to see its own
+  route screen.
+- **The route screen shows the height and the trip's numbers.** Under the
+  route: the height along the trip, in the same speed colours. Touch it to
+  mark that place on the route. On the right: distance, time (moving and
+  stopped), average and top speed, energy, kWh/100 km, battery, climb and
+  descent, lowest and highest point, outside temperature. (#19)
+
+### Changed
+- **The drive mode and regen level are kept as raw data only.** v0.6.0 also
+  saved each trip cut into parts per mode. That table is removed; the modes
+  stay on the 30 s samples and now on every route point. (#19)
+- **The Regen and AVAS quick buttons follow the car.** The home card and
+  the floating panel now share one controller and read the level from the
+  hub, so a change made on the car's own screen shows at once. (#68)
+- **Integrations tiles update while the page is open.** A tile no longer
+  stays on "Connecting..." after the integration connected. (#75)
+- **A restore sent from a phone cannot change ADB, phone access or the
+  commands switch.** It also does not store the backup key. The update
+  address can still be set from the phone. The car's own Restore is
+  unchanged. (#80)
+- **The lock sound link may be http or https.** The download follows at
+  most 3 redirects, ends in 20 s, runs one at a time, and the file must be
+  a WAV of 1 MB or less. (#78)
+- **The route and height views and the home badges draw faster.** They
+  build their shapes and text once, not on every frame. (#76, #81)
+
+### Fixed
+- **A home AC charge is no longer shown as a DC fast charge.** The app
+  calls a charge "DC" when its highest port voltage passes a line. The line
+  was 250 V, and home mains can go just above it: one reading of 250.1 V in
+  a whole night turned that night into "DC". The line is now 300 V. DC on
+  this car reads about 400 V. Old charges are fixed too. (#93)
+- **The first Cooler or Warmer tap of a trip starts from what the car really
+  runs.** When the car wakes it puts its last climate back by itself, and a
+  tap in the first seconds moved from an old value: "Cooler" could make the
+  cabin warmer. Now the first tap after a quiet minute reads the car first.
+  (#87)
+- **The dashcam Record switch stays on after a tap.** In Park with Park
+  monitoring on, the recorder waits for movement before it writes, and the
+  switch read that as off and flipped back. (#61)
+- **A change you make right after the car starts now stays.** "Restore at
+  car start" put your saved drive mode, regen, AEB and AVAS back for the
+  whole first minute after the car woke, so turning AVAS on and then
+  shifting out of Park within that minute muted it again. The car applies
+  its own defaults when it wakes (AVAS on, regen Medium), sometimes a few
+  seconds late, so Drive Assist still writes your choice for a short while:
+  now 15 seconds instead of 60. After that, the car's screen, other apps
+  and the home buttons win. (#88)
+- **Trip energy stays measured when CAN is on but gives no power.** With
+  "Exact energy" on and the OBD2 dongle connected, the app threw away the
+  dongle's readings each time the CAN reader was alive, also when CAN had
+  no battery volts or amps. The trip then used the estimate. Now the
+  dongle's readings count until CAN really has a value.
+- **The first 30 s sample after the app starts now has the drive mode and
+  the regen level.** The app read them from the car only after it had saved
+  that first sample, so it was empty after every app update or restart.
+- **A charge no longer gains energy while the head unit sleeps.** After a
+  long sleep, the first 30 s sample used the power from before the sleep
+  and counted it for the whole sleep (8 h at 6.5 kW gave 52 kWh that never
+  went in). Now the app reads the car first, and a sample that comes more
+  than 90 s after the last one adds no energy.
+- **CAN power no longer shows an old value.** When the battery volts or
+  amps from CAN became invalid, the app kept the last power for as long as
+  the CAN reader was alive. Now there is no CAN power until both are back.
+  Also: the CAN reader stops for sure when "Exact energy" is switched off,
+  and it connects again when the reader sends nothing for 5 s.
+- **Trip routes get real GPS fixes without MQTT.** The GPS listener lived
+  in the MQTT telemetry service, which is off by default. Now it runs while
+  trip routes, MQTT or ABRP need it, and stops 2 minutes after Park. A fix
+  with no altitude is saved as empty, not 0 m. (#67)
+- **The average speed on the route screen is right after a GPS gap.** A
+  30 km trip with few points showed 600 km/h. (#70)
+- **The USB export always copies car.db and the CSV files.** A file with
+  the same size as the old copy was skipped, so the stick kept old data.
+  (#69)
+- **A failed daily backup waits before it tries again** (1 h, then 2 h,
+  4 h, up to one day), and a backup file is written to the drive before it
+  gets its final name. (#73)
+- **A restore that fails late still saves the trip ids and restarts the
+  app.** Before, the open trip and charge could point to the wrong rows.
+  (#77)
+- **The dashcam Record switch no longer throws you back to Clips** 10 s
+  after a tap, and no longer clears a GB limit you are typing. (#72)
+- **The parked card keeps the true lowest and highest temperature** of the
+  whole stay. On a long park the range got narrower. (#79)
+
 ## [v0.7.0] — 2026-11-15
 
 ### Added

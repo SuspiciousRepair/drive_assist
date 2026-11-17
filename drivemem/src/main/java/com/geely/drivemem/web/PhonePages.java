@@ -20,7 +20,10 @@ final class PhonePages {
 
     enum Msg { CLOSED, SCAN_AGAIN, PARK, NO_BACKUP, TOO_BIG, NO_SPACE, BUSY, NO_FILE }
 
-    /** The long settings the phone can type. secret = never shown back. */
+    /** The long settings the phone can type. secret = never shown back.
+     * Only keys that Prefs.isPhoneRestorable allows (PhonePagesTest checks
+     * the list). The update address is here by the owner's choice: it is
+     * how a car away from home is pointed at its update server. */
     static final class Field {
         final String key; final int label; final boolean secret;
         Field(String key, int label, boolean secret) { this.key = key; this.label = label; this.secret = secret; }

@@ -87,12 +87,56 @@ public final class Clips {
     }
 
     // WHETHER THE RECORDER IS RUNNING, asked of the disk rather than of
-    // modehelper. It is a different process with no state to query, but it writes
-    // several times a second — so a .mp4.tmp touched within LIVE_MS is proof, and
-    // it is the same test the listing already uses to tell recording from debris.
+    // modehelper (a different process with no state to query).
+    //
+    // recorder.state first. A live .mp4.tmp alone is not enough: in Park with
+    // Park monitoring armed the recorder is on but writes NO segment until
+    // something moves (state=watching), so the Record switch read "off" and
+    // flipped back the moment the owner turned it on. The .mp4.tmp test stays
+    // as the fallback for when the state file says nothing usable.
     public static boolean recording(Context c) {
+        Boolean s = recorderOn(dir(c), System.currentTimeMillis());
+        if (s != null) return s;
         for (Clip x : list(c)) if (x.kind == Kind.RECORDING) return true;
         return false;
+    }
+
+    /** What recorder.state says: TRUE for recording or watching with a fresh
+     * beat, FALSE for stopped, null when there is no file or the beat is stale
+     * (a recorder that died without writing "stopped"). */
+    static Boolean recorderOn(File dir, long nowMs) {
+        String[] st = readState(dir);
+        if (st == null || st[0] == null) return null;
+        if (st[0].equals("stopped")) return Boolean.FALSE;
+        if (!st[0].equals("recording") && !st[0].equals("watching")) return null;
+        return Math.abs(nowMs - Long.parseLong(st[2])) <= BEAT_MS ? Boolean.TRUE : null;
+    }
+
+    // After a tap on the switch, how long to show what was asked for instead
+    // of the disk. Starting takes seconds (camera, encoder, first key frame),
+    // and recorder.state is rewritten only every 5 s.
+    public static final long ASK_GRACE_MS = 10_000;
+    /** When the screen looks again after a tap: just past the grace, so the
+     * switch then shows the real state. */
+    public static final long RECHECK_MS = ASK_GRACE_MS + 500;
+    private static volatile long askedAtMs;
+    private static volatile boolean askedOn;
+
+    public static void asked(boolean on) {
+        askedOn = on;
+        askedAtMs = System.currentTimeMillis();
+    }
+
+    /** The Record switch's position: the request for ASK_GRACE_MS after a tap,
+     * then the real state. */
+    public static boolean shownOn(Context c) {
+        return shown(askedAtMs, askedOn, System.currentTimeMillis(), () -> recording(c));
+    }
+
+    static boolean shown(long askedAt, boolean askedOn, long nowMs, java.util.function.BooleanSupplier live) {
+        long age = nowMs - askedAt;
+        if (askedAt > 0 && age >= 0 && age < ASK_GRACE_MS) return askedOn;
+        return live.getAsBoolean();
     }
 
     public static File dir(Context c) {
@@ -193,6 +237,16 @@ public final class Clips {
     static final long BEAT_MS = 30_000;
 
     public static String liveStem(File dir, long nowMs) {
+        String[] st = readState(dir);
+        if (st == null) return null;
+        String state = st[0], stem = st[1];
+        if (!"recording".equals(state) || stem == null || stem.isEmpty()) return null;
+        return Math.abs(nowMs - Long.parseLong(st[2])) <= BEAT_MS ? stem : null;
+    }
+
+    // recorder.state as {state, stem, beat}; beat is "0" when absent or bad.
+    // null when there is no file or it cannot be read.
+    private static String[] readState(File dir) {
         File f = new File(dir, "recorder.state");
         if (!f.isFile()) return null;
         String state = null, stem = null;
@@ -208,8 +262,7 @@ public final class Clips {
                 else if (k.equals("beat")) { try { beat = Long.parseLong(v); } catch (NumberFormatException ignored) { } }
             }
         } catch (Exception e) { return null; }
-        if (!"recording".equals(state) || stem == null || stem.isEmpty()) return null;
-        return Math.abs(nowMs - beat) <= BEAT_MS ? stem : null;
+        return new String[] {state, stem, String.valueOf(beat)};
     }
 
     private static void collect(File d, boolean held, List<Clip> out) {

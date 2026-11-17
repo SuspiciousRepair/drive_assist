@@ -49,6 +49,13 @@ As Estatísticas Diárias transformam os dados do carro em um diário útil:
 - linha do tempo com viagens e recargas, deixando visível o tempo estacionado;
 - distância percorrida em cada hora, com cores por faixa de velocidade.
 
+Toque em uma viagem terminada (em P) para ver a rota. A rota aparece
+como linhas, sem mapa e sem internet, com cores por velocidade. Embaixo fica a
+altitude ao longo da viagem e, ao lado, os números da viagem: distância,
+tempo, velocidades, energia, bateria e subidas. As rotas são gravadas em
+**Config → Sistema → Rotas das viagens** (ligado por padrão) e
+ficam no carro.
+
 O uso do ar-condicionado estacionado não altera a eficiência de condução. Quando
 o carro está engatado, as paradas no trânsito fazem parte da viagem e entram no
 cálculo corretamente.

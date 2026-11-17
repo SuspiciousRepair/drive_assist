@@ -66,6 +66,12 @@ public final class SettingsFile {
 
     /** The settings in a settings.json, each as the type the app expects. */
     public static Map<String, Object> parseSettings(String json) throws Exception {
+        return parseSettings(json, false);
+    }
+
+    /** Same. fromPhone: the file came in over the phone pages, so the keys
+     * a phone must not set are left out ({@link Prefs#isPhoneRestorable}). */
+    public static Map<String, Object> parseSettings(String json, boolean fromPhone) throws Exception {
         JSONObject root = new JSONObject(json);
         JSONObject s = root.optJSONObject("settings");
         JSONObject types = root.optJSONObject("types");
@@ -74,6 +80,7 @@ public final class SettingsFile {
         for (Iterator<String> it = s.keys(); it.hasNext(); ) {
             String k = it.next();
             if (!Prefs.isBackedUp(k)) continue;        // a hand edit, or state an old build kept
+            if (fromPhone && !Prefs.isPhoneRestorable(k)) continue;
             String type = types != null ? types.optString(k, null) : V1_TYPES.get(k);
             Object v = s.opt(k);
             if (type == null || v == null || v == JSONObject.NULL) continue;

@@ -1,6 +1,7 @@
 package com.geely.drivemem.ui;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -39,5 +40,19 @@ public class IntegrationsTest {
     @Test public void carPagesAreNotIntegrations() {
         assertNull(Integrations.forSection(0));    // Drive
         assertNull(Integrations.forSection(10));   // System, where CAN lives
+    }
+
+    // The page asks every tile for its state every 2 s while it is shown,
+    // and redraws a tile only when the answer changed.
+    @Test public void aTileIsRedrawnOnlyWhenItsStateChanged() {
+        Integrations.Status connecting = new Integrations.Status(Integrations.State.BUSY, "Connecting...");
+        assertTrue(connecting.sameAs(new Integrations.Status(Integrations.State.BUSY, "Connecting...")));
+        assertFalse(connecting.sameAs(new Integrations.Status(Integrations.State.OK, "Connected")));
+        assertFalse(connecting.sameAs(new Integrations.Status(Integrations.State.BUSY, "Searching")));
+        assertFalse(connecting.sameAs(null));   // nothing shown yet: draw
+    }
+
+    @Test public void theTickIsLight() {
+        assertTrue(TelemetryIntegrationsSection.REFRESH_MS >= 2000);
     }
 }

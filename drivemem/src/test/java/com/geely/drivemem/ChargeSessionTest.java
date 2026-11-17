@@ -38,9 +38,13 @@ public class ChargeSessionTest {
         assertFalse(ChargeSession.isDcfc(230.0));
         assertFalse(ChargeSession.isDcfc(240.0));
         assertFalse(ChargeSession.isDcfc(249.9));
+        // Mains above nominal: real home sessions peaked at 250.1 V and 251.1 V
+        assertFalse(ChargeSession.isDcfc(250.1));
+        assertFalse(ChargeSession.isDcfc(251.1));
+        assertFalse(ChargeSession.isDcfc(264.0));  // 240 V + 10 %
 
-        // DC fast charging voltages (>= 250V)
-        assertTrue(ChargeSession.isDcfc(250.0));
+        // DC fast charging voltages (pack, ~400V)
+        assertTrue(ChargeSession.isDcfc(300.0));
         assertTrue(ChargeSession.isDcfc(380.0));
         assertTrue(ChargeSession.isDcfc(400.0));
         assertTrue(ChargeSession.isDcfc(450.0));
@@ -425,6 +429,41 @@ public class ChargeSessionTest {
             d.put("battery", 99);        // drops back: counting resumes
             ChargeSession.onTelemetryTick(null, d, m + 31 * 60_000L);
             assertEquals(2.4 * 12 / 60.0, ChargeSession.currentKwh(), 0.01);
+        } finally {
+            ChargeSession.resetForTesting();
+        }
+    }
+
+    // The tick clock (elapsedRealtime) counts suspend time. The first tick
+    // after an 8 h sleep must not count its power for the 8 h.
+    @Test public void liveTickDoesNotCountALongGap() {
+        ChargeSession.resetForTesting();
+        try {
+            long m = 10_000L;
+            ChargeSession.onChargingEdge(null, true, 1_000_000L, m);
+            Map<String, Object> d = new HashMap<>();
+            d.put("charge_a", 27.0f);
+            d.put("charge_v", 240.0f);   // 6.48 kW
+            d.put("battery", 50);
+            ChargeSession.onTelemetryTick(null, d, m + 30_000L);
+            ChargeSession.onTelemetryTick(null, d, m + 60_000L);
+            double oneMinute = 6.48 / 60.0;
+            assertEquals(oneMinute, ChargeSession.currentKwh(), 1e-6);
+
+            // The longest gap that still counts.
+            long t = m + 60_000L + ChargeSession.MAX_SAMPLE_GAP_MS;
+            ChargeSession.onTelemetryTick(null, d, t);
+            double counted = oneMinute + 6.48 * ChargeSession.MAX_SAMPLE_GAP_MS / 3_600_000.0;
+            assertEquals(counted, ChargeSession.currentKwh(), 1e-6);
+
+            // 8 h of suspend: nothing is added ...
+            t += 8 * 3_600_000L;
+            ChargeSession.onTelemetryTick(null, d, t);
+            assertEquals(counted, ChargeSession.currentKwh(), 1e-6);
+
+            // ... and the next normal tick counts its own 30 s only.
+            ChargeSession.onTelemetryTick(null, d, t + 30_000L);
+            assertEquals(counted + 6.48 / 120.0, ChargeSession.currentKwh(), 1e-6);
         } finally {
             ChargeSession.resetForTesting();
         }

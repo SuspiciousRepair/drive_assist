@@ -63,6 +63,9 @@ public final class DriveMemApplication extends Application {
         // Battery power/V/A from the best measured source (CAN, else OBD2),
         // derived in the hub: CLAUDE.md rule 7.
         com.geely.drivemem.sensors.EnergyHub.register(CarActor.get(this));
+        com.geely.drivemem.sensors.LocationHub.register(this, CarActor.get(this));
+        // Keeps the GPS producing fixes for that key, MQTT or not.
+        com.geely.drivemem.sensors.GpsOwner.ensure(this);
         Obd2Reader.ensureStarted(this);   // no-ops unless obd2_enabled is set
         CanEnergyReader.ensureStarted(this);   // no-ops unless can_energy is set
         AbrpUploader.ensureSubscribed(this);

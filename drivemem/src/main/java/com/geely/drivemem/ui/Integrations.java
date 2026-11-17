@@ -32,6 +32,12 @@ final class Integrations {
         final State state;
         final String text;
         Status(State state, String text) { this.state = state; this.text = text; }
+
+        /** True when a tile that shows `o` already shows this: nothing to
+         * redraw. The page asks every 2 s, and most answers are the same. */
+        boolean sameAs(Status o) {
+            return o != null && state == o.state && java.util.Objects.equals(text, o.text);
+        }
     }
 
     interface StatusFn { Status of(Context c); }

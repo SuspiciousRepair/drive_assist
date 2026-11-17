@@ -221,6 +221,14 @@ public final class ChargeSession {
     // once the battery has read 100% for this long.
     public static final long FULL_TAIL_MS = 10 * 60_000L;
 
+    // The longest time one tick's power may stand for: three tick periods
+    // (CarActor.TICK_INTERVAL_MS is 30 s). The tick clock is
+    // SystemClock.elapsedRealtime(), which keeps counting while the head unit
+    // is suspended. Without this bound, the first tick after an 8 h sleep
+    // counted its power for all 8 h (-6.5 kW gave about 52 kWh of charge
+    // that never happened). A longer gap adds no energy: nothing measured it.
+    public static final long MAX_SAMPLE_GAP_MS = 90_000L;
+
     // Ongoing-session state. Only ever touched from TelemetryService's own
     // loop thread / CarActor's serialized HandlerThread.
     private static long startWallMs = 0, pauseWallMs = 0, lastSampleMonoMs = 0, startSampleId = -1;
@@ -245,9 +253,17 @@ public final class ChargeSession {
 
     private ChargeSession() {}
 
-    /** Distinguishes AC charging (~240V mains) from DC fast charging (~400V pack) by port voltage. */
+    /**
+     * Distinguishes AC charging (~240V mains) from DC fast charging (~400V pack)
+     * by the session's PEAK port voltage. The cut sits at 300 V, midway between
+     * the two: mains swings above its nominal (a home overnight charge peaked at
+     * 250.1 V for one sample out of 985), and the old 250 V cut turned that one
+     * sample into a "DC fast charge" for the whole session.
+     */
+    static final double DCFC_MIN_V = 300.0;
+
     public static boolean isDcfc(double chargeV) {
-        return !Double.isNaN(chargeV) && chargeV >= 250.0;
+        return !Double.isNaN(chargeV) && chargeV >= DCFC_MIN_V;
     }
 
     /** Returns whether charging current is actively flowing right now. */
@@ -412,6 +428,13 @@ public final class ChargeSession {
                 v.put("dismissed", 0);
                 if (snap.cost != null) v.put("cost", snap.cost);
                 if (battKwh != null) v.put("kwh_battery", battKwh);
+                // Where the charge was (issue #19): the hub's GPS fix, same
+                // switch as the trip routes. Saved in the car only.
+                if (com.geely.drivemem.util.Prefs.getRecordRoutes(ctx)) {
+                    com.geely.drivemem.sensors.LocationHub.Fix fix =
+                        com.geely.drivemem.sensors.LocationHub.get(ctx);
+                    if (fix != null) { v.put("lat", fix.lat); v.put("lon", fix.lon); }
+                }
 
                 long rowId = snap.sessionRowId;
                 if (rowId <= 0) {
@@ -573,8 +596,12 @@ public final class ChargeSession {
         // assumed): this tick's power held for the time since the last
         // one. Good enough for a session lasting tens of minutes+; not
         // trying to be a lab instrument.
-        if (a != null && v != null && lastSampleMonoMs != 0 && !frozenTail) {
-            double hours = (nowMono - lastSampleMonoMs) / 3_600_000.0;
+        // A gap longer than MAX_SAMPLE_GAP_MS (the head unit slept) is not
+        // counted at all, on either side.
+        long gapMs = nowMono - lastSampleMonoMs;
+        boolean gapOk = lastSampleMonoMs != 0 && gapMs >= 0 && gapMs <= MAX_SAMPLE_GAP_MS;
+        if (a != null && v != null && gapOk && !frozenTail) {
+            double hours = gapMs / 3_600_000.0;
             whAccum += a * v * hours;
             sampleCount++;
         }
@@ -582,8 +609,8 @@ public final class ChargeSession {
         // Measured pack power from the hub (CLAUDE.md rule 7): CAN if live,
         // else the OBD2 dongle -- both measure the battery side. <= 2 s old.
         Float packKw = com.geely.drivemem.sensors.EnergyHub.get(com.geely.drivemem.sensors.EnergyHub.POWER_KW);
-        if (packKw != null && lastSampleMonoMs != 0 && !frozenTail) {
-            double hours = (nowMono - lastSampleMonoMs) / 3_600_000.0;
+        if (packKw != null && gapOk && !frozenTail) {
+            double hours = gapMs / 3_600_000.0;
             if (packKw < 0) battWhAccum += -packKw * 1000.0 * hours;
             battSamples++;
         }

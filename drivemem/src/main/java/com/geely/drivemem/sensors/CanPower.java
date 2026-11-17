@@ -81,7 +81,9 @@ public final class CanPower {
     }
 
     private Double emit(long nowMono) {
-        if (volt == null || curr == null) return null;
+        // No sample without both. The last power goes too: heartbeats keep
+        // the reader live, and powerKw() must not keep an old value alive.
+        if (volt == null || curr == null) { lastKw = null; return null; }
         lastEmitMono = nowMono;
         lastKw = volt * curr / 1000.0;
         return lastKw;

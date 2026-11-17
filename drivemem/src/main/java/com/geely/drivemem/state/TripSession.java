@@ -9,7 +9,7 @@ import com.geely.drivemem.sensors.DrivingConsumption;
 import com.geely.drivemem.sensors.EnergyIntegrator;
 import com.geely.drivemem.sensors.ObdHub;
 import com.geely.drivemem.sensors.EnergySource;
-import com.geely.drivemem.sensors.GpsReader;
+import com.geely.drivemem.sensors.LocationHub;
 import com.geely.drivemem.util.Modes;
 
 import android.content.ContentValues;
@@ -74,6 +74,14 @@ public final class TripSession {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> data = (Map<String, Object>) reading.value;
                 onTelemetryTick(app, data);
+            }
+        });
+        // The route (RoutePoints): published only when the car moved to
+        // another ~5 m cell, so a parked car costs nothing here.
+        EntityBus.subscribe(LocationHub.FIX, (key, reading) -> {
+            if (tripActive && !wasParked && reading.status == CarActor.Reading.Status.OK
+                    && reading.value instanceof LocationHub.Fix) {
+                RoutePoints.onFix(app, (LocationHub.Fix) reading.value, System.currentTimeMillis());
             }
         });
     }
@@ -165,6 +173,7 @@ public final class TripSession {
         lastAltitude = null;
         ascentM = 0;
         descentM = 0;
+        RoutePoints.reset();
         if (ctx != null) {
             CarActor.Reading odoR = CarActor.get(ctx).get("telemetry.odometer");
             startOdoKm = (odoR != null && odoR.status == CarActor.Reading.Status.OK && odoR.value instanceof Number)
@@ -233,9 +242,10 @@ public final class TripSession {
         if (ctx != null) publishLive(ctx, num(data.get("odometer"), -1),
             data.get("battery") instanceof Integer ? (Integer) data.get("battery") : -1, now);
         if (wasParked) return; // stationary in park debounce: don't accumulate altitude jitter
-        double[] loc = GpsReader.read(ctx);
+        double[] loc = LocationHub.read(ctx);
         if (loc == null) return;
         double alt = loc[2];
+        if (!Double.isFinite(alt)) return; // a fix with no altitude is not a height of 0
         if (lastAltitude != null) {
             double delta = alt - lastAltitude;
             if (delta > ALTITUDE_NOISE_M) ascentM += delta;
@@ -325,10 +335,14 @@ public final class TripSession {
                 CarDb.get(ctx).write(() -> {
                     try {
                         long tripId = CarDb.get(ctx).db().insert("trip", null, v);
-                        // Same writer, right after: the parts per drive mode
-                        // and regen level. A failure here keeps the trip.
-                        try { ModeSegments.write(CarDb.get(ctx).db(), tripId, startMs0, endMs); }
-                        catch (Throwable t) { Log.w(TAG, "trip mode segments: " + t); }
+                        // Same writer, right after: the route points of this
+                        // trip get its id; older loose ones go. A failure
+                        // here keeps the trip.
+                        if (tripId > 0) try {
+                            CarDb.get(ctx).db().execSQL(CarDb.CLAIM_TRIP_POINTS_SQL,
+                                new Object[]{tripId, startMs0, endMs});
+                            CarDb.get(ctx).db().execSQL(CarDb.DROP_LOOSE_TRIP_POINTS_SQL, new Object[]{endMs});
+                        } catch (Throwable t) { Log.w(TAG, "trip points: " + t); }
                     } catch (Throwable t) {
                         Log.w(TAG, "triplog: " + t);
                     }
@@ -336,6 +350,14 @@ public final class TripSession {
                 EntityBus.publish("trip.completed", CarActor.Reading.ok(v));
             }
         } else {
+            // Too short to keep: its route points go too.
+            if (ctx != null) {
+                final long dropTo = now;
+                CarDb.get(ctx).write(() -> {
+                    try { CarDb.get(ctx).db().execSQL(CarDb.DROP_LOOSE_TRIP_POINTS_SQL, new Object[]{dropTo}); }
+                    catch (Throwable t) { Log.w(TAG, "trip points: " + t); }
+                });
+            }
             Log.i(TAG, String.format(Locale.US,
                 "Trip discarded (below 100m / 45s threshold): dist=%.3f km, driving=%.1fs",
                 distanceKm, drivingDurationMs / 1000.0));

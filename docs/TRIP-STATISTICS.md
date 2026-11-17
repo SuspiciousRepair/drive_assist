@@ -65,10 +65,39 @@ Inspired by A Better Routeplanner's daily diary, the selected day's activities a
   - Start & completion time, duration.
   - Energy added in `+kWh`.
   - SoC change (`28% ➔ 80%`).
-  - Charging speed (`kW avg`) with AC mains vs DC Fast Charge detection (`charge_v >= 250V`).
+  - Charging speed (`kW avg`) with AC mains vs DC Fast Charge detection (peak `charge_v >= 300V`).
 
 ### 4. Home Screen View Switcher
 - A dedicated statistics icon in the left status rail of `ComfortActivity` allows swapping the home screen between the standard comfort card grid and the new statistics screen with a single tap.
+
+### 5. Trip Route Screen
+On the statistics page, tap a finished trip (in **P**) to open its route:
+
+- **Route as lines, no map.** GPS points drawn on a plain background, north
+  up, with start and end marks. No map tiles, no API key, no internet.
+- **Speed colours.** Each part has the colour of its speed. The buckets and
+  colours are the same as on the statistics page: 0–40, 40–80, 80–120 and
+  120+ km/h. The scale is fixed, so two trips compare at a glance.
+- **All routes in one picture.** The **All routes** button on the statistics
+  page (in **P**) draws every recorded route together, with the same speed
+  colours, and lists the trips. Under the picture, the height profile of
+  every trip shown, one after the other. **Previous** / **Next** step
+  through the days that have a route; **Show all** shows every trip again.
+  Touch a route or a trip in the list to select it: it is drawn thick over
+  the others and the profile shows that trip only. **Open this trip** shows
+  its own route screen.
+- **Height profile.** Under the route, the GPS height along the trip, in the
+  same speed colours. Touch it to mark that place on the route.
+- **Trip numbers.** Distance, moving and stopped time, average and top speed,
+  energy, kWh/100 km, battery start and end, climb and descent, lowest and
+  highest point, outside temperature.
+
+Routes are recorded with **Config → System → Trip routes** (on by default):
+one point every 5 s, only after 25 m of movement, with drive mode, regen
+level and energy so far. The points stay in the car (`car.db` table
+`trip_point`) and go into the backup. Trips driven before route recording
+existed show no route. GPS fixes do not need MQTT. Data details:
+[HUB-DATA.md](HUB-DATA.md).
 
 ---
 

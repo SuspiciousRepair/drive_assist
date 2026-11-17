@@ -99,7 +99,7 @@ public final class DrivingConsumption {
                 else estimatedSamples++;
             }
             if (Double.isFinite(speed) && speed >= 0) {
-                int bucket = speed < 40 ? 0 : speed < 80 ? 1 : speed < 120 ? 2 : 3;
+                int bucket = SpeedBuckets.of(speed);
                 double delta = odo - previousOdo;
                 if (Double.isFinite(odo) && odo > 0 && delta >= 0 && delta < 50) {
                     distance[bucket] += delta;

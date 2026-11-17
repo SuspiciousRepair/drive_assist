@@ -52,6 +52,8 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".ui.TripRouteActivity" android:exported="false" />
+        <activity android:name=".ui.AllRoutesActivity" android:exported="false" />
         <activity android:name=".ui.CleanupActivity" android:exported="false" android:label="Drive Assist — Limpeza" />
         <activity android:name=".ui.ClipPlayerActivity" android:exported="false"
                   android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />

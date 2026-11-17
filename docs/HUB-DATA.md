@@ -33,6 +33,7 @@ Property IDs and scales of the car's own (VHAL) properties are in
 | `car.avas_mode` | AVAS (pedestrian warning sound): 0 off, 1.. sound type. Reported by modehelper (`AvasState`): Drive Assist may not read it (`CAR_CONTROL_AUDIO_VOLUME`) | on change, read every 4 s by modehelper; on request |
 | `car.door_pos`, `car.window_pos` | doors, windows (per area) | on change |
 | `car.hvac_recirc`, `car.hvac_direction`, `car.hvac_rear_defrost` | climate state | on change |
+| `car.hvac_front_defrost` | front-windshield defogger button (MAX_DEFROST, 354419975), true/false. Each change is a `comfort_event` row (`defrost`, `front on`/`front off`) and goes to MQTT/HA as `front_defrost` | on change |
 | `car.charge_a` | charging current at the port, A | every 2 s |
 | `car.plug_connected` | cable in the port (1/0) | every 2 s |
 | `car.is_charging` | charging (derived: current AND plug) | when either input changes |
@@ -43,6 +44,8 @@ Property IDs and scales of the car's own (VHAL) properties are in
 | `telemetry.ambient_brightness` | cabin light brightness, 0..20 | every 4 s |
 | `telemetry.speed` | speed, km/h | every 1 s, **only while the Comfort screen is open** |
 | `car.carplay_connected` | CarPlay link (from `CarplayState`) | every 4 s |
+| `car.tire_warn_fl`, `car.tire_warn_fr`, `car.tire_warn_rl`, `car.tire_warn_rr` | soft-tyre warning per wheel (`TireWarning`), raw value: 0 = no warning. **No pressures**: this car's warning is indirect (ITPMS_TYRE_WARN, wheel speeds), the pressure properties are "not supported". The value of a real warning is not yet seen; anything not 0 counts as a warning | every 10 s |
+| `car.tire_warn` | 1 when any wheel warns, else 0 (derived) | when a wheel changes |
 
 ### `telemetry.tick`: the 30-second snapshot
 
@@ -56,6 +59,13 @@ One map every 30 s with: `battery` (SoC, whole %), `battery_raw_pct`,
 CAN). `charge_a`/`charge_v` exist only while plugged in. Saved to
 `telemetry_sample` and sent to MQTT/Home Assistant.
 
+A tick runs its due polls first and publishes `telemetry.tick` after, so a
+listener that reads other hub keys gets this tick's values, also on the
+first tick after a suspend. `ChargeSession` counts a tick's power for the
+time since the last tick, but only up to 90 s
+(`ChargeSession.MAX_SAMPLE_GAP_MS`): a longer gap (the head unit slept) adds
+no energy.
+
 ### CAN (`CanHub`), only with "Exact energy" on
 
 Needs: the switch on (Config > OBD2), modehelper installed, the roadcastd
@@ -66,7 +76,7 @@ switch is off or the reader has not sent a heartbeat for 3 s.
 |---|---|
 | `can.live` | reader live (1/0) |
 | `can.pack_v`, `can.pack_a` | pack voltage, current (+ = discharge) |
-| `can.power_kw` | pack power, V × I |
+| `can.power_kw` | pack power, V × I. `NOT_AVAILABLE` while volts or amps are not valid, also when `can.live` is 1 |
 | `can.climate_kw` | climate (compressor + heater) electrical power |
 | `can.drive_kw` | drive power |
 | `can.charger_w` | on-board charger's mains input, only while AC charging |
@@ -93,15 +103,33 @@ plugged in. Updated every 2 s; a value older than 15 s becomes
 
 | Key | What |
 |---|---|
-| `energy.power_kw`, `energy.pack_v`, `energy.pack_a` | from CAN when `can.live` is 1, else from the dongle, else `NOT_AVAILABLE` |
-| `energy.source` | `can` or `obd2` |
+| `energy.power_kw`, `energy.pack_v`, `energy.pack_a` | from CAN when `can.live` is 1 **and** CAN has the value, else from the dongle, else `NOT_AVAILABLE` |
+| `energy.source` | `can` or `obd2`, by the same rule on the power value |
+
+### GPS position (`LocationHub`), always while the app runs; live fixes while driving
+
+| Key | What | Update |
+|---|---|---|
+| `location.fix` | `LocationHub.Fix`: lat, lon, altitude m, bearing, speed km/h (GPS), accuracy m. Altitude is NaN when the fix has none (saved as NULL, never 0). Source: `GpsReader`: the live GPS fix from `GpsOwner` when it is 10 s old or less, else the last known one (GPS, then passive, then network). `NOT_AVAILABLE` with no fix | polled every 2 s; published only when the car moves to another ~5 m cell. The cache always holds the newest fix |
+
+MQTT/HA, ABRP, the 30 s sampler (altitude), trip ascent / descent, trip
+routes and charge places all read this key. `GpsReader.read` is
+package-private.
+
+`GpsOwner` holds the one location listener (GPS every 2 s). It does not
+need MQTT. It listens while a consumer is on (trip routes, MQTT telemetry
+with a broker set, or ABRP with "send location") and the car is out of
+Park, or in Park for less than 2 minutes. After that it removes the
+listener, so the GPS is not held on in a parked car, and the key holds the
+last known fix until the car leaves Park. Only GPS fixes become the live
+fix; a network fix never replaces one.
 
 ### Sessions (built on the hub thread from `telemetry.tick`)
 
 | Key | What | Update |
 |---|---|---|
 | `trip.live` | the open trip (`LiveTrip`): start, driving time, distance, spent / regen / net kWh, SoC start → now, energy source. `LiveTrip.NONE` when no trip is open | on each tick while a trip is open, only when a shown value changes (0.1 km, 0.01 kWh, whole minutes) |
-| `parking.temp_trail` | outside temperature during the stay in Park (`TempTrail`): 10-min buckets, empty while the head unit sleeps | on each tick while parked, when the trail changes |
+| `parking.temp_trail` | outside temperature during the stay in Park (`TempTrail`): 10-min buckets, empty while the head unit sleeps, plus the true lowest and highest reading of the stay (`min()` / `max()`) | on each tick while parked, when the trail changes |
 
 `trip.live` uses the same `DrivingConsumption` rules as the stats pages, so
 the home card and the finished trip agree. After an app restart mid-trip it
@@ -135,16 +163,17 @@ except the SoC-based driving energy, which is marked "estimated".
 
 - `EnergyIntegrator` gets **every** CAN sample (10 Hz) and every OBD2
   reading directly, because it integrates each one and the hub delivers
-  changes only. CAN wins while it is live; the dongle's samples are dropped
-  then, so energy is never counted twice.
+  changes only. CAN wins while `energy.source` is `can` (`EnergyHub` decides,
+  once); the dongle's samples are dropped then, so energy is never counted
+  twice. When CAN is live but has no power value, the dongle's samples count.
 
 ## 5. What is saved on the car
 
 | Where | What | When |
 |---|---|---|
 | `car.db` `telemetry_sample` | the 30 s snapshot, incl. `battery_temp_c` (dongle), `climate_kw` (CAN), and `drive_mode` / `regen_mode` (from `car.drive_mode` / `car.regen_mode`) | every 30 s; kept 90 days |
-| `car.db` `trip`, `charge_session` | per trip / per charge totals | when the trip or charge ends |
-| `car.db` `trip_mode_segment` | each part of a trip with one drive mode and one regen level: km, spent / regen / net kWh, energy source (`state.ModeSegments`) | when the trip ends; kept for good |
+| `car.db` `trip`, `charge_session` | per trip / per charge totals; `charge_session.lat` / `lon` where it charged (with "Record trip routes" on) | when the trip or charge ends |
+| `car.db` `trip_point` | the route (`state.RoutePoints`): time, lat, lon, altitude, GPS speed, bearing, accuracy, `drive_mode`, `regen_mode`, `power_kw` (`energy.power_kw`), and the trip's `spent_kwh` / `regen_kwh` so far. Raw, for later analysis | every 5 s while out of Park, only after 25 m of movement, with "Record trip routes" on (default on). `trip_id` is NULL until the trip is saved; points of a trip too short to keep are deleted. Kept for good |
 | `files/obd2-reading.log` | every dongle reading | while the dongle is connected (5 MB, then restarts) |
 | `files/abrp-attempt.log` | every ABRP send and its payload | while ABRP is on (5 MB, then restarts) |
 

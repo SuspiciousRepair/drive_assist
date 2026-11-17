@@ -39,7 +39,7 @@ public final class Prefs {
 
     // --- Restore at start (HelperSync.java, modehelper RestorePolicy) ---
     // Per setting: does modehelper write the saved value back to the car in the
-    // minute after it wakes? (issues #12, #13, #16). ON until the user turns it
+    // 15 s after it wakes? (issues #12, #13, #16, #88). ON until the user turns it
     // off: Drive Assist owns the car's start state; the switch exists for a
     // user whose other app (e.g. Sapo) restores the same setting.
     public static final String RESTORE_DRIVE = "restore_drive", RESTORE_REGEN = "restore_regen",
@@ -121,6 +121,10 @@ public final class Prefs {
      * true = each tap steps Low -> Mid -> High -> Low. Issue #15. */
     public static boolean getRegenCycle(Context ctx) { return file(ctx).getBoolean("regen_cycle", false); }
     public static void setRegenCycle(Context ctx, boolean v) { file(ctx).edit().putBoolean("regen_cycle", v).apply(); }
+    // Issue #19: trip routes (GPS points) and where each charge was. Saved
+    // in the car only. On by default (owner, 2026-11-15).
+    public static boolean getRecordRoutes(Context ctx) { return file(ctx).getBoolean("record_routes", true); }
+    public static void setRecordRoutes(Context ctx, boolean v) { file(ctx).edit().putBoolean("record_routes", v).apply(); }
     /** Which buttons the Turbo card shows (issue #15). Turbo and Regen are
      * on by default (the card as it always was); AVAS is opt-in. */
     public static final String CARD_TURBO = "turbo_card_turbo", CARD_REGEN = "turbo_card_regen",
@@ -181,6 +185,9 @@ public final class Prefs {
     public static void setSkylineSeed(Context ctx, long v) { file(ctx).edit().putLong("skyline_seed", v).apply(); }
 
     // --- Spotify ---
+    // Config > Look > Extra dark (#89, ui/ExtraDark). Off until chosen.
+    public static boolean getExtraDark(Context ctx) { return file(ctx).getBoolean("extra_dark", false); }
+    public static void setExtraDark(Context ctx, boolean v) { file(ctx).edit().putBoolean("extra_dark", v).apply(); }
     public static boolean getSpotifyLargeCard(Context ctx) { return file(ctx).getBoolean("spotify_large_card", false); }
     public static void setSpotifyLargeCard(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_large_card", v).apply(); }
     public static String getSpotifyClientId(Context ctx) { return file(ctx).getString("spotify_client_id", ""); }
@@ -260,6 +267,40 @@ public final class Prefs {
     public static boolean isBackedUp(String key) {
         if (key == null || key.isEmpty() || NOT_BACKED_UP.contains(key)) return false;
         for (String p : NOT_BACKED_UP_PREFIXES) if (key.startsWith(p)) return false;
+        return true;
+    }
+
+    /** Settings a backup that comes from a PHONE (web/PhoneServer upload)
+     * must never set. The car keeps its own value for each of them.
+     *
+     * The phone proves who it is with a token that travels over plain HTTP
+     * on the Wi-Fi. Someone who captured the token can upload a backup they
+     * made themselves. So such a backup must not open a bigger door than the
+     * phone pages already are:
+     *  - adb_*: ADB on this head unit is a root shell on the network
+     *    (always-on switch, trusted Wi-Fi name, home gateway),
+     *  - phone_access_*: how long and where the phone door itself is open,
+     *  - commands_enabled: lets the MQTT broker send commands to the car.
+     *
+     * update_url (where the car fetches its APK) is NOT here, by the owner's
+     * choice: the phone settings page edits it, so a block here closes
+     * nothing. The Installer still checks the APK's package and signature.
+     *
+     * A new setting that gives control of the car goes here too. The Restore button on the car's own screen is not
+     * limited: that needs a person in the car. PhoneRestoreKeysTest checks
+     * the list. */
+    private static final java.util.Set<String> NOT_FROM_PHONE = new java.util.HashSet<>(java.util.Arrays.asList(
+        "commands_enabled"));
+    private static final String[] NOT_FROM_PHONE_PREFIXES = {
+        "adb_",
+        "phone_access_",
+    };
+
+    /** True when a restore that comes from a phone may set this key: a key a
+     * backup keeps ({@link #isBackedUp}) and not in {@link #NOT_FROM_PHONE}. */
+    public static boolean isPhoneRestorable(String key) {
+        if (!isBackedUp(key) || NOT_FROM_PHONE.contains(key)) return false;
+        for (String p : NOT_FROM_PHONE_PREFIXES) if (key.startsWith(p)) return false;
         return true;
     }
 }

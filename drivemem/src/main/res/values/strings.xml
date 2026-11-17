@@ -258,7 +258,7 @@
     <string name="cfg_avas_label">AVAS (pedestrian warning sound)</string>
     <string name="cfg_advanced">Advanced</string>
     <string name="cfg_restore_header">Restore at car start</string>
-    <string name="cfg_restore_hint">Drive Assist puts your saved choice back during the first minute after the car starts. After that, changes made in the car or in another app stay for the trip. Turn off a setting that another app already restores.</string>
+    <string name="cfg_restore_hint">Drive Assist puts your saved choice back during the first 15 seconds after the car starts. After that, changes made in the car or in another app stay for the trip. Turn off a setting that another app already restores.</string>
     <string name="cfg_park_monitor_label">Park monitoring</string>
     <string name="cfg_aeb_confirm_title">Turn off automatic emergency braking?</string>
     <string name="cfg_aeb_confirm_body">Disables automatic emergency braking. It stays off after a restart while Restore at car start is on for AEB (Advanced, below).</string>
@@ -299,6 +299,8 @@
     <string name="cfg_skyline_random_per_drive_label">Random every drive</string>
     <string name="cfg_theme_header">Theme</string>
     <string name="cfg_dark_mode_header">Dark mode</string>
+    <string name="cfg_extra_dark_label">Extra dark at night</string>
+    <string name="cfg_extra_dark_note">When the car is in dark mode and you drive for a minute without touching the screen, the Dashboard goes as dark as the screen allows. Touch the screen or change gear to bring the light back. The first touch only lights the screen. Your car\'s brightness setting does not change.</string>
     <string name="cfg_theme_selection_header">Theme selection</string>
     <string name="cfg_theme_sub">Applies to every Drive Assist screen. The thumbnail shows the color and the shape of the cards — the change is immediate.</string>
     <string name="cfg_theme_selected">%1$s  ✓</string>
@@ -525,6 +527,25 @@
     <string name="can_header">Car data (CAN)</string>
     <string name="can_enable_label">Read battery power from the car (CAN)</string>
     <string name="can_hint">Exact battery volts × amps from the car itself. On by default; nothing to set up. It needs the ModeHelper app. To start its reader, it may switch ADB on for a few seconds, then off again. If it does not work, the app falls back to the dongle or to the battery % estimate. While it is on, other apps on the car can also read this car data.</string>
+    <string name="routes_header">Trip routes</string>
+    <string name="routes_enable_label">Record trip routes (GPS)</string>
+    <string name="routes_hint">Saves where each trip went and where each charge was. It stays in the car: nothing is sent anywhere. It goes into your backup. Trips from before this setting have no route.</string>
+    <string name="route_title">Route</string>
+    <string name="route_none">No route for this trip. Routes are saved for trips driven with Config → System → Trip routes on.</string>
+    <string name="route_parked_only">Open the route in Park</string>
+    <string name="routes_all_title">All routes</string>
+    <string name="routes_all_count">%1$d trips</string>
+    <string name="routes_all_show">Show all</string>
+    <string name="routes_all_none">No routes yet. Routes are saved for trips driven with Config → System → Trip routes on.</string>
+    <string name="routes_all_open">Open this trip</string>
+    <string name="routes_all_hint">Touch a route or a trip to select it.</string>
+    <string name="route_stat_distance">Distance</string>
+    <string name="route_stat_time">Time</string>
+    <string name="route_stat_time_split">Moving %1$s · stopped %2$s</string>
+    <string name="route_stat_speed">Speed</string>
+    <string name="route_stat_speed_value">avg %1$s · top %2$s km/h</string>
+    <string name="route_stat_height_range">Height %1$s – %2$s m</string>
+    <string name="route_stat_outside">Outside</string>
     <!-- Day session cards (DailyStatsView) -->
     <string name="session_since">since %1$s</string>
     <string name="session_yesterday">yesterday</string>
@@ -591,7 +612,7 @@
     <string name="phone_download">Download</string>
     <string name="phone_restore_open">Restore from a file</string>
     <string name="phone_restore_title">Restore a backup</string>
-    <string name="phone_restore_hint">Pick a .dabackup file. Your settings change to the ones in the backup. The trips in the backup are added to the trips on the car. Then the app on the car restarts.</string>
+    <string name="phone_restore_hint">Pick a .dabackup file. Your settings change to the ones in the backup. The trips in the backup are added to the trips on the car. Then the app on the car restarts. ADB, phone access, commands from Home Assistant and the backup password are not changed from here: they stay as they are on the car.</string>
     <string name="phone_restore_pw">Backup password</string>
     <string name="phone_restore_pw_hint">Empty if it is the password set on this car</string>
     <string name="phone_restore_file">Backup file</string>
@@ -625,4 +646,5 @@
     <string name="phone_msg_no_space">The car does not have enough free space for this file.</string>
     <string name="phone_msg_busy">A restore is already running.</string>
     <string name="phone_msg_no_file">Pick a backup file first.</string>
+    <string name="unit_kwh_per_100km">kWh/100 km</string>
 </resources>

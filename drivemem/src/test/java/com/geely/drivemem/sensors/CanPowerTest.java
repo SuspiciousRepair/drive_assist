@@ -35,6 +35,28 @@ public class CanPowerTest {
         assertNull("volts out of band", p.onSignal(CanPower.VOLT, 5.0, true, 30));
     }
 
+    /** Volts or amps go invalid while heartbeats still arrive: the reader
+     * stays live, but there is no power. It used to keep the last power. */
+    @Test public void invalidInputClearsTheLastPower() {
+        CanPower p = new CanPower();
+        p.onSignal(CanPower.VOLT, 400.0, true, 0);
+        p.onSignal(CanPower.CURR, 10.0, true, 0);
+        assertEquals(4.0, p.powerKw(0), E);
+
+        assertNull(p.onSignal(CanPower.CURR, 10.0, false, 100));   // amps invalid
+        assertNull(p.onHeartbeat(1, 1000));
+        assertTrue("heartbeats keep it live", p.live(1000));
+        assertNull("no old power", p.powerKw(1000));
+        assertNull(p.packAmps(1000));
+        assertEquals(400.0, p.packVolts(1000), E);
+
+        assertEquals(4.8, p.onSignal(CanPower.CURR, 12.0, true, 1100), E);   // back
+        assertEquals(4.8, p.powerKw(1100), E);
+
+        assertNull(p.onSignal(CanPower.VOLT, 5.0, true, 1200));    // volts out of band
+        assertNull(p.powerKw(1200));
+    }
+
     /** roadcastd sends only changes: a steady load must still produce
      * samples, from the heartbeat, or the integrator sees a gap. */
     @Test public void heartbeatReemitsSteadyValues() {

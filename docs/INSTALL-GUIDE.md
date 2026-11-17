@@ -554,6 +554,10 @@ The car is slow, so the page only sends files. Clips download; they do not
 play in the page. A restore from the phone restarts the app on the car, and
 the car screen shows the result.
 
+A restore from the phone does **not** change the ADB switches, the phone
+access settings or the commands switch, and it does not store the backup
+password. Use **Restore** on the car itself to bring those back.
+
 ---
 
 ## 🤝 Community Credits & Upstream References

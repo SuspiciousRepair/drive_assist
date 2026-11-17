@@ -10,6 +10,13 @@ public class FakeCarAccess extends CarAccess {
     @Override public boolean connect(android.content.Context context) { connected = true; return true; }
     @Override public boolean isReady() { return connected; }
     @Override public void disconnect() { connected = false; }
+    /** When true, watch() accepts the callback (it never fires); when false,
+     * the real CarAccess.watch runs and fails with no car service. */
+    public boolean watchSucceeds = false;
+    @Override public boolean watch(int prop,
+            android.car.hardware.property.CarPropertyManager.CarPropertyEventCallback cb) {
+        return watchSucceeds || super.watch(prop, cb);
+    }
     @Override public Integer readGear() { return connected && sample != null ? sample.gear : null; }
     @Override public Float readSpeed() {
         return connected && sample != null && Double.isFinite(sample.speedKmh) ? (float) sample.speedKmh : null;

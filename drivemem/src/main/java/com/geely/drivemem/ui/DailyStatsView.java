@@ -236,6 +236,21 @@ public class DailyStatsView extends LinearLayout {
         periodDropdownBtn.setOnClickListener(v -> showPeriodMenu(periodDropdownBtn));
         navRow.addView(periodDropdownBtn);
 
+        // Every recorded route in one picture. Park only, same rule as
+        // opening one trip's route.
+        Style.gap(navRow, c, 14);
+        TextView allRoutesBtn = Style.cardButton(c, c.getString(R.string.routes_all_title), false, () -> {
+            if (!CarState.isParked()) {
+                Toast.makeText(getContext(), R.string.route_parked_only, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            getContext().startActivity(new android.content.Intent(getContext(), AllRoutesActivity.class));
+        });
+        allRoutesBtn.setTextSize(15.5f);
+        allRoutesBtn.setTypeface(null, Typeface.BOLD);
+        allRoutesBtn.setPadding(ddPadH, ddPadV, ddPadH, ddPadV);
+        navRow.addView(allRoutesBtn);
+
         addView(navRow);
         Style.gap(this, c, 18);
 
@@ -328,7 +343,7 @@ public class DailyStatsView extends LinearLayout {
         speedLegend.setOrientation(LinearLayout.HORIZONTAL);
         speedLegend.setGravity(Gravity.CENTER_VERTICAL);
         speedLegend.setPadding(0, Style.dp(c, 12), 0, Style.dp(c, 8));
-        int[] speedColors = hourlySpeedColors();
+        int[] speedColors = SpeedBucketColors.get();
         for (int i = 0; i < SPEED_BUCKET_LABELS.length; i++) {
             speedLegend.addView(speedLegendItem(c, SPEED_BUCKET_LABELS[i], speedColors[i]));
         }
@@ -897,7 +912,7 @@ public class DailyStatsView extends LinearLayout {
             labels.add(String.format(Locale.US, "%02d", hour));
         }
         BarDataSet set = new BarDataSet(entries, "");
-        set.setColors(hourlySpeedColors());
+        set.setColors(SpeedBucketColors.get());
         set.setDrawValues(false);
         BarData chartData = new BarData(set);
         chartData.setBarWidth(.72f);
@@ -909,14 +924,6 @@ public class DailyStatsView extends LinearLayout {
         else hourlyChart.getAxisLeft().setAxisMaximum(1f);
         hourlyChart.setData(chartData);
         hourlyChart.invalidate();
-    }
-
-    private static int[] hourlySpeedColors() {
-        // Keep categorical colors distinct even when ambient lighting makes
-        // the theme's ACCENT and COOL identical. Darker variants suit light cards.
-        return Style.LIGHT
-                ? new int[]{0xFF087F78, 0xFF2463CC, 0xFFC46A09, 0xFFB02CA8}
-                : new int[]{0xFF2DD4BF, 0xFF609FFF, 0xFFFFB454, 0xFFE879F9};
     }
 
     private View speedLegendItem(Context c, String label, int color) {
@@ -1241,7 +1248,7 @@ public class DailyStatsView extends LinearLayout {
     }
 
     /** Puts an MDI chevron on a nav button (left of text if onLeft, else right), tinted to match the label. */
-    private static final String[] SPEED_BUCKET_LABELS = {"0–40", "40–80", "80–120", "120+"};
+    private static final String[] SPEED_BUCKET_LABELS = com.geely.drivemem.sensors.SpeedBuckets.LABELS;
 
     /**
      * Small bar chart: average efficiency per speed bucket, with the day's
@@ -1709,6 +1716,19 @@ public class DailyStatsView extends LinearLayout {
             stat(R.string.session_stat_net_energy, net, breakdown),
             stat(R.string.session_stat_efficiency, eff, null),
             stat(R.string.session_stat_elevation, alt, null)));
+
+        // Tapping a finished trip opens its route (issue #19), Park only,
+        // same rule as the charge card's cost dialog.
+        if (t.endMs > 0 && t.tripId > 0) {
+            card.setOnClickListener(v -> {
+                if (!CarState.isParked()) {
+                    Toast.makeText(getContext(), R.string.route_parked_only, Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                android.content.Intent i = TripRouteActivity.intent(getContext(), t);
+                getContext().startActivity(i);
+            });
+        }
     }
 
     private void buildChargeSessionCard(LinearLayout card, DailyStatsProvider.ChargeSessionItem ch, long dayStartMs) {

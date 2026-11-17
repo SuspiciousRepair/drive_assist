@@ -13,6 +13,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.geely.drivemem.R;
+import com.geely.drivemem.controls.GeelySwitch;
 import com.geely.drivemem.util.ClipExport;
 import com.geely.drivemem.util.ClipRecovery;
 import com.geely.drivemem.util.Clips;
@@ -32,6 +33,15 @@ import java.util.List;
 public final class TelemetryClipsSection extends LinearLayout {
     private final Activity activity;
     private final Runnable onRefresh;
+    // The Record switch, and its one re-check after a tap. The re-check only
+    // moves the switch to the real state. It used to rebuild the whole
+    // section (onRefresh), 10.5 s after the tap, wherever the owner was by
+    // then: it threw them back here from another section, and wiped a GB
+    // limit they were typing. Cancelled on detach and by cancelPending().
+    private GeelySwitch recordSwitch;
+    private final Runnable recordRecheck = () -> {
+        if (recordSwitch != null) recordSwitch.setCheckedSilently(Clips.shownOn(getContext()));
+    };
 
     public TelemetryClipsSection(Activity activity, Runnable onRefresh) {
         super(activity);
@@ -49,24 +59,28 @@ public final class TelemetryClipsSection extends LinearLayout {
         ConfigCards.add(leftCol, settings);
 
         List<Clips.Clip> clips = Clips.list(activity);
-        boolean on = Clips.recording(activity);
+        boolean on = Clips.shownOn(activity);
 
         // A real toggle, not a momentary button: modehelper now persists
         // whatever is sent here ("dashcam_on") and checks it before
         // auto-starting on the next boot too — see ModeHelperService's own
-        // comment on maybeAutoStart(). Displayed state is the live directory
-        // read (Clips.recording()), the same honest-over-cached approach as
-        // the AVAS toggle, not a locally-remembered guess.
+        // comment on maybeAutoStart(). Displayed state is the recorder's own
+        // (Clips.recording(): recorder.state, then the live .mp4.tmp), the same
+        // honest-over-cached approach as the AVAS toggle, not a guess.
         LinearLayout recordRow = Style.toggleRow(activity, activity.getString(R.string.clips_record), on, wantOn -> {
             // Drive Assist does not record — modehelper does. Ask over the same
-            // broadcast adb uses, then re-read the directory rather than
-            // assuming: a segment file takes a moment to appear.
+            // broadcast adb uses. Starting takes seconds, so the switch keeps
+            // the request for Clips.ASK_GRACE_MS (a re-read at 1.5 s used to
+            // flip it back to off), then shows the real state again.
             Prefs.setDashcamOn(activity, wantOn);   // for the backup only
+            Clips.asked(wantOn);
             activity.sendBroadcast(new Intent("com.geely.modehelper.DASHCAM")
                 .setClassName("com.geely.modehelper", "com.geely.modehelper.DashReceiver")
                 .putExtra("on", wantOn ? 1 : 0));
-            postDelayed(() -> onRefresh.run(), 1500);
+            removeCallbacks(recordRecheck);
+            postDelayed(recordRecheck, Clips.RECHECK_MS);
         });
+        recordSwitch = (GeelySwitch) recordRow.getChildAt(0);   // Style.toggleRow: switch first, then label
         settings.addView(recordRow);
 
         // A GB count is a couple of digits, not a URL -- a field and a
@@ -190,6 +204,17 @@ public final class TelemetryClipsSection extends LinearLayout {
             Toast.makeText(activity, r == ClipExport.Result.OK
                 ? activity.getString(msg, n) : activity.getString(msg), Toast.LENGTH_LONG).show();
         }));
+    }
+
+    /** Drops the pending Record switch re-check. The Activity calls this
+     * when it replaces this section and in its own teardown. */
+    public void cancelPending() {
+        removeCallbacks(recordRecheck);
+    }
+
+    @Override protected void onDetachedFromWindow() {
+        cancelPending();
+        super.onDetachedFromWindow();
     }
 
     /** Triggers a refresh of the clips section. Called when the user performs an action

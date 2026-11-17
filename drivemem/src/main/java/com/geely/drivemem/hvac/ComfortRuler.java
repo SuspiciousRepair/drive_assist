@@ -129,9 +129,23 @@ public class ComfortRuler {
                 driftSinceMs = 0;
             }
 
-            // Do not refit before this tap. Level is moved purely by user taps;
-            // the car catches up asynchronously via drainApply(). If a tap is
-            // issued, clear any defrosting flag immediately for instant UI feedback.
+            // The FIRST tap after a quiet spell re-reads the car before it moves.
+            // When the car wakes it restores its last climate on its own (say
+            // C3), but the background refit runs only every 30 s and the beat
+            // does not count suspended time — so for the first seconds of a
+            // trip the ruler still says 0. A "Cooler" press from that stale 0
+            // applied C1 (fan 1, 24 C) over a car already running C3: the
+            // button made it warmer, at the moment a hot car most needs it
+            // (seen 2026-11-16 14:09, and in 4 earlier trips). Taps INSIDE a
+            // burst still never refit: the level is moved purely by taps there
+            // and the car catches up via drainApply(), so a read mid-apply would
+            // fight the taps.
+            if (refitBeforeTap(System.currentTimeMillis(), lastTapMs, applying, applyStale)) {
+                refitNow();
+            }
+
+            // If a tap is issued, clear any defrosting flag immediately for
+            // instant UI feedback.
             defrosting = false;
 
             long quietS = lastTapMs == 0 ? -1 : (System.currentTimeMillis() - lastTapMs) / 1000;
@@ -163,6 +177,32 @@ public class ComfortRuler {
             notifyUi();          // instant: the dot moves now, not after the car answers
             scheduleApply();     // the car catches up in the background
         });
+    }
+
+    /**
+     * True when a tap should re-read the car before moving: the last tap was
+     * longer than {@link #QUIET_AFTER_TAP_MS} ago (or there was none) and no
+     * write of ours is pending or in flight. Inside a burst the level is ours,
+     * not the car's, so it is never re-read there.
+     */
+    static boolean refitBeforeTap(long nowMs, long lastTapMs, boolean applying, boolean applyStale) {
+        if (applying || applyStale) return false;
+        return lastTapMs == 0 || nowMs - lastTapMs >= QUIET_AFTER_TAP_MS;
+    }
+
+    /** Runs refit() on CarActor's thread and waits for it (bounded). Called from the reducer. */
+    private void refitNow() {
+        java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+        CarActor.get(ctx).runOnCarThread(() -> {
+            try {
+                if (armed && car().isReady()) refit();
+            } finally {
+                latch.countDown();
+            }
+        });
+        // If the car thread is busy, go on with the level we have rather than
+        // leave the press hanging.
+        try { latch.await(2, java.util.concurrent.TimeUnit.SECONDS); } catch (InterruptedException ignored) {}
     }
 
     /** Posts a drainApply task to CarActor's thread. Called only from tap(). */

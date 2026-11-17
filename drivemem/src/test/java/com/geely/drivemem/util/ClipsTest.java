@@ -45,4 +45,37 @@ public class ClipsTest {
             assertFalse(ext, Clips.stale(dir, "dash_1"));
         }
     }
+
+    // The bug: in Park with Park monitoring on, the recorder is on but has no
+    // segment open, so the Record switch read "off" and flipped back.
+    @Test public void watchingCountsAsOn() throws Exception {
+        long now = 1_790_000_000_000L;
+        org.junit.Assert.assertEquals(Boolean.TRUE, Clips.recorderOn(state("watching", "", now - 4_000), now));
+        org.junit.Assert.assertEquals(Boolean.TRUE, Clips.recorderOn(state("recording", "dash_1", now - 4_000), now));
+    }
+
+    @Test public void stoppedIsOffAndStaleOrMissingSaysNothing() throws Exception {
+        long now = 1_790_000_000_000L;
+        org.junit.Assert.assertEquals(Boolean.FALSE, Clips.recorderOn(state("stopped", "", now - 3_600_000), now));
+        org.junit.Assert.assertNull(Clips.recorderOn(state("watching", "", now - Clips.BEAT_MS - 1), now));
+        org.junit.Assert.assertNull(Clips.recorderOn(Files.createTempDirectory("clips").toFile(), now));
+    }
+
+    // A tap holds the switch where it was put while the recorder starts up.
+    @Test public void switchKeepsTheRequestDuringGrace() {
+        long tap = 1_790_000_000_000L;
+        assertTrue(Clips.shown(tap, true, tap + 1_500, () -> false));
+        assertFalse(Clips.shown(tap, false, tap + 1_500, () -> true));
+        assertFalse(Clips.shown(tap, true, tap + Clips.ASK_GRACE_MS, () -> false));
+        assertTrue(Clips.shown(0, false, tap, () -> true));
+    }
+
+    // The one re-check after a tap comes after the grace, so it shows the
+    // recorder's real state and not the request again.
+    @Test public void recheckAfterATapShowsTheRealState() {
+        long tap = 1_790_000_000_000L;
+        assertTrue(Clips.RECHECK_MS > Clips.ASK_GRACE_MS);
+        assertFalse(Clips.shown(tap, true, tap + Clips.RECHECK_MS, () -> false));
+        assertTrue(Clips.shown(tap, false, tap + Clips.RECHECK_MS, () -> true));
+    }
 }

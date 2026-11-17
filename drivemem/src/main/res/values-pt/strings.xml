@@ -246,7 +246,7 @@
     <string name="cfg_avas_label">AVAS (som de alerta a pedestres)</string>
     <string name="cfg_advanced">Avançado</string>
     <string name="cfg_restore_header">Restaurar ao ligar o carro</string>
-    <string name="cfg_restore_hint">O Drive Assist volta à sua escolha salva no primeiro minuto depois que o carro liga. Depois disso, mudanças feitas no carro ou em outro app valem até o fim da viagem. Desligue um ajuste que outro app já restaura.</string>
+    <string name="cfg_restore_hint">O Drive Assist volta à sua escolha salva nos primeiros 15 segundos depois que o carro liga. Depois disso, mudanças feitas no carro ou em outro app valem até o fim da viagem. Desligue um ajuste que outro app já restaura.</string>
     <string name="cfg_park_monitor_label">Monitoramento em estacionamento</string>
     <string name="cfg_aeb_confirm_title">Desativar a frenagem automática de emergência?</string>
     <string name="cfg_aeb_confirm_body">Desativa a frenagem automática de emergência. Continua desativada após reiniciar enquanto Restaurar ao ligar o carro estiver ligado para AEB (Avançado, abaixo).</string>
@@ -287,6 +287,8 @@
     <string name="cfg_skyline_random_per_drive_label">Aleatório a cada viagem</string>
     <string name="cfg_theme_header">Tema</string>
     <string name="cfg_dark_mode_header">Modo escuro</string>
+    <string name="cfg_extra_dark_label">Extra escuro à noite</string>
+    <string name="cfg_extra_dark_note">Com o carro no modo escuro, depois de um minuto dirigindo sem tocar na tela, o Painel fica o mais escuro que a tela permite. Toque na tela ou troque a marcha para a luz voltar. O primeiro toque só acende a tela. O brilho do carro não muda.</string>
     <string name="cfg_theme_selection_header">Seleção do tema</string>
     <string name="cfg_theme_sub">Vale para todas as telas do Drive Assist. A miniatura mostra a cor e o formato dos cartões — a troca é imediata.</string>
     <string name="cfg_theme_selected">%1$s  ✓</string>
@@ -510,6 +512,25 @@
     <string name="can_header">Dados do carro (CAN)</string>
     <string name="can_enable_label">Ler a potência da bateria do carro (CAN)</string>
     <string name="can_hint">Volts × ampères exatos da bateria, lidos do próprio carro. Ligado por padrão; não há nada para configurar. Precisa do app ModeHelper. Para iniciar o leitor, pode ligar o ADB por alguns segundos e desligar de novo. Se não funcionar, o app volta para o dongle ou para a estimativa pelo % da bateria. Enquanto estiver ligado, outros apps no carro também podem ler esses dados do carro.</string>
+    <string name="routes_header">Rotas das viagens</string>
+    <string name="routes_enable_label">Gravar as rotas das viagens (GPS)</string>
+    <string name="routes_hint">Salva por onde cada viagem passou e onde cada carga foi feita. Fica no carro: nada é enviado para lugar nenhum. Entra no seu backup. Viagens de antes desta opção não têm rota.</string>
+    <string name="route_title">Rota</string>
+    <string name="route_none">Esta viagem não tem rota. As rotas são salvas nas viagens feitas com Config → Sistema → Rotas das viagens ligado.</string>
+    <string name="route_parked_only">Abra a rota com o carro em P</string>
+    <string name="routes_all_title">Todas as rotas</string>
+    <string name="routes_all_count">%1$d viagens</string>
+    <string name="routes_all_show">Ver todas</string>
+    <string name="routes_all_none">Ainda não há rotas. As rotas são salvas nas viagens feitas com Config → Sistema → Rotas das viagens ligado.</string>
+    <string name="routes_all_open">Abrir esta viagem</string>
+    <string name="routes_all_hint">Toque em uma rota ou em uma viagem para selecionar.</string>
+    <string name="route_stat_distance">Distância</string>
+    <string name="route_stat_time">Tempo</string>
+    <string name="route_stat_time_split">Em movimento %1$s · parado %2$s</string>
+    <string name="route_stat_speed">Velocidade</string>
+    <string name="route_stat_speed_value">média %1$s · máx. %2$s km/h</string>
+    <string name="route_stat_height_range">Altitude %1$s – %2$s m</string>
+    <string name="route_stat_outside">Lá fora</string>
     <!-- Cartões de sessão do dia (DailyStatsView) -->
     <string name="session_since">desde %1$s</string>
     <string name="session_yesterday">ontem</string>
@@ -576,7 +597,7 @@
     <string name="phone_download">Baixar</string>
     <string name="phone_restore_open">Restaurar de um arquivo</string>
     <string name="phone_restore_title">Restaurar um backup</string>
-    <string name="phone_restore_hint">Escolha um arquivo .dabackup. Suas configurações passam a ser as do backup. As viagens do backup são somadas às viagens do carro. Depois o app no carro reinicia.</string>
+    <string name="phone_restore_hint">Escolha um arquivo .dabackup. Suas configurações passam a ser as do backup. As viagens do backup são somadas às viagens do carro. Depois o app no carro reinicia. ADB, o acesso pelo celular, os comandos do Home Assistant e a senha do backup não mudam por aqui: ficam como estão no carro.</string>
     <string name="phone_restore_pw">Senha do backup</string>
     <string name="phone_restore_pw_hint">Vazio se for a senha definida neste carro</string>
     <string name="phone_restore_file">Arquivo de backup</string>
@@ -610,4 +631,5 @@
     <string name="phone_msg_no_space">O carro não tem espaço livre suficiente para este arquivo.</string>
     <string name="phone_msg_busy">Uma restauração já está em andamento.</string>
     <string name="phone_msg_no_file">Escolha um arquivo de backup primeiro.</string>
+    <string name="unit_kwh_per_100km">kWh/100 km</string>
 </resources>

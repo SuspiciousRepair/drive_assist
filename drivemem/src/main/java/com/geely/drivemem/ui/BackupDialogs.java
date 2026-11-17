@@ -250,6 +250,10 @@ public final class BackupDialogs {
                 AppBackup.restore(a, f.file, password);   // restarts the app on success
             } catch (BackupCrypto.WrongPassword | AppBackup.NeedPassword t) {
                 a.runOnUiThread(() -> askPassword(a, f, true));
+            } catch (AppBackup.NotParked t) {
+                // The car left Park while the backup was being unlocked.
+                a.runOnUiThread(() -> Toast.makeText(a, a.getString(R.string.backup_park_first),
+                    Toast.LENGTH_LONG).show());
             } catch (Throwable t) {
                 a.runOnUiThread(() -> new AlertDialog.Builder(a)
                     .setTitle(a.getString(R.string.backup_restore))

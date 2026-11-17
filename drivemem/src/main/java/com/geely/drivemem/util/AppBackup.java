@@ -79,6 +79,11 @@ public final class AppBackup {
     static final int KEEP = 7;
     static final long AUTO_EVERY_MS = 24L * 3600 * 1000;
     static final String PREF_LAST_AUTO = "backup_last_auto_ms";
+    /** When the daily backup last started, and how many starts in a row did
+     * not finish. Both are the app's own state (backup_*: never in a backup). */
+    static final String PREF_LAST_TRY = "backup_last_try_ms";
+    static final String PREF_AUTO_FAILS = "backup_auto_fails";
+    static final long RETRY_FIRST_MS = 3600L * 1000;
     static final String PREF_OFFER_DONE = "backup_offer_done";
     /** Set by a restore just before the restart, read once by the new process. */
     static final String PREF_NOTE = "backup_restore_note";
@@ -115,6 +120,32 @@ public final class AppBackup {
     /** No backup password is set, so there is no key to lock a backup with. */
     public static final class NoPassword extends IllegalStateException {
         NoPassword() { super("no backup password set"); }
+    }
+
+    /** The car left Park before the restore reached the step that changes
+     * things. Nothing was changed. */
+    public static final class NotParked extends IllegalStateException {
+        NotParked() { super("the car is not in Park"); }
+    }
+
+    /** Where a restore was asked from. */
+    public enum Origin {
+        /** The car's own screen, or adb (BackupReceiver): a person with the
+         * car. Every setting in the backup comes back. */
+        CAR,
+        /** A file sent by a phone (web/PhoneServer). The phone token goes
+         * over plain HTTP, so this file may be made by someone else: the
+         * settings in Prefs.isPhoneRestorable only, and the car keeps its
+         * own backup password. */
+        PHONE
+    }
+
+    /** True when a restore also stores the key that opened the backup, so
+     * the daily backup goes on with that password. Never from a phone: with
+     * a key of their choice, and the backup download on the phone pages,
+     * someone else could read every later backup of this car. */
+    static boolean storesKey(Origin origin) {
+        return origin == Origin.CAR;
     }
 
     /** This backup was locked with another password than the one set here. */
@@ -235,8 +266,14 @@ public final class AppBackup {
                 File part = new File(backups, name + ".part");
                 try {
                     if (!backups.isDirectory() && !backups.mkdirs()) throw new java.io.IOException("cannot create " + backups);
-                    if (first == null) writeBackup(app, part, ks[0], ks[1]);
-                    else copy(first, part);
+                    if (first == null) {
+                        writeBackup(app, part, ks[0], ks[1]);
+                        // On the drive before it gets its final name: prune
+                        // below may delete an older good backup.
+                        syncFile(part);
+                    } else {
+                        copy(first, part);
+                    }
                     if (!part.renameTo(f)) throw new java.io.IOException("rename " + part);
                     if (first == null) first = f;
                     writeReadme(backups);
@@ -259,22 +296,52 @@ public final class AppBackup {
         }
     }
 
-    /** Called by the watchdog. Once a day, parked only, on its own thread. */
+    /** Called by the watchdog (every 10 min, and on every resume). Once a
+     * day, parked only, on its own thread. A backup that fails (drive full,
+     * stick read-only) is tried again later, not on every call: see
+     * {@link #autoDue}. */
     public static void autoIfDue(Context ctx) {
         final Context app = ctx.getApplicationContext();
         SharedPreferences p = Prefs.file(app);
         long now = System.currentTimeMillis();
-        if (now - p.getLong(PREF_LAST_AUTO, 0) < AUTO_EVERY_MS) return;
+        final int fails = p.getInt(PREF_AUTO_FAILS, 0);
+        if (!autoDue(now, p.getLong(PREF_LAST_AUTO, 0), p.getLong(PREF_LAST_TRY, 0), fails)) return;
         if (!hasPassword(app)) return;   // the Backup card says backups are off
         if (!CarState.isParked() || running.get()) return;
+        // Counted as failed until it finishes: a backup cut off by a suspend
+        // or a killed process waits like one that failed.
+        p.edit().putLong(PREF_LAST_TRY, now).putInt(PREF_AUTO_FAILS, Math.min(fails + 1, 100)).apply();
         new Thread(() -> {
             try {
                 backupNow(app);
-                Prefs.file(app).edit().putLong(PREF_LAST_AUTO, System.currentTimeMillis()).apply();
+                Prefs.file(app).edit().putLong(PREF_LAST_AUTO, System.currentTimeMillis())
+                    .putInt(PREF_AUTO_FAILS, 0).apply();
             } catch (Throwable t) {
-                Log.w(TAG, "backup: auto: " + t);
+                Log.w(TAG, "backup: auto: " + t + " (try " + (fails + 1) + ", next in "
+                    + retryDelayMs(fails + 1) / 60_000L + " min)");
             }
         }, "auto-backup").start();
+    }
+
+    /** True when the daily backup must start now.
+     *
+     * lastOkMs: when the last one finished. lastTryMs: when the last one
+     * started. fails: how many starts in a row did not finish (0 after a
+     * good one). After a failure the next try waits {@link #retryDelayMs}.
+     * A last try in the future (the clock was set back) does not block. */
+    static boolean autoDue(long nowMs, long lastOkMs, long lastTryMs, int fails) {
+        if (nowMs - lastOkMs < AUTO_EVERY_MS) return false;
+        if (fails <= 0) return true;
+        long since = nowMs - lastTryMs;
+        return since < 0 || since >= retryDelayMs(fails);
+    }
+
+    /** The wait after this many failed tries in a row: 1 h, 2 h, 4 h, ...
+     * and never more than one day. */
+    static long retryDelayMs(int fails) {
+        if (fails <= 0) return 0;
+        if (fails > 5) return AUTO_EVERY_MS;             // 32 h is already over the cap
+        return Math.min(RETRY_FIRST_MS << (fails - 1), AUTO_EVERY_MS);
     }
 
     /** The database snapshot goes to the private cache first; only the
@@ -350,6 +417,16 @@ public final class AppBackup {
         } finally { dst.close(); }
     }
 
+    /** The same snapshot for the USB export (CsvExport): out is a private
+     * file the caller removes with {@link #deleteSnapshot}. Call off the UI
+     * thread; it waits for the db writer thread. */
+    static void snapshotForExport(Context ctx, File out) throws Exception {
+        final Context app = ctx.getApplicationContext();
+        onDbThread(app, () -> { snapshotDb(app, out); return null; });
+    }
+
+    static void deleteSnapshot(File snap) { deleteDb(snap); }
+
     private static void prune(File backups) {
         File[] files = backups.listFiles();
         if (files == null) return;
@@ -382,25 +459,49 @@ public final class AppBackup {
 
     /** Restores a backup file and restarts the app: on success this call
      * does not return. Call off the UI thread. password may be null when the
-     * key set here locked the backup (see needsPassword). Throws, with nothing
-     * changed, when the backup cannot be used: NeedPassword, or
-     * BackupCrypto.WrongPassword. The restarted app shows what happened
-     * through {@link #takeNote}. */
+     * key set here locked the backup (see needsPassword).
+     *
+     * Two parts, and the trip merge is the line between them:
+     *
+     *  1. Before the merge: unlock, read, migrate a copy of the backup's
+     *     database, and put the certificates next to their final place under
+     *     a temporary name. The merge itself is one transaction. A failure
+     *     anywhere here throws WITH NOTHING CHANGED (NeedPassword,
+     *     BackupCrypto.WrongPassword, a full disk, a bad file).
+     *
+     *  2. After the merge: the live rows have new ids, so there is no way
+     *     back. The settings and the moved row ids are saved (the save is
+     *     checked and tried again), the certificates get their final names,
+     *     and the app ALWAYS restarts, also when one of these steps fails.
+     *     Such a failure is in logcat ("backup: restore finished with an
+     *     error"); this call does not return to report it.
+     *
+     * The restarted app shows what happened through {@link #takeNote}. */
     public static void restore(Context ctx, File file, char[] password) throws Exception {
+        restore(ctx, file, password, Origin.CAR);
+    }
+
+    /** Same, for a file from the given origin (see {@link Origin}).
+     *
+     * Also throws NotParked: the car must be in Park at the moment the
+     * restore starts to change things. The caller's own check is too early
+     * for that, because unlocking a big backup, or a slow upload before it,
+     * takes long enough for the driver to leave Park. */
+    public static void restore(Context ctx, File file, char[] password, Origin origin) throws Exception {
         final Context app = ctx.getApplicationContext();
         final RestoreResult res = new RestoreResult();
         final File dir = new File(app.getCacheDir(), "restore");
         deleteTree(dir);
         if (!dir.mkdirs()) throw new java.io.IOException("cannot create " + dir);
         try {
-            restoreUnpacked(app, file, password, dir, res);
+            restoreUnpacked(app, file, password, dir, res, origin);
         } finally {
             deleteTree(dir);   // only reached on failure: success restarts the app
         }
     }
 
     private static void restoreUnpacked(Context app, File file, char[] password, File dir,
-                                        RestoreResult res) throws Exception {
+                                        RestoreResult res, Origin origin) throws Exception {
         // Unlock into the private cache.
         final byte[] key;
         final byte[] salt;
@@ -421,7 +522,7 @@ public final class AppBackup {
         File settingsFile = new File(dir, SETTINGS);
         if (!settingsFile.isFile()) throw new java.io.IOException("not a backup: " + file);
         String json = readText(settingsFile);
-        final Map<String, Object> settings = SettingsFile.parseSettings(json);
+        final Map<String, Object> settings = SettingsFile.parseSettings(json, origin == Origin.PHONE);
         res.settings = settings.size();
 
         int dbVersion = SettingsFile.dbVersion(json);
@@ -439,42 +540,140 @@ public final class AppBackup {
             if (dbVersion < CarDb.version()) CarDb.migrateCopy(app, tmp);
         }
 
+        // Every step that can fail for lack of space runs BEFORE the merge:
+        // the certificates are copied next to their final place now, and
+        // only renamed later.
+        final List<File[]> staged = stageFiles(dir, app.getFilesDir(), CERTS);
         try {
             onDbThread(app, () -> {
-                DbMerge.Result merged = null;
-                if (haveDb) {
-                    merged = mergeInto(app, tmp, res);
+                // Last moment before anything changes. The restore ends in an
+                // app restart, and that must not happen while driving.
+                if (!CarState.isParked()) throw new NotParked();
+                // Throws: the transaction rolled back, nothing is changed.
+                final DbMerge.Result merged = haveDb ? mergeInto(app, tmp, res) : null;
+
+                // From here the live rows may have new ids, and the running
+                // sessions still hold the old ones in memory. So nothing below
+                // may stop the id prefs from being saved, or the restart.
+                // Restart HERE, on the writer thread: nothing may write with
+                // the old ids, so nothing runs after this.
+                try {
+                    final SharedPreferences.Editor e = Prefs.file(app).edit();
+                    if (merged != null) shiftIdPrefs(Prefs.file(app).getAll(), e, merged.offsets);
+                    SettingsFile.apply(e, settings);
+                    e.putBoolean(PREF_OFFER_DONE, true);
+                    // The password that opened it locks the next backups too,
+                    // so the daily backup goes on after a reinstall.
+                    // Not for a file from a phone: see storesKey.
+                    if (storesKey(origin)) storeKey(e, key, salt);
+                    e.putString(PREF_NOTE, res.settings + "|" + res.tripsAdded + "|" + res.tripsAlreadyThere);
+                    final boolean[] first = {true};
+                    finishRestore(
+                        () -> {
+                            // A commit that failed left the new values in
+                            // memory: any later commit writes them all again.
+                            if (first[0]) { first[0] = false; return e.commit(); }
+                            return Prefs.file(app).edit().commit();
+                        },
+                        () -> restartApp(app),
+                        () -> moveStaged(staged),
+                        // modehelper keeps its own copy of a few settings, and
+                        // after a wipe it starts from its defaults. Tell it
+                        // now: the boot sync only covers the switches it
+                        // re-sends on every tick.
+                        () -> com.geely.drivemem.controls.HelperSync.pushRestored(app, settings),
+                        () -> { deleteDb(tmp); deleteTree(dir); },
+                        () -> Log.i(TAG, "backup: restored " + file + " settings=" + res.settings
+                            + " trips+" + res.tripsAdded + (res.tripsAlreadyThere ? " (already there)" : "")));
+                } catch (Throwable t) {
+                    Log.w(TAG, "backup: restore finished with an error: " + t);
+                    restartApp(app);
                 }
-                SharedPreferences.Editor e = Prefs.file(app).edit();
-                if (merged != null) shiftIdPrefs(Prefs.file(app).getAll(), e, merged.offsets);
-                SettingsFile.apply(e, settings);
-                e.putBoolean(PREF_OFFER_DONE, true);
-                // The password that opened it locks the next backups too,
-                // so the daily backup goes on after a reinstall.
-                storeKey(e, key, salt);
-                e.putString(PREF_NOTE, res.settings + "|" + res.tripsAdded + "|" + res.tripsAlreadyThere);
-                for (String name : CERTS) {
-                    File f = new File(dir, name);
-                    if (f.isFile()) copy(f, new File(app.getFilesDir(), name));
-                }
-                e.commit();
-                // modehelper keeps its own copy of a few settings, and after
-                // a wipe it starts from its defaults. Tell it now: the boot
-                // sync only covers the switches it re-sends on every tick.
-                com.geely.drivemem.controls.HelperSync.pushRestored(app, settings);
-                deleteDb(tmp);
-                deleteTree(dir);
-                Log.i(TAG, "backup: restored " + file + " settings=" + res.settings
-                    + " trips+" + res.tripsAdded + (res.tripsAlreadyThere ? " (already there)" : ""));
-                // Restart HERE, on the writer thread: the merge renumbered the
-                // live rows, and the running sessions still hold the old ids in
-                // memory. Nothing may write with them, so nothing runs after this.
-                restartApp(app);
                 return null;
             });
         } finally {
+            // Only reached when the merge did not happen.
             deleteDb(tmp);
+            discardStaged(staged);
         }
+    }
+
+    interface Step { void run() throws Exception; }
+    interface Save { boolean commit(); }
+    static final int SAVE_TRIES = 3;
+
+    /** The end of a restore, after the trip merge has committed. The order
+     * is the point:
+     *
+     *  - prefs first, because they hold the moved row ids. A save that
+     *    reports false is tried again, {@link #SAVE_TRIES} times in all.
+     *  - then every other step, each one also when a step before it failed.
+     *  - restart last, ALWAYS.
+     *
+     * Returns the first failure, or null. On the car restart ends the
+     * process, so nothing reads the result there; the tests do. */
+    static Throwable finishRestore(Save prefs, Runnable restart, Step... steps) {
+        Throwable first = null;
+        try {
+            boolean saved = false;
+            for (int i = 0; i < SAVE_TRIES && !saved; i++) {
+                try {
+                    saved = prefs.commit();
+                } catch (Throwable t) {
+                    if (first == null) first = t;
+                }
+            }
+            if (saved) first = null;
+            else if (first == null) first = new java.io.IOException("could not save the settings");
+            for (Step s : steps) {
+                try {
+                    s.run();
+                } catch (Throwable t) {
+                    if (first == null) first = t;
+                }
+            }
+            if (first != null) Log.w(TAG, "backup: restore finished with an error: " + first);
+        } finally {
+            restart.run();
+        }
+        return first;
+    }
+
+    static final String STAGED_SUFFIX = ".restore";
+
+    /** Copies each named file that is in fromDir into toDir under a temporary
+     * name, on the disk (synced). Returns {temporary, final} pairs for
+     * {@link #moveStaged}. On a failure it removes what it made and throws:
+     * the files with the final names are never touched here. */
+    static List<File[]> stageFiles(File fromDir, File toDir, String[] names) throws Exception {
+        List<File[]> staged = new ArrayList<>();
+        try {
+            for (String name : names) {
+                File src = new File(fromDir, name);
+                if (!src.isFile()) continue;
+                File part = new File(toDir, name + STAGED_SUFFIX);
+                staged.add(new File[]{part, new File(toDir, name)});
+                copy(src, part);
+            }
+        } catch (Throwable t) {
+            discardStaged(staged);
+            throw t;
+        }
+        return staged;
+    }
+
+    /** Gives every staged file its final name. A rename needs no new space.
+     * Tries them all, then throws when one did not move. */
+    static void moveStaged(List<File[]> staged) throws Exception {
+        File failed = null;
+        for (File[] pair : staged) {
+            if (!pair[0].renameTo(pair[1]) && failed == null) failed = pair[1];
+        }
+        if (failed != null) throw new java.io.IOException("rename to " + failed);
+    }
+
+    static void discardStaged(List<File[]> staged) {
+        for (File[] pair : staged) pair[0].delete();
     }
 
     /** What the last restore did, once: {settings, tripsAdded, alreadyThere},
@@ -522,11 +721,16 @@ public final class AppBackup {
                 if (!"ok".equals(ok)) throw new IllegalStateException("integrity_check: " + ok);
                 db.setTransactionSuccessful();
             } finally { db.endTransaction(); }
-            db.execSQL("DETACH DATABASE old");
+            // The merge is committed. Nothing after this line may throw, or
+            // the caller would take a finished merge for a failed one.
+            try { db.execSQL("DETACH DATABASE old"); }
+            catch (Throwable t) { Log.w(TAG, "backup: detach: " + t); }
             Long t = r.added.get("trip");
             res.tripsAdded = t == null ? 0 : t;
             return r;
-        } finally { db.close(); }
+        } finally {
+            try { db.close(); } catch (Throwable t) { Log.w(TAG, "backup: close: " + t); }
+        }
     }
 
     static void shiftIdPrefs(Map<String, ?> all, SharedPreferences.Editor e, Map<String, Long> offsets) {
@@ -612,10 +816,18 @@ public final class AppBackup {
     }
 
     static void copy(File src, File dst) throws Exception {
-        try (InputStream in = new FileInputStream(src); OutputStream out = new FileOutputStream(dst)) {
+        try (InputStream in = new FileInputStream(src); FileOutputStream out = new FileOutputStream(dst)) {
             byte[] buf = new byte[64 * 1024];
             int n;
             while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            out.getFD().sync();   // on the drive before the caller renames it
+        }
+    }
+
+    /** Forces a file that is already written and closed onto its drive. */
+    static void syncFile(File f) throws Exception {
+        try (FileOutputStream out = new FileOutputStream(f, true)) {
+            out.getFD().sync();
         }
     }
 
