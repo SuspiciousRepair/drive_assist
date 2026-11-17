@@ -500,6 +500,44 @@ format first. A backup from a newer app version is refused: update the app
 first. Restore runs only in P. Dashcam clips are not in the backup. Export
 them to USB.
 
+### Before a workshop visit or a factory reset
+
+Do these steps in order. Then you lose no trips and no settings.
+
+**Before the wipe:**
+
+1. Put the USB stick in the car. A backup on the car storage only is erased
+   by a workshop reset.
+2. Put the car in P.
+3. Go to Settings → **System** → **Backup** and press **Back up now**.
+4. Read the message. It must say **USB stick**. If it says only
+   *car storage*, the stick was not found: check it and back up again.
+5. Make sure you know the backup password.
+6. Export the dashcam clips you want to keep to USB. They are not in the
+   backup.
+7. Keep the USB stick. Do not let the workshop format it.
+
+**After the wipe:**
+
+1. Install Drive Assist again. Use the same version or a newer one.
+2. Before you drive, look at the car clock. The date and time must be
+   correct. If the clock is wrong, wait until it is correct. A wrong date
+   can make the restore think the trips are already on the car, and then it
+   skips them.
+3. Put the USB stick in and put the car in P.
+4. Open Drive Assist. It asks *"Restore your backup?"*. Press **Restore**
+   and type the backup password.
+5. Read the message after the restart. It must say how many trips were
+   added. If it says *"The trips were already on the car"* after a wipe,
+   stop and ask for help. Do not delete the backup file.
+
+**Set these up again by hand** (they are not in the backup):
+
+- the custom lock sound: import it again (Settings → **Doors** → **Lock sound**);
+- the OBD2 dongle: pair it again (see *Bluetooth OBD2 Dongle Pairing Fails*
+  above);
+- phone access: scan the code on the car again with your phone.
+
 **From a computer (optional):** `tools/car-backup.sh` runs the same backup
 over ADB and also keeps the two APKs. It asks for the backup password only
 when the app needs it. `tools/backup-open.sh` unlocks a backup file on the
