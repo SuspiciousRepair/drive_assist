@@ -187,6 +187,22 @@ public class EnergySplitTest {
         assertEquals(t.fanKwh, s.climateKwh, 1e-12);
     }
 
+    // --- Stats page: the split summed over a period ---
+
+    @Test public void splitTotalsSkipTripsWithoutASplit() {
+        java.util.List<DailyStatsProvider.DaySession> list = new java.util.ArrayList<>();
+        DailyStatsProvider.DriveSession a = new DailyStatsProvider.DriveSession(1, 0, 1, 10, 80, 78, 0, 0, 0, 1.5, 1.5, 15, EnergySource.MEASURED);
+        a.split = EnergySplit.of(1.5, 1.5, 1.2, 0, 0.1, 600, 0.02);
+        DailyStatsProvider.DriveSession b = new DailyStatsProvider.DriveSession(2, 2, 3, 20, 78, 74, 0, 0, 0, 3.0, 3.0, 15, EnergySource.MEASURED);
+        list.add(a);
+        list.add(b);   // older trip, no split: its km must not dilute the Wh/km
+        double[] t = DailyStatsProvider.splitTotals(list);
+        assertNotNull(t);
+        assertEquals(1.5, t[0] + t[1] + t[2], 1e-9);
+        assertEquals(10, t[3], 1e-9);
+        assertNull(DailyStatsProvider.splitTotals(java.util.Collections.singletonList(b)));
+    }
+
     // --- Mean power for ABRP ---
 
     @Test public void meanPowerOverTheWindow() {

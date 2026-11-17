@@ -18,14 +18,15 @@ import java.util.Locale;
  * driving card:
  *
  *     ┌──────────┐
- *     │   8,7    │   number in the scale colour
- *     │kWh/100 km│
+ *     │   152    │   number in the scale colour
+ *     │  Wh/km   │
  *     │ ━●━━━━━━ │   where it sits on the scale
  *     └──────────┘
  *
  * The scale is FIXED (not relative to the driver's own average), so the same
- * consumption always has the same colour: 12 kWh/100 km and below is green,
- * 20 and above is red.
+ * consumption always has the same colour: 120 Wh/km and below is green,
+ * 200 and above is red. Internally the value and the scale stay in
+ * kWh/100 km; only the drawn number is Wh/km (util.EnergyUnits).
  */
 final class EfficiencyBadgeView extends View {
     static final float[] STOPS = {12f, 14f, 16f, 18f, 20f};
@@ -69,15 +70,16 @@ final class EfficiencyBadgeView extends View {
         unit.setTextAlign(Paint.Align.CENTER);
         bar.setStrokeCap(Paint.Cap.ROUND);
         ring.setStyle(Paint.Style.STROKE);
-        unitText = c.getString(R.string.unit_kwh_per_100km);
+        unitText = com.geely.drivemem.util.EnergyUnits.WH_PER_KM;
     }
 
     static final String NO_VALUE = "—";
 
-    /** The number as drawn: one decimal, "~" after an estimate, a dash for none. */
+    /** The number as drawn, from kWh/100 km: whole Wh/km, "~" after an
+     * estimate, a dash for none. */
     static String numberText(double value, boolean estimated, Locale locale) {
         if (Double.isNaN(value)) return NO_VALUE;
-        String s = String.format(locale, "%.1f", value);
+        String s = String.format(locale, "%.0f", com.geely.drivemem.util.EnergyUnits.whPerKm(value));
         return estimated ? s + "~" : s;
     }
 

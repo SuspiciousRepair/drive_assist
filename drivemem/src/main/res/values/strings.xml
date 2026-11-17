@@ -548,6 +548,16 @@
     <string name="route_stat_outside">Outside</string>
     <string name="route_stat_by_use">Energy by use</string>
     <string name="route_stat_by_use_parts">drive · climate · other</string>
+    <string name="stats_part_drive">Drive</string>
+    <string name="stats_part_climate">Climate</string>
+    <string name="stats_part_other">Other</string>
+    <string name="stats_by_use_none">Shows on new trips measured by CAN</string>
+    <string name="stats_card_trip">Trip</string>
+    <string name="stats_driving_time">Driving time</string>
+    <string name="stats_avg_speed">Avg. speed</string>
+    <string name="stats_relief">Elevation</string>
+    <string name="stats_relief_net">net</string>
+    <string name="session_stat_split_note">drive %1$s · climate %2$s · other %3$s</string>
     <!-- Day session cards (DailyStatsView) -->
     <string name="session_since">since %1$s</string>
     <string name="session_yesterday">yesterday</string>
@@ -648,5 +658,4 @@
     <string name="phone_msg_no_space">The car does not have enough free space for this file.</string>
     <string name="phone_msg_busy">A restore is already running.</string>
     <string name="phone_msg_no_file">Pick a backup file first.</string>
-    <string name="unit_kwh_per_100km">kWh/100 km</string>
 </resources>

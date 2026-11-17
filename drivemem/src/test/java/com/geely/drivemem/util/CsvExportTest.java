@@ -61,7 +61,7 @@ public class CsvExportTest {
             120.4, 98.6, 0.8, 5.3, 4.5, 14.4, EnergySource.MEASURED);
         String[] l = lines(CsvExport.tripsCsv(Collections.singletonList(t), SP));
         assertEquals(CsvExport.TRIPS_HEADER, l[0]);
-        assertEquals("9,2026-11-14 10:00,2026-11-14 10:42,42,31.2,80,72,4.50,5.30,0.80,14.4,measured,120,99", l[1]);
+        assertEquals("9,2026-11-14 10:00,2026-11-14 10:42,42,31.2,80,72,4.50,5.30,0.80,144,measured,120,99", l[1]);
     }
 
     // A trip still being driven has end 0; a trip with no energy data

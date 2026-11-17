@@ -75,8 +75,8 @@ public class DailyStatsView extends LinearLayout {
 
     private LinearLayout consumptionCard;
     private LinearLayout batteryCard;
-    private LinearLayout timeCard;
-    private LinearLayout altitudeCard;
+    private LinearLayout energyCard;
+    private LinearLayout tripCard;
     private LinearLayout sessionsContainer;
     private TextView sessionsSummary;
     private BarChart hourlyChart;
@@ -272,31 +272,14 @@ public class DailyStatsView extends LinearLayout {
         consumptionCard.setLayoutParams(lp1);
         dashboardRow.addView(consumptionCard);
 
-        batteryCard = new LinearLayout(c);
-        batteryCard.setOrientation(LinearLayout.VERTICAL);
-        batteryCard.setPadding(cardPad, cardPad, cardPad, cardPad);
-        batteryCard.setBackground(Style.card(Style.cardFillColor(), c));
-        LinearLayout.LayoutParams lp2 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-        lp2.rightMargin = cardGap;
-        batteryCard.setLayoutParams(lp2);
+        energyCard = newDashboardCard(c, cardPad, cardGap);
+        dashboardRow.addView(energyCard);
+
+        batteryCard = newDashboardCard(c, cardPad, cardGap);
         dashboardRow.addView(batteryCard);
 
-        timeCard = new LinearLayout(c);
-        timeCard.setOrientation(LinearLayout.VERTICAL);
-        timeCard.setPadding(cardPad, cardPad, cardPad, cardPad);
-        timeCard.setBackground(Style.card(Style.cardFillColor(), c));
-        LinearLayout.LayoutParams lp3 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-        lp3.rightMargin = cardGap;
-        timeCard.setLayoutParams(lp3);
-        dashboardRow.addView(timeCard);
-
-        altitudeCard = new LinearLayout(c);
-        altitudeCard.setOrientation(LinearLayout.VERTICAL);
-        altitudeCard.setPadding(cardPad, cardPad, cardPad, cardPad);
-        altitudeCard.setBackground(Style.card(Style.cardFillColor(), c));
-        LinearLayout.LayoutParams lp4 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-        altitudeCard.setLayoutParams(lp4);
-        dashboardRow.addView(altitudeCard);
+        tripCard = newDashboardCard(c, cardPad, 0);
+        dashboardRow.addView(tripCard);
 
         addView(dashboardRow);
         Style.gap(this, c, 20);
@@ -730,8 +713,8 @@ public class DailyStatsView extends LinearLayout {
         for (DailyStatsProvider.DayOverview d : po.days) dates.add(d.date);
         renderConsumptionCard(po.totals, DailyStatsProvider.getSpeedBucketEfficiency(getContext(), dates));
         renderBatteryCard(po.totals); // pii: allow (17-char identifier, not a VIN)
-        renderTimeCard(po.totals);
-        renderAltitudeCard(po.totals);
+        renderEnergyCard(po.totals);
+        renderTripCard(po.totals);
         renderPeriodSessions(po);
         renderHourlyChart(DailyStatsProvider.getHourlySpeedData(getContext(), dates));
     }
@@ -891,8 +874,8 @@ public class DailyStatsView extends LinearLayout {
         // 4-Column Middle Section
         renderConsumptionCard(ov, DailyStatsProvider.getSpeedBucketEfficiency(getContext(), ov.date));
         renderBatteryCard(ov);
-        renderTimeCard(ov);
-        renderAltitudeCard(ov);
+        renderEnergyCard(ov);
+        renderTripCard(ov);
 
         // Bottom Section: Sessions
         renderSessions(ov);
@@ -991,15 +974,15 @@ public class DailyStatsView extends LinearLayout {
         // The caption below already got this mark; the number itself -- the
         // most prominent figure on the whole card -- didn't.
         CharSequence heroVal = ov.efficiencyKwh100km > 0
-                ? withEnergySourceMark(valueWithUnit(String.format(Locale.US, "%.1f", ov.efficiencyKwh100km),
-                    null, "kWh/100 km", HERO_UNIT_SCALE), ov.energySource)
+                ? withEnergySourceMark(valueWithUnit(com.geely.drivemem.util.EnergyUnits.number(ov.efficiencyKwh100km),
+                    null, com.geely.drivemem.util.EnergyUnits.WH_PER_KM, HERO_UNIT_SCALE), ov.energySource)
                 : "—";
         CharSequence consumptionCaption = withEnergySourceMark("Consumo por velocidade", ov.energySource);
         if (ov.efficiencyFromCharges) {
             // Charge-based figure (no driving energy recorded): say so, and
             // don't put the estimate mark on it -- its source is the caption.
-            heroVal = valueWithUnit(String.format(Locale.US, "%.1f", ov.chargeBasedKwh100km),
-                    null, "kWh/100 km", HERO_UNIT_SCALE);
+            heroVal = valueWithUnit(com.geely.drivemem.util.EnergyUnits.number(ov.chargeBasedKwh100km),
+                    null, com.geely.drivemem.util.EnergyUnits.WH_PER_KM, HERO_UNIT_SCALE);
             consumptionCaption = "Pelas recargas (inclui uso parado)";
         }
         consumptionCard.addView(createHeroView(c, heroVal, consumptionCaption));
@@ -1106,63 +1089,137 @@ public class DailyStatsView extends LinearLayout {
         distributeInPairs(c, batteryCard, chips, 10);
     }
 
-    private void renderTimeCard(DailyStatsProvider.DayOverview ov) {
-        Context c = getContext();
-        timeCard.removeAllViews();
-
-        // Header: "Tempo & Velocidade"
-        TextView title = new TextView(c);
-        title.setText("Tempo & Velocidade");
-        title.setTextColor(Style.TEXT_DIM);
-        title.setTextSize(15.5f);
-        title.setTypeface(null, Typeface.BOLD);
-        timeCard.addView(title);
-        Style.gap(timeCard, c, 8);
-
-        // Hero Metric: 11.1 km (Distância Total) -- the trip-computer trio
-        // (distance/time/speed) together; altitude gets its own card now.
-        CharSequence distStr = valueWithUnit(String.format(Locale.US, "%.1f", ov.distanceKm), null, "km", HERO_UNIT_SCALE);
-        timeCard.addView(createHeroView(c, distStr, "Distância Total"));
-        Style.gap(timeCard, c, 14);
-
-        long dMin = Math.round(ov.drivingMinutes);
-        CharSequence tempoVal = String.format(Locale.US, "%dh %02dm", dMin / 60, dMin % 60);
-        CharSequence velVal = valueWithUnit(String.format(Locale.US, "%.0f", ov.avgSpeedKmh), null, "km/h", ROW_UNIT_SCALE);
-
-        List<View> chips = new ArrayList<>();
-        chips.add(metricChip(c, "Tempo", tempoVal));
-        chips.add(metricChip(c, "Vel. Média", velVal));
-        distributeInPairs(c, timeCard, chips, 10);
+    /** One of the four equal dashboard cards; {@code rightGap} 0 for the last. */
+    private static LinearLayout newDashboardCard(Context c, int pad, int rightGap) {
+        LinearLayout card = new LinearLayout(c);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(pad, pad, pad, pad);
+        card.setBackground(Style.card(Style.cardFillColor(), c));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+        lp.rightMargin = rightGap;
+        card.setLayoutParams(lp);
+        return card;
     }
 
-    private void renderAltitudeCard(DailyStatsProvider.DayOverview ov) {
+    private void cardTitle(LinearLayout card, CharSequence text) {
         Context c = getContext();
-        altitudeCard.removeAllViews();
-
-        // Header: "Relevo"
         TextView title = new TextView(c);
-        title.setText("Relevo");
+        title.setText(text);
         title.setTextColor(Style.TEXT_DIM);
         title.setTextSize(15.5f);
         title.setTypeface(null, Typeface.BOLD);
-        altitudeCard.addView(title);
-        Style.gap(altitudeCard, c, 8);
+        card.addView(title);
+        Style.gap(card, c, 8);
+    }
 
-        // Hero Metric: Saldo (net elevation change for the day)
-        String signNet = ov.netElevationM >= 0 ? "+" : "";
-        CharSequence saldoVal = valueWithUnit(String.format(Locale.US, "%s%.0f", signNet, ov.netElevationM), null, "m", HERO_UNIT_SCALE);
-        altitudeCard.addView(createHeroView(c, saldoVal, "Saldo do Dia"));
-        Style.gap(altitudeCard, c, 14);
+    /** Where the period's energy went: drive, climate, other (the trips CAN
+     * measured; EnergySplit). A bar of the shares, then each part in kWh and
+     * in Wh/km over the km those trips covered. */
+    private void renderEnergyCard(DailyStatsProvider.DayOverview ov) {
+        Context c = getContext();
+        energyCard.removeAllViews();
+        cardTitle(energyCard, c.getString(R.string.route_stat_by_use));
 
-        CharSequence subidaVal = valueWithUnit(String.format(Locale.US, "+%.0f", ov.ascentDPlusM), Style.HEAT, "m", ROW_UNIT_SCALE);
-        CharSequence descidaVal = valueWithUnit(String.format(Locale.US, "-%.0f", ov.descentDMinusM), Style.COOL, "m", ROW_UNIT_SCALE);
-        CharSequence maxAltVal = valueWithUnit(String.format(Locale.US, "%.0f", ov.maxAltitudeM), null, "m", ROW_UNIT_SCALE);
+        double[] t = DailyStatsProvider.splitTotals(ov.sessions);
+        if (t == null) {
+            energyCard.addView(createHeroView(c, "—", c.getString(R.string.stats_by_use_none)));
+            return;
+        }
+        double[] kwh = {t[0], t[1], t[2]};
+        double km = t[3];
+        int[] colors = {Style.ACCENT, Style.COOL, Style.TEXT_DIM};
+        int[] names = {R.string.stats_part_drive, R.string.stats_part_climate, R.string.stats_part_other};
+
+        // The shares as one bar (a negative part, possible on a short trip,
+        // draws as nothing).
+        LinearLayout bar = new LinearLayout(c);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 22));
+        barLp.topMargin = Style.dp(c, 6);
+        bar.setLayoutParams(barLp);
+        bar.setClipToOutline(true);
+        bar.setBackground(Style.tile(c));
+        for (int i = 0; i < 3; i++) {
+            View seg = new View(c);
+            seg.setBackgroundColor(colors[i]);
+            bar.addView(seg, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT,
+                (float) Math.max(0, kwh[i])));
+        }
+        energyCard.addView(bar);
+        Style.gap(energyCard, c, 14);
+
+        String f = Math.abs(kwh[0] + kwh[1] + kwh[2]) < 2 ? "%.2f" : "%.1f";
+        for (int i = 0; i < 3; i++) {
+            LinearLayout row = new LinearLayout(c);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(0, Style.dp(c, 4), 0, Style.dp(c, 4));
+
+            View sw = new View(c);
+            sw.setBackgroundColor(colors[i]);
+            LinearLayout.LayoutParams swLp = new LinearLayout.LayoutParams(Style.dp(c, 12), Style.dp(c, 12));
+            swLp.rightMargin = Style.dp(c, 10);
+            row.addView(sw, swLp);
+
+            TextView name = new TextView(c);
+            name.setText(names[i]);
+            name.setTextColor(Style.TEXT);
+            name.setTextSize(17f);
+            row.addView(name, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+            TextView energy = new TextView(c);
+            energy.setText(valueWithUnit(String.format(Locale.US, f, kwh[i]), Style.TEXT_DIM, "kWh", ROW_UNIT_SCALE));
+            energy.setTextSize(16f);
+            energy.setPadding(0, 0, Style.dp(c, 14), 0);
+            row.addView(energy);
+
+            double wh = com.geely.drivemem.util.EnergyUnits.whPerKm(kwh[i], km);
+            TextView perKm = new TextView(c);
+            perKm.setText(Double.isNaN(wh) ? "—" : valueWithUnit(com.geely.drivemem.util.EnergyUnits.wholeWh(wh),
+                null, com.geely.drivemem.util.EnergyUnits.WH_PER_KM, ROW_UNIT_SCALE));
+            perKm.setTextColor(Style.TEXT);
+            perKm.setTextSize(19f);
+            perKm.setTypeface(null, Typeface.BOLD);
+            row.addView(perKm);
+
+            energyCard.addView(row);
+        }
+    }
+
+    /** Time & Speed and Relief in one card. No distance: the chart above
+     * already shows it. Relief is one block: the net change, with the climb
+     * and descent that make it under it. */
+    private void renderTripCard(DailyStatsProvider.DayOverview ov) {
+        Context c = getContext();
+        tripCard.removeAllViews();
+        cardTitle(tripCard, c.getString(R.string.stats_card_trip));
+
+        long dMin = Math.round(ov.drivingMinutes);
+        tripCard.addView(createHeroView(c, String.format(Locale.US, "%dh %02dm", dMin / 60, dMin % 60),
+            c.getString(R.string.stats_driving_time)));
+        Style.gap(tripCard, c, 14);
+
+        CharSequence velVal = valueWithUnit(String.format(Locale.US, "%.0f", ov.avgSpeedKmh), null, "km/h", ROW_UNIT_SCALE);
+
+        double net = ov.netElevationM;
+        int netColor = net > 0.5 ? Style.HEAT : net < -0.5 ? Style.COOL : Style.TEXT;
+        CharSequence netVal = valueWithUnit(String.format(Locale.US, "%s%.0f", net > 0.5 ? "+" : "", net),
+            netColor, "m", ROW_UNIT_SCALE);
+        SpannableStringBuilder upDown = new SpannableStringBuilder();
+        int a = upDown.length();
+        upDown.append(String.format(Locale.US, "↑%.0f", ov.ascentDPlusM));
+        upDown.setSpan(new ForegroundColorSpan(Style.HEAT), a, upDown.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        upDown.append("  ");
+        int d = upDown.length();
+        upDown.append(String.format(Locale.US, "↓%.0f", ov.descentDMinusM));
+        upDown.setSpan(new ForegroundColorSpan(Style.COOL), d, upDown.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        upDown.append(" m");
 
         List<View> chips = new ArrayList<>();
-        chips.add(metricChip(c, "Subida", subidaVal));
-        chips.add(metricChip(c, "Descida", descidaVal));
-        chips.add(metricChip(c, "Altitude Máxima", maxAltVal));
-        distributeInPairs(c, altitudeCard, chips, 10);
+        chips.add(metricChip(c, c.getString(R.string.stats_avg_speed), velVal));
+        chips.add(metricChip(c, c.getString(R.string.stats_relief), netVal, upDown));
+        distributeInPairs(c, tripCard, chips, 10);
     }
 
     // Unit text (kWh, km, %, ...) always renders smaller, lighter-weight and
@@ -1210,6 +1267,11 @@ public class DailyStatsView extends LinearLayout {
      * for attention.
      */
     private View metricChip(Context c, String label, CharSequence value) {
+        return metricChip(c, label, value, null);
+    }
+
+    /** As above, with an optional small dim line under the value. */
+    private View metricChip(Context c, String label, CharSequence value, CharSequence sub) {
         LinearLayout chip = new LinearLayout(c);
         chip.setOrientation(LinearLayout.VERTICAL);
         int padH = Style.dp(c, 10), padV = Style.dp(c, 8);
@@ -1230,6 +1292,13 @@ public class DailyStatsView extends LinearLayout {
         valueTv.setPadding(0, Style.dp(c, 2), 0, 0);
         chip.addView(valueTv);
 
+        if (sub != null) {
+            TextView subTv = new TextView(c);
+            subTv.setText(sub);
+            subTv.setTextColor(Style.TEXT_DIM);
+            subTv.setTextSize(14f);
+            chip.addView(subTv);
+        }
         return chip;
     }
 
@@ -1295,7 +1364,7 @@ public class DailyStatsView extends LinearLayout {
             col.setLayoutParams(colLp);
 
             TextView valLbl = new TextView(c);
-            valLbl.setText(hasData ? String.format(Locale.US, "%.1f", b.kwh100km) : "—");
+            valLbl.setText(hasData ? com.geely.drivemem.util.EnergyUnits.number(b.kwh100km) : "—");
             valLbl.setTextColor(Style.TEXT_DIM);
             valLbl.setTextSize(11f);
             col.addView(valLbl);
@@ -1673,7 +1742,18 @@ public class DailyStatsView extends LinearLayout {
         Context c = getContext();
         card.addView(titleRow(R.drawable.ic_car, Style.TEXT_DIM, t, dayStartMs, number(t.distanceKm, "km")));
 
-        CharSequence eff = t.efficiencyKwh100km > 0 ? number(t.efficiencyKwh100km, "kWh/100km") : "—";
+        CharSequence eff = t.efficiencyKwh100km > 0
+                ? valueWithUnit(com.geely.drivemem.util.EnergyUnits.number(t.efficiencyKwh100km), null,
+                    com.geely.drivemem.util.EnergyUnits.WH_PER_KM, ROW_UNIT_SCALE)
+                : "—";
+        // Where it went, per km: the three add up to the efficiency above.
+        CharSequence splitNote = null;
+        if (t.split != null && t.distanceKm > 0.2) {
+            splitNote = c.getString(R.string.session_stat_split_note,
+                com.geely.drivemem.util.EnergyUnits.wholeWh(com.geely.drivemem.util.EnergyUnits.whPerKm(t.split.driveKwh, t.distanceKm)),
+                com.geely.drivemem.util.EnergyUnits.wholeWh(com.geely.drivemem.util.EnergyUnits.whPerKm(t.split.climateKwh, t.distanceKm)),
+                com.geely.drivemem.util.EnergyUnits.wholeWh(com.geely.drivemem.util.EnergyUnits.whPerKm(t.split.otherKwh, t.distanceKm)));
+        }
 
         // Net energy, with the sum that makes it written out underneath. The
         // old "Consumo: 1.6 kWh (Regen +0.7)" read as if regen was still to be
@@ -1714,7 +1794,7 @@ public class DailyStatsView extends LinearLayout {
         card.addView(statsRow(
             stat(R.string.session_stat_battery, socValue(t.socStart, t.socEnd), null),
             stat(R.string.session_stat_net_energy, net, breakdown),
-            stat(R.string.session_stat_efficiency, eff, null),
+            stat(R.string.session_stat_efficiency, eff, splitNote),
             stat(R.string.session_stat_elevation, alt, null)));
 
         // Tapping a finished trip opens its route (issue #19), Park only,
