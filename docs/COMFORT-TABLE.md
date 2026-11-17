@@ -22,7 +22,7 @@ Each column in the table configures five distinct HVAC control levers:
 | **Power** | `HVAC_POWER_ON` | Binary master power. Level `0` is strictly **OFF**. Levels `C1..C5` and `W1..W5` are **ON**. |
 | **Machine (AC)** | `HVAC_AC_ON` | Engages compressor for cooling or heat pump for heating. False in free ambient columns. |
 | **Setpoint** | `HVAC_TEMPERATURE_SET` | Target cabin temperature (°C). Active when `machine = true`, `NaN` when off. |
-| **Fan Speed** | `HVAC_FAN_SPEED` | Blower intensity: `[1, 2, 4, 6, 8]` across levels 1 to 5. |
+| **Fan Speed** | `HVAC_FAN_SPEED` | Blower intensity across levels 1 to 5: `[1, 2, 3, 6, 8]` cooling (C3 is fan 3 so C2 -> C3 is a small step), `[1, 2, 4, 6, 8]` heating. |
 | **Airflow Direction** | `HVAC_FAN_DIRECTION` | Distribution mask: `DIR_FACE` (1), `DIR_FEET` (2), `DIR_FACE_FEET` (3), `DIR_GLASS` (4), or `DIR_GLASS_FEET` (6). |
 | **Recirculation** | `HVAC_RECIRC_ON` | Cabin air recirculation. Used as an intensity lever on cooling; restricted on heating. |
 

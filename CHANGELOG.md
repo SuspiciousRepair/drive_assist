@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Changed
+- **Climate: C3 blows softer.** C3 now runs the fan at 3, not 4. Before, the
+  step from C2 to C3 doubled the fan in the same tap that moved the air from
+  the windshield to your face, which felt like too much. C1, C2, C4, C5 and
+  all warm levels are unchanged.
 - **Consumption is now shown in Wh/km, everywhere.** 15.2 kWh/100 km is now
   152 Wh/km: whole numbers, shorter, and the unit ABRP uses. The car's own
   screens still show kWh/100 km (ten times smaller). This changes the stats
