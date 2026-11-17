@@ -451,6 +451,7 @@
     <string name="charge_stats_title">สถิติการชาร์จ</string>
     <string name="charge_completed_title">การชาร์จเสร็จสมบูรณ์</string>
     <string name="charge_cost_label">ค่าใช้จ่าย</string>
+    <string name="charge_cost_change">แก้ไข</string>
     <string name="charge_cost_input_title">ค่าใช้จ่ายในการชาร์จ</string>
     <string name="charge_cost_input_hint">ค่าใช้จ่ายทั้งหมด (เช่น 45.00)</string>
     <string name="charge_cost_btn_input">ป้อนค่าใช้จ่าย</string>

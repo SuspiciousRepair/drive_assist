@@ -73,6 +73,12 @@
   yesterday, so an overnight charge that ended this morning showed only
   its evening part, and today's driving and charging were missing until
   the next day. The 30 bars now end with today.
+- **Tapping a charge opens its details**, on the charge page and on the
+  stats page: the cost, with a "Change" button (or "+ Cost" when there is
+  none yet), and the charging power
+  curve. In Park only, like before. On the stats page this replaces the cost
+  window the tap used to open; on the charge page, while driving, the tap
+  only selects the charge.
 - **Charges saved no place.** The place was taken from the GPS when the
   charge ended, and by then the GPS is long off. It now comes from where the
   last trip before the charge ended (the car does not move while it charges),

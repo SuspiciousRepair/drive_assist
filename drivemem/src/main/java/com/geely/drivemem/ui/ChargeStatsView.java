@@ -523,7 +523,7 @@ public class ChargeStatsView extends LinearLayout {
                 Toast.makeText(c, R.string.charge_cost_parked_only, Toast.LENGTH_SHORT).show();
                 return;
             }
-            ChargeCurrentCurveDialog.show(c, s);
+            ChargeCurrentCurveDialog.show(c, s, this::refresh);
         });
         powerCell.addView(curveBtn);
         bottomRow.addView(powerCell);
@@ -568,7 +568,13 @@ public class ChargeStatsView extends LinearLayout {
         }
         bottomRow.addView(costCell);
         card.addView(bottomRow);
-        card.setOnClickListener(v -> selectSession(s.id, false));
+        // Tapping the card selects it (outline + its bar in the chart above)
+        // and opens its details, the same dialog as the chart icon. The
+        // details are Park only; on the move the tap only selects.
+        card.setOnClickListener(v -> {
+            selectSession(s.id, false);
+            if (com.geely.drivemem.state.CarState.isParked()) ChargeCurrentCurveDialog.show(c, s, this::refresh);
+        });
         card.setBackground(s.id == selectedSessionId
             ? Style.outlinedCard(isDcfc ? Style.GOOD : Style.ACCENT, c)
             : Style.card(Style.CARD, c));

@@ -440,6 +440,7 @@
     <string name="charge_curve_no_batt_temp">Temperatura de la batería no disponible (OBD2 desconectado)</string>
     <string name="charge_completed_title">Carga completada</string>
     <string name="charge_cost_label">Coste</string>
+    <string name="charge_cost_change">Cambiar</string>
     <string name="charge_cost_input_title">Coste de la carga</string>
     <string name="charge_cost_input_hint">Coste total (ej. 45,00)</string>
     <string name="charge_cost_btn_input">Introducir coste</string>

@@ -36,7 +36,14 @@ public final class ChargeCurrentCurveDialog {
     private static final float POWER_AXIS_MAX_KW_AC = 8f;
     private static final float POWER_AXIS_MAX_KW_DC = 80f;
 
-    public static void show(Context c, ChargeSession.Summary session) {
+    public static void show(Context c, ChargeSession.Summary session) { show(c, session, null); }
+
+    /**
+     * The charge's details: its cost (tap it to set or change it, same
+     * ChargeCostDialog as before) and the power curve. {@code onCostChanged}
+     * runs after a cost is saved, so the screen behind can redraw.
+     */
+    public static void show(Context c, ChargeSession.Summary session, Runnable onCostChanged) {
         Dialog dialog = new Dialog(c);
         dialog.setCanceledOnTouchOutside(true);
         LinearLayout root = new LinearLayout(c);
@@ -46,6 +53,42 @@ public final class ChargeCurrentCurveDialog {
         root.setBackground(Style.card(Style.cardFillColor(), c));
         TextView title = Style.title(c, c.getString(R.string.charge_curve_title));
         root.addView(title);
+
+        // Cost: the value and its per-kWh rate, or "+ Custo" when none was
+        // entered. Either one opens the cost editor; saving closes this
+        // window so the screen behind shows the new value.
+        LinearLayout costRow = new LinearLayout(c);
+        costRow.setOrientation(LinearLayout.HORIZONTAL);
+        costRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        costRow.setPadding(0, Style.dp(c, 8), 0, Style.dp(c, 12));
+        Runnable editCost = () -> ChargeCostDialog.show(c, session.id, session.kwh, session.socStart,
+            session.socEnd, session.cost, () -> {
+                dialog.dismiss();
+                if (onCostChanged != null) onCostChanged.run();
+            });
+        if (session.cost != null && session.cost >= 0) {
+            TextView costText = new TextView(c);
+            android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder();
+            sb.append(c.getString(R.string.charge_cost_label)).append(": ").append(session.costLabel());
+            if (session.costPerKwhLabel() != null) {
+                Style.appendUnit(sb, "  " + session.costPerKwhLabel(), Style.UNIT_SCALE_ROW);
+            }
+            costText.setText(sb);
+            costText.setTextColor(Style.ACCENT);
+            costText.setTextSize(19);
+            costText.setTypeface(null, android.graphics.Typeface.BOLD);
+            costText.setOnClickListener(v -> editCost.run());
+            costRow.addView(costText);
+            // The value alone did not read as editable (owner, 2026-11-17).
+            TextView change = Style.button(c, c.getString(R.string.charge_cost_change), Style.CARD_HI, editCost);
+            LinearLayout.LayoutParams clp = (LinearLayout.LayoutParams) change.getLayoutParams();
+            clp.leftMargin = Style.dp(c, 16);
+            clp.topMargin = 0;
+            costRow.addView(change, clp);
+        } else {
+            costRow.addView(Style.button(c, "+ " + c.getString(R.string.charge_cost_label), Style.CARD_HI, editCost));
+        }
+        root.addView(costRow);
 
         Curves curves = read(c, session);
         if (curves.power.isEmpty()) {
