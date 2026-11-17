@@ -215,6 +215,21 @@ A mean over the sample interval (CAN gives 10 Hz) would be cleaner.
   or without the dongle. The trip screen shows "Energy by use".
 - ABRP: mean battery power over the last 6 s (`EnergyIntegrator.meanPowerKw`).
 
+### The fan (2026-11-17)
+
+The climate fan runs on 12 V, so `VCU_ThermalPwrAct` leaves it out and it
+landed in "other" (owner saw 150 W "other" with only the fan on). Measured
+parked, compressor off, fan 8 → 0, battery power above fan-off (±20 W, CAN
+steps are 0.1 A ≈ 40 W):
+
+| Fan level | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|---|
+| W | 0 | 0 | 10 | 30 | 55 | 75 | 85 | 100 | 120 |
+
+`FanPower` holds the table; `car.hvac_fan` (hub) gives the level. Climate =
+compressor fit + fan, live and per trip (`trip.fan_kwh`, DB v30). The car
+reports the level as 0 (climate off) to 8, although its config says 1–7.
+
 ### Next
 
 1. Check the split on a real drive.
