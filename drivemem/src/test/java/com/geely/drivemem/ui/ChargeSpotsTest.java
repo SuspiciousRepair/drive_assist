@@ -11,7 +11,8 @@ import static org.junit.Assert.*;
  * only the charge right before or after it. */
 public class ChargeSpotsTest {
     // About 0.0009 degrees of latitude = 100 m.
-    private static final double LAT = -23.5, LON = -46.6;
+    // Neutral place (middle of the ocean): no real location in the repo.
+    private static final double LAT = 30.0, LON = -40.0;
     private static final long H = 60 * 60_000L;
 
     private static ChargeSpots.Charge ch(double dLatM, long start, long end, boolean dc) {
