@@ -39,7 +39,7 @@ public final class Prefs {
 
     // --- Restore at start (HelperSync.java, modehelper RestorePolicy) ---
     // Per setting: does modehelper write the saved value back to the car in the
-    // minute after it wakes? (issues #12, #13, #16). ON until the user turns it
+    // 15 s after it wakes? (issues #12, #13, #16, #88). ON until the user turns it
     // off: Drive Assist owns the car's start state; the switch exists for a
     // user whose other app (e.g. Sapo) restores the same setting.
     public static final String RESTORE_DRIVE = "restore_drive", RESTORE_REGEN = "restore_regen",

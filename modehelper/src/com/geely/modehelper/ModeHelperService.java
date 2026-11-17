@@ -45,6 +45,9 @@ public class ModeHelperService extends Service {
     private static final long BEAT_WRITE_GAP_MS = 15_000L;
     private long lastBeatWriteMs = 0;
     private volatile long restoreUntil = android.os.SystemClock.elapsedRealtime() + RestorePolicy.WINDOW_MS;
+    // When the last window opened, to log how long after a wake the car
+    // changes AVAS on its own: the data that says whether WINDOW_MS is enough.
+    private volatile long windowOpenedMs = android.os.SystemClock.elapsedRealtime();
     // A tap in Drive Assist's AEB/AVAS switch: write it once, now, whatever the window.
     private volatile boolean applyAebNow = false, applyAvasNow = false;
     // Drive Assist's home-screen AVAS button. Drive Assist cannot read AVAS
@@ -64,8 +67,9 @@ public class ModeHelperService extends Service {
     }
 
     private void openRestoreWindow(String why) {
-        restoreUntil = android.os.SystemClock.elapsedRealtime() + RestorePolicy.WINDOW_MS;
-        Log.i(TAG, "restore window open (" + why + ")");
+        windowOpenedMs = android.os.SystemClock.elapsedRealtime();
+        restoreUntil = windowOpenedMs + RestorePolicy.WINDOW_MS;
+        Log.i(TAG, "restore window open (" + why + ", " + RestorePolicy.WINDOW_MS / 1000 + " s)");
     }
 
     @Override public int onStartCommand(Intent i, int flags, int startId) {
@@ -482,6 +486,14 @@ public class ModeHelperService extends Service {
             Object after = car.audioCall("getAVASMode");
             if (after instanceof Integer) mode = (Integer) after;
             report = true;
+        }
+        if (lastAvasReported != null && lastAvasReported != mode && !toggle) {
+            // Every change but our toggle (that one logs itself): the car,
+            // its screen, another app, or our own restore ("modo: avas" just
+            // above it). The time since the wake says if WINDOW_MS covers
+            // the car's own wake default.
+            Log.i(TAG, "avas: car now " + mode + " (was " + lastAvasReported + ")"
+                + ", " + (android.os.SystemClock.elapsedRealtime() - windowOpenedMs) / 1000 + " s after wake");
         }
         if (report || lastAvasReported == null || lastAvasReported != mode) {
             lastAvasReported = mode;

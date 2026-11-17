@@ -191,7 +191,7 @@
     <string name="cfg_avas_label">AVAS (เสียงเตือนคนเดินถนน)</string>
     <string name="cfg_advanced">ขั้นสูง</string>
     <string name="cfg_restore_header">คืนค่าเมื่อสตาร์ทรถ</string>
-    <string name="cfg_restore_hint">Drive Assist จะคืนค่าที่บันทึกไว้ในนาทีแรกหลังสตาร์ทรถ หลังจากนั้นการเปลี่ยนแปลงในรถหรือในแอปอื่นจะคงอยู่ตลอดการเดินทาง ปิดการตั้งค่าที่แอปอื่นคืนค่าให้อยู่แล้ว</string>
+    <string name="cfg_restore_hint">Drive Assist จะคืนค่าที่บันทึกไว้ใน 15 วินาทีแรกหลังสตาร์ทรถ หลังจากนั้นการเปลี่ยนแปลงในรถหรือในแอปอื่นจะคงอยู่ตลอดการเดินทาง ปิดการตั้งค่าที่แอปอื่นคืนค่าให้อยู่แล้ว</string>
     <string name="cfg_park_monitor_label">ระบบเฝ้าระวังขณะจอด</string>
 
     <string name="cfg_doors_header">ประตู</string>
