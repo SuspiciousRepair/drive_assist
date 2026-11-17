@@ -189,12 +189,12 @@ public class TripRouteActivity extends Activity {
                 }
             } finally { c.close(); }
             Cursor sc = CarDb.get(this).db().rawQuery(
-                "SELECT can_net_kwh, drive_spent_kwh, drive_regen_kwh, climate_raw_kwh, climate_on_s "
+                "SELECT can_net_kwh, drive_spent_kwh, drive_regen_kwh, climate_raw_kwh, climate_on_s, fan_kwh "
               + "FROM trip WHERE id = ? AND can_net_kwh IS NOT NULL", new String[]{String.valueOf(tripId)});
             try {
                 if (sc.moveToFirst()) {
-                    d.split = new double[5];
-                    for (int i = 0; i < 5; i++) d.split[i] = sc.isNull(i) ? 0 : sc.getDouble(i);
+                    d.split = new double[6];
+                    for (int i = 0; i < 6; i++) d.split[i] = sc.isNull(i) ? 0 : sc.getDouble(i);
                 }
             } finally { sc.close(); }
             if (endMs > startMs) {
@@ -266,7 +266,7 @@ public class TripRouteActivity extends Activity {
             String.format(Locale.US, "%.1f", spent), String.format(Locale.US, "%.1f", regen)) : null;
         stat(R.string.session_stat_net_energy, netText, netSub);
         if (!est && d != null && d.split != null) {
-            EnergySplit sp = EnergySplit.of(net, d.split[0], d.split[1], d.split[2], d.split[3], d.split[4]);
+            EnergySplit sp = EnergySplit.of(net, d.split[0], d.split[1], d.split[2], d.split[3], d.split[4], d.split[5]);
             String f = Math.abs(net) < 2 ? "%.2f" : "%.1f";
             stat(R.string.route_stat_by_use, String.format(Locale.US, f + " · " + f + " · " + f + " kWh",
                 sp.driveKwh, sp.climateKwh, sp.otherKwh), getString(R.string.route_stat_by_use_parts));

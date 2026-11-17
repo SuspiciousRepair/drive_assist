@@ -5,7 +5,8 @@ package com.geely.drivemem.sensors;
  * climate + other:
  *
  * - drive: the motor's energy out minus what it sent back (VCU_DrvPwrAct).
- * - climate: the corrected climate signal (ClimatePower).
+ * - climate: the corrected climate signal (ClimatePower), plus the fan
+ *   (FanPower; a 12 V load, NULL on trips before DB v30).
  * - other: the rest. 12 V loads (lights, screens, fan, phone) and losses.
  *   During regen the motor signal reads ~20 % more than the battery gets,
  *   so that loss lands here too.
@@ -29,9 +30,10 @@ public final class EnergySplit {
     }
 
     public static EnergySplit of(double tripNetKwh, double canNetKwh, double driveSpentKwh,
-                                 double driveRegenKwh, double climateRawKwh, double climateOnSeconds) {
+                                 double driveRegenKwh, double climateRawKwh, double climateOnSeconds,
+                                 double fanKwh) {
         double drive = driveSpentKwh - driveRegenKwh;
-        double climate = ClimatePower.correctedKwh(climateRawKwh, climateOnSeconds);
+        double climate = ClimatePower.correctedKwh(climateRawKwh, climateOnSeconds) + fanKwh;
         double other = canNetKwh - drive - climate;
         double k = (canNetKwh > MIN_SCALE_KWH && tripNetKwh > 0) ? tripNetKwh / canNetKwh : 1.0;
         return new EnergySplit(drive * k, climate * k, other * k);

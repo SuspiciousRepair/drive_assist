@@ -35,6 +35,8 @@ public final class CarActor {
 
     /** Front-windshield defogger button (MAX_DEFROST), true/false, on change. */
     public static final String HVAC_FRONT_DEFROST = "car.hvac_front_defrost";
+    /** Fan level, 0 (climate off) to 8. Feeds sensors.FanPower. */
+    public static final String HVAC_FAN = "car.hvac_fan";
 
     public interface ResultCallback { void onResult(CarDataHub.WriteResult r); }
     public interface ReadCallback { void onRead(Object value); }
@@ -509,15 +511,20 @@ public final class CarActor {
     // h.post(): a posted watch ran AFTER the tick that connected, so that
     // tick's telemetry.tick (and its telemetry_sample row) had no drive mode
     // or regen level yet. Seen after every app restart (2026-11-15).
-    private void watchRawNow(String key, int prop, int area) {
+    private void watchRawNow(String key, int prop, int area) { watchRawNow(key, prop, area, false); }
+
+    /** {@code anyArea}: take change events from every area. For a property
+     * that has one value but whose events may carry another area id than
+     * the one it is read with (the fan: read at 75, configured at 117). */
+    private void watchRawNow(String key, int prop, int area, boolean anyArea) {
         android.car.hardware.property.CarPropertyManager.CarPropertyEventCallback cb =
             new android.car.hardware.property.CarPropertyManager.CarPropertyEventCallback() {
                 @Override public void onChangeEvent(android.car.hardware.CarPropertyValue v) {
-                    if (v.getAreaId() != area) return;
+                    if (!anyArea && v.getAreaId() != area) return;
                     h.post(() -> ingest(key, Reading.ok(v.getValue())));
                 }
                 @Override public void onErrorEvent(int p, int a) {
-                    if (a != area) return;
+                    if (!anyArea && a != area) return;
                     h.post(() -> ingest(key, Reading.error("prop " + p + " area " + a)));
                 }
             };
@@ -601,6 +608,7 @@ public final class CarActor {
         watchRawNow("car.hvac_direction", 557846560, 0);
         watchRawNow("car.hvac_rear_defrost", CarAccess.HVAC_ELECTRIC_DEFROSTER_ON, 2);
         watchRawNow(HVAC_FRONT_DEFROST, CarAccess.HVAC_MAX_DEFROST, 75);
+        watchRawNow(HVAC_FAN, Modes.HVAC_FAN, 75, true);
     }
 
     // Adapter from real Handler to HandlerLike interface (production code path).

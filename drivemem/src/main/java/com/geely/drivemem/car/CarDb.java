@@ -32,7 +32,7 @@ public final class CarDb extends SQLiteOpenHelper {
     // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
     // every write failed until this was bumped past 14. See the v15 entry in
     // onUpgrade below for what v15 itself actually does.
-    private static final int VERSION = 29;
+    private static final int VERSION = 30;
 
     /** SQL predicate for telemetry rows representing driving: gear is not Park (4),
      * or if gear is missing, car is not charging. */
@@ -512,17 +512,22 @@ public final class CarDb extends SQLiteOpenHelper {
         // v29: where a trip's energy went (CAN only). NULL on older trips and
         // on trips CAN did not measure whole.
         if (oldVersion < 29) {
-            for (String col : TRIP_SPLIT_COLUMNS.split(",")) db.execSQL("ALTER TABLE trip ADD COLUMN " + col.trim());
+            for (String col : TRIP_SPLIT_COLUMNS_V29.split(",")) db.execSQL("ALTER TABLE trip ADD COLUMN " + col.trim());
         }
+        // v30: the climate fan's energy (12 V, sensors.FanPower), part of climate.
+        if (oldVersion < 30) db.execSQL("ALTER TABLE trip ADD COLUMN fan_kwh REAL");
     }
 
     /** Raw, so a better climate fit later re-reads old trips. All from the
      * same CAN samples: battery net over them (can_net_kwh), drive motor
      * energy out and back (VCU_DrvPwrAct), the integral of the raw climate
-     * signal (VCU_ThermalPwrAct) and the seconds it was on. Read through
-     * sensors.EnergySplit, which scales the parts to the trip's net_kwh. */
-    static final String TRIP_SPLIT_COLUMNS =
+     * signal (VCU_ThermalPwrAct) and the seconds it was on, and the fan's
+     * energy (fan_kwh, from the fan level through sensors.FanPower). Read
+     * through sensors.EnergySplit, which scales the parts to the trip's
+     * net_kwh. */
+    static final String TRIP_SPLIT_COLUMNS_V29 =
         "can_net_kwh REAL, drive_spent_kwh REAL, drive_regen_kwh REAL, climate_raw_kwh REAL, climate_on_s REAL";
+    static final String TRIP_SPLIT_COLUMNS = TRIP_SPLIT_COLUMNS_V29 + ", fan_kwh REAL";
 
     // The kWh changes; the R$/kWh does not -- the cost is almost always
     // entered with the per-kWh button, so it scales with the kWh.

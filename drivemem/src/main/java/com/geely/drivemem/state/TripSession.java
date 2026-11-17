@@ -338,6 +338,7 @@ public final class TripSession {
                     v.put("drive_regen_kwh", ts.driveRegenKwh);
                     v.put("climate_raw_kwh", ts.climateRawKwh);
                     v.put("climate_on_s", ts.climateOnSeconds);
+                    v.put("fan_kwh", ts.fanKwh);
                 }
                 CarDb.get(ctx).write(() -> {
                     try {

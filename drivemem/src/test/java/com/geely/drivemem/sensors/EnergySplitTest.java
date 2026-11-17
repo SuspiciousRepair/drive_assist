@@ -46,7 +46,7 @@ public class EnergySplitTest {
     // --- EnergySplit: the parts add up to the trip's net ---
 
     @Test public void partsAddUpToTheTripNet() {
-        EnergySplit s = EnergySplit.of(3.0, 3.0, 2.8, 0.4, 0.1, 600);
+        EnergySplit s = EnergySplit.of(3.0, 3.0, 2.8, 0.4, 0.1, 600, 0);
         assertEquals(3.0, s.driveKwh + s.climateKwh + s.otherKwh, EPS);
         assertEquals(2.4, s.driveKwh, EPS);
         assertEquals(ClimatePower.correctedKwh(0.1, 600), s.climateKwh, EPS);
@@ -55,13 +55,13 @@ public class EnergySplitTest {
     /** CAN dropped out for a moment and the dongle (5 % higher) filled in:
      * the shares stay CAN's, the total is the trip's. */
     @Test public void scaledToTheTripNetWhenTheDongleFilledIn() {
-        EnergySplit s = EnergySplit.of(3.15, 3.0, 2.8, 0.4, 0.1, 600);
+        EnergySplit s = EnergySplit.of(3.15, 3.0, 2.8, 0.4, 0.1, 600, 0);
         assertEquals(3.15, s.driveKwh + s.climateKwh + s.otherKwh, EPS);
         assertEquals(2.4 * 1.05, s.driveKwh, 1e-9);
     }
 
     @Test public void tinyCanNetIsNotScaled() {
-        EnergySplit s = EnergySplit.of(0.5, 0.01, 0.3, 0.3, 0, 0);
+        EnergySplit s = EnergySplit.of(0.5, 0.01, 0.3, 0.3, 0, 0, 0);
         assertEquals(0, s.driveKwh, EPS);
         assertEquals(0.01, s.otherKwh, EPS);
     }
@@ -73,7 +73,7 @@ public class EnergySplitTest {
     private static final long T0 = 1_000_000;
 
     private static void can(long t, double kw, double drive, double climate) {
-        EnergyIntegrator.onPowerReading(T0 + t, kw, EnergyIntegrator.SOURCE_CAN, drive, climate);
+        EnergyIntegrator.onPowerReading(T0 + t, kw, EnergyIntegrator.SOURCE_CAN, drive, climate, 0);
     }
 
     private static void obd(long t, double kw) {
@@ -145,14 +145,46 @@ public class EnergySplitTest {
 
     @Test public void liveOtherIsPowerMinusDriveMinusClimate() {
         CarActor.Reading live = CarActor.Reading.ok(1);
-        CarActor.Reading r = EnergyHub.other(live, CarActor.Reading.ok(10f), CarActor.Reading.ok(8f), CarActor.Reading.ok(1f));
+        CarActor.Reading r = EnergyHub.other(live, CarActor.Reading.ok(10f), CarActor.Reading.ok(8f), CarActor.Reading.ok(1f), CarActor.Reading.ok(0));
         assertEquals(10 - 8 - ClimatePower.correctedKw(1), ((Number) r.value).doubleValue(), 0.006);
         // Drive and climate not seen yet: 0 kW.
-        r = EnergyHub.other(live, CarActor.Reading.ok(0.3f), CarActor.Reading.NOT_AVAILABLE, CarActor.Reading.NOT_AVAILABLE);
+        r = EnergyHub.other(live, CarActor.Reading.ok(0.3f), CarActor.Reading.NOT_AVAILABLE, CarActor.Reading.NOT_AVAILABLE, CarActor.Reading.NOT_AVAILABLE);
         assertEquals(0.3, ((Number) r.value).doubleValue(), 0.006);
         // CAN not live: nothing, never a dongle-based value.
         assertEquals(CarActor.Reading.Status.NOT_AVAILABLE,
-            EnergyHub.other(CarActor.Reading.ok(0), CarActor.Reading.ok(10f), CarActor.Reading.ok(8f), CarActor.Reading.ok(1f)).status);
+            EnergyHub.other(CarActor.Reading.ok(0), CarActor.Reading.ok(10f), CarActor.Reading.ok(8f), CarActor.Reading.ok(1f), CarActor.Reading.ok(0)).status);
+    }
+
+    // --- The fan: a 12 V load, counted as climate ---
+
+    @Test public void fanTable() {
+        assertEquals(0, FanPower.kw(0), EPS);
+        assertEquals(0.12, FanPower.kw(8), EPS);
+        assertEquals(0, FanPower.kw(null), EPS);
+        assertEquals(0, FanPower.kw(9), EPS);
+        for (int i = 1; i < FanPower.KW.length; i++) assertTrue(FanPower.KW[i] >= FanPower.KW[i - 1]);
+    }
+
+    /** Fan only (compressor off): it moves from other to climate. */
+    @Test public void liveFanMovesFromOtherToClimate() {
+        CarActor.Reading live = CarActor.Reading.ok(1), fan8 = CarActor.Reading.ok(8);
+        CarActor.Reading noComp = CarActor.Reading.NOT_AVAILABLE;
+        assertEquals(0.12, ((Number) EnergyHub.climate(live, noComp, fan8).value).doubleValue(), 0.006);
+        assertEquals(0.16 - 0.12, ((Number) EnergyHub.other(live, CarActor.Reading.ok(0.16f),
+            CarActor.Reading.ok(0f), noComp, fan8).value).doubleValue(), 0.006);
+    }
+
+    @Test public void tripFanIsPartOfClimate() {
+        EnergyIntegrator.startTrip();
+        for (int i = 0; i <= 36; i++)   // 3.6 s at fan 8
+            EnergyIntegrator.onPowerReading(T0 + i * 100L, 1.0, EnergyIntegrator.SOURCE_CAN, 0.8, 0.0, 0.12);
+        EnergyIntegrator.TripSnapshot t = EnergyIntegrator.endTrip();
+        assertEquals(0.12 * 3.6 / 3600, t.fanKwh, 1e-12);
+        assertEquals(t.fanKwh, t.climateKwh(), 1e-12);
+        EnergySplit s = EnergySplit.of(t.netKwh, t.canNetKwh, t.driveSpentKwh, t.driveRegenKwh,
+            t.climateRawKwh, t.climateOnSeconds, t.fanKwh);
+        assertEquals(t.netKwh, s.driveKwh + s.climateKwh + s.otherKwh, 1e-12);
+        assertEquals(t.fanKwh, s.climateKwh, 1e-12);
     }
 
     // --- Mean power for ABRP ---
