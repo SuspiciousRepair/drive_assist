@@ -11,7 +11,7 @@ The art subsystem renders dynamic visual backdrops behind the dashboard controls
 * **`ArtView.java`**: Abstract base class establishing the rendering contract, animation step clock, layout measurements, raw cabin lighting ingestion, and Home Assistant window chrome scaffolding.
 * **`Skyline.java`**: Reusable component providing horizontal city skyline generation, 1x bitmap caching, seamless looping drift, and dynamic color-filter transitions.
 * **`SkylineArtView.java`**: Full-bleed 2D skyline backdrop used by the **Geely**, **Claro**, and **Neon** themes. Features reflection planes and ambient brightness-to-alpha mapping.
-* **`VaporArtView.java`**: Full-bleed pseudo-3D scene used by the **Noturno** theme. Features a perspective camera, infinite animated grid, retro sun/starfield, dynamic vehicle wireframe with acceleration/regen breath, and an intro ceremony.
+* **`VaporArtView.java`**: Full-bleed pseudo-3D scene used by the **Noturno** theme. Features a perspective camera, infinite animated grid, retro sun/starfield, the EX2's own render (from the OEM settings app) with acceleration/regen breath, and an intro ceremony.
 * **`KonamiView.java`**: Hidden touch-sequence gesture pad positioned at z-index 0 in the right panel to toggle the Noturno theme.
 * **`ComfortActivity.java`**: Top-level layout coordinator managing view hierarchy, panel bounds propagation, and card display.
 * **`Style.java`**: Theme registry mapping theme identifiers to art types (`ART_SKYLINE`, `ART_VAPOR`) and color tokens.
@@ -161,7 +161,7 @@ To minimize CPU and GPU overhead on the automotive head unit, rendering tasks ar
 | **Sky, Sun, Ground** | Cached Android `Shader` instances | Gradient calculations are static per resolution |
 | **City Skyline** | 1x Pre-rasterized bitmap plate | Eliminates per-frame path rendering of building silhouettes |
 | **Perspective Grid** | Procedural line drawing per frame | Position is continuously modulated by vehicle speed |
-| **Vehicle Geometry** | Procedural 13-face wireframe per frame | Real-time perspective projection during entry motion |
+| **Vehicle** | One pre-cut bitmap, decoded once (mipmapped) | Only its destination rect is re-projected as the car moves in z |
 | **Wheel Energy Glow** | Procedural arcs / particles per frame | Driven directly by dynamic acceleration/regen values |
 
 ### The `Skyline` Component
@@ -222,33 +222,26 @@ gridV  = (vCar - vSep) / CELL;
 
 ---
 
-## 9. Procedural 3D Mesh Engine
+## 9. The Car Picture
 
-The vehicle wireframe is rendered as a lightweight solid using 13 polygonal faces:
+The car is the EX2 render the head unit ships for its ADAS settings screen
+(`com.flyme.auto.settings`, `drawable/bg_car_adas`, night variant). That
+picture is a full 1920 x 1080 background with the car only 158 px wide, so it
+was cut out of its background, upscaled ~4.8x with an AI upscaler, and saved
+with its soft shadow as `res/drawable-nodpi/noturno_car.webp` (725 x 845).
 
-```java
-// Surface lighting calculation:
-float lit  = Math.max(0f, ny) * 0.55f + facing * 0.45f;
-int   fill = blendColors(CAR_DARK, CAR_LIT, lit);
-```
+### Placement Rules
 
-### Rendering Rules
+1. **Same camera.** The rear of the body is pinned to the projected rear face
+   the old wireframe had: `x = ±WB`, ground `y = 0`, depth `carZ`. Size,
+   position and the entry approach all still come from `px()`/`py()`.
+2. **Measured anchors.** `IMG_REAR_L`/`IMG_REAR_R` (50 / 674) are the widest
+   row of the rear body below the mirrors; `IMG_GROUND` (788) is the row where
+   the body meets the ground. Re-measure them if the picture is replaced.
+3. **Taller than the old model.** The render is shot from higher up than this
+   camera, so the roof reaches the horizon. That is the picture's own
+   perspective.
+4. **Fade, not geometry.** The entry fade is the bitmap paint's alpha.
 
-1. **Painter's Algorithm**: Faces are sorted strictly by depth (Z) back-to-front. Backface culling by winding order is disabled to prevent missing geometry on non-manifold polygonal assemblies.
-2. **Coplanar Offset**: Sub-elements (such as wheels) are offset laterally by 0.012 units from parent body panels to eliminate Z-fighting.
-3. **Mesh Geometry Comparison**:
-   * **Dense CAD / OBJ Models**: Full-triangle meshes (~47,000 polygons) tested on this platform produce visual clutter when outlined and incur severe CPU sorting penalties (~600,000 comparisons/frame).
-   * **Stylized Procedural Mesh**: 13 hand-tuned faces deliver clear silhouette definition, stable back-to-front sorting via lightweight insertion sort, and seamless integration with neon shader effects.
-
-### Vehicle Proportions vs. OEM Dimensions
-
-| Metric (Normalized to Half-Width = 1.0) | `VaporArtView` Wireframe | OEM Vehicle Geometry (EX2 / Geometry E) |
-|---|---|---|
-| **Length** | 4.448 | 5.269 |
-| **Roof Height** | 1.000 | 1.785 |
-| **Beltline Height** | 0.696 | 1.196 |
-| **Ground Clearance** | 0.217 | 0.235 |
-| **Cabin Half-Width** | 0.652 | 0.681 |
-| **Wheel Radius** | 0.283 | 0.377 |
-
-*Note: The wireframe model deliberately adopts a lowered wedge silhouette to fit retro vaporwave visual conventions while matching OEM ground clearance and cabin width proportions.*
+The wheel glow still uses the rear-wheel positions (`zr + 0.30`, `±WB`) and is
+drawn behind the car.
