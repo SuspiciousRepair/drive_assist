@@ -428,12 +428,24 @@ public final class ChargeSession {
                 v.put("dismissed", 0);
                 if (snap.cost != null) v.put("cost", snap.cost);
                 if (battKwh != null) v.put("kwh_battery", battKwh);
-                // Where the charge was (issue #19): the hub's GPS fix, same
-                // switch as the trip routes. Saved in the car only.
+                // Where the charge was (issue #19), same switch as the trip
+                // routes, saved in the car only. First the last route point
+                // before the charge (CarDb.CHARGE_PLACE_SQL: the car has not
+                // moved since), else the hub's GPS fix. The fix alone was
+                // empty for every charge: by the end of a charge the GPS is
+                // long off.
                 if (com.geely.drivemem.util.Prefs.getRecordRoutes(ctx)) {
-                    com.geely.drivemem.sensors.LocationHub.Fix fix =
-                        com.geely.drivemem.sensors.LocationHub.get(ctx);
-                    if (fix != null) { v.put("lat", fix.lat); v.put("lon", fix.lon); }
+                    double[] place = null;
+                    android.database.Cursor pc = CarDb.get(ctx).db().rawQuery(CarDb.CHARGE_PLACE_SQL,
+                        new String[]{String.valueOf(snap.startWallMs), String.valueOf(snap.startWallMs)});
+                    try { if (pc.moveToFirst()) place = new double[]{pc.getDouble(0), pc.getDouble(1)}; }
+                    finally { pc.close(); }
+                    if (place == null) {
+                        com.geely.drivemem.sensors.LocationHub.Fix fix =
+                            com.geely.drivemem.sensors.LocationHub.get(ctx);
+                        if (fix != null) place = new double[]{fix.lat, fix.lon};
+                    }
+                    if (place != null) { v.put("lat", place[0]); v.put("lon", place[1]); }
                 }
 
                 long rowId = snap.sessionRowId;

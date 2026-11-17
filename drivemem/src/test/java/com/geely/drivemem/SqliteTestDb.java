@@ -65,7 +65,10 @@ public final class SqliteTestDb {
                 "samples INTEGER," +
                 "odo_start_km REAL," +
                 "cost REAL," +
-                "dismissed INTEGER NOT NULL DEFAULT 0)",
+                "dismissed INTEGER NOT NULL DEFAULT 0," +
+                "kwh_battery REAL, lat REAL, lon REAL)",
+
+            com.geely.drivemem.car.CarDb.TRIP_POINT_DDL,
 
             "CREATE TABLE park_session (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT," +
