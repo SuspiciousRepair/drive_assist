@@ -16,16 +16,16 @@ public class LocationHubTest {
 
     // A parked car's fix wobbles by a metre or two: same cell, no republish.
     @Test public void wobbleInsideOneCellIsTheSameFix() {
-        assertEquals(fix(-23.500010, -46.600010, 700), fix(-23.500020, -46.600020, 712));
+        assertEquals(fix(30.000010, -40.000010, 700), fix(30.000020, -40.000020, 712));
     }
 
     @Test public void movingToAnotherCellIsANewFix() {
-        assertNotEquals(fix(-23.50001, -46.60001, 700), fix(-23.50011, -46.60001, 700));
-        assertNotEquals(fix(-23.50001, -46.60001, 700), fix(-23.50001, -46.60011, 700));
+        assertNotEquals(fix(30.00001, -40.00001, 700), fix(30.00011, -40.00001, 700));
+        assertNotEquals(fix(30.00001, -40.00001, 700), fix(30.00001, -40.00011, 700));
     }
 
     @Test public void arrayKeepsGpsReaderLayout() {
-        double[] in = {-23.5, -46.6, 700, 90, 10, 4};   // speed 10 m/s
+        double[] in = {30.0, -40.0, 700, 90, 10, 4};   // speed 10 m/s
         LocationHub.Fix f = LocationHub.Fix.of(in);
         assertEquals(36.0, f.speedKmh, 1e-9);
         assertArrayEquals(in, f.toArray(), 1e-9);
@@ -33,13 +33,13 @@ public class LocationHubTest {
 
     // GpsReader gives NaN for a fix with no altitude; the hub value keeps it.
     @Test public void aFixWithoutAltitudeSaysSo() {
-        LocationHub.Fix f = LocationHub.Fix.of(new double[]{-23.5, -46.6, Double.NaN, 90, 10, 4});
+        LocationHub.Fix f = LocationHub.Fix.of(new double[]{30.0, -40.0, Double.NaN, 90, 10, 4});
         assertFalse(f.hasAlt());
-        assertTrue(fix(-23.5, -46.6, 0).hasAlt());
+        assertTrue(fix(30.0, -40.0, 0).hasAlt());
     }
 
     @Test public void distanceOfOneDegreeOfLatitude() {
         assertEquals(111_195, LocationHub.distanceM(0, 0, 1, 0), 10);
-        assertEquals(0, LocationHub.distanceM(-23.5, -46.6, -23.5, -46.6), 1e-6);
+        assertEquals(0, LocationHub.distanceM(30.0, -40.0, 30.0, -40.0), 1e-6);
     }
 }
