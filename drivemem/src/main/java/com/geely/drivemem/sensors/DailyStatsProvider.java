@@ -79,6 +79,10 @@ public final class DailyStatsProvider {
         public final double energyKwh;      // 1. Power as a whole (net kWh = spent - regen)
         public final double efficiencyKwh100km;
         public final EnergySource energySource;
+        /** Where this trip's energy went (drive, climate, other), scaled to
+         * energyKwh; null when CAN did not measure the trip. Set after
+         * construction by queryTrips, like DayOverview's extras. */
+        public EnergySplit split;
 
         public DriveSession(long tripId, long startMs, long endMs, double distanceKm,
                             int socStart, int socEnd, double ascentDPlusM, double descentDMinusM,
@@ -1229,7 +1233,9 @@ public final class DailyStatsProvider {
         Cursor tc = db.rawQuery(
             "SELECT t.id, t.start_ms, t.end_ms, t.ascent_m, t.descent_m, t.regen_kwh, "
           + "       s1.odo_km, s2.odo_km, s1.battery_pct, s2.battery_pct, "
-          + "       t.spent_kwh, t.net_kwh, t.energy_source, t.estimated_net_kwh FROM trip t "
+          + "       t.spent_kwh, t.net_kwh, t.energy_source, t.estimated_net_kwh, "
+          + "       t.can_net_kwh, t.drive_spent_kwh, t.drive_regen_kwh, t.climate_raw_kwh, t.climate_on_s, "
+          + "       t.fan_kwh FROM trip t "
           + "LEFT JOIN telemetry_sample s1 ON t.start_sample_id = s1.id "
           + "LEFT JOIN telemetry_sample s2 ON t.end_sample_id = s2.id "
           + "WHERE t.start_ms >= ? AND t.start_ms < ? "
@@ -1275,10 +1281,36 @@ public final class DailyStatsProvider {
                 double eff = tripSource == EnergySource.ESTIMATED
                     ? (distanceKm > 0.2 ? Math.max(0, tripNet) * 100 / distanceKm : 0)
                     : DrivingConsumption.efficiencyKwh100km(distanceKm, tripSpent, regen);
-                out.add(new DriveSession(id, startMs, endMs, distanceKm, socStart, socEnd,
-                        ascent, descent, regen, tripSpent, tripNet, eff, tripSource));
+                DriveSession ds = new DriveSession(id, startMs, endMs, distanceKm, socStart, socEnd,
+                        ascent, descent, regen, tripSpent, tripNet, eff, tripSource);
+                if (!tc.isNull(14) && tripSource != EnergySource.ESTIMATED) {
+                    ds.split = EnergySplit.of(tripNet, tc.getDouble(14), d(tc, 15), d(tc, 16), d(tc, 17),
+                        d(tc, 18), d(tc, 19));
+                }
+                out.add(ds);
             }
         } finally { tc.close(); }
+    }
+
+    private static double d(Cursor c, int i) { return c.isNull(i) ? 0 : c.getDouble(i); }
+
+    /** The split summed over the measured trips in `sessions`: drive,
+     * climate, other kWh and the km those trips covered (the right divisor
+     * for Wh/km, since older trips have no split). Null when none has one. */
+    public static double[] splitTotals(List<? extends DaySession> sessions) {
+        double drive = 0, climate = 0, other = 0, km = 0;
+        boolean any = false;
+        for (DaySession s : sessions) {
+            if (!(s instanceof DriveSession)) continue;
+            DriveSession t = (DriveSession) s;
+            if (t.split == null) continue;
+            any = true;
+            drive += t.split.driveKwh;
+            climate += t.split.climateKwh;
+            other += t.split.otherKwh;
+            km += t.distanceKm;
+        }
+        return any ? new double[]{drive, climate, other, km} : null;
     }
 
     private static List<DaySession> queryDaySessions(Context ctx, SQLiteDatabase db, String dateStr) {

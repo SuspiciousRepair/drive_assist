@@ -521,6 +521,16 @@
     <string name="route_stat_outside">Fuera</string>
     <string name="route_stat_by_use">Energía por uso</string>
     <string name="route_stat_by_use_parts">tracción · clima · otros</string>
+    <string name="stats_part_drive">Tracción</string>
+    <string name="stats_part_climate">Clima</string>
+    <string name="stats_part_other">Otros</string>
+    <string name="stats_by_use_none">Aparece en los nuevos viajes medidos por CAN</string>
+    <string name="stats_card_trip">Viaje</string>
+    <string name="stats_driving_time">Tiempo conduciendo</string>
+    <string name="stats_avg_speed">Vel. media</string>
+    <string name="stats_relief">Relieve</string>
+    <string name="stats_relief_net">neto</string>
+    <string name="session_stat_split_note">tracción %1$s · clima %2$s · otros %3$s</string>
     <!-- Tarjetas de sesiones del día (DailyStatsView) -->
     <string name="session_since">desde %1$s</string>
     <string name="session_yesterday">ayer</string>
@@ -621,5 +631,4 @@
     <string name="phone_msg_no_space">El coche no tiene espacio libre suficiente para este archivo.</string>
     <string name="phone_msg_busy">Ya hay una restauración en curso.</string>
     <string name="phone_msg_no_file">Elige primero un archivo de copia.</string>
-    <string name="unit_kwh_per_100km">kWh/100 km</string>
 </resources>

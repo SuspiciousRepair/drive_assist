@@ -537,6 +537,16 @@
     <string name="route_stat_outside">ภายนอก</string>
     <string name="route_stat_by_use">พลังงานตามการใช้</string>
     <string name="route_stat_by_use_parts">ขับเคลื่อน · แอร์ · อื่นๆ</string>
+    <string name="stats_part_drive">ขับเคลื่อน</string>
+    <string name="stats_part_climate">แอร์</string>
+    <string name="stats_part_other">อื่นๆ</string>
+    <string name="stats_by_use_none">แสดงในการเดินทางใหม่ที่วัดด้วย CAN</string>
+    <string name="stats_card_trip">การเดินทาง</string>
+    <string name="stats_driving_time">เวลาขับ</string>
+    <string name="stats_avg_speed">ความเร็วเฉลี่ย</string>
+    <string name="stats_relief">ความสูง</string>
+    <string name="stats_relief_net">สุทธิ</string>
+    <string name="session_stat_split_note">ขับ %1$s · แอร์ %2$s · อื่นๆ %3$s</string>
     <!-- การ์ดเซสชันของวัน (DailyStatsView) -->
     <string name="session_since">ตั้งแต่ %1$s</string>
     <string name="session_yesterday">เมื่อวาน</string>
@@ -637,5 +647,4 @@
     <string name="phone_msg_no_space">รถมีพื้นที่ว่างไม่พอสำหรับไฟล์นี้</string>
     <string name="phone_msg_busy">กำลังกู้คืนอยู่แล้ว</string>
     <string name="phone_msg_no_file">เลือกไฟล์สำรองก่อน</string>
-    <string name="unit_kwh_per_100km">kWh/100 km</string>
 </resources>

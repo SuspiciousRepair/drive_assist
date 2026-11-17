@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+### Changed
+- **Consumption is now shown in Wh/km, everywhere.** 15.2 kWh/100 km is now
+  152 Wh/km: whole numbers, shorter, and the unit ABRP uses. The car's own
+  screens still show kWh/100 km (ten times smaller). This changes the stats
+  page, the trip cards, the trip screen, the live badge on the Dashboard and
+  the CSV export (`efficiency_kwh_100km` is now `efficiency_wh_km`). Stored
+  data is unchanged.
+- **Stats page: new "Energy by use" card.** For trips measured by CAN, a bar
+  shows how the energy split between drive, climate and other (12 V loads
+  and losses), with each part in kWh and Wh/km. It sits next to Consumption.
+- **Stats page: "Time & Speed" and "Relief" are one "Trip" card.** Driving
+  time, average speed, and the net climb with the climb and descent under it.
+  The distance is no longer repeated there: the chart above shows it.
+- **Trip cards** show where each km went, under the consumption: drive ·
+  climate · other, in Wh/km.
+
+### Added
+- **Where a trip's energy went.** Trips measured by CAN save how much went to
+  drive, to climate (air-con, heat pump and fan) and to everything else. Open
+  a trip to see it. With or without the OBD2 dongle, the three parts add up to
+  the trip's energy. (#96, #98)
+- **Live power by use** in Config → OBD2, CAN block: drive, climate and other.
+  (#96)
+- ABRP now gets the battery's average power over each 6 s, not one instant
+  reading. (#96)
+
+### Fixed
+- **CAN battery current read 0.2 A low** (about 80 W at 400 V), so CAN power
+  was always a little below the OBD2 dongle. (#97)
+
 ## [v0.8.0] — 2026-11-17
 
 ### Added

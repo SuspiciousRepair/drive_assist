@@ -37,7 +37,7 @@ public final class CsvExport {
     static final String CHARGES_HEADER = "id,start,end,duration_min,type,soc_start_pct,soc_end_pct,"
         + "energy_kwh,avg_power_kw,max_voltage_v,odometer_km,cost,cost_per_kwh";
     static final String TRIPS_HEADER = "id,start,end,duration_min,distance_km,soc_start_pct,soc_end_pct,"
-        + "energy_net_kwh,energy_spent_kwh,energy_regen_kwh,efficiency_kwh_100km,energy_source,"
+        + "energy_net_kwh,energy_spent_kwh,energy_regen_kwh,efficiency_wh_km,energy_source,"
         + "ascent_m,descent_m";
 
     private CsvExport() {}
@@ -136,7 +136,7 @@ public final class CsvExport {
                 noEnergy ? "" : num(t.energyKwh, 2),
                 noEnergy ? "" : num(t.spentKwh, 2),
                 noEnergy ? "" : num(t.regenKwh, 2),
-                noEnergy || t.efficiencyKwh100km <= 0 ? "" : num(t.efficiencyKwh100km, 1),
+                noEnergy || t.efficiencyKwh100km <= 0 ? "" : num(EnergyUnits.whPerKm(t.efficiencyKwh100km), 0),
                 t.energySource == null ? "" : t.energySource.name().toLowerCase(Locale.US),
                 num(t.ascentDPlusM, 0),
                 num(t.descentDMinusM, 0));

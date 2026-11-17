@@ -272,7 +272,7 @@ public class TripRouteActivity extends Activity {
                 sp.driveKwh, sp.climateKwh, sp.otherKwh), getString(R.string.route_stat_by_use_parts));
         }
         stat(R.string.session_stat_efficiency,
-            eff > 0 ? String.format(Locale.US, "%.1f kWh/100km", eff) : "—", null);
+            eff > 0 ? com.geely.drivemem.util.EnergyUnits.number(eff) + " " + com.geely.drivemem.util.EnergyUnits.WH_PER_KM : "—", null);
         stat(R.string.session_stat_battery, socStart >= 0 && socEnd >= 0
             ? socStart + "% → " + socEnd + "%" : "—", null);
 
