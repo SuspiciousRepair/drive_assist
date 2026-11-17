@@ -51,7 +51,11 @@ public final class EffortTable {
     // fan 8; Modes.FAN_MAX is the incorrect value elsewhere. Not changed here to
     // avoid impact on other code that reads the constant.
     static final int FAN_ALL_OUT = 8;
-    private static final int[] FAN_COLD = {1, 2, 4, 6, 8};   // C1..C5
+    // C3 is fan 3, not 4. With 4, C2 -> C3 doubled the fan in the same tap that
+    // moved the air from the glass to the face (24-27 C outside): the owner
+    // tapped C2<->C3 back and forth 9 times in 5 days, and twice set fan 3
+    // by hand at C3's setpoint and recirc and kept it 20-40 min (2026-11-17).
+    private static final int[] FAN_COLD = {1, 2, 3, 6, 8};   // C1..C5
     private static final int[] FAN_WARM = {1, 2, 4, 6, 8};   // W1..W5
 
     /** Represents one column of the HVAC effort table with specific settings. */
