@@ -39,6 +39,18 @@ public final class EnergyIntegrator {
     private static long lastSampleMonoMs = 0;
     private static Double lastPowerKw = null;
     private static int lastSource = 0;
+    // CAN's drive and climate values at the last sample (raw signals; null =
+    // unknown, counted as 0 kW). Only CAN samples carry them.
+    private static Double lastDriveKw = null;
+    private static Double lastClimateKw = null;
+
+    // Recent samples, for meanPowerKw (ABRP). Every sample, charging too.
+    static final int MEAN_RING = 256;
+    private static final long[] meanT = new long[MEAN_RING];
+    private static final double[] meanP = new double[MEAN_RING];
+    private static int meanHead = 0, meanCount = 0;
+    /** The last sample is held at most this long when computing a mean. */
+    static final long MEAN_HOLD_MS = 3_000;
 
     // Window accumulators (drained on each telemetry tick by Telemetry / TelemetrySampler)
     private static double windowSpentKwh = 0.0;
@@ -54,6 +66,21 @@ public final class EnergyIntegrator {
     private static double tripRegenKwh = 0.0;
     private static double tripNetKwh = 0.0;
     private static int tripSampleCount = 0;
+    // Where the trip's energy went. All from the SAME CAN samples, so the
+    // parts add up whatever the trip's own source is (CAN, or the dongle
+    // while CAN dropped out): battery net over those samples, drive motor
+    // out and back, the raw climate signal and how long it ran. Valid when
+    // CAN covered at least SPLIT_MIN_COVERAGE of the integrated time and
+    // nothing was seeded.
+    static final double SPLIT_MIN_COVERAGE = 0.9;
+    private static double tripCanNetKwh = 0.0;
+    private static long tripMeasuredMs = 0;
+    private static long tripCanMs = 0;
+    private static double tripDriveSpentKwh = 0.0;
+    private static double tripDriveRegenKwh = 0.0;
+    private static double tripClimateRawKwh = 0.0;
+    private static double tripClimateOnMs = 0.0;
+    private static boolean tripSeeded = false;
 
     /** Snapshot of energy accumulated over a sampling window (e.g. CarActor.TICK_INTERVAL_MS). */
     public static final class WindowSnapshot {
@@ -86,13 +113,37 @@ public final class EnergyIntegrator {
         public final double regenKwh;
         public final double netKwh;
         public final int sampleCount;
+        /** True when CAN covered the trip well enough for the split below. */
+        public final boolean splitValid;
+        /** Battery net over the CAN samples the split was taken from. */
+        public final double canNetKwh;
+        public final double driveSpentKwh;
+        public final double driveRegenKwh;
+        /** Integral of the RAW climate signal; see ClimatePower. */
+        public final double climateRawKwh;
+        public final double climateOnSeconds;
 
         public TripSnapshot(double spentKwh, double regenKwh, double netKwh, int sampleCount) {
+            this(spentKwh, regenKwh, netKwh, sampleCount, false, 0, 0, 0, 0, 0);
+        }
+
+        public TripSnapshot(double spentKwh, double regenKwh, double netKwh, int sampleCount,
+                            boolean splitValid, double canNetKwh, double driveSpentKwh, double driveRegenKwh,
+                            double climateRawKwh, double climateOnSeconds) {
             this.spentKwh = spentKwh;
             this.regenKwh = regenKwh;
             this.netKwh = netKwh;
             this.sampleCount = sampleCount;
+            this.splitValid = splitValid;
+            this.canNetKwh = canNetKwh;
+            this.driveSpentKwh = driveSpentKwh;
+            this.driveRegenKwh = driveRegenKwh;
+            this.climateRawKwh = climateRawKwh;
+            this.climateOnSeconds = climateOnSeconds;
         }
+
+        /** Climate's real energy (ClimatePower's fit), kWh. */
+        public double climateKwh() { return ClimatePower.correctedKwh(climateRawKwh, climateOnSeconds); }
     }
 
     /** Subscribes to CanEnergyReader and Obd2Reader updates (idempotent). */
@@ -105,13 +156,15 @@ public final class EnergyIntegrator {
             // CAN (roadcastd) first. While the hub's energy.source is "can"
             // the OBD2 readings are dropped (onObd2Power), so the two never
             // integrate the same energy twice.
-            CanEnergyReader.setPowerListener((now, kw) -> onPowerReading(now, kw, SOURCE_CAN));
+            CanEnergyReader.setPowerListener((now, kw, drive, climate) -> onPowerReading(now, kw, SOURCE_CAN, drive, climate));
             Obd2Reader.subscribe(new Obd2Reader.Listener() {
                 @Override public void onObd2ConnectedChanged(boolean connected) {
                     if (!connected) {
                         synchronized (LOCK) {
                             lastSampleMonoMs = 0;
                             lastPowerKw = null;
+                            lastDriveKw = null;
+                            lastClimateKw = null;
                         }
                     }
                 }
@@ -147,12 +200,22 @@ public final class EnergyIntegrator {
      * two: they are sampled on different clocks, so a step between them
      * (CAN dropping out, OBD2 taking over) is not a real power ramp. */
     public static void onPowerReading(long nowMonoMs, double kw, int source) {
+        onPowerReading(nowMonoMs, kw, source, null, null);
+    }
+
+    /** As above, with CAN's raw drive and climate kW at the same moment
+     * (null for OBD2 samples, or when CAN has no value). */
+    public static void onPowerReading(long nowMonoMs, double kw, int source, Double driveKw, Double climateKw) {
         synchronized (LOCK) {
             if (source != lastSource) {
                 lastSampleMonoMs = 0;
                 lastPowerKw = null;
+                lastDriveKw = null;
+                lastClimateKw = null;
                 lastSource = source;
+                meanCount = 0;
             }
+            addMeanSample(nowMonoMs, kw);
             // Rule: only suppress energy integration when both parked and actively charging.
             // Invariant: driving energy must never be suppressed by a lingering charging state.
             // ChargeSession.isCharging() tracks active session state (fed by CarActor's
@@ -163,6 +226,8 @@ public final class EnergyIntegrator {
                     && com.geely.drivemem.state.ChargeSession.isCharging()) {
                 lastSampleMonoMs = 0;
                 lastPowerKw = null;
+                lastDriveKw = null;
+                lastClimateKw = null;
                 return;
             }
 
@@ -172,31 +237,9 @@ public final class EnergyIntegrator {
                     double hours = deltaMs / 3_600_000.0;
                     double p0 = lastPowerKw;
                     double p1 = kw;
-                    double stepSpentKwh = 0.0;
-                    double stepRegenKwh = 0.0;
-
-                    if (p0 >= 0.0 && p1 >= 0.0) {
-                        // Entire interval is positive (discharge / regular consumption)
-                        stepSpentKwh = ((p0 + p1) / 2.0) * hours;
-                    } else if (p0 <= 0.0 && p1 <= 0.0) {
-                        // Entire interval is negative (charging / regenerative braking)
-                        stepRegenKwh = ((-p0 - p1) / 2.0) * hours;
-                    } else {
-                        // Zero-crossing within this interval: split trapezoid into two triangles
-                        double range = Math.abs(p1 - p0);
-                        if (range > 0.0) {
-                            double frac = Math.abs(p0) / range;
-                            double h0 = hours * frac;
-                            double h1 = hours * (1.0 - frac);
-                            if (p0 > 0.0) {
-                                stepSpentKwh = (p0 / 2.0) * h0;
-                                stepRegenKwh = (-p1 / 2.0) * h1;
-                            } else {
-                                stepRegenKwh = (-p0 / 2.0) * h0;
-                                stepSpentKwh = (p1 / 2.0) * h1;
-                            }
-                        }
-                    }
+                    double[] step = trapezoid(p0, p1, hours);
+                    double stepSpentKwh = step[0];
+                    double stepRegenKwh = step[1];
 
                     double stepNetKwh = stepSpentKwh - stepRegenKwh;
 
@@ -221,14 +264,90 @@ public final class EnergyIntegrator {
                         tripRegenKwh += stepRegenKwh;
                         tripNetKwh += stepNetKwh;
                         tripSampleCount++;
+                        tripMeasuredMs += deltaMs;
+                        if (source == SOURCE_CAN) {
+                            tripCanMs += deltaMs;
+                            tripCanNetKwh += stepNetKwh;
+                            double[] d = trapezoid(orZero(lastDriveKw), orZero(driveKw), hours);
+                            tripDriveSpentKwh += d[0];
+                            tripDriveRegenKwh += d[1];
+                            double c0 = Math.max(0, orZero(lastClimateKw)), c1 = Math.max(0, orZero(climateKw));
+                            tripClimateRawKwh += (c0 + c1) / 2.0 * hours;
+                            tripClimateOnMs += deltaMs * ((c0 > 0 ? 0.5 : 0) + (c1 > 0 ? 0.5 : 0));
+                        }
                     }
                 }
             }
 
             lastSampleMonoMs = nowMonoMs;
             lastPowerKw = kw;
+            lastDriveKw = driveKw;
+            lastClimateKw = climateKw;
         }
     }
+
+    private static double orZero(Double d) { return d == null ? 0.0 : d; }
+
+    /** Energy of one trapezoid step, split by sign: {spent, regen}, both
+     * kWh >= 0. A step that crosses zero is cut into two triangles. */
+    static double[] trapezoid(double p0, double p1, double hours) {
+        double spent = 0.0, regen = 0.0;
+        if (p0 >= 0.0 && p1 >= 0.0) {
+            spent = ((p0 + p1) / 2.0) * hours;
+        } else if (p0 <= 0.0 && p1 <= 0.0) {
+            regen = ((-p0 - p1) / 2.0) * hours;
+        } else {
+            double range = Math.abs(p1 - p0);
+            if (range > 0.0) {
+                double frac = Math.abs(p0) / range;
+                double h0 = hours * frac;
+                double h1 = hours * (1.0 - frac);
+                if (p0 > 0.0) {
+                    spent = (p0 / 2.0) * h0;
+                    regen = (-p1 / 2.0) * h1;
+                } else {
+                    regen = (-p0 / 2.0) * h0;
+                    spent = (p1 / 2.0) * h1;
+                }
+            }
+        }
+        return new double[]{spent, regen};
+    }
+
+    private static void addMeanSample(long t, double kw) {
+        meanT[meanHead] = t;
+        meanP[meanHead] = kw;
+        meanHead = (meanHead + 1) % MEAN_RING;
+        if (meanCount < MEAN_RING) meanCount++;
+    }
+
+    /** Mean battery power (kW, + = out) over the last {@code windowMs}, each
+     * sample held until the next one (the last for at most MEAN_HOLD_MS).
+     * Charging included. Null when samples cover under half the window, so
+     * the caller falls back to the instant value. For ABRP: one mean per
+     * sample is a steadier calibration point than one instant reading. */
+    public static Double meanPowerKw(long nowMono, long windowMs) {
+        synchronized (LOCK) {
+            long from = nowMono - windowMs;
+            double kwMs = 0;
+            long covered = 0;
+            for (int k = 0; k < meanCount; k++) {
+                int i = Math.floorMod(meanHead - meanCount + k, MEAN_RING);
+                long t0 = meanT[i];
+                long t1 = (k + 1 < meanCount) ? meanT[(i + 1) % MEAN_RING]
+                    : Math.min(nowMono, t0 + MEAN_HOLD_MS);
+                if (t1 - t0 > MAX_GAP_MS) t1 = t0 + MEAN_HOLD_MS;   // a gap, not a held value
+                long a = Math.max(t0, from), b = Math.min(t1, nowMono);
+                if (b <= a) continue;
+                kwMs += meanP[i] * (b - a);
+                covered += b - a;
+            }
+            if (covered * 2 < windowMs) return null;
+            return kwMs / covered;
+        }
+    }
+
+    public static Double meanPowerKw(long windowMs) { return meanPowerKw(nowMono(), windowMs); }
 
     public static long nowMono() {
         try {
@@ -343,7 +462,25 @@ public final class EnergyIntegrator {
             tripRegenKwh = 0.0;
             tripNetKwh = 0.0;
             tripSampleCount = 0;
+            resetTripSplit();
         }
+    }
+
+    private static void resetTripSplit() {
+        tripDriveSpentKwh = 0.0;
+        tripDriveRegenKwh = 0.0;
+        tripClimateRawKwh = 0.0;
+        tripClimateOnMs = 0.0;
+        tripCanNetKwh = 0.0;
+        tripMeasuredMs = 0;
+        tripCanMs = 0;
+        tripSeeded = false;
+    }
+
+    private static TripSnapshot tripSnapshot() {
+        boolean valid = !tripSeeded && tripCanMs > 0 && tripCanMs >= SPLIT_MIN_COVERAGE * tripMeasuredMs;
+        return new TripSnapshot(tripSpentKwh, tripRegenKwh, tripNetKwh, tripSampleCount,
+            valid, tripCanNetKwh, tripDriveSpentKwh, tripDriveRegenKwh, tripClimateRawKwh, tripClimateOnMs / 1000.0);
     }
 
     /** Adds already-known energy to the active trip's accumulators. For recovering
@@ -356,6 +493,8 @@ public final class EnergyIntegrator {
             tripSpentKwh += spentKwh;
             tripRegenKwh += regenKwh;
             tripNetKwh += netKwh;
+            // The seeded part has no split: the trip's split is not whole.
+            tripSeeded = true;
         }
     }
 
@@ -363,14 +502,14 @@ public final class EnergyIntegrator {
     public static TripSnapshot endTrip() {
         synchronized (LOCK) {
             tripActive = false;
-            return new TripSnapshot(tripSpentKwh, tripRegenKwh, tripNetKwh, tripSampleCount);
+            return tripSnapshot();
         }
     }
 
     /** Returns current trip totals while still driving. */
     public static TripSnapshot currentTrip() {
         synchronized (LOCK) {
-            return new TripSnapshot(tripSpentKwh, tripRegenKwh, tripNetKwh, tripSampleCount);
+            return tripSnapshot();
         }
     }
 
@@ -380,6 +519,10 @@ public final class EnergyIntegrator {
             lastSource = 0;
             lastSampleMonoMs = 0;
             lastPowerKw = null;
+            lastDriveKw = null;
+            lastClimateKw = null;
+            meanHead = 0;
+            meanCount = 0;
             windowSpentKwh = 0.0;
             windowRegenKwh = 0.0;
             windowNetKwh = 0.0;
@@ -391,6 +534,7 @@ public final class EnergyIntegrator {
             tripRegenKwh = 0.0;
             tripNetKwh = 0.0;
             tripSampleCount = 0;
+            resetTripSplit();
         }
     }
 

@@ -4,6 +4,7 @@ import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarDb;
 import com.geely.drivemem.sensors.DailyStatsProvider;
 import com.geely.drivemem.sensors.EnergySource;
+import com.geely.drivemem.sensors.EnergySplit;
 import com.geely.drivemem.sensors.SpeedBuckets;
 import com.geely.drivemem.util.Style;
 
@@ -166,6 +167,9 @@ public class TripRouteActivity extends Activity {
         double[] lat = new double[0], lon = new double[0], speed = new double[0], alt = new double[0];
         long[] ts = new long[0];
         Double tempMin, tempMax;
+        /** The trip's raw split columns (CarDb.TRIP_SPLIT_COLUMNS), or null
+         * when CAN did not measure the trip. */
+        double[] split;
     }
 
     private void load(long tripId, long startMs, long endMs) {
@@ -184,6 +188,15 @@ public class TripRouteActivity extends Activity {
                     d.ts[i] = c.getLong(4);
                 }
             } finally { c.close(); }
+            Cursor sc = CarDb.get(this).db().rawQuery(
+                "SELECT can_net_kwh, drive_spent_kwh, drive_regen_kwh, climate_raw_kwh, climate_on_s "
+              + "FROM trip WHERE id = ? AND can_net_kwh IS NOT NULL", new String[]{String.valueOf(tripId)});
+            try {
+                if (sc.moveToFirst()) {
+                    d.split = new double[5];
+                    for (int i = 0; i < 5; i++) d.split[i] = sc.isNull(i) ? 0 : sc.getDouble(i);
+                }
+            } finally { sc.close(); }
             if (endMs > startMs) {
                 Cursor tc = CarDb.get(this).db().rawQuery(
                     "SELECT MIN(outside_temp_c), MAX(outside_temp_c) FROM telemetry_sample "
@@ -252,6 +265,12 @@ public class TripRouteActivity extends Activity {
         String netSub = !est && regen > 0 ? getString(R.string.session_stat_net_breakdown,
             String.format(Locale.US, "%.1f", spent), String.format(Locale.US, "%.1f", regen)) : null;
         stat(R.string.session_stat_net_energy, netText, netSub);
+        if (!est && d != null && d.split != null) {
+            EnergySplit sp = EnergySplit.of(net, d.split[0], d.split[1], d.split[2], d.split[3], d.split[4]);
+            String f = Math.abs(net) < 2 ? "%.2f" : "%.1f";
+            stat(R.string.route_stat_by_use, String.format(Locale.US, f + " · " + f + " · " + f + " kWh",
+                sp.driveKwh, sp.climateKwh, sp.otherKwh), getString(R.string.route_stat_by_use_parts));
+        }
         stat(R.string.session_stat_efficiency,
             eff > 0 ? String.format(Locale.US, "%.1f kWh/100km", eff) : "—", null);
         stat(R.string.session_stat_battery, socStart >= 0 && socEnd >= 0

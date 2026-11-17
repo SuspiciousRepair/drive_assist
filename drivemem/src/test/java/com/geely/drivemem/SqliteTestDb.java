@@ -80,7 +80,8 @@ public final class SqliteTestDb {
                 "regen_kwh REAL," +
                 "spent_kwh REAL," +
                 "net_kwh REAL," +
-                "energy_source TEXT, estimated_net_kwh REAL)",
+                "energy_source TEXT, estimated_net_kwh REAL," +
+                "can_net_kwh REAL, drive_spent_kwh REAL, drive_regen_kwh REAL, climate_raw_kwh REAL, climate_on_s REAL)",
 
             "CREATE TABLE trip_energy_segment (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER," +

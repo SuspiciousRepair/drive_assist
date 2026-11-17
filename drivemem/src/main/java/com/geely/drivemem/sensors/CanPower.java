@@ -89,6 +89,13 @@ public final class CanPower {
         return lastKw;
     }
 
+    /** The drive and climate values held right now, for the sample that
+     * {@link #onSignal}/{@link #onHeartbeat} just returned. No staleness
+     * check: the caller asks in the same breath as the sample. Null = never
+     * seen or not valid; the integrator counts that as 0 kW. */
+    public synchronized Double heldDriveKw() { return drive; }
+    public synchronized Double heldClimateKw() { return climate; }
+
     public synchronized boolean live(long nowMono) {
         return alive && nowMono >= lastAliveMono && nowMono - lastAliveMono <= STALE_MS;
     }

@@ -546,6 +546,8 @@
     <string name="route_stat_speed_value">avg %1$s · top %2$s km/h</string>
     <string name="route_stat_height_range">Height %1$s – %2$s m</string>
     <string name="route_stat_outside">Outside</string>
+    <string name="route_stat_by_use">Energy by use</string>
+    <string name="route_stat_by_use_parts">drive · climate · other</string>
     <!-- Day session cards (DailyStatsView) -->
     <string name="session_since">since %1$s</string>
     <string name="session_yesterday">yesterday</string>

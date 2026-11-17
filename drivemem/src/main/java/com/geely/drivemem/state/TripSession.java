@@ -332,6 +332,13 @@ public final class TripSession {
                 if (tripSource == EnergySource.ESTIMATED && Double.isFinite(socEstimatedNetKwh)) {
                     v.put("estimated_net_kwh", socEstimatedNetKwh);
                 }
+                if (ts.splitValid) {
+                    v.put("can_net_kwh", ts.canNetKwh);
+                    v.put("drive_spent_kwh", ts.driveSpentKwh);
+                    v.put("drive_regen_kwh", ts.driveRegenKwh);
+                    v.put("climate_raw_kwh", ts.climateRawKwh);
+                    v.put("climate_on_s", ts.climateOnSeconds);
+                }
                 CarDb.get(ctx).write(() -> {
                     try {
                         long tripId = CarDb.get(ctx).db().insert("trip", null, v);
