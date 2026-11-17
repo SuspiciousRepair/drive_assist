@@ -105,7 +105,38 @@ High-voltage energy management, charging dispatch, and trip consumption analysis
 
 Managed via `SuperEnduranceActivity` across properties `604177408`–`604178944`:
 * Single-action emergency range extension mode.
-* Automatically cuts AC compressor power, turns off interior ambient lighting, forces regenerative braking to High, and caps vehicle road speed at 90 km/h.
+* Cuts AC compressor power, turns off interior ambient lighting, forces regenerative braking to High, and caps vehicle road speed at 90 km/h.
+* Each of those four is its own user toggle in the dialog (`HYBRID_FUNC_SUPER_ENERGY_SAVING_AIR_CONDITIONER`, `_ENERGY_RECOVERY`, `_SPEED_LIMIT`, `_AMBIENT_LIGHTING`), not a fixed bundle. A fifth toggle, `_SEAT_VENTILATION_HEATING` (`rl_seat`), is `gone` in the layout: no seat heating on this trim.
+
+#### Hidden and gated features (static review, 2026-11-15)
+
+How the main screen decides what to show: every row of the settings column
+(`settings_area.xml`) has its visibility bound in `SettingsAreaBindingImpl`
+(`b1/h1.java`). A row is hidden only when its status field is `0`. Two kinds
+of status feed those fields:
+
+* **Car properties**, read through `i1.e.p()` (`i1/e.java:1896`). It returns
+  `1` (no config), `2` (status error), `3` (available) or `4` (other) — never
+  `0`. So charge current, discharge SoC, the V2L switch and Super Energy
+  Saving can never be hidden by the car; at worst they show disabled
+  (Super Energy Saving fades to 30 % alpha when the status is not `3`).
+* **TCAM services** (`com.ecarx.xui.adaptapi.tcam`): `IBookCharging.isBookChargingSupport()`
+  and `IBookTravel.isBookTravelSupport()` (`i1/e.java:239`, `:254`). Their
+  `FunctionStatus.notavailable` maps to `0` (`EnergyService.i()`/`.q()`), so
+  **Scheduled charging** and **Scheduled departure** are the two rows the
+  car itself can remove. Whether they show on this car depends on the TCAM.
+
+| Feature | State | Gate | Evidence (in `decompiled/energy/src/`) | Usable here? |
+|---|---|---|---|---|
+| Energy history bar chart (day / month / year, calendar, "back to today") | Built, unreachable | The graph/histogram picker popup is created but never shown; its arrow `iv_curve` is `gone` | `MileageStatisticsActivity.java:994-1045`, `mileage_statistics_graph.xml:30` | No: data comes from `https://oneoss-ecu.geely.com/.../getNewDay/Month/YearEnergySum` (Geely China cloud, `:449-453`). Drive Assist can build the same chart from its own trip DB. |
+| Charging status light ("exterior lights breathe while charging") | Built, left out of the screen | `widget_charge_light.xml` is not `<include>`d anywhere; the app still subscribes to `CHARGE_FUNC_EXTERNAL_CHARGING_LIGHT` | `i1/e.java:601`, `:1450` | Unknown. Function `0x24100e00` (`605031936`). Check on the car: read its status, then try a write while charging. |
+| Vehicle-to-Vehicle (V2V) discharge button | Built, always hidden | `binding_2` in `widget_discharging_switch.xml` is `gone` and no code sets it visible | `widget_discharging_switch.xml:26`, `b1/e2.java` | Unknown. Function `0x24120100` (`605159680`); needs a V2V cable and BMS support. |
+| Super Energy Saving seat toggle | Hidden | `rl_seat` `gone` | `super_endurance_dialog.xml:146` | No: no seat heating/ventilation. |
+| Fuel charging, battery hold, "intelligent energy management" | Exported dialog activity (`FUELCHARGING`) and popups | Nothing on the main screen links to them | `FuelChargingActivity.java`, `fuel_charge_popup.xml`, `park_power_popup.xml`, `predictability_dialog.xml` | No: PHEV only. |
+| Right-hand-drive layout | Hidden on LHD | `h1.c.c()`/`.b()` switch `ly_energy_view_rhd` on | `EnergyActivity.java` `onCreate` | No. |
+
+The two "Unknown" rows are the only ones worth a car test. Raw evidence
+stays in `~/dev/geely/decompiled/energy/` (not in this repo).
 
 ---
 
