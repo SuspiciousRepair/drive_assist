@@ -124,6 +124,16 @@ public final class TelemetryLookSection extends LinearLayout {
         appNote.setText(activity.getString(R.string.cfg_appearance_note));
         appCard.addView(appNote);
 
+        // Extra dark (#89): read by the Dashboard on its next onResume, so
+        // no recreate is needed.
+        appCard.addView(toggleRow(activity, activity.getString(R.string.cfg_extra_dark_label),
+            com.geely.drivemem.util.Prefs.getExtraDark(activity),
+            on -> com.geely.drivemem.util.Prefs.setExtraDark(activity, on)));
+        TextView darkNote = new TextView(activity);
+        darkNote.setTextColor(Style.TEXT_DIM); darkNote.setTextSize(14);
+        darkNote.setText(activity.getString(R.string.cfg_extra_dark_note));
+        appCard.addView(darkNote);
+
         TextView sub = new TextView(activity);
         sub.setTextColor(Style.TEXT_DIM); sub.setTextSize(14);
         sub.setText(activity.getString(R.string.cfg_theme_sub));

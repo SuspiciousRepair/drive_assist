@@ -185,6 +185,9 @@ public final class Prefs {
     public static void setSkylineSeed(Context ctx, long v) { file(ctx).edit().putLong("skyline_seed", v).apply(); }
 
     // --- Spotify ---
+    // Config > Look > Extra dark (#89, ui/ExtraDark). Off until chosen.
+    public static boolean getExtraDark(Context ctx) { return file(ctx).getBoolean("extra_dark", false); }
+    public static void setExtraDark(Context ctx, boolean v) { file(ctx).edit().putBoolean("extra_dark", v).apply(); }
     public static boolean getSpotifyLargeCard(Context ctx) { return file(ctx).getBoolean("spotify_large_card", false); }
     public static void setSpotifyLargeCard(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_large_card", v).apply(); }
     public static String getSpotifyClientId(Context ctx) { return file(ctx).getString("spotify_client_id", ""); }
