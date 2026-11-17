@@ -9,9 +9,12 @@
   page, the trip cards, the trip screen, the live badge on the Dashboard and
   the CSV export (`efficiency_kwh_100km` is now `efficiency_wh_km`). Stored
   data is unchanged.
-- **Stats page: new "Energy by use" card.** For trips measured by CAN, a bar
-  shows how the energy split between drive, climate and other (12 V loads
-  and losses), with each part in kWh and Wh/km. It sits next to Consumption.
+- **Stats page: new "Energy by use" card.** For trips measured by CAN, a
+  Sankey chart shows where the energy went: used, what came back as regen,
+  and the net split into drive, climate and other (12 V loads and losses),
+  each part in kWh and Wh/km. Every band is to scale. It sits next to
+  Consumption, which no longer repeats net / used / regen. The trip screen
+  shows the same chart.
 - **Stats page: "Time & Speed" and "Relief" are one "Trip" card.** Driving
   time, average speed, and the net climb with the climb and descent under it.
   The distance is no longer repeated there: the chart above shows it.

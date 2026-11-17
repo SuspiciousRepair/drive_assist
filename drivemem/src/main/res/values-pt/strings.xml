@@ -532,7 +532,10 @@
     <string name="route_stat_height_range">Altitude %1$s – %2$s m</string>
     <string name="route_stat_outside">Lá fora</string>
     <string name="route_stat_by_use">Energia por uso</string>
-    <string name="route_stat_by_use_parts">tração · clima · outros</string>
+    <string name="sankey_used">Gasto</string>
+    <string name="sankey_net">Líquido</string>
+    <string name="sankey_regen">Regen</string>
+    <string name="sankey_came_back">voltou</string>
     <string name="stats_part_drive">Tração</string>
     <string name="stats_part_climate">Clima</string>
     <string name="stats_part_other">Outros</string>

@@ -1295,10 +1295,12 @@ public final class DailyStatsProvider {
     private static double d(Cursor c, int i) { return c.isNull(i) ? 0 : c.getDouble(i); }
 
     /** The split summed over the measured trips in `sessions`: drive,
-     * climate, other kWh and the km those trips covered (the right divisor
-     * for Wh/km, since older trips have no split). Null when none has one. */
+     * climate, other kWh, the km those trips covered (the right divisor
+     * for Wh/km, since older trips have no split), and the same trips' used
+     * and regen kWh (for the Sankey: used - regen = the three parts). Null
+     * when none has one. */
     public static double[] splitTotals(List<? extends DaySession> sessions) {
-        double drive = 0, climate = 0, other = 0, km = 0;
+        double drive = 0, climate = 0, other = 0, km = 0, spent = 0, regen = 0;
         boolean any = false;
         for (DaySession s : sessions) {
             if (!(s instanceof DriveSession)) continue;
@@ -1309,8 +1311,10 @@ public final class DailyStatsProvider {
             climate += t.split.climateKwh;
             other += t.split.otherKwh;
             km += t.distanceKm;
+            spent += t.spentKwh;
+            regen += t.regenKwh;
         }
-        return any ? new double[]{drive, climate, other, km} : null;
+        return any ? new double[]{drive, climate, other, km, spent, regen} : null;
     }
 
     private static List<DaySession> queryDaySessions(Context ctx, SQLiteDatabase db, String dateStr) {

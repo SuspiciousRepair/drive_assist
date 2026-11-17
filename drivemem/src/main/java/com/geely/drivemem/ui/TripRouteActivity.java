@@ -277,9 +277,16 @@ public class TripRouteActivity extends Activity {
         stat(R.string.session_stat_net_energy, netText, netSub);
         if (!est && d != null && d.split != null) {
             EnergySplit sp = EnergySplit.of(net, d.split[0], d.split[1], d.split[2], d.split[3], d.split[4], d.split[5]);
-            String f = Math.abs(net) < 2 ? "%.2f" : "%.1f";
-            stat(R.string.route_stat_by_use, String.format(Locale.US, f + " · " + f + " · " + f + " kWh",
-                sp.driveKwh, sp.climateKwh, sp.otherKwh), getString(R.string.route_stat_by_use_parts));
+            TextView l = new TextView(this);
+            l.setText(R.string.route_stat_by_use);
+            l.setTextColor(Style.TEXT_DIM);
+            l.setTextSize(17);
+            l.setPadding(0, Style.dp(this, 10), 0, 0);
+            stats.addView(l);
+            EnergySankeyView sankey = new EnergySankeyView(this);
+            sankey.setData(spent, regen, sp.driveKwh, sp.climateKwh, sp.otherKwh, km);
+            stats.addView(sankey, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }
         stat(R.string.session_stat_efficiency,
             eff > 0 ? com.geely.drivemem.util.EnergyUnits.number(eff) + " " + com.geely.drivemem.util.EnergyUnits.WH_PER_KM : "—", null);
