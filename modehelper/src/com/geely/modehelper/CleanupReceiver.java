@@ -92,13 +92,23 @@ public class CleanupReceiver extends BroadcastReceiver {
             note = append(note, "CAN reader: " + e);
         }
 
-        // 3. nothing may re-open ADB after we leave
-        try { AdbControl.setAlwaysOn(app, false); } catch (Throwable ignored) {}
-
-        // 4. the final ADB state the owner asked for
+        // 3. the final ADB state the owner asked for. The "always on" flag is
+        // set to match, so that if this helper outlives the request for a
+        // moment (its own uninstall is the very last step), it holds ADB in
+        // the SAME state rather than fighting it:
+        //   - close: flag off, then ADB off with no window — nothing re-opens
+        //     it, and the way back in is a fresh unlock of the car;
+        //   - keep:  flag on, then ADB on with no auto-off — if the helper
+        //     lingers at all it keeps ADB on, and once it is gone ADB stays on
+        //     with nothing of ours left to turn it off.
         try {
-            if (closeAdb) AdbControl.set(app, false, 0);
-            else AdbControl.setIndefinite(app, true);
+            if (closeAdb) {
+                AdbControl.setAlwaysOn(app, false);
+                AdbControl.set(app, false, 0);
+            } else {
+                AdbControl.setAlwaysOn(app, true);
+                AdbControl.setIndefinite(app, true);
+            }
         } catch (Throwable t) { note = append(note, "adb: " + t); }
         return note;
     }
