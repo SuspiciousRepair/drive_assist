@@ -14,12 +14,12 @@ public class RouteSetTest {
     private static RouteSet.Trip trip(double lat0, double... alt) {
         int n = alt.length;
         double[] lat = new double[n], lon = new double[n], speed = new double[n];
-        for (int i = 0; i < n; i++) { lat[i] = lat0 + i * 0.01; lon[i] = -46.6; speed[i] = 10 * i; }
+        for (int i = 0; i < n; i++) { lat[i] = lat0 + i * 0.01; lon[i] = -40.0; speed[i] = 10 * i; }
         return new RouteSet.Trip(lat, lon, speed, alt);
     }
 
     @Test public void pointsFollowEachOtherAndStartsMarkEachTrip() {
-        RouteSet s = RouteSet.of(Arrays.asList(trip(-23.5, 700, 710), trip(-23.0, 800, 810, 820)), 1);
+        RouteSet s = RouteSet.of(Arrays.asList(trip(30.0, 700, 710), trip(-23.0, 800, 810, 820)), 1);
         assertEquals(5, s.lat.length);
         assertArrayEquals(new int[]{0, 2}, s.starts);
         assertEquals(-23.0, s.lat[2], 1e-9);
@@ -27,7 +27,7 @@ public class RouteSetTest {
     }
 
     @Test public void theDistanceRunsOnFromTripToTrip() {
-        RouteSet s = RouteSet.of(Arrays.asList(trip(-23.5, 700, 710), trip(-23.0, 800, 810, 820)), 1);
+        RouteSet s = RouteSet.of(Arrays.asList(trip(30.0, 700, 710), trip(-23.0, 800, 810, 820)), 1);
         assertEquals(5, s.profKm.length);
         assertEquals(0, s.profKm[0], 1e-9);
         assertEquals(1.112, s.profKm[1], 0.01);
@@ -38,7 +38,7 @@ public class RouteSetTest {
     }
 
     @Test public void aTripWithNoHeightIsLeftOutOfTheProfileOnly() {
-        RouteSet s = RouteSet.of(Arrays.asList(trip(-23.5, N, N), trip(-23.0, 800, N)), 1);
+        RouteSet s = RouteSet.of(Arrays.asList(trip(30.0, N, N), trip(-23.0, 800, N)), 1);
         assertEquals(4, s.lat.length);                 // still in the picture
         assertArrayEquals(new int[]{2, 3}, s.point);   // the profile points to the second trip
         assertArrayEquals(new double[]{800, 800}, s.profAlt, 1e-9);

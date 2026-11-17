@@ -24,15 +24,15 @@ public class RouteGeometryTest {
         }
     }
 
-    // 0.01 deg of latitude is about 1112 m; at -23.5 a degree of longitude
-    // is cos(23.5) = 0.917 of that.
+    // 0.01 deg of latitude is about 1112 m; at 30 deg a degree of longitude
+    // is cos(30) = 0.866 of that. A neutral place, no real location.
     @Test public void projectionIsMetresAroundTheCentreNorthUp() {
         double[][] xy = RouteGeometry.project(
-            new double[]{-23.51, -23.50}, new double[]{-46.61, -46.60});
+            new double[]{30.00, 30.01}, new double[]{-40.01, -40.00});
         assertEquals(-556, xy[1][0], 2);   // south of centre
         assertEquals(556, xy[1][1], 2);    // north of centre
-        assertEquals(-510, xy[0][0], 2);   // west
-        assertEquals(510, xy[0][1], 2);    // east
+        assertEquals(-481, xy[0][0], 2);   // west
+        assertEquals(481, xy[0][1], 2);    // east
     }
 
     @Test public void fitKeepsAspectAndPadding() {
