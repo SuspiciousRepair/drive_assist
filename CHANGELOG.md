@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- **Front defogger in Home Assistant.** When you press the front-windshield
+  defogger button, the app sees it at once: the climate ruler shows
+  "defrosting" without the old wait of up to 30 s, the climate log saves each
+  press with the outside temperature, and Home Assistant gets a
+  "Desembaçador dianteiro" on/off sensor.
 - **Soft tyre warning in Home Assistant.** The car's own flat-tyre warning,
   per wheel, as five Home Assistant problem sensors ("Pneu baixo" and one per
   wheel), so an automation can alert your phone. This car has no tyre
