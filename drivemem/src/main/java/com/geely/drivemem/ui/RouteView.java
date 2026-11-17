@@ -34,6 +34,13 @@ public class RouteView extends View {
     private static final int FAINT = 70;
 
     private double[] xs = new double[0], ys = new double[0], speed = new double[0];
+    private double[] rLat = new double[0], rLon = new double[0];
+    // Charge spots (ChargeSpots): drawn as pins with the AC or DC icon.
+    private double[] spotLat = new double[0], spotLon = new double[0];
+    private boolean[] spotDc = new boolean[0];
+    private double[] spXm = new double[0], spYm = new double[0];   // metres, same frame as xs/ys
+    private float[] spX = new float[0], spY = new float[0];
+    private final android.graphics.drawable.Drawable acIcon, dcIcon;
     /** First point of each trip; one trip is {0}. */
     private int[] starts = {0};
     /** Many trips in one picture: thin lines, a trip can be selected. */
@@ -80,6 +87,37 @@ public class RouteView extends View {
         bar.setColor(Style.TEXT_DIM);
         bar.setStrokeWidth(Style.dp(c, 3));
         pad = Style.dp(c, 40);
+        acIcon = c.getDrawable(com.geely.drivemem.R.drawable.ic_power_plug).mutate();
+        acIcon.setTint(Style.ACCENT);
+        dcIcon = c.getDrawable(com.geely.drivemem.R.drawable.ic_ev_plug_ccs2).mutate();
+        dcIcon.setTint(Style.GOOD);
+    }
+
+    /** Where the car charged: pins with the AC (blue plug) or DC (green
+     * CCS2) icon, the app's charging style. They count in the fit, so a
+     * spot is never off the picture. */
+    void setChargeSpots(java.util.List<ChargeSpots.Spot> spots) {
+        int n = spots.size();
+        spotLat = new double[n]; spotLon = new double[n]; spotDc = new boolean[n];
+        for (int i = 0; i < n; i++) {
+            ChargeSpots.Spot sp = spots.get(i);
+            spotLat[i] = sp.lat; spotLon[i] = sp.lon; spotDc[i] = sp.dc;
+        }
+        project();
+        rebuild();
+        invalidate();
+    }
+
+    /** Route points and spots in one frame (one centre). */
+    private void project() {
+        int n = rLat.length, m = spotLat.length;
+        double[] lat = new double[n + m], lon = new double[n + m];
+        System.arraycopy(rLat, 0, lat, 0, n); System.arraycopy(spotLat, 0, lat, n, m);
+        System.arraycopy(rLon, 0, lon, 0, n); System.arraycopy(spotLon, 0, lon, n, m);
+        double[][] xy = RouteGeometry.project(lat, lon);
+        xs = java.util.Arrays.copyOf(xy[0], n); ys = java.util.Arrays.copyOf(xy[1], n);
+        spXm = java.util.Arrays.copyOfRange(xy[0], n, n + m);
+        spYm = java.util.Arrays.copyOfRange(xy[1], n, n + m);
     }
 
     private static Path[] newPaths() {
@@ -101,8 +139,8 @@ public class RouteView extends View {
     }
 
     private void set(double[] lat, double[] lon, double[] speedKmh, int[] tripStarts, boolean manyTrips) {
-        double[][] xy = RouteGeometry.project(lat, lon);
-        xs = xy[0]; ys = xy[1]; speed = speedKmh;
+        rLat = lat; rLon = lon; speed = speedKmh;
+        project();
         starts = tripStarts; many = manyTrips; selected = -1;
         rebuild();
         invalidate();
@@ -181,11 +219,16 @@ public class RouteView extends View {
         for (Path p : allPaths) p.rewind();
         markA = markB = -1;
         sx = new float[n]; sy = new float[n];
+        spX = new float[spXm.length]; spY = new float[spYm.length];
         barPx = 0; barLabel = null;
         if (n == 0 || w <= 0 || h <= 0) return;
 
-        RouteGeometry.Fit f = RouteGeometry.fit(xs, ys, w, h, pad);
+        double[] fx = new double[n + spXm.length], fy = new double[n + spYm.length];
+        System.arraycopy(xs, 0, fx, 0, n); System.arraycopy(spXm, 0, fx, n, spXm.length);
+        System.arraycopy(ys, 0, fy, 0, n); System.arraycopy(spYm, 0, fy, n, spYm.length);
+        RouteGeometry.Fit f = RouteGeometry.fit(fx, fy, w, h, pad);
         for (int i = 0; i < n; i++) { sx[i] = f.x(xs[i]); sy[i] = f.y(ys[i]); }
+        for (int i = 0; i < spX.length; i++) { spX[i] = f.x(spXm[i]); spY[i] = f.y(spYm[i]); }
 
         if (many) {
             for (int t = 0; t < starts.length; t++) addTrip(starts[t], tripEnd(t), allPaths, null);
@@ -198,6 +241,28 @@ public class RouteView extends View {
             barPx = (float) (barM * f.pxPerM);
             barLabel = RouteGeometry.lengthLabel(barM);
         }
+    }
+
+    private void drawPin(Canvas c, float x, float y, boolean dc) {
+        Context ctx = getContext();
+        float r = Style.dp(ctx, 20), lift = Style.dp(ctx, 34);
+        float cy = y - lift;
+        int col = dc ? Style.GOOD : Style.ACCENT;
+        dot.setStyle(Paint.Style.STROKE);
+        dot.setStrokeWidth(Style.dp(ctx, 3));
+        dot.setColor(col);
+        c.drawLine(x, y, x, cy + r, dot);
+        dot.setStyle(Paint.Style.FILL);
+        c.drawCircle(x, y, Style.dp(ctx, 4), dot);
+        dot.setColor(0xE6000000);
+        c.drawCircle(x, cy, r, dot);
+        dot.setStyle(Paint.Style.STROKE);
+        dot.setColor(col);
+        c.drawCircle(x, cy, r, dot);
+        android.graphics.drawable.Drawable d = dc ? dcIcon : acIcon;
+        int ir = Style.dp(ctx, 13);
+        d.setBounds((int) x - ir, (int) cy - ir, (int) x + ir, (int) cy + ir);
+        d.draw(c);
     }
 
     @Override protected void onDraw(Canvas c) {
@@ -232,6 +297,15 @@ public class RouteView extends View {
             dot.setStyle(Paint.Style.STROKE);
             dot.setStrokeWidth(Style.dp(ctx, 4));
             c.drawCircle(sx[markB], sy[markB], r - Style.dp(ctx, 2), dot);
+        }
+
+        // Charge spots: a pin above the place, so the trip's start and end
+        // marks under it stay visible. AC charges first, DC on top.
+        for (int pass = 0; pass < 2; pass++) {
+            for (int i = 0; i < spX.length; i++) {
+                if (spotDc[i] != (pass == 1)) continue;
+                drawPin(c, spX[i], spY[i], spotDc[i]);
+            }
         }
 
         if (marker >= 0 && marker < n) {

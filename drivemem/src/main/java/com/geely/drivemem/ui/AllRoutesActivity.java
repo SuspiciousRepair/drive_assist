@@ -185,6 +185,10 @@ public class AllRoutesActivity extends Activity {
 
     private void load() {
         List<Item> found = new ArrayList<>();
+        List<ChargeSpots.Spot> spots = new ArrayList<>();
+        try { spots = ChargeSpots.cluster(ChargeSpots.read(this)); }
+        catch (Throwable e) { android.util.Log.w("DriveMem", "all routes charges: " + e); }
+        final List<ChargeSpots.Spot> spotsF = spots;
         try {
             // Finished trips by id. readAllTrips leaves Valet trips out.
             Map<Long, DriveSession> byId = new HashMap<>();
@@ -226,7 +230,7 @@ public class AllRoutesActivity extends Activity {
         } catch (Throwable e) {
             android.util.Log.w("DriveMem", "all routes: " + e);
         }
-        runOnUiThread(() -> loaded(found));
+        runOnUiThread(() -> { route.setChargeSpots(spotsF); loaded(found); });
     }
 
     private void loaded(List<Item> found) {
