@@ -5,8 +5,8 @@
 ### Added
 - **Extra dark at night.** New switch in Config → Look → Dark mode. When the
   car is in dark mode and you drive for a minute without touching the
-  screen, the Dashboard dims further (to a quarter of the car's own
-  brightness). A touch or a gear change brings the light back; the first
+  screen, the Dashboard goes as dark as the screen allows: the backlight
+  to its lowest level plus a dark layer on top. A touch or a gear change brings the light back; the first
   touch only lights the screen, it does not press a button. Only the
   Dashboard is dimmed, and the car's brightness setting is not changed.
   Off by default. (#89)
