@@ -27,6 +27,14 @@
   climate · other, in Wh/km.
 
 ### Added
+- **Climate ruler learn mode.** Config → Drive → Climate ruler. When you
+  change the climate by hand on the car's panel after a ruler tap and keep it
+  10 minutes, it is counted. Once a week, with the climate off, each level
+  takes the setting you kept most often that week (at least 2 times): fan,
+  temperature, air direction or recirculation. It learns per outside
+  temperature band, keeps every level stronger than the one below it, and
+  never changes 0, C5 or W5. The page lists what was learned and when.
+  "Reset ruler to default" deletes it. On by default; the switch turns it off.
 - **Charge spots on the route maps.** All routes shows every place the car
   charged, with the blue plug for AC and the green CCS2 plug for DC (a place
   with any DC charge shows DC; charges within 100 m are one place). A trip's

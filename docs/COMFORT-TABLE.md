@@ -108,3 +108,16 @@ To avoid erratic changes, an automatic re-slide only occurs when **all** of the 
 
 > [!NOTE]
 > **User Taps Bypass Timers**: When the driver taps **Cool** or **Warm**, the ruler immediately checks if ambient temperature has drifted by $\ge 2.0^\circ\text{C}$ and rebuilds the table instantly, ensuring immediate user actions always reflect current weather.
+
+## 6. Learn Mode (`ComfortLearn`)
+
+On by default. Switch: **Config → Drive → Climate ruler → Learn from my changes**. With it off the ruler uses the default table above; what was learned is kept until **Reset ruler to default**.
+
+* **The signal (a "hold")**: a change made by hand on the car's own climate panel, after the ruler set a column exactly, held for 10 minutes with no tap and no suspend in between. The ruler checks every beat (30 s, 10 s with the screen open); a gap over 2 minutes is a suspend and starts the hold again. One hold counts once, however long it lasts.
+* **The column it counts for**: on the fitted side, the column with the fewest different levers (ties go to the column the ruler last set). A different machine (AC) state, or more than 2 different levers, is not a tweak: it is logged as `skip` and not counted. The pinned columns (`0`, `C5`, `W5`) are never counted.
+* **Weekly decision**: the ruler changes once a week, and only while the climate is off, so it never changes during a drive. Per column and lever, the value held most often that week wins, if it was held at least 2 times and more often than any other value. Then the week's holds are cleared. Learning the default value again removes the learned one.
+* **Per weather band**: the key is the level plus the free-column count of that side (`3@1` = `C3` at 24–28 °C outside), so a change at 26 °C does not touch `C3` at 30 °C.
+* **Order is kept**: a learned value is used only if the column's fan and setpoint stay between its neighbours, it still fits back to its own level, and no other column stops doing so. Otherwise it is refused.
+* **Levers learned**: fan, setpoint, air direction, recirculation.
+* **Log**: every hold, skip and weekly result is a `comfort_event` row with `event = 'learn'` (detail like `hold C3@1 fan=4 x2`, `skip C3@1 fan=5 sp=22.0 dir=4`, `learn C3@1 fan=4 x2`, `undecided ...`, `refuse ...`).
+* **Storage**: one text pref, `comfort_learn_book`, in the app backup. The settings page lists what was learned, the last change date, and this week's count.
