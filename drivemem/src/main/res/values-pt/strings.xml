@@ -533,7 +533,6 @@
     <string name="sankey_used">Gasto</string>
     <string name="sankey_net">Líquido</string>
     <string name="sankey_regen">Regen</string>
-    <string name="sankey_came_back">voltou</string>
     <string name="stats_part_drive">Tração</string>
     <string name="stats_part_climate">Clima</string>
     <string name="stats_part_other">Outros</string>
