@@ -68,8 +68,16 @@ public class EnergySplitTest {
 
     // --- EnergyIntegrator: the split is taken from CAN samples only ---
 
+    /** Test clocks start here: the integrator reads time 0 as "no previous
+     * sample", like a fresh boot. */
+    private static final long T0 = 1_000_000;
+
     private static void can(long t, double kw, double drive, double climate) {
-        EnergyIntegrator.onPowerReading(t, kw, EnergyIntegrator.SOURCE_CAN, drive, climate);
+        EnergyIntegrator.onPowerReading(T0 + t, kw, EnergyIntegrator.SOURCE_CAN, drive, climate);
+    }
+
+    private static void obd(long t, double kw) {
+        EnergyIntegrator.onPowerReading(T0 + t, kw, EnergyIntegrator.SOURCE_OBD2);
     }
 
     @Test public void allCanTripHasAValidSplit() {
@@ -100,8 +108,8 @@ public class EnergySplitTest {
     @Test public void shortDongleStretchKeepsTheSplit() {
         EnergyIntegrator.startTrip();
         for (int i = 0; i <= 100; i++) can(i * 100L, 10.0, 9.0, 0);           // 10 s CAN
-        EnergyIntegrator.onPowerReading(10_500, 10.5, EnergyIntegrator.SOURCE_OBD2);
-        EnergyIntegrator.onPowerReading(11_000, 10.5, EnergyIntegrator.SOURCE_OBD2);   // 0.5 s dongle
+        obd(10_500, 10.5);
+        obd(11_000, 10.5);   // 0.5 s dongle
         EnergyIntegrator.TripSnapshot t = EnergyIntegrator.endTrip();
         assertTrue(t.splitValid);
         assertTrue(t.netKwh > t.canNetKwh);
@@ -112,14 +120,14 @@ public class EnergySplitTest {
         EnergyIntegrator.startTrip();
         can(0, 10, 9, 0);
         can(1000, 10, 9, 0);
-        for (int i = 0; i <= 10; i++) EnergyIntegrator.onPowerReading(2000 + i * 2000L, 10, EnergyIntegrator.SOURCE_OBD2);
+        for (int i = 0; i <= 10; i++) obd(2000 + i * 2000L, 10);
         assertFalse(EnergyIntegrator.endTrip().splitValid);
     }
 
     @Test public void dongleOnlyHasNoSplit() {
         EnergyIntegrator.startTrip();
-        EnergyIntegrator.onPowerReading(0, 10, EnergyIntegrator.SOURCE_OBD2);
-        EnergyIntegrator.onPowerReading(2000, 10, EnergyIntegrator.SOURCE_OBD2);
+        obd(0, 10);
+        obd(2000, 10);
         EnergyIntegrator.TripSnapshot t = EnergyIntegrator.endTrip();
         assertFalse(t.splitValid);
         assertTrue(t.netKwh > 0);
@@ -151,19 +159,19 @@ public class EnergySplitTest {
 
     @Test public void meanPowerOverTheWindow() {
         for (int i = 0; i <= 60; i++) can(i * 100L, i < 30 ? 10 : 20, 0, 0);   // 3 s at 10, 3 s at 20
-        assertEquals(15.0, EnergyIntegrator.meanPowerKw(6_000, 6_000), 0.2);
+        assertEquals(15.0, EnergyIntegrator.meanPowerKw(T0 + 6_000, 6_000), 0.2);
     }
 
     @Test public void meanPowerNeedsHalfTheWindow() {
         can(0, 10, 0, 0);
-        assertNull(EnergyIntegrator.meanPowerKw(10_000, 6_000));   // last sample long gone
+        assertNull(EnergyIntegrator.meanPowerKw(T0 + 10_000, 6_000));   // last sample long gone
     }
 
     @Test public void meanPowerStartsOverWhenTheSourceChanges() {
         for (int i = 0; i <= 60; i++) can(i * 100L, 50, 0, 0);
-        EnergyIntegrator.onPowerReading(6_000, 10, EnergyIntegrator.SOURCE_OBD2);
-        EnergyIntegrator.onPowerReading(8_000, 10, EnergyIntegrator.SOURCE_OBD2);
-        EnergyIntegrator.onPowerReading(10_000, 10, EnergyIntegrator.SOURCE_OBD2);
-        assertEquals(10.0, EnergyIntegrator.meanPowerKw(11_000, 6_000), EPS);
+        obd(6_000, 10);
+        obd(8_000, 10);
+        obd(10_000, 10);
+        assertEquals(10.0, EnergyIntegrator.meanPowerKw(T0 + 11_000, 6_000), EPS);
     }
 }
