@@ -1,13 +1,18 @@
 package com.geely.drivemem.art;
 
+import com.geely.drivemem.R;
 import com.geely.drivemem.ui.ComfortActivity;
 import com.geely.drivemem.util.Style;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Shader;
@@ -15,7 +20,7 @@ import android.os.SystemClock;
 
 import java.util.Random;
 
-// Art of the Noturno theme: vaporwave. Neon wireframe car running straight down
+// Art of the Noturno theme: vaporwave. The EX2 (the car's own render) running straight down
 // the grid towards the sun, with the city cut out on the horizon and the sun
 // BEHIND it.
 //
@@ -74,15 +79,6 @@ public class VaporArtView extends ArtView {
     // — neither gold (that was a reflection in the photo) nor two shades of blue
     // (that was me)
     private static final int CITY     = 0xFF6C5BE8;
-    private static final int NEON     = 0xFF00D9FF;   // edges of the car
-    private static final int CAR_DARK = 0xFF0A1030;   // face in shadow
-    private static final int CAR_LIT  = 0xFF2A4E9E;   // face turned towards the light
-    private static final int TAIL     = 0xFFFF2D55;
-    // pale panel between the two red clusters, and the reverse lamp inside each
-    // of them — the one cool element on the fascia, which is what stops the rear
-    // reading as a single red stripe
-    private static final int TAIL_PLATE  = 0xFF9FC7DB;
-    private static final int TAIL_PALE_C = 0xFFACCADA;
     private static final int ACCEL_C  = 0xFFFF1E3C;   // breath while accelerating
     private static final int REGEN_C  = 0xFF49E0FF;   // energy coming in
 
@@ -119,9 +115,8 @@ public class VaporArtView extends ArtView {
     // changes f, and without this the car would change size along with the grid
     // density.
     private static final float ZK = (1f - CELL) / 0.5f;
-    private static final float ZR = 0.86f * ZK, ZF = 2.10f * ZK;
-    private static final float WB = 0.46f, WC = 0.30f;    // half-width body / cabin
-    private static final float Y0 = 0.10f, Y1 = 0.32f, Y2 = 0.46f;
+    private static final float ZR = 0.86f * ZK;
+    private static final float WB = 0.46f;                // half-width of the body
     private static final float WHEEL_R = 0.13f;
 
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -132,7 +127,6 @@ public class VaporArtView extends ArtView {
     // is exactly why it can be shared with the other themes. Everything else in
     // this scene — grid, car, sun — is welded to px()/py() and stays.
     private final Skyline skyline = new Skyline(CITY, this::invalidate);
-    private final RectF r = new RectF();
 
     private Shader sky, ground, sunSh, hglow, haze, scrim, gridFade, glowAccel, glowRegen;
     private int w, h;
@@ -177,9 +171,13 @@ public class VaporArtView extends ArtView {
     // near the horizon even at close Z, so distance alone never hides it. The
     // car materializes as it backs away from the camera.
     // The sunrise is the only animation tied to wall time, not the car's motion.
-    // It starts at the horizon and takes six minutes to climb. While running
-    // alone, it redraws at 5 Hz instead of 60, keeping CPU light.
-    private static final float SUNRISE_MS      = 6f * 60f * 1000f;
+    // It starts a THIRD of the way up, not at the horizon: from below, the disc
+    // spent its first minutes hidden behind the city and the scene opened with
+    // no sun. The remaining two thirds climb at the old speed (the full climb
+    // used to take six minutes), so four minutes. While running alone, it
+    // redraws at 5 Hz instead of 60, keeping CPU light.
+    private static final float SUNRISE_START   = 1f / 3f;    // sunUp at the first frame
+    private static final float SUNRISE_MS      = 4f * 60f * 1000f;
     private static final long  SUNRISE_TICK_MS = 200L;   // under ArtView's 250 ms
                                                          // accumulator clamp, so no
                                                          // time is dropped
@@ -223,6 +221,10 @@ public class VaporArtView extends ArtView {
         // low enough that the car stops reporting a colour for it. Seed it
         // now, with the same fixed colour setAmbient() would give it.
         skyline.setColor(CITY);
+        // Decoded once per View. nodpi, so it arrives at its real 666 x 712; the
+        // mipmaps keep it clean when the projection shrinks it to ~half that.
+        carBmp = BitmapFactory.decodeResource(c.getResources(), R.drawable.noturno_car);
+        if (carBmp != null) { carBmp.setHasMipMap(true); lampMask = buildLampMask(carBmp); }
     }
 
     @Override public boolean fullBleed() { return true; }
@@ -328,209 +330,140 @@ public class VaporArtView extends ArtView {
     }
 
     // ================= car =================
-    // Box on box — but with OPAQUE FACES and the edges in another colour.
-    // Outline only turned into a tangle (you could not read what was in front of
-    // what); fill only turns into a smudge. Dark face + lit edge gives volume:
-    // the face says what covers what, the edge says where the shape folds.
+    // THE CAR'S OWN PICTURE OF ITSELF. This used to be a 13-face neon wireframe;
+    // it is now the EX2 as the head unit draws it on its ADAS settings screen
+    // (com.flyme.auto.settings, drawable/bg_car_adas, night variant).
     //
-    // The model is assembled in WORLD coordinates on every change of distance and
-    // drawn back to front (painter's algorithm). Since the car only moves in z,
-    // the depth ordering between the faces never changes sign — but it is
-    // recomputed anyway, which is free with 15 faces.
-    private static final int NV = 32;
-    private final float[] wx = new float[NV], wy = new float[NV], wz = new float[NV];
-    private final float[] sxs = new float[NV], sys = new float[NV];
-    private static final int WHEEL_SEG = 8;
+    // That render is shot from high above (~55 degrees down) and the car in it
+    // is only 158 px wide. Pasted as it was, it showed far too much roof and
+    // stood up past the horizon, because this camera looks only ~35 degrees
+    // down at the car. So the render was given to an AI image model (Imagen,
+    // through agy) to draw the SAME car again from this camera's angle, then
+    // cut out of its background with its contact shadow and saved as
+    // res/drawable-nodpi/noturno_car.webp (666 x 712).
+    //
+    // It goes through the ONE CAMERA: the rear of the body is pinned to the
+    // projected rear face of the car (x = ±WB, ground at y = 0, depth carZ), so
+    // size, position and the entry's approach come from px()/py().
+    //
+    // Measured off noturno_car.webp: the widest row of the rear body runs from
+    // x = 22 to x = 646, and the tyres meet the ground at row 575 — everything
+    // under that is shadow. Re-measure if the picture is replaced.
+    private static final float IMG_REAR_L = 22f, IMG_REAR_R = 646f;
+    private static final float IMG_GROUND = 575f;
 
-    // faces in counter-clockwise order seen from OUTSIDE
-    private static final int[][] FACES = {
-        {0, 1, 2, 3},            // body: rear
-        {5, 4, 7, 6},            // body: front
-        {4, 0, 3, 7},            // body: left side
-        {1, 5, 6, 2},            // body: right side
-        {3, 2, 6, 7},            // body: roof
-        {4, 5, 1, 0},            // body: floor
-        {8, 9, 10, 11},          // cabin: rear
-        {13, 12, 15, 14},        // cabin: front
-        {12, 8, 11, 15},         // cabin: left side
-        {9, 13, 14, 10},         // cabin: right side
-        {11, 10, 14, 15},        // cabin: roof
-        // only the REAR wheels: from behind, the front ones are hidden by the car
-        // itself, and drawing them only created dirt
-        {16, 17, 18, 19, 20, 21, 22, 23},
-        {24, 25, 26, 27, 28, 29, 30, 31},
-    };
-    private final float[] faceZ = new float[FACES.length];
-    private final int[] faceOrder = new int[FACES.length];
+    private Bitmap carBmp;
+    private final Paint bmp = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private final RectF carDst = new RectF();
 
+    // Places the picture and the rear wheels (for the pedal glow) at depth zr.
     private void buildCar(float zr) {
-        float zf = zr + (ZF - ZR);
-        // body
-        set(0, -WB, Y0, zr);  set(1,  WB, Y0, zr);  set(2,  WB, Y1, zr);  set(3, -WB, Y1, zr);
-        set(4, -WB, Y0, zf);  set(5,  WB, Y0, zf);  set(6,  WB, Y1, zf);  set(7, -WB, Y1, zf);
-        // cabin, set back and tapering at both ends
-        set(8,  -WC, Y1, zr + 0.34f); set(9,   WC, Y1, zr + 0.34f);
-        set(10,  WC, Y2, zr + 0.62f); set(11, -WC, Y2, zr + 0.62f);
-        set(12, -WC, Y1, zf - 0.34f); set(13,  WC, Y1, zf - 0.34f);
-        set(14,  WC, Y2, zf - 0.68f); set(15, -WC, Y2, zf - 0.68f);
-        // rear wheels, a hair OUTSIDE the side face so they do not fight it in
-        // depth (coplanar faces would flip back and forth in the ordering)
-        wheelVerts(16, -WB - 0.012f, zr + 0.30f);
-        wheelVerts(24,  WB + 0.012f, zr + 0.30f);
-
+        if (carBmp != null) {
+            float xl = px(-WB, zr), xr = px(WB, zr);
+            float s = (xr - xl) / (IMG_REAR_R - IMG_REAR_L);
+            float left = xl - IMG_REAR_L * s;
+            float top  = py(0f, zr) - IMG_GROUND * s;
+            carDst.set(left, top, left + carBmp.getWidth() * s, top + carBmp.getHeight() * s);
+        }
         rwx1 = px(-WB, zr + 0.30f);
         rwx2 = px( WB, zr + 0.30f);
         rwy  = py(WHEEL_R, zr + 0.30f);
         rwr  = f * WHEEL_R / (zr + 0.30f);
     }
 
-    private void set(int i, float x, float y, float z) { wx[i] = x; wy[i] = y; wz[i] = z; }
-
-    private void wheelVerts(int base, float x, float zc) {
-        for (int i = 0; i < WHEEL_SEG; i++) {
-            double a = Math.PI * 2 * i / WHEEL_SEG;
-            set(base + i, x, WHEEL_R + WHEEL_R * (float) Math.sin(a),
-                             zc + WHEEL_R * (float) Math.cos(a));
-        }
-    }
-
-    // alpha of the car while it materialises (1 = normal, which is the usual case)
-    private int faded(int argb) {
-        if (carFade >= 0.999f) return argb;
-        int a = (int) (((argb >>> 24) & 0xFF) * carFade);
-        return (a << 24) | (argb & 0xFFFFFF);
-    }
-
     private void drawCar(Canvas cv) {
-        if (carFade <= 0.004f) return;      // has not come off the camera yet
-        for (int i = 0; i < NV; i++) {
-            sxs[i] = px(wx[i], wz[i]);
-            sys[i] = py(wy[i], wz[i]);
-        }
-        // depth of each face + ordering from back to front
-        for (int i = 0; i < FACES.length; i++) {
-            int[] fc = FACES[i];
-            float z = 0;
-            for (int k : fc) z += wz[k];
-            faceZ[i] = z / fc.length;
-            faceOrder[i] = i;
-        }
-        for (int i = 1; i < faceOrder.length; i++) {      // insertion sort: 15 items
-            int v = faceOrder[i]; int j = i - 1;
-            while (j >= 0 && faceZ[faceOrder[j]] < faceZ[v]) { faceOrder[j + 1] = faceOrder[j]; j--; }
-            faceOrder[j + 1] = v;
-        }
-
-        for (int oi = 0; oi < faceOrder.length; oi++) {
-            int[] fc = FACES[faceOrder[oi]];
-            // normal by the right-hand rule, in world coordinates
-            float ax = wx[fc[1]] - wx[fc[0]], ay = wy[fc[1]] - wy[fc[0]], az = wz[fc[1]] - wz[fc[0]];
-            float bx = wx[fc[2]] - wx[fc[0]], by = wy[fc[2]] - wy[fc[0]], bz = wz[fc[2]] - wz[fc[0]];
-            float nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
-            float nl = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
-            if (nl < 1e-6f) continue;
-            nx /= nl; ny /= nl; nz /= nl;
-            // centre of the face -> vector towards the camera (0, CAM_Y, 0)
-            float cxf = 0, cyf = 0, czf = 0;
-            for (int k : fc) { cxf += wx[k]; cyf += wy[k]; czf += wz[k]; }
-            cxf /= fc.length; cyf /= fc.length; czf /= fc.length;
-            float vx0 = -cxf, vy0 = CAM_Y - cyf, vz0 = -czf;
-            float vl = (float) Math.sqrt(vx0 * vx0 + vy0 * vy0 + vz0 * vz0);
-            vx0 /= vl; vy0 /= vl; vz0 /= vl;
-            // NO culling by winding order: a face assembled with its vertices in
-            // the "wrong" order simply vanished (that is how the cabin's rear
-            // window became a hole and one wheel disappeared). Here the normal is
-            // merely flipped towards the camera, for the lighting, and what
-            // decides what covers what is the depth ordering — the only reliable
-            // judge.
-            float facing = nx * vx0 + ny * vy0 + nz * vz0;
-            if (facing < 0) { facing = -facing; nx = -nx; ny = -ny; nz = -nz; }
-
-            // light from above plus a bit from the camera: separates roof, side and rear
-            float lit = Math.max(0f, ny) * 0.55f + facing * 0.45f;
-            // OCCLUSION BY THE GROUND: faces low on the body sink. This is what
-            // makes the car read as a solid mass sitting on the grid instead of a
-            // lit wireframe with translucent infill.
-            //
-            // The first attempt went the other way — compressing the whole range
-            // to land on the luminance measured off the reference art. It flattened
-            // the spread from 15x to 2.4x and took the volume with it: the roof,
-            // the flank and the rear fascia all came out the same value. THE
-            // SPREAD IS THE VOLUME (see the note above the face table), so the
-            // range stays and only the bottom of the body is darkened.
-            lit *= 0.62f + 0.38f * Math.max(0f, Math.min(1f, (cyf - Y0) / (Y2 - Y0)));
-            int fill = Style.blend(CAR_DARK, CAR_LIT, Math.min(1f, lit));
-
-            path.rewind();
-            path.moveTo(sxs[fc[0]], sys[fc[0]]);
-            for (int k = 1; k < fc.length; k++) path.lineTo(sxs[fc[k]], sys[fc[k]]);
-            path.close();
-            p.setStyle(Paint.Style.FILL);
-            p.setShader(null);
-            p.setColor(faded(fill));
-            cv.drawPath(path, p);
-            line.setStyle(Paint.Style.STROKE);
-            line.setStrokeWidth(1.6f);
-            line.setColor(faded(NEON));
-            cv.drawPath(path, line);
-        }
+        if (carFade <= 0.004f || carBmp == null) return;   // has not come off the camera yet
+        bmp.setAlpha(Math.round(255f * Math.min(1f, carFade)));
+        cv.drawBitmap(carBmp, null, carDst, bmp);
+        drawBrakeLamps(cv);
     }
 
-    // Rear lights, on the back face of the body: TWO RED CLUSTERS FLANKING A PALE
-    // CENTRE PANEL, not one long bar. The bar was tried at full width and its
-    // halo, stretched across the whole fascia, read as an open mouth — the glow
-    // stopped belonging to the lamps and became a hole in the car. Split, each
-    // halo wraps its own cluster and the problem does not arise.
+    // ================= brake lamps =================
+    // The pedal (ArtView.braking, from the hub's can.brake) lights the lamps the
+    // picture already has: the two tail clusters and the high stop lamp above
+    // the rear glass. The LED strips themselves glow — a mask of the picture's
+    // own red pixels inside each lamp, added on top in bright red — plus a soft
+    // halo around each lamp, so it reads as light and not as paint.
     //
-    // The proportions are measured off the reference art rather than invented,
-    // as fractions of the CAR'S WIDTH (2*WB), which is why they are written
-    // against WB and follow it: cluster 0.23 each, panel 0.36, outermost lit
-    // edge 0.975, red band 0.040 tall, panel a hair taller at 0.050.
-    private static final float TAIL_OUT   = 0.975f * WB;   // outermost lit edge
-    private static final float TAIL_CLUST = 0.460f * WB;   // width of one cluster
-    private static final float PLATE_HALF = 0.360f * WB;   // half-width of the panel
-    private static final float TAIL_H     = 0.080f * WB;   // height of the red band
-    private static final float PLATE_H    = 0.100f * WB;
-    private static final float TAIL_MID   = Y1 - 0.1125f;  // midline both sit on
-    private static final int   TAIL_SEGS  = 4;
-    private static final int   TAIL_PALE  = 2;   // which segment is the reverse lamp,
-                                                 // counted FROM THE OUTSIDE so the
-                                                 // two clusters mirror each other
+    // Lamp boxes measured off noturno_car.webp (666 x 712), in its pixels:
+    // {left, top, right, bottom}. The bumper reflectors and the rear fog lamp
+    // are red too, but they are not brake lamps and stay dark.
+    private static final int[][] LAMPS = {
+        {  60, 272, 192, 336 },     // left cluster
+        { 472, 272, 608, 336 },     // right cluster
+        { 272, 238, 392, 252 },     // high stop lamp
+    };
+    private static final int LAMP_C   = 0xFFFF2A2A;
+    // On almost at once, like the real LEDs; off a touch slower, so a quick
+    // dab of the pedal still reads.
+    private static final float LAMP_ON_S = 0.06f, LAMP_OFF_S = 0.18f;
 
-    private void drawTail(Canvas cv) {
-        if (carFade <= 0.004f) return;
-        p.setStyle(Paint.Style.FILL);
-        p.setShader(null);
-        float ty = py(TAIL_MID + TAIL_H * 0.5f, carZ);
-        float by = py(TAIL_MID - TAIL_H * 0.5f, carZ);
-        float halo = (by - ty) * 0.75f;
+    private Bitmap lampMask;                 // ALPHA_8, same size as carBmp
+    private float lamp = 0f;                 // 0 = dark, 1 = full brake light
+    private long lampT = 0L;
+    private final Paint lampP = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private final Paint haloP = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private Shader haloSh;                   // unit radial, scaled per lamp
 
-        for (int s = -1; s <= 1; s += 2) {
-            float xo = px(s * TAIL_OUT, carZ);
-            float xi = px(s * (TAIL_OUT - TAIL_CLUST), carZ);
-            r.set(Math.min(xo, xi) - halo * 0.4f, ty - halo,
-                  Math.max(xo, xi) + halo * 0.4f, by + halo);
-            p.setColor(faded(0x3AFF2D55));
-            cv.drawRoundRect(r, halo, halo, p);
-        }
-        for (int s = -1; s <= 1; s += 2) {
-            float wo = s * TAIL_OUT, wi = s * (TAIL_OUT - TAIL_CLUST);
-            float lo = Math.min(wo, wi), hi = Math.max(wo, wi);
-            float gap = (hi - lo) * 0.035f;
-            float seg = ((hi - lo) - gap * (TAIL_SEGS - 1)) / TAIL_SEGS;
-            for (int i = 0; i < TAIL_SEGS; i++) {
-                float x0 = lo + i * (seg + gap);
-                int idx = s < 0 ? i : TAIL_SEGS - 1 - i;
-                r.set(px(x0, carZ), ty, px(x0 + seg, carZ), by);
-                p.setColor(faded(idx == TAIL_PALE ? TAIL_PALE_C : TAIL));
-                cv.drawRect(r, p);
+    // Once per View: copy the red of each lamp box into an alpha mask.
+    private static Bitmap buildLampMask(Bitmap src) {
+        int w = src.getWidth(), h = src.getHeight();
+        Bitmap m = Bitmap.createBitmap(w, h, Bitmap.Config.ALPHA_8);
+        for (int[] b : LAMPS) {
+            int bw = b[2] - b[0], bh = b[3] - b[1];
+            int[] px = new int[bw * bh];
+            src.getPixels(px, 0, bw, b[0], b[1], bw, bh);
+            for (int i = 0; i < px.length; i++) {
+                int c = px[i];
+                int r = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, bl = c & 0xFF;
+                int red = r - Math.max(g, bl);            // how red, not how bright
+                px[i] = red <= 20 ? 0 : Math.min(255, (red - 20) * 3) << 24;
             }
+            m.setPixels(px, 0, bw, b[0], b[1], bw, bh);
         }
-        float pty = py(TAIL_MID + PLATE_H * 0.5f, carZ);
-        float pby = py(TAIL_MID - PLATE_H * 0.5f, carZ);
-        r.set(px(-PLATE_HALF, carZ), pty, px(PLATE_HALF, carZ), pby);
-        p.setColor(faded(TAIL_PLATE));
-        cv.drawRoundRect(r, (pby - pty) * 0.35f, (pby - pty) * 0.35f, p);
+        return m;
+    }
+
+    // Moves `lamp` towards the pedal. True while it is still moving.
+    private boolean stepLamp() {
+        long now = SystemClock.uptimeMillis();
+        float dt = lampT == 0L ? 0f : Math.min(0.1f, (now - lampT) / 1000f);
+        lampT = now;
+        float target = braking ? 1f : 0f;
+        if (lamp < target) lamp = Math.min(target, lamp + dt / LAMP_ON_S);
+        else if (lamp > target) lamp = Math.max(target, lamp - dt / LAMP_OFF_S);
+        boolean moving = lamp != target;
+        if (!moving) lampT = 0L;            // next change starts from a fresh clock
+        return moving;
+    }
+
+    private void drawBrakeLamps(Canvas cv) {
+        if (lamp <= 0.004f || lampMask == null) return;
+        float k = lamp * Math.min(1f, carFade);
+        float sx = carDst.width() / carBmp.getWidth(), sy = carDst.height() / carBmp.getHeight();
+        if (haloSh == null) {
+            haloSh = new android.graphics.RadialGradient(0, 0, 1f,
+                new int[]{ 0xB0FF1E1E, 0x40FF1E1E, 0x00FF1E1E }, new float[]{ 0f, 0.45f, 1f },
+                Shader.TileMode.CLAMP);
+            haloP.setShader(haloSh);
+            haloP.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.ADD));
+            lampP.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.ADD));
+        }
+        for (int[] b : LAMPS) {
+            float cxl = carDst.left + (b[0] + b[2]) * 0.5f * sx;
+            float cyl = carDst.top + (b[1] + b[3]) * 0.5f * sy;
+            float rx = (b[2] - b[0]) * sx * 0.95f, ry = Math.max((b[3] - b[1]) * sy * 1.3f, rx * 0.35f);
+            cv.save();
+            cv.translate(cxl, cyl);
+            cv.scale(rx, ry);
+            haloP.setAlpha(Math.round(255f * k));
+            cv.drawCircle(0, 0, 1f, haloP);
+            cv.restore();
+        }
+        lampP.setColor(LAMP_C);
+        lampP.setAlpha(Math.round(255f * k));
+        cv.drawBitmap(lampMask, null, carDst, lampP);
+        cv.drawBitmap(lampMask, null, carDst, lampP);       // twice: LEDs saturate to near white-red
     }
 
     // ================= animation =================
@@ -542,7 +475,7 @@ public class VaporArtView extends ArtView {
         // where n came out 0.
         if (sunUp < 1f || sunriseT0 != 0L) {
             float t = (SystemClock.uptimeMillis() - sunriseT0) / SUNRISE_MS;
-            sunUp = t <= 0f ? 0f : (t >= 1f ? 1f : t);
+            sunUp = SUNRISE_START + (1f - SUNRISE_START) * (t <= 0f ? 0f : (t >= 1f ? 1f : t));
         }
 
         if (!introDone) {
@@ -644,7 +577,6 @@ public class VaporArtView extends ArtView {
         drawGrid(cv);
         drawWheelFx(cv);       // the glow comes out BEHIND the car
         drawCar(cv);
-        drawTail(cv);
 
         // scrim on the left: melts the scene into the control column
         p.setShader(scrim);
@@ -655,8 +587,9 @@ public class VaporArtView extends ArtView {
         // and speed changes drive frames. The entry does not ask for frames while
         // waiting for motion. Settling (a bounded fade) and the grace period
         // (bounded by ENTRY_GRACE) are exceptions, but both are finite.
+        boolean lampMoving = stepLamp();
         if (gridV > 0.01f || speedKmh > 0.5f || Math.abs(accel) > 0.04f
-                || settling || (!introDone && stillFor < ENTRY_GRACE))
+                || settling || (!introDone && stillFor < ENTRY_GRACE) || lampMoving)
             postInvalidateOnAnimation();
         else if (sunUp < 1f)
             postInvalidateDelayed(SUNRISE_TICK_MS);   // the dawn, on its own slow clock

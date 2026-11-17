@@ -8,6 +8,7 @@ import android.net.LocalSocketAddress;
 import android.os.SystemClock;
 import android.util.Log;
 
+import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.controls.HelperSync;
 import com.geely.drivemem.util.Prefs;
 
@@ -39,6 +40,17 @@ public final class CanEnergyReader {
     public interface PowerListener { void onCanPower(long nowMono, double kw, Double driveKw, Double climateKw); }
 
     private static final CanPower POWER = new CanPower();
+    private static final CanBrake BRAKE = new CanBrake();
+    private static final CanSpeed SPEED = new CanSpeed();
+
+    /** Every CAN speed change (~10 Hz while moving), for a consumer the 2 s
+     * hub key is too slow for (the art). In addition to can.speed_kmh. */
+    public interface SpeedListener { void onCanSpeed(float kmh); }
+    private static volatile SpeedListener speedListener;
+    public static void setSpeedListener(SpeedListener l) { speedListener = l; }
+    /** Clears it only if it is still {@code l}: a screen being torn down must
+     * not unhook the one that replaced it. */
+    public static synchronized void clearSpeedListener(SpeedListener l) { if (speedListener == l) speedListener = null; }
     private static volatile PowerListener powerListener;
     private static volatile boolean wanted = false;
     private static volatile Thread thread;
@@ -89,6 +101,8 @@ public final class CanEnergyReader {
         Thread t = thread;
         if (t != null) t.interrupt();
         POWER.reset();
+        BRAKE.reset();
+        SPEED.reset();
         status = "off";
         statusDetail = null;
         CanHub.unregister(com.geely.drivemem.car.CarActor.get());
@@ -97,6 +111,8 @@ public final class CanEnergyReader {
     private static void loop() {
         long backoff = 5_000;
         Set<String> want = new HashSet<>(Arrays.asList(CanPower.SIGNALS));
+        want.addAll(Arrays.asList(CanBrake.SIGNALS));
+        want.addAll(Arrays.asList(CanSpeed.SIGNALS));
         while (wanted) {
             LocalSocket s = new LocalSocket();
             socket = s;
@@ -115,6 +131,9 @@ public final class CanEnergyReader {
                     @Override public void onSignal(String name, double physical, long raw, boolean valid, boolean calibrated) {
                         if (!wanted) { close(s); return; }   // switched off: end the read
                         long now = SystemClock.elapsedRealtime();
+                        CarActor.Reading brake = BRAKE.onSignal(name, physical, valid);
+                        if (brake != null) { injectBrake(brake); return; }
+                        if (SPEED.onSignal(name, raw, valid)) { deliverSpeed(); return; }
                         Double kw = POWER.onSignal(name, physical, valid, now);
                         if (kw != null && sub[0]) deliver(now, kw);
                     }
@@ -148,6 +167,9 @@ public final class CanEnergyReader {
             } finally {
                 closeSocket();
                 POWER.reset();
+                BRAKE.reset();
+                SPEED.reset();
+                if (wanted) injectBrake(BRAKE.current());   // NOT_AVAILABLE until it reconnects
             }
             if (!wanted) break;
             if (sub[0]) backoff = 5_000;   // it worked for a while: retry soon
@@ -155,6 +177,21 @@ public final class CanEnergyReader {
             backoff = Math.min(backoff * 2, 60_000);
         }
         status = "off";
+    }
+
+    private static void deliverSpeed() {
+        SpeedListener l = speedListener;
+        Float v = SPEED.kmh();
+        if (l == null || v == null) return;
+        try { l.onCanSpeed(v); } catch (Throwable t) { Log.w(TAG, "can: speed listener " + t); }
+    }
+
+    /** CAN speed while the reader is live, else null (use the VHAL's). */
+    public static Float liveSpeedKmh() { return isLive() ? SPEED.kmh() : null; }
+
+    private static void injectBrake(CarActor.Reading r) {
+        CarActor a = CarActor.get();
+        if (a != null) a.injectReading(CanHub.BRAKE, r);
     }
 
     private static void deliver(long now, double kw) {
@@ -187,6 +224,7 @@ public final class CanEnergyReader {
     static Float freshClimateKw() { return f(POWER.climateKw(now())); }
     static Float freshDriveKw() { return f(POWER.driveKw(now())); }
     static Float freshChargerInputW() { return f(POWER.chargerInputW(now())); }
+    static Float freshSpeedKmh() { return liveSpeedKmh(); }
 
     private static Float f(Double d) { return d == null ? null : d.floatValue(); }
 
