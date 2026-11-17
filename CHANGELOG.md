@@ -69,6 +69,10 @@
   the AVAS and AEB switches show the car's own state, and appear a
   moment later if the car has not answered yet. The app now also asks
   for AVAS when it starts, so the answer is usually already there.
+- **Charge stats: the Energy balance chart shows today.** It ended at
+  yesterday, so an overnight charge that ended this morning showed only
+  its evening part, and today's driving and charging were missing until
+  the next day. The 30 bars now end with today.
 - **Charges saved no place.** The place was taken from the GPS when the
   charge ended, and by then the GPS is long off. It now comes from where the
   last trip before the charge ended (the car does not move while it charges),
