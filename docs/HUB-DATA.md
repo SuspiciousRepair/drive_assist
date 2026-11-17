@@ -81,6 +81,7 @@ switch is off or the reader has not sent a heartbeat for 3 s.
 | `can.climate_kw` | climate (compressor + heater) power, raw `VCU_ThermalPwrAct`. Reads low (see `plan/active/CAN-ENERGY-ROADMAP.md`, "Power map") |
 | `can.drive_kw` | drive motor power, raw `VCU_DrvPwrAct`. Not battery power: use `can.power_kw` for that |
 | `can.charger_w` | on-board charger's mains input, only while AC charging |
+| `can.brake` | brake pedal switch, 1 pressed / 0 released (`ESC_BrakePedalSwitchStatus`, frame 0x125). **Not polled: injected the moment it changes**, so it has no 2 s delay. `NOT_AVAILABLE` while the car flags it invalid or the reader is down |
 
 A CAN value also needs its frame to have **changed once** since the reader
 started. A frame that stays constant (for example climate power while the

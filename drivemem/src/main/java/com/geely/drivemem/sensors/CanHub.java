@@ -22,7 +22,10 @@ public final class CanHub {
     public static final String CLIMATE_KW = "can.climate_kw";  // kW, 0.01 steps
     public static final String DRIVE_KW = "can.drive_kw";      // kW, 0.1 steps
     public static final String CHARGER_W = "can.charger_w";    // W at the mains, 10 W steps
-    public static final String[] KEYS = {LIVE, PACK_V, PACK_A, POWER_KW, CLIMATE_KW, DRIVE_KW, CHARGER_W};
+    /** Brake pedal: 1 pressed, 0 released. NOT polled: CanBrake injects it
+     * the moment it changes (a brake light 2 s late is useless). */
+    public static final String BRAKE = "can.brake";
+    public static final String[] KEYS = {LIVE, PACK_V, PACK_A, POWER_KW, CLIMATE_KW, DRIVE_KW, CHARGER_W, BRAKE};
 
     /** 2 s, like car.charge_a: enough for screens, MQTT and the 30 s
      * telemetry tick, and it does not pull CarActor's master tick below the
@@ -70,7 +73,7 @@ public final class CanHub {
     public static void unregister(CarActor a) {
         if (a == null) return;
         for (String k : KEYS) {
-            a.unregisterPoll(k);
+            a.unregisterPoll(k);   // a no-op for BRAKE, which is injected
             a.injectReading(k, CarActor.Reading.NOT_AVAILABLE);
         }
     }

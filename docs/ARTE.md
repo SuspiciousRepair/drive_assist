@@ -251,3 +251,12 @@ flat, still reads as a roof seen from above.
 
 The wheel glow still uses the rear-wheel positions (`zr + 0.30`, `±WB`) and is
 drawn behind the car.
+
+### Brake Lamps
+
+`ArtView.setBraking()` gets the hub's `can.brake` (only with the CAN reader
+on). Noturno lights the picture's own lamps: the red pixels inside three
+measured boxes (both tail clusters and the high stop lamp) become an alpha
+mask once per View, drawn in bright red with `PorterDuff.Mode.ADD`, plus a
+soft radial halo per lamp. On in 60 ms, off in 180 ms. The bumper
+reflectors and the rear fog lamp are red too and stay dark.

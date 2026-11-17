@@ -20,6 +20,7 @@ import com.geely.drivemem.hvac.ComfortRuler;
 import com.geely.drivemem.hvac.EffortTable;
 import com.geely.drivemem.net.AbrpUploader;
 import com.geely.drivemem.net.MqttReporter;
+import com.geely.drivemem.sensors.CanHub;
 import com.geely.drivemem.sensors.EnergySource;
 import com.geely.drivemem.services.TelemetryService;
 import com.geely.drivemem.state.CarState;
@@ -2258,6 +2259,18 @@ public class ComfortActivity extends Activity {
         }
     };
 
+    // brake pedal -> art (brake lamps). Injected by the CAN reader the moment
+    // it changes, so this is the one art input that is not 1 s late.
+    private final EntityBus.Listener brakeListener = (key, reading) -> {
+        boolean on = isPressed(reading);
+        ui.post(() -> { if (art != null) art.setBraking(on); });
+    };
+
+    private static boolean isPressed(CarActor.Reading r) {
+        return r != null && r.status == CarActor.Reading.Status.OK
+            && r.value instanceof Number && ((Number) r.value).intValue() == 1;
+    }
+
     private void startCarActorPolls() {
         CarActor a = CarActor.get(this);
         // ambient_color/ambient_brightness are CarActor's own always-on polls
@@ -2270,6 +2283,8 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe("telemetry.ambient_color", ambientColorListener);
         EntityBus.subscribe("telemetry.ambient_brightness", ambientBrightnessListener);
         EntityBus.subscribe("telemetry.speed", speedListener);
+        EntityBus.subscribe(CanHub.BRAKE, brakeListener);
+        if (art != null) art.setBraking(isPressed(a.get(CanHub.BRAKE)));   // no replay on the bus
         EntityBus.subscribe("car.window_pos", windowPosListener);
         EntityBus.subscribe("car.hvac_recirc", hvacRecircListener);
         EntityBus.subscribe("car.hvac_direction", hvacDirectionListener);
@@ -2303,6 +2318,7 @@ public class ComfortActivity extends Activity {
         EntityBus.unsubscribe("telemetry.ambient_color", ambientColorListener);
         EntityBus.unsubscribe("telemetry.ambient_brightness", ambientBrightnessListener);
         EntityBus.unsubscribe("telemetry.speed", speedListener);
+        EntityBus.unsubscribe(CanHub.BRAKE, brakeListener);
         quickButtons.stop();
         EntityBus.unsubscribe("car.window_pos", windowPosListener);
         EntityBus.unsubscribe("car.hvac_recirc", hvacRecircListener);

@@ -82,6 +82,17 @@ public abstract class ArtView extends View {
     // background instead of a decoration they did not ask for.
     public void setAmbientBrightness(int level) {}
 
+    // Brake pedal, from the hub's can.brake (only while the CAN reader is on;
+    // unknown = released). Same contract as setAmbient — the art decides what
+    // to do with it. Noturno lights the car's brake lamps.
+    protected boolean braking = false;
+
+    public void setBraking(boolean on) {
+        if (on == braking) return;
+        braking = on;
+        postInvalidateOnAnimation();
+    }
+
     // Does the art occupy the WHOLE SCREEN (behind the controls) or only the
     // right-hand third? The art itself answers, not the Activity: a scene that
     // full-bleeds needs to know this in order to paint its own scrim on the

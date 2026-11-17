@@ -11,6 +11,8 @@ import android.graphics.Canvas;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Shader;
@@ -222,7 +224,7 @@ public class VaporArtView extends ArtView {
         // Decoded once per View. nodpi, so it arrives at its real 666 x 712; the
         // mipmaps keep it clean when the projection shrinks it to ~half that.
         carBmp = BitmapFactory.decodeResource(c.getResources(), R.drawable.noturno_car);
-        if (carBmp != null) carBmp.setHasMipMap(true);
+        if (carBmp != null) { carBmp.setHasMipMap(true); lampMask = buildLampMask(carBmp); }
     }
 
     @Override public boolean fullBleed() { return true; }
@@ -373,6 +375,95 @@ public class VaporArtView extends ArtView {
         if (carFade <= 0.004f || carBmp == null) return;   // has not come off the camera yet
         bmp.setAlpha(Math.round(255f * Math.min(1f, carFade)));
         cv.drawBitmap(carBmp, null, carDst, bmp);
+        drawBrakeLamps(cv);
+    }
+
+    // ================= brake lamps =================
+    // The pedal (ArtView.braking, from the hub's can.brake) lights the lamps the
+    // picture already has: the two tail clusters and the high stop lamp above
+    // the rear glass. The LED strips themselves glow — a mask of the picture's
+    // own red pixels inside each lamp, added on top in bright red — plus a soft
+    // halo around each lamp, so it reads as light and not as paint.
+    //
+    // Lamp boxes measured off noturno_car.webp (666 x 712), in its pixels:
+    // {left, top, right, bottom}. The bumper reflectors and the rear fog lamp
+    // are red too, but they are not brake lamps and stay dark.
+    private static final int[][] LAMPS = {
+        {  60, 272, 192, 336 },     // left cluster
+        { 472, 272, 608, 336 },     // right cluster
+        { 272, 238, 392, 252 },     // high stop lamp
+    };
+    private static final int LAMP_C   = 0xFFFF2A2A;
+    // On almost at once, like the real LEDs; off a touch slower, so a quick
+    // dab of the pedal still reads.
+    private static final float LAMP_ON_S = 0.06f, LAMP_OFF_S = 0.18f;
+
+    private Bitmap lampMask;                 // ALPHA_8, same size as carBmp
+    private float lamp = 0f;                 // 0 = dark, 1 = full brake light
+    private long lampT = 0L;
+    private final Paint lampP = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private final Paint haloP = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private Shader haloSh;                   // unit radial, scaled per lamp
+
+    // Once per View: copy the red of each lamp box into an alpha mask.
+    private static Bitmap buildLampMask(Bitmap src) {
+        int w = src.getWidth(), h = src.getHeight();
+        Bitmap m = Bitmap.createBitmap(w, h, Bitmap.Config.ALPHA_8);
+        for (int[] b : LAMPS) {
+            int bw = b[2] - b[0], bh = b[3] - b[1];
+            int[] px = new int[bw * bh];
+            src.getPixels(px, 0, bw, b[0], b[1], bw, bh);
+            for (int i = 0; i < px.length; i++) {
+                int c = px[i];
+                int r = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, bl = c & 0xFF;
+                int red = r - Math.max(g, bl);            // how red, not how bright
+                px[i] = red <= 20 ? 0 : Math.min(255, (red - 20) * 3) << 24;
+            }
+            m.setPixels(px, 0, bw, b[0], b[1], bw, bh);
+        }
+        return m;
+    }
+
+    // Moves `lamp` towards the pedal. True while it is still moving.
+    private boolean stepLamp() {
+        long now = SystemClock.uptimeMillis();
+        float dt = lampT == 0L ? 0f : Math.min(0.1f, (now - lampT) / 1000f);
+        lampT = now;
+        float target = braking ? 1f : 0f;
+        if (lamp < target) lamp = Math.min(target, lamp + dt / LAMP_ON_S);
+        else if (lamp > target) lamp = Math.max(target, lamp - dt / LAMP_OFF_S);
+        boolean moving = lamp != target;
+        if (!moving) lampT = 0L;            // next change starts from a fresh clock
+        return moving;
+    }
+
+    private void drawBrakeLamps(Canvas cv) {
+        if (lamp <= 0.004f || lampMask == null) return;
+        float k = lamp * Math.min(1f, carFade);
+        float sx = carDst.width() / carBmp.getWidth(), sy = carDst.height() / carBmp.getHeight();
+        if (haloSh == null) {
+            haloSh = new android.graphics.RadialGradient(0, 0, 1f,
+                new int[]{ 0xB0FF1E1E, 0x40FF1E1E, 0x00FF1E1E }, new float[]{ 0f, 0.45f, 1f },
+                Shader.TileMode.CLAMP);
+            haloP.setShader(haloSh);
+            haloP.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.ADD));
+            lampP.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.ADD));
+        }
+        for (int[] b : LAMPS) {
+            float cxl = carDst.left + (b[0] + b[2]) * 0.5f * sx;
+            float cyl = carDst.top + (b[1] + b[3]) * 0.5f * sy;
+            float rx = (b[2] - b[0]) * sx * 0.95f, ry = Math.max((b[3] - b[1]) * sy * 1.3f, rx * 0.35f);
+            cv.save();
+            cv.translate(cxl, cyl);
+            cv.scale(rx, ry);
+            haloP.setAlpha(Math.round(255f * k));
+            cv.drawCircle(0, 0, 1f, haloP);
+            cv.restore();
+        }
+        lampP.setColor(LAMP_C);
+        lampP.setAlpha(Math.round(255f * k));
+        cv.drawBitmap(lampMask, null, carDst, lampP);
+        cv.drawBitmap(lampMask, null, carDst, lampP);       // twice: LEDs saturate to near white-red
     }
 
     // ================= animation =================
@@ -496,8 +587,9 @@ public class VaporArtView extends ArtView {
         // and speed changes drive frames. The entry does not ask for frames while
         // waiting for motion. Settling (a bounded fade) and the grace period
         // (bounded by ENTRY_GRACE) are exceptions, but both are finite.
+        boolean lampMoving = stepLamp();
         if (gridV > 0.01f || speedKmh > 0.5f || Math.abs(accel) > 0.04f
-                || settling || (!introDone && stillFor < ENTRY_GRACE))
+                || settling || (!introDone && stillFor < ENTRY_GRACE) || lampMoving)
             postInvalidateOnAnimation();
         else if (sunUp < 1f)
             postInvalidateDelayed(SUNRISE_TICK_MS);   // the dawn, on its own slow clock
