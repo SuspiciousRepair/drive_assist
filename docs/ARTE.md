@@ -224,24 +224,30 @@ gridV  = (vCar - vSep) / CELL;
 
 ## 9. The Car Picture
 
-The car is the EX2 render the head unit ships for its ADAS settings screen
+The car is the EX2 as the head unit draws it on its ADAS settings screen
 (`com.flyme.auto.settings`, `drawable/bg_car_adas`, night variant). That
-picture is a full 1920 x 1080 background with the car only 158 px wide, so it
-was cut out of its background, upscaled ~4.8x with an AI upscaler, and saved
-with its soft shadow as `res/drawable-nodpi/noturno_car.webp` (725 x 845).
+render is shot from high above (~55 degrees down) and the car in it is only
+158 px wide. Pasted as it was, it showed far too much roof and stood up past
+the horizon, because this camera looks only ~35 degrees down at the car.
+
+So the render went to an AI image model (Imagen, through agy) with the request
+to draw the SAME car from this camera's angle. The result was cut out of its
+background with its contact shadow and saved as
+`res/drawable-nodpi/noturno_car.webp` (666 x 712).
+
+Bending the original render onto the camera with `drawBitmapMesh` was tried
+first. It got the angle right, but a picture of a roof seen from above, folded
+flat, still reads as a roof seen from above.
 
 ### Placement Rules
 
 1. **Same camera.** The rear of the body is pinned to the projected rear face
-   the old wireframe had: `x = ±WB`, ground `y = 0`, depth `carZ`. Size,
-   position and the entry approach all still come from `px()`/`py()`.
-2. **Measured anchors.** `IMG_REAR_L`/`IMG_REAR_R` (50 / 674) are the widest
-   row of the rear body below the mirrors; `IMG_GROUND` (788) is the row where
-   the body meets the ground. Re-measure them if the picture is replaced.
-3. **Taller than the old model.** The render is shot from higher up than this
-   camera, so the roof reaches the horizon. That is the picture's own
-   perspective.
-4. **Fade, not geometry.** The entry fade is the bitmap paint's alpha.
+   of the car: `x = ±WB`, ground `y = 0`, depth `carZ`. Size, position and the
+   entry approach all come from `px()`/`py()`.
+2. **Measured anchors.** `IMG_REAR_L`/`IMG_REAR_R` (22 / 646) are the widest
+   row of the rear body; `IMG_GROUND` (575) is the row where the tyres meet
+   the ground. Re-measure them if the picture is replaced.
+3. **Fade, not geometry.** The entry fade is the bitmap paint's alpha.
 
 The wheel glow still uses the rear-wheel positions (`zr + 0.30`, `±WB`) and is
 drawn behind the car.

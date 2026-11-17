@@ -215,7 +215,7 @@ public class VaporArtView extends ArtView {
         // low enough that the car stops reporting a colour for it. Seed it
         // now, with the same fixed colour setAmbient() would give it.
         skyline.setColor(CITY);
-        // Decoded once per View. nodpi, so it arrives at its real 725 x 845; the
+        // Decoded once per View. nodpi, so it arrives at its real 666 x 712; the
         // mipmaps keep it clean when the projection shrinks it to ~half that.
         carBmp = BitmapFactory.decodeResource(c.getResources(), R.drawable.noturno_car);
         if (carBmp != null) carBmp.setHasMipMap(true);
@@ -325,25 +325,26 @@ public class VaporArtView extends ArtView {
 
     // ================= car =================
     // THE CAR'S OWN PICTURE OF ITSELF. This used to be a 13-face neon wireframe;
-    // it is now the EX2 render the head unit ships for its ADAS settings screen
-    // (com.flyme.auto.settings, drawable/bg_car_adas, night variant): cut out of
-    // its background, upscaled ~4.8x with an AI upscaler (the original car is
-    // only 158 px wide) and saved as res/drawable-nodpi/noturno_car.webp, with
-    // the soft shadow kept.
+    // it is now the EX2 as the head unit draws it on its ADAS settings screen
+    // (com.flyme.auto.settings, drawable/bg_car_adas, night variant).
     //
-    // It still goes through the ONE CAMERA: the rear of the body is pinned to
-    // the projected rear face of the old model (x = ±WB, ground at y = 0, depth
-    // carZ), so size, position and the entry's approach come from px()/py()
-    // exactly as before. Only what is drawn there changed.
+    // That render is shot from high above (~55 degrees down) and the car in it
+    // is only 158 px wide. Pasted as it was, it showed far too much roof and
+    // stood up past the horizon, because this camera looks only ~35 degrees
+    // down at the car. So the render was given to an AI image model (Imagen,
+    // through agy) to draw the SAME car again from this camera's angle, then
+    // cut out of its background with its contact shadow and saved as
+    // res/drawable-nodpi/noturno_car.webp (666 x 712).
     //
-    // The picture is shot from higher up than this camera, so it stands taller
-    // than the wireframe did. That is the render's own perspective, not a bug.
+    // It goes through the ONE CAMERA: the rear of the body is pinned to the
+    // projected rear face of the car (x = ±WB, ground at y = 0, depth carZ), so
+    // size, position and the entry's approach come from px()/py().
     //
-    // Measured off noturno_car.webp (725 x 845): the widest row of the rear
-    // body (below the mirrors) runs from x = 50 to x = 674, and the body meets
-    // the ground at row 788 — everything under that is shadow.
-    private static final float IMG_REAR_L = 50f, IMG_REAR_R = 674f;
-    private static final float IMG_GROUND = 788f;
+    // Measured off noturno_car.webp: the widest row of the rear body runs from
+    // x = 22 to x = 646, and the tyres meet the ground at row 575 — everything
+    // under that is shadow. Re-measure if the picture is replaced.
+    private static final float IMG_REAR_L = 22f, IMG_REAR_R = 646f;
+    private static final float IMG_GROUND = 575f;
 
     private Bitmap carBmp;
     private final Paint bmp = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
@@ -351,8 +352,8 @@ public class VaporArtView extends ArtView {
 
     // Places the picture and the rear wheels (for the pedal glow) at depth zr.
     private void buildCar(float zr) {
-        float xl = px(-WB, zr), xr = px(WB, zr);
         if (carBmp != null) {
+            float xl = px(-WB, zr), xr = px(WB, zr);
             float s = (xr - xl) / (IMG_REAR_R - IMG_REAR_L);
             float left = xl - IMG_REAR_L * s;
             float top  = py(0f, zr) - IMG_GROUND * s;
