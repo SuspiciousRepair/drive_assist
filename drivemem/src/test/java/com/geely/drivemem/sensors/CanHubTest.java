@@ -14,7 +14,7 @@ public class CanHubTest {
 
     static final class FakeSource implements CanHub.Source {
         boolean live = true;
-        Float v = 404.23f, a = -15.98f, kw = -6.4597f, climate = 1.6f, drive = 0.04f, charger = 6812f;
+        Float v = 404.23f, a = -15.98f, kw = -6.4597f, climate = 1.6f, drive = 0.04f, charger = 6812f, speed = 52.65f;
         @Override public boolean live() { return live; }
         @Override public Float packV() { return v; }
         @Override public Float packA() { return a; }
@@ -22,6 +22,7 @@ public class CanHubTest {
         @Override public Float climateKw() { return climate; }
         @Override public Float driveKw() { return drive; }
         @Override public Float chargerW() { return charger; }
+        @Override public Float speedKmh() { return speed; }
     }
 
     @Test public void valuesReachTheHubQuantized() {
@@ -36,6 +37,7 @@ public class CanHubTest {
         assertEquals(-6.46f, CanHub.get(a, CanHub.POWER_KW), 1e-4);
         assertEquals(1.6f, CanHub.get(a, CanHub.CLIMATE_KW), 1e-4);
         assertEquals(6810f, CanHub.get(a, CanHub.CHARGER_W), 1e-4);
+        assertEquals(52.7f, CanHub.get(a, CanHub.SPEED_KMH), 1e-4);
     }
 
     /** Jitter below one step is not a change, so EntityBus stays quiet. */

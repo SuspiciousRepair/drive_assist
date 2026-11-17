@@ -20,6 +20,7 @@ import com.geely.drivemem.hvac.ComfortRuler;
 import com.geely.drivemem.hvac.EffortTable;
 import com.geely.drivemem.net.AbrpUploader;
 import com.geely.drivemem.net.MqttReporter;
+import com.geely.drivemem.sensors.CanEnergyReader;
 import com.geely.drivemem.sensors.CanHub;
 import com.geely.drivemem.sensors.EnergySource;
 import com.geely.drivemem.services.TelemetryService;
@@ -2251,12 +2252,31 @@ public class ComfortActivity extends Activity {
             setPurge(open);
         });
     };
-    // speed -> art (faster = faster waves). 1 s is smooth enough.
+    // speed -> art (faster = faster waves). The 1 s VHAL poll, unless the CAN
+    // reader is live: then the art gets CAN's speed on every change (below),
+    // and this tick only re-feeds CAN's last value. CAN sends changes only, so
+    // once the car stops nothing more arrives — the tick is what lets the
+    // art's acceleration settle back to zero.
     private final EntityBus.Listener speedListener = (key, reading) -> {
         if (reading.status == CarActor.Reading.Status.OK) {
-            float s = ((Number) reading.value).floatValue();
+            Float can = CanEnergyReader.liveSpeedKmh();
+            float s = can != null ? can : ((Number) reading.value).floatValue();
             ui.post(() -> { if (art != null) art.setSpeed(s); });
         }
+    };
+
+    // CAN speed -> art, up to ~10 Hz while moving. One Runnable and a volatile,
+    // not a lambda per sample: posted at most once until the UI has run it.
+    private volatile float canKmh;
+    private final java.util.concurrent.atomic.AtomicBoolean canKmhPosted =
+        new java.util.concurrent.atomic.AtomicBoolean();
+    private final Runnable applyCanKmh = () -> {
+        canKmhPosted.set(false);
+        if (art != null) art.setSpeed(canKmh);
+    };
+    private final CanEnergyReader.SpeedListener canSpeedListener = kmh -> {
+        canKmh = kmh;
+        if (canKmhPosted.compareAndSet(false, true)) ui.post(applyCanKmh);
     };
 
     // brake pedal -> art (brake lamps). Injected by the CAN reader the moment
@@ -2284,6 +2304,7 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe("telemetry.ambient_brightness", ambientBrightnessListener);
         EntityBus.subscribe("telemetry.speed", speedListener);
         EntityBus.subscribe(CanHub.BRAKE, brakeListener);
+        CanEnergyReader.setSpeedListener(canSpeedListener);
         if (art != null) art.setBraking(isPressed(a.get(CanHub.BRAKE)));   // no replay on the bus
         EntityBus.subscribe("car.window_pos", windowPosListener);
         EntityBus.subscribe("car.hvac_recirc", hvacRecircListener);
@@ -2319,6 +2340,7 @@ public class ComfortActivity extends Activity {
         EntityBus.unsubscribe("telemetry.ambient_brightness", ambientBrightnessListener);
         EntityBus.unsubscribe("telemetry.speed", speedListener);
         EntityBus.unsubscribe(CanHub.BRAKE, brakeListener);
+        CanEnergyReader.clearSpeedListener(canSpeedListener);
         quickButtons.stop();
         EntityBus.unsubscribe("car.window_pos", windowPosListener);
         EntityBus.unsubscribe("car.hvac_recirc", hvacRecircListener);

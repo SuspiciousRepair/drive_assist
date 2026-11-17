@@ -29,7 +29,8 @@ public abstract class ArtView extends View {
     protected float speedKmh = 0f;
     protected float accel = 0f;      // -1..1 (negative = braking / regen)
 
-    private long lastSpeedT = 0L;
+    private long lastSpeedT = 0L;     // start of the acceleration window
+    private float refKmh = 0f;        // speed at that start
     private long lastStepT = 0L;
     private float accMs = 0f;
 
@@ -40,18 +41,25 @@ public abstract class ArtView extends View {
 
     protected final float dens;
 
-    // speed in km/h (comes from ComfortActivity's 1 s poll)
+    // Speed in km/h. From CAN on every change (~10 Hz while moving) when the
+    // CAN reader is live, else ComfortActivity's 1 s VHAL poll. The speed is
+    // used as it arrives; the ACCELERATION is taken over at least ACCEL_WIN_MS,
+    // because at 10 Hz one step of the CAN speed (0.056 km/h) in 0.1 s already
+    // reads as 0.56 km/h/s and the wheel glow would flicker on noise. At 1 Hz
+    // every sample clears the window, which is the old behaviour.
+    private static final long ACCEL_WIN_MS = 500L;
+
     public void setSpeed(float kmh) {
         if (kmh < 0) kmh = 0;
         long now = SystemClock.uptimeMillis();
-        if (lastSpeedT != 0) {
+        if (lastSpeedT == 0) { lastSpeedT = now; refKmh = kmh; }
+        else if (now - lastSpeedT >= ACCEL_WIN_MS) {
             float dt = (now - lastSpeedT) / 1000f;
-            if (dt > 0.1f) {
-                float a = (kmh - speedKmh) / dt;                  // km/h per second
-                accel = Math.max(-1f, Math.min(1f, a / ACCEL_REF));
-            }
+            float a = (kmh - refKmh) / dt;                        // km/h per second
+            accel = Math.max(-1f, Math.min(1f, a / ACCEL_REF));
+            lastSpeedT = now;
+            refKmh = kmh;
         }
-        lastSpeedT = now;
         speedKmh = kmh;
         // THE POLL MUST NOT WAKE THE SCENE. It arrives at 1 Hz, INCLUDING WITH
         // THE CAR STOPPED, and an unconditional invalidate here used to redraw
