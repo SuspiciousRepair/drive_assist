@@ -19,6 +19,11 @@
   climate · other, in Wh/km.
 
 ### Added
+- **Charge spots on the route maps.** All routes shows every place the car
+  charged, with the blue plug for AC and the green CCS2 plug for DC (a place
+  with any DC charge shows DC; charges within 100 m are one place). A trip's
+  map shows only the charge right before it at its start, or right after it
+  at its end. Charges saved before the route update have no place.
 - **Where a trip's energy went.** Trips measured by CAN save how much went to
   drive, to climate (air-con, heat pump and fan) and to everything else. Open
   a trip to see it. With or without the OBD2 dongle, the three parts add up to

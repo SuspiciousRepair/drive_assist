@@ -167,6 +167,8 @@ public class TripRouteActivity extends Activity {
         double[] lat = new double[0], lon = new double[0], speed = new double[0], alt = new double[0];
         long[] ts = new long[0];
         Double tempMin, tempMax;
+        /** Charges right before or after this trip (ChargeSpots.forTrip). */
+        java.util.List<ChargeSpots.Spot> spots = new java.util.ArrayList<>();
         /** The trip's raw split columns (CarDb.TRIP_SPLIT_COLUMNS), or null
          * when CAN did not measure the trip. */
         double[] split;
@@ -188,6 +190,13 @@ public class TripRouteActivity extends Activity {
                     d.ts[i] = c.getLong(4);
                 }
             } finally { c.close(); }
+            int np = d.lat.length;
+            if (np >= 2) {
+                try {
+                    d.spots = ChargeSpots.forTrip(ChargeSpots.read(this), startMs, endMs,
+                        d.lat[0], d.lon[0], d.lat[np - 1], d.lon[np - 1]);
+                } catch (Throwable e) { android.util.Log.w("DriveMem", "trip charges: " + e); }
+            }
             Cursor sc = CarDb.get(this).db().rawQuery(
                 "SELECT can_net_kwh, drive_spent_kwh, drive_regen_kwh, climate_raw_kwh, climate_on_s, fan_kwh "
               + "FROM trip WHERE id = ? AND can_net_kwh IS NOT NULL", new String[]{String.valueOf(tripId)});
@@ -219,6 +228,7 @@ public class TripRouteActivity extends Activity {
             note.setText(R.string.route_none);
             note.setVisibility(View.VISIBLE);
         } else {
+            route.setChargeSpots(d.spots);
             route.setRoute(d.lat, d.lon, d.speed);
             double[] alt = TripRouteStats.fillGaps(d.alt);
             if (alt != null) {
