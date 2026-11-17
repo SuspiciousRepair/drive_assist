@@ -12,7 +12,16 @@ public class CanPowerTest {
         CanPower p = new CanPower();
         assertNull(p.onSignal(CanPower.CURR, 10.0, true, 1000));
         Double kw = p.onSignal(CanPower.VOLT, 400.0, true, 1100);
-        assertEquals(4.0, kw, E);   // 400 V x 10 A
+        assertEquals(4.08, kw, E);   // 400 V x (10 + 0.2) A
+    }
+
+    /** The catalog reads 0.2 A low (offset -500.2, real -500.0); raw 0
+     * (-500.2 A = no value yet) is still dropped. */
+    @Test public void currentOffsetIsFixedAndRawZeroStillDropped() {
+        CanPower p = new CanPower();
+        p.onSignal(CanPower.VOLT, 400.0, true, 0);
+        assertEquals(0.12, p.onSignal(CanPower.CURR, 0.1, true, 10), E);   // parked base
+        assertNull(p.onSignal(CanPower.CURR, -500.2, true, 20));
     }
 
     /** Car values from 2026-11-14 while AC charging: negative = into the battery. */
@@ -20,7 +29,7 @@ public class CanPowerTest {
         CanPower p = new CanPower();
         p.onSignal(CanPower.VOLT, 403.9, true, 0);
         Double kw = p.onSignal(CanPower.CURR, -16.0, true, 10);
-        assertEquals(-6.4624, kw, 1e-6);
+        assertEquals(403.9 * -15.8 / 1000, kw, 1e-6);
         assertNull(p.onSignal(CanPower.OBC_V, 241.5, true, 20));
         assertNull(p.onSignal(CanPower.OBC_A, 28.2, true, 30));
         assertEquals(241.5 * 28.2, p.chargerInputW(30), 1e-6);
@@ -41,7 +50,7 @@ public class CanPowerTest {
         CanPower p = new CanPower();
         p.onSignal(CanPower.VOLT, 400.0, true, 0);
         p.onSignal(CanPower.CURR, 10.0, true, 0);
-        assertEquals(4.0, p.powerKw(0), E);
+        assertEquals(4.08, p.powerKw(0), E);
 
         assertNull(p.onSignal(CanPower.CURR, 10.0, false, 100));   // amps invalid
         assertNull(p.onHeartbeat(1, 1000));
@@ -50,8 +59,8 @@ public class CanPowerTest {
         assertNull(p.packAmps(1000));
         assertEquals(400.0, p.packVolts(1000), E);
 
-        assertEquals(4.8, p.onSignal(CanPower.CURR, 12.0, true, 1100), E);   // back
-        assertEquals(4.8, p.powerKw(1100), E);
+        assertEquals(4.88, p.onSignal(CanPower.CURR, 12.0, true, 1100), E);   // back
+        assertEquals(4.88, p.powerKw(1100), E);
 
         assertNull(p.onSignal(CanPower.VOLT, 5.0, true, 1200));    // volts out of band
         assertNull(p.powerKw(1200));
@@ -64,8 +73,8 @@ public class CanPowerTest {
         p.onSignal(CanPower.VOLT, 400.0, true, 0);
         p.onSignal(CanPower.CURR, 5.0, true, 0);
         assertNull("too soon after the last sample", p.onHeartbeat(1, 500));
-        assertEquals(2.0, p.onHeartbeat(1, 1000), E);
-        assertEquals(2.0, p.onHeartbeat(1, 2000), E);
+        assertEquals(2.08, p.onHeartbeat(1, 1000), E);
+        assertEquals(2.08, p.onHeartbeat(1, 2000), E);
         assertNull("source unavailable", p.onHeartbeat(0, 3000));
         assertFalse(p.live(3000));
     }
@@ -75,7 +84,7 @@ public class CanPowerTest {
         p.onSignal(CanPower.VOLT, 400.0, true, 0);
         p.onSignal(CanPower.CURR, 5.0, true, 0);
         assertTrue(p.live(CanPower.STALE_MS));
-        assertEquals(2.0, p.powerKw(CanPower.STALE_MS), E);
+        assertEquals(2.08, p.powerKw(CanPower.STALE_MS), E);
         assertFalse(p.live(CanPower.STALE_MS + 1));
         assertNull(p.powerKw(CanPower.STALE_MS + 1));
     }
