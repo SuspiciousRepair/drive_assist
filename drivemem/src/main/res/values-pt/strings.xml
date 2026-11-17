@@ -40,21 +40,19 @@
 
     <!-- misc -->
     <string name="cleanup_title">Limpeza</string>
-    <string name="cleanup_subtitle">Remove o que foi adicionado depois de fábrica. Não desfaz o ADB (veio do recovery) nem toca em apps do sistema.</string>
-    <string name="cleanup_step1_header">Etapa 1 — vestígios</string>
-    <string name="cleanup_step2_header">Etapa 2 — remover apps</string>
+    <string name="cleanup_subtitle">Remove o Drive Assist, o ajudante e o leitor CAN, e devolve o som de trava original do carro. Mexe só no que é nosso, nunca em outro app. O root profundo do recovery continua.</string>
+    <string name="cleanup_step1_header">Etapa 1 — parar e limpar dados</string>
+    <string name="cleanup_step2_header">Etapa 2 — remover</string>
     <string name="cleanup_action_stop_wipe">Parar serviços e limpar dados do Drive Assist</string>
-    <string name="cleanup_action_uninstall_apps">Desinstalar apps customizados</string>
-    <string name="cleanup_action_uninstall_self">Desinstalar o próprio Drive Assist</string>
+    <string name="cleanup_action_uninstall_self">Remover o Drive Assist e o ajudante (manter o ADB ligado)</string>
+    <string name="cleanup_action_remove_close_adb">Remover e fechar o ADB (antes da oficina)</string>
+    <string name="cleanup_adb_note">Feche o ADB só antes de ir à oficina. Isso desliga o acesso do Drive Assist ao carro, e nada fica no carro para reabrir sozinho. Para usar o Drive Assist de novo, desbloqueie o carro do mesmo jeito que fez na primeira vez.</string>
     <string name="cleanup_log_idle">Nada feito ainda.\nCada botão pede confirmação (toque duas vezes).</string>
     <string name="cleanup_confirm_prompt">Toque de novo em \"%1$s\" para confirmar.</string>
     <string name="cleanup_stopping">Parando serviços...</string>
     <string name="cleanup_wiped">Serviços parados, ícones removidos, alarme cancelado e dados apagados.\nO Drive Assist continua instalado, mas inerte.</string>
-    <string name="cleanup_uninstall_header">Pedindo desinstalação de:</string>
-    <string name="cleanup_uninstall_item_failed">falhou: %1$s</string>
-    <string name="cleanup_uninstall_footer">Confirme cada janela do sistema. Um de cada vez.</string>
-    <string name="cleanup_none_found">Nenhum app customizado encontrado.</string>
-    <string name="cleanup_removing_self">Pedindo a remoção do Drive Assist...</string>
+    <string name="cleanup_helper_missing">O ajudante não está presente, então o leitor CAN e o ADB não dá para limpar por aqui. Removendo só o Drive Assist.</string>
+    <string name="cleanup_removing_self">Removendo o Drive Assist e o ajudante...</string>
     <string name="cleanup_failed">Falhou: %1$s</string>
     <string name="notif_tele_channel">Telemetria</string>
     <string name="notif_tele_title">Drive Assist — telemetria</string>

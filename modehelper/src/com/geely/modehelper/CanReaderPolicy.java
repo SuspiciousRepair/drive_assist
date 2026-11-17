@@ -44,6 +44,16 @@ final class CanReaderPolicy {
         return "sha256sum " + BIN + " 2>/dev/null";
     }
 
+    static final String WIPED = "DA_WIPED";
+
+    /** Stops our daemon and deletes our whole dir, so a workshop finds nothing
+     * of ours in /data/local/tmp. Another app's roadcastd lives in another
+     * dir and is never touched: only {@link #stopOursCommand} kills (by exe
+     * path), and only {@link #DIR} is removed. Prints {@link #WIPED}. */
+    static String wipeCommand() {
+        return stopOursCommand() + "; rm -rf " + DIR + " 2>/dev/null; echo " + WIPED;
+    }
+
     /** Copies the staged binary in, root:root 0755, and only moves it into
      * place if the checksum is the expected one. */
     static String installCommand(String stagedPath, String sha256) {
