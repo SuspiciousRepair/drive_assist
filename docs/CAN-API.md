@@ -31,7 +31,7 @@ All calibrated in roadcast's catalog (`third_party/roadcast/data/dbc.json`).
 | Signal | Frame | Unit | Note |
 |---|---|---|---|
 | `BMSH_BattVolt` | 0x178 | V | pack voltage |
-| `BMSH_BattCurr` | 0x250 | A | positive = discharge, negative = charging |
+| `BMSH_BattCurr` | 0x250 | A | positive = discharge, negative = charging. **Add 0.2 A**: the catalog's offset is −500.2, the real one −500.0 (fixed 0.2 A low against the OBD2 dongle, any current). Raw 0 (−500.2) = no value yet |
 | `VCU_DrvPwrAct` | 0x315 | kW | drive motor power, **not** battery power: close to it when pulling, about 20 % more than the battery gets during regen. Excludes climate and 12 V |
 | `VCU_ThermalPwrAct` | 0x315 | kW | climate (compressor + heater). Reads low: real ≈ 1.19 × value + 0.2 kW while the compressor runs (EX2, 2026-11-17) |
 | `OBC_uInAct`, `OBC_iInAct` | 0x221 | V, A | on-board charger's mains input |

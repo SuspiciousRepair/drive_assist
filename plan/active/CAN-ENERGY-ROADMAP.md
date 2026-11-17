@@ -194,6 +194,12 @@ The car has no heated seats.
 - CAN battery power = 0.95 × dongle while driving. CAN volts 1.2 V lower,
   amps 0.2–0.4 A lower. Parked and charging, r = 0.997.
 - Which one is right is open. On short trips the SoC drop sat between them.
+- **Found 2026-11-17:** the amps gap is a fixed offset, not a scale. On
+  4,610 steady readings (−30 to +30 A): CAN amps = 0.9993 × dongle − 0.212 A.
+  The catalog's `BMSH_BattCurr` offset is −500.2; the real one is −500.0.
+  `CanPower` adds 0.2 A (~80 W at 400 V; the car showed CAN 160 W against
+  dongle 240 W). The parked base load becomes ~0.12 kW, not 0.04. Steps
+  (the climate fit) are not affected. The 1.2 V volts gap remains (0.3 %).
 
 ### ABRP
 
