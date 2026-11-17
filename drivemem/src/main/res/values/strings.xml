@@ -58,7 +58,7 @@
     <string name="cleanup_action_stop_wipe">Stop services and wipe Drive Assist\'s data</string>
     <string name="cleanup_action_uninstall_self">Remove Drive Assist and its helper (keep ADB on)</string>
     <string name="cleanup_action_remove_close_adb">Remove and close ADB (before a workshop visit)</string>
-    <string name="cleanup_adb_note">Close ADB only before a workshop visit. To get back in after, turn ADB on by hand: car Settings → Developer options → ADB, then reinstall from the USB stick. Nothing is left on the car to open it for you.</string>
+    <string name="cleanup_adb_note">Close ADB only before a workshop visit. To get back in, reinstall from the USB stick on the car screen, then turn ADB on in the app. Nothing is left on the car to open it for you.</string>
     <string name="cleanup_log_idle">Nothing done yet.\nEvery button asks for confirmation (tap twice).</string>
     <string name="cleanup_confirm_prompt">Tap \"%1$s\" again to confirm.</string>
     <string name="cleanup_stopping">Stopping services…</string>

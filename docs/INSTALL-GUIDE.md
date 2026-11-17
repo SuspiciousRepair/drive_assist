@@ -547,24 +547,23 @@ unknown apps, which is the point.
 ### Getting back in after you closed ADB
 
 Nothing is left on the car to re-open ADB for you — that is deliberate, so a
-workshop cannot find a trigger. You turn it back on by hand:
+workshop cannot find a trigger. There is **no on-car menu** to turn network
+ADB on, so the way back is the same **USB stick** method that set the car up
+the first time, which needs **no ADB**:
 
-1. On the car, open the system **Settings → Developer options** and turn
-   **ADB / USB debugging** on. *(This head unit is `ro.debuggable=1`, so
-   Developer options is available. Confirm the exact menu on your car.)*
-2. Connect and reinstall:
-   ```bash
-   adb devices                                   # confirm the car shows up
-   adb install -r drive_assist_installer.apk     # or the USB 1-file method
-   ```
-3. Restore your backup when Drive Assist asks.
+1. Put **`drive_assist_installer.apk`** on a USB stick.
+2. Plug it into the car and, on the car's touchscreen, open the file manager
+   (Cx File Explorer) and tap the APK to install it — exactly like the
+   [1-File USB Drive Method](#method-1-the-1-file-usb-drive-method-no-computer-needed--recommended).
+   This installs Drive Assist and ModeHelper again with no computer and no ADB.
+3. In Drive Assist, turn **ADB** back on (Settings → System). ModeHelper holds
+   the privilege to switch ADB on, so network ADB (`:5555`) returns from here.
+4. Restore your backup when Drive Assist asks.
 
-If network ADB (`:5555`) does not come back on its own, open it once over USB
-(the head unit's ADB shell is root), then reinstall:
-```bash
-adb shell setprop persist.adb.tcp.port 5555
-adb shell "stop adbd; start adbd"
-```
+> [!NOTE]
+> This works because the installer runs on the car's own screen through the
+> file manager, and ModeHelper — not ADB — is what writes the ADB switch. So
+> closing ADB never locks you out: the USB stick always gets you back in.
 
 ---
 
