@@ -648,4 +648,10 @@
     <string name="phone_msg_no_space">รถมีพื้นที่ว่างไม่พอสำหรับไฟล์นี้</string>
     <string name="phone_msg_busy">กำลังกู้คืนอยู่แล้ว</string>
     <string name="phone_msg_no_file">เลือกไฟล์สำรองก่อน</string>
+    <string name="phone_routes">เส้นทาง (GPX)</string>
+    <string name="phone_routes_hint">การเดินทางของคุณเป็นไฟล์ GPX เปิดได้ใน Google Earth, Google My Maps และแอปแผนที่ส่วนใหญ่</string>
+    <string name="phone_routes_open">เปิดเส้นทาง</string>
+    <string name="phone_routes_day">ทั้งวัน</string>
+    <string name="phone_routes_trip">การเดินทางนี้</string>
+    <string name="phone_msg_no_route">ยังไม่มีการเดินทางที่บันทึกเส้นทาง</string>
 </resources>

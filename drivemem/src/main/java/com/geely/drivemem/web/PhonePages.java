@@ -18,7 +18,7 @@ import java.util.List;
 final class PhonePages {
     private PhonePages() {}
 
-    enum Msg { CLOSED, SCAN_AGAIN, PARK, NO_BACKUP, TOO_BIG, NO_SPACE, BUSY, NO_FILE }
+    enum Msg { CLOSED, SCAN_AGAIN, PARK, NO_BACKUP, TOO_BIG, NO_SPACE, BUSY, NO_FILE, NO_ROUTE }
 
     /** The long settings the phone can type. secret = never shown back.
      * Only keys that Prefs.isPhoneRestorable allows (PhonePagesTest checks
@@ -82,6 +82,7 @@ final class PhonePages {
             case NO_SPACE: text = R.string.phone_msg_no_space; break;
             case BUSY: text = R.string.phone_msg_busy; break;
             case NO_FILE: text = R.string.phone_msg_no_file; break;
+            case NO_ROUTE: text = R.string.phone_msg_no_route; break;
             default: text = R.string.phone_msg_scan_again; break;
         }
         String title = c.getString(R.string.phone_title);
@@ -99,6 +100,10 @@ final class PhonePages {
          .append("<a class=\"btn\" href=\"/trips.csv\">").append(Http.esc(c.getString(R.string.phone_trips_csv))).append("</a>")
          .append("<a class=\"btn\" href=\"/charges.csv\">").append(Http.esc(c.getString(R.string.phone_charges_csv))).append("</a>")
          .append("</div>");
+
+        b.append("<div class=\"card\"><h2>").append(Http.esc(c.getString(R.string.phone_routes))).append("</h2>")
+         .append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.phone_routes_hint))).append("</p>")
+         .append("<a class=\"btn\" href=\"/routes\">").append(Http.esc(c.getString(R.string.phone_routes_open))).append("</a></div>");
 
         b.append("<div class=\"card\"><h2>").append(Http.esc(c.getString(R.string.phone_backup))).append("</h2>");
         List<AppBackup.Found> backups = AppBackup.list();
@@ -148,6 +153,58 @@ final class PhonePages {
         else b.append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.phone_clips_hint))).append("</p>").append(list);
         b.append("</div>");
         return page(c, title, b.toString());
+    }
+
+    /** The months that have routes, newest first. A month opens its days. */
+    static String routes(Context c, List<String> months) {
+        StringBuilder b = new StringBuilder(back(c));
+        String title = c.getString(R.string.phone_routes);
+        b.append("<h1>").append(Http.esc(title)).append("</h1><div class=\"card\">");
+        if (months.isEmpty()) {
+            b.append("<p>").append(Http.esc(c.getString(R.string.phone_msg_no_route))).append("</p>");
+        } else {
+            b.append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.phone_routes_hint))).append("</p><ul>");
+            for (String m : months) {
+                b.append("<li><span>").append(Http.esc(m)).append("</span>")
+                 .append("<a class=\"btn\" href=\"/routes?m=").append(Http.esc(m)).append("\">")
+                 .append(Http.esc(c.getString(R.string.phone_routes_open))).append("</a></li>");
+            }
+            b.append("</ul>");
+        }
+        b.append("</div>");
+        return page(c, title, b.toString());
+    }
+
+    /** One month: a card per day, with the day's GPX and one GPX per trip. */
+    static String routesMonth(Context c, String month, List<com.geely.drivemem.sensors.DailyStatsProvider.DriveSession> trips) {
+        StringBuilder b = new StringBuilder("<p><a href=\"/routes\">&larr; ")
+            .append(Http.esc(c.getString(R.string.phone_routes))).append("</a></p>");
+        b.append("<h1>").append(Http.esc(month)).append("</h1>");
+        if (trips.isEmpty()) {
+            b.append("<div class=\"card\"><p>").append(Http.esc(c.getString(R.string.phone_msg_no_route))).append("</p></div>");
+            return page(c, month, b.toString());
+        }
+        java.text.SimpleDateFormat key = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US);
+        DateFormat dayFmt = DateFormat.getDateInstance(DateFormat.FULL);
+        DateFormat timeFmt = DateFormat.getTimeInstance(DateFormat.SHORT);
+        String open = null;
+        for (com.geely.drivemem.sensors.DailyStatsProvider.DriveSession t : trips) {
+            Date start = new Date(t.startMs);
+            String day = key.format(start);
+            if (!day.equals(open)) {
+                if (open != null) b.append("</ul></div>");
+                open = day;
+                b.append("<div class=\"card\"><h2>").append(Http.esc(dayFmt.format(start))).append("</h2>")
+                 .append("<a class=\"btn\" href=\"/routes.gpx?d=").append(day).append("\">")
+                 .append(Http.esc(c.getString(R.string.phone_routes_day))).append("</a><ul style=\"margin-top:12px\">");
+            }
+            String what = timeFmt.format(start) + String.format(java.util.Locale.US, " · %.1f km", t.distanceKm);
+            b.append("<li><span>").append(Http.esc(what)).append("</span>")
+             .append("<a class=\"btn\" href=\"/routes.gpx?trip=").append(t.tripId).append("\">")
+             .append(Http.esc(c.getString(R.string.phone_routes_trip))).append("</a></li>");
+        }
+        b.append("</ul></div>");
+        return page(c, month, b.toString());
     }
 
     /** The upload form, or how the restore is going. */

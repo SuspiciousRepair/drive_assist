@@ -659,4 +659,10 @@
     <string name="phone_msg_no_space">The car does not have enough free space for this file.</string>
     <string name="phone_msg_busy">A restore is already running.</string>
     <string name="phone_msg_no_file">Pick a backup file first.</string>
+    <string name="phone_routes">Routes (GPX)</string>
+    <string name="phone_routes_hint">Your trips as GPX files. They open in Google Earth, Google My Maps and most map apps.</string>
+    <string name="phone_routes_open">Open routes</string>
+    <string name="phone_routes_day">Whole day</string>
+    <string name="phone_routes_trip">This trip</string>
+    <string name="phone_msg_no_route">No trip with a recorded route yet.</string>
 </resources>

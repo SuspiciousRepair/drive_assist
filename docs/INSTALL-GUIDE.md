@@ -596,6 +596,8 @@ used the first time**, then reinstall and restore your backup.
 Open a page on your phone to:
 
 - download your trips and charges (CSV files for any spreadsheet),
+- download your trip routes as GPX files (one trip or a whole day) for
+  Google Earth, Google My Maps or any map app,
 - download the newest backup, or restore a backup file from the phone,
 - download dashcam clips,
 - type long settings with the phone keyboard: MQTT address, user and

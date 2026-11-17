@@ -7,6 +7,8 @@ import com.geely.drivemem.sensors.DailyStatsProvider.DriveSession;
 import com.geely.drivemem.state.ChargeSession;
 
 import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
 
 import java.io.File;
@@ -16,7 +18,9 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.TimeZone;
 
@@ -35,15 +39,17 @@ public final class CsvExport {
     public static final String TRIPS_FILE = "drive_assist_trips.csv";
 
     static final String CHARGES_HEADER = "id,start,end,duration_min,type,soc_start_pct,soc_end_pct,"
-        + "energy_kwh,avg_power_kw,max_voltage_v,odometer_km,cost,cost_per_kwh";
+        + "energy_kwh,avg_power_kw,max_voltage_v,odometer_km,cost,cost_per_kwh,lat,lon";
     static final String TRIPS_HEADER = "id,start,end,duration_min,distance_km,soc_start_pct,soc_end_pct,"
         + "energy_net_kwh,energy_spent_kwh,energy_regen_kwh,efficiency_wh_km,energy_source,"
-        + "ascent_m,descent_m";
+        + "ascent_m,descent_m,start_lat,start_lon,end_lat,end_lon";
 
     private CsvExport() {}
 
-    /** Writes both CSV files, then copies them and car.db to the USB drive.
-     * Runs on its own thread; cb fires on THAT thread, as in UsbExport. */
+    /** Writes both CSV files, then copies them and car.db to the USB drive,
+     * and the trip routes as GPX (one file per day) to
+     * "Drive Assist/Routes/<yyyy-MM>/". Runs on its own thread; cb fires once, on THAT
+     * thread, as in UsbExport, with the files copied in both folders. */
     public static void exportToUsb(Context ctx, UsbExport.Callback cb) {
         Context app = ctx.getApplicationContext();
         new Thread(() -> {
@@ -68,11 +74,25 @@ public final class CsvExport {
             File[] all = new File[csv.length + 1];
             all[0] = db;
             System.arraycopy(csv, 0, all, 1, csv.length);
+            final int[] copied = {0};
+            final boolean[] ok = {false};
+            final File[] drive = {null};
             try {
-                UsbExport.exportNow(cb, all);
+                UsbExport.exportNow((o, d, n) -> { ok[0] = o; drive[0] = d; copied[0] = n; }, all);
             } finally {
                 AppBackup.deleteSnapshot(new File(snapDir, CarDb.file(app).getName()));
             }
+            if (drive[0] != null) {
+                List<GpxExport.MonthFiles> gpx = java.util.Collections.emptyList();
+                try { gpx = GpxExport.writeAllDays(app); }
+                catch (Throwable t) { Log.w(TAG, "csvexport: gpx: " + t); }
+                for (GpxExport.MonthFiles m : gpx) {
+                    UsbExport.exportNow(GpxExport.USB_DIR + "/" + m.month, false, (o, d, n) -> {
+                        if (o) { ok[0] = true; copied[0] += n; }
+                    }, m.days);
+                }
+            }
+            if (cb != null) cb.onDone(ok[0], drive[0], copied[0]);
         }, "csv-export").start();
     }
 
@@ -84,10 +104,40 @@ public final class CsvExport {
         TimeZone tz = TimeZone.getDefault();
         long activeChargeId = ChargeSession.isCharging() ? ChargeSession.activeRowId() : -1;
         File charges = new File(dir, CHARGES_FILE);
-        writeFile(charges, chargesCsv(ChargeSession.readLog(ctx), activeChargeId, tz));
+        SQLiteDatabase db = CarDb.get(ctx).db();
+        writeFile(charges, chargesCsv(ChargeSession.readLog(ctx), activeChargeId, chargePlaces(db), tz));
         File trips = new File(dir, TRIPS_FILE);
-        writeFile(trips, tripsCsv(DailyStatsProvider.readAllTrips(ctx), tz));
+        writeFile(trips, tripsCsv(DailyStatsProvider.readAllTrips(ctx), tripEnds(db), tz));
         return new File[]{charges, trips};
+    }
+
+    /** charge id -> {lat, lon}, for the charges that saved a place. */
+    static Map<Long, double[]> chargePlaces(SQLiteDatabase db) {
+        Map<Long, double[]> out = new HashMap<>();
+        Cursor c = db.rawQuery("SELECT id, lat, lon FROM charge_session WHERE lat IS NOT NULL AND lon IS NOT NULL", null);
+        try { while (c.moveToNext()) out.put(c.getLong(0), new double[]{c.getDouble(1), c.getDouble(2)}); }
+        finally { c.close(); }
+        return out;
+    }
+
+    /** trip id -> {start lat, start lon, end lat, end lon}: the first and the
+     * last route point. Trips without points are not in the map. (SQLite
+     * takes the bare lat/lon from the row that MIN/MAX picked.) */
+    static Map<Long, double[]> tripEnds(SQLiteDatabase db) {
+        Map<Long, double[]> out = new HashMap<>();
+        Cursor c = db.rawQuery("SELECT trip_id, lat, lon, MIN(ts_ms) FROM trip_point "
+            + "WHERE trip_id IS NOT NULL GROUP BY trip_id", null);
+        try { while (c.moveToNext()) out.put(c.getLong(0), new double[]{c.getDouble(1), c.getDouble(2), Double.NaN, Double.NaN}); }
+        finally { c.close(); }
+        c = db.rawQuery("SELECT trip_id, lat, lon, MAX(ts_ms) FROM trip_point "
+            + "WHERE trip_id IS NOT NULL GROUP BY trip_id", null);
+        try {
+            while (c.moveToNext()) {
+                double[] e = out.get(c.getLong(0));
+                if (e != null) { e[2] = c.getDouble(1); e[3] = c.getDouble(2); }
+            }
+        } finally { c.close(); }
+        return out;
     }
 
     private static void writeFile(File f, String text) throws Exception {
@@ -97,11 +147,13 @@ public final class CsvExport {
 
     /** Oldest first, as readLog returns them. The charge still in progress
      * (activeId) is left out: its numbers are not final yet. */
-    static String chargesCsv(List<ChargeSession.Summary> sessions, long activeId, TimeZone tz) {
+    static String chargesCsv(List<ChargeSession.Summary> sessions, long activeId,
+                             Map<Long, double[]> places, TimeZone tz) {
         SimpleDateFormat fmt = dateFormat(tz);
         StringBuilder sb = new StringBuilder(CHARGES_HEADER).append("\r\n");
         for (ChargeSession.Summary s : sessions) {
             if (activeId > 0 && s.id == activeId) continue;
+            double[] at = places.get(s.id);
             row(sb,
                 String.valueOf(s.id),
                 fmt.format(new Date(s.startWallMs)),
@@ -114,18 +166,21 @@ public final class CsvExport {
                 s.hasChargeVoltage() ? num(s.maxChargeV, 0) : "",
                 s.odoStart > 0 ? num(s.odoStart, 1) : "",
                 s.cost != null ? num(s.cost, 2) : "",
-                s.cost != null && s.kwh > 0 ? num(s.cost / s.kwh, 2) : "");
+                s.cost != null && s.kwh > 0 ? num(s.cost / s.kwh, 2) : "",
+                at != null ? num(at[0], 6) : "",
+                at != null ? num(at[1], 6) : "");
         }
         return sb.toString();
     }
 
     /** Completed trips only; an open trip has no end yet. */
-    static String tripsCsv(List<DriveSession> trips, TimeZone tz) {
+    static String tripsCsv(List<DriveSession> trips, Map<Long, double[]> ends, TimeZone tz) {
         SimpleDateFormat fmt = dateFormat(tz);
         StringBuilder sb = new StringBuilder(TRIPS_HEADER).append("\r\n");
         for (DriveSession t : trips) {
             if (t.endMs <= t.startMs) continue;
             boolean noEnergy = t.energySource == com.geely.drivemem.sensors.EnergySource.NO_DATA;
+            double[] e = ends.get(t.tripId);
             row(sb,
                 String.valueOf(t.tripId),
                 fmt.format(new Date(t.startMs)),
@@ -139,7 +194,11 @@ public final class CsvExport {
                 noEnergy || t.efficiencyKwh100km <= 0 ? "" : num(EnergyUnits.whPerKm(t.efficiencyKwh100km), 0),
                 t.energySource == null ? "" : t.energySource.name().toLowerCase(Locale.US),
                 num(t.ascentDPlusM, 0),
-                num(t.descentDMinusM, 0));
+                num(t.descentDMinusM, 0),
+                e != null ? num(e[0], 6) : "",
+                e != null ? num(e[1], 6) : "",
+                e != null ? num(e[2], 6) : "",
+                e != null ? num(e[3], 6) : "");
         }
         return sb.toString();
     }
