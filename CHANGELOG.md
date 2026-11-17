@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.8.0] — 2026-11-17
+
 ### Added
 - **Extra dark at night.** New switch in Config → Look → Dark mode. When the
   car is in dark mode and you drive for a minute without touching the
@@ -62,6 +64,19 @@
   build their shapes and text once, not on every frame. (#76, #81)
 
 ### Fixed
+- **A home AC charge is no longer shown as a DC fast charge.** The app
+  calls a charge "DC" when its highest port voltage passes a line. The line
+  was 250 V, and home mains can go just above it: one reading of 250.1 V in
+  a whole night turned that night into "DC". The line is now 300 V. DC on
+  this car reads about 400 V. Old charges are fixed too. (#93)
+- **The first Cooler or Warmer tap of a trip starts from what the car really
+  runs.** When the car wakes it puts its last climate back by itself, and a
+  tap in the first seconds moved from an old value: "Cooler" could make the
+  cabin warmer. Now the first tap after a quiet minute reads the car first.
+  (#87)
+- **The dashcam Record switch stays on after a tap.** In Park with Park
+  monitoring on, the recorder waits for movement before it writes, and the
+  switch read that as off and flipped back. (#61)
 - **A change you make right after the car starts now stays.** "Restore at
   car start" put your saved drive mode, regen, AEB and AVAS back for the
   whole first minute after the car woke, so turning AVAS on and then
