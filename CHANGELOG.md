@@ -26,7 +26,8 @@
   charged, with the blue plug for AC and the green CCS2 plug for DC (a place
   with any DC charge shows DC; charges within 100 m are one place). A trip's
   map shows only the charge right before it at its start, or right after it
-  at its end. Charges saved before the route update have no place.
+  at its end. A charge's place is where the last trip before it ended; charges
+  saved since the route update (16 Nov) get it too.
 - **Where a trip's energy went.** Trips measured by CAN save how much went to
   drive, to climate (air-con, heat pump and fan) and to everything else. Open
   a trip to see it. With or without the OBD2 dongle, the three parts add up to
@@ -37,6 +38,10 @@
   reading. (#96)
 
 ### Fixed
+- **Charges saved no place.** The place was taken from the GPS when the
+  charge ended, and by then the GPS is long off. It now comes from where the
+  last trip before the charge ended (the car does not move while it charges),
+  and older charges get theirs filled in once. (DB v31)
 - **CAN battery current read 0.2 A low** (about 80 W at 400 V), so CAN power
   was always a little below the OBD2 dongle. (#97)
 
