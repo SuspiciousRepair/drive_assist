@@ -537,7 +537,6 @@
     <string name="sankey_used">ใช้</string>
     <string name="sankey_net">สุทธิ</string>
     <string name="sankey_regen">คืน</string>
-    <string name="sankey_came_back">กลับมา</string>
     <string name="stats_part_drive">ขับเคลื่อน</string>
     <string name="stats_part_climate">แอร์</string>
     <string name="stats_part_other">อื่นๆ</string>

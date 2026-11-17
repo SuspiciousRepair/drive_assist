@@ -15,7 +15,7 @@ import java.util.Locale;
 
 /** Where the energy went, as a Sankey:
  *
- *   Used ─┬─ Regen (came back)
+ *   Used ─┬─ Regen
  *         └─ Net ─┬─ Drive
  *                 ├─ Climate
  *                 └─ Other
@@ -36,7 +36,7 @@ final class EnergySankeyView extends View {
     private final Paint bold = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint dim = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
-    private final String sUsed, sNet, sRegen, sBack;
+    private final String sUsed, sNet, sRegen;
     private final String[] partNames;
 
     // Layout, in px (dp = px on this panel, see CLAUDE.md).
@@ -44,12 +44,12 @@ final class EnergySankeyView extends View {
 
     EnergySankeyView(Context c) {
         super(c);
-        chartH = Style.dp(c, 200);
+        chartH = Style.dp(c, 140);
         top = Style.dp(c, 30);
         nodeW = Style.dp(c, 8);
         midGap = Style.dp(c, 32);
-        rightGap = Style.dp(c, 16);
-        labelGap = Style.dp(c, 40);
+        rightGap = Style.dp(c, 12);
+        labelGap = Style.dp(c, 36);
         bold.setTextSize(Style.dp(c, 17));
         bold.setTypeface(Typeface.DEFAULT_BOLD);
         dim.setTextSize(Style.dp(c, 14));
@@ -58,7 +58,6 @@ final class EnergySankeyView extends View {
         sUsed = c.getString(R.string.sankey_used);
         sNet = c.getString(R.string.sankey_net);
         sRegen = c.getString(R.string.sankey_regen);
-        sBack = c.getString(R.string.sankey_came_back);
         partNames = new String[]{c.getString(R.string.stats_part_drive),
             c.getString(R.string.stats_part_climate), c.getString(R.string.stats_part_other)};
     }
@@ -134,6 +133,18 @@ final class EnergySankeyView extends View {
         cv.drawRect(x, y, x + nodeW, y + Math.max(h, 1f), fill);
     }
 
+    /** "  152 Wh/km" over the trips' km, or "" without distance. */
+    private String perKm(double kwhValue) {
+        double wh = EnergyUnits.whPerKm(kwhValue, km);
+        return Double.isNaN(wh) ? "" : "  " + EnergyUnits.wholeWh(wh) + " " + EnergyUnits.WH_PER_KM;
+    }
+
+    /** A bold value and its dim Wh/km after it, on one line. */
+    private void pair(Canvas cv, String value, String perKm, float x, float y) {
+        cv.drawText(value, x, y, bold);
+        if (!perKm.isEmpty()) cv.drawText(perKm, x + bold.measureText(value), y, dim);
+    }
+
     @Override protected void onDraw(Canvas cv) {
         if (!hasData) return;
         float w = getWidth();
@@ -148,7 +159,7 @@ final class EnergySankeyView extends View {
 
         // Used, its top part came back.
         node(cv, xUsed, top, (float) (used * k), Style.TEXT_DIM);
-        cv.drawText(sUsed + " " + kwh(used) + " kWh", xUsed, top - Style.dp(getContext(), 10), bold);
+        pair(cv, sUsed + " " + kwh(used) + " kWh", perKm(used), xUsed, top - Style.dp(getContext(), 10));
 
         // Regen on top, Net under it.
         band(cv, xUsed + nodeW, top, xMid, yReg, hReg, Style.PURPLE);
@@ -159,10 +170,9 @@ final class EnergySankeyView extends View {
         bold.setColor(Style.PURPLE);
         String reg = sRegen + " " + kwh(regen);
         float regY = yReg + hReg / 2 + Style.dp(getContext(), 6);
-        cv.drawText(reg, tx, regY, bold);
-        cv.drawText("  " + sBack, tx + bold.measureText(reg), regY, dim);
+        pair(cv, reg, perKm(regen), tx, regY);
         bold.setColor(Style.TEXT);
-        cv.drawText(sNet + " " + kwh(net), tx, yNet - Style.dp(getContext(), 9), bold);
+        pair(cv, sNet + " " + kwh(net), perKm(net), tx, yNet - Style.dp(getContext(), 9));
 
         // Drive, climate, other from Net.
         float[] h = partHeights();

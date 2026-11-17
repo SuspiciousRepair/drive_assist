@@ -548,7 +548,6 @@
     <string name="sankey_used">Used</string>
     <string name="sankey_net">Net</string>
     <string name="sankey_regen">Regen</string>
-    <string name="sankey_came_back">came back</string>
     <string name="stats_part_drive">Drive</string>
     <string name="stats_part_climate">Climate</string>
     <string name="stats_part_other">Other</string>
