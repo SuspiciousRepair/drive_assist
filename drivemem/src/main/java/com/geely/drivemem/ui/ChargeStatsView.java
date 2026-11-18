@@ -166,21 +166,22 @@ public class ChargeStatsView extends LinearLayout {
         chartCard.addView(chargeSocChart, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        // The battery-over-time chart sits below the per-charge SoC bars, in
-        // the same column: both are about the battery's range. It replaced
+        // The battery-over-time chart sits ABOVE the per-charge SoC bars, in
+        // the same column: both are about the battery's range, and the bars
+        // grow with the charge count (18 in a year), which pushed a chart
+        // below them off the screen (owner's pick, 2026-11-18). It replaced
         // the Energy Balance bars (owner, 2026-11-18), which did not answer
         // anything at a glance; this one answers "how often do I go low".
         LinearLayout rightColumn = new LinearLayout(c);
         rightColumn.setOrientation(LinearLayout.VERTICAL);
-        rightColumn.addView(chartCard, new LinearLayout.LayoutParams(
+        socHistoryChart = new SocHistoryChart(c);
+        rightColumn.addView(socHistoryChart, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        socHistoryChart = new SocHistoryChart(c);
-        LinearLayout.LayoutParams chartLp = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams barsLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        chartLp.topMargin = Style.dp(c, 12);
-        socHistoryChart.setLayoutParams(chartLp);
-        rightColumn.addView(socHistoryChart);
+        barsLp.topMargin = Style.dp(c, 12);
+        rightColumn.addView(chartCard, barsLp);
 
         overview.addView(rightColumn, new LinearLayout.LayoutParams(0,
             ViewGroup.LayoutParams.WRAP_CONTENT, 54f));
