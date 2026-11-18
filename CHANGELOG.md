@@ -12,7 +12,8 @@
   range chart shows a pin at each place the car charged in the month or
   year shown, with the number of charges there. Touch a pin to select its
   newest charge in the list and the chart; selecting a charge lights its
-  pin.
+  pin. Only charges from 16 Nov 2026 on saved their place, so older
+  charges have no pin.
 - **Config → System → Trip routes: clear the saved map.** Shows how much
   map is saved in the car, with a button to clear it. The map downloads
   again the next time it is shown.
