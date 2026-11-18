@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Changed
+- **Trip routes are on a map.** The trip route and All routes screens now
+  draw the route over an OpenStreetMap map, with the streets under the
+  line. No API key and no use limit. The map is kept on the car, so a
+  place seen once shows again with no internet; with no internet and no
+  saved map, the route shows on the plain background as before.
 - **Config → Drive mode is calmer.** The Eco/Comfort/Sport and regen buttons
   are about half as tall, and the selected one is a quiet tint instead of
   green, amber, red or blue. When "Show the Turbo card" is off, its

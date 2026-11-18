@@ -9,10 +9,13 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.view.View;
 
-/** A trip's route as lines on a plain background (issue #19): no map. Each
+/** A trip's route as lines over an OpenStreetMap map (issue #19). Each
  * segment between two points gets the colour of their average speed
  * (SpeedBucketColors). North is up. A dot marks the start, a ring
- * the end, and a bar in the corner gives the scale.
+ * the end, and a bar in the corner gives the scale. The map tiles
+ * (MapTiles, TileCache) are drawn under everything; a tile that is not
+ * here yet leaves the plain background, so with no network the view is
+ * what it was before the map.
  *
  * It can also hold many trips in one picture ({@link #setRoutes}). Then
  * every trip is a thin line, and one trip can be selected: it is drawn
@@ -69,6 +72,17 @@ public class RouteView extends View {
     private float barPx;
     private String barLabel;
 
+    // The map under the route. The projection centre is kept so the tiles
+    // can be placed (MapTiles.cover); the tile list is built in rebuild().
+    private double cLat, cLon;
+    private java.util.List<MapTiles.Tile> tiles = java.util.Collections.emptyList();
+    private final TileCache tileCache;
+    private final Paint tilePaint = new Paint(Paint.FILTER_BITMAP_FLAG);
+    private final Paint credit = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint creditBg = new Paint();
+    private final android.graphics.RectF tileRect = new android.graphics.RectF();
+    private final Runnable tileArrived = this::invalidate;
+
     public RouteView(Context c) {
         super(c);
         for (Paint p : new Paint[]{line, casing}) {
@@ -91,6 +105,36 @@ public class RouteView extends View {
         acIcon.setTint(Style.ACCENT);
         dcIcon = c.getDrawable(com.geely.drivemem.R.drawable.ic_ev_plug_ccs2).mutate();
         dcIcon.setTint(Style.GOOD);
+
+        tileCache = TileCache.get(c);
+        tilePaint.setColorFilter(new android.graphics.ColorMatrixColorFilter(tileMatrix(Style.LIGHT)));
+        credit.setColor(Style.LIGHT ? 0xFF333333 : 0xFFCCCCCC);
+        credit.setTextSize(Style.dp(c, 15));
+        credit.setTextAlign(Paint.Align.RIGHT);
+        creditBg.setColor(Style.LIGHT ? 0xB3FFFFFF : 0xB3000000);
+        // The map is a rectangle; round its corners like the cards.
+        final float radius = Style.dp(c, Style.RADIUS_DP);
+        setOutlineProvider(new android.view.ViewOutlineProvider() {
+            @Override public void getOutline(View v, android.graphics.Outline o) {
+                o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), radius);
+            }
+        });
+        setClipToOutline(true);
+    }
+
+    /** The tiles' colours. Light themes: a little less colour, so the speed
+     * colours of the route stand out. Dark themes: much less colour and
+     * dimmed to a mid grey, so the map does not glare at night and the
+     * roads stay lighter than the blocks between them. */
+    static android.graphics.ColorMatrix tileMatrix(boolean light) {
+        android.graphics.ColorMatrix m = new android.graphics.ColorMatrix();
+        m.setSaturation(light ? 0.6f : 0.25f);
+        if (!light) {
+            android.graphics.ColorMatrix dim = new android.graphics.ColorMatrix();
+            dim.setScale(0.5f, 0.5f, 0.52f, 1f);
+            m.postConcat(dim);
+        }
+        return m;
     }
 
     /** Where the car charged: pins with the AC (blue plug) or DC (green
@@ -114,7 +158,9 @@ public class RouteView extends View {
         double[] lat = new double[n + m], lon = new double[n + m];
         System.arraycopy(rLat, 0, lat, 0, n); System.arraycopy(spotLat, 0, lat, n, m);
         System.arraycopy(rLon, 0, lon, 0, n); System.arraycopy(spotLon, 0, lon, n, m);
-        double[][] xy = RouteGeometry.project(lat, lon);
+        double[] centre = RouteGeometry.centre(lat, lon);
+        cLat = centre[0]; cLon = centre[1];
+        double[][] xy = RouteGeometry.project(lat, lon, cLat, cLon);
         xs = java.util.Arrays.copyOf(xy[0], n); ys = java.util.Arrays.copyOf(xy[1], n);
         spXm = java.util.Arrays.copyOfRange(xy[0], n, n + m);
         spYm = java.util.Arrays.copyOfRange(xy[1], n, n + m);
@@ -221,6 +267,7 @@ public class RouteView extends View {
         sx = new float[n]; sy = new float[n];
         spX = new float[spXm.length]; spY = new float[spYm.length];
         barPx = 0; barLabel = null;
+        tiles = java.util.Collections.emptyList();
         if (n == 0 || w <= 0 || h <= 0) return;
 
         double[] fx = new double[n + spXm.length], fy = new double[n + spYm.length];
@@ -229,6 +276,7 @@ public class RouteView extends View {
         RouteGeometry.Fit f = RouteGeometry.fit(fx, fy, w, h, pad);
         for (int i = 0; i < n; i++) { sx[i] = f.x(xs[i]); sy[i] = f.y(ys[i]); }
         for (int i = 0; i < spX.length; i++) { spX[i] = f.x(spXm[i]); spY[i] = f.y(spYm[i]); }
+        tiles = MapTiles.cover(cLat, cLon, f.x(0), f.y(0), f.pxPerM, w, h);
 
         if (many) {
             for (int t = 0; t < starts.length; t++) addTrip(starts[t], tripEnd(t), allPaths, null);
@@ -269,6 +317,16 @@ public class RouteView extends View {
         int n = sx.length;
         if (n == 0) return;
         Context ctx = getContext();
+
+        // The map first, under everything. A tile that is not here yet is
+        // asked for, and the view redraws when it arrives.
+        for (MapTiles.Tile t : tiles) {
+            android.graphics.Bitmap b = tileCache.get(t.z, t.x, t.y, tileArrived);
+            if (b == null) continue;
+            // Half a pixel more on each side, so no seam shows between tiles.
+            tileRect.set(t.left - 0.5f, t.top - 0.5f, t.left + t.size + 0.5f, t.top + t.size + 0.5f);
+            c.drawBitmap(b, null, tileRect, tilePaint);
+        }
 
         if (many) {
             line.setStrokeWidth(thin);
@@ -331,5 +389,17 @@ public class RouteView extends View {
         text.setTextAlign(Paint.Align.CENTER);
         c.drawText("N ↑", nx, ny, text);
         text.setTextAlign(Paint.Align.LEFT);
+
+        // The map's credit, bottom right: the OpenStreetMap licence asks
+        // for it wherever its map is shown.
+        if (!tiles.isEmpty()) {
+            String s = "© OpenStreetMap";
+            float m = Style.dp(ctx, 6);
+            float tw = credit.measureText(s);
+            float right = getWidth() - m, base = getHeight() - m - Style.dp(ctx, 4);
+            c.drawRect(right - tw - 2 * m, base + credit.ascent() - m / 2,
+                       getWidth(), getHeight(), creditBg);
+            c.drawText(s, right - m, base, credit);
+        }
     }
 }

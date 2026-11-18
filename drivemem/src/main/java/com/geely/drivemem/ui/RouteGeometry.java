@@ -2,12 +2,12 @@ package com.geely.drivemem.ui;
 
 import com.geely.drivemem.sensors.SpeedBuckets;
 
-/** Pure maths for drawing a trip route on a plain background (issue #19):
- * no map, no tiles. Kept out of the View so it can be unit tested.
+/** Pure maths for drawing a trip route (issue #19). Kept out of the View
+ * so it can be unit tested.
  *
- * Projection: equirectangular around the route's centre, in metres. Fine at
- * city and region scale (a trip of a few hundred km bends less than a
- * line's width on this panel). North is up. */
+ * Projection: Web Mercator around the route's centre, scaled to metres at
+ * the centre: the projection of the OpenStreetMap tiles under the route
+ * (MapTiles), so the line sits on its roads. North is up. */
 public final class RouteGeometry {
     private RouteGeometry() {}
 
@@ -102,21 +102,44 @@ public final class RouteGeometry {
 
     /** Metres east (x) and north (y) of the bounding box centre. */
     public static double[][] project(double[] lat, double[] lon) {
+        double[] c = centre(lat, lon);
+        return project(lat, lon, c[0], c[1]);
+    }
+
+    /** The centre of the bounding box: {lat, lon}. {0, 0} when empty. */
+    public static double[] centre(double[] lat, double[] lon) {
         int n = lat.length;
-        double[][] xy = new double[2][n];
-        if (n == 0) return xy;
+        if (n == 0) return new double[]{0, 0};
         double minLat = lat[0], maxLat = lat[0], minLon = lon[0], maxLon = lon[0];
         for (int i = 1; i < n; i++) {
             minLat = Math.min(minLat, lat[i]); maxLat = Math.max(maxLat, lat[i]);
             minLon = Math.min(minLon, lon[i]); maxLon = Math.max(maxLon, lon[i]);
         }
-        double cLat = (minLat + maxLat) / 2, cLon = (minLon + maxLon) / 2;
-        double k = Math.cos(Math.toRadians(cLat));
+        return new double[]{(minLat + maxLat) / 2, (minLon + maxLon) / 2};
+    }
+
+    /** Metres east (x) and north (y) of the given centre, in Web Mercator
+     * scaled to be true metres at the centre: the projection of the map
+     * tiles (MapTiles), so the route sits on the roads under it. Near the
+     * centre this is the same as plain metres; it differs only by the
+     * Mercator stretch towards the poles. */
+    public static double[][] project(double[] lat, double[] lon, double cLat, double cLon) {
+        int n = lat.length;
+        double[][] xy = new double[2][n];
+        double k = Math.cos(Math.toRadians(cLat)) * EARTH_M;
+        double cy = mercY(cLat);
         for (int i = 0; i < n; i++) {
-            xy[0][i] = Math.toRadians(lon[i] - cLon) * k * EARTH_M;
-            xy[1][i] = Math.toRadians(lat[i] - cLat) * EARTH_M;
+            xy[0][i] = Math.toRadians(lon[i] - cLon) * k;
+            xy[1][i] = (mercY(lat[i]) - cy) * k;
         }
         return xy;
+    }
+
+    /** Web Mercator y of a latitude, in radians of the unit sphere. Kept
+     * inside the tiles' +-85.05 degrees. */
+    static double mercY(double latDeg) {
+        double r = Math.toRadians(Math.max(-85.05112878, Math.min(85.05112878, latDeg)));
+        return Math.log(Math.tan(Math.PI / 4 + r / 2));
     }
 
     /** Pixels per metre and the screen centre, so the whole route fits in

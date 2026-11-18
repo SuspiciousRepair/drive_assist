@@ -73,8 +73,11 @@ Inspired by A Better Routeplanner's daily diary, the selected day's activities a
 ### 5. Trip Route Screen
 On the statistics page, tap a finished trip (in **P**) to open its route:
 
-- **Route as lines, no map.** GPS points drawn on a plain background, north
-  up, with start and end marks. No map tiles, no API key, no internet.
+- **Route on a map.** GPS points drawn over an OpenStreetMap map, north up,
+  with start and end marks. No API key and no use limit. The map pictures
+  (tiles) are kept on the car, so a place seen once shows again with no
+  internet. A tile that is not on the car and cannot be fetched is left
+  out: the line then shows on the plain background, as before.
 - **Speed colours.** Each part has the colour of its speed. The buckets and
   colours are the same as on the statistics page: 0–40, 40–80, 80–120 and
   120+ km/h. The scale is fixed, so two trips compare at a glance.
