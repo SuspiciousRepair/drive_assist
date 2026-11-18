@@ -321,7 +321,7 @@ public class TelemetryActivity extends Activity {
 
     private void selectSection(int idx) {
         section = idx;
-        outer.setBackground(sectionHasCarBg(idx) ? Style.configScreenBg(this) : Style.configScreenBgSolid());
+        outer.setBackground(sectionHasCarBg(idx) ? Style.configScreenBg(this) : Style.configScreenBgSolid(this));
         // An integration's own page keeps "Integrations" lit in the sidebar.
         int navIdx = Integrations.forSection(idx) != null ? SEC_INTEGRATIONS : idx;
         for (TextView t : navItems) {
