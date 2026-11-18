@@ -39,6 +39,9 @@ import java.util.Map;
  * are not here: the list comes from DailyStatsProvider.readAllTrips, the
  * same trips the stats page shows. */
 public class AllRoutesActivity extends Activity {
+    /** Optional "yyyy-MM-dd": open on that day instead of all days. */
+    public static final String EXTRA_DAY = "day";
+
     /** One finished trip with its route. */
     private static final class Item {
         final DriveSession s;
@@ -242,7 +245,8 @@ public class AllRoutesActivity extends Activity {
             String d = all.get(i).day;
             if (days.isEmpty() || !days.get(days.size() - 1).equals(d)) days.add(d);
         }
-        setDay(-1);
+        // -1 (all days) when no day was asked for, or that day has no route.
+        setDay(days.indexOf(getIntent().getStringExtra(EXTRA_DAY)));
     }
 
     private void olderDay() { if (dayIdx < days.size() - 1) setDay(dayIdx + 1); }

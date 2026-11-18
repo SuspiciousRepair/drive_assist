@@ -11,6 +11,10 @@
   gone: it only picked Eco and Média, the same as two taps, and its message
   showed raw placeholders. No button in Config stretches across the page
   any more (this also makes the MQTT page buttons small).
+- **Stats page: "All routes" moved.** The loose "Todas as rotas" button in
+  the top bar is gone. The "N trips · N charges" count on the day's trip
+  list is now that button, with a map icon. In Day view it opens on that
+  day; in Week and Month it shows all days. Each trip keeps its own map.
 - **Climate: C3 blows softer.** C3 now runs the fan at 3, not 4. Before, the
   step from C2 to C3 doubled the fan in the same tap that moved the air from
   the windshield to your face, which felt like too much. C1, C2, C4, C5 and
