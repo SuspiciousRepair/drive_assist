@@ -32,7 +32,7 @@ public final class CarDb extends SQLiteOpenHelper {
     // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
     // every write failed until this was bumped past 14. See the v15 entry in
     // onUpgrade below for what v15 itself actually does.
-    private static final int VERSION = 31;
+    private static final int VERSION = 32;
 
     /** SQL predicate for telemetry rows representing driving: gear is not Park (4),
      * or if gear is missing, car is not charging. */
@@ -227,7 +227,8 @@ public final class CarDb extends SQLiteOpenHelper {
             + "discharge_kwh REAL NOT NULL DEFAULT 0,"
             + "regen_kwh REAL NOT NULL DEFAULT 0,"
             + "net_kwh REAL NOT NULL DEFAULT 0,"
-            + "energy_source TEXT)");
+            + "energy_source TEXT, "
+            + HEAT_COLUMNS_V32 + ")");
     }
 
     /** Immutable source-specific portions of a trip; never merge estimated and measured energy. */
@@ -536,7 +537,22 @@ public final class CarDb extends SQLiteOpenHelper {
         // v31: charges that saved no place get the last route point before
         // they started (the car does not move while it charges).
         if (oldVersion < 31) db.execSQL(CHARGE_PLACE_BACKFILL_SQL);
+        // v32: each day's battery temperature and stays at 100 %
+        // (sensors.BatteryHeat), kept past the samples' ~90 days. Filled by
+        // the next rollup for every day the samples still cover.
+        if (oldVersion < 32) {
+            for (String col : HEAT_COLUMNS_V32.split(",")) db.execSQL("ALTER TABLE daily_stat ADD COLUMN " + col.trim());
+        }
     }
+
+    /** sensors.BatteryHeat's per-day numbers: battery temperature (min, max
+     * and when, sum and count for the mean) and the stays at 100 % that
+     * began that day (count, total and longest ms, temperature while at
+     * 100 %). heat_done = stored by BatteryHeat.storeDays. */
+    static final String HEAT_COLUMNS_V32 =
+        "batt_t_min REAL, batt_t_max REAL, batt_t_max_ms INTEGER, batt_t_sum REAL, batt_t_n INTEGER, "
+      + "full_n INTEGER, full_ms INTEGER, full_longest_ms INTEGER, "
+      + "full_t_max REAL, full_t_sum REAL, full_t_n INTEGER, heat_done INTEGER";
 
     /** Raw, so a better climate fit later re-reads old trips. All from the
      * same CAN samples: battery net over them (can_net_kwh), drive motor

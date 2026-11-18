@@ -64,6 +64,11 @@ public final class TelemetryRollup {
             try {
                 SQLiteDatabase db = CarDb.get(app).db();
                 freezeCompletedDays(db, today);
+                // Before the prune: keeps each day's battery temperature and
+                // stays at 100 % past the samples' retention.
+                // Its own try: a failure here must not hold up the prune.
+                try { BatteryHeat.storeDays(db, java.time.LocalDate.parse(today)); }
+                catch (Throwable t) { Log.w(TAG, "rollup: battery heat: " + t); }
                 pruneOldRawRows(db);
                 Prefs.setRollupLastDay(app, today);
                 Log.i(TAG, "rollup: done for " + today);

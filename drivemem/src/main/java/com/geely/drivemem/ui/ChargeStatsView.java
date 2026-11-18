@@ -361,7 +361,7 @@ public class ChargeStatsView extends LinearLayout {
             List<SocHistory.DayRange> days = last.isBefore(start)
                 ? new ArrayList<>() : SocHistory.dailyRanges(c, start, last);
             l.sum = ChargePeriodSummary.of(all, fromMs, toMs, now, days);
-            l.heat = BatteryHeat.read(c, fromMs, toMs);
+            l.heat = BatteryHeat.read(c, start, end);
             if (!start.isAfter(today)) {
                 for (com.geely.drivemem.sensors.StatsCalendar.Cell cell : DailyStatsProvider.getCalendarDays(c, start)) {
                     if (cell.date.isBefore(end)) l.km += cell.km;
@@ -396,8 +396,7 @@ public class ChargeStatsView extends LinearLayout {
         cards.addView(chargesCard(l.sum, now, current), cardLp(false));
         cards.addView(costCard(l.sum, l.km), cardLp(false));
         cards.addView(lowCard(l.sum), cardLp(false));
-        cards.addView(heatCard(l.heat,
-            start.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()), cardLp(true));
+        cards.addView(heatCard(l.heat, start), cardLp(true));
         kpiContainer.addView(cards);
 
         placedIds.clear();
@@ -669,14 +668,15 @@ public class ChargeStatsView extends LinearLayout {
     }
 
     /** How warm the pack got, and how long it sat at 100 % and how warm
-     * (LFP: heat and a full pack together are what age it). From the raw
-     * samples only, so it says where its data starts when that is inside
-     * the period. */
-    private View heatCard(BatteryHeat.Stats h, long periodFromMs) {
+     * (LFP: heat and a full pack together are what age it). Battery
+     * temperature comes from the OBD2 dongle, so the card says where its
+     * readings start when that is inside the period. */
+    private View heatCard(BatteryHeat.Stats h, java.time.LocalDate periodStart) {
         Context c = getContext();
         String note = c.getString(R.string.charge_card_temp_note);
-        if (h.firstMs > periodFromMs + 24L * 3600 * 1000) {
-            note += " · " + c.getString(R.string.charge_card_temp_since, shortDate(h.firstMs));
+        if (h.firstTempDay != null && h.firstTempDay.isAfter(periodStart)) {
+            note += " · " + c.getString(R.string.charge_card_temp_since,
+                h.firstTempDay.format(java.time.format.DateTimeFormatter.ofPattern("d/M")));
         }
         CharSequence hero;
         String cap;
@@ -689,19 +689,18 @@ public class ChargeStatsView extends LinearLayout {
             hero = "—";
             cap = c.getString(R.string.charge_card_no_temp);
         }
-        BatteryHeat.Stay longest = h.longestStay();
-        View time = longest == null
+        View time = h.fullCount == 0
             ? tile(c.getString(R.string.charge_card_full_time), "—", Style.TEXT, null)
             : tile(c.getString(R.string.charge_card_full_time),
                 c.getString(R.string.charge_card_full_time_val, hours(h.avgFullMs())), Style.TEXT,
-                c.getString(R.string.charge_card_full_time_sub, hours(h.totalFullMs()), hours(longest.durationMs())));
-        double tMax = h.maxTempAtFull();
+                c.getString(R.string.charge_card_full_time_sub, hours(h.fullTotalMs), hours(h.fullLongestMs)));
+        double tMax = h.fullTMax;
         View temp = Double.isNaN(tMax)
             ? tile(c.getString(R.string.charge_card_full_temp), "—", Style.TEXT, null)
             : tile(c.getString(R.string.charge_card_full_temp),
                 c.getString(R.string.charge_card_full_temp_val, deg(tMax)),
                 tMax >= 35 ? Style.WARN : Style.TEXT,
-                c.getString(R.string.charge_card_full_temp_sub, deg(h.avgTempAtFull())));
+                c.getString(R.string.charge_card_full_temp_sub, deg(h.fullTAvg)));
         return dataCard(c.getString(R.string.charge_card_temp), hero, Style.TEXT, cap, time, temp, note);
     }
 
