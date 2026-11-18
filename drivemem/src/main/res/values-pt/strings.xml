@@ -536,7 +536,6 @@
     <string name="routes_header">Rotas das viagens</string>
     <string name="routes_enable_label">Gravar as rotas das viagens (GPS)</string>
     <string name="routes_hint">Salva por onde cada viagem passou e onde cada carga foi feita. Fica no carro: nada é enviado para lugar nenhum. Entra no seu backup. Viagens de antes desta opção não têm rota.</string>
-    <string name="routes_map_hint">O mapa sob as rotas é o OpenStreetMap. Ele é baixado na primeira vez que um lugar aparece e depois fica no carro.</string>
     <string name="routes_map_size">Mapa salvo: %1$s MB</string>
     <string name="routes_map_clear">Apagar mapa salvo</string>
     <string name="routes_map_cleared">Mapa salvo apagado</string>

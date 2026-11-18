@@ -198,7 +198,6 @@ public final class TelemetrySystemSection extends LinearLayout {
             }));
         routesCard.addView(ConfigCards.hint(activity, activity.getString(R.string.routes_hint)));
         // The saved map tiles (TileCache): its size, and a way to clear it.
-        routesCard.addView(ConfigCards.hint(activity, activity.getString(R.string.routes_map_hint)));
         TextView mapSize = ConfigCards.hint(activity, "");
         routesCard.addView(mapSize);
         Runnable refreshMapSize = () -> new Thread(() -> {

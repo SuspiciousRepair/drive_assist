@@ -551,7 +551,6 @@
     <string name="routes_header">Trip routes</string>
     <string name="routes_enable_label">Record trip routes (GPS)</string>
     <string name="routes_hint">Saves where each trip went and where each charge was. It stays in the car: nothing is sent anywhere. It goes into your backup. Trips from before this setting have no route.</string>
-    <string name="routes_map_hint">The map under the routes is OpenStreetMap. It downloads the first time a place is shown, then stays in the car.</string>
     <string name="routes_map_size">Saved map: %1$s MB</string>
     <string name="routes_map_clear">Clear saved map</string>
     <string name="routes_map_cleared">Saved map cleared</string>
