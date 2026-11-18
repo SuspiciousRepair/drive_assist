@@ -26,7 +26,7 @@ import java.nio.charset.StandardCharsets;
  * stranger's car has no developer sitting there to run an adb command by
  * hand. Every install already implies this unlock already happened — you
  * cannot sideload Drive Assist onto a stock, locked unit in the first place. */
-final class LocalAdb {
+public final class LocalAdb {
     private static final String TAG = "DriveMem";
     private static final String HOST = "127.0.0.1";
     private static final int[] PORTS = {5555, 65010};
@@ -45,7 +45,7 @@ final class LocalAdb {
      * own local adbd, if it isn't already granted. Safe to call on every
      * MY_PACKAGE_REPLACED: a no-op once granted, since the OS keeps the grant
      * across app updates. Blocking (socket I/O) — call off the main thread. */
-    static boolean grantOverlayPermission(Context ctx) {
+    public static boolean grantOverlayPermission(Context ctx) {
         if (Settings.canDrawOverlays(ctx)) return true;
         String pkg = ctx.getPackageName();
         IOException last = null;
