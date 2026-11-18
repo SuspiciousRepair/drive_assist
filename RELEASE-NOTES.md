@@ -12,6 +12,28 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.9.0 — 2026-11-18
+
+- New: trip routes are drawn on a map (OpenStreetMap). The map is kept in the car, so a place seen once shows again with no internet.
+- New: the charging page shows a map of the places where you charged. Charges from before 16 Nov 2026 have no place, so they have no pin.
+- New: the charging page has four cards (charges, cost, low battery, battery temperature) and a month or year picker.
+- New: the stats page shows a year of days. Tap a day, a week or a month to see it.
+- New: export trip routes as GPX files, to the USB stick and to the phone.
+- New: open a trip to see where its energy went: drive, climate and other.
+- New: the climate ruler learns the changes you keep by hand (Config, Climate).
+- New: Cleanup also removes the helper app and the CAN reader, and asks what to do with ADB.
+- Changed: consumption is shown in Wh/km everywhere.
+- Changed: the climate ruler uses one set of settings for each outside temperature band.
+- Changed: Config, Drive mode is calmer, and the regen buttons show the regen icon.
+- Changed: Extra dark goes darker.
+- Changed: C3 blows softer.
+- Changed: Config, System, Trip routes can clear the saved map.
+- Fixed: a charge now saves the place where it took place.
+- Fixed: the floating button shows after a new install.
+- Fixed: the AVAS switch no longer jumps from off to on.
+- Fixed: CAN power read a little low.
+- Fixed: many small fixes from a code review.
+
 ## v0.8.0 — 2026-11-17
 
 - New: each trip saves its route. Tap a finished trip on the stats page to see it, with a height profile and the trip numbers.
