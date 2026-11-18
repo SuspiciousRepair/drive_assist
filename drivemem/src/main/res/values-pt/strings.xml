@@ -696,7 +696,7 @@
     <string name="charge_card_never">nunca</string>
     <string name="charge_card_gap_days">%1$d dias</string>
     <string name="charge_card_gap_open">%1$s → hoje</string>
-    <string name="charge_card_avg_kw">%1$s kW méd.</string>
+    <string name="charge_card_avg_kwh">%1$s kWh méd.</string>
     <string name="charge_card_full_band">Até 100%%: %1$d de %2$d · última %3$s</string>
     <string name="charge_card_gap_line">maior intervalo sem 100%%: %1$s (%2$s)</string>
     <string name="charge_card_temp">Temperatura da bateria</string>

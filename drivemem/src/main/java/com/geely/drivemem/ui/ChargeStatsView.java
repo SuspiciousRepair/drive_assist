@@ -614,9 +614,8 @@ public class ChargeStatsView extends LinearLayout {
         return t;
     }
 
-    private String kwAvg(double watts) {
-        return getContext().getString(R.string.charge_card_avg_kw,
-            String.format(Locale.getDefault(), watts >= 10000 ? "%.0f" : "%.1f", watts / 1000));
+    private String kwhAvg(double kwhPerCharge) {
+        return getContext().getString(R.string.charge_card_avg_kwh, kwh(kwhPerCharge));
     }
 
     /** Recargas, with the charge to 100 % folded in as a band at the bottom
@@ -625,9 +624,9 @@ public class ChargeStatsView extends LinearLayout {
     private View chargesCard(ChargePeriodSummary m, long now, boolean current) {
         Context c = getContext();
         View ac = tile("AC", m.acCount == 0 ? "0" : m.acCount + " · " + kwh(m.acKwh) + " kWh", Style.ACCENT,
-            m.acCount > 0 ? kwAvg(m.acPowerW) : null);
+            m.acCount > 0 ? kwhAvg(m.acKwhPerCharge()) : null);
         View dc = tile("DC", m.dcCount == 0 ? "0" : m.dcCount + " · " + kwh(m.dcKwh) + " kWh", Style.GOOD,
-            m.dcCount > 0 ? kwAvg(m.dcPowerW) : null);
+            m.dcCount > 0 ? kwhAvg(m.dcKwhPerCharge()) : null);
 
         // The current period says how long ago (a fact about now); a past one
         // names its own last full charge, not today's.
