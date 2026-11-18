@@ -509,21 +509,11 @@ public class Style {
         return e;
     }
 
-    /** Half-width call-to-action button (fills its row, shared with a sibling). */
+    /** Call-to-action button. It used to stretch to fill half its row; the
+     * owner ruled on 2026-11-17 that no button should be that large, so it is
+     * now the same self-sized button as {@link #button}. */
     public static TextView action(Context c, String label, int color, Runnable onClick) {
-        TextView t = new TextView(c);
-        t.setText(label); t.setTextColor(onFill(color)); t.setTextSize(18);
-        t.setTypeface(null, Typeface.BOLD);
-        t.setGravity(Gravity.CENTER);
-        t.setBackground(card(color, c));
-        int pv = dp(c, 16);
-        t.setPadding(pv, pv, pv, pv);
-        t.setOnClickListener(v -> onClick.run());
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        int m = dp(c, 4);
-        lp.setMargins(m, dp(c, 8), m, 0);
-        t.setLayoutParams(lp);
-        return t;
+        return button(c, label, color, onClick);
     }
 
     /** Small, self-sized action button (Save, Connect, Import, ...), unlike

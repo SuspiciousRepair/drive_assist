@@ -88,6 +88,7 @@
     <!-- config -->
     <string name="cfg_title">Settings</string>
     <string name="cfg_nav_doors">Doors</string>
+    <string name="cfg_nav_climate">Climate</string>
     <string name="cfg_nav_drive">Driving mode</string>
     <string name="cfg_nav_bar">Elements</string>
     <string name="cfg_nav_look">Appearance</string>
@@ -284,10 +285,8 @@
     <string name="cfg_aeb_confirm_title">Turn off automatic emergency braking?</string>
     <string name="cfg_aeb_confirm_body">Disables automatic emergency braking. It stays off after a restart while Restore at car start is on for AEB (Advanced, below).</string>
     <string name="cfg_aeb_confirm_turn_off">Turn off</string>
-    <string name="cfg_btn_restore_defaults">Restore defaults</string>
     <string name="cfg_car_connect_fail">Could not connect to the car</string>
     <string name="cfg_applied">Applied: %1$s + %2$s</string>
-    <string name="cfg_restored_defaults">Restored defaults: %1$s + %2$s</string>
     <string name="cfg_mode_unknown">Current mode unknown — pick one to apply</string>
     <string name="cfg_current">Current: %1$s + %2$s</string>
     <string name="cfg_bar_header">Elements</string>

@@ -60,6 +60,7 @@
     <!-- config -->
     <string name="cfg_title">Ajustes</string>
     <string name="cfg_nav_doors">Puertas</string>
+    <string name="cfg_nav_climate">Clima</string>
     <string name="cfg_nav_drive">Modo de conducción</string>
     <string name="cfg_nav_bar">Barra de menú</string>
     <string name="cfg_nav_look">Apariencia</string>
@@ -180,10 +181,8 @@
     <string name="cfg_aeb_confirm_title">¿Desactivar el frenado automático de emergencia?</string>
     <string name="cfg_aeb_confirm_body">Desactiva el frenado automático de emergencia. Sigue desactivado tras reiniciar mientras Restaurar al encender el auto esté activado para AEB (Avanzado, abajo).</string>
     <string name="cfg_aeb_confirm_turn_off">Desactivar</string>
-    <string name="cfg_btn_restore_defaults">Restaurar valores predeterminados</string>
     <string name="cfg_car_connect_fail">No se pudo conectar con el coche</string>
     <string name="cfg_applied">Aplicado: %1$s + %2$s</string>
-    <string name="cfg_restored_defaults">Valores predeterminados restaurados: %1$s + %2$s</string>
     <string name="cfg_mode_unknown">Modo actual desconocido — elige uno para aplicar</string>
     <string name="cfg_current">Actual: %1$s + %2$s</string>
     <string name="cfg_bar_header">Datos en la barra de menú</string>

@@ -3,6 +3,14 @@
 ## [Unreleased]
 
 ### Changed
+- **Config → Drive mode is calmer.** The Eco/Comfort/Sport and regen buttons
+  are about half as tall, and the selected one is a quiet tint instead of
+  green, amber, red or blue. When "Show the Turbo card" is off, its
+  duration and button switches are hidden, and the "Regen button
+  cycles" switch is hidden while the card has no Regen button. The "Restore defaults" button is
+  gone: it only picked Eco and Média, the same as two taps, and its message
+  showed raw placeholders. No button in Config stretches across the page
+  any more (this also makes the MQTT page buttons small).
 - **Climate: C3 blows softer.** C3 now runs the fan at 3, not 4. Before, the
   step from C2 to C3 doubled the fan in the same tap that moved the air from
   the windshield to your face, which felt like too much. C1, C2, C4, C5 and
@@ -27,7 +35,7 @@
   climate · other, in Wh/km.
 
 ### Added
-- **Climate ruler learn mode.** Config → Drive → Climate ruler. When you
+- **Climate ruler learn mode.** Config → Climate (a new page). When you
   change the climate by hand on the car's panel after a ruler tap and keep it
   10 minutes, it is counted. Once a week, with the climate off, each level
   takes the setting you kept most often that week (at least 2 times): fan,
@@ -51,6 +59,12 @@
   reading. (#96)
 
 ### Fixed
+- **The AVAS switch no longer jumps from off to on** when you open Config →
+  Drive. It drew from a saved copy that went stale whenever AVAS changed
+  elsewhere (the Home AVAS button, the car's settings). The copy is gone:
+  the AVAS and AEB switches show the car's own state, and appear a
+  moment later if the car has not answered yet. The app now also asks
+  for AVAS when it starts, so the answer is usually already there.
 - **Charges saved no place.** The place was taken from the GPS when the
   charge ended, and by then the GPS is long off. It now comes from where the
   last trip before the charge ended (the car does not move while it charges),

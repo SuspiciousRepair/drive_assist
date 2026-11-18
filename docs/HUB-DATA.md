@@ -34,6 +34,7 @@ Property IDs and scales of the car's own (VHAL) properties are in
 | `car.door_pos`, `car.window_pos` | doors, windows (per area) | on change |
 | `car.hvac_recirc`, `car.hvac_direction`, `car.hvac_rear_defrost` | climate state | on change |
 | `car.hvac_fan` | climate fan level, 0 (climate off) to 8 (`HVAC_FAN`, 356517120) | on change |
+| `car.aeb` | AEB (automatic emergency braking) on/off (`557858874`), true/false. Config → Drive's switch reads it | on change |
 | `car.hvac_front_defrost` | front-windshield defogger button (MAX_DEFROST, 354419975), true/false. Each change is a `comfort_event` row (`defrost`, `front on`/`front off`) and goes to MQTT/HA as `front_defrost` | on change |
 | `car.charge_a` | charging current at the port, A | every 2 s |
 | `car.plug_connected` | cable in the port (1/0) | every 2 s |

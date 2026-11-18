@@ -30,10 +30,6 @@ public final class Prefs {
     public static void setAbrpSendLocation(Context ctx, boolean v) { file(ctx).edit().putBoolean("abrp_send_location", v).apply(); }
 
     // --- Driver assistance toggles ---
-    public static boolean getAebOn(Context ctx) { return file(ctx).getBoolean("aeb_on", true); }
-    public static void setAebOn(Context ctx, boolean v) { file(ctx).edit().putBoolean("aeb_on", v).apply(); }
-    public static boolean getAvasOn(Context ctx) { return file(ctx).getBoolean("avas_on", true); }
-    public static void setAvasOn(Context ctx, boolean v) { file(ctx).edit().putBoolean("avas_on", v).apply(); }
     public static boolean getParkedMonitoring(Context ctx) { return file(ctx).getBoolean("parked_monitoring", false); }
     public static void setParkedMonitoring(Context ctx, boolean v) { file(ctx).edit().putBoolean("parked_monitoring", v).apply(); }
 
