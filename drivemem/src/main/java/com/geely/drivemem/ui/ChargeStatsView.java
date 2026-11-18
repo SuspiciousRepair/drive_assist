@@ -385,7 +385,8 @@ public class ChargeStatsView extends LinearLayout {
         cards.setOrientation(LinearLayout.HORIZONTAL);
         cards.setBaselineAligned(false);
         long now = System.currentTimeMillis();
-        cards.addView(chargesCard(l.sum, now), cardLp(false));
+        boolean current = !periodEnd(start).isBefore(java.time.LocalDate.now().plusDays(1));
+        cards.addView(chargesCard(l.sum, now, current), cardLp(false));
         cards.addView(costCard(l.sum, l.km), cardLp(false));
         cards.addView(lowCard(l.sum), cardLp(false));
         cards.addView(heatCard(l.heat,
@@ -553,15 +554,19 @@ public class ChargeStatsView extends LinearLayout {
     /** Recargas, with the charge to 100 % folded in as a band at the bottom
      * (owner, 2026-11-18): the last full charge, how many reached it, and the
      * longest stretch without one (LFP re-learns its % only at the top). */
-    private View chargesCard(ChargePeriodSummary m, long now) {
+    private View chargesCard(ChargePeriodSummary m, long now, boolean current) {
         Context c = getContext();
         View ac = tile("AC", m.acCount == 0 ? "0" : m.acCount + " · " + kwh(m.acKwh) + " kWh", Style.ACCENT,
             m.acCount > 0 ? kwAvg(m.acPowerW) : null);
         View dc = tile("DC", m.dcCount == 0 ? "0" : m.dcCount + " · " + kwh(m.dcKwh) + " kWh", Style.GOOD,
             m.dcCount > 0 ? kwAvg(m.dcPowerW) : null);
 
+        // The current period says how long ago (a fact about now); a past one
+        // names its own last full charge, not today's.
         String last;
-        if (m.lastFullMs < 0) {
+        if (!current) {
+            last = m.lastFullInPeriodMs < 0 ? "—" : shortDate(m.lastFullInPeriodMs);
+        } else if (m.lastFullMs < 0) {
             last = c.getString(R.string.charge_card_never);
         } else {
             long d = java.time.temporal.ChronoUnit.DAYS.between(

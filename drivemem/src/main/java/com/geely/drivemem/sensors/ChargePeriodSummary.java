@@ -32,6 +32,7 @@ public final class ChargePeriodSummary {
     public double avgPlugPct = -1;                      // average SoC when plugged in
 
     public long lastFullMs = -1;                        // over ALL charges, not just the period
+    public long lastFullInPeriodMs = -1;                // the last one inside the period
     public int fullInPeriod;
     public long longestGapFromMs = -1, longestGapToMs = -1;  // to = -1 while still open
 
@@ -74,7 +75,10 @@ public final class ChargePeriodSummary {
                 else    { r.acCost += s.cost; r.acKwhCosted += s.kwh; }
             }
             if (s.socStart > 0 && s.socStart <= 100) { plugSum += s.socStart; plugN++; }
-            if (s.socEnd >= FULL_PCT) r.fullInPeriod++;
+            if (s.socEnd >= FULL_PCT) {
+                r.fullInPeriod++;
+                if (s.endWallMs > r.lastFullInPeriodMs) r.lastFullInPeriodMs = s.endWallMs;
+            }
         }
         if (r.acCount > 0) r.acPowerW /= r.acCount;
         if (r.dcCount > 0) r.dcPowerW /= r.dcCount;

@@ -88,6 +88,8 @@ public class ChargePeriodSummaryTest {
         ChargePeriodSummary m = ChargePeriodSummary.of(all, 0, 30 * DAY, 60 * DAY, Collections.emptyList());
         assertEquals(1, m.count);
         assertEquals(1, m.fullInPeriod);
+        assertEquals(5 * DAY + 3600_000, m.lastFullInPeriodMs);
+        assertEquals(35 * DAY + 3600_000, m.lastFullMs);
         // the gap from day 5 to day 35 overlaps the month
         assertEquals(5 * DAY + 3600_000, m.longestGapFromMs);
         assertEquals(35 * DAY + 3600_000, m.longestGapToMs);
