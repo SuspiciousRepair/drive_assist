@@ -74,7 +74,9 @@ public final class AppBackup {
     public static final String DIR = "Drive Assist/Backups";
     static final String SETTINGS = "settings.json";
     static final String DB = "car.db";
-    static final String[] CERTS = {MqttTls.CLIENT_P12, MqttTls.CUSTOM_CA_CRT};
+    /** Every file of files/ that goes in a backup and comes back on restore. */
+    static final String[] FILES = {MqttTls.CLIENT_P12, MqttTls.CUSTOM_CA_CRT,
+        com.geely.drivemem.hvac.ComfortTableStore.FILE};
     public static final String EXT = ".dabackup";
     static final int KEEP = 7;
     static final long AUTO_EVERY_MS = 24L * 3600 * 1000;
@@ -358,7 +360,7 @@ public final class AppBackup {
                 z.write(json.getBytes(StandardCharsets.UTF_8));
                 z.closeEntry();
                 addFile(z, snap, DB);
-                for (String name : CERTS) {
+                for (String name : FILES) {
                     File f = new File(app.getFilesDir(), name);
                     if (f.isFile()) addFile(z, f, name);
                 }
@@ -543,7 +545,7 @@ public final class AppBackup {
         // Every step that can fail for lack of space runs BEFORE the merge:
         // the certificates are copied next to their final place now, and
         // only renamed later.
-        final List<File[]> staged = stageFiles(dir, app.getFilesDir(), CERTS);
+        final List<File[]> staged = stageFiles(dir, app.getFilesDir(), FILES);
         try {
             onDbThread(app, () -> {
                 // Last moment before anything changes. The restore ends in an

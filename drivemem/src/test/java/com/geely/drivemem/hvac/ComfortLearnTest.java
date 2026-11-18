@@ -15,9 +15,15 @@ public class ComfortLearnTest {
         return EffortTable.fit(t, out, true, s.machine, s.sp, s.fan, s.dir, s.recirc);
     }
 
+    private static final ComfortTable DEF = ComfortTable.defaults();
+
     private static String hold(ComfortLearn.Book b, float out, long now, int lastApplied, ComfortLearn.State s) {
-        EffortTable.Column[] t = ComfortLearn.build(out, b);
+        EffortTable.Column[] t = DEF.build(out);
         return ComfortLearn.hold(b, t, out, now, fitted(t, out, s), lastApplied, s);
+    }
+
+    private static ComfortLearn.Outcome decide(ComfortLearn.Book b, long now) {
+        return ComfortLearn.decide(b, now, DEF);
     }
 
     private static final ComfortLearn.State FAN4 = new ComfortLearn.State(true, 21f, 4, FACE, true); // C3 is 21/f3/face/rec
@@ -27,24 +33,24 @@ public class ComfortLearnTest {
         assertEquals("hold C3@1 fan=4 x1", hold(b, OUT, T0, 3, FAN4));
         assertEquals("hold C3@1 fan=4 x2", hold(b, 27f, T0 + 60_000, 3, FAN4));
         assertEquals(2, b.holdCount());
-        assertEquals(3, EffortTable.at(ComfortLearn.build(OUT, b), 3).fan);
 
-        ComfortLearn.Outcome early = ComfortLearn.decide(b, T0 + WEEK - 1);
+        ComfortLearn.Outcome early = decide(b, T0 + WEEK - 1);
         assertFalse(early.changed);
         assertTrue(early.notes.isEmpty());
-        assertEquals(3, EffortTable.at(ComfortLearn.build(OUT, b), 3).fan);
+        assertSame(DEF, early.table);
 
-        ComfortLearn.Outcome o = ComfortLearn.decide(b, T0 + WEEK);
+        ComfortLearn.Outcome o = decide(b, T0 + WEEK);
         assertTrue(o.changed);
         assertEquals("learn C3@1 fan=4 x2", o.notes.get(0));
         assertEquals(T0 + WEEK, b.lastChangeMs());
         assertEquals(0, b.holdCount());
         assertEquals(T0 + 2 * WEEK, b.nextDecisionMs());
         // Same band (24-28 C): learned. Other band (30 C): the default.
-        assertEquals(4, EffortTable.at(ComfortLearn.build(OUT, b), 3).fan);
-        assertEquals(3, EffortTable.at(ComfortLearn.build(30f, b), 3).fan);
+        assertEquals(4, EffortTable.at(o.table.build(OUT), 3).fan);
+        assertEquals(3, EffortTable.at(o.table.build(30f), 3).fan);
+        assertEquals(Integer.valueOf(4), b.learned().get("3@1").fan);   // the record, for replay
         // Nothing else moved.
-        EffortTable.Column[] def = EffortTable.build(OUT), now = ComfortLearn.build(OUT, b);
+        EffortTable.Column[] def = DEF.build(OUT), now = o.table.build(OUT);
         for (int lv = -5; lv <= 5; lv++) {
             if (lv != 3) assertEquals(EffortTable.at(def, lv).toString(), EffortTable.at(now, lv).toString());
         }
@@ -56,15 +62,15 @@ public class ComfortLearnTest {
         hold(b, OUT, T0, 3, FAN4);
         hold(b, OUT, T0, 3, fan5);
         hold(b, OUT, T0, 3, FAN4);
-        ComfortLearn.Outcome o = ComfortLearn.decide(b, T0 + WEEK);
+        ComfortLearn.Outcome o = decide(b, T0 + WEEK);
         assertTrue(o.changed);
-        assertEquals(4, EffortTable.at(ComfortLearn.build(OUT, b), 3).fan);
+        assertEquals(4, EffortTable.at(o.table.build(OUT), 3).fan);
     }
 
     @Test public void oneHoldOrATieLearnsNothing() {
         ComfortLearn.Book one = new ComfortLearn.Book();
         hold(one, OUT, T0, 3, FAN4);
-        ComfortLearn.Outcome o1 = ComfortLearn.decide(one, T0 + WEEK);
+        ComfortLearn.Outcome o1 = decide(one, T0 + WEEK);
         assertFalse(o1.changed);
         assertTrue(o1.notes.get(0).startsWith("undecided"));
         assertEquals(0, one.holdCount());   // the week is over either way
@@ -72,7 +78,7 @@ public class ComfortLearnTest {
         ComfortLearn.Book tie = new ComfortLearn.Book();
         ComfortLearn.State fan5 = new ComfortLearn.State(true, 21f, 5, FACE, true);
         for (int i = 0; i < 2; i++) { hold(tie, OUT, T0, 3, FAN4); hold(tie, OUT, T0, 3, fan5); }
-        ComfortLearn.Outcome o2 = ComfortLearn.decide(tie, T0 + WEEK);
+        ComfortLearn.Outcome o2 = decide(tie, T0 + WEEK);
         assertFalse(o2.changed);
         assertTrue(o2.notes.get(0).endsWith("tie"));
     }
@@ -83,10 +89,11 @@ public class ComfortLearnTest {
         ComfortLearn.State fan8 = new ComfortLearn.State(true, 21f, 8, FACE, true);
         hold(b, OUT, T0, 3, fan8);
         hold(b, OUT, T0, 3, fan8);
-        ComfortLearn.Outcome o = ComfortLearn.decide(b, T0 + WEEK);
+        ComfortLearn.Outcome o = decide(b, T0 + WEEK);
         assertFalse(o.changed);
         assertTrue(o.notes.get(0).startsWith("refuse"));
         assertTrue(b.isEmpty());
+        assertSame(DEF, o.table);
     }
 
     @Test public void moreThanTwoChangesIsLoggedAndIgnored() {
@@ -113,12 +120,15 @@ public class ComfortLearnTest {
 
     @Test public void learningTheDefaultAgainForgetsIt() {
         ComfortLearn.Book b = ComfortLearn.Book.decode("S " + T0 + "\nL 3@1 fan=4\n");
-        assertEquals(4, EffortTable.at(ComfortLearn.build(OUT, b), 3).fan);
+        ComfortTable learned = ComfortLearn.replay(b, DEF);
+        assertEquals(4, EffortTable.at(learned.build(OUT), 3).fan);
         ComfortLearn.State fan3 = new ComfortLearn.State(true, 21f, 3, FACE, true);
-        hold(b, OUT, T0, 3, fan3);
-        hold(b, OUT, T0, 3, fan3);
-        assertTrue(ComfortLearn.decide(b, T0 + WEEK).changed);
+        EffortTable.Column[] t = learned.build(OUT);
+        for (int i = 0; i < 2; i++) ComfortLearn.hold(b, t, OUT, T0, fitted(t, OUT, fan3), 3, fan3);
+        ComfortLearn.Outcome o = ComfortLearn.decide(b, T0 + WEEK, learned);
+        assertTrue(o.changed);
         assertTrue(b.isEmpty());
+        assertEquals(3, EffortTable.at(o.table.build(OUT), 3).fan);
     }
 
     @Test public void aLateDecisionStillRunsAndTheNextWeekStartsThen() {
@@ -127,26 +137,36 @@ public class ComfortLearnTest {
         hold(b, OUT, T0, 3, FAN4);
         hold(b, OUT, T0, 3, FAN4);
         long late = T0 + 3 * WEEK + 2 * 86_400_000L;
-        assertTrue(ComfortLearn.decide(b, late).changed);
+        assertTrue(decide(b, late).changed);
         assertEquals(late + WEEK, b.nextDecisionMs());
-        assertFalse(ComfortLearn.decide(b, late + 60_000).changed);   // once, not every beat
+        assertFalse(decide(b, late + 60_000).changed);   // once, not every beat
     }
 
     @Test public void theFirstLookStartsTheWeek() {
         ComfortLearn.Book b = new ComfortLearn.Book();
         assertEquals(0, b.nextDecisionMs());
-        assertFalse(ComfortLearn.decide(b, T0).changed);
+        assertFalse(decide(b, T0).changed);
         assertEquals(T0 + WEEK, b.nextDecisionMs());
     }
 
-    @Test public void emptyBookIsTheDefaultTable() {
-        for (float out = -5f; out <= 42f; out += 1.5f) {
-            EffortTable.Column[] def = EffortTable.build(out);
-            EffortTable.Column[] t = ComfortLearn.build(out, new ComfortLearn.Book());
-            for (int lv = -5; lv <= 5; lv++) {
-                assertEquals(EffortTable.at(def, lv).toString(), EffortTable.at(t, lv).toString());
-            }
-        }
+    @Test public void aLearnedValueGoesIntoTheTableNextToAHandEdit() {
+        // By hand: C3 at 24-28 C blows at the glass. The week then learns fan 4.
+        ComfortTable hand = DEF.with(3, 1, ComfortLearn.patched(DEF.get(3, 1), dir(GLASS)));
+        ComfortLearn.Book b = new ComfortLearn.Book();
+        ComfortLearn.State s = new ComfortLearn.State(true, 21f, 4, GLASS, true);
+        EffortTable.Column[] t = hand.build(OUT);
+        for (int i = 0; i < 2; i++) ComfortLearn.hold(b, t, OUT, T0, fitted(t, OUT, s), 3, s);
+        ComfortLearn.Outcome o = ComfortLearn.decide(b, T0 + WEEK, hand);
+        assertTrue(o.notes.toString(), o.changed);
+        EffortTable.Column c3 = o.table.get(3, 1);
+        assertEquals(4, c3.fan);
+        assertEquals(GLASS, c3.direction);   // the hand edit stays
+    }
+
+    private static ComfortLearn.Patch dir(int d) {
+        ComfortLearn.Patch p = new ComfortLearn.Patch();
+        p.dir = d;
+        return p;
     }
 
     @Test public void bookSurvivesTextAndIgnoresJunk() {
