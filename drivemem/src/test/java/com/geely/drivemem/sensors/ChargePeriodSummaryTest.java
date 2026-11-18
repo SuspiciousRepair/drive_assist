@@ -28,7 +28,7 @@ public class ChargePeriodSummaryTest {
             ch(1, 10, 30, 100, 30, 247, 3.0),     // AC, full
             ch(2, 12, 40, 90, 20, 412, 60.0),     // DC
             ch(3, 13, 50, 100, 25, Double.NaN, null)); // no voltage -> AC, no cost
-        ChargePeriodSummary m = ChargePeriodSummary.of(all, 0, 20 * DAY, Collections.emptyList());
+        ChargePeriodSummary m = ChargePeriodSummary.of(all, 0, 20 * DAY, 20 * DAY, Collections.emptyList());
         assertEquals(3, m.count);
         assertEquals(2, m.acCount);
         assertEquals(1, m.dcCount);
@@ -48,7 +48,7 @@ public class ChargePeriodSummaryTest {
             ch(1, 1, 30, 100, 30, 247, 1.0),      // before the period, full
             ch(2, 40, 30, 100, 30, 247, 1.0),     // in it, full: 39-day gap ends here
             ch(3, 45, 60, 80, 10, 247, 1.0));     // in it, not full
-        ChargePeriodSummary m = ChargePeriodSummary.of(all, 30 * DAY, 50 * DAY, Collections.emptyList());
+        ChargePeriodSummary m = ChargePeriodSummary.of(all, 30 * DAY, 50 * DAY, 50 * DAY, Collections.emptyList());
         assertEquals(2, m.count);
         assertEquals(1, m.fullInPeriod);
         assertEquals(40 * DAY + 3600_000, m.lastFullMs);
@@ -61,7 +61,7 @@ public class ChargePeriodSummaryTest {
         List<ChargeSession.Summary> all = Arrays.asList(
             ch(1, 1, 30, 100, 30, 247, null),
             ch(2, 3, 30, 100, 30, 247, null));
-        ChargePeriodSummary m = ChargePeriodSummary.of(all, 0, 30 * DAY, Collections.emptyList());
+        ChargePeriodSummary m = ChargePeriodSummary.of(all, 0, 30 * DAY, 30 * DAY, Collections.emptyList());
         assertEquals(3 * DAY + 3600_000, m.longestGapFromMs);
         assertEquals(-1, m.longestGapToMs);   // still open
         assertFalse(m.anyCost);
@@ -73,10 +73,23 @@ public class ChargePeriodSummaryTest {
             new SocHistory.DayRange(LocalDate.parse("2026-09-30"), 18, 100),
             new SocHistory.DayRange(LocalDate.parse("2026-10-01"), 8, 60),
             new SocHistory.DayRange(LocalDate.parse("2026-10-02"), 40, 90));
-        ChargePeriodSummary m = ChargePeriodSummary.of(Collections.emptyList(), 0, 0, days);
+        ChargePeriodSummary m = ChargePeriodSummary.of(Collections.emptyList(), 0, 0, 0, days);
         assertEquals(8, m.lowest.min);
         assertEquals(1, m.daysBelow10);
         assertEquals(2, m.daysBelow20);
         assertEquals(-1, m.avgPlugPct, 1e-9);
+    }
+
+    @Test
+    public void aPastMonthLeavesOutLaterCharges() {
+        List<ChargeSession.Summary> all = Arrays.asList(
+            ch(1, 5, 30, 100, 30, 247, 1.0),
+            ch(2, 35, 30, 100, 30, 247, 1.0));    // the next month
+        ChargePeriodSummary m = ChargePeriodSummary.of(all, 0, 30 * DAY, 60 * DAY, Collections.emptyList());
+        assertEquals(1, m.count);
+        assertEquals(1, m.fullInPeriod);
+        // the gap from day 5 to day 35 overlaps the month
+        assertEquals(5 * DAY + 3600_000, m.longestGapFromMs);
+        assertEquals(35 * DAY + 3600_000, m.longestGapToMs);
     }
 }

@@ -663,7 +663,6 @@
     <string name="soc_history_empty">Sin datos de batería en este período</string>
     <string name="charge_card_charges">Cargas</string>
     <string name="charge_card_energy_cap">%1$s kWh cargados</string>
-    <string name="charge_card_power_note">Potencia media: %1$s</string>
     <string name="charge_card_cost">Costo</string>
     <string name="charge_card_cost_cap">%1$s / 100 km · %2$s / kWh</string>
     <string name="charge_card_per_kwh">%1$s por kWh</string>
@@ -675,17 +674,26 @@
     <string name="charge_card_low_cap">carga mínima · %1$s</string>
     <string name="charge_card_below">Días bajo %1$d%%</string>
     <string name="charge_card_plug_note">En promedio enchufas con %1$d%%</string>
-    <string name="charge_card_full" formatted="false">Carga al 100%</string>
     <string name="charge_card_today">hoy</string>
     <string name="charge_card_yesterday">ayer</string>
     <string name="charge_card_days_ago">hace %1$d días</string>
     <string name="charge_card_never">nunca</string>
-    <string name="charge_card_full_cap">última vez · %1$s</string>
-    <string name="charge_card_full_count" formatted="false">Cargas al 100%</string>
-    <string name="charge_card_full_of">%1$d de %2$d</string>
-    <string name="charge_card_gap">Mayor intervalo</string>
     <string name="charge_card_gap_days">%1$d días</string>
     <string name="charge_card_gap_open">%1$s → hoy</string>
-    <string name="charge_card_full_note" formatted="false">LFP: llegar al 100% 1× por semana corrige el %</string>
-    <string name="charge_range_label">%1$s – %2$s · %3$s km</string>
+    <string name="charge_card_avg_kw">%1$s kW prom.</string>
+    <string name="charge_card_full_band">Al 100%%: %1$d de %2$d · última %3$s</string>
+    <string name="charge_card_gap_line">mayor intervalo sin 100%%: %1$s (%2$s)</string>
+    <string name="charge_card_temp">Temperatura de la batería</string>
+    <string name="charge_card_temp_cap">máxima · %1$s · media %2$s · mín %3$s</string>
+    <string name="charge_card_full_time" formatted="false">Tiempo al 100%</string>
+    <string name="charge_card_full_time_val">%1$s media</string>
+    <string name="charge_card_full_time_sub">%1$s en total · máx %2$s</string>
+    <string name="charge_card_full_temp" formatted="false">Temp. al 100%</string>
+    <string name="charge_card_full_temp_val">máx %1$s</string>
+    <string name="charge_card_full_temp_sub">media %1$s</string>
+    <string name="charge_card_temp_note">LFP está bien entre 15 y 35 °C</string>
+    <string name="charge_card_temp_since">datos desde %1$s</string>
+    <string name="charge_card_no_temp">sin lectura (necesita el OBD2)</string>
+    <string name="charge_period_month">Mes</string>
+    <string name="charge_period_year">Año</string>
 </resources>

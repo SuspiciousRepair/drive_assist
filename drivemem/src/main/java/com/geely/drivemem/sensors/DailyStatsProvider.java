@@ -395,7 +395,7 @@ public final class DailyStatsProvider {
         }
     }
 
-    private static String monthLabel(String anyDateInMonth) {
+    public static String monthLabel(String anyDateInMonth) {
         String s = MONTH_LABEL_FMT.format(dayCalendar(anyDateInMonth).getTime());
         return s.substring(0, 1).toUpperCase(new Locale("pt", "BR")) + s.substring(1);
     }

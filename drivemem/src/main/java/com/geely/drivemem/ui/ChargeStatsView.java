@@ -16,10 +16,10 @@ import android.widget.Toast;
 import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarDb;
 import com.geely.drivemem.car.EntityBus;
+import com.geely.drivemem.sensors.BatteryHeat;
 import com.geely.drivemem.sensors.ChargePeriodSummary;
 import com.geely.drivemem.sensors.SocHistory;
 import com.geely.drivemem.sensors.DailyStatsProvider;
-import com.geely.drivemem.sensors.OdoStats;
 import com.geely.drivemem.state.ChargeSession;
 import com.geely.drivemem.util.Style;
 import com.geely.drivemem.util.CsvExport;
@@ -36,12 +36,18 @@ import java.util.Map;
 public class ChargeStatsView extends LinearLayout {
 
     private final Runnable onBack;
-    private int periodDays = 30;
+    // Month or year, and one day inside it: the stats page's picker
+    // (owner, 2026-11-18). Calendar periods, so "October" can be asked.
+    private enum Grain { MONTH, YEAR }
+    private Grain grain = Grain.MONTH;
+    private java.time.LocalDate anchor = java.time.LocalDate.now();
+    private java.time.LocalDate firstData;
 
     private LinearLayout headerContainer;
     private LinearLayout kpiContainer;
     private TextView rangeLabel;
-    private TextView btn30, btn365;
+    private TextView prevBtn, nextBtn, grainLabel;
+    private int loadGen;
     private final java.util.Set<Long> placedIds = new java.util.HashSet<>();
     private LinearLayout listContainer;
     private ScrollView sessionListScroll;
@@ -95,17 +101,22 @@ public class ChargeStatsView extends LinearLayout {
             headerContainer.addView(Style.backButton(c, onBack));
             Style.gap(headerContainer, c, 16);
         }
-        btn30 = periodButton(30, c.getString(R.string.charge_period_30d));
-        btn365 = periodButton(365, c.getString(R.string.charge_ltm_title));
-        headerContainer.addView(btn30);
-        Style.gap(headerContainer, c, 12);
-        headerContainer.addView(btn365);
+        prevBtn = Style.cardButton(c, c.getString(R.string.daily_stats_prev_day), false, () -> step(-1));
+        setNavIcon(prevBtn, R.drawable.ic_chevron_left, true);
+        headerContainer.addView(prevBtn);
         rangeLabel = new TextView(c);
-        rangeLabel.setTextColor(Style.TEXT_DIM);
-        rangeLabel.setTextSize(17);
-        rangeLabel.setPadding(Style.dp(c, 24), 0, Style.dp(c, 12), 0);
+        rangeLabel.setTextColor(Style.TEXT);
+        rangeLabel.setTextSize(16);
+        rangeLabel.setTypeface(null, Typeface.BOLD);
+        rangeLabel.setGravity(Gravity.CENTER);
         headerContainer.addView(rangeLabel, new LinearLayout.LayoutParams(0,
             ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        nextBtn = Style.cardButton(c, c.getString(R.string.daily_stats_next_day), false, () -> step(+1));
+        setNavIcon(nextBtn, R.drawable.ic_chevron_right, false);
+        headerContainer.addView(nextBtn);
+        Style.gap(headerContainer, c, 14);
+        headerContainer.addView(grainButton(c));
+        Style.gap(headerContainer, c, 14);
         TextView exportBtn = Style.cardButton(c, c.getString(R.string.charge_export), false, () ->
             CsvExport.exportToUsb(c, (ok, drive, copied) -> post(() -> {
                 String msg = drive == null ? c.getString(R.string.charge_export_no_drive)
@@ -199,54 +210,190 @@ public class ChargeStatsView extends LinearLayout {
         addView(overview);
     }
 
-    public void refresh() {
+    // ---- period ----
+
+    private java.time.LocalDate periodStart(java.time.LocalDate d) {
+        return grain == Grain.MONTH ? d.withDayOfMonth(1) : d.withDayOfYear(1);
+    }
+
+    private java.time.LocalDate periodEnd(java.time.LocalDate d) {   // exclusive
+        return grain == Grain.MONTH ? periodStart(d).plusMonths(1) : periodStart(d).plusYears(1);
+    }
+
+    private java.time.LocalDate stepped(java.time.LocalDate d, int dir) {
+        return grain == Grain.MONTH ? d.plusMonths(dir) : d.plusYears(dir);
+    }
+
+    /** The stepped period still holds data: it ends after the first record
+     * and starts no later than today. */
+    private boolean canStep(int dir) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDate d = stepped(anchor, dir);
+        java.time.LocalDate min = firstData != null ? firstData : today;
+        return periodEnd(d).isAfter(min) && !periodStart(d).isAfter(today);
+    }
+
+    private void step(int dir) {
+        if (!canStep(dir)) return;
+        anchor = stepped(anchor, dir);
+        refresh();
+    }
+
+    /** "Mês ▾" / "Ano ▾", the stats page's menu. */
+    private View grainButton(Context c) {
+        LinearLayout b = new LinearLayout(c);
+        b.setOrientation(LinearLayout.HORIZONTAL);
+        b.setGravity(Gravity.CENTER_VERTICAL);
+        b.setBackground(Style.card(Style.CARD, c));
+        b.setPadding(Style.dp(c, 18), Style.dp(c, 14), Style.dp(c, 18), Style.dp(c, 14));
+        grainLabel = new TextView(c);
+        grainLabel.setText(grainName(grain));
+        grainLabel.setTextColor(Style.onFill(Style.CARD));
+        grainLabel.setTextSize(15.5f);
+        grainLabel.setTypeface(null, Typeface.BOLD);
+        b.addView(grainLabel);
+        ImageView chev = new ImageView(c);
+        chev.setImageResource(R.drawable.ic_chevron_right);
+        chev.setColorFilter(Style.onFill(Style.CARD), android.graphics.PorterDuff.Mode.SRC_IN);
+        chev.setRotation(90f);
+        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(Style.dp(c, 18), Style.dp(c, 18));
+        clp.leftMargin = Style.dp(c, 8);
+        b.addView(chev, clp);
+        b.setOnClickListener(v -> showGrainMenu(b));
+        return b;
+    }
+
+    private String grainName(Grain g) {
+        return getContext().getString(g == Grain.MONTH ? R.string.charge_period_month : R.string.charge_period_year);
+    }
+
+    private void showGrainMenu(View anchorView) {
         Context c = getContext();
-        List<ChargeSession.Summary> allSessions = ChargeSession.readLog(c);
-
-        long now = System.currentTimeMillis();
-        long cutoff = now - periodDays * 24L * 3600 * 1000;
-        double kmDriven = OdoStats.kmSince(c, periodDays);
-        java.time.LocalDate today = java.time.LocalDate.parse(DailyStatsProvider.todayDateStr());
-        java.time.LocalDate from = java.time.Instant.ofEpochMilli(cutoff)
-            .atZone(java.time.ZoneId.systemDefault()).toLocalDate();
-        List<SocHistory.DayRange> days = SocHistory.dailyRanges(c, from, today);
-        ChargePeriodSummary sum = ChargePeriodSummary.of(allSessions, cutoff, now, days);
-
-        btn30.setBackground(Style.card(periodDays == 30 ? Style.CARD_ON : Style.CARD, c));
-        btn30.setTextColor(Style.onFill(periodDays == 30 ? Style.CARD_ON : Style.CARD));
-        btn365.setBackground(Style.card(periodDays == 365 ? Style.CARD_ON : Style.CARD, c));
-        btn365.setTextColor(Style.onFill(periodDays == 365 ? Style.CARD_ON : Style.CARD));
-        // The span the numbers really cover: from the first record inside
-        // the period (a year back is before the data starts, and "18/11 –
-        // 18/11" read as one day).
-        long shownFrom = now;
-        if (!days.isEmpty()) shownFrom = days.get(0).date
-            .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
-        for (ChargeSession.Summary s : allSessions) {
-            if (s.startWallMs >= cutoff && s.startWallMs < shownFrom) shownFrom = s.startWallMs;
+        LinearLayout menu = new LinearLayout(c);
+        menu.setOrientation(LinearLayout.VERTICAL);
+        menu.setBackground(Style.card(Style.CARD, c));
+        int pad = Style.dp(c, 6);
+        menu.setPadding(pad, pad, pad, pad);
+        android.widget.PopupWindow popup = new android.widget.PopupWindow(menu,
+            Style.dp(c, 200), ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        popup.setOutsideTouchable(true);
+        popup.setElevation(Style.dp(c, 8));
+        for (Grain g : Grain.values()) {
+            TextView row = new TextView(c);
+            row.setText(grainName(g));
+            row.setTextSize(15.5f);
+            row.setTypeface(null, g == grain ? Typeface.BOLD : Typeface.NORMAL);
+            row.setTextColor(g == grain ? Style.ACCENT : Style.TEXT);
+            int rp = Style.dp(c, 14);
+            row.setPadding(rp, rp, rp, rp);
+            row.setOnClickListener(v -> {
+                popup.dismiss();
+                if (grain == g) return;
+                grain = g;
+                grainLabel.setText(grainName(g));
+                refresh();
+            });
+            menu.addView(row);
         }
-        rangeLabel.setText(c.getString(R.string.charge_range_label,
-            shortDate(Math.max(cutoff, shownFrom)), shortDate(now),
-            String.format(Locale.getDefault(), "%,.0f", kmDriven)));
+        popup.showAsDropDown(anchorView, 0, Style.dp(c, 8));
+    }
 
-        // Four data cards (owner's mock, 2026-11-18): charges, cost, how low
-        // the battery went, and the last charge to 100 %. They replaced the
-        // single metrics card and the Energy Balance chart.
+    private static void setNavIcon(TextView btn, int drawableRes, boolean onLeft) {
+        Context c = btn.getContext();
+        android.graphics.drawable.Drawable icon = c.getDrawable(drawableRes).mutate();
+        int size = Style.dp(c, 18);
+        icon.setBounds(0, 0, size, size);
+        icon.setTint(btn.getCurrentTextColor());
+        btn.setCompoundDrawables(onLeft ? icon : null, null, onLeft ? null : icon, null);
+        btn.setCompoundDrawablePadding(Style.dp(c, 8));
+    }
+
+    private static void setNavEnabled(TextView b, boolean on) {
+        b.setEnabled(on);
+        b.setAlpha(on ? 1f : 0.35f);
+    }
+
+    // ---- loading (off the UI thread: a year of samples for the heat card) ----
+
+    private static final java.util.concurrent.ExecutorService LOADER =
+        java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "charge-load");
+            t.setDaemon(true);
+            return t;
+        });
+
+    private static final class Loaded {
+        java.time.LocalDate firstData;
+        List<ChargeSession.Summary> period = new ArrayList<>();
+        ChargePeriodSummary sum;
+        BatteryHeat.Stats heat;
+        double km;
+        final java.util.Set<Long> placed = new java.util.HashSet<>();
+    }
+
+    public void refresh() {
+        final Context c = getContext().getApplicationContext();
+        final int gen = ++loadGen;
+        final java.time.LocalDate start = periodStart(anchor), end = periodEnd(anchor);
+        LOADER.execute(() -> {
+            Loaded l = new Loaded();
+            java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+            java.time.LocalDate today = java.time.LocalDate.parse(DailyStatsProvider.todayDateStr());
+            long now = System.currentTimeMillis();
+            long fromMs = start.atStartOfDay(zone).toInstant().toEpochMilli();
+            long toMs = end.atStartOfDay(zone).toInstant().toEpochMilli();
+            List<ChargeSession.Summary> all = ChargeSession.readLog(c);
+            l.firstData = DailyStatsProvider.firstRecordedDay(c);
+            for (ChargeSession.Summary s : all) {
+                if (s.startWallMs <= 0) continue;
+                java.time.LocalDate d = java.time.Instant.ofEpochMilli(s.startWallMs).atZone(zone).toLocalDate();
+                if (l.firstData == null || d.isBefore(l.firstData)) l.firstData = d;
+                if (s.startWallMs >= fromMs && s.startWallMs < toMs) l.period.add(s);
+            }
+            java.time.LocalDate last = end.minusDays(1).isAfter(today) ? today : end.minusDays(1);
+            List<SocHistory.DayRange> days = last.isBefore(start)
+                ? new ArrayList<>() : SocHistory.dailyRanges(c, start, last);
+            l.sum = ChargePeriodSummary.of(all, fromMs, toMs, now, days);
+            l.heat = BatteryHeat.read(c, fromMs, toMs);
+            if (!start.isAfter(today)) {
+                for (com.geely.drivemem.sensors.StatsCalendar.Cell cell : DailyStatsProvider.getCalendarDays(c, start)) {
+                    if (cell.date.isBefore(end)) l.km += cell.km;
+                }
+            }
+            try (android.database.Cursor pc = CarDb.get(c).db().rawQuery(
+                    "SELECT id FROM charge_session WHERE lat IS NOT NULL AND lon IS NOT NULL", null)) {
+                while (pc.moveToNext()) l.placed.add(pc.getLong(0));
+            } catch (Exception ignored) { }
+            post(() -> { if (gen == loadGen) show(l, start); });
+        });
+    }
+
+    private void show(Loaded l, java.time.LocalDate start) {
+        Context c = getContext();
+        firstData = l.firstData;
+        setNavEnabled(prevBtn, canStep(-1));
+        setNavEnabled(nextBtn, canStep(+1));
+        String name = grain == Grain.MONTH
+            ? DailyStatsProvider.monthLabel(start.toString())
+            : String.valueOf(start.getYear());
+        rangeLabel.setText(name + "  ·  " + String.format(Locale.getDefault(), "%,.0f", l.km) + " km");
+
+        // Four data cards (owner's mocks, 2026-11-18): charges with the
+        // charge to 100 %, cost, how low the battery went, its temperature.
         kpiContainer.removeAllViews();
         LinearLayout cards = new LinearLayout(c);
         cards.setOrientation(LinearLayout.HORIZONTAL);
         cards.setBaselineAligned(false);
-        cards.addView(chargesCard(sum), cardLp(false));
-        cards.addView(costCard(sum, kmDriven), cardLp(false));
-        cards.addView(lowCard(sum), cardLp(false));
-        cards.addView(fullCard(sum, now), cardLp(true));
+        long now = System.currentTimeMillis();
+        cards.addView(chargesCard(l.sum, now), cardLp(false));
+        cards.addView(costCard(l.sum, l.km), cardLp(false));
+        cards.addView(lowCard(l.sum), cardLp(false));
+        cards.addView(heatCard(l.heat,
+            start.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()), cardLp(true));
         kpiContainer.addView(cards);
 
         placedIds.clear();
-        try (android.database.Cursor pc = CarDb.get(c).db().rawQuery(
-                "SELECT id FROM charge_session WHERE lat IS NOT NULL AND lon IS NOT NULL", null)) {
-            while (pc.moveToNext()) placedIds.add(pc.getLong(0));
-        } catch (Exception ignored) { }
+        placedIds.addAll(l.placed);
 
         // Rebuild session navigator and chart in the same order (newest
         // first) -- they used to disagree (list newest-first, chart
@@ -255,22 +402,16 @@ public class ChargeStatsView extends LinearLayout {
         listContainer.removeAllViews();
         sessionRows.clear();
         visibleSessions.clear();
-        List<ChargeSession.Summary> periodSessions = new ArrayList<>();
-        for (ChargeSession.Summary s : allSessions) {
-            if (s.startWallMs >= cutoff) {
-                periodSessions.add(s);
-                visibleSessions.put(s.id, s);
-            }
-        }
-        if (periodSessions.isEmpty()) {
+        for (ChargeSession.Summary s : l.period) visibleSessions.put(s.id, s);
+        if (l.period.isEmpty()) {
             listContainer.addView(Style.label(c, c.getString(R.string.charge_none)));
-            chargeSocChart.setSessions(periodSessions, -1);
+            chargeSocChart.setSessions(l.period, -1);
             return;
         }
         if (!visibleSessions.containsKey(selectedSessionId)) {
-            selectedSessionId = periodSessions.get(periodSessions.size() - 1).id;
+            selectedSessionId = l.period.get(l.period.size() - 1).id;
         }
-        List<ChargeSession.Summary> rev = new ArrayList<>(periodSessions);
+        List<ChargeSession.Summary> rev = new ArrayList<>(l.period);
         Collections.reverse(rev);
         for (ChargeSession.Summary s : rev) {
             View row = chargeRow(s);
@@ -279,14 +420,6 @@ public class ChargeStatsView extends LinearLayout {
         }
         chargeSocChart.setSessions(rev, selectedSessionId);
         chargeSocChart.select(selectedSessionId, true);
-    }
-
-    /** A period pill in the header row; refresh() paints the selected one. */
-    private TextView periodButton(int days, String label) {
-        return Style.cardButton(getContext(), label, periodDays == days, () -> {
-            periodDays = days;
-            refresh();
-        });
     }
 
     // ---- the four cards ----
@@ -310,10 +443,16 @@ public class ChargeStatsView extends LinearLayout {
         return String.format(Locale.getDefault(), v >= 100 ? "%,.0f" : "%.1f", v);
     }
 
-    /** Title, a big number, a caption, two tiles side by side, an optional
-     * note at the bottom: the stats page's card shape. */
     private LinearLayout dataCard(String title, CharSequence hero, int heroColor, String caption,
                                   View left, View right, String note) {
+        return dataCard(title, hero, heroColor, caption, left, right, note, null);
+    }
+
+    /** Title, a big number, a caption, two tiles side by side, then an
+     * optional note or a full-width band at the bottom: the stats page's
+     * card shape. */
+    private LinearLayout dataCard(String title, CharSequence hero, int heroColor, String caption,
+                                  View left, View right, String note, View band) {
         Context c = getContext();
         LinearLayout card = new LinearLayout(c);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -369,6 +508,12 @@ public class ChargeStatsView extends LinearLayout {
             nlp.topMargin = Style.dp(c, 12);
             card.addView(n, nlp);
         }
+        if (band != null) {
+            LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            blp.topMargin = Style.dp(c, 10);
+            card.addView(band, blp);
+        }
         return card;
     }
 
@@ -400,21 +545,64 @@ public class ChargeStatsView extends LinearLayout {
         return t;
     }
 
-    private View chargesCard(ChargePeriodSummary m) {
+    private String kwAvg(double watts) {
+        return getContext().getString(R.string.charge_card_avg_kw,
+            String.format(Locale.getDefault(), watts >= 10000 ? "%.0f" : "%.1f", watts / 1000));
+    }
+
+    /** Recargas, with the charge to 100 % folded in as a band at the bottom
+     * (owner, 2026-11-18): the last full charge, how many reached it, and the
+     * longest stretch without one (LFP re-learns its % only at the top). */
+    private View chargesCard(ChargePeriodSummary m, long now) {
         Context c = getContext();
-        String note = null;
-        if (m.acCount > 0 && m.dcCount > 0) {
-            note = c.getString(R.string.charge_card_power_note, String.format(Locale.getDefault(),
-                "AC %.1f kW · DC %.0f kW", m.acPowerW / 1000, m.dcPowerW / 1000));
-        } else if (m.count > 0) {
-            note = c.getString(R.string.charge_card_power_note, String.format(Locale.getDefault(),
-                "%s %.1f kW", m.dcCount > 0 ? "DC" : "AC", (m.dcCount > 0 ? m.dcPowerW : m.acPowerW) / 1000));
+        View ac = tile("AC", m.acCount == 0 ? "0" : m.acCount + " · " + kwh(m.acKwh) + " kWh", Style.ACCENT,
+            m.acCount > 0 ? kwAvg(m.acPowerW) : null);
+        View dc = tile("DC", m.dcCount == 0 ? "0" : m.dcCount + " · " + kwh(m.dcKwh) + " kWh", Style.GOOD,
+            m.dcCount > 0 ? kwAvg(m.dcPowerW) : null);
+
+        String last;
+        if (m.lastFullMs < 0) {
+            last = c.getString(R.string.charge_card_never);
+        } else {
+            long d = java.time.temporal.ChronoUnit.DAYS.between(
+                java.time.Instant.ofEpochMilli(m.lastFullMs).atZone(java.time.ZoneId.systemDefault()).toLocalDate(),
+                java.time.LocalDate.now());
+            String when = d <= 0 ? c.getString(R.string.charge_card_today)
+                        : d == 1 ? c.getString(R.string.charge_card_yesterday)
+                        : c.getString(R.string.charge_card_days_ago, (int) d);
+            last = when + " (" + shortDate(m.lastFullMs) + ")";
+        }
+        String line1 = c.getString(R.string.charge_card_full_band, m.fullInPeriod, m.count, last);
+        String line2 = null;
+        if (m.longestGapFromMs >= 0) {
+            long to = m.longestGapToMs < 0 ? now : m.longestGapToMs;
+            int days = (int) ((to - m.longestGapFromMs) / (24L * 3600 * 1000));
+            String span = m.longestGapToMs < 0
+                ? c.getString(R.string.charge_card_gap_open, shortDate(m.longestGapFromMs))
+                : shortDate(m.longestGapFromMs) + " → " + shortDate(m.longestGapToMs);
+            line2 = c.getString(R.string.charge_card_gap_line,
+                c.getString(R.string.charge_card_gap_days, days), span);
+        }
+        LinearLayout band = new LinearLayout(c);
+        band.setOrientation(LinearLayout.VERTICAL);
+        int p = Style.dp(c, 12);
+        band.setPadding(p, Style.dp(c, 8), p, Style.dp(c, 8));
+        band.setBackground(Style.tile(c));
+        TextView b1 = new TextView(c);
+        b1.setText(line1);
+        b1.setTextColor(Style.TEXT);
+        b1.setTextSize(14);
+        b1.setTypeface(null, Typeface.BOLD);
+        band.addView(b1);
+        if (line2 != null) {
+            TextView b2 = new TextView(c);
+            b2.setText(line2);
+            b2.setTextColor(Style.TEXT_DIM);
+            b2.setTextSize(13);
+            band.addView(b2);
         }
         return dataCard(c.getString(R.string.charge_card_charges), String.valueOf(m.count), Style.TEXT,
-            c.getString(R.string.charge_card_energy_cap, kwh(m.totalKwh())),
-            tile("AC", m.acCount + " · " + kwh(m.acKwh) + " kWh", Style.ACCENT, null),
-            tile("DC", m.dcCount == 0 ? "0" : m.dcCount + " · " + kwh(m.dcKwh) + " kWh", Style.GOOD, null),
-            note);
+            c.getString(R.string.charge_card_energy_cap, kwh(m.totalKwh())), ac, dc, null, band);
     }
 
     private View costCard(ChargePeriodSummary m, double km) {
@@ -459,38 +647,50 @@ public class ChargeStatsView extends LinearLayout {
             note);
     }
 
-    private View fullCard(ChargePeriodSummary m, long now) {
+    private static String deg(double t) {
+        return String.format(Locale.getDefault(), "%.0f °C", t);
+    }
+
+    private static String hours(long ms) {
+        double h = ms / 3_600_000.0;
+        return String.format(Locale.getDefault(), h >= 10 ? "%.0f h" : "%.1f h", h);
+    }
+
+    /** How warm the pack got, and how long it sat at 100 % and how warm
+     * (LFP: heat and a full pack together are what age it). From the raw
+     * samples only, so it says where its data starts when that is inside
+     * the period. */
+    private View heatCard(BatteryHeat.Stats h, long periodFromMs) {
         Context c = getContext();
-        String hero, cap;
-        if (m.lastFullMs < 0) {
-            hero = c.getString(R.string.charge_card_never);
-            cap = "";
-        } else {
-            long d = java.time.temporal.ChronoUnit.DAYS.between(
-                java.time.Instant.ofEpochMilli(m.lastFullMs).atZone(java.time.ZoneId.systemDefault()).toLocalDate(),
-                java.time.LocalDate.now());
-            hero = d <= 0 ? c.getString(R.string.charge_card_today)
-                 : d == 1 ? c.getString(R.string.charge_card_yesterday)
-                 : c.getString(R.string.charge_card_days_ago, (int) d);
-            cap = c.getString(R.string.charge_card_full_cap, shortDate(m.lastFullMs));
+        String note = c.getString(R.string.charge_card_temp_note);
+        if (h.firstMs > periodFromMs + 24L * 3600 * 1000) {
+            note += " · " + c.getString(R.string.charge_card_temp_since, shortDate(h.firstMs));
         }
-        View gap;
-        if (m.longestGapFromMs < 0) {
-            gap = tile(c.getString(R.string.charge_card_gap), "—", Style.TEXT, null);
+        CharSequence hero;
+        String cap;
+        if (h.hasTemp()) {
+            int col = h.maxTemp >= 40 ? Style.DANGER : h.maxTemp >= 35 ? Style.WARN : Style.TEXT;
+            hero = Style.valueWithUnit(String.format(Locale.getDefault(), "%.0f", h.maxTemp), col, "°C",
+                Style.UNIT_SCALE_HERO);
+            cap = c.getString(R.string.charge_card_temp_cap, shortDate(h.maxTempMs), deg(h.avgTemp), deg(h.minTemp));
         } else {
-            long to = m.longestGapToMs < 0 ? now : m.longestGapToMs;
-            int days = (int) ((to - m.longestGapFromMs) / (24L * 3600 * 1000));
-            String span = m.longestGapToMs < 0
-                ? c.getString(R.string.charge_card_gap_open, shortDate(m.longestGapFromMs))
-                : shortDate(m.longestGapFromMs) + " → " + shortDate(m.longestGapToMs);
-            // LFP wants a full charge about weekly; past that, amber.
-            gap = tile(c.getString(R.string.charge_card_gap), c.getString(R.string.charge_card_gap_days, days),
-                days > 7 ? Style.WARN : Style.TEXT, span);
+            hero = "—";
+            cap = c.getString(R.string.charge_card_no_temp);
         }
-        return dataCard(c.getString(R.string.charge_card_full), hero, Style.TEXT, cap,
-            tile(c.getString(R.string.charge_card_full_count),
-                c.getString(R.string.charge_card_full_of, m.fullInPeriod, m.count), Style.TEXT, null),
-            gap, c.getString(R.string.charge_card_full_note));
+        BatteryHeat.Stay longest = h.longestStay();
+        View time = longest == null
+            ? tile(c.getString(R.string.charge_card_full_time), "—", Style.TEXT, null)
+            : tile(c.getString(R.string.charge_card_full_time),
+                c.getString(R.string.charge_card_full_time_val, hours(h.avgFullMs())), Style.TEXT,
+                c.getString(R.string.charge_card_full_time_sub, hours(h.totalFullMs()), hours(longest.durationMs())));
+        double tMax = h.maxTempAtFull();
+        View temp = Double.isNaN(tMax)
+            ? tile(c.getString(R.string.charge_card_full_temp), "—", Style.TEXT, null)
+            : tile(c.getString(R.string.charge_card_full_temp),
+                c.getString(R.string.charge_card_full_temp_val, deg(tMax)),
+                tMax >= 35 ? Style.WARN : Style.TEXT,
+                c.getString(R.string.charge_card_full_temp_sub, deg(h.avgTempAtFull())));
+        return dataCard(c.getString(R.string.charge_card_temp), hero, Style.TEXT, cap, time, temp, note);
     }
 
     private View chargeRow(ChargeSession.Summary s) {
