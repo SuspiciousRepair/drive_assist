@@ -448,9 +448,11 @@
     <string name="charge_curve_power_label">Potência (kW)</string>
     <string name="charge_curve_temp_label">Temp. externa (°C)</string>
     <string name="charge_curve_batt_temp_label">Temp. da bateria (°C)</string>
+    <string name="charge_curve_soc_label">SoC (%)</string>
     <string name="charge_curve_no_batt_temp">Sem dados de temperatura da bateria nesta recarga — o adaptador OBD2 não estava conectado.</string>
     <string name="charge_completed_title">Recarga concluída</string>
     <string name="charge_cost_label">Custo</string>
+    <string name="charge_cost_change">Alterar</string>
     <string name="charge_cost_input_title">Custo da Recarga</string>
     <string name="charge_cost_input_hint">Valor total (ex: 45,00)</string>
     <string name="charge_cost_btn_input">Informar Custo</string>
@@ -572,6 +574,7 @@
     <string name="session_stat_battery">Bateria</string>
     <string name="session_stat_efficiency">Eficiência</string>
     <string name="session_stat_net_energy">Energia líquida</string>
+    <string name="session_stat_charged_energy">Energia carregada</string>
     <string name="session_stat_net_breakdown">%1$s gasto − %2$s regen</string>
     <string name="session_stat_elevation">Subida / descida</string>
     <string name="session_stat_avg_power">Potência média</string>

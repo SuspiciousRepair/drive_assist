@@ -451,6 +451,7 @@
     <string name="charge_stats_title">สถิติการชาร์จ</string>
     <string name="charge_completed_title">การชาร์จเสร็จสมบูรณ์</string>
     <string name="charge_cost_label">ค่าใช้จ่าย</string>
+    <string name="charge_cost_change">แก้ไข</string>
     <string name="charge_cost_input_title">ค่าใช้จ่ายในการชาร์จ</string>
     <string name="charge_cost_input_hint">ค่าใช้จ่ายทั้งหมด (เช่น 45.00)</string>
     <string name="charge_cost_btn_input">ป้อนค่าใช้จ่าย</string>
@@ -470,6 +471,7 @@
     <string name="charge_curve_power_label">กำลังไฟฟ้า (kW)</string>
     <string name="charge_curve_temp_label">อุณหภูมิภายนอก (°C)</string>
     <string name="charge_curve_batt_temp_label">อุณหภูมิแบตเตอรี่ (°C)</string>
+    <string name="charge_curve_soc_label">SoC (%)</string>
     <string name="charge_curve_no_batt_temp">ไม่มีข้อมูลอุณหภูมิแบตเตอรี่สำหรับการชาร์จนี้ — ไม่ได้เชื่อมต่อดองเกิล OBD2</string>
     <string name="charge_curve_unavailable">ไม่มีข้อมูลตัวอย่างสำหรับการชาร์จนี้แล้ว</string>
 
@@ -576,6 +578,7 @@
     <string name="session_stat_battery">แบตเตอรี่</string>
     <string name="session_stat_efficiency">ประสิทธิภาพ</string>
     <string name="session_stat_net_energy">พลังงานสุทธิ</string>
+    <string name="session_stat_charged_energy">พลังงานที่ชาร์จ</string>
     <string name="session_stat_net_breakdown">ใช้ %1$s − คืน %2$s</string>
     <string name="session_stat_elevation">ขึ้น / ลง</string>
     <string name="session_stat_avg_power">กำลังเฉลี่ย</string>

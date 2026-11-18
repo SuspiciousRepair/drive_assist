@@ -751,9 +751,7 @@ public final class DailyStatsProvider {
             Context ctx, List<com.geely.drivemem.state.ChargeSession.Summary> sessions, int days) {
         List<DayEnergyBalance> out = new ArrayList<>(days);
         Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(System.currentTimeMillis() - days * 24L * 3600 * 1000);
-        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0);
-        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0);
+        cal.setTimeInMillis(firstBalanceDayStart(System.currentTimeMillis(), days));
 
         SQLiteDatabase db = CarDb.get(ctx).db();
         for (int i = 0; i < days; i++) {
@@ -789,6 +787,23 @@ public final class DailyStatsProvider {
             out.add(item);
         }
         return out;
+    }
+
+    /**
+     * Midnight that starts the first of the {@code days} chart days, so that
+     * the LAST one is today. It used to start one day earlier and end
+     * yesterday: an overnight charge that ended this morning showed only its
+     * evening share, and today's driving and charging were missing until
+     * tomorrow (seen 2026-11-17: 32.6 kWh from 21:04 to 07:00, the chart
+     * showed ~9.5 kWh on the 16th and nothing for the 17th).
+     */
+    public static long firstBalanceDayStart(long nowMs, int days) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(nowMs);
+        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0);
+        cal.add(Calendar.DAY_OF_MONTH, -(days - 1));
+        return cal.getTimeInMillis();
     }
 
     /** Fraction of a charge session's wall-clock duration that falls within

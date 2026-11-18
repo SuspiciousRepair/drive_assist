@@ -36,7 +36,14 @@ public final class ChargeCurrentCurveDialog {
     private static final float POWER_AXIS_MAX_KW_AC = 8f;
     private static final float POWER_AXIS_MAX_KW_DC = 80f;
 
-    public static void show(Context c, ChargeSession.Summary session) {
+    public static void show(Context c, ChargeSession.Summary session) { show(c, session, null); }
+
+    /**
+     * The charge's details: its cost (tap it to set or change it, same
+     * ChargeCostDialog as before) and the power curve. {@code onCostChanged}
+     * runs after a cost is saved, so the screen behind can redraw.
+     */
+    public static void show(Context c, ChargeSession.Summary session, Runnable onCostChanged) {
         Dialog dialog = new Dialog(c);
         dialog.setCanceledOnTouchOutside(true);
         LinearLayout root = new LinearLayout(c);
@@ -46,6 +53,61 @@ public final class ChargeCurrentCurveDialog {
         root.setBackground(Style.card(Style.cardFillColor(), c));
         TextView title = Style.title(c, c.getString(R.string.charge_curve_title));
         root.addView(title);
+
+        // Cost, in its own framed block with room around it: caption and
+        // value on the left, a real outlined button on the far right ("too
+        // close to the elements", owner 2026-11-17). Saving closes this
+        // window so the screen behind shows the new value.
+        Runnable editCost = () -> ChargeCostDialog.show(c, session.id, session.kwh, session.socStart,
+            session.socEnd, session.cost, () -> {
+                dialog.dismiss();
+                if (onCostChanged != null) onCostChanged.run();
+            });
+        LinearLayout costRow = new LinearLayout(c);
+        costRow.setOrientation(LinearLayout.HORIZONTAL);
+        costRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        costRow.setBackground(Style.card(Style.CARD, c));
+        int cp = Style.dp(c, 16);
+        costRow.setPadding(cp + Style.dp(c, 4), cp, cp, cp);
+        LinearLayout costCol = new LinearLayout(c);
+        costCol.setOrientation(LinearLayout.VERTICAL);
+        TextView costCaption = new TextView(c);
+        costCaption.setText(R.string.charge_cost_label);
+        costCaption.setTextColor(Style.TEXT_DIM);
+        costCaption.setTextSize(15);
+        costCol.addView(costCaption);
+        TextView costValue = new TextView(c);
+        boolean hasCost = session.cost != null && session.cost >= 0;
+        if (hasCost) {
+            android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder(session.costLabel());
+            if (session.costPerKwhLabel() != null) {
+                Style.appendUnit(sb, "  " + session.costPerKwhLabel(), Style.UNIT_SCALE_ROW);
+            }
+            costValue.setText(sb);
+            costValue.setTextColor(Style.TEXT);
+        } else {
+            costValue.setText("—");
+            costValue.setTextColor(Style.TEXT_DIM);
+        }
+        costValue.setTextSize(22);
+        costValue.setTypeface(null, android.graphics.Typeface.BOLD);
+        costCol.addView(costValue);
+        costRow.addView(costCol);
+        costRow.addView(new android.view.View(c), new LinearLayout.LayoutParams(0, 1, 1f));
+        TextView costBtn = Style.button(c, hasCost ? c.getString(R.string.charge_cost_change)
+                : "+ " + c.getString(R.string.charge_cost_label), Style.CARD, editCost);
+        costBtn.setBackground(Style.outlinedCard(Style.ACCENT, c));
+        costBtn.setTextColor(Style.ACCENT);
+        costBtn.setTextSize(17);
+        int bh = Style.dp(c, 28), bv = Style.dp(c, 14);
+        costBtn.setPadding(bh, bv, bh, bv);
+        LinearLayout.LayoutParams blp = (LinearLayout.LayoutParams) costBtn.getLayoutParams();
+        blp.setMargins(Style.dp(c, 24), 0, 0, 0);
+        costRow.addView(costBtn, blp);
+        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        rowLp.setMargins(0, Style.dp(c, 16), 0, Style.dp(c, 20));
+        root.addView(costRow, rowLp);
 
         Curves curves = read(c, session);
         if (curves.power.isEmpty()) {
@@ -60,7 +122,7 @@ public final class ChargeCurrentCurveDialog {
             chart.setDoubleTapToZoomEnabled(false);
 
             Legend legend = chart.getLegend();
-            legend.setEnabled(hasTemp); // one series needs no legend to identify it
+            legend.setEnabled(hasTemp || !curves.soc.isEmpty()); // one series needs no legend to identify it
             legend.setTextColor(Style.TEXT_DIM);
 
             YAxis left = chart.getAxisLeft();
@@ -132,6 +194,35 @@ public final class ChargeCurrentCurveDialog {
             powerSet.setAxisDependency(YAxis.AxisDependency.LEFT);
 
             List<ILineDataSet> sets = new ArrayList<>();
+            // SoC as a light line under the others (owner, 2026-11-17). A chart
+            // has only two value axes (power left, temperature right), so it
+            // is scaled onto the power axis, 100% at the top, and labelled
+            // with its real % at its first and last point instead of an axis.
+            if (!curves.soc.isEmpty()) {
+                // 100% sits a little under the top edge, so a full battery's
+                // flat line stays visible instead of merging with the frame.
+                float top = (session.isDcfc() ? POWER_AXIS_MAX_KW_DC : POWER_AXIS_MAX_KW_AC) * 0.92f;
+                List<Entry> scaled = new ArrayList<>(curves.soc.size());
+                for (Entry e : curves.soc) scaled.add(new Entry(e.getX(), e.getY() / 100f * top, e.getY()));
+                final Entry first = scaled.get(0), last = scaled.get(scaled.size() - 1);
+                LineDataSet socSet = new LineDataSet(scaled, c.getString(R.string.charge_curve_soc_label));
+                int socColor = Style.blend(Style.CARD, Style.TEXT, 0.45f);
+                socSet.setColor(socColor);
+                socSet.setLineWidth(1.5f);
+                socSet.setDrawCircles(false);
+                socSet.setMode(LineDataSet.Mode.LINEAR);
+                socSet.setAxisDependency(YAxis.AxisDependency.LEFT);
+                socSet.setDrawValues(true);
+                socSet.setValueTextColor(Style.TEXT_DIM);
+                socSet.setValueTextSize(12f);
+                socSet.setValueFormatter(new ValueFormatter() {
+                    @Override public String getPointLabel(Entry e) {
+                        if (e != first && e != last) return "";
+                        return Math.round((Float) e.getData()) + "%";
+                    }
+                });
+                sets.add(socSet);
+            }
             sets.add(powerSet);
             if (!curves.outsideTemp.isEmpty()) {
                 LineDataSet tempSet = new LineDataSet(curves.outsideTemp, c.getString(R.string.charge_curve_temp_label));
@@ -154,6 +245,10 @@ public final class ChargeCurrentCurveDialog {
                 sets.add(battTempSet);
             }
             chart.setData(new LineData(sets));
+            // MPAndroidChart draws no value labels at all once a chart has
+            // more than 100 points (a 10 h charge has ~1000), which hid the
+            // SoC start/end labels. Only those two are non-empty.
+            chart.setMaxVisibleValueCount(Integer.MAX_VALUE);
             root.addView(chart, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 330)));
             // battery_temp_c is the one genuinely OBD2-exclusive column here
@@ -197,12 +292,15 @@ public final class ChargeCurrentCurveDialog {
         // OBD2 dongle wasn't connected/enabled during charging, since that's
         // the only source for this value (see TelemetrySampler).
         final List<Entry> batteryTemp = new ArrayList<>();
+        // Battery %, raw 0..100. Drawn on the power axis, scaled so 100% is
+        // the axis top (see show()).
+        final List<Entry> soc = new ArrayList<>();
     }
 
     private static Curves read(Context c, ChargeSession.Summary s) {
         Curves out = new Curves();
         Cursor cursor = CarDb.get(c).db().rawQuery(
-            "SELECT ts_ms, charge_a, charge_v, outside_temp_c, battery_temp_c FROM telemetry_sample "
+            "SELECT ts_ms, charge_a, charge_v, outside_temp_c, battery_temp_c, battery_pct FROM telemetry_sample "
           + "WHERE ts_ms BETWEEN ? AND ? ORDER BY ts_ms ASC",
             new String[]{String.valueOf(s.startWallMs), String.valueOf(s.endWallMs)});
         try {
@@ -217,6 +315,9 @@ public final class ChargeCurrentCurveDialog {
                 }
                 if (!cursor.isNull(4)) {
                     out.batteryTemp.add(new Entry(minutes, cursor.getFloat(4)));
+                }
+                if (!cursor.isNull(5)) {
+                    out.soc.add(new Entry(minutes, cursor.getFloat(5)));
                 }
             }
         } finally { cursor.close(); }

@@ -1746,8 +1746,13 @@ public class DailyStatsView extends LinearLayout {
         // App-wide charging color code (2026-09-13): AC = blue + plug, DC = green + CCS.
         int color = ch.isDcfc ? Style.GOOD : Style.ACCENT;
         int icon = ch.isDcfc ? R.drawable.ic_ev_plug_ccs2 : R.drawable.ic_power_plug;
-        card.addView(titleRow(icon, color, ch, dayStartMs,
-                valueWithUnit(String.format(Locale.US, "+%.1f", ch.kwh), color, "kWh", ROW_UNIT_SCALE)));
+        // Same grid as the trip card: Battery, then the energy in column 2
+        // (a trip's net energy, a charge's energy added), so the kWh is in
+        // the same place on both (owner, 2026-11-17). The title line's right
+        // side, a trip's km, has no charge counterpart and stays empty.
+        card.addView(titleRow(icon, color, ch, dayStartMs, ""));
+        View energy = stat(R.string.session_stat_charged_energy,
+                valueWithUnit(String.format(Locale.US, "+%.1f", ch.kwh), color, "kWh", ROW_UNIT_SCALE), null);
 
         View power = stat(R.string.session_stat_avg_power, number(ch.avgPowerKw, "kW"), null);
         View third;
@@ -1768,17 +1773,24 @@ public class DailyStatsView extends LinearLayout {
         }
         card.addView(statsRow(
             stat(R.string.session_stat_battery, socValue(ch.socStart, ch.socEnd), null),
-            power, third));
+            energy, power, third));
 
-        // Tapping a finished charge opens ChargeCostDialog, Park only (CarState.isParked()).
+        // Tapping a finished charge opens its details (ChargeCurrentCurveDialog:
+        // the cost, editable there, and the power curve), Park only, the same
+        // window the charge page opens.
         if (ch.endMs > 0 && ch.chargeId > 0) {
             card.setOnClickListener(v -> {
                 if (!CarState.isParked()) {
                     Toast.makeText(getContext(), R.string.charge_cost_parked_only, Toast.LENGTH_SHORT).show();
                     return;
                 }
-                ChargeCostDialog.show(
-                        getContext(), ch.chargeId, ch.kwh, ch.socStart, ch.socEnd, ch.cost, this::refresh);
+                for (com.geely.drivemem.state.ChargeSession.Summary s
+                        : com.geely.drivemem.state.ChargeSession.readLog(getContext())) {
+                    if (s.id == ch.chargeId) {
+                        ChargeCurrentCurveDialog.show(getContext(), s, this::refresh);
+                        return;
+                    }
+                }
             });
         }
     }

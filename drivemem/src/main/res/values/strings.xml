@@ -463,9 +463,11 @@
     <string name="charge_curve_power_label">Power (kW)</string>
     <string name="charge_curve_temp_label">Outside temp. (°C)</string>
     <string name="charge_curve_batt_temp_label">Battery temp. (°C)</string>
+    <string name="charge_curve_soc_label">SoC (%)</string>
     <string name="charge_curve_no_batt_temp">No battery-temperature data for this session — the OBD2 dongle wasn\'t connected.</string>
     <string name="charge_completed_title">Charge completed</string>
     <string name="charge_cost_label">Cost</string>
+    <string name="charge_cost_change">Change</string>
     <string name="charge_cost_input_title">Charge Cost</string>
     <string name="charge_cost_input_hint">Total cost (e.g. 45.00)</string>
     <string name="charge_cost_btn_input">Enter Cost</string>
@@ -587,6 +589,7 @@
     <string name="session_stat_battery">Battery</string>
     <string name="session_stat_efficiency">Efficiency</string>
     <string name="session_stat_net_energy">Net energy</string>
+    <string name="session_stat_charged_energy">Energy added</string>
     <string name="session_stat_net_breakdown">%1$s used − %2$s regen</string>
     <string name="session_stat_elevation">Climb / descent</string>
     <string name="session_stat_avg_power">Average power</string>
