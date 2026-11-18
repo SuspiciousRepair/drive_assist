@@ -151,11 +151,24 @@ public class CalendarNavigatorView extends View {
             case 2: return Style.blend(Style.CARD_HI, Style.ACCENT, 0.50f);
             case 3: return Style.blend(Style.CARD_HI, Style.ACCENT, 0.72f);
             case 4: return Style.ACCENT;
-            default: return Style.blend(Style.ACCENT, 0xFFFFFFFF, 0.45f);
+            // the top level moves AWAY from the background: brighter on a
+            // dark theme, deeper on a light one (toward white there read as
+            // paler than level 4 -- seen on the car 2026-11-18)
+            default: return Style.LIGHT ? Style.blend(Style.ACCENT, 0xFF000000, 0.35f)
+                                        : Style.blend(Style.ACCENT, 0xFFFFFFFF, 0.45f);
         }
     }
 
-    private int selColor() { return Style.blend(Style.ACCENT, 0xFFFFFFFF, 0.55f); }
+    /** A day before the first record: a flat square, fainter than a 0 km day,
+     * so the grid reads as one surface instead of a field of outlines. */
+    private int beforeColor() { return Style.blend(Style.CARD, levelColor(0), 0.45f); }
+
+    /** Light blue, never white. On a light theme it has to be a stronger blue
+     * to show at all against the white card. */
+    private int selColor() {
+        return Style.LIGHT ? Style.blend(Style.ACCENT, 0xFF7FD4FF, 0.45f)
+                           : Style.blend(Style.ACCENT, 0xFFFFFFFF, 0.55f);
+    }
 
     // ---- drawing ----
 
@@ -186,15 +199,13 @@ public class CalendarNavigatorView extends View {
         }
 
         // the squares
-        stroke.setStrokeWidth(Style.dp(getContext(), 2));
-        stroke.setColor(Style.blend(Style.CARD, Style.CARD_HI, 0.5f));
         for (int col = 0; col < WEEKS; col++) {
             for (int rw = 0; rw < 7; rw++) {
                 LocalDate d = gridStart.plusDays(col * 7L + rw);
                 if (d.isAfter(today)) continue;
                 r.set(colX(col), rowY(rw), colX(col) + cell, rowY(rw) + cell);
                 boolean before = firstData == null || d.isBefore(firstData);
-                if (before) { cv.drawRoundRect(r, rad, rad, stroke); continue; }
+                if (before) { fill.setColor(beforeColor()); cv.drawRoundRect(r, rad, rad, fill); continue; }
                 StatsCalendar.Cell c = byDate.get(d);
                 double km = c == null ? 0 : c.km;
                 fill.setColor(levelColor(StatsCalendar.level(km, cuts)));
@@ -255,33 +266,44 @@ public class CalendarNavigatorView extends View {
         stroke.setStrokeCap(Paint.Cap.BUTT);
     }
 
+    /** Each level's square with the km range it stands for, on this
+     * driver's own scale: "0  <12  12–30  30–55  55–90  90+ km". */
     private void drawLegend(Canvas cv) {
         Context c = getContext();
-        float y = rowY(7) + Style.dp(c, 4), sq = Style.dp(c, 16), gap = Style.dp(c, 5);
+        float y = rowY(7) + Style.dp(c, 4), sq = Style.dp(c, 16), gap = Style.dp(c, 6),
+              itemGap = Style.dp(c, 16);
         text.setTextSize(Style.dp(c, 14));
         text.setColor(Style.TEXT_DIM);
-        String less = c.getString(R.string.stats_nav_less), more = c.getString(R.string.stats_nav_more),
-               charge = c.getString(R.string.stats_nav_charge);
-        float dotGap = Style.dp(c, 28);
-        float total = text.measureText(less) + gap + 6 * (sq + gap) + text.measureText(more)
-                    + dotGap + sq + text.measureText(charge);
+        text.setTextAlign(Paint.Align.LEFT);
+        String[] labels = levelLabels();
+        String charge = c.getString(R.string.stats_nav_charge);
+        float total = 0;
+        for (String l : labels) total += sq + gap + text.measureText(l) + itemGap;
+        total += sq + text.measureText(charge);
         float x = getWidth() - total;
         float base = y + sq * 0.8f;
-        text.setTextAlign(Paint.Align.LEFT);
-        cv.drawText(less, x, base, text);
-        x += text.measureText(less) + gap;
         float rad = sq * 0.2f;
-        for (int lv = 0; lv <= 5; lv++) {
+        for (int lv = 0; lv < labels.length; lv++) {
             fill.setColor(levelColor(lv));
             r.set(x, y, x + sq, y + sq);
             cv.drawRoundRect(r, rad, rad, fill);
             x += sq + gap;
+            cv.drawText(labels[lv], x, base, text);
+            x += text.measureText(labels[lv]) + itemGap;
         }
-        cv.drawText(more, x, base, text);
-        x += text.measureText(more) + dotGap;
         fill.setColor(Style.GOOD);
         cv.drawCircle(x + sq * 0.3f, y + sq / 2f, sq * 0.25f, fill);
         cv.drawText(charge, x + sq * 0.8f, base, text);
+    }
+
+    /** The km range of each level, from the cuts (StatsCalendar.level: level
+     * 1 is below cut 0, level n+2 starts at cut n). Only "0" before any driving. */
+    private String[] levelLabels() {
+        if (cuts.length < 4) return new String[]{"0 km"};
+        long[] k = new long[4];
+        for (int i = 0; i < 4; i++) k[i] = Math.round(cuts[i]);
+        return new String[]{
+            "0", "< " + k[0], k[0] + "–" + k[1], k[1] + "–" + k[2], k[2] + "–" + k[3], k[3] + "+ km"};
     }
 
     // ---- touch: tap only ----

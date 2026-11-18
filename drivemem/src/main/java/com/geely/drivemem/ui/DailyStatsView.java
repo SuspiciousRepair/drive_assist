@@ -116,8 +116,8 @@ public class DailyStatsView extends LinearLayout {
     private void buildSkeleton() {
         Context c = getContext();
 
-        // 1. One header row: title, then the date navigation and the period
-        // menu on the same line. They used to be a row of their own under the
+        // 1. One header row: the date navigation and the period menu. No
+        // title: the tab icon already says where you are (owner, 2026-11-18). They used to be a row of their own under the
         // chart; moving them up pays for the navigator's extra height, so the
         // four cards stay where they were.
         LinearLayout navRow = new LinearLayout(c);
@@ -127,8 +127,6 @@ public class DailyStatsView extends LinearLayout {
             navRow.addView(Style.backButton(c, onBack));
             Style.gap(navRow, c, 16);
         }
-        navRow.addView(Style.header(c, "Estatísticas Diárias"));
-        Style.gap(navRow, c, 24);
 
         LinearLayout dateNav = new LinearLayout(c);
         dateNav.setOrientation(LinearLayout.HORIZONTAL);
@@ -192,10 +190,18 @@ public class DailyStatsView extends LinearLayout {
         addView(navRow);
         Style.gap(this, c, 14);
 
-        // 2. The navigator (replaces the 14-bar chart): a year of days.
+        // 2. The navigator (replaces the 14-bar chart): a year of days, on a
+        // card like the others so the art (the skyline, Noturno's buildings)
+        // does not show between the squares.
         navigator = new CalendarNavigatorView(c);
         navigator.setOnPick(this::onPick);
-        addView(navigator, new LinearLayout.LayoutParams(
+        android.widget.FrameLayout navCard = new android.widget.FrameLayout(c);
+        navCard.setBackground(Style.card(Style.cardFillColor(), c));
+        int navPad = Style.dp(c, 12);
+        navCard.setPadding(navPad, navPad, navPad + Style.dp(c, 4), Style.dp(c, 4));
+        navCard.addView(navigator, new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        addView(navCard, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         Style.gap(this, c, 16);
 
@@ -510,7 +516,7 @@ public class DailyStatsView extends LinearLayout {
     /** Nav label, the four dashboard cards and the session list for one
      * week or month. */
     private void renderPeriodCards(DailyStatsProvider.PeriodOverview po) {
-        navDateLabel.setText(po.periodLabel);
+        navDateLabel.setText(withKm(po.periodLabel, po.totals.distanceKm));
 
         // Real dates, never po.totals.date: that is the period's label, and
         // a label falls back to one single day (the 2026-09-16 bug again,
@@ -650,9 +656,18 @@ public class DailyStatsView extends LinearLayout {
         } catch (Exception e) { return -1; }
     }
 
+    /** "Setembro de 2026 · 1.577 km": the period's total distance next to
+     * its name, the one number the old bar chart gave at a glance. */
+    private static String withKm(String label, double km) {
+        String n = km >= 100 ? String.format(Locale.getDefault(), "%,.0f", km)
+                             : String.format(Locale.getDefault(), "%.1f", km);
+        return label + "  ·  " + n + " km";
+    }
+
     private void renderOverview(DailyStatsProvider.DayOverview ov) {
         if (ov.displayDate != null && !ov.displayDate.isEmpty()) {
-            navDateLabel.setText(Character.toUpperCase(ov.displayDate.charAt(0)) + ov.displayDate.substring(1));
+            navDateLabel.setText(withKm(
+                Character.toUpperCase(ov.displayDate.charAt(0)) + ov.displayDate.substring(1), ov.distanceKm));
         } else {
             navDateLabel.setText("");
         }

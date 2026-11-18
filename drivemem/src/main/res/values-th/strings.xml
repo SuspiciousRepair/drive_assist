@@ -405,8 +405,6 @@
     <string name="stats_chart_header">กม. ต่อวัน</string>
     <string name="daily_stats_prev_day">ก่อนหน้า</string>
     <string name="daily_stats_next_day">ถัดไป</string>
-    <string name="stats_nav_less">น้อย</string>
-    <string name="stats_nav_more">กม. มากขึ้น (ตามการใช้งานของคุณ)</string>
     <string name="stats_nav_charge">ชาร์จ</string>
     <!-- OBD2 + ABRP -->
     <string name="obd_title">ดองเกิล OBD2</string>
