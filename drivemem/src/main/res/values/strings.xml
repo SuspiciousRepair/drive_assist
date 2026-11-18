@@ -457,7 +457,7 @@
     <!-- charge stats & cost tracking -->
     <string name="charge_stats_title">Charging stats</string>
     <string name="charge_sessions_title">Charging sessions · newest first</string>
-    <string name="charge_soc_chart_title">Battery range · chronological</string>
+    <string name="charge_soc_chart_title">Battery range · newest first</string>
     <string name="charge_curve_title">Charging power over time</string>
     <string name="charge_curve_unavailable">Samples are no longer available for this session.</string>
     <string name="charge_curve_power_label">Power (kW)</string>
@@ -483,10 +483,6 @@
     <string name="charge_stat_cost_100km">Cost / 100 km</string>
 
     <!-- energy balance chart (ChargeStatsView) -->
-    <string name="charge_balance_title">Energy Balance</string>
-    <string name="charge_balance_hint">Tap a bar for details</string>
-    <string name="charge_balance_spent">Spent</string>
-    <string name="charge_balance_regen">Regen</string>
 
     <!-- software update dialog & prompt -->
     <string name="update_dialog_title">Software Update Available</string>
@@ -691,4 +687,32 @@
     <string name="phone_routes_day">Whole day</string>
     <string name="phone_routes_trip">This trip</string>
     <string name="phone_msg_no_route">No trip with a recorded route yet.</string>
+    <string name="soc_history_empty">No battery data in this period</string>
+    <string name="charge_card_charges">Charges</string>
+    <string name="charge_card_energy_cap">%1$s kWh charged</string>
+    <string name="charge_card_power_note">Average power: %1$s</string>
+    <string name="charge_card_cost">Cost</string>
+    <string name="charge_card_cost_cap">%1$s / 100 km · %2$s / kWh</string>
+    <string name="charge_card_per_kwh">%1$s per kWh</string>
+    <string name="charge_card_cost_total">%1$s in total</string>
+    <string name="charge_card_cost_share">%1$s · %2$d%% of the cost</string>
+    <string name="charge_card_no_dc">no DC charges</string>
+    <string name="charge_card_no_cost">no cost entered</string>
+    <string name="charge_card_low">Low battery</string>
+    <string name="charge_card_low_cap">lowest charge · %1$s</string>
+    <string name="charge_card_below">Days below %1$d%%</string>
+    <string name="charge_card_plug_note">On average you plug in at %1$d%%</string>
+    <string name="charge_card_full" formatted="false">Charge to 100%</string>
+    <string name="charge_card_today">today</string>
+    <string name="charge_card_yesterday">yesterday</string>
+    <string name="charge_card_days_ago">%1$d days ago</string>
+    <string name="charge_card_never">never</string>
+    <string name="charge_card_full_cap">last time · %1$s</string>
+    <string name="charge_card_full_count" formatted="false">Charges to 100%</string>
+    <string name="charge_card_full_of">%1$d of %2$d</string>
+    <string name="charge_card_gap">Longest gap</string>
+    <string name="charge_card_gap_days">%1$d days</string>
+    <string name="charge_card_gap_open">%1$s → today</string>
+    <string name="charge_card_full_note" formatted="false">LFP: reaching 100% once a week keeps the % right</string>
+    <string name="charge_range_label">%1$s – %2$s · %3$s km</string>
 </resources>

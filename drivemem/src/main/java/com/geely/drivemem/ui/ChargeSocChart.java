@@ -54,7 +54,9 @@ public final class ChargeSocChart extends ScrollView {
     }
 
     private final class Plot extends View {
-        private static final int LEFT = 52, RIGHT = 16, TOP = 34, BOTTOM = 8, ROW = 46;
+        private static final int LEFT = 96, RIGHT = 16, TOP = 34, BOTTOM = 8, ROW = 46;
+        /** The line drawn through every bar (SocHistory.LOW_PCT). */
+        private static final int LOW = com.geely.drivemem.sensors.SocHistory.LOW_PCT;
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final SimpleDateFormat date = new SimpleDateFormat("d/M", Locale.getDefault());
         private List<ChargeSession.Summary> sessions = new ArrayList<>();
@@ -85,6 +87,19 @@ public final class ChargeSocChart extends ScrollView {
                 paint.setTextAlign(Paint.Align.CENTER);
                 canvas.drawText(pct + "%", x, top - Style.dp(getContext(), 10), paint);
             }
+            // The low line through every bar, its zone faintly shaded.
+            float xLow = left + axisWidth * LOW / 100f;
+            paint.setColor((Style.DANGER & 0x00FFFFFF) | 0x14000000);
+            canvas.drawRect(left, top, xLow, bottom, paint);
+            paint.setColor(Style.DANGER);
+            paint.setTextAlign(Paint.Align.CENTER);
+            canvas.drawText(LOW + "%", xLow, top - Style.dp(getContext(), 10), paint);
+            paint.setStrokeWidth(Style.dp(getContext(), 2));
+            paint.setPathEffect(new android.graphics.DashPathEffect(
+                new float[]{Style.dp(getContext(), 6), Style.dp(getContext(), 5)}, 0));
+            canvas.drawLine(xLow, top, xLow, bottom, paint);
+            paint.setPathEffect(null);
+            paint.setStrokeWidth(1f);
             for (int i = 0; i < sessions.size(); i++) {
                 ChargeSession.Summary s = sessions.get(i);
                 float cy = barCenterY(i);
@@ -135,7 +150,17 @@ public final class ChargeSocChart extends ScrollView {
                 }
                 paint.setColor(Style.TEXT_DIM);
                 paint.setTextAlign(Paint.Align.RIGHT);
-                canvas.drawText(date.format(new Date(s.startWallMs)), left - Style.dp(getContext(), 8), cy + 4, paint);
+                canvas.drawText(date.format(new Date(s.startWallMs)), left - Style.dp(getContext(), 44), cy + 4, paint);
+                // The % at plug-in, at the bar's start: how low it went before
+                // this charge. Red under 20 %. Kept left of the axis when the
+                // bar starts too close to 0 % for the text to fit.
+                String startPct = clamp(s.socStart) > 0 ? (int) clamp(s.socStart) + "%" : "";
+                paint.setFakeBoldText(true);
+                paint.setColor(s.socStart > 0 && s.socStart < 20 ? Style.DANGER : Style.TEXT_DIM);
+                float tx = xStart - left < paint.measureText(startPct) + Style.dp(getContext(), 10)
+                    ? left - Style.dp(getContext(), 6) : xStart - Style.dp(getContext(), 6);
+                canvas.drawText(startPct, tx, cy + 4, paint);
+                paint.setFakeBoldText(false);
             }
         }
 
