@@ -508,6 +508,9 @@
     <!-- daily stats day navigator -->
     <string name="daily_stats_prev_day">Previous</string>
     <string name="daily_stats_next_day">Next</string>
+    <string name="stats_nav_less">Less</string>
+    <string name="stats_nav_more">More km (your own scale)</string>
+    <string name="stats_nav_charge">Charge</string>
 
     <!-- Backup and restore (AppBackup, BackupDialogs) -->
     <string name="backup_header">Backup</string>

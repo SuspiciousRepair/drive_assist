@@ -493,6 +493,9 @@
     <!-- daily stats day navigator -->
     <string name="daily_stats_prev_day">Anterior</string>
     <string name="daily_stats_next_day">Próximo</string>
+    <string name="stats_nav_less">Menos</string>
+    <string name="stats_nav_more">Mais km (pelo seu uso)</string>
+    <string name="stats_nav_charge">Recarga</string>
 
     <!-- Backup and restore (AppBackup, BackupDialogs) -->
     <string name="backup_header">Backup</string>

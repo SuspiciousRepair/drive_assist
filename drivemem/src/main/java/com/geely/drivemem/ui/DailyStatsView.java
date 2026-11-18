@@ -27,11 +27,7 @@ import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.BarData;
 import com.github.mikephil.charting.data.BarDataSet;
 import com.github.mikephil.charting.data.BarEntry;
-import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
-import com.github.mikephil.charting.formatter.ValueFormatter;
-import com.github.mikephil.charting.highlight.Highlight;
-import com.github.mikephil.charting.listener.OnChartValueSelectedListener;
 import com.github.mikephil.charting.renderer.XAxisRenderer;
 
 import java.util.ArrayList;
@@ -41,34 +37,27 @@ import java.util.Locale;
 
 /**
  * Interactive Daily Statistics view featuring:
- * 1. 14-day daily km Bar Chart with active day highlight and floating top labels.
- * 2. Left and right navigation arrows to switch between days.
+ * 1. A year-of-days navigator (CalendarNavigatorView) under one header row
+ *    with the Anterior/Próximo arrows and the Dia/Semana/Mês menu.
  * 3. 4-column dashboard grid (Consumo & Eficiência, Bateria & Recargas, Tempo & Velocidade, Altitude).
  * 4. A session timeline beside the hourly distance chart, in matching cards.
  */
 public class DailyStatsView extends LinearLayout {
 
-    private List<DailyStatsProvider.DayItem> days = new ArrayList<>();
-    private int selectedIdx = -1;
     private final Runnable onBack;
 
-    // Day/Week/Month segmented control -- plan/active/STATS-PERIOD-VIEWS-ROADMAP.md.
-    // Week/Month don't drill into one period's individual days (that was the
-    // first cut of this feature); each bar IS a whole week or month, same
-    // shape as Day mode's one-bar-per-day chart, just at a coarser grain
-    // (2026-09-13 rework, "aggregate of the months: Aug, Sep, Oct...").
+    // Dia/Semana/Mês. ONE piece of state, `selected`: Day shows that day, Week
+    // the Monday-start week containing it, Month its calendar month. The
+    // arrows step it by one day/week/month (StatsCalendar.step); the
+    // navigator grid sets it on a tap. Switching Dia/Semana/Mês keeps it, so
+    // the week you were looking at becomes the day/month around the same date.
     private enum Period { DAY, WEEK, MONTH }
     private Period period = Period.DAY;
-    private String periodAnchorDate;
+    private java.time.LocalDate selected;
+    private java.time.LocalDate firstData;
     private TextView periodDropdownLabel;
-    // The recent-N-weeks or recent-N-months window backing the Week/Month
-    // chart, oldest first -- parallel to `days`, which stays Day-mode-only.
-    private List<DailyStatsProvider.PeriodOverview> periodWindow = new ArrayList<>();
-    private int periodSelectedIdx = -1;
-    private static final int WEEK_WINDOW = 8;
-    private static final int MONTH_WINDOW = 12;
 
-    private BarChart chart;
+    private CalendarNavigatorView navigator;
     private TextView navPrevBtn;
     private TextView navNextBtn;
     private TextView navDateLabel;
@@ -121,62 +110,19 @@ public class DailyStatsView extends LinearLayout {
     private void buildSkeleton() {
         Context c = getContext();
 
-        // 1. Title row (with Back Button if onBack is provided)
-        LinearLayout titleRow = new LinearLayout(c);
-        titleRow.setOrientation(LinearLayout.HORIZONTAL);
-        titleRow.setGravity(Gravity.CENTER_VERTICAL);
-        if (onBack != null) {
-            titleRow.addView(Style.backButton(c, onBack));
-            Style.gap(titleRow, c, 16);
-        }
-        titleRow.addView(Style.header(c, "Estatísticas Diárias"));
-        addView(titleRow);
-
-        // 2. Bar Chart (compact 160dp)
-        chart = new BarChart(c);
-        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 160));
-        clp.topMargin = Style.dp(c, 8);
-        chart.setLayoutParams(clp);
-
-        chart.getDescription().setEnabled(false);
-        chart.getLegend().setEnabled(false);
-        chart.setDrawGridBackground(false);
-        chart.setDrawBorders(false);
-        chart.setDoubleTapToZoomEnabled(false);
-        chart.setPinchZoom(false);
-        chart.setScaleEnabled(false);
-        chart.setTouchEnabled(true);
-        chart.setFitBars(true);
-        chart.setExtraBottomOffset(Style.dp(c, 4));
-        chart.setExtraTopOffset(Style.dp(c, 8));
-
-        chart.setOnChartValueSelectedListener(new OnChartValueSelectedListener() {
-            @Override
-            public void onValueSelected(Entry e, Highlight h) {
-                int idx = (int) e.getX();
-                if (period == Period.DAY) {
-                    if (idx >= 0 && idx < days.size() && idx != selectedIdx) {
-                        selectIndex(idx, false);
-                    }
-                } else if (idx >= 0 && idx < periodWindow.size() && idx != periodSelectedIdx) {
-                    selectPeriodIndex(idx, false);
-                }
-            }
-
-            @Override
-            public void onNothingSelected() {}
-        });
-
-        addView(chart);
-        Style.gap(this, c, 14);
-
-        // 3. Left column: Day/Week/Month navigator [ ◀ ]  [ Data ]  [ ▶ ]
-        //    Right column: Dia / Semana / Mês segmented control.
-        // (plan/active/STATS-PERIOD-VIEWS-ROADMAP.md's decided two-column layout)
+        // 1. One header row: title, then the date navigation and the period
+        // menu on the same line. They used to be a row of their own under the
+        // chart; moving them up pays for the navigator's extra height, so the
+        // four cards stay where they were.
         LinearLayout navRow = new LinearLayout(c);
         navRow.setOrientation(LinearLayout.HORIZONTAL);
         navRow.setGravity(Gravity.CENTER_VERTICAL);
+        if (onBack != null) {
+            navRow.addView(Style.backButton(c, onBack));
+            Style.gap(navRow, c, 16);
+        }
+        navRow.addView(Style.header(c, "Estatísticas Diárias"));
+        Style.gap(navRow, c, 24);
 
         LinearLayout dateNav = new LinearLayout(c);
         dateNav.setOrientation(LinearLayout.HORIZONTAL);
@@ -238,7 +184,15 @@ public class DailyStatsView extends LinearLayout {
 
 
         addView(navRow);
-        Style.gap(this, c, 18);
+        Style.gap(this, c, 14);
+
+        // 2. The navigator (replaces the 14-bar chart): a year of days.
+        navigator = new CalendarNavigatorView(c);
+        navigator.setOnPick(this::onPick);
+        addView(navigator, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        Style.gap(this, c, 16);
+
 
         // 4. Aggregated Daily Metric Cards (4-Column Grid)
         LinearLayout dashboardRow = new LinearLayout(c);
@@ -399,189 +353,95 @@ public class DailyStatsView extends LinearLayout {
         addView(bottomRow);
     }
 
-    /** Reloads days from database and renders selected day. */
+    /** Reloads the year of days and renders the current selection. */
     public void refresh() {
-        days = DailyStatsProvider.getRecentDays(getContext(), 14);
-        if (days.isEmpty()) return;
-
-        // Default to latest day (today) if not set or out of bounds
-        if (selectedIdx < 0 || selectedIdx >= days.size()) {
-            selectedIdx = days.size() - 1;
-        }
-
-        updateChartData();
-        selectIndex(selectedIdx, true);
-        // selectIndex() above always (re)renders Day content, needed either
-        // way to keep the 14-day chart's own data current -- if a Week/Month
-        // view was open (e.g. a midnight rollover mid-view), restore it on
-        // top rather than silently dropping back to Day.
-        if (period != Period.DAY) loadPeriod();
+        Context c = getContext();
+        java.time.LocalDate today = java.time.LocalDate.parse(DailyStatsProvider.todayDateStr());
+        java.time.LocalDate from = CalendarNavigatorView.gridStartFor(today);
+        firstData = DailyStatsProvider.firstRecordedDay(c);
+        if (firstData == null || firstData.isAfter(today)) firstData = today;
+        navigator.setData(DailyStatsProvider.getCalendarDays(c, from), firstData);
+        if (selected == null || selected.isAfter(today)) selected = today;
+        render();
     }
 
-    /** Live tick update (telemetry.tick cadence, CarActor.TICK_INTERVAL_MS) while screen is actively displayed. */
+    /** Live tick (telemetry.tick cadence) while the screen is shown: today's
+     * square and, in Day view on today, the cards. A midnight rollover
+     * reloads the whole year. Week/Month are left alone, as before -- a tick
+     * re-rendering them used to snap an open period back (2026-09-13). */
     private void onLiveTick() {
-        if (!isShown() || days == null || days.isEmpty()) return;
-        // Day-only: `selectedIdx` stays pointed at today's index even while
-        // Week/Month is open (it's Day-mode-only state, see the field's own
-        // comment), so without this guard every tick called renderOverview()
-        // below and silently clobbered the open Week/Month view back to a
-        // single day -- the nav label, the four dashboard cards, all reverted
-        // out from under the user a second or two after switching (2026-09-13).
-        if (period != Period.DAY) return;
-        String today = DailyStatsProvider.todayDateStr();
-        int todayIdx = days.size() - 1;
-        if (todayIdx < 0) return;
-
-        // If the date rolled over midnight, re-pull all 14 days
-        if (!days.get(todayIdx).date.equals(today)) {
+        if (!isShown() || selected == null) return;
+        String todayStr = DailyStatsProvider.todayDateStr();
+        java.time.LocalDate today = java.time.LocalDate.parse(todayStr);
+        if (lastLoadedToday != null && !lastLoadedToday.equals(today)) {
+            lastLoadedToday = today;
             refresh();
             return;
         }
-
-        DailyStatsProvider.DayOverview ov = DailyStatsProvider.getDayOverview(getContext(), today);
-
-        // Update today's entry in days list
-        DailyStatsProvider.DayItem lastItem = days.get(todayIdx);
-        days.set(todayIdx, new DailyStatsProvider.DayItem(lastItem.date, lastItem.shortLabel, ov.distanceKm));
-
-        // Live update the last bar on the chart
-        if (chart != null && chart.getData() != null) {
-            BarDataSet ds = (BarDataSet) chart.getData().getDataSetByIndex(0);
-            if (ds != null && todayIdx < ds.getEntryCount()) {
-                BarEntry entry = ds.getEntryForIndex(todayIdx);
-                if (entry != null && Math.abs(entry.getY() - (float) ov.distanceKm) > 0.001f) {
-                    entry.setY((float) ov.distanceKm);
-                    chart.getData().notifyDataChanged();
-                    chart.notifyDataSetChanged();
-                    chart.invalidate();
-                }
-            }
-        }
-
-        // If currently viewing today, update cards and session log
-        if (selectedIdx == todayIdx) {
-            renderOverview(ov);
-        }
-    }
-
-    private void updateChartData() {
-        String[] labels = new String[days.size()];
-        double[] kms = new double[days.size()];
-        for (int i = 0; i < days.size(); i++) {
-            labels[i] = days.get(i).shortLabel;
-            kms[i] = days.get(i).km;
-        }
-        renderBarChart(labels, kms, selectedIdx);
-    }
-
-    /** Draws `chart` from parallel label/km arrays, highlighting
-     * selectedIndex (pass -1 for none). Shared by the Day mode's recent-14
-     * chart and the Week/Month period chart added for plan/active/
-     * STATS-PERIOD-VIEWS-ROADMAP.md — same rendering, different x-axis
-     * entries ("same thing, different element on the x-axis"). */
-    private void renderBarChart(String[] labels, double[] kms, int selectedIndex) {
-        List<BarEntry> entries = new ArrayList<>();
-        List<Integer> colors = new ArrayList<>();
-        for (int i = 0; i < kms.length; i++) {
-            entries.add(new BarEntry(i, (float) kms[i]));
-            colors.add(i == selectedIndex ? Style.ACCENT : tileBarColor());
-        }
-
-        BarDataSet set = new BarDataSet(entries, "km");
-        set.setColors(colors);
-        set.setDrawValues(true);
-        set.setValueFormatter(new ValueFormatter() {
-            @Override
-            public String getFormattedValue(float value) {
-                if (value <= 0) return "";
-                return value >= 10
-                        ? String.format(Locale.US, "%.0f km", value)
-                        : String.format(Locale.US, "%.1f km", value);
-            }
-
-            @Override
-            public String getBarLabel(BarEntry entry) {
-                if (entry == null || entry.getY() <= 0) return "";
-                return entry.getY() >= 10
-                        ? String.format(Locale.US, "%.0f km", entry.getY())
-                        : String.format(Locale.US, "%.1f km", entry.getY());
-            }
-        });
-        set.setValueTextColor(Style.TEXT);
-        set.setValueTextSize(12.5f);
-        set.setHighLightAlpha(0);
-
-        BarData data = new BarData(set);
-        data.setBarWidth(0.68f);
-        chart.setData(data);
-
-        XAxis xAxis = chart.getXAxis();
-        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
-        xAxis.setDrawGridLines(false);
-        xAxis.setTextColor(Style.TEXT_DIM);
-        xAxis.setTextSize(12.5f);
-        xAxis.setGranularity(1f);
-        xAxis.setLabelCount(labels.length);
-        xAxis.setValueFormatter(new IndexAxisValueFormatter(labels));
-
-        // Remove all Y-axis labels, ticks, and horizontal grid lines
-        chart.getAxisLeft().setEnabled(false);
-        chart.getAxisLeft().setAxisMinimum(0f);
-        chart.getAxisLeft().setSpaceTop(25f);
-        chart.getAxisRight().setEnabled(false);
-
-        chart.invalidate();
-    }
-
-    private int tileBarColor() {
-        return Style.blend(Style.CARD_HI, Style.ACCENT, 0.25f);
-    }
-
-    private void selectIndex(int idx, boolean updateChartHighlight) {
-        if (idx < 0 || idx >= days.size()) return;
-        selectedIdx = idx;
-        DailyStatsProvider.DayItem dayItem = days.get(idx);
-
-        // Update nav buttons enable/disable state
-        navPrevBtn.setEnabled(selectedIdx > 0);
-        navPrevBtn.setAlpha(selectedIdx > 0 ? 1.0f : 0.35f);
-        navNextBtn.setEnabled(selectedIdx < days.size() - 1);
-        navNextBtn.setAlpha(selectedIdx < days.size() - 1 ? 1.0f : 0.35f);
-
-        if (chart.getData() != null) {
-            BarDataSet ds = (BarDataSet) chart.getData().getDataSetByIndex(0);
-            if (ds != null) {
-                List<Integer> colors = new ArrayList<>();
-                for (int i = 0; i < days.size(); i++) {
-                    colors.add(i == selectedIdx ? Style.ACCENT : tileBarColor());
-                }
-                ds.setColors(colors);
-                if (updateChartHighlight) {
-                    chart.highlightValue(selectedIdx, 0);
-                }
-                chart.invalidate();
-            }
-        }
-
-        // Fetch day details
-        DailyStatsProvider.DayOverview ov = DailyStatsProvider.getDayOverview(getContext(), dayItem.date);
+        lastLoadedToday = today;
+        if (period != Period.DAY || !selected.equals(today)) return;
+        DailyStatsProvider.DayOverview ov = DailyStatsProvider.getDayOverview(getContext(), todayStr);
+        navigator.updateToday(ov.distanceKm);
         renderOverview(ov);
     }
 
-    private void onNavPrev() {
-        if (period == Period.DAY) {
-            if (selectedIdx > 0) selectIndex(selectedIdx - 1, true);
-        } else if (periodSelectedIdx > 0) {
-            selectPeriodIndex(periodSelectedIdx - 1, true);
+    private java.time.LocalDate lastLoadedToday;
+
+    private com.geely.drivemem.sensors.StatsCalendar.Grain grain() {
+        switch (period) {
+            case WEEK: return com.geely.drivemem.sensors.StatsCalendar.Grain.WEEK;
+            case MONTH: return com.geely.drivemem.sensors.StatsCalendar.Grain.MONTH;
+            default: return com.geely.drivemem.sensors.StatsCalendar.Grain.DAY;
         }
     }
 
-    private void onNavNext() {
+    /** Draws everything for `selected` at the current period. */
+    private void render() {
+        java.time.LocalDate today = java.time.LocalDate.parse(DailyStatsProvider.todayDateStr());
+        lastLoadedToday = today;
+        java.time.LocalDate min = firstData != null ? firstData : today;
+        java.time.LocalDate gridStart = CalendarNavigatorView.gridStartFor(today);
+        if (min.isBefore(gridStart)) min = gridStart;
+        com.geely.drivemem.sensors.StatsCalendar.Grain g = grain();
+
+        navigator.setSelection(g, selected);
+        setNavEnabled(navPrevBtn, com.geely.drivemem.sensors.StatsCalendar.canStep(selected, g, -1, min, today));
+        setNavEnabled(navNextBtn, com.geely.drivemem.sensors.StatsCalendar.canStep(selected, g, +1, min, today));
+
+        Context c = getContext();
+        String date = selected.toString();
         if (period == Period.DAY) {
-            if (selectedIdx < days.size() - 1) selectIndex(selectedIdx + 1, true);
-        } else if (periodSelectedIdx < periodWindow.size() - 1) {
-            selectPeriodIndex(periodSelectedIdx + 1, true);
+            renderOverview(DailyStatsProvider.getDayOverview(c, date));
+        } else {
+            DailyStatsProvider.PeriodOverview po = period == Period.WEEK
+                ? DailyStatsProvider.recentWeeks(c, date, 1).get(0)
+                : DailyStatsProvider.recentMonths(c, date, 1).get(0);
+            renderPeriodCards(po);
         }
+    }
+
+    private static void setNavEnabled(TextView b, boolean on) {
+        b.setEnabled(on);
+        b.setAlpha(on ? 1.0f : 0.35f);
+    }
+
+    private void onNavPrev() { stepBy(-1); }
+    private void onNavNext() { stepBy(+1); }
+
+    private void stepBy(int dir) {
+        java.time.LocalDate today = java.time.LocalDate.parse(DailyStatsProvider.todayDateStr());
+        java.time.LocalDate next = com.geely.drivemem.sensors.StatsCalendar.step(selected, grain(), dir);
+        // A week/month step past today lands on today (its period is still
+        // the one after); a step before the data is refused by canStep().
+        selected = next.isAfter(today) ? today : next;
+        render();
+    }
+
+    /** A tap on the navigator: that day, or the week/month around it. */
+    private void onPick(java.time.LocalDate d) {
+        if (d.equals(selected)) return;
+        selected = d;
+        render();
     }
 
     private static String periodDisplayName(Period p) {
@@ -631,84 +491,13 @@ public class DailyStatsView extends LinearLayout {
         if (period == p) return;
         period = p;
         periodDropdownLabel.setText(periodDisplayName(p));
-
-        if (p == Period.DAY) {
-            updateChartData(); // reload the recent-14 dataset before selectIndex recolors it in place
-            if (selectedIdx >= 0 && selectedIdx < days.size()) selectIndex(selectedIdx, true);
-        } else {
-            if (periodAnchorDate == null) {
-                periodAnchorDate = (selectedIdx >= 0 && selectedIdx < days.size())
-                    ? days.get(selectedIdx).date : DailyStatsProvider.todayDateStr();
-            }
-            periodSelectedIdx = -1; // switching period type: always land on the most recent one
-            loadPeriod();
-        }
+        render();
     }
 
-    /** Loads the recent-N-weeks or recent-N-months window and renders it,
-     * landing on the period containing periodAnchorDate (always the last
-     * entry, by construction) unless periodSelectedIdx already points
-     * in-bounds -- e.g. a refresh() while the user has paged elsewhere in
-     * the window should not silently snap them back to "now" (same
-     * preserve-if-in-bounds rule Day mode's own selectedIdx already
-     * follows). Each bar is one whole week or month now, not one of its
-     * days -- "aggregate of the months: Aug, Sep, Oct..." (2026-09-13
-     * rework; the previous cut drilled into one period's own days, which
-     * wasn't the ask). */
-    private void loadPeriod() {
-        Context c = getContext();
-        periodWindow = period == Period.WEEK
-            ? DailyStatsProvider.recentWeeks(c, periodAnchorDate, WEEK_WINDOW)
-            : DailyStatsProvider.recentMonths(c, periodAnchorDate, MONTH_WINDOW);
-
-        int idx = (periodSelectedIdx >= 0 && periodSelectedIdx < periodWindow.size())
-            ? periodSelectedIdx : periodWindow.size() - 1;
-
-        String[] labels = new String[periodWindow.size()];
-        double[] kms = new double[periodWindow.size()];
-        for (int i = 0; i < periodWindow.size(); i++) {
-            DailyStatsProvider.PeriodOverview po = periodWindow.get(i);
-            String firstDate = po.days.get(0).date;
-            labels[i] = period == Period.WEEK ? weekChartLabel(firstDate) : monthChartLabel(firstDate);
-            kms[i] = po.totals.distanceKm;
-        }
-        renderBarChart(labels, kms, idx);
-        renderPeriodCards(idx);
-    }
-
-    /** Tapping a bar, or Anterior/Próximo, re-highlights `chart` in place
-     * (mirrors selectIndex()'s own cheap in-place recolor) instead of
-     * rebuilding it via renderBarChart -- the window's bars don't change,
-     * only which one is highlighted. */
-    private void selectPeriodIndex(int idx, boolean updateChartHighlight) {
-        if (idx < 0 || idx >= periodWindow.size()) return;
-        if (chart.getData() != null) {
-            BarDataSet ds = (BarDataSet) chart.getData().getDataSetByIndex(0);
-            if (ds != null) {
-                List<Integer> colors = new ArrayList<>();
-                for (int i = 0; i < periodWindow.size(); i++) {
-                    colors.add(i == idx ? Style.ACCENT : tileBarColor());
-                }
-                ds.setColors(colors);
-                if (updateChartHighlight) chart.highlightValue(idx, 0);
-                chart.invalidate();
-            }
-        }
-        renderPeriodCards(idx);
-    }
-
-    /** Nav label, nav-button bounds, and the four dashboard cards for one
-     * entry of `periodWindow` -- shared by loadPeriod()'s initial render and
-     * selectPeriodIndex()'s in-place bar switch. */
-    private void renderPeriodCards(int idx) {
-        periodSelectedIdx = idx;
-        DailyStatsProvider.PeriodOverview po = periodWindow.get(idx);
-
+    /** Nav label, the four dashboard cards and the session list for one
+     * week or month. */
+    private void renderPeriodCards(DailyStatsProvider.PeriodOverview po) {
         navDateLabel.setText(po.periodLabel);
-        navPrevBtn.setEnabled(idx > 0);
-        navPrevBtn.setAlpha(idx > 0 ? 1.0f : 0.35f);
-        navNextBtn.setEnabled(idx < periodWindow.size() - 1);
-        navNextBtn.setAlpha(idx < periodWindow.size() - 1 ? 1.0f : 0.35f);
 
         // Real dates, never po.totals.date: that is the period's label, and
         // a label falls back to one single day (the 2026-09-16 bug again,
@@ -723,7 +512,6 @@ public class DailyStatsView extends LinearLayout {
         renderHourlyChart(DailyStatsProvider.getHourlySpeedData(getContext(), dates));
     }
 
-    /** ISO-ish week-of-year number for the chart x-axis ("30", "31", "32"...). */
     /** Appends a small, wordless "~" mark (dim, undersized, via Style's
      * existing appendUnit -- the same treatment units/asides already get)
      * when a value isn't fully OBD2-measured. No text, one glyph, functions
@@ -734,25 +522,6 @@ public class DailyStatsView extends LinearLayout {
         sb.append(' ');
         Style.appendUnit(sb, "~", 0.85f);
         return sb;
-    }
-
-    static String weekChartLabel(String isoDate) {
-        try {
-            java.util.Calendar cal = java.util.Calendar.getInstance();
-            cal.setTime(new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(isoDate));
-            return String.valueOf(cal.get(java.util.Calendar.WEEK_OF_YEAR));
-        } catch (Exception e) { return isoDate; }
-    }
-
-    /** Short month abbreviation for the chart x-axis ("Ago", "Set", "Out"...). */
-    private static final java.text.SimpleDateFormat MONTH_CHART_FMT =
-        new java.text.SimpleDateFormat("MMM", new Locale("pt", "BR"));
-    static String monthChartLabel(String isoDate) {
-        try {
-            String s = MONTH_CHART_FMT.format(new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(isoDate));
-            s = s.replace(".", ""); // pt-BR abbreviations sometimes carry a trailing dot ("set.")
-            return s.substring(0, 1).toUpperCase(new Locale("pt", "BR")) + s.substring(1);
-        } catch (Exception e) { return isoDate; }
     }
 
     /** Week/Month session log: one header per day (date + that day's distance),
@@ -940,8 +709,8 @@ public class DailyStatsView extends LinearLayout {
             return;
         }
         android.content.Intent i = new android.content.Intent(getContext(), AllRoutesActivity.class);
-        if (period == Period.DAY && selectedIdx >= 0 && selectedIdx < days.size()) {
-            i.putExtra(AllRoutesActivity.EXTRA_DAY, days.get(selectedIdx).date);
+        if (period == Period.DAY && selected != null) {
+            i.putExtra(AllRoutesActivity.EXTRA_DAY, selected.toString());
         }
         getContext().startActivity(i);
     }
