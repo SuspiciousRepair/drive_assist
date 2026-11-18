@@ -70,6 +70,7 @@ public class DailyStatsView extends LinearLayout {
     private TextView sessionsSummary;
     private BarChart hourlyChart;
     private TextView hourlyEmptyState;
+    private View dashboardRowView, bottomRowView;
 
     private final EntityBus.Listener tickListener = (key, reading) -> {
         post(this::onLiveTick);
@@ -78,7 +79,8 @@ public class DailyStatsView extends LinearLayout {
     /** A charge ended or its cost was edited: it can belong to any day and
      * adds a dot to the navigator, so reload the year and the selection. */
     private final EntityBus.Listener chargeListener = (key, reading) -> {
-        post(() -> { if (isShown() && selected != null) refresh(); });
+        post(() -> { synchronized (PERIOD_CACHE) { PERIOD_CACHE.clear(); }
+                     if (isShown() && selected != null) refresh(); });
     };
 
     @Override
@@ -233,6 +235,7 @@ public class DailyStatsView extends LinearLayout {
         dashboardRow.addView(tripCard);
 
         addView(dashboardRow);
+        dashboardRowView = dashboardRow;
         Style.gap(this, c, 20);
 
         // 5. Bottom section: sessions and hourly speed distribution.
@@ -362,6 +365,7 @@ public class DailyStatsView extends LinearLayout {
         chartCard.addView(hourCaption);
         bottomRow.addView(chartCard);
         addView(bottomRow);
+        bottomRowView = bottomRow;
     }
 
     /** Reloads the year of days and renders the current selection. */
@@ -414,6 +418,43 @@ public class DailyStatsView extends LinearLayout {
         DailyStatsProvider.HourlySpeedData hourly;
     }
 
+    /** Past periods do not change (a charge event clears it), so a week or
+     * month seen once comes back at once: a month costs ~2 s to read (a full
+     * pass over its samples for the hourly chart and the speed buckets). */
+    private static final java.util.Map<String, Loaded> PERIOD_CACHE =
+        new java.util.LinkedHashMap<String, Loaded>(32, 0.75f, true) {
+            @Override protected boolean removeEldestEntry(java.util.Map.Entry<String, Loaded> e) {
+                return size() > 40;
+            }
+        };
+
+    private static Loaded loadCached(Context c, Period p, String date) {
+        java.time.LocalDate d = java.time.LocalDate.parse(date);
+        com.geely.drivemem.sensors.StatsCalendar.Grain g = p == Period.WEEK
+            ? com.geely.drivemem.sensors.StatsCalendar.Grain.WEEK
+            : p == Period.MONTH ? com.geely.drivemem.sensors.StatsCalendar.Grain.MONTH
+            : com.geely.drivemem.sensors.StatsCalendar.Grain.DAY;
+        java.time.LocalDate[] span = com.geely.drivemem.sensors.StatsCalendar.period(d, g);
+        boolean past = com.geely.drivemem.sensors.StatsCalendar.isFrozen(
+            span[1], java.time.LocalDate.parse(DailyStatsProvider.todayDateStr()));
+        String key = p + ":" + span[0];
+        if (past) synchronized (PERIOD_CACHE) {
+            Loaded hit = PERIOD_CACHE.get(key);
+            if (hit != null) return hit;
+        }
+        Loaded l = load(c, p, date);
+        if (past) synchronized (PERIOD_CACHE) { PERIOD_CACHE.put(key, l); }
+        return l;
+    }
+
+    /** Cards at half strength while a slow load runs, so the old numbers are
+     * not read as the new selection's. */
+    private void dimCards(boolean dim) {
+        float a = dim ? 0.45f : 1f;
+        if (dashboardRowView != null) dashboardRowView.setAlpha(a);
+        if (bottomRowView != null) bottomRowView.setAlpha(a);
+    }
+
     private static Loaded load(Context c, Period p, String date) {
         Loaded l = new Loaded();
         l.date = date;
@@ -443,13 +484,15 @@ public class DailyStatsView extends LinearLayout {
         final String date = selected.toString();
         final Context c = getContext().getApplicationContext();
         loading = true;
+        postDelayed(() -> { if (gen == loadGen && loading) dimCards(true); }, 150);
         LOADER.execute(() -> {
             long t0 = android.os.SystemClock.uptimeMillis();
-            Loaded l = load(c, p, date);
+            Loaded l = loadCached(c, p, date);
             long ms = android.os.SystemClock.uptimeMillis() - t0;
             post(() -> {
                 if (gen != loadGen) return;
                 loading = false;
+                dimCards(false);
                 long u0 = android.os.SystemClock.uptimeMillis();
                 if (l.po == null) {
                     if (l.date.equals(DailyStatsProvider.todayDateStr())) navigator.updateToday(l.ov.distanceKm);
@@ -639,6 +682,10 @@ public class DailyStatsView extends LinearLayout {
         List<DailyStatsProvider.DayOverview> orderedDays = new ArrayList<>(period.days);
         Collections.reverse(orderedDays); // newest day first
 
+        // A month is ~150 cards: built all at once they held the UI thread
+        // for half a second. The first screenful goes in now, the rest a
+        // chunk per frame (addChunked), dropped if a newer render starts.
+        List<java.util.function.Supplier<View>> items = new ArrayList<>();
         long ninetyDaysAgoMs = System.currentTimeMillis() - 90L * 24 * 3600 * 1000;
         boolean anyRendered = false;
         for (DailyStatsProvider.DayOverview day : orderedDays) {
@@ -646,19 +693,21 @@ public class DailyStatsView extends LinearLayout {
             if (!hadActivity) continue; // a quiet day: skip rather than clutter the list
 
             anyRendered = true;
-            sessionsContainer.addView(periodDayHeader(day));
+            items.add(() -> periodDayHeader(day));
 
             if (day.sessions.isEmpty()) {
                 long dayMs = parseDayMs(day.date);
                 String msg = (dayMs > 0 && dayMs < ninetyDaysAgoMs)
                     ? "Detalhes indisponíveis — mais de 90 dias"
                     : "Sem detalhes de sessão para este dia.";
-                TextView unavailable = new TextView(c);
-                unavailable.setText(msg);
-                unavailable.setTextColor(Style.TEXT_DIM);
-                unavailable.setTextSize(14f);
-                unavailable.setPadding(Style.dp(c, 30), Style.dp(c, 2), 0, Style.dp(c, 10));
-                sessionsContainer.addView(unavailable);
+                items.add(() -> {
+                    TextView unavailable = new TextView(c);
+                    unavailable.setText(msg);
+                    unavailable.setTextColor(Style.TEXT_DIM);
+                    unavailable.setTextSize(14f);
+                    unavailable.setPadding(Style.dp(c, 30), Style.dp(c, 2), 0, Style.dp(c, 10));
+                    return unavailable;
+                });
                 continue;
             }
 
@@ -666,21 +715,43 @@ public class DailyStatsView extends LinearLayout {
             Collections.reverse(ordered);
             long dayStartMs = parseDayMs(day.date);
             for (DailyStatsProvider.DaySession s : ordered) {
-                View card = buildSessionCard(s, dayStartMs);
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                lp.topMargin = Style.dp(c, 6);
-                card.setLayoutParams(lp);
-                sessionsContainer.addView(card);
+                items.add(() -> {
+                    View card = buildSessionCard(s, dayStartMs);
+                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                    lp.topMargin = Style.dp(c, 6);
+                    card.setLayoutParams(lp);
+                    return card;
+                });
             }
-            Style.gap(sessionsContainer, c, 10);
+            items.add(() -> {
+                View gap = new View(c);
+                gap.setLayoutParams(new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 10)));
+                return gap;
+            });
         }
+        addChunked(items);
 
         if (!anyRendered) {
             TextView empty = Style.label(c, "Nenhuma viagem ou recarga registrada neste período.");
             empty.setPadding(0, Style.dp(c, 20), 0, Style.dp(c, 20));
             sessionsContainer.addView(empty);
         }
+    }
+
+    private int sessionsGen;
+
+    /** Adds the views a chunk per frame; a newer list (sessionsGen) stops it. */
+    private void addChunked(List<java.util.function.Supplier<View>> items) {
+        addChunk(items, 0, ++sessionsGen);
+    }
+
+    private void addChunk(List<java.util.function.Supplier<View>> items, int from, int gen) {
+        if (gen != sessionsGen) return;
+        int end = Math.min(items.size(), from + 12);
+        for (int i = from; i < end; i++) sessionsContainer.addView(items.get(i).get());
+        if (end < items.size()) post(() -> addChunk(items, end, gen));
     }
 
     private View periodDayHeader(DailyStatsProvider.DayOverview day) {
@@ -1307,6 +1378,7 @@ public class DailyStatsView extends LinearLayout {
     private void renderSessions(DailyStatsProvider.DayOverview ov) {
         Context c = getContext();
         sessionsContainer.removeAllViews();
+        sessionsGen++;   // stops a month list still being added
         int trips = 0;
         int charges = 0;
         int valets = 0;
