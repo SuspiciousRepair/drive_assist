@@ -77,6 +77,49 @@ final class ChargeSpots {
         return out;
     }
 
+    /** One charge of the charging page's map: its id, place and type. */
+    static final class Placed {
+        final long id;
+        final double lat, lon;
+        final boolean dc;
+        Placed(long id, double lat, double lon, boolean dc) {
+            this.id = id; this.lat = lat; this.lon = lon; this.dc = dc;
+        }
+    }
+
+    /** One place on the charging page's map: a spot, and the charges at it
+     * (ids, in the order given). */
+    static final class Place {
+        final double lat, lon;
+        boolean dc;
+        final List<Long> ids = new ArrayList<>();
+        Place(double lat, double lon) { this.lat = lat; this.lon = lon; }
+        int count() { return ids.size(); }
+    }
+
+    /** The charges grouped into places by the same rule as {@link #cluster}:
+     * a charge joins the first place within SAME_PLACE_M, else starts one.
+     * A place that had any DC charge is DC. */
+    static List<Place> places(List<Placed> charges) {
+        List<Place> out = new ArrayList<>();
+        for (Placed c : charges) {
+            Place hit = null;
+            for (Place p : out) {
+                if (distanceM(p.lat, p.lon, c.lat, c.lon) <= SAME_PLACE_M) { hit = p; break; }
+            }
+            if (hit == null) { hit = new Place(c.lat, c.lon); out.add(hit); }
+            hit.ids.add(c.id);
+            if (c.dc) hit.dc = true;
+        }
+        return out;
+    }
+
+    /** Index of the place that holds charge id, or -1. */
+    static int placeOf(List<Place> places, long id) {
+        for (int i = 0; i < places.size(); i++) if (places.get(i).ids.contains(id)) return i;
+        return -1;
+    }
+
     /** The spots inside the box around the given route points, widened by
      * marginM on every side. One day of All routes uses this: the spots count
      * in the fit, so one far charge from another month made a day of city

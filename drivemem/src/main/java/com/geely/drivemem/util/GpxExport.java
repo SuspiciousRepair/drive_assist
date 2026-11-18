@@ -28,8 +28,8 @@ import java.util.TimeZone;
 import java.util.regex.Pattern;
 
 /** Trip routes as GPX files (issue #82), for Google Earth, Google My Maps
- * and most map apps. The app has no map of its own (no map API), so a real
- * map app is where a month of driving is seen on streets.
+ * and most map apps: a full map app (search, Street View, satellite) for a
+ * month of driving. The app's own route maps are in RouteView.
  *
  * One file per day, one track per trip, in the order driven. On the USB
  * stick the days go in a folder per month: Routes/2026-11/...-2026-11-17.gpx. Each point

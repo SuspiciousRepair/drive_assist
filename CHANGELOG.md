@@ -3,6 +3,20 @@
 ## [Unreleased]
 
 ### Changed
+- **Trip routes are on a map.** The trip route and All routes screens now
+  draw the route over an OpenStreetMap map, with the streets under the
+  line. No API key and no use limit. The map is kept on the car, so a
+  place seen once shows again with no internet; with no internet and no
+  saved map, the route shows on the plain background as before.
+- **Charging page: where we charged.** A map card next to the battery
+  range chart shows a pin at each place the car charged in the month or
+  year shown, with the number of charges there. Touch a pin to select its
+  newest charge in the list and the chart; selecting a charge lights its
+  pin. Only charges from 16 Nov 2026 on saved their place, so older
+  charges have no pin.
+- **Config → System → Trip routes: clear the saved map.** Shows how much
+  map is saved in the car, with a button to clear it. The map downloads
+  again the next time it is shown.
 - **Config → Drive mode: the regen buttons show the regen icon.** Low,
   Medium and High now show the same ring as the Turbo card and the
   floating panel, filled to their level, in place of the three dots.

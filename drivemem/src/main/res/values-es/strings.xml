@@ -432,6 +432,8 @@
     <!-- charging power curve dialog -->
     <string name="charge_sessions_title">Sesiones de carga · más recientes primero</string>
     <string name="charge_soc_chart_title">Rango de batería · más recientes primero</string>
+    <string name="charge_map_title">Dónde cargamos</string>
+    <string name="charge_map_none">Ninguna carga de este período guardó su lugar.</string>
     <string name="charge_curve_title">Potencia de carga en el tiempo</string>
     <string name="charge_curve_unavailable">Muestras no disponibles para esta sesión.</string>
     <string name="charge_curve_power_label">Potencia (kW)</string>
@@ -522,6 +524,9 @@
     <string name="routes_header">Rutas de los viajes</string>
     <string name="routes_enable_label">Grabar las rutas de los viajes (GPS)</string>
     <string name="routes_hint">Guarda por dónde pasó cada viaje y dónde se hizo cada carga. Se queda en el coche: no se envía nada a ningún sitio. Entra en tu copia de seguridad. Los viajes de antes de esta opción no tienen ruta.</string>
+    <string name="routes_map_size">Mapa guardado: %1$s MB</string>
+    <string name="routes_map_clear">Borrar mapa guardado</string>
+    <string name="routes_map_cleared">Mapa guardado borrado</string>
     <string name="route_title">Ruta</string>
     <string name="route_none">Este viaje no tiene ruta. Las rutas se guardan en los viajes hechos con Config → Sistema → Rutas de los viajes activado.</string>
     <string name="routes_all_title">Todas las rutas</string>

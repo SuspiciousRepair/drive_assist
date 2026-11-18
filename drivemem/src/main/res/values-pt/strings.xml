@@ -443,6 +443,8 @@
     <string name="charge_stats_title">Estatísticas de recarga</string>
     <string name="charge_sessions_title">Recargas · mais recentes primeiro</string>
     <string name="charge_soc_chart_title">Faixa da bateria · mais recentes primeiro</string>
+    <string name="charge_map_title">Onde carregamos</string>
+    <string name="charge_map_none">Nenhuma recarga deste período salvou o local.</string>
     <string name="charge_curve_title">Potência de recarga ao longo do tempo</string>
     <string name="charge_curve_unavailable">As amostras desta recarga não estão mais disponíveis.</string>
     <string name="charge_curve_power_label">Potência (kW)</string>
@@ -534,6 +536,9 @@
     <string name="routes_header">Rotas das viagens</string>
     <string name="routes_enable_label">Gravar as rotas das viagens (GPS)</string>
     <string name="routes_hint">Salva por onde cada viagem passou e onde cada carga foi feita. Fica no carro: nada é enviado para lugar nenhum. Entra no seu backup. Viagens de antes desta opção não têm rota.</string>
+    <string name="routes_map_size">Mapa salvo: %1$s MB</string>
+    <string name="routes_map_clear">Apagar mapa salvo</string>
+    <string name="routes_map_cleared">Mapa salvo apagado</string>
     <string name="route_title">Rota</string>
     <string name="route_none">Esta viagem não tem rota. As rotas são salvas nas viagens feitas com Config → Sistema → Rotas das viagens ligado.</string>
     <string name="routes_all_title">Todas as rotas</string>
