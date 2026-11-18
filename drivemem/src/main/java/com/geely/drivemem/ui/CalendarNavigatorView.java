@@ -27,16 +27,18 @@ import java.util.Map;
  * week (Monday on top), one square per day, coloured by that day's km on the
  * driver's own scale (StatsCalendar.levelCuts). It replaces the 14-bar chart.
  *
- * The selected period is a light-blue outline traced around its squares: one
- * column for a week, the month's stepped shape for a month. In Day view the
- * week stays outlined and a smaller box marks the day inside it.
+ * The selected period is a light-blue outline traced around its squares: the
+ * day's own square, one column for a week, the month's stepped shape for a
+ * month. One box only (owner, 2026-11-18: a week box around the day box read
+ * as two selections).
  *
  * TAP ONLY, NO DRAG. The page sits inside a ScrollView inside the pager's
- * HorizontalScrollView; a drag here would fight both. Precision comes from
- * the Anterior/Próximo arrows, so a tap only has to land near the right place.
- * A square is ~4 mm on this glass (1 dp = 1 px, see CLAUDE.md), too small to
- * hit exactly, which is why a tap in Week view takes the whole COLUMN — a tall
- * target — and the row only matters in Day view.
+ * HorizontalScrollView. Every square is its own target (~4.5 mm on this
+ * glass, 1 dp = 1 px, see CLAUDE.md), so a tap must not be lost to a finger
+ * that rolls a few px: the parents are told to keep out until the finger has
+ * moved more than a third of a square, and a tap goes to the NEAREST square,
+ * gaps included. A real drag (past that) is handed back to the parents so the
+ * page still scrolls from here.
  */
 public class CalendarNavigatorView extends View {
 
@@ -218,23 +220,9 @@ public class CalendarNavigatorView extends View {
             }
         }
 
-        // the period outline (a week stays outlined in Day view)
-        StatsCalendar.Grain shape = grain == StatsCalendar.Grain.DAY ? StatsCalendar.Grain.WEEK : grain;
-        LocalDate[] p = StatsCalendar.period(selected, shape);
+        // the period outline: the day, the week or the month
+        LocalDate[] p = StatsCalendar.period(selected, grain);
         drawOutline(cv, p[0], p[1]);
-
-        // Day view: a smaller box on the day itself
-        if (grain == StatsCalendar.Grain.DAY) {
-            long idx = java.time.temporal.ChronoUnit.DAYS.between(gridStart, selected);
-            if (idx >= 0) {
-                int col = (int) (idx / 7), rw = (int) (idx % 7);
-                float in = Style.dp(getContext(), 1);
-                r.set(colX(col) - in, rowY(rw) - in, colX(col) + cell + in, rowY(rw) + cell + in);
-                stroke.setColor(Style.TEXT);
-                stroke.setStrokeWidth(Style.dp(getContext(), 3));
-                cv.drawRoundRect(r, rad + in, rad + in, stroke);
-            }
-        }
 
         drawLegend(cv);
     }
@@ -339,9 +327,14 @@ public class CalendarNavigatorView extends View {
         switch (e.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
                 downX = e.getX(); downY = e.getY();
+                if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
+                return true;
+            case MotionEvent.ACTION_MOVE:
+                if (moved(e) && getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
                 return true;
             case MotionEvent.ACTION_UP:
-                if (Math.abs(e.getX() - downX) > touchSlop || Math.abs(e.getY() - downY) > touchSlop) return true;
+                if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
+                if (moved(e)) return true;
                 LocalDate d = dateAt(e.getX(), e.getY());
                 if (d != null && onPick != null) {
                     performClick();
@@ -353,6 +346,13 @@ public class CalendarNavigatorView extends View {
         }
     }
 
+    /** A drag, not a tap: past a third of a square (and never under the
+     * system slop). */
+    private boolean moved(MotionEvent e) {
+        float lim = Math.max(touchSlop, pitch / 3f);
+        return Math.abs(e.getX() - downX) > lim || Math.abs(e.getY() - downY) > lim;
+    }
+
     @Override
     public boolean performClick() { return super.performClick(); }
 
@@ -361,8 +361,10 @@ public class CalendarNavigatorView extends View {
      * recorded day. Null only when there is nothing to pick. */
     private LocalDate dateAt(float x, float y) {
         if (pitch <= 0) return null;
-        int col = Math.max(0, Math.min(WEEKS - 1, (int) Math.floor((x - gridX) / pitch)));
-        int rw = Math.max(0, Math.min(6, (int) Math.floor((y - gridY) / pitch)));
+        // nearest square: measured from the square's centre, so a tap in a
+        // gap goes to whichever square it is closer to
+        int col = Math.max(0, Math.min(WEEKS - 1, Math.round((x - gridX - cell / 2f) / pitch)));
+        int rw = Math.max(0, Math.min(6, Math.round((y - gridY - cell / 2f) / pitch)));
         LocalDate d = gridStart.plusDays(col * 7L + rw);
         LocalDate min = firstData == null ? today : firstData;
         if (min.isBefore(gridStart)) min = gridStart;

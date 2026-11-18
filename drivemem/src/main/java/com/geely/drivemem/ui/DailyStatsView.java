@@ -69,7 +69,6 @@ public class DailyStatsView extends LinearLayout {
     private LinearLayout sessionsContainer;
     private TextView sessionsSummary;
     private BarChart hourlyChart;
-    private TextView hourlySummary;
     private TextView hourlyEmptyState;
 
     private final EntityBus.Listener tickListener = (key, reading) -> {
@@ -285,9 +284,9 @@ public class DailyStatsView extends LinearLayout {
         // made it stretch to the full sessions card, leaving a large empty
         // area below the fixed-height plot whenever the day had many sessions.
         chartCard.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        hourlySummary = sectionSummary(c);
-        hourlySummary.setTextColor(Style.TEXT);
-        chartCard.addView(sectionHeading(c, "Distância por Hora & Velocidade", hourlySummary));
+        // No total here: the title and the Viagem card carry the odometer
+        // total, and this one (summed sample to sample) ran ~1% short of it.
+        chartCard.addView(sectionHeading(c, "Distância por Hora & Velocidade", null));
         chartCard.addView(sectionCaption(c, "Distância em km · cores por faixa de velocidade"));
 
         // The legend owns its own row above the plot. It can never share the
@@ -367,15 +366,101 @@ public class DailyStatsView extends LinearLayout {
 
     /** Reloads the year of days and renders the current selection. */
     public void refresh() {
-        Context c = getContext();
-        java.time.LocalDate today = java.time.LocalDate.parse(DailyStatsProvider.todayDateStr());
-        java.time.LocalDate from = CalendarNavigatorView.gridStartFor(today);
-        firstData = DailyStatsProvider.firstRecordedDay(c);
-        if (firstData == null || firstData.isAfter(today)) firstData = today;
-        navigator.setData(DailyStatsProvider.getCalendarDays(c, from), firstData);
-        selected = selected == null ? today
-            : com.geely.drivemem.sensors.StatsCalendar.clamp(selected, navMin(today), today);
-        render();
+        final Context c = getContext().getApplicationContext();
+        final java.time.LocalDate today = java.time.LocalDate.parse(DailyStatsProvider.todayDateStr());
+        final int gen = ++yearGen;
+        LOADER.execute(() -> {
+            long t0 = android.os.SystemClock.uptimeMillis();
+            java.time.LocalDate first = DailyStatsProvider.firstRecordedDay(c);
+            List<com.geely.drivemem.sensors.StatsCalendar.Cell> days =
+                DailyStatsProvider.getCalendarDays(c, CalendarNavigatorView.gridStartFor(today));
+            long ms = android.os.SystemClock.uptimeMillis() - t0;
+            post(() -> {
+                if (gen != yearGen) return;
+                android.util.Log.d(TAG, "year loaded in " + ms + " ms");
+                firstData = first == null || first.isAfter(today) ? today : first;
+                navigator.setData(days, firstData);
+                selected = selected == null ? today
+                    : com.geely.drivemem.sensors.StatsCalendar.clamp(selected, navMin(today), today);
+                render();
+            });
+        });
+    }
+
+    // ---- loading off the UI thread ----
+    // Every query used to run on the UI thread: a tap on a month built 30 day
+    // overviews and walked a month of samples before the screen could answer,
+    // which is what made the page feel stuck (owner, 2026-11-18). Now the
+    // selection box moves at once and the cards follow when the data is in.
+    // One thread, so loads finish in order; a generation number drops any
+    // result that a newer tap has already replaced.
+
+    private static final String TAG = "DailyStats";
+    private static final java.util.concurrent.ExecutorService LOADER =
+        java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "stats-load");
+            t.setDaemon(true);
+            return t;
+        });
+    private int loadGen, yearGen;
+    private boolean loading;
+
+    /** Everything the cards need for one selection, read off the UI thread. */
+    private static final class Loaded {
+        String date;
+        DailyStatsProvider.DayOverview ov;          // Day view
+        DailyStatsProvider.PeriodOverview po;       // Week / Month view
+        DailyStatsProvider.SpeedBucket[] buckets;
+        DailyStatsProvider.HourlySpeedData hourly;
+    }
+
+    private static Loaded load(Context c, Period p, String date) {
+        Loaded l = new Loaded();
+        l.date = date;
+        if (p == Period.DAY) {
+            l.ov = DailyStatsProvider.getDayOverview(c, date);
+            l.buckets = DailyStatsProvider.getSpeedBucketEfficiency(c, date);
+            l.hourly = DailyStatsProvider.getHourlySpeedData(c, date);
+        } else {
+            l.po = p == Period.WEEK
+                ? DailyStatsProvider.recentWeeks(c, date, 1).get(0)
+                : DailyStatsProvider.recentMonths(c, date, 1).get(0);
+            // Real dates, never po.totals.date: that is the period's label,
+            // and a label falls back to one single day (the 2026-09-16 bug
+            // again, found on the Week speed chart 2026-09-30).
+            List<String> dates = new ArrayList<>(l.po.days.size());
+            for (DailyStatsProvider.DayOverview d : l.po.days) dates.add(d.date);
+            l.buckets = DailyStatsProvider.getSpeedBucketEfficiency(c, dates);
+            l.hourly = DailyStatsProvider.getHourlySpeedData(c, dates);
+        }
+        return l;
+    }
+
+    /** Loads the current selection in the background and shows it. */
+    private void loadAndShow() {
+        final int gen = ++loadGen;
+        final Period p = period;
+        final String date = selected.toString();
+        final Context c = getContext().getApplicationContext();
+        loading = true;
+        LOADER.execute(() -> {
+            long t0 = android.os.SystemClock.uptimeMillis();
+            Loaded l = load(c, p, date);
+            long ms = android.os.SystemClock.uptimeMillis() - t0;
+            post(() -> {
+                if (gen != loadGen) return;
+                loading = false;
+                long u0 = android.os.SystemClock.uptimeMillis();
+                if (l.po == null) {
+                    if (l.date.equals(DailyStatsProvider.todayDateStr())) navigator.updateToday(l.ov.distanceKm);
+                    renderOverview(l.ov, l.buckets, l.hourly);
+                } else {
+                    renderPeriodCards(l.po, l.buckets, l.hourly);
+                }
+                android.util.Log.d(TAG, p + " " + date + ": load " + ms + " ms, draw "
+                    + (android.os.SystemClock.uptimeMillis() - u0) + " ms");
+            });
+        });
     }
 
     /** The earliest day the arrows may reach: the first record, but never
@@ -400,10 +485,8 @@ public class DailyStatsView extends LinearLayout {
             return;
         }
         lastLoadedToday = today;
-        if (period != Period.DAY || !selected.equals(today)) return;
-        DailyStatsProvider.DayOverview ov = DailyStatsProvider.getDayOverview(getContext(), todayStr);
-        navigator.updateToday(ov.distanceKm);
-        renderOverview(ov);
+        if (period != Period.DAY || !selected.equals(today) || loading) return;
+        loadAndShow();
     }
 
     private java.time.LocalDate lastLoadedToday;
@@ -418,6 +501,7 @@ public class DailyStatsView extends LinearLayout {
 
     /** Draws everything for `selected` at the current period. */
     private void render() {
+        if (selected == null) return;   // the year is still loading
         java.time.LocalDate today = java.time.LocalDate.parse(DailyStatsProvider.todayDateStr());
         lastLoadedToday = today;
         java.time.LocalDate min = navMin(today);
@@ -427,16 +511,7 @@ public class DailyStatsView extends LinearLayout {
         setNavEnabled(navPrevBtn, com.geely.drivemem.sensors.StatsCalendar.canStep(selected, g, -1, min, today));
         setNavEnabled(navNextBtn, com.geely.drivemem.sensors.StatsCalendar.canStep(selected, g, +1, min, today));
 
-        Context c = getContext();
-        String date = selected.toString();
-        if (period == Period.DAY) {
-            renderOverview(DailyStatsProvider.getDayOverview(c, date));
-        } else {
-            DailyStatsProvider.PeriodOverview po = period == Period.WEEK
-                ? DailyStatsProvider.recentWeeks(c, date, 1).get(0)
-                : DailyStatsProvider.recentMonths(c, date, 1).get(0);
-            renderPeriodCards(po);
-        }
+        loadAndShow();
     }
 
     private static void setNavEnabled(TextView b, boolean on) {
@@ -448,6 +523,7 @@ public class DailyStatsView extends LinearLayout {
     private void onNavNext() { stepBy(+1); }
 
     private void stepBy(int dir) {
+        if (selected == null) return;
         java.time.LocalDate today = java.time.LocalDate.parse(DailyStatsProvider.todayDateStr());
         // A week/month step past today lands on today, one before the first
         // record lands on that record (its period is still the one stepped to).
@@ -515,20 +591,16 @@ public class DailyStatsView extends LinearLayout {
 
     /** Nav label, the four dashboard cards and the session list for one
      * week or month. */
-    private void renderPeriodCards(DailyStatsProvider.PeriodOverview po) {
+    private void renderPeriodCards(DailyStatsProvider.PeriodOverview po,
+                                   DailyStatsProvider.SpeedBucket[] buckets,
+                                   DailyStatsProvider.HourlySpeedData hourly) {
         navDateLabel.setText(withKm(po.periodLabel, po.totals.distanceKm));
-
-        // Real dates, never po.totals.date: that is the period's label, and
-        // a label falls back to one single day (the 2026-09-16 bug again,
-        // found on the Week speed chart 2026-09-30).
-        List<String> dates = new ArrayList<>(po.days.size());
-        for (DailyStatsProvider.DayOverview d : po.days) dates.add(d.date);
-        renderConsumptionCard(po.totals, DailyStatsProvider.getSpeedBucketEfficiency(getContext(), dates));
+        renderConsumptionCard(po.totals, buckets);
         renderBatteryCard(po.totals); // pii: allow (17-char identifier, not a VIN)
         renderEnergyCard(po.totals);
         renderTripCard(po.totals);
         renderPeriodSessions(po);
-        renderHourlyChart(DailyStatsProvider.getHourlySpeedData(getContext(), dates));
+        renderHourlyChart(hourly);
     }
 
     /** Appends a small, wordless "~" mark (dim, undersized, via Style's
@@ -668,7 +740,9 @@ public class DailyStatsView extends LinearLayout {
                          : String.format(Locale.getDefault(), "%.1f", km);
     }
 
-    private void renderOverview(DailyStatsProvider.DayOverview ov) {
+    private void renderOverview(DailyStatsProvider.DayOverview ov,
+                                DailyStatsProvider.SpeedBucket[] buckets,
+                                DailyStatsProvider.HourlySpeedData hourly) {
         if (ov.displayDate != null && !ov.displayDate.isEmpty()) {
             navDateLabel.setText(withKm(
                 Character.toUpperCase(ov.displayDate.charAt(0)) + ov.displayDate.substring(1), ov.distanceKm));
@@ -677,14 +751,14 @@ public class DailyStatsView extends LinearLayout {
         }
 
         // 4-Column Middle Section
-        renderConsumptionCard(ov, DailyStatsProvider.getSpeedBucketEfficiency(getContext(), ov.date));
+        renderConsumptionCard(ov, buckets);
         renderBatteryCard(ov);
         renderEnergyCard(ov);
         renderTripCard(ov);
 
         // Bottom Section: Sessions
         renderSessions(ov);
-        renderHourlyChart(DailyStatsProvider.getHourlySpeedData(getContext(), ov.date));
+        renderHourlyChart(hourly);
     }
 
     private void renderHourlyChart(DailyStatsProvider.HourlySpeedData data) {
@@ -705,8 +779,6 @@ public class DailyStatsView extends LinearLayout {
         BarData chartData = new BarData(set);
         chartData.setBarWidth(.72f);
         hourlyChart.getXAxis().setValueFormatter(new IndexAxisValueFormatter(labels));
-        hourlySummary.setText(valueWithUnit(String.format(Locale.US, "%.1f", totalKm),
-                null, "km", ROW_UNIT_SCALE));
         hourlyEmptyState.setVisibility(totalKm > 0 ? View.GONE : View.VISIBLE);
         if (totalKm > 0) hourlyChart.getAxisLeft().resetAxisMaximum();
         else hourlyChart.getAxisLeft().setAxisMaximum(1f);
@@ -763,8 +835,10 @@ public class DailyStatsView extends LinearLayout {
         heading.setTextSize(16);
         heading.setTypeface(null, Typeface.BOLD);
         row.addView(heading, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        summary.setPadding(Style.dp(c, 12), 0, 0, 0);
-        row.addView(summary);
+        if (summary != null) {
+            summary.setPadding(Style.dp(c, 12), 0, 0, 0);
+            row.addView(summary);
+        }
         return row;
     }
 
