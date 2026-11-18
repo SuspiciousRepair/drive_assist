@@ -476,10 +476,6 @@
     <string name="charge_curve_unavailable">ไม่มีข้อมูลตัวอย่างสำหรับการชาร์จนี้แล้ว</string>
 
     <!-- energy balance chart -->
-    <string name="charge_balance_title">สมดุลพลังงาน</string>
-    <string name="charge_balance_hint">แตะที่แถบเพื่อดูรายละเอียด</string>
-    <string name="charge_balance_spent">ใช้ไป</string>
-    <string name="charge_balance_regen">คืนพลังงาน</string>
 
     <!-- software update dialog & prompt -->
     <string name="update_dialog_title">มีการอัปเดตซอฟต์แวร์</string>
@@ -678,4 +674,10 @@
     <string name="phone_routes_day">ทั้งวัน</string>
     <string name="phone_routes_trip">การเดินทางนี้</string>
     <string name="phone_msg_no_route">ยังไม่มีการเดินทางที่บันทึกเส้นทาง</string>
+    <string name="soc_history_title">แบตเตอรี่ตามเวลา</string>
+    <string name="soc_history_none">ไม่มีวันที่ต่ำกว่า %1$d%% · ต่ำสุด %2$d%% วันที่ %3$s</string>
+    <string name="soc_history_empty">ไม่มีข้อมูลแบตเตอรี่ในช่วงนี้</string>
+    <plurals name="soc_history_below">
+        <item quantity="other">%1$d วันที่ต่ำกว่า %2$d%% · ต่ำสุด %3$d%% วันที่ %4$s</item>
+    </plurals>
 </resources>

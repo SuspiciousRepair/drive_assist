@@ -457,10 +457,6 @@
     <string name="charge_stat_cost_100km">Coste / 100 km</string>
 
     <!-- energy balance chart -->
-    <string name="charge_balance_title">Balance de energía</string>
-    <string name="charge_balance_hint">Toca una barra para ver detalles</string>
-    <string name="charge_balance_spent">Consumo</string>
-    <string name="charge_balance_regen">Regeneración</string>
     <!-- software update dialog -->
     <string name="update_dialog_title">Actualización de software disponible</string>
     <string name="update_dialog_title_target">Actualización %1$s disponible</string>
@@ -662,4 +658,11 @@
     <string name="phone_routes_day">Día completo</string>
     <string name="phone_routes_trip">Este viaje</string>
     <string name="phone_msg_no_route">Todavía no hay viajes con ruta grabada.</string>
+    <string name="soc_history_title">Batería en el tiempo</string>
+    <string name="soc_history_none">Ningún día por debajo del %1$d%% · mínimo %2$d%% el %3$s</string>
+    <string name="soc_history_empty">Sin datos de batería en este período</string>
+    <plurals name="soc_history_below">
+        <item quantity="one">%1$d día por debajo del %2$d%% · mínimo %3$d%% el %4$s</item>
+        <item quantity="other">%1$d días por debajo del %2$d%% · mínimo %3$d%% el %4$s</item>
+    </plurals>
 </resources>

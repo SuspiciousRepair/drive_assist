@@ -37,7 +37,7 @@ public class ChargeStatsView extends LinearLayout {
 
     private LinearLayout headerContainer;
     private LinearLayout kpiContainer;
-    private EnergyBalanceChart energyBalanceChart;
+    private SocHistoryChart socHistoryChart;
     private LinearLayout listContainer;
     private ScrollView sessionListScroll;
     private ChargeSocChart chargeSocChart;
@@ -166,32 +166,26 @@ public class ChargeStatsView extends LinearLayout {
         chartCard.addView(chargeSocChart, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        // Energy Balance sits below the SoC chart, in the same column at the
-        // same width -- both are per-day charts, so they read as a pair
-        // (2026-09-13; previously Balanço de Energia spanned the full page
-        // width below both columns, which orphaned it from the chart it's
-        // most related to).
+        // The battery-over-time chart sits below the per-charge SoC bars, in
+        // the same column: both are about the battery's range. It replaced
+        // the Energy Balance bars (owner, 2026-11-18), which did not answer
+        // anything at a glance; this one answers "how often do I go low".
         LinearLayout rightColumn = new LinearLayout(c);
         rightColumn.setOrientation(LinearLayout.VERTICAL);
         rightColumn.addView(chartCard, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        energyBalanceChart = new EnergyBalanceChart(c);
+        socHistoryChart = new SocHistoryChart(c);
         LinearLayout.LayoutParams chartLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         chartLp.topMargin = Style.dp(c, 12);
-        energyBalanceChart.setLayoutParams(chartLp);
-        rightColumn.addView(energyBalanceChart);
+        socHistoryChart.setLayoutParams(chartLp);
+        rightColumn.addView(socHistoryChart);
 
         overview.addView(rightColumn, new LinearLayout.LayoutParams(0,
             ViewGroup.LayoutParams.WRAP_CONTENT, 54f));
         addView(overview);
     }
-
-    private static final SimpleDateFormat DAY_FMT =
-            new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-    private static final SimpleDateFormat SHORT_DAY_FMT =
-            new SimpleDateFormat("d/M", Locale.US);
 
     public void refresh() {
         Context c = getContext();
@@ -283,20 +277,8 @@ public class ChargeStatsView extends LinearLayout {
 
         kpiContainer.addView(topRowSection);
 
-        // Always render the complete rolling calendar, including days with
-        // driving energy but no recharge. Overnight sessions are apportioned
-        // by their overlap with each calendar day.
-        List<DailyStatsProvider.DayEnergyBalance> balance =
-                DailyStatsProvider.getEnergyBalanceDays(c, allSessions, 30);
-        List<EnergyBalanceChart.Day> chartDays = new ArrayList<>(balance.size());
-        for (DailyStatsProvider.DayEnergyBalance b : balance) {
-            EnergyBalanceChart.Day day = new EnergyBalanceChart.Day(shortDayLabel(b.date));
-            day.spent = b.spentKwh; day.regen = b.regenKwh; day.ac = b.acKwh; day.dc = b.dcKwh;
-            day.energySource = b.energySource;
-            chartDays.add(day);
-        }
-        energyBalanceChart.setDays(chartDays);
-        energyBalanceChart.setVisibility(VISIBLE);
+        // Follows the period toggle: 30 days = the curve, 12 months = a bar per day.
+        socHistoryChart.show(periodDays);
 
         // Rebuild session navigator and chart in the same order (newest
         // first) -- they used to disagree (list newest-first, chart
@@ -329,13 +311,6 @@ public class ChargeStatsView extends LinearLayout {
         }
         chargeSocChart.setSessions(rev, selectedSessionId);
         chargeSocChart.select(selectedSessionId, true);
-    }
-
-    /** 'YYYY-MM-DD' -> 'd/M' for the balance chart's x-axis; display
-     * formatting only, not the date-range math DailyStatsProvider now owns. */
-    static String shortDayLabel(String isoDate) {
-        try { return SHORT_DAY_FMT.format(DAY_FMT.parse(isoDate)); }
-        catch (Exception e) { return isoDate; }
     }
 
     /** A period-toggle button sized for the narrow controls column -- full

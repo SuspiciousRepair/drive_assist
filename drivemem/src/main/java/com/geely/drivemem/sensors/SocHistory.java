@@ -1,0 +1,134 @@
+package com.geely.drivemem.sensors;
+
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+
+import com.geely.drivemem.car.CarDb;
+
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+
+/**
+ * Battery state of charge over time, for the charge page's SoC chart: how
+ * often the pack goes low. Two shapes, because the raw samples are only kept
+ * for ~90 days (TelemetryRollup prunes them) while daily_stat is kept for good:
+ *
+ *  - trace(): the real curve for a short window (30 days), one min/max/avg
+ *    per bucket, read straight from telemetry_sample;
+ *  - dailyRanges(): one min..max per calendar day for a long window (a year),
+ *    from daily_stat, with the days not frozen yet read from the samples.
+ *
+ * The counting (days below a floor, the lowest point) is pure and tested.
+ */
+public final class SocHistory {
+
+    private SocHistory() {}
+
+    /** The usual floor for daily use. LFP has no hard limit here; 20 % is
+     * where the SoC estimate gets least reliable (flat voltage curve) and
+     * where a small error starts to matter for range. */
+    public static final int LOW_PCT = 20;
+
+    /** A plausible battery_pct: 0 and above-100 rows are sensor noise. */
+    private static final String VALID = "battery_pct BETWEEN 1 AND 100";
+
+    public static final class Bucket {
+        public final long startMs;
+        public final int min, max;
+        public final double avg;
+        public Bucket(long startMs, int min, int max, double avg) {
+            this.startMs = startMs; this.min = min; this.max = max; this.avg = avg;
+        }
+    }
+
+    public static final class DayRange {
+        public final LocalDate date;
+        public final int min, max;
+        public DayRange(LocalDate date, int min, int max) {
+            this.date = date; this.min = min; this.max = max;
+        }
+    }
+
+    /** One bucket per `bucketMs` that has samples, oldest first. */
+    public static List<Bucket> trace(Context ctx, long fromMs, long toMs, long bucketMs) {
+        SQLiteDatabase db = CarDb.get(ctx).db();
+        List<Bucket> out = new ArrayList<>();
+        Cursor c = db.rawQuery(
+            "SELECT ts_ms / ? AS b, MIN(battery_pct), MAX(battery_pct), AVG(battery_pct) "
+          + "FROM telemetry_sample WHERE ts_ms >= ? AND ts_ms < ? AND " + VALID + " "
+          + "GROUP BY b ORDER BY b",
+            new String[]{String.valueOf(bucketMs), String.valueOf(fromMs), String.valueOf(toMs)});
+        try {
+            while (c.moveToNext()) {
+                out.add(new Bucket(c.getLong(0) * bucketMs, c.getInt(1), c.getInt(2), c.getDouble(3)));
+            }
+        } finally { c.close(); }
+        return out;
+    }
+
+    /** One min..max per calendar day from `from` to today, oldest first; a
+     * day with no record is left out. */
+    public static List<DayRange> dailyRanges(Context ctx, LocalDate from, LocalDate today) {
+        SQLiteDatabase db = CarDb.get(ctx).db();
+        Map<LocalDate, int[]> days = new TreeMap<>();
+        Cursor c = db.rawQuery(
+            "SELECT date, min_battery_pct, max_battery_pct FROM daily_stat "
+          + "WHERE date >= ? AND min_battery_pct BETWEEN 1 AND 100 "
+          + "AND max_battery_pct BETWEEN 1 AND 100",
+            new String[]{from.toString()});
+        try {
+            while (c.moveToNext()) {
+                days.put(LocalDate.parse(c.getString(0)), new int[]{c.getInt(1), c.getInt(2)});
+            }
+        } finally { c.close(); }
+
+        // Days not frozen into daily_stat yet (today, maybe yesterday): from
+        // the samples. Grouped on the local calendar day in Java, since the
+        // index needs a plain ts_ms range (see DailyStatsProvider.dayBoundsMs).
+        ZoneId zone = ZoneId.systemDefault();
+        LocalDate recent = today.minusDays(2).isBefore(from) ? from : today.minusDays(2);
+        long fromMs = recent.atStartOfDay(zone).toInstant().toEpochMilli();
+        Map<LocalDate, int[]> live = new TreeMap<>();
+        Cursor s = db.rawQuery(
+            "SELECT ts_ms, battery_pct FROM telemetry_sample WHERE ts_ms >= ? AND " + VALID,
+            new String[]{String.valueOf(fromMs)});
+        try {
+            while (s.moveToNext()) {
+                LocalDate d = java.time.Instant.ofEpochMilli(s.getLong(0)).atZone(zone).toLocalDate();
+                int pct = s.getInt(1);
+                int[] r = live.get(d);
+                if (r == null) live.put(d, new int[]{pct, pct});
+                else { r[0] = Math.min(r[0], pct); r[1] = Math.max(r[1], pct); }
+            }
+        } finally { s.close(); }
+        for (Map.Entry<LocalDate, int[]> e : live.entrySet()) {
+            if (!days.containsKey(e.getKey())) days.put(e.getKey(), e.getValue());
+        }
+
+        List<DayRange> out = new ArrayList<>(days.size());
+        for (Map.Entry<LocalDate, int[]> e : days.entrySet()) {
+            if (e.getKey().isAfter(today)) continue;
+            out.add(new DayRange(e.getKey(), e.getValue()[0], e.getValue()[1]));
+        }
+        return out;
+    }
+
+    /** Days whose lowest SoC went under `floor`. */
+    public static int daysBelow(List<DayRange> days, int floor) {
+        int n = 0;
+        for (DayRange d : days) if (d.min < floor) n++;
+        return n;
+    }
+
+    /** The day with the lowest SoC (the most recent one on a tie), or null. */
+    public static DayRange lowest(List<DayRange> days) {
+        DayRange low = null;
+        for (DayRange d : days) if (low == null || d.min <= low.min) low = d;
+        return low;
+    }
+}

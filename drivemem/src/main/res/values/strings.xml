@@ -483,10 +483,6 @@
     <string name="charge_stat_cost_100km">Cost / 100 km</string>
 
     <!-- energy balance chart (ChargeStatsView) -->
-    <string name="charge_balance_title">Energy Balance</string>
-    <string name="charge_balance_hint">Tap a bar for details</string>
-    <string name="charge_balance_spent">Spent</string>
-    <string name="charge_balance_regen">Regen</string>
 
     <!-- software update dialog & prompt -->
     <string name="update_dialog_title">Software Update Available</string>
@@ -689,4 +685,11 @@
     <string name="phone_routes_day">Whole day</string>
     <string name="phone_routes_trip">This trip</string>
     <string name="phone_msg_no_route">No trip with a recorded route yet.</string>
+    <string name="soc_history_title">Battery over time</string>
+    <string name="soc_history_none">No day below %1$d%% · lowest %2$d%% on %3$s</string>
+    <string name="soc_history_empty">No battery data in this period</string>
+    <plurals name="soc_history_below">
+        <item quantity="one">%1$d day below %2$d%% · lowest %3$d%% on %4$s</item>
+        <item quantity="other">%1$d days below %2$d%% · lowest %3$d%% on %4$s</item>
+    </plurals>
 </resources>
