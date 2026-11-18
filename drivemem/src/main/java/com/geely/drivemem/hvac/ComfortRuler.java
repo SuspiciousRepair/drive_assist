@@ -509,18 +509,32 @@ public class ComfortRuler {
         // Re-build table and re-apply same level. Effort level is preserved;
         // the recipe adapts as free air takes over from machine.
         int held = level;
-        table = buildTable(outC);
+        EffortTable.Column[] next = buildTable(outC);
+        boolean same = sameTable(table, next);
+        table = next;
         tableOutC = outC;
         driftSinceMs = 0;
+        // The table is fixed inside a weather band: same columns, nothing to
+        // write to the car.
+        if (same) return;
         Log.i(TAG, "ruler: weather moved to " + outC + "C — re-applying " + EffortTable.name(held));
         ComfortEvents.event(ctx, "reslide", ComfortEvents.snap(car(), held), "out=" + outC);
         apply(held);
     }
 
-    /** The table for this weather: learned values when learn mode is on, else the default. */
+    private static boolean sameTable(EffortTable.Column[] a, EffortTable.Column[] b) {
+        if (a == null || b == null || a.length != b.length) return false;
+        for (int i = 0; i < a.length; i++) {
+            if (i == EffortTable.MAX_LEVEL) continue;   // 0 is always "off"
+            if (!a[i].toString().equals(b[i].toString())) return false;
+        }
+        return true;
+    }
+
+    /** The table for this weather, from the table file (ComfortTableStore).
+     * Learn mode only decides whether the weekly learning writes to it. */
     private EffortTable.Column[] buildTable(float outC) {
-        if (!Prefs.getComfortLearn(ctx)) return EffortTable.build(outC);
-        return ComfortLearn.build(outC, ComfortLearn.Book.decode(Prefs.getComfortBook(ctx)));
+        return ComfortTableStore.get(ctx).build(outC);
     }
 
     /**
@@ -537,8 +551,9 @@ public class ComfortRuler {
             ComfortLearn.Book book = ComfortLearn.Book.decode(Prefs.getComfortBook(ctx));
             long due = book.nextDecisionMs();
             if (due != 0 && now < due) return;
-            ComfortLearn.Outcome o = ComfortLearn.decide(book, now);
+            ComfortLearn.Outcome o = ComfortLearn.decide(book, now, ComfortTableStore.get(ctx));
             Prefs.setComfortBook(ctx, book.encode());
+            if (o.changed) ComfortTableStore.save(ctx, o.table);
             for (String n : o.notes) {
                 ComfortEvents.event(ctx, "learn", ComfortEvents.snap(car(), level), n);
             }

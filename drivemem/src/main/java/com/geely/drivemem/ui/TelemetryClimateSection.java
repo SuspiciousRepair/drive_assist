@@ -51,6 +51,7 @@ public final class TelemetryClimateSection extends LinearLayout {
                 .setMessage(activity.getString(R.string.cfg_learn_reset_body))
                 .setPositiveButton(activity.getString(R.string.cfg_learn_reset_ok), (d, w) -> {
                     Prefs.setComfortBook(activity, "");
+                    com.geely.drivemem.hvac.ComfortTableStore.reset(activity);
                     reloadRuler();
                     showLearned();
                 })

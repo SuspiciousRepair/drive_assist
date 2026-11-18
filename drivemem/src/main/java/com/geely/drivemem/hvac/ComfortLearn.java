@@ -14,6 +14,10 @@ import java.util.TreeMap;
  * held 40 and 20 minutes). Each held change is a "hold": one count for each
  * changed lever's value, in the column it is nearest to.
  *
+ * The table is {@link ComfortTable} (a file the ruler reads). The book here
+ * holds this week's holds and a record of every learned value, so they can
+ * be tried again when a new table is written (see ComfortTable.resolve).
+ *
  * The ruler itself changes once a week ({@link #PERIOD_MS}), never mid-drive:
  * with the climate off, {@link #decide} takes, per column and lever, the value
  * held most often that week, if it was held at least {@link #MIN_HOLDS} times
@@ -155,21 +159,34 @@ public final class ComfortLearn {
 
     static String key(int level, int free) { return level + "@" + free; }
 
-    /** The table for this weather, with what was learned for it. book == null is the default. */
-    public static EffortTable.Column[] build(float outC, Book book) {
-        EffortTable.Column[] base = EffortTable.build(outC);
-        if (book == null || book.learned.isEmpty()) return base;
-        EffortTable.Column[] t = base.clone();
-        for (int k = 1; k <= LEARN_MAX_LEVEL; k++) {
-            for (int level : new int[]{k, -k}) {
-                Patch p = book.learned.get(key(level, EffortTable.freeColumns(outC, level > 0)));
-                if (p == null) continue;
-                EffortTable.Column[] cand = t.clone();
-                cand[EffortTable.MAX_LEVEL - level] = patched(EffortTable.at(base, level), p);
-                if (keepsOrder(t, cand, outC, level)) t = cand;
-            }
+    /**
+     * The book's learned values tried again on top of a table: after a new
+     * table was written (no file, a bad file, a software update with new
+     * defaults). Each value is kept only if the table still takes it
+     * ({@link #keepsOrder}); one that no longer fits is left out of the table
+     * but stays in the book.
+     */
+    public static ComfortTable replay(Book book, ComfortTable table) {
+        if (book == null) return table;
+        for (Map.Entry<String, Patch> e : book.learned.entrySet()) {
+            int[] k = parseKey(e.getKey());
+            if (k == null || k[0] == 0 || Math.abs(k[0]) > LEARN_MAX_LEVEL
+                    || k[1] < 0 || k[1] >= ComfortTable.BANDS) continue;
+            table = tryColumn(table, k[0], k[1], patched(table.get(k[0], k[1]), e.getValue()));
         }
-        return t;
+        return table;
+    }
+
+    /** The table with this column, if it keeps the order; else null. */
+    static ComfortTable tryColumnOrNull(ComfortTable table, int level, int free, EffortTable.Column c) {
+        float outC = bandOutC(level, free);
+        ComfortTable cand = table.with(level, free, c);
+        return keepsOrder(table.build(outC), cand.build(outC), outC, level) ? cand : null;
+    }
+
+    private static ComfortTable tryColumn(ComfortTable table, int level, int free, EffortTable.Column c) {
+        ComfortTable t = tryColumnOrNull(table, level, free, c);
+        return t != null ? t : table;
     }
 
     static EffortTable.Column patched(EffortTable.Column c, Patch p) {
@@ -273,10 +290,12 @@ public final class ComfortLearn {
         return note.toString();
     }
 
-    /** What a weekly decision did. */
+    /** What a weekly decision did. table: the table to use and save (the
+     * same one when nothing changed). */
     public static final class Outcome {
         public final List<String> notes = new ArrayList<>();
         public boolean changed;
+        public ComfortTable table;
     }
 
     /**
@@ -284,10 +303,13 @@ public final class ComfortLearn {
      * per column and lever, the value held most often (at least
      * {@link #MIN_HOLDS} times, and more than any other value) is learned,
      * if the table can use it; then the week's holds are cleared and the
-     * next week starts now.
+     * next week starts now. The value goes into {@code table}'s column in
+     * place (a hand edit of another lever stays), and into the book, the
+     * record that {@link #replay} uses after a new table.
      */
-    public static Outcome decide(Book book, long nowMs) {
+    public static Outcome decide(Book book, long nowMs, ComfortTable table) {
         Outcome o = new Outcome();
+        o.table = table;
         if (book.periodStartMs == 0) { book.periodStartMs = nowMs; return o; }
         if (nowMs - book.periodStartMs < PERIOD_MS && nowMs >= book.periodStartMs) return o;
 
@@ -305,17 +327,18 @@ public final class ComfortLearn {
                 o.notes.add("undecided " + where + " x" + bestN + (tie ? " tie" : ""));
                 continue;
             }
-            float outC = bandOutC(k[0], k[1]);
-            EffortTable.Column[] t = build(outC, book);
-            EffortTable.Column def = EffortTable.at(EffortTable.build(outC), k[0]);
-            Patch p = copy(book.learned.get(kl[0]));
-            set(p, kl[1], best, def);
-            EffortTable.Column[] cand = t.clone();
-            cand[EffortTable.MAX_LEVEL - k[0]] = patched(def, p);
-            if (!keepsOrder(t, cand, outC, k[0])) {
+            if (k[0] == 0 || Math.abs(k[0]) > LEARN_MAX_LEVEL || k[1] < 0 || k[1] >= ComfortTable.BANDS) continue;
+            Patch one = new Patch();
+            set(one, kl[1], best, null);
+            ComfortTable next = tryColumnOrNull(o.table, k[0], k[1],
+                patched(o.table.get(k[0], k[1]), one));
+            if (next == null) {
                 o.notes.add("refuse " + where + " x" + bestN);
                 continue;
             }
+            o.table = next;
+            Patch p = copy(book.learned.get(kl[0]));
+            set(p, kl[1], best, ComfortTable.defaults().get(k[0], k[1]));
             if (p.empty()) book.learned.remove(kl[0]); else book.learned.put(kl[0], p);
             o.changed = true;
             o.notes.add("learn " + where + " x" + bestN);
@@ -333,15 +356,16 @@ public final class ComfortLearn {
         return c;
     }
 
-    // A value equal to the table's own is stored as "not learned", so a later
-    // change of the default still reaches this car.
+    // A value equal to the default is stored in the book as "not learned",
+    // so after a software update the new default is not overwritten by an old
+    // one. def == null: always store it.
     private static void set(Patch p, String lever, String v, EffortTable.Column def) {
         switch (lever) {
-            case "fan": { int x = Integer.parseInt(v); p.fan = x == def.fan ? null : x; break; }
+            case "fan": { int x = Integer.parseInt(v); p.fan = def != null && x == def.fan ? null : x; break; }
             case "sp":  { float x = Float.parseFloat(v);
-                          p.sp = def.machine && Math.abs(x - def.setpointC) < 0.5f ? null : x; break; }
-            case "dir": { int x = Integer.parseInt(v); p.dir = x == def.direction ? null : x; break; }
-            case "rec": { boolean x = v.equals("1"); p.rec = x == def.recirc ? null : x; break; }
+                          p.sp = def != null && def.machine && Math.abs(x - def.setpointC) < 0.5f ? null : x; break; }
+            case "dir": { int x = Integer.parseInt(v); p.dir = def != null && x == def.direction ? null : x; break; }
+            case "rec": { boolean x = v.equals("1"); p.rec = def != null && x == def.recirc ? null : x; break; }
             default: break;
         }
     }

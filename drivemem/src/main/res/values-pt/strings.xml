@@ -213,7 +213,7 @@
     <string name="cfg_purge_open_rr">Traseiro direito</string>
     <string name="cfg_actions_header">Ações</string>
     <string name="cfg_learn_header">Régua do clima</string>
-    <string name="cfg_learn_hint">Modo aprender: quando você muda o clima à mão no painel do carro e mantém por 10 minutos, isso é contado. Uma vez por semana, com o clima desligado, cada nível passa a usar o ajuste que você manteve mais vezes (pelo menos 2). Só para aquela temperatura externa. Desligado usa a régua padrão.</string>
+    <string name="cfg_learn_hint">Modo aprender: quando você muda o clima à mão no painel do carro e mantém por 10 minutos, isso é contado. Uma vez por semana, com o clima desligado, cada nível passa a usar o ajuste que você manteve mais vezes (pelo menos 2). Só para aquela temperatura externa. Desligado: a régua mantém o que aprendeu e para de aprender.</string>
     <string name="cfg_learn_toggle">Aprender com meus ajustes</string>
     <string name="cfg_learn_none">Nada aprendido ainda.</string>
     <string name="cfg_learn_last">Última mudança: %1$s</string>
