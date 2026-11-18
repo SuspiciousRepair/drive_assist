@@ -460,7 +460,6 @@
     <string name="charge_soc_chart_title">Battery range · newest first</string>
     <string name="charge_map_title">Where we charged</string>
     <string name="charge_map_none">No charge in this period saved its place.</string>
-    <string name="charge_map_some">%1$d of %2$d charges saved their place</string>
     <string name="charge_curve_title">Charging power over time</string>
     <string name="charge_curve_unavailable">Samples are no longer available for this session.</string>
     <string name="charge_curve_power_label">Power (kW)</string>

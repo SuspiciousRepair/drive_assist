@@ -55,7 +55,6 @@ public class ChargeStatsView extends LinearLayout {
     // Where the period's charges took place: one pin per place, with its count.
     private RouteView chargeMap;
     private TextView chargeMapNone;
-    private TextView chargeMapNote;
     private List<ChargeSpots.Place> places = new ArrayList<>();
     private long selectedSessionId = -1;
     private final Map<Long, ChargeSession.Summary> visibleSessions = new LinkedHashMap<>();
@@ -226,19 +225,7 @@ public class ChargeStatsView extends LinearLayout {
         TextView mapTitle = Style.label(c, c.getString(R.string.charge_map_title));
         mapTitle.setTextSize(14);
         mapTitle.setTypeface(null, Typeface.BOLD);
-        // Beside the title: how many of the period's charges have a place.
-        // Places are saved only from 2026-11-16 on, so a year view showed
-        // one pin for 18 charges and read as a map that did not update.
-        LinearLayout mapHeading = new LinearLayout(c);
-        mapHeading.setGravity(Gravity.CENTER_VERTICAL);
-        mapHeading.addView(mapTitle, new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        chargeMapNote = new TextView(c);
-        chargeMapNote.setTextColor(Style.TEXT_DIM);
-        chargeMapNote.setTextSize(13);
-        chargeMapNote.setVisibility(View.GONE);
-        mapHeading.addView(chargeMapNote);
-        mapCard.addView(mapHeading);
+        mapCard.addView(mapTitle);
         android.widget.FrameLayout mapFrame = new android.widget.FrameLayout(c);
         chargeMap = new RouteView(c);
         chargeMap.setMinSpanM(3000);
@@ -483,11 +470,6 @@ public class ChargeStatsView extends LinearLayout {
         places = ChargeSpots.places(placedNow);
         chargeMap.setChargePlaces(places);
         chargeMapNone.setVisibility(places.isEmpty() ? View.VISIBLE : View.GONE);
-        boolean someMissing = !placedNow.isEmpty() && placedNow.size() < l.period.size();
-        chargeMapNote.setVisibility(someMissing ? View.VISIBLE : View.GONE);
-        if (someMissing) {
-            chargeMapNote.setText(c.getString(R.string.charge_map_some, placedNow.size(), l.period.size()));
-        }
 
         if (l.period.isEmpty()) {
             listContainer.addView(Style.label(c, c.getString(R.string.charge_none)));
