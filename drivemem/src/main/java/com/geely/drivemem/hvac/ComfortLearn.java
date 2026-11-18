@@ -348,21 +348,24 @@ public final class ComfortLearn {
 
     // ------------------------------------------------------------ the hold
 
-    /** Waits for one hand state to be held {@link #HOLD_MS} without a suspend in between. */
+    /** Waits for one hand state to be held {@link #HOLD_MS} without a suspend in between.
+     * A state counts once per drive: a short break in the hold (a defrost
+     * press, a passenger's lever moved and back, one failed read) starts the
+     * 10 minutes again but does not count the same hand change a second time.
+     * Only a suspend (no beat for {@link #MAX_GAP_MS}) lets it count again. */
     public static final class Watcher {
-        private State held;
+        private State held, voted;
         private long since, lastSeen;
-        private boolean voted;
 
         /** The state to count, once per hold; null otherwise. */
         public State observe(long now, State s, boolean eligible) {
-            if (!eligible || s == null) { held = null; return null; }
             boolean gap = now - lastSeen > MAX_GAP_MS || now < lastSeen;
-            if (held == null || !held.same(s) || gap) {
-                held = s; since = now; voted = false;
-            }
             lastSeen = now;
-            if (!voted && now - since >= HOLD_MS) { voted = true; return held; }
+            if (gap) voted = null;
+            if (!eligible || s == null) { held = null; return null; }
+            if (held == null || !held.same(s) || gap) { held = s; since = now; }
+            if (voted != null && voted.same(held)) return null;
+            if (now - since >= HOLD_MS) { voted = held; return held; }
             return null;
         }
     }

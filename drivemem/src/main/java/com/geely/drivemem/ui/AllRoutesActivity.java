@@ -65,6 +65,10 @@ public class AllRoutesActivity extends Activity {
      * The list shows them newest first, so row r is trip size - 1 - r. */
     private final List<Item> shown = new ArrayList<>();
     private RouteSet set;
+    /** Every charge spot; one day shows only those near its routes. */
+    private List<ChargeSpots.Spot> allSpots = new ArrayList<>();
+    /** How far from a day's routes a charge spot still shows. */
+    private static final double DAY_SPOT_MARGIN_M = 1000;
     private int selected = -1;
     /** Profile point -> point of the picture, for the profile on screen. */
     private int[] profPoint = new int[0];
@@ -233,7 +237,7 @@ public class AllRoutesActivity extends Activity {
         } catch (Throwable e) {
             android.util.Log.w("DriveMem", "all routes: " + e);
         }
-        runOnUiThread(() -> { route.setChargeSpots(spotsF); loaded(found); });
+        runOnUiThread(() -> { allSpots = spotsF; loaded(found); });
     }
 
     private void loaded(List<Item> found) {
@@ -272,6 +276,8 @@ public class AllRoutesActivity extends Activity {
         } else {
             note.setVisibility(View.GONE);
             route.setVisibility(View.VISIBLE);
+            route.setChargeSpots(dayIdx < 0 ? allSpots
+                : ChargeSpots.inBox(allSpots, set.lat, set.lon, DAY_SPOT_MARGIN_M));
             route.setRoutes(set.lat, set.lon, set.speed, set.starts);
         }
         selected = -2;   // force select() to redraw
