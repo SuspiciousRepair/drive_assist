@@ -443,7 +443,6 @@
     <string name="charge_stats_title">Estatísticas de recarga</string>
     <string name="charge_sessions_title">Recargas · mais recentes primeiro</string>
     <string name="charge_soc_chart_title">Faixa da bateria · mais recentes primeiro</string>
-    <string name="charge_map_title">Onde carregamos</string>
     <string name="charge_map_none">Nenhuma recarga deste período salvou o local.</string>
     <string name="charge_curve_title">Potência de recarga ao longo do tempo</string>
     <string name="charge_curve_unavailable">As amostras desta recarga não estão mais disponíveis.</string>
