@@ -560,7 +560,7 @@ public final class AppBackup {
                 try {
                     final SharedPreferences.Editor e = Prefs.file(app).edit();
                     if (merged != null) shiftIdPrefs(Prefs.file(app).getAll(), e, merged.offsets);
-                    SettingsFile.apply(e, settings);
+                    SettingsFile.apply(e, SettingsFile.matchStoredTypes(settings, Prefs.file(app).getAll()));
                     e.putBoolean(PREF_OFFER_DONE, true);
                     // The password that opened it locks the next backups too,
                     // so the daily backup goes on after a reinstall.

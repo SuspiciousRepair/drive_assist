@@ -221,7 +221,8 @@ public final class GpxExport {
 
     /** The finished trips that start in [fromMs, toMs) (or only tripId,
      * when > 0) with their points. A trip of fewer than two points is no
-     * line and is left out. */
+     * line and is left out. So is a trip readAllTrips leaves out (a Valet
+     * trip): the stats page and All routes hide it, so the export does too. */
     private static List<Track> read(Context ctx, long fromMs, long toMs, long tripId) {
         Map<Long, DriveSession> byId = new HashMap<>();
         for (DriveSession t : DailyStatsProvider.readAllTrips(ctx)) {
@@ -237,13 +238,15 @@ public final class GpxExport {
           + " AND t.end_ms IS NOT NULL ORDER BY t.start_ms, p.trip_id, p.ts_ms", args);
         try {
             Track cur = null;
+            long skip = -1;
             while (c.moveToNext()) {
                 long id = c.getLong(0);
+                if (id == skip) continue;
                 if (cur == null || cur.tripId != id) {
                     if (cur != null && cur.points.size() >= 2) out.add(cur);
                     DriveSession s = byId.get(id);
-                    cur = s == null ? new Track(id, c.getLong(1), Double.NaN)
-                                    : new Track(id, s.startMs, s.distanceKm);
+                    if (s == null) { skip = id; cur = null; continue; }
+                    cur = new Track(id, s.startMs, s.distanceKm);
                 }
                 cur.points.add(new Point(c.getLong(1), c.getDouble(2), c.getDouble(3),
                     dbl(c, 4), dbl(c, 5), dbl(c, 6),

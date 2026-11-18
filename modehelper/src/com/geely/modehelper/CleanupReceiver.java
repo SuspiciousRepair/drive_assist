@@ -13,6 +13,8 @@ import java.io.IOException;
  * silent uninstall all need the system privileges only this app has.
  *
  * In order:
+ *   0. the CAN reader switch and the Wi-Fi guard are turned off, so neither
+ *      starts roadcastd or re-opens ADB while the steps below run;
  *   1. the car's own lock sound comes back (our file stops being referenced);
  *   2. roadcastd is stopped and {@link CanReaderPolicy#DIR} is deleted — a
  *      reader another app started, in another dir, is never touched;
@@ -72,9 +74,18 @@ public class CleanupReceiver extends BroadcastReceiver {
      * that after, so a failure here still leaves the car cleaner). */
     static String run(Context app, boolean closeAdb) {
         String note = null;
+        // 0. our own actors off first. The CAN reader's switch stayed on, so
+        // its once-a-minute check could restart roadcastd (opening ADB to do
+        // it) after step 2 stopped it; a Wi-Fi guard tick could hold ADB on
+        // indefinitely after step 3 closed it.
+        try { CanReader.setEnabled(app, false); }
+        catch (Throwable t) { note = "can switch: " + t; }
+        try { WifiGuardReceiver.stopForCleanup(app); }
+        catch (Throwable t) { note = append(note, "wifi guard: " + t); }
+
         // 1. the car's own lock sound back
         try { LockSoundReceiver.apply(app, "car"); }
-        catch (Throwable t) { note = "lock sound: " + t; }
+        catch (Throwable t) { note = append(note, "lock sound: " + t); }
 
         // 2. stop and delete roadcastd — needs the root adb shell
         LocalAdbShell adb = new LocalAdbShell();

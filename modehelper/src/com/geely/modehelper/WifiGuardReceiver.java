@@ -103,6 +103,21 @@ public class WifiGuardReceiver extends BroadcastReceiver {
         }
     }
 
+    /** Cleanup (CleanupReceiver): stop the check loop for good, forget the
+     * trusted network and let the wakelock go. Otherwise a tick that lands
+     * during the cleanup re-opens ADB indefinitely right after a "close". */
+    static synchronized void stopForCleanup(Context ctx) {
+        try {
+            AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+            if (am != null) am.cancel(alarm(ctx));
+        } catch (Throwable t) { Log.w(TAG, "wifiguard: cancel: " + t); }
+        ctx.getSharedPreferences("modehelper", Context.MODE_PRIVATE)
+           .edit().putString(PREF_TRUSTED_SSID, "").commit();
+        active = false;
+        try { if (wakeLock != null && wakeLock.isHeld()) wakeLock.release(); }
+        catch (Throwable t) { Log.w(TAG, "wifiguard: wakelock release: " + t); }
+    }
+
     /** Activates indefinite adb and wakelock while on trusted WiFi. Must be called
      * on every tick (not just the first), because other adb operations reset the
      * timer; skipping reassertion would allow the timer to expire mid-session despite

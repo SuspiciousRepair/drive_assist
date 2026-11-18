@@ -88,7 +88,8 @@ public final class CsvExport {
                 catch (Throwable t) { Log.w(TAG, "csvexport: gpx: " + t); }
                 for (GpxExport.MonthFiles m : gpx) {
                     UsbExport.exportNow(GpxExport.USB_DIR + "/" + m.month, false, (o, d, n) -> {
-                        if (o) { ok[0] = true; copied[0] += n; }
+                        // Every month must make it: one cut month is a failed export.
+                        ok[0] = ok[0] && o; copied[0] += n;
                     }, m.days);
                 }
             }
