@@ -153,14 +153,20 @@ public final class RouteGeometry {
     }
 
     public static Fit fit(double[] xs, double[] ys, int w, int h, int pad) {
+        return fit(xs, ys, w, h, pad, 200);
+    }
+
+    /** Same, with at least minSpanM across: a map of one charge place
+     * wants the streets around it, not a 200 m close-up. */
+    public static Fit fit(double[] xs, double[] ys, int w, int h, int pad, double minSpanM) {
         double minX = 0, maxX = 0, minY = 0, maxY = 0;
         for (int i = 0; i < xs.length; i++) {
             minX = Math.min(minX, xs[i]); maxX = Math.max(maxX, xs[i]);
             minY = Math.min(minY, ys[i]); maxY = Math.max(maxY, ys[i]);
         }
-        // At least 200 m across, so a car that barely moved is not a smear
-        // blown up to the whole screen.
-        double spanX = Math.max(maxX - minX, 200), spanY = Math.max(maxY - minY, 200);
+        // At least minSpanM (200 m for a route) across, so a car that barely
+        // moved is not a smear blown up to the whole screen.
+        double spanX = Math.max(maxX - minX, minSpanM), spanY = Math.max(maxY - minY, minSpanM);
         double availW = Math.max(1, w - 2.0 * pad), availH = Math.max(1, h - 2.0 * pad);
         double s = Math.min(availW / spanX, availH / spanY);
         double midX = (minX + maxX) / 2, midY = (minY + maxY) / 2;

@@ -166,6 +166,33 @@ final class TileCache {
         trim();
     }
 
+    /** Bytes of map kept on the disk. Walks the folder: call off the main
+     * thread. */
+    long diskBytes() {
+        java.util.List<File> all = new java.util.ArrayList<>();
+        collect(dir, all);
+        long total = 0;
+        for (File f : all) total += f.length();
+        return total;
+    }
+
+    /** Forgets every saved tile, in memory and on the disk (Config →
+     * System → Trip routes → Clear saved map). Maps download again when
+     * next shown. The memory part runs on the main thread, the disk part
+     * on the tile threads. */
+    void clear(Runnable onDone) {
+        main.post(() -> {
+            mem.evictAll();
+            failedAt.clear();
+            net.execute(() -> {
+                java.util.List<File> all = new java.util.ArrayList<>();
+                collect(dir, all);
+                for (File f : all) f.delete();
+                if (onDone != null) main.post(onDone);
+            });
+        });
+    }
+
     /** Past DISK_BYTES, the least recently written tiles go first. */
     private void trim() {
         java.util.List<File> all = new java.util.ArrayList<>();

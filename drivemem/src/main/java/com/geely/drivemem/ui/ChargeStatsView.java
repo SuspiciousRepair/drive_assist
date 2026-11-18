@@ -52,6 +52,10 @@ public class ChargeStatsView extends LinearLayout {
     private LinearLayout listContainer;
     private ScrollView sessionListScroll;
     private ChargeSocChart chargeSocChart;
+    // Where the period's charges took place: one pin per place, with its count.
+    private RouteView chargeMap;
+    private TextView chargeMapNone;
+    private List<ChargeSpots.Place> places = new ArrayList<>();
     private long selectedSessionId = -1;
     private final Map<Long, ChargeSession.Summary> visibleSessions = new LinkedHashMap<>();
     private final Map<Long, View> sessionRows = new LinkedHashMap<>();
@@ -174,7 +178,7 @@ public class ChargeStatsView extends LinearLayout {
         listCard.addView(sessionListScroll, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 340)));
         LinearLayout.LayoutParams listLp = new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.WRAP_CONTENT, 46f);
+            ViewGroup.LayoutParams.WRAP_CONTENT, 34f);
         listLp.rightMargin = Style.dp(c, 12);
         overview.addView(listCard, listLp);
 
@@ -205,8 +209,48 @@ public class ChargeStatsView extends LinearLayout {
         rightColumn.addView(chartCard, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        overview.addView(rightColumn, new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.WRAP_CONTENT, 54f));
+        LinearLayout.LayoutParams chartLp = new LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.WRAP_CONTENT, 30f);
+        chartLp.rightMargin = Style.dp(c, 12);
+        overview.addView(rightColumn, chartLp);
+
+        // Where we charged: the period's charge places on the map, the
+        // number of charges in each pin. Touch a pin: its newest charge is
+        // selected in the list and the chart. Same height as the cards
+        // beside it.
+        LinearLayout mapCard = new LinearLayout(c);
+        mapCard.setOrientation(LinearLayout.VERTICAL);
+        mapCard.setPadding(cardPad, cardPad, cardPad, cardPad);
+        mapCard.setBackground(Style.card(Style.cardFillColor(), c));
+        TextView mapTitle = Style.label(c, c.getString(R.string.charge_map_title));
+        mapTitle.setTextSize(14);
+        mapTitle.setTypeface(null, Typeface.BOLD);
+        mapCard.addView(mapTitle);
+        android.widget.FrameLayout mapFrame = new android.widget.FrameLayout(c);
+        chargeMap = new RouteView(c);
+        chargeMap.setMinSpanM(3000);
+        chargeMap.setOnSpotPick(i -> {
+            if (i < 0 || i >= places.size()) return;
+            List<Long> ids = places.get(i).ids;
+            long id = ids.get(ids.size() - 1);   // the newest at that place
+            selectSession(id, true);
+            chargeSocChart.select(id, true);
+        });
+        mapFrame.addView(chargeMap, new android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        chargeMapNone = Style.label(c, c.getString(R.string.charge_map_none));
+        chargeMapNone.setTextSize(16);
+        chargeMapNone.setTextColor(Style.TEXT_DIM);
+        chargeMapNone.setGravity(Gravity.CENTER);
+        chargeMapNone.setVisibility(View.GONE);
+        mapFrame.addView(chargeMapNone, new android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        LinearLayout.LayoutParams mapFrameLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 340));
+        mapFrameLp.topMargin = Style.dp(c, 8);
+        mapCard.addView(mapFrame, mapFrameLp);
+        overview.addView(mapCard, new LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.WRAP_CONTENT, 36f));
         addView(overview);
     }
 
@@ -329,6 +373,8 @@ public class ChargeStatsView extends LinearLayout {
         BatteryHeat.Stats heat;
         double km;
         final java.util.Set<Long> placed = new java.util.HashSet<>();
+        /** id -> {lat, lon} of every charge that saved its place. */
+        final Map<Long, double[]> where = new java.util.HashMap<>();
     }
 
     /** Coming to the page: back to the current month or year (owner,
@@ -368,8 +414,11 @@ public class ChargeStatsView extends LinearLayout {
                 }
             }
             try (android.database.Cursor pc = CarDb.get(c).db().rawQuery(
-                    "SELECT id FROM charge_session WHERE lat IS NOT NULL AND lon IS NOT NULL", null)) {
-                while (pc.moveToNext()) l.placed.add(pc.getLong(0));
+                    "SELECT id, lat, lon FROM charge_session WHERE lat IS NOT NULL AND lon IS NOT NULL", null)) {
+                while (pc.moveToNext()) {
+                    l.placed.add(pc.getLong(0));
+                    l.where.put(pc.getLong(0), new double[]{pc.getDouble(1), pc.getDouble(2)});
+                }
             } catch (Exception ignored) { }
             post(() -> { if (gen == loadGen) show(l, start); });
         });
@@ -410,6 +459,18 @@ public class ChargeStatsView extends LinearLayout {
         sessionRows.clear();
         visibleSessions.clear();
         for (ChargeSession.Summary s : l.period) visibleSessions.put(s.id, s);
+
+        // The map: the period's charges that saved their place, oldest first,
+        // so a place's last id is its newest charge.
+        List<ChargeSpots.Placed> placedNow = new ArrayList<>();
+        for (ChargeSession.Summary s : l.period) {
+            double[] w = l.where.get(s.id);
+            if (w != null) placedNow.add(new ChargeSpots.Placed(s.id, w[0], w[1], s.isDcfc()));
+        }
+        places = ChargeSpots.places(placedNow);
+        chargeMap.setChargePlaces(places);
+        chargeMapNone.setVisibility(places.isEmpty() ? View.VISIBLE : View.GONE);
+
         if (l.period.isEmpty()) {
             listContainer.addView(Style.label(c, c.getString(R.string.charge_none)));
             chargeSocChart.setSessions(l.period, -1);
@@ -427,6 +488,7 @@ public class ChargeStatsView extends LinearLayout {
         }
         chargeSocChart.setSessions(rev, selectedSessionId);
         chargeSocChart.select(selectedSessionId, true);
+        chargeMap.setSelectedSpot(ChargeSpots.placeOf(places, selectedSessionId));
     }
 
     // ---- the four cards ----
@@ -924,6 +986,7 @@ public class ChargeStatsView extends LinearLayout {
                 : Style.card(Style.CARD, getContext()));
         }
         chargeSocChart.select(id, !fromChart);
+        chargeMap.setSelectedSpot(ChargeSpots.placeOf(places, id));
         View row = sessionRows.get(id);
         if (fromChart && row != null) sessionListScroll.smoothScrollTo(0, row.getTop());
     }

@@ -458,6 +458,8 @@
     <string name="charge_stats_title">Charging stats</string>
     <string name="charge_sessions_title">Charging sessions · newest first</string>
     <string name="charge_soc_chart_title">Battery range · newest first</string>
+    <string name="charge_map_title">Where we charged</string>
+    <string name="charge_map_none">No charge in this period saved its place.</string>
     <string name="charge_curve_title">Charging power over time</string>
     <string name="charge_curve_unavailable">Samples are no longer available for this session.</string>
     <string name="charge_curve_power_label">Power (kW)</string>
@@ -549,6 +551,10 @@
     <string name="routes_header">Trip routes</string>
     <string name="routes_enable_label">Record trip routes (GPS)</string>
     <string name="routes_hint">Saves where each trip went and where each charge was. It stays in the car: nothing is sent anywhere. It goes into your backup. Trips from before this setting have no route.</string>
+    <string name="routes_map_hint">The map under the routes is OpenStreetMap. It downloads the first time a place is shown, then stays in the car.</string>
+    <string name="routes_map_size">Saved map: %1$s MB</string>
+    <string name="routes_map_clear">Clear saved map</string>
+    <string name="routes_map_cleared">Saved map cleared</string>
     <string name="route_title">Route</string>
     <string name="route_none">No route for this trip. Routes are saved for trips driven with Config → System → Trip routes on.</string>
     <string name="routes_all_title">All routes</string>

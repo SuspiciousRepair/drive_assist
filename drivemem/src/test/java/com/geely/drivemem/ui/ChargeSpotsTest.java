@@ -62,4 +62,24 @@ public class ChargeSpotsTest {
         assertSame(near, kept.get(0));
         assertTrue(ChargeSpots.inBox(Arrays.asList(near), new double[0], new double[0], 1000).isEmpty());
     }
+
+    private static ChargeSpots.Placed at(long id, double dLatM, boolean dc) {
+        return new ChargeSpots.Placed(id, LAT + dLatM / 111_195.0, LON, dc);
+    }
+
+    // The charging page's map: charges at one place are one pin with their
+    // count and ids; DC wins; a charge 5 km away is its own place.
+    @Test public void placesCountTheirChargesAndKeepTheirIds() {
+        List<ChargeSpots.Place> p = ChargeSpots.places(Arrays.asList(
+            at(1, 0, false), at(2, 5000, true), at(3, 60, false), at(4, 30, true)));
+        assertEquals(2, p.size());
+        assertEquals(3, p.get(0).count());
+        assertEquals(Arrays.asList(1L, 3L, 4L), p.get(0).ids);
+        assertTrue(p.get(0).dc);
+        assertEquals(1, p.get(1).count());
+        assertEquals(1, ChargeSpots.placeOf(p, 2));
+        assertEquals(0, ChargeSpots.placeOf(p, 4));
+        assertEquals(-1, ChargeSpots.placeOf(p, 99));
+        assertTrue(ChargeSpots.places(java.util.Collections.emptyList()).isEmpty());
+    }
 }

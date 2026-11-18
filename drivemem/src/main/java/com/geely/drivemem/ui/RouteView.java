@@ -33,6 +33,9 @@ public class RouteView extends View {
     /** Told which trip a touch picked; -1 when the touch hit no route. */
     public interface OnTripPick { void onTripPick(int trip); }
 
+    /** Told which charge place a touch picked; -1 when it hit none. */
+    public interface OnSpotPick { void onSpotPick(int spot); }
+
     /** Alpha of the other trips while one is selected. */
     private static final int FAINT = 70;
 
@@ -41,6 +44,12 @@ public class RouteView extends View {
     // Charge spots (ChargeSpots): drawn as pins with the AC or DC icon.
     private double[] spotLat = new double[0], spotLon = new double[0];
     private boolean[] spotDc = new boolean[0];
+    // Charging page (setChargePlaces): the count in each pin, and the lit one.
+    private String[] spotLabel = new String[0];
+    private int selSpot = -1;
+    private OnSpotPick onSpotPick;
+    private double minSpanM = 200;
+    private final Paint pinText = new Paint(Paint.ANTI_ALIAS_FLAG);
     private double[] spXm = new double[0], spYm = new double[0];   // metres, same frame as xs/ys
     private float[] spX = new float[0], spY = new float[0];
     private final android.graphics.drawable.Drawable acIcon, dcIcon;
@@ -106,6 +115,10 @@ public class RouteView extends View {
         dcIcon = c.getDrawable(com.geely.drivemem.R.drawable.ic_ev_plug_ccs2).mutate();
         dcIcon.setTint(Style.GOOD);
 
+        pinText.setTextAlign(Paint.Align.CENTER);
+        pinText.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        pinText.setTextSize(Style.dp(c, 22));
+
         tileCache = TileCache.get(c);
         tilePaint.setColorFilter(new android.graphics.ColorMatrixColorFilter(tileMatrix(Style.LIGHT)));
         credit.setColor(Style.LIGHT ? 0xFF333333 : 0xFFCCCCCC);
@@ -143,14 +156,45 @@ public class RouteView extends View {
     void setChargeSpots(java.util.List<ChargeSpots.Spot> spots) {
         int n = spots.size();
         spotLat = new double[n]; spotLon = new double[n]; spotDc = new boolean[n];
+        spotLabel = new String[n];
         for (int i = 0; i < n; i++) {
             ChargeSpots.Spot sp = spots.get(i);
             spotLat[i] = sp.lat; spotLon[i] = sp.lon; spotDc[i] = sp.dc;
         }
+        selSpot = -1;
         project();
         rebuild();
         invalidate();
     }
+
+    /** The charging page's map: one pin per place, with how many charges
+     * it had in place of the icon. No route. */
+    void setChargePlaces(java.util.List<ChargeSpots.Place> places) {
+        int n = places.size();
+        spotLat = new double[n]; spotLon = new double[n]; spotDc = new boolean[n];
+        spotLabel = new String[n];
+        for (int i = 0; i < n; i++) {
+            ChargeSpots.Place p = places.get(i);
+            spotLat[i] = p.lat; spotLon[i] = p.lon; spotDc[i] = p.dc;
+            spotLabel[i] = String.valueOf(p.count());
+        }
+        selSpot = -1;
+        project();
+        rebuild();
+        invalidate();
+    }
+
+    /** Lights one charge place (filled pin, drawn on top); -1 for none. */
+    void setSelectedSpot(int i) {
+        if (i == selSpot) return;
+        selSpot = i;
+        invalidate();
+    }
+
+    void setOnSpotPick(OnSpotPick l) { onSpotPick = l; }
+
+    /** The least width the map shows, in metres (200 for a route). */
+    void setMinSpanM(double m) { minSpanM = m; }
 
     /** Route points and spots in one frame (one centre). */
     private void project() {
@@ -205,6 +249,16 @@ public class RouteView extends View {
     // A touch picks the trip of the nearest point. The reach is a part of
     // the view, not a dp value: on this panel 1 dp is 1 px.
     @Override public boolean onTouchEvent(android.view.MotionEvent e) {
+        if (onSpotPick != null) {
+            // A pin's head sits above its place (drawPin): test the head.
+            if (e.getAction() == android.view.MotionEvent.ACTION_UP) {
+                float[] hy = new float[spY.length];
+                float lift = Style.dp(getContext(), 34);
+                for (int i = 0; i < hy.length; i++) hy[i] = spY[i] - lift;
+                onSpotPick.onSpotPick(RouteGeometry.nearest(spX, hy, e.getX(), e.getY(), getWidth() / 12f));
+            }
+            return true;
+        }
         if (onPick == null || !many) return super.onTouchEvent(e);
         if (e.getAction() == android.view.MotionEvent.ACTION_UP) {
             int i = RouteGeometry.nearest(sx, sy, e.getX(), e.getY(), getWidth() / 30f);
@@ -268,12 +322,12 @@ public class RouteView extends View {
         spX = new float[spXm.length]; spY = new float[spYm.length];
         barPx = 0; barLabel = null;
         tiles = java.util.Collections.emptyList();
-        if (n == 0 || w <= 0 || h <= 0) return;
+        if ((n == 0 && spXm.length == 0) || w <= 0 || h <= 0) return;
 
         double[] fx = new double[n + spXm.length], fy = new double[n + spYm.length];
         System.arraycopy(xs, 0, fx, 0, n); System.arraycopy(spXm, 0, fx, n, spXm.length);
         System.arraycopy(ys, 0, fy, 0, n); System.arraycopy(spYm, 0, fy, n, spYm.length);
-        RouteGeometry.Fit f = RouteGeometry.fit(fx, fy, w, h, pad);
+        RouteGeometry.Fit f = RouteGeometry.fit(fx, fy, w, h, pad, minSpanM);
         for (int i = 0; i < n; i++) { sx[i] = f.x(xs[i]); sy[i] = f.y(ys[i]); }
         for (int i = 0; i < spX.length; i++) { spX[i] = f.x(spXm[i]); spY[i] = f.y(spYm[i]); }
         tiles = MapTiles.cover(cLat, cLon, f.x(0), f.y(0), f.pxPerM, w, h);
@@ -291,9 +345,9 @@ public class RouteView extends View {
         }
     }
 
-    private void drawPin(Canvas c, float x, float y, boolean dc) {
+    private void drawPin(Canvas c, float x, float y, boolean dc, String label, boolean lit) {
         Context ctx = getContext();
-        float r = Style.dp(ctx, 20), lift = Style.dp(ctx, 34);
+        float r = Style.dp(ctx, lit ? 26 : 20), lift = Style.dp(ctx, 34);
         float cy = y - lift;
         int col = dc ? Style.GOOD : Style.ACCENT;
         dot.setStyle(Paint.Style.STROKE);
@@ -302,11 +356,18 @@ public class RouteView extends View {
         c.drawLine(x, y, x, cy + r, dot);
         dot.setStyle(Paint.Style.FILL);
         c.drawCircle(x, y, Style.dp(ctx, 4), dot);
-        dot.setColor(0xE6000000);
+        dot.setColor(lit ? col : 0xE6000000);
         c.drawCircle(x, cy, r, dot);
         dot.setStyle(Paint.Style.STROKE);
-        dot.setColor(col);
+        dot.setColor(lit ? 0xE6000000 : col);
         c.drawCircle(x, cy, r, dot);
+        if (label != null) {
+            // The number of charges at the place, in place of the icon.
+            pinText.setColor(lit ? Style.onFill(col) : col);
+            pinText.setTextSize(Style.dp(ctx, lit ? 26 : 22));
+            c.drawText(label, x, cy - (pinText.ascent() + pinText.descent()) / 2, pinText);
+            return;
+        }
         android.graphics.drawable.Drawable d = dc ? dcIcon : acIcon;
         int ir = Style.dp(ctx, 13);
         d.setBounds((int) x - ir, (int) cy - ir, (int) x + ir, (int) cy + ir);
@@ -315,7 +376,7 @@ public class RouteView extends View {
 
     @Override protected void onDraw(Canvas c) {
         int n = sx.length;
-        if (n == 0) return;
+        if (n == 0 && spX.length == 0) return;
         Context ctx = getContext();
 
         // The map first, under everything. A tile that is not here yet is
@@ -361,9 +422,13 @@ public class RouteView extends View {
         // marks under it stay visible. AC charges first, DC on top.
         for (int pass = 0; pass < 2; pass++) {
             for (int i = 0; i < spX.length; i++) {
-                if (spotDc[i] != (pass == 1)) continue;
-                drawPin(c, spX[i], spY[i], spotDc[i]);
+                if (spotDc[i] != (pass == 1) || i == selSpot) continue;
+                drawPin(c, spX[i], spY[i], spotDc[i], spotLabel[i], false);
             }
+        }
+        // The lit place last, on top of the rest.
+        if (selSpot >= 0 && selSpot < spX.length) {
+            drawPin(c, spX[selSpot], spY[selSpot], spotDc[selSpot], spotLabel[selSpot], true);
         }
 
         if (marker >= 0 && marker < n) {
