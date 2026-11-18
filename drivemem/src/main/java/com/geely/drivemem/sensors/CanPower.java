@@ -7,7 +7,8 @@ package com.geely.drivemem.sensors;
  * - BMSH_BattVolt (0x178), V
  * - BMSH_BattCurr (0x250), A; positive = discharge. Checked on the car on
  *   2026-11-14 while AC charging: -16 A at 404 V against 241 V x 28 A at
- *   the wall, so negative is into the battery.
+ *   the wall, so negative is into the battery. The catalog's offset is
+ *   -500.2 A; the real one is -500.0, see {@link #CURR_OFFSET_FIX_A}.
  * - VCU_ThermalPwrAct (0x315), kW, climate (compressor + heater) electrical
  * - VCU_DrvPwrAct (0x315), kW, drive
  * - OBC_uInAct / OBC_iInAct (0x221), the charger's own mains V and A
@@ -33,6 +34,16 @@ public final class CanPower {
      * (github.com/Timoteohss/capy, Apache-2.0, by Timoteo Sousa). */
     static final double V_MIN = 100, V_MAX = 1000, A_ABS = 500, CLIMATE_MAX = 30;
 
+    /** Added to the catalog's BMSH_BattCurr. Against the OBD2 dongle (BMS DID)
+     * on 4,610 steady readings, 2026-11-14, from -30 A to +30 A: CAN amps =
+     * 0.9993 x dongle - 0.212 A. Same slope, a fixed 0.2 A (two raw counts)
+     * low: the catalog's offset -500.2 should be -500.0. 0.2 A is ~80 W at
+     * 400 V, seen on the car as 160 W (CAN) against 240 W (dongle). The
+     * vendored catalog stays byte-for-byte upstream; the fix lives here.
+     * Applied after the band check, so raw 0 (-500.2, "no value yet" at
+     * wake-up) is still rejected. */
+    static final double CURR_OFFSET_FIX_A = 0.2;
+
     /** Without a heartbeat for this long the values are no longer trusted. */
     public static final long STALE_MS = 3_000;
     /** Heartbeats re-emit only if no sample went out for this long. */
@@ -50,7 +61,7 @@ public final class CanPower {
         Double v = (valid && !Double.isNaN(physical) && !Double.isInfinite(physical)) ? physical : null;
         switch (name) {
             case VOLT: volt = (v != null && v >= V_MIN && v <= V_MAX) ? v : null; break;
-            case CURR: curr = (v != null && Math.abs(v) <= A_ABS) ? v : null; break;
+            case CURR: curr = (v != null && Math.abs(v) <= A_ABS) ? v + CURR_OFFSET_FIX_A : null; break;
             case CLIMATE: climate = (v != null && v >= 0 && v <= CLIMATE_MAX) ? v : null; return null;
             case DRIVE: drive = v; return null;
             case OBC_V: obcV = v; return null;
@@ -88,6 +99,13 @@ public final class CanPower {
         lastKw = volt * curr / 1000.0;
         return lastKw;
     }
+
+    /** The drive and climate values held right now, for the sample that
+     * {@link #onSignal}/{@link #onHeartbeat} just returned. No staleness
+     * check: the caller asks in the same breath as the sample. Null = never
+     * seen or not valid; the integrator counts that as 0 kW. */
+    public synchronized Double heldDriveKw() { return drive; }
+    public synchronized Double heldClimateKw() { return climate; }
 
     public synchronized boolean live(long nowMono) {
         return alive && nowMono >= lastAliveMono && nowMono - lastAliveMono <= STALE_MS;

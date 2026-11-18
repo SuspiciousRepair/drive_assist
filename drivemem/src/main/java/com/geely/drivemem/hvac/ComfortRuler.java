@@ -5,6 +5,7 @@ import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.net.MqttReporter;
+import com.geely.drivemem.util.Prefs;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -58,6 +59,15 @@ public class ComfortRuler {
     private long lastTapMs = 0;
     // Timestamp when outside temp first drifted beyond deadband; 0 if not drifted
     private long driftSinceMs = 0;
+
+    // Learn mode (ComfortLearn). lastState is the last full read (null when the
+    // climate is off or unreadable). seenExact turns true when a refit finds
+    // the car exactly on the column we set, so a later "approx" is a hand on
+    // the panel, not a car that woke up on another day's settings.
+    private final ComfortLearn.Watcher watcher = new ComfortLearn.Watcher();
+    private volatile ComfortLearn.State lastState;
+    private volatile int lastApplied = 0;
+    private volatile boolean seenExact = false;
 
     // Single-slot mailbox for coalescing a burst of taps into one write.
     // applyStale = true means level changed while a write was in flight.
@@ -124,7 +134,7 @@ public class ComfortRuler {
             if (outNow != null && Math.abs(outNow - tableOutC) >= DRIFT_C) {
                 Log.i(TAG, "ruler: table was built for " + tableOutC + "C, now "
                          + outNow + "C — rebuilding before the press");
-                table = EffortTable.build(outNow);
+                table = buildTable(outNow);
                 tableOutC = outNow;
                 driftSinceMs = 0;
             }
@@ -268,9 +278,10 @@ public class ComfortRuler {
             status = ctx.getString(R.string.ruler_no_outside_temp);
             return false;
         }
-        table = EffortTable.build(outC);
+        table = buildTable(outC);
         tableOutC = outC;
         armed = true;
+        seenExact = false;
         refit();
         // Initialize silence timer. Needed for drift detection in maintenance().
         lastTapMs = System.currentTimeMillis();
@@ -287,6 +298,7 @@ public class ComfortRuler {
         // ruler display until defrost is released.
         Boolean defrost = car().readHvacFlag(CarAccess.HVAC_MAX_DEFROST);
         defrosting = defrost != null && defrost;
+        lastState = null;
         if (defrosting) {
             direction = EffortTable.DIR_GLASS;
             status = ctx.getString(R.string.ruler_defrosting);
@@ -309,6 +321,8 @@ public class ComfortRuler {
 
         level  = EffortTable.fit(table, tableOutC, power, machine, sp, fan, dir, recirc);
         approx = !matches(EffortTable.at(table, level), power, machine, sp, fan, dir, recirc);
+        if (!approx && power && level == lastApplied) seenExact = true;
+        lastState = power ? new ComfortLearn.State(machine, sp, fan, dir, recirc) : null;
         status = describe(level);
         direction = power ? dir : 0;
     }
@@ -334,6 +348,8 @@ public class ComfortRuler {
         // Flags use ensureFlag() to read first (they toggle on write, not set).
         if (!armed || !car().isReady() || table == null) return;
         EffortTable.Column c = EffortTable.at(table, lv);
+        lastApplied = lv;
+        seenExact = false;
 
         // A press claims the whole column back, whatever it is — including from
         // the physical defrost button. ensureFlag no-ops when it was already
@@ -474,6 +490,8 @@ public class ComfortRuler {
             notifyUi();
         }
 
+        learnStep(now);
+
         // If a lever is out of line (approx=true), a hand is on the OEM panel.
         // Don't re-slide, since that would just undo the manual change. Tapping
         // Cool or Warm settles the approximate position and returns control.
@@ -491,12 +509,96 @@ public class ComfortRuler {
         // Re-build table and re-apply same level. Effort level is preserved;
         // the recipe adapts as free air takes over from machine.
         int held = level;
-        table = EffortTable.build(outC);
+        EffortTable.Column[] next = buildTable(outC);
+        boolean same = sameTable(table, next);
+        table = next;
         tableOutC = outC;
         driftSinceMs = 0;
+        // The table is fixed inside a weather band: same columns, nothing to
+        // write to the car.
+        if (same) return;
         Log.i(TAG, "ruler: weather moved to " + outC + "C — re-applying " + EffortTable.name(held));
         ComfortEvents.event(ctx, "reslide", ComfortEvents.snap(car(), held), "out=" + outC);
         apply(held);
+    }
+
+    private static boolean sameTable(EffortTable.Column[] a, EffortTable.Column[] b) {
+        if (a == null || b == null || a.length != b.length) return false;
+        for (int i = 0; i < a.length; i++) {
+            if (i == EffortTable.MAX_LEVEL) continue;   // 0 is always "off"
+            if (!a[i].toString().equals(b[i].toString())) return false;
+        }
+        return true;
+    }
+
+    /** The table for this weather, from the table file (ComfortTableStore).
+     * Learn mode only decides whether the weekly learning writes to it. */
+    private EffortTable.Column[] buildTable(float outC) {
+        return ComfortTableStore.get(ctx).build(outC);
+    }
+
+    /**
+     * Learn mode (ComfortLearn). A hand change on the car's panel, made after
+     * we set a column exactly and held {@link ComfortLearn#HOLD_MS}, is counted
+     * as a hold. The ruler itself changes only in the weekly decision, and only
+     * while the climate is off, so it never moves under a drive. Runs on
+     * CarActor's thread from doMaintenance(), after refit().
+     */
+    private void learnStep(long now) {
+        if (!Prefs.getComfortLearn(ctx)) { watcher.observe(now, null, false); return; }
+
+        if (level == 0 && lastState == null && !defrosting) {
+            ComfortLearn.Book book = ComfortLearn.Book.decode(Prefs.getComfortBook(ctx));
+            long due = book.nextDecisionMs();
+            if (due != 0 && now < due) return;
+            ComfortLearn.Outcome o = ComfortLearn.decide(book, now, ComfortTableStore.get(ctx));
+            Prefs.setComfortBook(ctx, book.encode());
+            if (o.changed) ComfortTableStore.save(ctx, o.table);
+            for (String n : o.notes) {
+                ComfortEvents.event(ctx, "learn", ComfortEvents.snap(car(), level), n);
+            }
+            if (o.changed) {
+                Log.i(TAG, "ruler: weekly learn " + o.notes);
+                table = buildTable(tableOutC);
+                // The car may still hold our old column exactly; against the
+                // new table that reads as a hand change. Only a fresh exact
+                // fit may arm learning again.
+                seenExact = false;
+                notifyUi();
+            }
+            return;
+        }
+
+        boolean eligible = approx && seenExact && !defrosting && level != 0
+            && now - lastTapMs >= QUIET_AFTER_TAP_MS;
+        ComfortLearn.State held = watcher.observe(now, lastState, eligible);
+        if (held == null) return;
+        // While a hand state is in place doMaintenance() does not follow the
+        // weather, so the table can be from another day. A hold is filed under
+        // tableOutC's band; drop it when today is outside that band.
+        Float outNow = car().readOutsideTempC();
+        if (outNow == null || Math.abs(outNow - tableOutC) >= DRIFT_C) {
+            ComfortEvents.event(ctx, "learn", ComfortEvents.snap(car(), level),
+                "skip: table out=" + tableOutC + " now=" + outNow);
+            return;
+        }
+        ComfortLearn.Book book = ComfortLearn.Book.decode(Prefs.getComfortBook(ctx));
+        String note = ComfortLearn.hold(book, table, tableOutC, now, level, lastApplied, held);
+        if (note == null) return;
+        Prefs.setComfortBook(ctx, book.encode());
+        ComfortEvents.event(ctx, "learn", ComfortEvents.snap(car(), level),
+                            note + " dir=" + held.dir + " out=" + tableOutC);
+    }
+
+    /** Rebuilds the table after learn mode was switched or reset. */
+    public void reloadLearned() {
+        CarActor.get(ctx).runOnCarThread(() -> {
+            if (!armed || Float.isNaN(tableOutC)) return;
+            table = buildTable(tableOutC);
+            seenExact = false;   // same reason as the weekly rebuild
+            if (car().isReady()) refit();
+            notifyUi();
+        });
     }
 
     private String describe(int lv) {

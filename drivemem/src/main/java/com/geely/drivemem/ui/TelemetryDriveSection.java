@@ -19,6 +19,7 @@ import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.controls.GeelySwitch;
 import com.geely.drivemem.controls.AvasState;
 import com.geely.drivemem.controls.HelperSync;
+import com.geely.drivemem.controls.RegenTap;
 import com.geely.drivemem.controls.TurboMode;
 import com.geely.drivemem.util.Modes;
 import com.geely.drivemem.util.Prefs;
@@ -92,7 +93,7 @@ public final class TelemetryDriveSection extends LinearLayout {
         status.setText(activity.getString(R.string.cfg_connecting));
         left.addView(status);
 
-        // the glyphs "🍃 ☁ ⚡ ◦ ◉ ●" are icons, not text: they do not get translated
+        // the mode and regen icons are drawables, not text: they do not get translated
         //
         // Capped width, not MATCH_PARENT: small tiles/fields/rows stretched
         // across the whole panel turn into oversized slabs. pageWidth keeps
@@ -112,9 +113,9 @@ public final class TelemetryDriveSection extends LinearLayout {
         LinearLayout regenRow = new LinearLayout(activity);
         regenRow.setOrientation(LinearLayout.HORIZONTAL);
         regenRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        regenRow.addView(modeCard("◦", activity.getString(R.string.cfg_regen_low), Modes.REGEN_LOW, Style.CARD_ON, regenCards, () -> pickRegen(Modes.REGEN_LOW)));
-        regenRow.addView(modeCard("◉", activity.getString(R.string.cfg_regen_mid), Modes.REGEN_MID, Style.CARD_ON, regenCards, () -> pickRegen(Modes.REGEN_MID)));
-        regenRow.addView(modeCard("●", activity.getString(R.string.cfg_regen_high), Modes.REGEN_HIGH, Style.CARD_ON, regenCards, () -> pickRegen(Modes.REGEN_HIGH)));
+        regenRow.addView(modeCard(RegenTap.icon(Modes.REGEN_LOW), activity.getString(R.string.cfg_regen_low), Modes.REGEN_LOW, Style.CARD_ON, regenCards, () -> pickRegen(Modes.REGEN_LOW)));
+        regenRow.addView(modeCard(RegenTap.icon(Modes.REGEN_MID), activity.getString(R.string.cfg_regen_mid), Modes.REGEN_MID, Style.CARD_ON, regenCards, () -> pickRegen(Modes.REGEN_MID)));
+        regenRow.addView(modeCard(RegenTap.icon(Modes.REGEN_HIGH), activity.getString(R.string.cfg_regen_high), Modes.REGEN_HIGH, Style.CARD_ON, regenCards, () -> pickRegen(Modes.REGEN_HIGH)));
         left.addView(regenRow);
 
         left.addView(Style.header(activity, activity.getString(R.string.turbo_header)));
@@ -125,9 +126,16 @@ public final class TelemetryDriveSection extends LinearLayout {
         turboRow.setOrientation(LinearLayout.HORIZONTAL);
         turboRow.setGravity(Gravity.CENTER_VERTICAL);
         turboRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
+        // Everything below the switch configures the Turbo card, so it is
+        // hidden while the card is off.
+        final LinearLayout turboDetails = new LinearLayout(activity);
+        turboDetails.setOrientation(LinearLayout.VERTICAL);
+        turboDetails.setVisibility(Prefs.getTurboEnabled(activity) ? View.VISIBLE : View.GONE);
         LinearLayout turboToggle = Style.toggleRow(activity, activity.getString(R.string.turbo_enable_label),
-            Prefs.getTurboEnabled(activity),
-            on -> Prefs.setTurboEnabled(activity, on));
+            Prefs.getTurboEnabled(activity), on -> {
+                Prefs.setTurboEnabled(activity, on);
+                turboDetails.setVisibility(on ? View.VISIBLE : View.GONE);
+            });
         turboRow.addView(turboToggle);
 
         TextView durLbl = new TextView(activity);
@@ -135,9 +143,8 @@ public final class TelemetryDriveSection extends LinearLayout {
         durLbl.setTextColor(Style.TEXT_DIM); durLbl.setTextSize(14);
         LinearLayout.LayoutParams durLblLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        durLblLp.leftMargin = Style.dp(activity, 28);
+        durLblLp.leftMargin = Style.dp(activity, 4);
         durLbl.setLayoutParams(durLblLp);
-        turboRow.addView(durLbl);
 
         fTurbo = new EditText(activity);
         fTurbo.setText(String.valueOf(Prefs.getTurboDurationS(activity, TurboMode.DEFAULT_DURATION_S)));
@@ -150,8 +157,14 @@ public final class TelemetryDriveSection extends LinearLayout {
             Style.dp(activity, 90), ViewGroup.LayoutParams.WRAP_CONTENT);
         fTurboLp.leftMargin = Style.dp(activity, 10);
         fTurbo.setLayoutParams(fTurboLp);
-        turboRow.addView(fTurbo);
+        LinearLayout durRow = new LinearLayout(activity);
+        durRow.setOrientation(LinearLayout.HORIZONTAL);
+        durRow.setGravity(Gravity.CENTER_VERTICAL);
+        durRow.addView(durLbl);
+        durRow.addView(fTurbo);
         left.addView(turboRow);
+        left.addView(turboDetails);
+        turboDetails.addView(durRow);
         // Issue #15: which buttons the Turbo card shows. Turbo and Regen by
         // default (the card as it always was), AVAS opt-in. Read when Home
         // is built; Home rebuilds itself on return when this changes.
@@ -159,7 +172,7 @@ public final class TelemetryDriveSection extends LinearLayout {
         slotsLbl.setText(activity.getString(R.string.turbo_card_buttons_label));
         slotsLbl.setTextColor(Style.TEXT_DIM); slotsLbl.setTextSize(14);
         slotsLbl.setPadding(0, Style.dp(activity, 10), 0, 0);
-        left.addView(slotsLbl);
+        turboDetails.addView(slotsLbl);
         LinearLayout slotsRow = new LinearLayout(activity);
         slotsRow.setOrientation(LinearLayout.HORIZONTAL);
         slotsRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -167,18 +180,24 @@ public final class TelemetryDriveSection extends LinearLayout {
             {Prefs.CARD_TURBO, activity.getString(R.string.turbo_title)},
             {Prefs.CARD_REGEN, activity.getString(R.string.regen_boost_title)},
             {Prefs.CARD_AVAS, activity.getString(R.string.avas_title)}};
+        // Issue #15: the Turbo card's Regen half either toggles Strong regen
+        // (default) or steps through all three levels on each tap. It only
+        // means something while the card shows its Regen button, so it is
+        // hidden otherwise.
+        final LinearLayout regenCycleRow = Style.toggleRow(activity, activity.getString(R.string.regen_cycle_label),
+            Prefs.getRegenCycle(activity),
+            on -> Prefs.setRegenCycle(activity, on));
+        regenCycleRow.setVisibility(Prefs.getTurboCardShows(activity, Prefs.CARD_REGEN) ? View.VISIBLE : View.GONE);
         for (String[] sl : slots) {
             final String key = sl[0];
-            LinearLayout r = Style.toggleRow(activity, sl[1], Prefs.getTurboCardShows(activity, key),
-                on -> Prefs.setTurboCardShows(activity, key, on));
+            LinearLayout r = Style.toggleRow(activity, sl[1], Prefs.getTurboCardShows(activity, key), on -> {
+                Prefs.setTurboCardShows(activity, key, on);
+                if (Prefs.CARD_REGEN.equals(key)) regenCycleRow.setVisibility(on ? View.VISIBLE : View.GONE);
+            });
             slotsRow.addView(r, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         }
-        left.addView(slotsRow);
-        // Issue #15: the Turbo card's Regen half either toggles Strong regen
-        // (default) or steps through all three levels on each tap.
-        left.addView(Style.toggleRow(activity, activity.getString(R.string.regen_cycle_label),
-            Prefs.getRegenCycle(activity),
-            on -> Prefs.setRegenCycle(activity, on)));
+        turboDetails.addView(slotsRow);
+        turboDetails.addView(regenCycleRow);
         // Saves on every keystroke that parses, not on blur — blur never
         // reliably fired here (dismissing the on-screen number pad hides the
         // IME but does not necessarily move focus off the EditText, so a
@@ -204,8 +223,15 @@ public final class TelemetryDriveSection extends LinearLayout {
         // helper's callback param (passed null, overridden below) so the
         // listener can hold a reference to its own switch, to revert it
         // silently on cancel/not-parked without rebuilding the whole screen.
-        LinearLayout aebRow = Style.toggleRow(activity, activity.getString(R.string.cfg_aeb_label), Prefs.getAebOn(activity), null);
+        // Hidden until the car answers (refreshAebFromCar): the car
+        // is the only copy of this setting, so there is no saved value to
+        // show first that could be stale.
+        Boolean aebNow = aebOn(CarActor.get(activity).get(CarActor.AEB));
+        LinearLayout aebRow = Style.toggleRow(activity, activity.getString(R.string.cfg_aeb_label),
+            aebNow != null && aebNow, null);
         GeelySwitch aebSwitch = (GeelySwitch) aebRow.getChildAt(0);
+        // Hidden, not shown as "off", so it never visibly flips when the answer comes.
+        if (aebNow == null) { aebSwitch.setEnabled(false); aebSwitch.setVisibility(View.INVISIBLE); }
         this.aebSwitch = aebSwitch;
         aebSwitch.setOnToggle(on -> {
             if (!on) {
@@ -234,11 +260,15 @@ public final class TelemetryDriveSection extends LinearLayout {
         // above, so refreshAvasFromCar() can move the switch on its own once
         // the live read comes back — modehelper now mirrors an OEM-side
         // change into its own saved preference (see ModeHelperService), so
-        // Drive Assist's own saved "avas_on" can go stale the moment the
-        // owner picks a different sound in OEM Settings. Reading the car
-        // directly on every screen entry is what keeps this switch honest.
-        LinearLayout avasRow = Style.toggleRow(activity, activity.getString(R.string.cfg_avas_label), Prefs.getAvasOn(activity), null);
+        // a saved copy here went stale the moment AVAS changed anywhere else
+        // (the Home AVAS button, OEM Settings): the switch drew "off" from it
+        // and jumped to "on" a second later. So there is no copy: the switch
+        // shows the car's state from the hub, hidden until it is known.
+        Boolean avasNow = AvasState.on(CarActor.get(activity).get(AvasState.KEY));
+        LinearLayout avasRow = Style.toggleRow(activity, activity.getString(R.string.cfg_avas_label),
+            avasNow != null && avasNow, null);
         avasSwitch = (GeelySwitch) avasRow.getChildAt(0);
+        if (avasNow == null) { avasSwitch.setEnabled(false); avasSwitch.setVisibility(View.INVISIBLE); }
         avasSwitch.setOnToggle(on -> HelperSync.applyNow(activity, "avas", on));
         avasRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
         left.addView(avasRow);
@@ -271,12 +301,6 @@ public final class TelemetryDriveSection extends LinearLayout {
         addRestoreRow(advanced, pageWidth, R.string.cfg_aeb_label, Prefs.RESTORE_AEB);
         addRestoreRow(advanced, pageWidth, R.string.cfg_avas_label, Prefs.RESTORE_AVAS);
 
-        left.addView(Style.header(activity, activity.getString(R.string.cfg_actions_header)));
-        LinearLayout actionRow = new LinearLayout(activity);
-        actionRow.setOrientation(LinearLayout.HORIZONTAL);
-        actionRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        actionRow.addView(Style.action(activity, activity.getString(R.string.cfg_btn_restore_defaults), Style.ACCENT, this::restoreDriveDefaults));
-        left.addView(actionRow);
         left.addView(advToggle);
         left.addView(advanced);
 
@@ -291,38 +315,26 @@ public final class TelemetryDriveSection extends LinearLayout {
         refresh();
     }
 
-    // Regen (Fraca/Média/Forte) has no real icon set -- these three dots are
-    // a plain geometric affordance, not a brand/style pastiche in need of a
-    // license, so they stay a plain glyph.
-    private LinearLayout modeCard(String symbol, String label, int key, int onColor,
-                                  Map<Integer, LinearLayout> reg, Runnable onClick) {
-        LinearLayout card = modeCardShell(label, key, onColor, reg, onClick);
-        TextView ic = new TextView(activity);
-        ic.setText(symbol); ic.setTextColor(Style.TEXT); ic.setTextSize(34);
-        ic.setGravity(Gravity.CENTER);
-        card.addView(ic, 0);
-        return card;
-    }
-
     // Eco/Comfort/Sport get a real vector icon (Google Material Symbols,
-    // Apache-2.0 -- see the drawable files' own header comments) instead of
-    // an emoji glyph, tinted the same way the label already is so selection
-    // recolors both together (see paintCard()).
+    // Apache-2.0 -- see the drawable files' own header comments) and
+    // Low/Medium/High get Drive Assist's own regen ring (RegenTap.icon(),
+    // the same one the Turbo card and the floating panel show), each
+    // tinted the same way the label already is so selection recolors both
+    // together (see paintCard()).
     private LinearLayout modeCard(int iconRes, String label, int key, int onColor,
                                   Map<Integer, LinearLayout> reg, Runnable onClick) {
         LinearLayout card = modeCardShell(label, key, onColor, reg, onClick);
         ImageView ic = new ImageView(activity);
         ic.setImageResource(iconRes);
         ic.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
-        LinearLayout.LayoutParams icLp = new LinearLayout.LayoutParams(Style.dp(activity, 34), Style.dp(activity, 34));
+        LinearLayout.LayoutParams icLp = new LinearLayout.LayoutParams(Style.dp(activity, 24), Style.dp(activity, 24));
         ic.setLayoutParams(icLp);
         card.addView(ic, 0);
         return card;
     }
 
-    // Shared shell: padding, label, click, sizing/tag/registration -- the
-    // two overloads above differ only in how the icon view itself is built,
-    // so that's the only thing each adds, at index 0 (before the label).
+    // Shared shell: padding, label, click, sizing/tag/registration. modeCard()
+    // adds only the icon view, at index 0 (before the label).
     private LinearLayout modeCardShell(String label, int key, int onColor,
                                        Map<Integer, LinearLayout> reg, Runnable onClick) {
         LinearLayout card = new LinearLayout(activity);
@@ -334,13 +346,13 @@ public final class TelemetryDriveSection extends LinearLayout {
         int pad = Style.dp(activity, 8);
         card.setPadding(pad, pad, pad, pad);
         TextView lb = new TextView(activity);
-        lb.setText(label); lb.setTextColor(Style.TEXT); lb.setTextSize(21);
+        lb.setText(label); lb.setTextColor(Style.TEXT); lb.setTextSize(18);
         lb.setTypeface(null, Typeface.BOLD);
         lb.setGravity(Gravity.CENTER);
         lb.setPadding(Style.dp(activity, 10), 0, 0, 0);
         card.addView(lb);
         card.setOnClickListener(v -> onClick.run());
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Style.dp(activity, 120), 1f);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Style.dp(activity, 64), 1f);
         int m = Style.dp(activity, 4);
         lp.setMargins(m, Style.dp(activity, 8), m, 0);
         card.setLayoutParams(lp);
@@ -367,9 +379,10 @@ public final class TelemetryDriveSection extends LinearLayout {
     // card's own onColor (set at build time, in modeCard's tag) replaces the
     // one shared CARD_ON fill so Eco/Comfort/Sport read as green/amber/red at
     // a glance instead of only by their label.
+    // 2026-11-17, owner: "too colorful". The selected card is now a quiet tint
+    // of the theme accent for every card; the per-card colour is unused.
     private void paintCard(LinearLayout card, boolean selected, boolean isLive) {
-        int onColor = (card.getTag() instanceof Integer) ? (Integer) card.getTag() : Style.CARD_ON;
-        int fill = selected ? onColor : Style.CARD;
+        int fill = selected ? Style.blend(Style.CARD, Style.ACCENT, 0.3f) : Style.CARD;
         android.graphics.drawable.GradientDrawable g = Style.card(fill, activity);
         if (isLive) g.setStroke(Style.dp(activity, Style.STROKE_DP + 2), Style.ACCENT);
         card.setBackground(g);
@@ -426,12 +439,6 @@ public final class TelemetryDriveSection extends LinearLayout {
     // Single explicit reset for both pickers, to Eco + Mid regen — the same
     // pair this screen starts from on a fresh install and modehelper falls
     // back to on its own (ModeHelperService, CarMode.DRIVE_ECO/REGEN_MID).
-    private void restoreDriveDefaults() {
-        pickDrive(Modes.DRIVE_ECO);
-        pickRegen(Modes.REGEN_MID);
-        status.setText(activity.getString(R.string.cfg_restored_defaults));
-    }
-
     private void addRestoreRow(LinearLayout parent, int width, int labelRes, String key) {
         LinearLayout row = Style.toggleRow(activity, activity.getString(labelRes),
             Prefs.getRestore(activity, key), on -> {
@@ -496,7 +503,9 @@ public final class TelemetryDriveSection extends LinearLayout {
             Boolean on = AvasState.on(CarActor.get(activity).get(AvasState.KEY));
             // Display only: the saved value is the user's choice for "Restore
             // at start", and the car's current state is not a choice (#13).
-            if (on != null) avasSwitch.setCheckedSilently(on);
+            if (on == null) return;
+            avasSwitch.setCheckedSilently(on);
+            avasSwitch.setEnabled(true); avasSwitch.setVisibility(View.VISIBLE);
         };
         ui.post(show);
         HelperSync.queryAvas(activity);
@@ -506,12 +515,28 @@ public final class TelemetryDriveSection extends LinearLayout {
     // Same idea for AEB: show what the car has now, not what was saved (#13).
     public void refreshAebFromCar() {
         if (aebSwitch == null) return;
+        // The hub first (car.aeb, watched from the car, so normally known
+        // before this screen opens); a direct read only if it is not known yet.
+        Boolean hub = aebOn(CarActor.get(activity).get(CarActor.AEB));
+        if (hub != null) { showAeb(hub); return; }
         CarActor.get(activity).runOnCarThread(() -> {
             CarAccess c = CarActor.get(activity).rawAccess();
             if (!c.isReady() && !c.connect(activity.getApplicationContext())) return;
             Boolean on = c.readBool(CarAccess.AEB_PROP, 0);
             if (on == null) return;
-            ui.post(() -> aebSwitch.setCheckedSilently(on));
+            ui.post(() -> showAeb(on));
         });
+    }
+
+    private void showAeb(boolean on) {
+        aebSwitch.setCheckedSilently(on);
+        aebSwitch.setEnabled(true); aebSwitch.setVisibility(View.VISIBLE);
+    }
+
+    private static Boolean aebOn(CarActor.Reading r) {
+        if (r == null || r.status != CarActor.Reading.Status.OK) return null;
+        if (r.value instanceof Boolean) return (Boolean) r.value;
+        if (r.value instanceof Number) return ((Number) r.value).intValue() != 0;
+        return null;
     }
 }

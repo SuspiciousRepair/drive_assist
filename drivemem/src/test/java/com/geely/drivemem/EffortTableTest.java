@@ -98,10 +98,27 @@ public class EffortTableTest {
     }
 
     @Test public void coldFanTableMatchesC1ThroughC5() {
-        int[] expected = {1, 2, 4, 6, 8};
+        int[] expected = {1, 2, 3, 6, 8};
         for (int level = 1; level <= 5; level++) {
             assertEquals("C" + level, expected[level - 1], EffortTable.column(26f, level).fan);
         }
+    }
+
+    /**
+     * The setting the owner made by hand between C2 and C3 (2026-11-17, 26 C
+     * outside: AC on, 21 C, fan 3, recirc, face) is now C3 itself, and C2 -> C3
+     * no longer doubles the fan.
+     */
+    @Test public void c3IsTheOwnersHandMadeStepAt26C() {
+        Column[] t = EffortTable.build(26f);
+        Column c2 = EffortTable.at(t, 2), c3 = EffortTable.at(t, 3);
+        assertEquals(3, c3.fan);
+        assertEquals(21f, c3.setpointC, 0f);
+        assertTrue(c3.machine);
+        assertTrue(c3.recirc);
+        assertEquals(EffortTable.DIR_FACE, c3.direction);
+        assertEquals(1, c3.fan - c2.fan);
+        assertEquals(3, EffortTable.fit(t, 26f, true, true, 21f, 3, EffortTable.DIR_FACE, true));
     }
 
     @Test public void setpointClampGuaranteesDistinctWholeDegreesNearRail() {

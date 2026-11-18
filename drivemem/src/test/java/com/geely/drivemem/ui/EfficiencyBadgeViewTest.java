@@ -37,10 +37,10 @@ public class EfficiencyBadgeViewTest {
     }
 
     // The number and the bar colours are built once per change, not per draw.
-    @Test public void numberTextIsOneDecimalWithAMarkForAnEstimate() {
-        assertEquals("8.7", EfficiencyBadgeView.numberText(8.7, false, java.util.Locale.US));
-        assertEquals("8,7", EfficiencyBadgeView.numberText(8.7, false, new java.util.Locale("pt", "BR")));
-        assertEquals("14.0~", EfficiencyBadgeView.numberText(14, true, java.util.Locale.US));
+    @Test public void numberTextIsWholeWhPerKmWithAMarkForAnEstimate() {
+        assertEquals("87", EfficiencyBadgeView.numberText(8.7, false, java.util.Locale.US));
+        assertEquals("152", EfficiencyBadgeView.numberText(15.2, false, new java.util.Locale("pt", "BR")));
+        assertEquals("140~", EfficiencyBadgeView.numberText(14, true, java.util.Locale.US));
         assertEquals(EfficiencyBadgeView.NO_VALUE, EfficiencyBadgeView.numberText(Double.NaN, false, java.util.Locale.US));
         assertEquals(EfficiencyBadgeView.NO_VALUE, EfficiencyBadgeView.numberText(Double.NaN, true, java.util.Locale.US));
     }

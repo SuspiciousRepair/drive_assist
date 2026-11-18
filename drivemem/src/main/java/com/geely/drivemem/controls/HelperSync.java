@@ -35,9 +35,11 @@ public final class HelperSync {
         send(ctx, i);
     }
 
-    /** User tapped the AEB or AVAS switch: save and write to the car now. */
+    /** User tapped the AEB or AVAS switch: modehelper writes it to the car now
+     * and keeps it as the choice for "Restore at start". Drive Assist keeps no
+     * copy: its old "aeb_on"/"avas_on" went stale whenever the setting changed
+     * anywhere else, and the switches drew from it. */
     public static void applyNow(Context ctx, String key, boolean on) {
-        if ("avas".equals(key)) Prefs.setAvasOn(ctx, on); else Prefs.setAebOn(ctx, on);
         Intent i = base().putExtra("apply_now", true);
         if ("avas".equals(key)) i.putExtra("avas", on ? 1 : 0); else i.putExtra("aeb", on);
         send(ctx, i);

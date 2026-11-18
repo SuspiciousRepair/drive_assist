@@ -24,21 +24,19 @@
 
     <!-- misc -->
     <string name="cleanup_title">Limpieza</string>
-    <string name="cleanup_subtitle">Elimina lo que se añadió después de la imagen de fábrica. No deshace el ADB (viene del recovery) ni toca apps del sistema.</string>
-    <string name="cleanup_step1_header">Paso 1 — restos</string>
-    <string name="cleanup_step2_header">Paso 2 — quitar apps</string>
+    <string name="cleanup_subtitle">Elimina Drive Assist, su ayudante y el lector CAN, y devuelve el sonido de bloqueo propio del coche. Solo toca lo nuestro, nunca otra app. El root profundo del recovery se queda.</string>
+    <string name="cleanup_step1_header">Paso 1 — detener y borrar datos</string>
+    <string name="cleanup_step2_header">Paso 2 — quitar</string>
     <string name="cleanup_action_stop_wipe">Detener servicios y borrar los datos de Drive Assist</string>
-    <string name="cleanup_action_uninstall_apps">Desinstalar apps personalizadas</string>
-    <string name="cleanup_action_uninstall_self">Desinstalar Drive Assist</string>
+    <string name="cleanup_action_uninstall_self">Quitar Drive Assist y su ayudante (mantener ADB activo)</string>
+    <string name="cleanup_action_remove_close_adb">Quitar y cerrar ADB (antes del taller)</string>
+    <string name="cleanup_adb_note">Cierra ADB solo antes del taller. Apaga el acceso de Drive Assist al coche, y no queda nada en el coche que lo reabra. Para volver a usar Drive Assist, desbloquea el coche igual que lo hiciste la primera vez.</string>
     <string name="cleanup_log_idle">Nada hecho todavía.\nCada botón pide confirmación (toca dos veces).</string>
     <string name="cleanup_confirm_prompt">Toca \"%1$s\" otra vez para confirmar.</string>
     <string name="cleanup_stopping">Deteniendo servicios…</string>
     <string name="cleanup_wiped">Servicios detenidos, iconos eliminados, alarma cancelada y datos borrados.\nDrive Assist sigue instalado, pero inactivo.</string>
-    <string name="cleanup_uninstall_header">Solicitando desinstalar:</string>
-    <string name="cleanup_uninstall_item_failed">falló: %1$s</string>
-    <string name="cleanup_uninstall_footer">Confirma cada diálogo del sistema. Uno a la vez.</string>
-    <string name="cleanup_none_found">No se encontraron apps personalizadas.</string>
-    <string name="cleanup_removing_self">Solicitando la eliminación de Drive Assist…</string>
+    <string name="cleanup_helper_missing">Falta el ayudante, así que el lector CAN y ADB no se pueden limpiar desde aquí. Quitando solo Drive Assist.</string>
+    <string name="cleanup_removing_self">Quitando Drive Assist y su ayudante…</string>
     <string name="cleanup_failed">Falló: %1$s</string>
     <string name="notif_tele_channel">Telemetría</string>
     <string name="notif_tele_title">Drive Assist — telemetría</string>
@@ -62,6 +60,7 @@
     <!-- config -->
     <string name="cfg_title">Ajustes</string>
     <string name="cfg_nav_doors">Puertas</string>
+    <string name="cfg_nav_climate">Clima</string>
     <string name="cfg_nav_drive">Modo de conducción</string>
     <string name="cfg_nav_bar">Barra de menú</string>
     <string name="cfg_nav_look">Apariencia</string>
@@ -127,6 +126,29 @@
     <string name="cfg_purge_open_rl">Trasera izquierda</string>
     <string name="cfg_purge_open_rr">Trasera derecha</string>
     <string name="cfg_actions_header">Acciones</string>
+    <string name="cfg_learn_header">Regla del clima</string>
+    <string name="cfg_learn_hint">Modo aprender: cuando cambias el clima a mano en el panel del coche y lo mantienes 10 minutos, se cuenta. Una vez por semana, con el clima apagado, cada nivel toma el ajuste que mantuviste más veces (al menos 2). Solo para esa temperatura exterior. Apagado: la regla conserva lo aprendido y deja de aprender.</string>
+    <string name="cfg_learn_toggle">Aprender de mis ajustes</string>
+    <string name="cfg_learn_none">Nada aprendido todavía.</string>
+    <string name="cfg_learn_last">Último cambio: %1$s</string>
+    <string name="cfg_learn_week">Esta semana: %1$d ajustes a mano contados. Próxima actualización: %2$s.</string>
+    <string name="cfg_learn_reset">Restablecer la regla</string>
+    <string name="cfg_learn_reset_title">¿Restablecer la regla del clima?</string>
+    <string name="cfg_learn_reset_body">Se borra todo lo que la regla aprendió. Vuelve la regla estándar.</string>
+    <string name="cfg_learn_reset_ok">Restablecer</string>
+    <string name="cfg_learn_item">%1$s · %2$s: %3$s</string>
+    <string name="cfg_learn_band">%1$d–%2$d °C fuera</string>
+    <string name="cfg_learn_band_above">más de %1$d °C fuera</string>
+    <string name="cfg_learn_band_below">menos de %1$d °C fuera</string>
+    <string name="cfg_learn_fan">ventilador %1$d</string>
+    <string name="cfg_learn_sp">%1$s °C</string>
+    <string name="cfg_learn_rec_on">recirculación</string>
+    <string name="cfg_learn_rec_off">aire exterior</string>
+    <string name="cfg_learn_dir_face">cara</string>
+    <string name="cfg_learn_dir_feet">pies</string>
+    <string name="cfg_learn_dir_face_feet">cara y pies</string>
+    <string name="cfg_learn_dir_glass">parabrisas</string>
+    <string name="cfg_learn_dir_glass_feet">parabrisas y pies</string>
     <string name="cfg_btn_on">Encender</string>
     <string name="cfg_btn_off">Apagar</string>
     <string name="cfg_btn_test">Probar</string>
@@ -159,10 +181,8 @@
     <string name="cfg_aeb_confirm_title">¿Desactivar el frenado automático de emergencia?</string>
     <string name="cfg_aeb_confirm_body">Desactiva el frenado automático de emergencia. Sigue desactivado tras reiniciar mientras Restaurar al encender el auto esté activado para AEB (Avanzado, abajo).</string>
     <string name="cfg_aeb_confirm_turn_off">Desactivar</string>
-    <string name="cfg_btn_restore_defaults">Restaurar valores predeterminados</string>
     <string name="cfg_car_connect_fail">No se pudo conectar con el coche</string>
     <string name="cfg_applied">Aplicado: %1$s + %2$s</string>
-    <string name="cfg_restored_defaults">Valores predeterminados restaurados: %1$s + %2$s</string>
     <string name="cfg_mode_unknown">Modo actual desconocido — elige uno para aplicar</string>
     <string name="cfg_current">Actual: %1$s + %2$s</string>
     <string name="cfg_bar_header">Datos en la barra de menú</string>
@@ -411,15 +431,19 @@
     <string name="charge_stats_title">Estadísticas de carga</string>
     <!-- charging power curve dialog -->
     <string name="charge_sessions_title">Sesiones de carga · más recientes primero</string>
-    <string name="charge_soc_chart_title">Nivel de batería · cronológico</string>
+    <string name="charge_soc_chart_title">Rango de batería · más recientes primero</string>
+    <string name="charge_map_title">Dónde cargamos</string>
+    <string name="charge_map_none">Ninguna carga de este período guardó su lugar.</string>
     <string name="charge_curve_title">Potencia de carga en el tiempo</string>
     <string name="charge_curve_unavailable">Muestras no disponibles para esta sesión.</string>
     <string name="charge_curve_power_label">Potencia (kW)</string>
     <string name="charge_curve_temp_label">Temp. exterior (°C)</string>
     <string name="charge_curve_batt_temp_label">Temp. de la batería (°C)</string>
+    <string name="charge_curve_soc_label">SoC (%)</string>
     <string name="charge_curve_no_batt_temp">Temperatura de la batería no disponible (OBD2 desconectado)</string>
     <string name="charge_completed_title">Carga completada</string>
     <string name="charge_cost_label">Coste</string>
+    <string name="charge_cost_change">Cambiar</string>
     <string name="charge_cost_input_title">Coste de la carga</string>
     <string name="charge_cost_input_hint">Coste total (ej. 45,00)</string>
     <string name="charge_cost_btn_input">Introducir coste</string>
@@ -435,10 +459,6 @@
     <string name="charge_stat_cost_100km">Coste / 100 km</string>
 
     <!-- energy balance chart -->
-    <string name="charge_balance_title">Balance de energía</string>
-    <string name="charge_balance_hint">Toca una barra para ver detalles</string>
-    <string name="charge_balance_spent">Consumo</string>
-    <string name="charge_balance_regen">Regeneración</string>
     <!-- software update dialog -->
     <string name="update_dialog_title">Actualización de software disponible</string>
     <string name="update_dialog_title_target">Actualización %1$s disponible</string>
@@ -459,6 +479,7 @@
     <!-- daily stats day navigator -->
     <string name="daily_stats_prev_day">Anterior</string>
     <string name="daily_stats_next_day">Siguiente</string>
+    <string name="stats_nav_charge">Carga</string>
 
     <!-- Backup and restore (AppBackup, BackupDialogs) -->
     <string name="backup_header">Copia de seguridad</string>
@@ -503,9 +524,11 @@
     <string name="routes_header">Rutas de los viajes</string>
     <string name="routes_enable_label">Grabar las rutas de los viajes (GPS)</string>
     <string name="routes_hint">Guarda por dónde pasó cada viaje y dónde se hizo cada carga. Se queda en el coche: no se envía nada a ningún sitio. Entra en tu copia de seguridad. Los viajes de antes de esta opción no tienen ruta.</string>
+    <string name="routes_map_size">Mapa guardado: %1$s MB</string>
+    <string name="routes_map_clear">Borrar mapa guardado</string>
+    <string name="routes_map_cleared">Mapa guardado borrado</string>
     <string name="route_title">Ruta</string>
     <string name="route_none">Este viaje no tiene ruta. Las rutas se guardan en los viajes hechos con Config → Sistema → Rutas de los viajes activado.</string>
-    <string name="route_parked_only">Abre la ruta con el coche en P</string>
     <string name="routes_all_title">Todas las rutas</string>
     <string name="routes_all_count">%1$d viajes</string>
     <string name="routes_all_show">Ver todas</string>
@@ -519,6 +542,21 @@
     <string name="route_stat_speed_value">media %1$s · máx. %2$s km/h</string>
     <string name="route_stat_height_range">Altitud %1$s – %2$s m</string>
     <string name="route_stat_outside">Fuera</string>
+    <string name="route_stat_by_use">Energía por uso</string>
+    <string name="sankey_used">Gastado</string>
+    <string name="sankey_net">Neto</string>
+    <string name="sankey_regen">Regen</string>
+    <string name="stats_part_drive">Tracción</string>
+    <string name="stats_part_climate">Clima</string>
+    <string name="stats_part_other">Otros</string>
+    <string name="stats_by_use_none">Aparece en los nuevos viajes medidos por CAN</string>
+    <string name="stats_card_trip">Viaje</string>
+    <string name="stats_driving_time">Tiempo conduciendo</string>
+    <string name="stats_distance">Distancia</string>
+    <string name="stats_avg_speed">Vel. media</string>
+    <string name="stats_relief">Relieve</string>
+    <string name="stats_relief_net">neto</string>
+    <string name="session_stat_split_note">tracción %1$s · clima %2$s · otros %3$s</string>
     <!-- Tarjetas de sesiones del día (DailyStatsView) -->
     <string name="session_since">desde %1$s</string>
     <string name="session_yesterday">ayer</string>
@@ -526,6 +564,7 @@
     <string name="session_stat_battery">Batería</string>
     <string name="session_stat_efficiency">Eficiencia</string>
     <string name="session_stat_net_energy">Energía neta</string>
+    <string name="session_stat_charged_energy">Energía cargada</string>
     <string name="session_stat_net_breakdown">%1$s gastado − %2$s regen</string>
     <string name="session_stat_elevation">Subida / bajada</string>
     <string name="session_stat_avg_power">Potencia media</string>
@@ -619,5 +658,46 @@
     <string name="phone_msg_no_space">El coche no tiene espacio libre suficiente para este archivo.</string>
     <string name="phone_msg_busy">Ya hay una restauración en curso.</string>
     <string name="phone_msg_no_file">Elige primero un archivo de copia.</string>
-    <string name="unit_kwh_per_100km">kWh/100 km</string>
+    <string name="phone_routes">Rutas (GPX)</string>
+    <string name="phone_routes_hint">Tus viajes en archivos GPX. Se abren en Google Earth, Google My Maps y la mayoría de las apps de mapas.</string>
+    <string name="phone_routes_open">Abrir rutas</string>
+    <string name="phone_routes_day">Día completo</string>
+    <string name="phone_routes_trip">Este viaje</string>
+    <string name="phone_msg_no_route">Todavía no hay viajes con ruta grabada.</string>
+    <string name="soc_history_empty">Sin datos de batería en este período</string>
+    <string name="charge_card_charges">Cargas</string>
+    <string name="charge_card_energy_cap">%1$s kWh cargados</string>
+    <string name="charge_card_cost">Costo</string>
+    <string name="charge_card_cost_cap">%1$s / 100 km · %2$s / kWh</string>
+    <string name="charge_card_per_kwh">%1$s por kWh</string>
+    <string name="charge_card_cost_total">%1$s en total</string>
+    <string name="charge_card_cost_share">%1$s · %2$d%% del costo</string>
+    <string name="charge_card_no_dc">sin cargas DC</string>
+    <string name="charge_card_no_cost">ningún costo informado</string>
+    <string name="charge_card_low">Batería baja</string>
+    <string name="charge_card_low_cap">carga mínima · %1$s</string>
+    <string name="charge_card_below">Días bajo %1$d%%</string>
+    <string name="charge_card_plug_note">En promedio enchufas con %1$d%%</string>
+    <string name="charge_card_today">hoy</string>
+    <string name="charge_card_yesterday">ayer</string>
+    <string name="charge_card_days_ago">hace %1$d días</string>
+    <string name="charge_card_never">nunca</string>
+    <string name="charge_card_gap_days">%1$d días</string>
+    <string name="charge_card_gap_open">%1$s → hoy</string>
+    <string name="charge_card_avg_kw">%1$s kW prom.</string>
+    <string name="charge_card_full_band">Al 100%%: %1$d de %2$d · última %3$s</string>
+    <string name="charge_card_gap_line">mayor intervalo sin 100%%: %1$s (%2$s)</string>
+    <string name="charge_card_temp">Temperatura de la batería</string>
+    <string name="charge_card_temp_cap">máxima · %1$s · media %2$s · mín %3$s</string>
+    <string name="charge_card_full_time" formatted="false">Tiempo al 100%</string>
+    <string name="charge_card_full_time_val">%1$s media</string>
+    <string name="charge_card_full_time_sub">%1$s en total · máx %2$s</string>
+    <string name="charge_card_full_temp" formatted="false">Temp. al 100%</string>
+    <string name="charge_card_full_temp_val">máx %1$s</string>
+    <string name="charge_card_full_temp_sub">media %1$s</string>
+    <string name="charge_card_temp_note">LFP está bien entre 15 y 35 °C</string>
+    <string name="charge_card_temp_since">datos desde %1$s</string>
+    <string name="charge_card_no_temp">sin lectura (necesita el OBD2)</string>
+    <string name="charge_period_month">Mes</string>
+    <string name="charge_period_year">Año</string>
 </resources>

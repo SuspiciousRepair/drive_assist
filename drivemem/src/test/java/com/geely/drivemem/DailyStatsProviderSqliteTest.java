@@ -35,7 +35,7 @@ public class DailyStatsProviderSqliteTest {
     }
 
     @Test
-    public void getRecentDaysQueryFromDailyStatTable() throws SQLException {
+    public void calendarDaysQueryFromDailyStatTable() throws SQLException {
         // Simulate what TelemetryRollup produces: frozen daily_stat rows
         PreparedStatement ps = conn.prepareStatement(
             "INSERT INTO daily_stat (date, first_odo_km, last_odo_km) VALUES (?, ?, ?)");
@@ -56,10 +56,13 @@ public class DailyStatsProviderSqliteTest {
         ps.executeUpdate();
         ps.close();
 
-        // DailyStatsProvider.getRecentDays() query
-        ResultSet rs = conn.createStatement().executeQuery(
-            "SELECT date, MAX(0, last_odo_km - first_odo_km) AS km FROM daily_stat " +
-            "ORDER BY date DESC LIMIT 5");
+        // DailyStatsProvider.getCalendarDays() query (ordered here only so
+        // the assertions can walk it; the method puts rows in a map)
+        PreparedStatement q = conn.prepareStatement(
+            "SELECT date, MAX(0, last_odo_km - first_odo_km), charge_count FROM daily_stat " +
+            "WHERE date >= ? ORDER BY date DESC");
+        q.setString(1, "2026-09-13");
+        ResultSet rs = q.executeQuery();
 
         assertTrue(rs.next());
         assertEquals("2026-09-15", rs.getString(1));

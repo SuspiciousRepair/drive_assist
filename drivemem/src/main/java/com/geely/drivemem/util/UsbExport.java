@@ -75,7 +75,7 @@ public final class UsbExport {
             if (cb != null) cb.onDone(false, drive, 0);
             return;
         }
-        int copied = 0;
+        int copied = 0, failed = 0;
         for (File f : files) {
             if (f == null || !f.exists()) continue;
             try {
@@ -83,10 +83,13 @@ public final class UsbExport {
                 if (shouldCopy(f, to, skipSameSize)) copy(f, to);
                 copied++;
             } catch (Throwable t) {
+                failed++;
                 Log.w(TAG, "usbexport: " + f + ": " + t);
             }
         }
-        if (cb != null) cb.onDone(copied > 0, drive, copied);
+        // One file that did not make it (stick pulled, stick full) is a
+        // failed export, even if the files before it were copied.
+        if (cb != null) cb.onDone(copied > 0 && failed == 0, drive, copied);
     }
 
     /** Where {@link #exportNow(String, Callback, File...)} puts files. */
@@ -110,7 +113,24 @@ public final class UsbExport {
         catch (Throwable t) { return -1; }
     }
 
-    private static void copy(File src, File dst) throws Exception {
+    /** Copies into "<name>.part", then renames it to its name. A stick pulled
+     * or full half way leaves a .part file, never a cut .gpx, .csv or car.db
+     * under its real name; the file from an earlier export stays whole until
+     * the new one is complete. */
+    static void copy(File src, File dst) throws Exception {
+        File part = new File(dst.getParentFile(), dst.getName() + ".part");
+        try {
+            copyBytes(src, part);
+            // FAT/exFAT sticks: a rename does not replace a file that exists.
+            if (dst.exists() && !dst.delete()) throw new java.io.IOException("delete " + dst);
+            if (!part.renameTo(dst)) throw new java.io.IOException("rename " + part);
+        } catch (Exception e) {
+            part.delete();
+            throw e;
+        }
+    }
+
+    private static void copyBytes(File src, File dst) throws Exception {
         FileInputStream in = new FileInputStream(src);
         try {
             FileOutputStream out = new FileOutputStream(dst);

@@ -56,8 +56,9 @@ Daily Statistics turns the car's raw readings into a useful diary:
 - a timeline of drives and recharges, with parked time shown between them;
 - distance driven during every hour of the day, coloured by speed range.
 
-Tap a finished trip (in Park) to see its route. The route is drawn as lines,
-with no map and no internet, coloured by speed. Under it is the height along
+Tap a finished trip (in Park) to see its route. The route is drawn on an
+OpenStreetMap map, coloured by speed. The map needs the internet the first
+time a place is shown; after that it is kept on the car. Under it is the height along
 the trip, and next to it the trip's numbers: distance, time, speeds, energy,
 battery and climb. Routes are recorded from **Config → System → Trip
 routes** (on by default) and stay in the car.

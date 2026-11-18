@@ -92,6 +92,13 @@
         </receiver>
         <!-- One-off diagnostic, hardcoded to the AEB property only — see the
              class header. Not a general write capability. -->
+        <!-- Extra dark's floor: backlight below Android's 10, through the
+             local root adbd when it is open. See the class header. -->
+        <receiver android:name=".BacklightFloorReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.geely.modehelper.BACKLIGHT_FLOOR" />
+            </intent-filter>
+        </receiver>
         <receiver android:name=".AebWriteTestReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="com.geely.modehelper.AEBWRITETEST" />
@@ -159,6 +166,15 @@
             <intent-filter>
                 <action android:name="com.geely.modehelper.SET_LOCK_SOUND" />
                 <action android:name="com.geely.modehelper.IMPORT_LOCK_SOUND" />
+            </intent-filter>
+        </receiver>
+        <!-- Owner's "remove everything" from Drive Assist's Cleanup screen:
+             stops the CAN reader, gives the car's lock sound back, sets ADB,
+             and uninstalls both apps. Exported for the same reason as the
+             others; see CleanupReceiver's header for why that is acceptable. -->
+        <receiver android:name=".CleanupReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.geely.modehelper.CLEANUP" />
             </intent-filter>
         </receiver>
     </application>

@@ -1,6 +1,7 @@
 package com.geely.drivemem;
 
 import com.geely.drivemem.car.CarActor;
+import com.geely.drivemem.controls.HelperSync;
 import com.geely.drivemem.hvac.ComfortHub;
 import com.geely.drivemem.net.AbrpUploader;
 import com.geely.drivemem.sensors.CanEnergyReader;
@@ -50,6 +51,10 @@ public final class DriveMemApplication extends Application {
 
         ComfortHub.get(this);
         CarActor.get(this);
+        // modehelper reports AVAS only when it changes or when asked, so a
+        // fresh process asks once: the hub then knows it before any screen
+        // (Config -> Drive's switch, the Home AVAS button) needs it.
+        HelperSync.queryAvas(this);
         DbMigration.runOnce(this);
         TelemetryRollup.runIfDue(this);
         CarState.ensureSubscribed();

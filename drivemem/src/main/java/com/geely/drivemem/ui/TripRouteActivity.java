@@ -4,6 +4,7 @@ import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarDb;
 import com.geely.drivemem.sensors.DailyStatsProvider;
 import com.geely.drivemem.sensors.EnergySource;
+import com.geely.drivemem.sensors.EnergySplit;
 import com.geely.drivemem.sensors.SpeedBuckets;
 import com.geely.drivemem.util.Style;
 
@@ -166,6 +167,11 @@ public class TripRouteActivity extends Activity {
         double[] lat = new double[0], lon = new double[0], speed = new double[0], alt = new double[0];
         long[] ts = new long[0];
         Double tempMin, tempMax;
+        /** Charges right before or after this trip (ChargeSpots.forTrip). */
+        java.util.List<ChargeSpots.Spot> spots = new java.util.ArrayList<>();
+        /** The trip's raw split columns (CarDb.TRIP_SPLIT_COLUMNS), or null
+         * when CAN did not measure the trip. */
+        double[] split;
     }
 
     private void load(long tripId, long startMs, long endMs) {
@@ -184,6 +190,22 @@ public class TripRouteActivity extends Activity {
                     d.ts[i] = c.getLong(4);
                 }
             } finally { c.close(); }
+            int np = d.lat.length;
+            if (np >= 2) {
+                try {
+                    d.spots = ChargeSpots.forTrip(ChargeSpots.read(this), startMs, endMs,
+                        d.lat[0], d.lon[0], d.lat[np - 1], d.lon[np - 1]);
+                } catch (Throwable e) { android.util.Log.w("DriveMem", "trip charges: " + e); }
+            }
+            Cursor sc = CarDb.get(this).db().rawQuery(
+                "SELECT can_net_kwh, drive_spent_kwh, drive_regen_kwh, climate_raw_kwh, climate_on_s, fan_kwh "
+              + "FROM trip WHERE id = ? AND can_net_kwh IS NOT NULL", new String[]{String.valueOf(tripId)});
+            try {
+                if (sc.moveToFirst()) {
+                    d.split = new double[6];
+                    for (int i = 0; i < 6; i++) d.split[i] = sc.isNull(i) ? 0 : sc.getDouble(i);
+                }
+            } finally { sc.close(); }
             if (endMs > startMs) {
                 Cursor tc = CarDb.get(this).db().rawQuery(
                     "SELECT MIN(outside_temp_c), MAX(outside_temp_c) FROM telemetry_sample "
@@ -206,6 +228,7 @@ public class TripRouteActivity extends Activity {
             note.setText(R.string.route_none);
             note.setVisibility(View.VISIBLE);
         } else {
+            route.setChargeSpots(d.spots);
             route.setRoute(d.lat, d.lon, d.speed);
             double[] alt = TripRouteStats.fillGaps(d.alt);
             if (alt != null) {
@@ -252,8 +275,21 @@ public class TripRouteActivity extends Activity {
         String netSub = !est && regen > 0 ? getString(R.string.session_stat_net_breakdown,
             String.format(Locale.US, "%.1f", spent), String.format(Locale.US, "%.1f", regen)) : null;
         stat(R.string.session_stat_net_energy, netText, netSub);
+        if (!est && d != null && d.split != null) {
+            EnergySplit sp = EnergySplit.of(net, d.split[0], d.split[1], d.split[2], d.split[3], d.split[4], d.split[5]);
+            TextView l = new TextView(this);
+            l.setText(R.string.route_stat_by_use);
+            l.setTextColor(Style.TEXT_DIM);
+            l.setTextSize(17);
+            l.setPadding(0, Style.dp(this, 10), 0, 0);
+            stats.addView(l);
+            EnergySankeyView sankey = new EnergySankeyView(this);
+            sankey.setData(spent, regen, sp.driveKwh, sp.climateKwh, sp.otherKwh, km);
+            stats.addView(sankey, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
         stat(R.string.session_stat_efficiency,
-            eff > 0 ? String.format(Locale.US, "%.1f kWh/100km", eff) : "—", null);
+            eff > 0 ? com.geely.drivemem.util.EnergyUnits.number(eff) + " " + com.geely.drivemem.util.EnergyUnits.WH_PER_KM : "—", null);
         stat(R.string.session_stat_battery, socStart >= 0 && socEnd >= 0
             ? socStart + "% → " + socEnd + "%" : "—", null);
 

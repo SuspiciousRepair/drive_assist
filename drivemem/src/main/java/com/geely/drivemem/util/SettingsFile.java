@@ -118,6 +118,23 @@ public final class SettingsFile {
         return null;
     }
 
+    /** The settings whose type agrees with the value the app has stored now.
+     * The "types" list comes from the file, so a hand-made or damaged backup
+     * could put an int where the app reads a String; SharedPreferences then
+     * throws on every read (Prefs.getTheme in every onCreate: a crash loop).
+     * Where the app already holds the key, its own type wins and a value of
+     * another type is dropped. */
+    public static Map<String, Object> matchStoredTypes(Map<String, Object> settings,
+                                                       Map<String, ?> stored) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> en : settings.entrySet()) {
+            Object now = stored.get(en.getKey());
+            if (now != null && !java.util.Objects.equals(typeOf(now), typeOf(en.getValue()))) continue;
+            out.put(en.getKey(), en.getValue());
+        }
+        return out;
+    }
+
     /** Writes typed values into a SharedPreferences editor. */
     public static void apply(android.content.SharedPreferences.Editor e, Map<String, Object> settings) {
         for (Map.Entry<String, Object> en : settings.entrySet()) {

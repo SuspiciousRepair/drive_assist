@@ -30,21 +30,19 @@
 
     <!-- misc -->
     <string name="cleanup_title">ล้างข้อมูล</string>
-    <string name="cleanup_subtitle">ลบทุกอย่างที่เพิ่มเข้ามาหลังอิมเมจจากโรงงาน ไม่ยกเลิก ADB (มาจาก recovery) และไม่แตะแอปของระบบ</string>
-    <string name="cleanup_step1_header">ขั้นตอนที่ 1 — สิ่งที่หลงเหลือ</string>
-    <string name="cleanup_step2_header">ขั้นตอนที่ 2 — ลบแอป</string>
+    <string name="cleanup_subtitle">ลบ Drive Assist, ตัวช่วย และตัวอ่าน CAN แล้วคืนเสียงล็อกเดิมของรถ แตะเฉพาะของเราเท่านั้น ไม่แตะแอปอื่น รูทลึกจาก recovery ยังคงอยู่</string>
+    <string name="cleanup_step1_header">ขั้นตอนที่ 1 — หยุดและล้างข้อมูล</string>
+    <string name="cleanup_step2_header">ขั้นตอนที่ 2 — ลบ</string>
     <string name="cleanup_action_stop_wipe">หยุดบริการและล้างข้อมูลของ Drive Assist</string>
-    <string name="cleanup_action_uninstall_apps">ถอนการติดตั้งแอปที่กำหนดเอง</string>
-    <string name="cleanup_action_uninstall_self">ถอนการติดตั้ง Drive Assist เอง</string>
+    <string name="cleanup_action_uninstall_self">ลบ Drive Assist และตัวช่วย (เปิด ADB ไว้)</string>
+    <string name="cleanup_action_remove_close_adb">ลบและปิด ADB (ก่อนเข้าศูนย์บริการ)</string>
+    <string name="cleanup_adb_note">ปิด ADB เฉพาะก่อนเข้าศูนย์บริการ การทำเช่นนี้จะปิดช่องทางที่ Drive Assist ใช้เข้าถึงรถ และไม่มีอะไรค้างอยู่ในรถที่จะเปิดให้เอง หากต้องการใช้ Drive Assist อีกครั้ง ให้ปลดล็อกรถด้วยวิธีเดียวกับที่คุณทำครั้งแรก</string>
     <string name="cleanup_log_idle">ยังไม่ได้ทำอะไรเลย\nปุ่มแต่ละปุ่มจะขอการยืนยัน (แตะสองครั้ง)</string>
     <string name="cleanup_confirm_prompt">แตะ \"%1$s\" อีกครั้งเพื่อยืนยัน</string>
     <string name="cleanup_stopping">กำลังหยุดบริการ...</string>
     <string name="cleanup_wiped">หยุดบริการแล้ว ลบไอคอนแล้ว ยกเลิกการปลุกแล้ว และล้างข้อมูลแล้ว\nDrive Assist ยังคงติดตั้งอยู่ แต่ไม่ทำงาน</string>
-    <string name="cleanup_uninstall_header">กำลังขอถอนการติดตั้ง:</string>
-    <string name="cleanup_uninstall_item_failed">ล้มเหลว: %1$s</string>
-    <string name="cleanup_uninstall_footer">ยืนยันกล่องโต้ตอบของระบบทุกกล่อง ทีละกล่อง</string>
-    <string name="cleanup_none_found">ไม่พบแอปที่กำหนดเอง</string>
-    <string name="cleanup_removing_self">กำลังขอลบ Drive Assist...</string>
+    <string name="cleanup_helper_missing">ไม่มีตัวช่วย จึงล้างตัวอ่าน CAN และ ADB จากที่นี่ไม่ได้ จะลบเฉพาะ Drive Assist</string>
+    <string name="cleanup_removing_self">กำลังลบ Drive Assist และตัวช่วย...</string>
     <string name="cleanup_failed">ล้มเหลว: %1$s</string>
     <string name="notif_tele_channel">การวัดระยะไกล</string>
     <string name="notif_tele_title">Drive Assist — การวัดระยะไกล</string>
@@ -76,6 +74,7 @@
     <!-- config -->
     <string name="cfg_title">การตั้งค่า</string>
     <string name="cfg_nav_doors">ประตู</string>
+    <string name="cfg_nav_climate">แอร์</string>
     <string name="cfg_nav_drive">โหมดการขับขี่</string>
     <string name="cfg_nav_bar">แถบเมนู</string>
     <string name="cfg_nav_look">ลักษณะที่ปรากฏ</string>
@@ -224,6 +223,29 @@
     <string name="cfg_purge_open_rl">หลังซ้าย</string>
     <string name="cfg_purge_open_rr">หลังขวา</string>
     <string name="cfg_actions_header">การดำเนินการ</string>
+    <string name="cfg_learn_header">แถบปรับแอร์</string>
+    <string name="cfg_learn_hint">โหมดเรียนรู้: เมื่อคุณปรับแอร์ด้วยมือบนแผงของรถและคงไว้ 10 นาที จะถูกนับ สัปดาห์ละครั้ง ขณะปิดแอร์ แต่ละระดับจะใช้ค่าที่คุณคงไว้บ่อยที่สุด (อย่างน้อย 2 ครั้ง) เฉพาะอุณหภูมิภายนอกนั้น ปิดไว้: แถบจะเก็บสิ่งที่เรียนรู้ไว้และหยุดเรียนรู้</string>
+    <string name="cfg_learn_toggle">เรียนรู้จากการปรับของฉัน</string>
+    <string name="cfg_learn_none">ยังไม่ได้เรียนรู้อะไร</string>
+    <string name="cfg_learn_last">เปลี่ยนล่าสุด: %1$s</string>
+    <string name="cfg_learn_week">สัปดาห์นี้: นับการปรับด้วยมือ %1$d ครั้ง อัปเดตครั้งถัดไป: %2$s</string>
+    <string name="cfg_learn_reset">คืนค่าแถบเป็นค่าเริ่มต้น</string>
+    <string name="cfg_learn_reset_title">คืนค่าแถบปรับแอร์?</string>
+    <string name="cfg_learn_reset_body">ทุกอย่างที่แถบเรียนรู้จะถูกลบ แถบมาตรฐานจะกลับมา</string>
+    <string name="cfg_learn_reset_ok">คืนค่า</string>
+    <string name="cfg_learn_item">%1$s · %2$s: %3$s</string>
+    <string name="cfg_learn_band">ภายนอก %1$d–%2$d °C</string>
+    <string name="cfg_learn_band_above">ภายนอกสูงกว่า %1$d °C</string>
+    <string name="cfg_learn_band_below">ภายนอกต่ำกว่า %1$d °C</string>
+    <string name="cfg_learn_fan">พัดลม %1$d</string>
+    <string name="cfg_learn_sp">%1$s °C</string>
+    <string name="cfg_learn_rec_on">หมุนเวียนอากาศภายใน</string>
+    <string name="cfg_learn_rec_off">อากาศภายนอก</string>
+    <string name="cfg_learn_dir_face">ใบหน้า</string>
+    <string name="cfg_learn_dir_feet">เท้า</string>
+    <string name="cfg_learn_dir_face_feet">ใบหน้าและเท้า</string>
+    <string name="cfg_learn_dir_glass">กระจกหน้า</string>
+    <string name="cfg_learn_dir_glass_feet">กระจกหน้าและเท้า</string>
     <string name="cfg_btn_on">เปิด</string>
     <string name="cfg_btn_off">ปิด</string>
     <string name="cfg_btn_test">ทดสอบ</string>
@@ -252,10 +274,8 @@
     <string name="avas_title">AVAS</string>
     <string name="turbo_card_buttons_label">ปุ่มบนการ์ดเทอร์โบ</string>
     <string name="turbo_duration_label">ระยะเวลา (วินาที)</string>
-    <string name="cfg_btn_restore_defaults">คืนค่าเริ่มต้น</string>
     <string name="cfg_car_connect_fail">เชื่อมต่อกับรถไม่ได้</string>
     <string name="cfg_applied">ใช้แล้ว: %1$s + %2$s</string>
-    <string name="cfg_restored_defaults">คืนค่าเริ่มต้นแล้ว: %1$s + %2$s</string>
     <string name="cfg_mode_unknown">ไม่ทราบโหมดปัจจุบัน — เลือกโหมดหนึ่งเพื่อใช้งาน</string>
     <string name="cfg_current">ปัจจุบัน: %1$s + %2$s</string>
     <string name="cfg_bar_header">การแสดงผลในแถบเมนู</string>
@@ -372,7 +392,9 @@
     <string name="cam_orbit">หมุนรอบคัน</string>
     <!-- charging history -->
     <string name="charge_sessions_title">ประวัติการชาร์จ · ล่าสุดก่อน</string>
-    <string name="charge_soc_chart_title">ระดับแบตเตอรี่ · ตามลำดับเวลา</string>
+    <string name="charge_soc_chart_title">ช่วงแบตเตอรี่ · ล่าสุดก่อน</string>
+    <string name="charge_map_title">ที่ที่เราชาร์จ</string>
+    <string name="charge_map_none">ไม่มีการชาร์จในช่วงนี้ที่บันทึกตำแหน่งไว้</string>
     <string name="charge_ltm_title">12 เดือนล่าสุด</string>
     <string name="charge_period_30d">30 วันล่าสุด</string>
     <string name="charge_ltm_count_label">ครั้ง</string>
@@ -385,6 +407,7 @@
     <string name="stats_chart_header">กม. ต่อวัน</string>
     <string name="daily_stats_prev_day">ก่อนหน้า</string>
     <string name="daily_stats_next_day">ถัดไป</string>
+    <string name="stats_nav_charge">ชาร์จ</string>
     <!-- OBD2 + ABRP -->
     <string name="obd_title">ดองเกิล OBD2</string>
     <string name="obd_status_connected">เชื่อมต่อแล้ว — กำลังอ่านพลังงานจริงจากแบตเตอรี่</string>
@@ -431,6 +454,7 @@
     <string name="charge_stats_title">สถิติการชาร์จ</string>
     <string name="charge_completed_title">การชาร์จเสร็จสมบูรณ์</string>
     <string name="charge_cost_label">ค่าใช้จ่าย</string>
+    <string name="charge_cost_change">แก้ไข</string>
     <string name="charge_cost_input_title">ค่าใช้จ่ายในการชาร์จ</string>
     <string name="charge_cost_input_hint">ค่าใช้จ่ายทั้งหมด (เช่น 45.00)</string>
     <string name="charge_cost_btn_input">ป้อนค่าใช้จ่าย</string>
@@ -450,14 +474,11 @@
     <string name="charge_curve_power_label">กำลังไฟฟ้า (kW)</string>
     <string name="charge_curve_temp_label">อุณหภูมิภายนอก (°C)</string>
     <string name="charge_curve_batt_temp_label">อุณหภูมิแบตเตอรี่ (°C)</string>
+    <string name="charge_curve_soc_label">SoC (%)</string>
     <string name="charge_curve_no_batt_temp">ไม่มีข้อมูลอุณหภูมิแบตเตอรี่สำหรับการชาร์จนี้ — ไม่ได้เชื่อมต่อดองเกิล OBD2</string>
     <string name="charge_curve_unavailable">ไม่มีข้อมูลตัวอย่างสำหรับการชาร์จนี้แล้ว</string>
 
     <!-- energy balance chart -->
-    <string name="charge_balance_title">สมดุลพลังงาน</string>
-    <string name="charge_balance_hint">แตะที่แถบเพื่อดูรายละเอียด</string>
-    <string name="charge_balance_spent">ใช้ไป</string>
-    <string name="charge_balance_regen">คืนพลังงาน</string>
 
     <!-- software update dialog & prompt -->
     <string name="update_dialog_title">มีการอัปเดตซอฟต์แวร์</string>
@@ -519,9 +540,11 @@
     <string name="routes_header">เส้นทางการเดินทาง</string>
     <string name="routes_enable_label">บันทึกเส้นทางการเดินทาง (GPS)</string>
     <string name="routes_hint">บันทึกว่าแต่ละทริปไปที่ไหน และชาร์จที่ไหน ข้อมูลอยู่ในรถเท่านั้น ไม่มีการส่งไปที่ใด และรวมอยู่ในข้อมูลสำรองของคุณ ทริปก่อนเปิดตัวเลือกนี้จะไม่มีเส้นทาง</string>
+    <string name="routes_map_size">แผนที่ที่บันทึกไว้: %1$s MB</string>
+    <string name="routes_map_clear">ล้างแผนที่ที่บันทึกไว้</string>
+    <string name="routes_map_cleared">ล้างแผนที่ที่บันทึกไว้แล้ว</string>
     <string name="route_title">เส้นทาง</string>
     <string name="route_none">ทริปนี้ไม่มีเส้นทาง ระบบจะบันทึกเส้นทางเฉพาะทริปที่ขับขณะเปิด Config → ระบบ → เส้นทางการเดินทาง</string>
-    <string name="route_parked_only">เปิดเส้นทางได้เมื่อรถอยู่ในเกียร์ P</string>
     <string name="routes_all_title">เส้นทางทั้งหมด</string>
     <string name="routes_all_count">%1$d ทริป</string>
     <string name="routes_all_show">ดูทั้งหมด</string>
@@ -535,6 +558,21 @@
     <string name="route_stat_speed_value">เฉลี่ย %1$s · สูงสุด %2$s กม./ชม.</string>
     <string name="route_stat_height_range">ความสูง %1$s – %2$s ม.</string>
     <string name="route_stat_outside">ภายนอก</string>
+    <string name="route_stat_by_use">พลังงานตามการใช้</string>
+    <string name="sankey_used">ใช้</string>
+    <string name="sankey_net">สุทธิ</string>
+    <string name="sankey_regen">คืน</string>
+    <string name="stats_part_drive">ขับเคลื่อน</string>
+    <string name="stats_part_climate">แอร์</string>
+    <string name="stats_part_other">อื่นๆ</string>
+    <string name="stats_by_use_none">แสดงในการเดินทางใหม่ที่วัดด้วย CAN</string>
+    <string name="stats_card_trip">การเดินทาง</string>
+    <string name="stats_driving_time">เวลาขับ</string>
+    <string name="stats_distance">ระยะทาง</string>
+    <string name="stats_avg_speed">ความเร็วเฉลี่ย</string>
+    <string name="stats_relief">ความสูง</string>
+    <string name="stats_relief_net">สุทธิ</string>
+    <string name="session_stat_split_note">ขับ %1$s · แอร์ %2$s · อื่นๆ %3$s</string>
     <!-- การ์ดเซสชันของวัน (DailyStatsView) -->
     <string name="session_since">ตั้งแต่ %1$s</string>
     <string name="session_yesterday">เมื่อวาน</string>
@@ -542,6 +580,7 @@
     <string name="session_stat_battery">แบตเตอรี่</string>
     <string name="session_stat_efficiency">ประสิทธิภาพ</string>
     <string name="session_stat_net_energy">พลังงานสุทธิ</string>
+    <string name="session_stat_charged_energy">พลังงานที่ชาร์จ</string>
     <string name="session_stat_net_breakdown">ใช้ %1$s − คืน %2$s</string>
     <string name="session_stat_elevation">ขึ้น / ลง</string>
     <string name="session_stat_avg_power">กำลังเฉลี่ย</string>
@@ -635,5 +674,46 @@
     <string name="phone_msg_no_space">รถมีพื้นที่ว่างไม่พอสำหรับไฟล์นี้</string>
     <string name="phone_msg_busy">กำลังกู้คืนอยู่แล้ว</string>
     <string name="phone_msg_no_file">เลือกไฟล์สำรองก่อน</string>
-    <string name="unit_kwh_per_100km">kWh/100 km</string>
+    <string name="phone_routes">เส้นทาง (GPX)</string>
+    <string name="phone_routes_hint">การเดินทางของคุณเป็นไฟล์ GPX เปิดได้ใน Google Earth, Google My Maps และแอปแผนที่ส่วนใหญ่</string>
+    <string name="phone_routes_open">เปิดเส้นทาง</string>
+    <string name="phone_routes_day">ทั้งวัน</string>
+    <string name="phone_routes_trip">การเดินทางนี้</string>
+    <string name="phone_msg_no_route">ยังไม่มีการเดินทางที่บันทึกเส้นทาง</string>
+    <string name="soc_history_empty">ไม่มีข้อมูลแบตเตอรี่ในช่วงนี้</string>
+    <string name="charge_card_charges">การชาร์จ</string>
+    <string name="charge_card_energy_cap">ชาร์จแล้ว %1$s kWh</string>
+    <string name="charge_card_cost">ค่าใช้จ่าย</string>
+    <string name="charge_card_cost_cap">%1$s / 100 กม. · %2$s / kWh</string>
+    <string name="charge_card_per_kwh">%1$s ต่อ kWh</string>
+    <string name="charge_card_cost_total">รวม %1$s</string>
+    <string name="charge_card_cost_share">%1$s · %2$d%% ของค่าใช้จ่าย</string>
+    <string name="charge_card_no_dc">ไม่มีการชาร์จ DC</string>
+    <string name="charge_card_no_cost">ยังไม่ได้ใส่ค่าใช้จ่าย</string>
+    <string name="charge_card_low">แบตเตอรี่ต่ำ</string>
+    <string name="charge_card_low_cap">ต่ำสุด · %1$s</string>
+    <string name="charge_card_below">วันที่ต่ำกว่า %1$d%%</string>
+    <string name="charge_card_plug_note">โดยเฉลี่ยคุณเสียบชาร์จที่ %1$d%%</string>
+    <string name="charge_card_today">วันนี้</string>
+    <string name="charge_card_yesterday">เมื่อวาน</string>
+    <string name="charge_card_days_ago">%1$d วันที่แล้ว</string>
+    <string name="charge_card_never">ไม่เคย</string>
+    <string name="charge_card_gap_days">%1$d วัน</string>
+    <string name="charge_card_gap_open">%1$s → วันนี้</string>
+    <string name="charge_card_avg_kw">เฉลี่ย %1$s kW</string>
+    <string name="charge_card_full_band">ถึง 100%%: %1$d จาก %2$d · ล่าสุด %3$s</string>
+    <string name="charge_card_gap_line">ช่วงที่ไม่ถึง 100%% นานที่สุด: %1$s (%2$s)</string>
+    <string name="charge_card_temp">อุณหภูมิแบตเตอรี่</string>
+    <string name="charge_card_temp_cap">สูงสุด · %1$s · เฉลี่ย %2$s · ต่ำสุด %3$s</string>
+    <string name="charge_card_full_time" formatted="false">เวลาที่ 100%</string>
+    <string name="charge_card_full_time_val">เฉลี่ย %1$s</string>
+    <string name="charge_card_full_time_sub">รวม %1$s · นานสุด %2$s</string>
+    <string name="charge_card_full_temp" formatted="false">อุณหภูมิที่ 100%</string>
+    <string name="charge_card_full_temp_val">สูงสุด %1$s</string>
+    <string name="charge_card_full_temp_sub">เฉลี่ย %1$s</string>
+    <string name="charge_card_temp_note">LFP ทำงานได้ดีที่ 15–35 °C</string>
+    <string name="charge_card_temp_since">ข้อมูลตั้งแต่ %1$s</string>
+    <string name="charge_card_no_temp">ไม่มีค่า (ต้องใช้ OBD2)</string>
+    <string name="charge_period_month">เดือน</string>
+    <string name="charge_period_year">ปี</string>
 </resources>

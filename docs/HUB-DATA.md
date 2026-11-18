@@ -33,6 +33,8 @@ Property IDs and scales of the car's own (VHAL) properties are in
 | `car.avas_mode` | AVAS (pedestrian warning sound): 0 off, 1.. sound type. Reported by modehelper (`AvasState`): Drive Assist may not read it (`CAR_CONTROL_AUDIO_VOLUME`) | on change, read every 4 s by modehelper; on request |
 | `car.door_pos`, `car.window_pos` | doors, windows (per area) | on change |
 | `car.hvac_recirc`, `car.hvac_direction`, `car.hvac_rear_defrost` | climate state | on change |
+| `car.hvac_fan` | climate fan level, 0 (climate off) to 8 (`HVAC_FAN`, 356517120) | on change |
+| `car.aeb` | AEB (automatic emergency braking) on/off (`557858874`), true/false. Config → Drive's switch reads it | on change |
 | `car.hvac_front_defrost` | front-windshield defogger button (MAX_DEFROST, 354419975), true/false. Each change is a `comfort_event` row (`defrost`, `front on`/`front off`) and goes to MQTT/HA as `front_defrost` | on change |
 | `car.charge_a` | charging current at the port, A | every 2 s |
 | `car.plug_connected` | cable in the port (1/0) | every 2 s |
@@ -77,9 +79,11 @@ switch is off or the reader has not sent a heartbeat for 3 s.
 | `can.live` | reader live (1/0) |
 | `can.pack_v`, `can.pack_a` | pack voltage, current (+ = discharge) |
 | `can.power_kw` | pack power, V × I. `NOT_AVAILABLE` while volts or amps are not valid, also when `can.live` is 1 |
-| `can.climate_kw` | climate (compressor + heater) electrical power |
-| `can.drive_kw` | drive power |
+| `can.climate_kw` | climate (compressor + heater) power, raw `VCU_ThermalPwrAct`. Reads low (see `plan/active/CAN-ENERGY-ROADMAP.md`, "Power map") |
+| `can.drive_kw` | drive motor power, raw `VCU_DrvPwrAct`. Not battery power: use `can.power_kw` for that |
 | `can.charger_w` | on-board charger's mains input, only while AC charging |
+| `can.speed_kmh` | vehicle speed, 0.1 steps (`ESC_VehicleSpeed`, frame 0x125, **raw × 0.05625**: the raw count is 1/64 m/s; roadcast's catalog says ×1, which is wrong). The art also gets every change directly (~10 Hz while moving) through `CanEnergyReader.SpeedListener` |
+| `can.brake` | brake pedal switch, 1 pressed / 0 released (`ESC_BrakePedalSwitchStatus`, frame 0x125). **Not polled: injected the moment it changes**, so it has no 2 s delay. `NOT_AVAILABLE` while the car flags it invalid or the reader is down |
 
 A CAN value also needs its frame to have **changed once** since the reader
 started. A frame that stays constant (for example climate power while the
@@ -105,6 +109,8 @@ plugged in. Updated every 2 s; a value older than 15 s becomes
 |---|---|
 | `energy.power_kw`, `energy.pack_v`, `energy.pack_a` | from CAN when `can.live` is 1 **and** CAN has the value, else from the dongle, else `NOT_AVAILABLE` |
 | `energy.source` | `can` or `obd2`, by the same rule on the power value |
+| `energy.climate_kw` | climate's real power: `can.climate_kw` through `ClimatePower` (1.19 × raw + 0.2 kW while on), plus the fan (`car.hvac_fan` through `FanPower`, up to 0.12 kW; a 12 V load CAN's climate signal leaves out). CAN only |
+| `energy.other_kw` | 12 V loads and losses: `can.power_kw` − `can.drive_kw` − `energy.climate_kw`. All CAN, never mixed with the dongle, so the three add up. CAN only |
 
 ### GPS position (`LocationHub`), always while the app runs; live fixes while driving
 
@@ -166,13 +172,20 @@ except the SoC-based driving energy, which is marked "estimated".
   changes only. CAN wins while `energy.source` is `can` (`EnergyHub` decides,
   once); the dongle's samples are dropped then, so energy is never counted
   twice. When CAN is live but has no power value, the dongle's samples count.
+  CAN samples also carry the drive and climate values held at that moment,
+  for the trip's energy split.
+- `AbrpUploader` reads `EnergyIntegrator.meanPowerKw`, the mean battery
+  power over the last 6 s of those samples, because the hub keeps only the
+  latest value. It is from the same source as `energy.power_kw` (the mean
+  starts over when the source changes); with too few samples ABRP gets
+  `energy.power_kw` instead.
 
 ## 5. What is saved on the car
 
 | Where | What | When |
 |---|---|---|
 | `car.db` `telemetry_sample` | the 30 s snapshot, incl. `battery_temp_c` (dongle), `climate_kw` (CAN), and `drive_mode` / `regen_mode` (from `car.drive_mode` / `car.regen_mode`) | every 30 s; kept 90 days |
-| `car.db` `trip`, `charge_session` | per trip / per charge totals; `charge_session.lat` / `lon` where it charged (with "Record trip routes" on) | when the trip or charge ends |
+| `car.db` `trip`, `charge_session` | per trip / per charge totals; on a trip CAN measured (≥ 90 % of its time), where the energy went, raw: `can_net_kwh`, `drive_spent_kwh`, `drive_regen_kwh`, `climate_raw_kwh`, `climate_on_s`, `fan_kwh` (read through `sensors.EnergySplit`); `charge_session.lat` / `lon` where it charged (with "Record trip routes" on) | when the trip or charge ends |
 | `car.db` `trip_point` | the route (`state.RoutePoints`): time, lat, lon, altitude, GPS speed, bearing, accuracy, `drive_mode`, `regen_mode`, `power_kw` (`energy.power_kw`), and the trip's `spent_kwh` / `regen_kwh` so far. Raw, for later analysis | every 5 s while out of Park, only after 25 m of movement, with "Record trip routes" on (default on). `trip_id` is NULL until the trip is saved; points of a trip too short to keep are deleted. Kept for good |
 | `files/obd2-reading.log` | every dongle reading | while the dongle is connected (5 MB, then restarts) |
 | `files/abrp-attempt.log` | every ABRP send and its payload | while ABRP is on (5 MB, then restarts) |

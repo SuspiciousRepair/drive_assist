@@ -38,11 +38,11 @@ public class TireWarningTest {
         assertFalse(TireWarning.warns(CarActor.Reading.ok("x")));
     }
 
-    // Android VehicleAreaWheel: FL 1, FR 2, RR 4, RL 8.
+    // Android VehicleAreaWheel (android.car.jar): FL 1, FR 2, RL 4, RR 8.
     @Test public void wheelKeysMatchTheStandardAreas() {
         assertEquals(TireWarning.FL, TireWarning.KEYS[0]); assertEquals(1, TireWarning.AREAS[0]);
         assertEquals(TireWarning.FR, TireWarning.KEYS[1]); assertEquals(2, TireWarning.AREAS[1]);
-        assertEquals(TireWarning.RL, TireWarning.KEYS[2]); assertEquals(8, TireWarning.AREAS[2]);
-        assertEquals(TireWarning.RR, TireWarning.KEYS[3]); assertEquals(4, TireWarning.AREAS[3]);
+        assertEquals(TireWarning.RL, TireWarning.KEYS[2]); assertEquals(4, TireWarning.AREAS[2]);
+        assertEquals(TireWarning.RR, TireWarning.KEYS[3]); assertEquals(8, TireWarning.AREAS[3]);
     }
 }

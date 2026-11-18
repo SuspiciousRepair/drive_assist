@@ -39,6 +39,9 @@ import java.util.Map;
  * are not here: the list comes from DailyStatsProvider.readAllTrips, the
  * same trips the stats page shows. */
 public class AllRoutesActivity extends Activity {
+    /** Optional "yyyy-MM-dd": open on that day instead of all days. */
+    public static final String EXTRA_DAY = "day";
+
     /** One finished trip with its route. */
     private static final class Item {
         final DriveSession s;
@@ -62,6 +65,10 @@ public class AllRoutesActivity extends Activity {
      * The list shows them newest first, so row r is trip size - 1 - r. */
     private final List<Item> shown = new ArrayList<>();
     private RouteSet set;
+    /** Every charge spot; one day shows only those near its routes. */
+    private List<ChargeSpots.Spot> allSpots = new ArrayList<>();
+    /** How far from a day's routes a charge spot still shows. */
+    private static final double DAY_SPOT_MARGIN_M = 1000;
     private int selected = -1;
     /** Profile point -> point of the picture, for the profile on screen. */
     private int[] profPoint = new int[0];
@@ -185,6 +192,10 @@ public class AllRoutesActivity extends Activity {
 
     private void load() {
         List<Item> found = new ArrayList<>();
+        List<ChargeSpots.Spot> spots = new ArrayList<>();
+        try { spots = ChargeSpots.cluster(ChargeSpots.read(this)); }
+        catch (Throwable e) { android.util.Log.w("DriveMem", "all routes charges: " + e); }
+        final List<ChargeSpots.Spot> spotsF = spots;
         try {
             // Finished trips by id. readAllTrips leaves Valet trips out.
             Map<Long, DriveSession> byId = new HashMap<>();
@@ -226,7 +237,7 @@ public class AllRoutesActivity extends Activity {
         } catch (Throwable e) {
             android.util.Log.w("DriveMem", "all routes: " + e);
         }
-        runOnUiThread(() -> loaded(found));
+        runOnUiThread(() -> { allSpots = spotsF; loaded(found); });
     }
 
     private void loaded(List<Item> found) {
@@ -238,7 +249,8 @@ public class AllRoutesActivity extends Activity {
             String d = all.get(i).day;
             if (days.isEmpty() || !days.get(days.size() - 1).equals(d)) days.add(d);
         }
-        setDay(-1);
+        // -1 (all days) when no day was asked for, or that day has no route.
+        setDay(days.indexOf(getIntent().getStringExtra(EXTRA_DAY)));
     }
 
     private void olderDay() { if (dayIdx < days.size() - 1) setDay(dayIdx + 1); }
@@ -264,6 +276,8 @@ public class AllRoutesActivity extends Activity {
         } else {
             note.setVisibility(View.GONE);
             route.setVisibility(View.VISIBLE);
+            route.setChargeSpots(dayIdx < 0 ? allSpots
+                : ChargeSpots.inBox(allSpots, set.lat, set.lon, DAY_SPOT_MARGIN_M));
             route.setRoutes(set.lat, set.lon, set.speed, set.starts);
         }
         selected = -2;   // force select() to redraw

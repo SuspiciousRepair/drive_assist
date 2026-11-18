@@ -31,9 +31,9 @@ public final class TireWarning {
 
     /** Wheel keys, in the order of AREAS. */
     public static final String[] KEYS = {FL, FR, RL, RR};
-    /** Android VehicleAreaWheel: front left 1, front right 2, rear right 4,
-     * rear left 8. */
-    static final int[] AREAS = {1, 2, 8, 4};
+    /** Android VehicleAreaWheel (android.car.jar, API 34): front left 1,
+     * front right 2, rear left 4, rear right 8. */
+    static final int[] AREAS = {1, 2, 4, 8};
 
     static void register(CarActor a) {
         for (int i = 0; i < KEYS.length; i++) {

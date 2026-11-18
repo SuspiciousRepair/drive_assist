@@ -332,6 +332,14 @@ public final class TripSession {
                 if (tripSource == EnergySource.ESTIMATED && Double.isFinite(socEstimatedNetKwh)) {
                     v.put("estimated_net_kwh", socEstimatedNetKwh);
                 }
+                if (ts.splitValid) {
+                    v.put("can_net_kwh", ts.canNetKwh);
+                    v.put("drive_spent_kwh", ts.driveSpentKwh);
+                    v.put("drive_regen_kwh", ts.driveRegenKwh);
+                    v.put("climate_raw_kwh", ts.climateRawKwh);
+                    v.put("climate_on_s", ts.climateOnSeconds);
+                    v.put("fan_kwh", ts.fanKwh);
+                }
                 CarDb.get(ctx).write(() -> {
                     try {
                         long tripId = CarDb.get(ctx).db().insert("trip", null, v);
@@ -448,8 +456,9 @@ public final class TripSession {
         }
 
         EnergyIntegrator.startTrip();
-        double[] energy = sumEnergySince(ctx, persistedStartMs, System.currentTimeMillis());
-        EnergyIntegrator.seedTrip(energy[0], energy[1], energy[2]);
+        long nowMs = System.currentTimeMillis();
+        double[] energy = sumEnergySince(ctx, persistedStartMs, nowMs);
+        EnergyIntegrator.seedTrip(energy[0], energy[1], energy[2], Math.max(0, nowMs - persistedStartMs));
         // One replay of the rows already written, so trip.live does not
         // restart from zero after an app update mid-drive. Every later
         // tick is added by feedLive().

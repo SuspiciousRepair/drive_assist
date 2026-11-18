@@ -52,21 +52,19 @@
 
     <!-- misc -->
     <string name="cleanup_title">Cleanup</string>
-    <string name="cleanup_subtitle">Removes what was added after the factory image. Does not undo ADB (that came from recovery) and does not touch system apps.</string>
-    <string name="cleanup_step1_header">Step 1 — leftovers</string>
-    <string name="cleanup_step2_header">Step 2 — remove apps</string>
+    <string name="cleanup_subtitle">Removes Drive Assist, its helper and the CAN reader, and gives the car\'s own lock sound back. It touches only our own things, never another app. The deep root from recovery stays.</string>
+    <string name="cleanup_step1_header">Step 1 — stop and wipe data</string>
+    <string name="cleanup_step2_header">Step 2 — remove</string>
     <string name="cleanup_action_stop_wipe">Stop services and wipe Drive Assist\'s data</string>
-    <string name="cleanup_action_uninstall_apps">Uninstall custom apps</string>
-    <string name="cleanup_action_uninstall_self">Uninstall Drive Assist itself</string>
+    <string name="cleanup_action_uninstall_self">Remove Drive Assist and its helper (keep ADB on)</string>
+    <string name="cleanup_action_remove_close_adb">Remove and close ADB (before a workshop visit)</string>
+    <string name="cleanup_adb_note">Close ADB only before a workshop visit. It turns off how Drive Assist reaches the car, and nothing is left on the car to re-open it. To use Drive Assist again, unlock the car the same way you did the first time.</string>
     <string name="cleanup_log_idle">Nothing done yet.\nEvery button asks for confirmation (tap twice).</string>
     <string name="cleanup_confirm_prompt">Tap \"%1$s\" again to confirm.</string>
     <string name="cleanup_stopping">Stopping services…</string>
     <string name="cleanup_wiped">Services stopped, icons removed, alarm canceled and data wiped.\nDrive Assist is still installed, but inert.</string>
-    <string name="cleanup_uninstall_header">Requesting uninstall of:</string>
-    <string name="cleanup_uninstall_item_failed">Failed: %1$s</string>
-    <string name="cleanup_uninstall_footer">Confirm each system dialog. One at a time.</string>
-    <string name="cleanup_none_found">No custom apps found.</string>
-    <string name="cleanup_removing_self">Requesting Drive Assist\'s removal…</string>
+    <string name="cleanup_helper_missing">The helper is missing, so the CAN reader and ADB can\'t be cleaned from here. Removing Drive Assist only.</string>
+    <string name="cleanup_removing_self">Removing Drive Assist and its helper…</string>
     <string name="cleanup_failed">Failed: %1$s</string>
     <string name="notif_tele_channel">Telemetry</string>
     <string name="notif_tele_title">Drive Assist — telemetry</string>
@@ -90,6 +88,7 @@
     <!-- config -->
     <string name="cfg_title">Settings</string>
     <string name="cfg_nav_doors">Doors</string>
+    <string name="cfg_nav_climate">Climate</string>
     <string name="cfg_nav_drive">Driving mode</string>
     <string name="cfg_nav_bar">Elements</string>
     <string name="cfg_nav_look">Appearance</string>
@@ -225,6 +224,29 @@
     <string name="cfg_purge_open_rl">Rear left</string>
     <string name="cfg_purge_open_rr">Rear right</string>
     <string name="cfg_actions_header">Actions</string>
+    <string name="cfg_learn_header">Climate ruler</string>
+    <string name="cfg_learn_hint">Learn mode: when you change the climate by hand on the car\'s panel and keep it for 10 minutes, it is counted. Once a week, with the climate off, each level takes the setting you kept most often (at least 2 times). Only for that outside temperature. Off: the ruler keeps what it learned and stops learning.</string>
+    <string name="cfg_learn_toggle">Learn from my changes</string>
+    <string name="cfg_learn_none">Nothing learned yet.</string>
+    <string name="cfg_learn_last">Last change: %1$s</string>
+    <string name="cfg_learn_week">This week: %1$d hand changes counted. Next update: %2$s.</string>
+    <string name="cfg_learn_reset">Reset ruler to default</string>
+    <string name="cfg_learn_reset_title">Reset the climate ruler?</string>
+    <string name="cfg_learn_reset_body">Everything the ruler learned is deleted. The standard ruler comes back.</string>
+    <string name="cfg_learn_reset_ok">Reset</string>
+    <string name="cfg_learn_item">%1$s · %2$s: %3$s</string>
+    <string name="cfg_learn_band">%1$d–%2$d °C outside</string>
+    <string name="cfg_learn_band_above">above %1$d °C outside</string>
+    <string name="cfg_learn_band_below">below %1$d °C outside</string>
+    <string name="cfg_learn_fan">fan %1$d</string>
+    <string name="cfg_learn_sp">%1$s °C</string>
+    <string name="cfg_learn_rec_on">recirculation</string>
+    <string name="cfg_learn_rec_off">outside air</string>
+    <string name="cfg_learn_dir_face">face</string>
+    <string name="cfg_learn_dir_feet">feet</string>
+    <string name="cfg_learn_dir_face_feet">face and feet</string>
+    <string name="cfg_learn_dir_glass">windshield</string>
+    <string name="cfg_learn_dir_glass_feet">windshield and feet</string>
     <string name="cfg_btn_on">Turn on</string>
     <string name="cfg_btn_off">Turn off</string>
     <string name="cfg_btn_test">Test</string>
@@ -263,10 +285,8 @@
     <string name="cfg_aeb_confirm_title">Turn off automatic emergency braking?</string>
     <string name="cfg_aeb_confirm_body">Disables automatic emergency braking. It stays off after a restart while Restore at car start is on for AEB (Advanced, below).</string>
     <string name="cfg_aeb_confirm_turn_off">Turn off</string>
-    <string name="cfg_btn_restore_defaults">Restore defaults</string>
     <string name="cfg_car_connect_fail">Could not connect to the car</string>
     <string name="cfg_applied">Applied: %1$s + %2$s</string>
-    <string name="cfg_restored_defaults">Restored defaults: %1$s + %2$s</string>
     <string name="cfg_mode_unknown">Current mode unknown — pick one to apply</string>
     <string name="cfg_current">Current: %1$s + %2$s</string>
     <string name="cfg_bar_header">Elements</string>
@@ -437,15 +457,19 @@
     <!-- charge stats & cost tracking -->
     <string name="charge_stats_title">Charging stats</string>
     <string name="charge_sessions_title">Charging sessions · newest first</string>
-    <string name="charge_soc_chart_title">Battery range · chronological</string>
+    <string name="charge_soc_chart_title">Battery range · newest first</string>
+    <string name="charge_map_title">Where we charged</string>
+    <string name="charge_map_none">No charge in this period saved its place.</string>
     <string name="charge_curve_title">Charging power over time</string>
     <string name="charge_curve_unavailable">Samples are no longer available for this session.</string>
     <string name="charge_curve_power_label">Power (kW)</string>
     <string name="charge_curve_temp_label">Outside temp. (°C)</string>
     <string name="charge_curve_batt_temp_label">Battery temp. (°C)</string>
+    <string name="charge_curve_soc_label">SoC (%)</string>
     <string name="charge_curve_no_batt_temp">No battery-temperature data for this session — the OBD2 dongle wasn\'t connected.</string>
     <string name="charge_completed_title">Charge completed</string>
     <string name="charge_cost_label">Cost</string>
+    <string name="charge_cost_change">Change</string>
     <string name="charge_cost_input_title">Charge Cost</string>
     <string name="charge_cost_input_hint">Total cost (e.g. 45.00)</string>
     <string name="charge_cost_btn_input">Enter Cost</string>
@@ -461,10 +485,6 @@
     <string name="charge_stat_cost_100km">Cost / 100 km</string>
 
     <!-- energy balance chart (ChargeStatsView) -->
-    <string name="charge_balance_title">Energy Balance</string>
-    <string name="charge_balance_hint">Tap a bar for details</string>
-    <string name="charge_balance_spent">Spent</string>
-    <string name="charge_balance_regen">Regen</string>
 
     <!-- software update dialog & prompt -->
     <string name="update_dialog_title">Software Update Available</string>
@@ -486,6 +506,7 @@
     <!-- daily stats day navigator -->
     <string name="daily_stats_prev_day">Previous</string>
     <string name="daily_stats_next_day">Next</string>
+    <string name="stats_nav_charge">Charge</string>
 
     <!-- Backup and restore (AppBackup, BackupDialogs) -->
     <string name="backup_header">Backup</string>
@@ -530,9 +551,11 @@
     <string name="routes_header">Trip routes</string>
     <string name="routes_enable_label">Record trip routes (GPS)</string>
     <string name="routes_hint">Saves where each trip went and where each charge was. It stays in the car: nothing is sent anywhere. It goes into your backup. Trips from before this setting have no route.</string>
+    <string name="routes_map_size">Saved map: %1$s MB</string>
+    <string name="routes_map_clear">Clear saved map</string>
+    <string name="routes_map_cleared">Saved map cleared</string>
     <string name="route_title">Route</string>
     <string name="route_none">No route for this trip. Routes are saved for trips driven with Config → System → Trip routes on.</string>
-    <string name="route_parked_only">Open the route in Park</string>
     <string name="routes_all_title">All routes</string>
     <string name="routes_all_count">%1$d trips</string>
     <string name="routes_all_show">Show all</string>
@@ -546,6 +569,21 @@
     <string name="route_stat_speed_value">avg %1$s · top %2$s km/h</string>
     <string name="route_stat_height_range">Height %1$s – %2$s m</string>
     <string name="route_stat_outside">Outside</string>
+    <string name="route_stat_by_use">Energy by use</string>
+    <string name="sankey_used">Used</string>
+    <string name="sankey_net">Net</string>
+    <string name="sankey_regen">Regen</string>
+    <string name="stats_part_drive">Drive</string>
+    <string name="stats_part_climate">Climate</string>
+    <string name="stats_part_other">Other</string>
+    <string name="stats_by_use_none">Shows on new trips measured by CAN</string>
+    <string name="stats_card_trip">Trip</string>
+    <string name="stats_driving_time">Driving time</string>
+    <string name="stats_distance">Distance</string>
+    <string name="stats_avg_speed">Avg. speed</string>
+    <string name="stats_relief">Elevation</string>
+    <string name="stats_relief_net">net</string>
+    <string name="session_stat_split_note">drive %1$s · climate %2$s · other %3$s</string>
     <!-- Day session cards (DailyStatsView) -->
     <string name="session_since">since %1$s</string>
     <string name="session_yesterday">yesterday</string>
@@ -553,6 +591,7 @@
     <string name="session_stat_battery">Battery</string>
     <string name="session_stat_efficiency">Efficiency</string>
     <string name="session_stat_net_energy">Net energy</string>
+    <string name="session_stat_charged_energy">Energy added</string>
     <string name="session_stat_net_breakdown">%1$s used − %2$s regen</string>
     <string name="session_stat_elevation">Climb / descent</string>
     <string name="session_stat_avg_power">Average power</string>
@@ -646,5 +685,46 @@
     <string name="phone_msg_no_space">The car does not have enough free space for this file.</string>
     <string name="phone_msg_busy">A restore is already running.</string>
     <string name="phone_msg_no_file">Pick a backup file first.</string>
-    <string name="unit_kwh_per_100km">kWh/100 km</string>
+    <string name="phone_routes">Routes (GPX)</string>
+    <string name="phone_routes_hint">Your trips as GPX files. They open in Google Earth, Google My Maps and most map apps.</string>
+    <string name="phone_routes_open">Open routes</string>
+    <string name="phone_routes_day">Whole day</string>
+    <string name="phone_routes_trip">This trip</string>
+    <string name="phone_msg_no_route">No trip with a recorded route yet.</string>
+    <string name="soc_history_empty">No battery data in this period</string>
+    <string name="charge_card_charges">Charges</string>
+    <string name="charge_card_energy_cap">%1$s kWh charged</string>
+    <string name="charge_card_cost">Cost</string>
+    <string name="charge_card_cost_cap">%1$s / 100 km · %2$s / kWh</string>
+    <string name="charge_card_per_kwh">%1$s per kWh</string>
+    <string name="charge_card_cost_total">%1$s in total</string>
+    <string name="charge_card_cost_share">%1$s · %2$d%% of the cost</string>
+    <string name="charge_card_no_dc">no DC charges</string>
+    <string name="charge_card_no_cost">no cost entered</string>
+    <string name="charge_card_low">Low battery</string>
+    <string name="charge_card_low_cap">lowest charge · %1$s</string>
+    <string name="charge_card_below">Days below %1$d%%</string>
+    <string name="charge_card_plug_note">On average you plug in at %1$d%%</string>
+    <string name="charge_card_today">today</string>
+    <string name="charge_card_yesterday">yesterday</string>
+    <string name="charge_card_days_ago">%1$d days ago</string>
+    <string name="charge_card_never">never</string>
+    <string name="charge_card_gap_days">%1$d days</string>
+    <string name="charge_card_gap_open">%1$s → today</string>
+    <string name="charge_card_avg_kw">%1$s kW avg</string>
+    <string name="charge_card_full_band">To 100%%: %1$d of %2$d · last %3$s</string>
+    <string name="charge_card_gap_line">longest without 100%%: %1$s (%2$s)</string>
+    <string name="charge_card_temp">Battery temperature</string>
+    <string name="charge_card_temp_cap">highest · %1$s · average %2$s · lowest %3$s</string>
+    <string name="charge_card_full_time" formatted="false">Time at 100%</string>
+    <string name="charge_card_full_time_val">%1$s average</string>
+    <string name="charge_card_full_time_sub">%1$s in total · longest %2$s</string>
+    <string name="charge_card_full_temp" formatted="false">Temp. at 100%</string>
+    <string name="charge_card_full_temp_val">max %1$s</string>
+    <string name="charge_card_full_temp_sub">average %1$s</string>
+    <string name="charge_card_temp_note">LFP is comfortable between 15 and 35 °C</string>
+    <string name="charge_card_temp_since">data from %1$s</string>
+    <string name="charge_card_no_temp">no reading (needs the OBD2 dongle)</string>
+    <string name="charge_period_month">Month</string>
+    <string name="charge_period_year">Year</string>
 </resources>

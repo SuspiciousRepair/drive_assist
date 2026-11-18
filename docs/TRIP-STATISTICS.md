@@ -20,7 +20,7 @@ flowchart TD
         CONT["Continuous Trip Stream\n(Multi-day chronological list)"]
         MULTI["Segment Multi-Selector\n(Select consecutive trip legs)"]
         SECT["Saved Named Sections\n('Subida da Serra', 'Viagem Litoral')"]
-        AGG["Section True Efficiency\n(Aggregated distance, D+, kWh/100km)"]
+        AGG["Section True Efficiency\n(Aggregated distance, D+, Wh/km)"]
     end
 
     subgraph P3["Phase 3 (Planned)"]
@@ -40,7 +40,7 @@ flowchart TD
 Phase 1 provides an interactive daily overview directly on the IHU display:
 
 ![Drive Assist Daily Statistics View](screenshots/daily-stats.png)
-*Figure 1: Drive Assist's chronological session log and hourly distance chart, running live on the Geely EX2 IHU629G head unit (1920x1080 display). **Sessões do Dia** lists the day's drives, charging sessions, and Valet-mode intervals in reverse-chronological order — each row showing time range, duration, distance, efficiency (kWh/100km), SoC change, ascent/descent, and energy consumed/regenerated, with parked gaps interleaved between them. **Distância por Hora & Velocidade** breaks the day's total distance down by hour, colored by speed bucket (0–40, 40–80, 80–120, 120+ km/h).*
+*Figure 1: Drive Assist's chronological session log and hourly distance chart, running live on the Geely EX2 IHU629G head unit (1920x1080 display). **Sessões do Dia** lists the day's drives, charging sessions, and Valet-mode intervals in reverse-chronological order — each row showing time range, duration, distance, efficiency (Wh/km), SoC change, ascent/descent, and energy consumed/regenerated, with parked gaps interleaved between them. **Distância por Hora & Velocidade** breaks the day's total distance down by hour, colored by speed bucket (0–40, 40–80, 80–120, 120+ km/h).*
 
 ### 1. Interactive Daily Bar Chart & Navigation
 - **Bar Chart (MPAndroidChart)**: Displays daily distance (`last_odo_km - first_odo_km`) over the past 14 days.
@@ -52,7 +52,7 @@ Elevation changes heavily influence EV range. Rather than simple point-to-point 
 - **D+ (Ganho Positivo Acumulado)**: Sum of all climbing elevation gains throughout the day ($\sum \Delta h > 0$, noise-filtered $> 3\text{m}$).
 - **D- (Perda Negativa Acumulada)**: Sum of all descending elevation losses ($\sum |\Delta h| < 0$).
 - **Saldo Líquido**: $\text{D+} - \text{D-}$ (net elevation gain/loss).
-- Correlating D+ with **Regeneração (kWh)** and **Eficiência (kWh/100km)** shows exactly how terrain shaped battery consumption.
+- Correlating D+ with **Regeneração (kWh)** and **Eficiência (Wh/km)** shows exactly how terrain shaped battery consumption.
 
 ### 3. ABRP-Style Chronological Session Log
 Inspired by A Better Routeplanner's daily diary, the selected day's activities are displayed in an interleaved, chronological feed:
@@ -60,7 +60,7 @@ Inspired by A Better Routeplanner's daily diary, the selected day's activities a
   - Departure & Arrival time, duration (e.g. `08:15 – 09:30 • 1h 15m`).
   - Distance (km) and SoC change (`100% ➔ 64%`).
   - Altimetry breakdown (`▲ +680 m  ▼ -210 m`).
-  - True Efficiency (`kWh/100km`) and energy regenerated (`kWh`).
+  - True Efficiency (`Wh/km`) and energy regenerated (`kWh`).
 - 🔌 **Recargas (Charges)**:
   - Start & completion time, duration.
   - Energy added in `+kWh`.
@@ -73,8 +73,11 @@ Inspired by A Better Routeplanner's daily diary, the selected day's activities a
 ### 5. Trip Route Screen
 On the statistics page, tap a finished trip (in **P**) to open its route:
 
-- **Route as lines, no map.** GPS points drawn on a plain background, north
-  up, with start and end marks. No map tiles, no API key, no internet.
+- **Route on a map.** GPS points drawn over an OpenStreetMap map, north up,
+  with start and end marks. No API key and no use limit. The map pictures
+  (tiles) are kept on the car, so a place seen once shows again with no
+  internet. A tile that is not on the car and cannot be fetched is left
+  out: the line then shows on the plain background, as before.
 - **Speed colours.** Each part has the colour of its speed. The buckets and
   colours are the same as on the statistics page: 0–40, 40–80, 80–120 and
   120+ km/h. The scale is fixed, so two trips compare at a glance.
@@ -89,7 +92,7 @@ On the statistics page, tap a finished trip (in **P**) to open its route:
 - **Height profile.** Under the route, the GPS height along the trip, in the
   same speed colours. Touch it to mark that place on the route.
 - **Trip numbers.** Distance, moving and stopped time, average and top speed,
-  energy, kWh/100 km, battery start and end, climb and descent, lowest and
+  energy, Wh/km, battery start and end, climb and descent, lowest and
   highest point, outside temperature.
 
 Routes are recorded with **Config → System → Trip routes** (on by default):
@@ -117,7 +120,7 @@ Phase 2 will move beyond strict 24-hour calendar days to support natural multi-l
      - Cumulative D+ and D-.
      - Total Regen captured (kWh).
      - Time-weighted HVAC active percentage.
-     - True integrated efficiency (kWh/100km).
+     - True integrated efficiency (Wh/km).
 
 ---
 

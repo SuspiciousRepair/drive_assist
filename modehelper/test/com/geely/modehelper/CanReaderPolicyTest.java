@@ -68,6 +68,14 @@ public final class CanReaderPolicyTest {
             check("abc".equals(sink.toString("UTF-8")), "shell v2 frames: " + sink);
         } catch (java.io.IOException e) { throw new AssertionError(e); }
         check(LocalAdbShell.shellService("id").equals("shell,v2,raw:id\0"), "shell v2 service");
+
+        // Wipe (cleanup): stops our daemon first, then removes only our dir.
+        String wipe = CanReaderPolicy.wipeCommand();
+        check(wipe.startsWith(CanReaderPolicy.stopOursCommand()), "wipe stops our daemon first");
+        check(wipe.contains("rm -rf " + CanReaderPolicy.DIR), "wipe removes our dir");
+        check(!wipe.contains("rm -rf /data/local/tmp/roadcastd"), "wipe never removes another app's dir");
+        check(wipe.contains("echo " + CanReaderPolicy.WIPED), "wipe prints its marker");
+
         System.out.println("CanReaderPolicyTest OK");
     }
 }

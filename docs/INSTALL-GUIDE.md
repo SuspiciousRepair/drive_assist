@@ -500,6 +500,44 @@ format first. A backup from a newer app version is refused: update the app
 first. Restore runs only in P. Dashcam clips are not in the backup. Export
 them to USB.
 
+### Before a workshop visit or a factory reset
+
+Do these steps in order. Then you lose no trips and no settings.
+
+**Before the wipe:**
+
+1. Put the USB stick in the car. A backup on the car storage only is erased
+   by a workshop reset.
+2. Put the car in P.
+3. Go to Settings → **System** → **Backup** and press **Back up now**.
+4. Read the message. It must say **USB stick**. If it says only
+   *car storage*, the stick was not found: check it and back up again.
+5. Make sure you know the backup password.
+6. Export the dashcam clips you want to keep to USB. They are not in the
+   backup.
+7. Keep the USB stick. Do not let the workshop format it.
+
+**After the wipe:**
+
+1. Install Drive Assist again. Use the same version or a newer one.
+2. Before you drive, look at the car clock. The date and time must be
+   correct. If the clock is wrong, wait until it is correct. A wrong date
+   can make the restore think the trips are already on the car, and then it
+   skips them.
+3. Put the USB stick in and put the car in P.
+4. Open Drive Assist. It asks *"Restore your backup?"*. Press **Restore**
+   and type the backup password.
+5. Read the message after the restart. It must say how many trips were
+   added. If it says *"The trips were already on the car"* after a wipe,
+   stop and ask for help. Do not delete the backup file.
+
+**Set these up again by hand** (they are not in the backup):
+
+- the custom lock sound: import it again (Settings → **Doors** → **Lock sound**);
+- the OBD2 dongle: pair it again (see *Bluetooth OBD2 Dongle Pairing Fails*
+  above);
+- phone access: scan the code on the car again with your phone.
+
 **From a computer (optional):** `tools/car-backup.sh` runs the same backup
 over ADB and also keeps the two APKs. It asks for the backup password only
 when the app needs it. `tools/backup-open.sh` unlocks a backup file on the
@@ -517,11 +555,49 @@ computer (needs a JDK):
 
 ---
 
+## 🧹 Remove Drive Assist (before a workshop visit)
+
+**Where:** Settings (gear) → **System** → **Cleanup and removal…**
+
+Cleanup removes **only our own things** and leaves the car looking the way a
+workshop expects. It never touches another app you installed.
+
+**Step 2 has two buttons** (each needs two taps):
+
+| Button | What it does | When |
+| --- | --- | --- |
+| **Remove Drive Assist and its helper (keep ADB on)** | Stops the CAN reader and deletes its file, gives the car's own lock sound back, then uninstalls Drive Assist and ModeHelper. ADB stays on. | You keep working over ADB afterwards. |
+| **Remove and close ADB (before a workshop visit)** | Same, and also turns ADB **off**. | Before a dealer, tow, or any outside access. |
+
+The privileged steps (stopping the root CAN reader, the lock sound, the ADB
+switch, the silent uninstall) are done by ModeHelper, so you need no computer.
+
+**What it does NOT undo:** the deep root from recovery (`ro.secure=0`,
+test-keys). That lives in the system image, not in our apps, so a deep
+inspection can still see it. A normal dealer check sees ADB off and no
+unknown apps, which is the point.
+
+> [!IMPORTANT]
+> **Back up first** (see Backup & Restore above). Removal wipes Drive
+> Assist's settings and trips. The backup on your USB stick is how you get
+> them back after you reinstall.
+
+### Getting back in after you closed ADB
+
+Closing ADB turns off the access Drive Assist and your computer use to reach
+the car, and nothing is left on the car to re-open it — that is the point. To
+install and use Drive Assist again, **unlock the car by the same means you
+used the first time**, then reinstall and restore your backup.
+
+---
+
 ## 📱 Phone access
 
 Open a page on your phone to:
 
 - download your trips and charges (CSV files for any spreadsheet),
+- download your trip routes as GPX files (one trip or a whole day) for
+  Google Earth, Google My Maps or any map app,
 - download the newest backup, or restore a backup file from the phone,
 - download dashcam clips,
 - type long settings with the phone keyboard: MQTT address, user and

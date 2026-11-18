@@ -159,6 +159,23 @@ public class DailyStatsProviderTest {
     // getEnergyBalanceDays' pure half: how much of a charge session's
     // wall-clock duration falls inside one calendar day, used to split its
     // kWh across the days it spans.
+    @Test public void energyBalanceDaysEndToday() {
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.set(2026, java.util.Calendar.NOVEMBER, 17, 20, 58, 0);
+        long now = cal.getTimeInMillis();
+        long first = DailyStatsProvider.firstBalanceDayStart(now, 30);
+        java.util.Calendar f = java.util.Calendar.getInstance();
+        f.setTimeInMillis(first);
+        assertEquals(0, f.get(java.util.Calendar.HOUR_OF_DAY));
+        assertEquals(java.util.Calendar.OCTOBER, f.get(java.util.Calendar.MONTH));
+        assertEquals(19, f.get(java.util.Calendar.DAY_OF_MONTH));
+        // The 30th day, the last bar, holds "now".
+        f.add(java.util.Calendar.DAY_OF_MONTH, 29);
+        long lastStart = f.getTimeInMillis();
+        f.add(java.util.Calendar.DAY_OF_MONTH, 1);
+        assertTrue(now >= lastStart && now < f.getTimeInMillis());
+    }
+
     @Test public void overlapFractionIsZeroWhenSessionDoesNotTouchTheDay() {
         assertEquals(0.0, DailyStatsProvider.overlapFraction(1_000, 2_000, 2_000, 3_000), 1e-9);
         assertEquals(0.0, DailyStatsProvider.overlapFraction(1_000, 2_000, 0, 1_000), 1e-9);

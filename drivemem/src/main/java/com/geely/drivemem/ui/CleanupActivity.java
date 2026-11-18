@@ -22,24 +22,26 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
-// TODO: We have changed the app a lot after this was introduced. We should review the cleanup process and make sure it is still valid and complete. Also remove reference to Drive Assist,
-/** Cleanup screen: undoes Drive Assist's modifications to restore the head unit
- * toward factory state. Both cleanup actions require confirmation. System
- * apps and ADB settings are not touched. */
+/** Cleanup screen: removes Drive Assist and everything of ours from the head
+ * unit, so it looks the way a workshop expects. It touches only our own
+ * things — never another app on the car.
+ *
+ * "Remove" hands the privileged work to modehelper ({@link #HELPER_CLEANUP}):
+ * it stops the CAN reader and deletes its file, gives the car's own lock
+ * sound back, sets ADB, then uninstalls Drive Assist and itself. The owner
+ * chooses whether ADB is closed: closing it is for a workshop visit, and
+ * then the way back in is by hand (car Settings, Developer options, ADB on,
+ * reinstall from the USB stick). Nothing is left behind to re-open it.
+ *
+ * The deep root from recovery (ro.secure=0, test-keys) is not ours and is not
+ * touched. Every action needs two taps. */
 public class CleanupActivity extends Activity {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private TextView log;
-    private boolean armed = false;   // demands 2 taps for the destructive actions
+    private View armedView;          // the one button armed for its second tap
 
-    // custom apps installed on this unit (touches nothing belonging to the system)
-    private static final String[] CUSTOM_APPS = {
-        "app.revanced.android.youtube",
-        "app.revanced.android.gms",
-        "app.revanced.manager.flutter",
-        "com.cxinventor.file.explorer",
-        "org.mozilla.firefox",
-        "com.waze",
-    };
+    private static final String HELPER_PKG = "com.geely.modehelper";
+    private static final String HELPER_CLEANUP = "com.geely.modehelper.CLEANUP";
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -78,8 +80,14 @@ public class CleanupActivity extends Activity {
         root.addView(action(getString(R.string.cleanup_action_stop_wipe), 0xFF3A4048, this::stopAndWipeDriveAssistData));
 
         root.addView(Style.header(this, getString(R.string.cleanup_step2_header)));
-        root.addView(action(getString(R.string.cleanup_action_uninstall_apps), 0xFF7A4A20, this::uninstallCustomApps));
-        root.addView(action(getString(R.string.cleanup_action_uninstall_self), 0xFF8A3A3A, this::uninstallSelf));
+        root.addView(action(getString(R.string.cleanup_action_uninstall_self), 0xFF7A4A20, () -> remove(false)));
+        root.addView(action(getString(R.string.cleanup_action_remove_close_adb), 0xFF8A3A3A, () -> remove(true)));
+
+        TextView note = new TextView(this);
+        note.setTextColor(Style.TEXT_DIM); note.setTextSize(13);
+        note.setText(getString(R.string.cleanup_adb_note));
+        note.setPadding(0, Style.dp(this, 8), 0, 0);
+        root.addView(note);
 
         log = new TextView(this);
         log.setTextColor(Style.TEXT); log.setTextSize(14);
@@ -107,13 +115,15 @@ public class CleanupActivity extends Activity {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.topMargin = Style.dp(this, 8); v.setLayoutParams(lp);
-        // confirmation: the first tap arms, the second one executes
+        // Confirmation: the first tap arms THIS button, the second runs it.
+        // Armed per-button, so tapping a different button is a fresh arm, not
+        // a second tap that would fire the wrong (destructive) action.
         v.setOnClickListener(x -> {
-            if (!armed) {
-                armed = true;
+            if (armedView != v) {
+                armedView = v;
                 say(getString(R.string.cleanup_confirm_prompt, label));
-                ui.postDelayed(() -> { armed = false; }, 6000);
-            } else { armed = false; onClick.run(); }
+                ui.postDelayed(() -> { if (armedView == v) armedView = null; }, 6000);
+            } else { armedView = null; onClick.run(); }
         });
         return v;
     }
@@ -148,30 +158,34 @@ public class CleanupActivity extends Activity {
         say(getString(R.string.cleanup_wiped));
     }
 
-    // Step 2a: asks for the custom apps to be uninstalled (the system confirms each one)
-    private void uninstallCustomApps() {
-        int asked = 0;
-        // whole sentence lives in the resources; the list (package ids) is assembled here
-        StringBuilder sb = new StringBuilder(getString(R.string.cleanup_uninstall_header)).append("\n");
-        for (String pkg : CUSTOM_APPS) {
-            if (!isInstalled(pkg)) continue;
-            try {
-                Intent i = new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + pkg));
-                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(i);
-                sb.append(" • ").append(pkg).append("\n");
-                asked++;
-            } catch (Throwable t) {
-                sb.append(" ! ").append(getString(R.string.cleanup_uninstall_item_failed, pkg)).append("\n");
-            }
+    // Step 2: hand the privileged removal to modehelper, which stops the CAN
+    // reader, restores the lock sound, sets ADB, and uninstalls both apps.
+    // closeAdb true leaves ADB off (for a workshop visit); false keeps it on.
+    private void remove(boolean closeAdb) {
+        stopAndWipeDriveAssistData();
+        if (!helperHasCleanup()) {
+            // No helper (not installed, or too old): we cannot stop the CAN
+            // reader or set ADB from here. Say so, then ask for our own
+            // removal the plain way.
+            say(getString(R.string.cleanup_helper_missing));
+            ui.postDelayed(this::uninstallSelf, 1500);
+            return;
         }
-        say(asked == 0 ? getString(R.string.cleanup_none_found)
-            : sb + "\n" + getString(R.string.cleanup_uninstall_footer));
+        say(getString(R.string.cleanup_removing_self));
+        try {
+            Intent i = new Intent(HELPER_CLEANUP)
+                .setClassName(HELPER_PKG, "com.geely.modehelper.CleanupReceiver")
+                .putExtra("close_adb", closeAdb);
+            sendBroadcast(i);
+            // modehelper now does the rest and uninstalls both apps. This
+            // screen disappears with Drive Assist; nothing more to do here.
+        } catch (Throwable t) {
+            say(getString(R.string.cleanup_failed, String.valueOf(t)));
+        }
     }
 
-    // Step 2b: last of all — the app asks for its own removal
+    // Fallback only (no helper): the app asks for its own removal.
     private void uninstallSelf() {
-        stopAndWipeDriveAssistData();
         say(getString(R.string.cleanup_removing_self));
         ui.postDelayed(() -> {
             try {
@@ -182,9 +196,11 @@ public class CleanupActivity extends Activity {
         }, 1200);
     }
 
-    private boolean isInstalled(String pkg) {
-        try { getPackageManager().getPackageInfo(pkg, 0); return true; }
-        catch (Throwable t) { return false; }
+    private boolean helperHasCleanup() {
+        try {
+            return !getPackageManager().queryBroadcastReceivers(
+                new Intent(HELPER_CLEANUP).setPackage(HELPER_PKG), 0).isEmpty();
+        } catch (Throwable t) { return false; }
     }
 
     private void say(String s) { ui.post(() -> log.setText(s)); }

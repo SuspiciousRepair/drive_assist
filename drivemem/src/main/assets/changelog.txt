@@ -1,12 +1,19 @@
-- New: each trip saves its route. Tap a finished trip on the stats page to see it, with a height profile and the trip numbers.
-- New: All routes shows every trip in one picture, and you can pick which trips.
-- New: Extra dark. At night the Dashboard goes as dark as the screen allows while you drive (Config, Look, Dark mode).
-- New: the front defogger button shows at once on the climate ruler and in Home Assistant.
-- New: the car's low-tyre warning, per wheel, in Home Assistant.
-- Fixed: a home charge is no longer shown as a DC fast charge.
-- Fixed: the first Cooler or Warmer tap of a trip no longer makes the cabin warmer.
-- Fixed: a change you make right after the car starts now stays (AVAS, regen, drive mode).
-- Fixed: a charge no longer gains energy while the screen sleeps.
-- Fixed: the dashcam Record switch stays on after a tap.
-- Fixed: the USB export always copies the newest data.
-- Changed: the Regen and AVAS buttons follow changes made on the car's own screen.
+- New: trip routes are drawn on a map (OpenStreetMap). The map is kept in the car, so a place seen once shows again with no internet.
+- New: the charging page shows a map of the places where you charged. Charges from before 16 Nov 2026 have no place, so they have no pin.
+- New: the charging page has four cards (charges, cost, low battery, battery temperature) and a month or year picker.
+- New: the stats page shows a year of days. Tap a day, a week or a month to see it.
+- New: export trip routes as GPX files, to the USB stick and to the phone.
+- New: open a trip to see where its energy went: drive, climate and other.
+- New: the climate ruler learns the changes you keep by hand (Config, Climate).
+- New: Cleanup also removes the helper app and the CAN reader, and asks what to do with ADB.
+- Changed: consumption is shown in Wh/km everywhere.
+- Changed: the climate ruler uses one set of settings for each outside temperature band.
+- Changed: Config, Drive mode is calmer, and the regen buttons show the regen icon.
+- Changed: Extra dark goes darker.
+- Changed: C3 blows softer.
+- Changed: Config, System, Trip routes can clear the saved map.
+- Fixed: a charge now saves the place where it took place.
+- Fixed: the floating button shows after a new install.
+- Fixed: the AVAS switch no longer jumps from off to on.
+- Fixed: CAN power read a little low.
+- Fixed: many small fixes from a code review.

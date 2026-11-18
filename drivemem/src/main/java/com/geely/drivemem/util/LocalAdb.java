@@ -26,7 +26,7 @@ import java.nio.charset.StandardCharsets;
  * stranger's car has no developer sitting there to run an adb command by
  * hand. Every install already implies this unlock already happened — you
  * cannot sideload Drive Assist onto a stock, locked unit in the first place. */
-final class LocalAdb {
+public final class LocalAdb {
     private static final String TAG = "DriveMem";
     private static final String HOST = "127.0.0.1";
     private static final int[] PORTS = {5555, 65010};
@@ -41,12 +41,51 @@ final class LocalAdb {
     private static final int A_VERSION = 0x01000000;
     private static final int A_MAXDATA = 4096;
 
+    /** How long the ADB window we open for the grant may stay up, at most.
+     * modehelper's own auto-off timer: the safety net if we die before
+     * closing it ourselves. */
+    static final int GRANT_ADB_MINUTES = 2;
+    private static final long PORT_WAIT_MS = 15_000;
+
     /** Grants ourselves the "draw over other apps" permission via the car's
      * own local adbd, if it isn't already granted. Safe to call on every
-     * MY_PACKAGE_REPLACED: a no-op once granted, since the OS keeps the grant
-     * across app updates. Blocking (socket I/O) — call off the main thread. */
-    static boolean grantOverlayPermission(Context ctx) {
+     * start: a no-op once granted, since the OS keeps the grant across app
+     * updates. Blocking (socket I/O) — call off the main thread.
+     *
+     * If ADB is off (factory reset, or the owner closed it), local adbd is
+     * not listening and the grant can only fail. So it asks modehelper to
+     * open ADB for a short window first, and closes it again afterwards —
+     * unless the owner wants it kept on (#115). Without modehelper nothing
+     * can switch ADB on from inside the app; it then just tries the ports. */
+    public static boolean grantOverlayPermission(Context ctx) {
         if (Settings.canDrawOverlays(ctx)) return true;
+        boolean weOpened = false;
+        if (!com.geely.drivemem.controls.AdbGate.isEnabled(ctx)) {
+            weOpened = com.geely.drivemem.controls.AdbGate.request(ctx, true, GRANT_ADB_MINUTES);
+            Log.i(TAG, "localadb: ADB is off, " + (weOpened
+                ? "asked modehelper to open it for the overlay grant"
+                : "and no modehelper to open it"));
+        }
+        try {
+            if (weOpened) waitForAnyPort(PORT_WAIT_MS);
+            return tryGrant(ctx);
+        } finally {
+            if (shouldCloseAfterGrant(weOpened,
+                    Prefs.getAdbAlwaysOn(ctx),
+                    com.geely.drivemem.controls.AdbGate.isEnabled(ctx))) {
+                com.geely.drivemem.controls.AdbGate.request(ctx, false, 0);
+                Log.i(TAG, "localadb: closed ADB again after the overlay grant");
+            }
+        }
+    }
+
+    /** Close only a window WE opened, and never when the owner's "keep ADB
+     * always on" switch is set. */
+    static boolean shouldCloseAfterGrant(boolean weOpened, boolean alwaysOn, boolean stillOn) {
+        return weOpened && !alwaysOn && stillOn;
+    }
+
+    private static boolean tryGrant(Context ctx) {
         String pkg = ctx.getPackageName();
         IOException last = null;
         for (int port : PORTS) {
@@ -60,6 +99,21 @@ final class LocalAdb {
         }
         Log.w(TAG, "localadb: overlay grant failed on all ports: " + last);
         return false;
+    }
+
+    /** adbd takes a moment to start listening after ADB_ENABLED flips. */
+    private static void waitForAnyPort(long ms) {
+        long until = System.currentTimeMillis() + ms;
+        while (System.currentTimeMillis() < until) {
+            for (int port : PORTS) {
+                try (Socket s = new Socket()) {
+                    s.connect(new InetSocketAddress(HOST, port), 500);
+                    return;
+                } catch (IOException ignored) {}
+            }
+            try { Thread.sleep(250); } catch (InterruptedException e) { return; }
+        }
+        Log.w(TAG, "localadb: no adbd on " + java.util.Arrays.toString(PORTS) + " after " + ms + " ms");
     }
 
     private static String runShell(int port, String cmd) throws IOException {

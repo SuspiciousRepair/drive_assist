@@ -32,7 +32,7 @@ public final class CarDb extends SQLiteOpenHelper {
     // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
     // every write failed until this was bumped past 14. See the v15 entry in
     // onUpgrade below for what v15 itself actually does.
-    private static final int VERSION = 28;
+    private static final int VERSION = 32;
 
     /** SQL predicate for telemetry rows representing driving: gear is not Park (4),
      * or if gear is missing, car is not charging. */
@@ -176,7 +176,8 @@ public final class CarDb extends SQLiteOpenHelper {
             + "regen_kwh REAL,"
             + "spent_kwh REAL,"
             + "net_kwh REAL,"
-            + "energy_source TEXT, estimated_net_kwh REAL)");
+            + "energy_source TEXT, estimated_net_kwh REAL,"
+            + TRIP_SPLIT_COLUMNS + ")");
         createTripEnergySegment(db);
         createTripPoint(db);
 
@@ -226,7 +227,8 @@ public final class CarDb extends SQLiteOpenHelper {
             + "discharge_kwh REAL NOT NULL DEFAULT 0,"
             + "regen_kwh REAL NOT NULL DEFAULT 0,"
             + "net_kwh REAL NOT NULL DEFAULT 0,"
-            + "energy_source TEXT)");
+            + "energy_source TEXT, "
+            + HEAT_COLUMNS_V32 + ")");
     }
 
     /** Immutable source-specific portions of a trip; never merge estimated and measured energy. */
@@ -235,6 +237,23 @@ public final class CarDb extends SQLiteOpenHelper {
     // good: the drive mode, regen level, battery power and the trip's energy
     // so far ride on each point, to be analysed later. trip_id is NULL while
     // the trip is open, then set by CLAIM_TRIP_POINTS_SQL.
+    /** A charge's place: the last route point in the day before it started.
+     * The car does not move while it charges, and the GPS fix at the END of
+     * a long charge is often gone (GPS off after 2 min parked, or the app
+     * restarted), so this is the reliable source. Args: start_ms, start_ms. */
+    public static final String CHARGE_PLACE_SQL =
+        "SELECT lat, lon FROM trip_point WHERE ts_ms <= ? AND ts_ms >= ? - 86400000 "
+      + "ORDER BY ts_ms DESC LIMIT 1";
+
+    /** The same, for every charge that has no place yet. */
+    public static final String CHARGE_PLACE_BACKFILL_SQL =
+        "UPDATE charge_session SET "
+      + " lat = (SELECT p.lat FROM trip_point p WHERE p.ts_ms <= charge_session.start_ms"
+      + "   AND p.ts_ms >= charge_session.start_ms - 86400000 ORDER BY p.ts_ms DESC LIMIT 1),"
+      + " lon = (SELECT p.lon FROM trip_point p WHERE p.ts_ms <= charge_session.start_ms"
+      + "   AND p.ts_ms >= charge_session.start_ms - 86400000 ORDER BY p.ts_ms DESC LIMIT 1)"
+      + " WHERE lat IS NULL";
+
     public static final String TRIP_POINT_DDL = "CREATE TABLE IF NOT EXISTS trip_point ("
         + "id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER,"
         + "ts_ms INTEGER NOT NULL, lat REAL NOT NULL, lon REAL NOT NULL,"
@@ -508,7 +527,43 @@ public final class CarDb extends SQLiteOpenHelper {
             db.execSQL("ALTER TABLE charge_session ADD COLUMN lat REAL");
             db.execSQL("ALTER TABLE charge_session ADD COLUMN lon REAL");
         }
+        // v29: where a trip's energy went (CAN only). NULL on older trips and
+        // on trips CAN did not measure whole.
+        if (oldVersion < 29) {
+            for (String col : TRIP_SPLIT_COLUMNS_V29.split(",")) db.execSQL("ALTER TABLE trip ADD COLUMN " + col.trim());
+        }
+        // v30: the climate fan's energy (12 V, sensors.FanPower), part of climate.
+        if (oldVersion < 30) db.execSQL("ALTER TABLE trip ADD COLUMN fan_kwh REAL");
+        // v31: charges that saved no place get the last route point before
+        // they started (the car does not move while it charges).
+        if (oldVersion < 31) db.execSQL(CHARGE_PLACE_BACKFILL_SQL);
+        // v32: each day's battery temperature and stays at 100 %
+        // (sensors.BatteryHeat), kept past the samples' ~90 days. Filled by
+        // the next rollup for every day the samples still cover.
+        if (oldVersion < 32) {
+            for (String col : HEAT_COLUMNS_V32.split(",")) db.execSQL("ALTER TABLE daily_stat ADD COLUMN " + col.trim());
+        }
     }
+
+    /** sensors.BatteryHeat's per-day numbers: battery temperature (min, max
+     * and when, sum and count for the mean) and the stays at 100 % that
+     * began that day (count, total and longest ms, temperature while at
+     * 100 %). heat_done = stored by BatteryHeat.storeDays. */
+    static final String HEAT_COLUMNS_V32 =
+        "batt_t_min REAL, batt_t_max REAL, batt_t_max_ms INTEGER, batt_t_sum REAL, batt_t_n INTEGER, "
+      + "full_n INTEGER, full_ms INTEGER, full_longest_ms INTEGER, "
+      + "full_t_max REAL, full_t_sum REAL, full_t_n INTEGER, heat_done INTEGER";
+
+    /** Raw, so a better climate fit later re-reads old trips. All from the
+     * same CAN samples: battery net over them (can_net_kwh), drive motor
+     * energy out and back (VCU_DrvPwrAct), the integral of the raw climate
+     * signal (VCU_ThermalPwrAct) and the seconds it was on, and the fan's
+     * energy (fan_kwh, from the fan level through sensors.FanPower). Read
+     * through sensors.EnergySplit, which scales the parts to the trip's
+     * net_kwh. */
+    static final String TRIP_SPLIT_COLUMNS_V29 =
+        "can_net_kwh REAL, drive_spent_kwh REAL, drive_regen_kwh REAL, climate_raw_kwh REAL, climate_on_s REAL";
+    static final String TRIP_SPLIT_COLUMNS = TRIP_SPLIT_COLUMNS_V29 + ", fan_kwh REAL";
 
     // The kWh changes; the R$/kWh does not -- the cost is almost always
     // entered with the per-kWh button, so it scales with the kWh.

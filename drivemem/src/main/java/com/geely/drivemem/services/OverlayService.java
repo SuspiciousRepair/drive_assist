@@ -8,6 +8,7 @@ import com.geely.drivemem.hvac.ComfortHub;
 import com.geely.drivemem.hvac.ComfortRuler;
 import com.geely.drivemem.util.AppForeground;
 import com.geely.drivemem.util.LayoutWait;
+import com.geely.drivemem.util.LocalAdb;
 import com.geely.drivemem.util.Style;
 
 import android.app.Notification;
@@ -107,11 +108,42 @@ public final class OverlayService extends Service {
         // RemoteServiceException (see OutTempService's own note on this).
         ensureForeground();
         if (!Settings.canDrawOverlays(this)) {
-            stopSelf();
-            return START_NOT_STICKY;
+            // The self-grant used to run only on MY_PACKAGE_REPLACED, which a
+            // FRESH install never sends: after a factory reset (or any
+            // uninstall + install, which every downgrade is) the switch was on,
+            // the permission was not, and this service quietly stopped itself
+            // (#115). So the service asks for the permission itself, every time
+            // it is started without it — the switch, ensureAll and a restored
+            // backup all come through here.
+            requestGrantThenShow();
+            return START_STICKY;
         }
         if (overlayView == null) showOverlay();
         return START_STICKY;
+    }
+
+    private volatile boolean granting = false;
+    private boolean destroyed = false;
+
+    private void requestGrantThenShow() {
+        if (granting) return;
+        granting = true;
+        final Context app = getApplicationContext();
+        new Thread(() -> {
+            boolean ok = false;
+            try { ok = LocalAdb.grantOverlayPermission(app); }
+            catch (Throwable t) { android.util.Log.w("DriveMem", "overlay self-grant: " + t); }
+            final boolean granted = ok;
+            handler.post(() -> {
+                granting = false;
+                if (destroyed) return; // switched off while the grant ran
+                if (granted && Settings.canDrawOverlays(this)) {
+                    if (overlayView == null) showOverlay();
+                } else {
+                    stopSelf();
+                }
+            });
+        }, "overlay-grant").start();
     }
 
     private void ensureForeground() {
@@ -131,6 +163,7 @@ public final class OverlayService extends Service {
     }
 
     @Override public void onDestroy() {
+        destroyed = true;
         sRunning = false;
         handler.removeCallbacksAndMessages(null);
         ComfortHub.removeListener(climateListener);

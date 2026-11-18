@@ -31,10 +31,12 @@ All calibrated in roadcast's catalog (`third_party/roadcast/data/dbc.json`).
 | Signal | Frame | Unit | Note |
 |---|---|---|---|
 | `BMSH_BattVolt` | 0x178 | V | pack voltage |
-| `BMSH_BattCurr` | 0x250 | A | positive = discharge, negative = charging |
-| `VCU_DrvPwrAct` | 0x315 | kW | drive power |
-| `VCU_ThermalPwrAct` | 0x315 | kW | climate (compressor + heater) |
+| `BMSH_BattCurr` | 0x250 | A | positive = discharge, negative = charging. **Add 0.2 A**: the catalog's offset is −500.2, the real one −500.0 (fixed 0.2 A low against the OBD2 dongle, any current). Raw 0 (−500.2) = no value yet |
+| `VCU_DrvPwrAct` | 0x315 | kW | drive motor power, **not** battery power: close to it when pulling, about 20 % more than the battery gets during regen. Excludes climate and 12 V |
+| `VCU_ThermalPwrAct` | 0x315 | kW | climate (compressor + heater). Reads low: real ≈ 1.19 × value + 0.2 kW while the compressor runs (EX2, 2026-11-17) |
 | `OBC_uInAct`, `OBC_iInAct` | 0x221 | V, A | on-board charger's mains input |
+| `ESC_VehicleSpeed` | 0x125 | km/h | **multiply by 0.05625**: the raw count is 1/64 m/s, and the catalog's ×1 is wrong (checked against the VHAL speed, 2026-11-17) |
+| `ESC_BrakePedalSwitchStatus` | 0x125 | 1/0 | brake pedal switch (on/off, not pressure); `ESC_BrakePedalSwitchInvalid` flags it |
 
 A value arrives only when it changes. Until a frame changes once after the
 daemon starts, its signals report "never observed" (state 1), not valid.

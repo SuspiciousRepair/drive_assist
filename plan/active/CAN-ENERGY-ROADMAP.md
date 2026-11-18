@@ -134,3 +134,111 @@ forever to start and watch it. We don't need to.
 - Not done: swapping PR #27's 0.90 AC derate for `kwh_battery` (that code
   is not on `next` yet), the accuracy drive, the suspend night, the driving
   CPU number.
+
+## Power map (2026-11-17)
+
+Goal: split the battery's power into drive, climate and 12 V, live, and send
+ABRP the right number. Data: the 2026-11-14 recording (3 short trips, 50 min
+of AC charge, hours parked) and a parked step test on 2026-11-17. Every
+signal was decoded from the raw frames (`tools/canrec`, branch
+`feat/can-explore-tools`).
+
+### What each signal is
+
+| Signal | Frame | What it is, from the data |
+|---|---|---|
+| `BMSH_BattVolt` × `BMSH_BattCurr` | 0x178 / 0x250 | Battery power. The reference on CAN. `BattCurr` raw 0 (−500.2 A) = not valid yet, at wake-up. |
+| `VCU_DrvPwrAct` | 0x315 | Drive motor power. Not battery power. |
+| `VCU_ThermalPwrAct` | 0x315 | Climate power. Reads low. |
+| `VCU_DCDCPwrAct` (uncalibrated) | 0x315 | 12 V DC-DC load, coarse: about 0.05 kW per raw step. |
+| `VCU_ChrgDischrgPwrAct` | 0x3A2 | Charger DC output while charging (−6.0 kW on a 6.8 kW wall). −12.8 = idle. Probably V2L too (not checked). |
+| `OBC_uInAct` × `OBC_iInAct` | 0x221 | Mains power into the charger. |
+| `TotDrvPwrAct`, `HvConvPwrAct` | 0x29B | Always raw 0 on this car. Not used. |
+
+### Battery = drive + climate + 12 V
+
+Driving, 10 s windows (136): battery ≈ 0.93 × drive + aux, r = 0.98.
+
+- Pulling: (battery − climate − 12 V) / drive = 0.985. Drive power is right.
+- Regen: same ratio = 0.81. Drive power shows ~20 % more regen than the
+  battery gets.
+- All driving: battery 0.742 kWh, drive 0.620 kWh. The rest is climate,
+  12 V and losses (~0.3 kW on average).
+
+This is why `can.drive_kw` does not match the dongle: it is a different
+quantity, not a wrong reading.
+
+### Climate reads low
+
+Parked step test, 2026-11-17 (no charging, no driving; 0.04 kW base):
+
+| Step | Battery, above base, minus the 12 V change | `VCU_ThermalPwrAct` |
+|---|---|---|
+| Air-con on | 0.58 kW | 0.32 kW |
+| Big heat/cool step, compressor on (likely heat max) | 3.34 kW | 2.64 kW |
+| Front defrost, compressor on | 0.32 kW | 0.08 kW |
+| AC charging, air-con on vs off (2026-11-14) | 1.42 kW | 1.00 kW |
+
+All four fit **real ≈ 1.19 × `VCU_ThermalPwrAct` + 0.2 kW** while the
+compressor (`AC_ACCompReq`) is on. The 1.19 suggests the true scale is
+0.1 kW/bit, not the catalog's 0.08. The 0.2 kW is likely pumps and
+electronics that the signal leaves out.
+
+Two 12 V-only steps (+0.13 kW and +0.23 kW) were also seen. Which loads
+they were is not known: a phone was charging from the car at the same time.
+The car has no heated seats.
+
+### CAN vs the OBD2 dongle
+
+- The dongle log is ~1.25 s late. Aligned, r = 0.91 while driving.
+- CAN battery power = 0.95 × dongle while driving. CAN volts 1.2 V lower,
+  amps 0.2–0.4 A lower. Parked and charging, r = 0.997.
+- Which one is right is open. On short trips the SoC drop sat between them.
+- **Found 2026-11-17:** the amps gap is a fixed offset, not a scale. On
+  4,610 steady readings (−30 to +30 A): CAN amps = 0.9993 × dongle − 0.212 A.
+  The catalog's `BMSH_BattCurr` offset is −500.2; the real one is −500.0.
+  `CanPower` adds 0.2 A (~80 W at 400 V; the car showed CAN 160 W against
+  dongle 240 W). The parked base load becomes ~0.12 kW, not 0.04. Steps
+  (the climate fit) are not affected. The 1.2 V volts gap remains (0.3 %).
+
+### ABRP
+
+ABRP gets `energy.power_kw` = battery V × I (CAN, else dongle), + = out,
+− = charging. That is the right quantity. Drive power is not sent, which is
+correct. Weak point: it is one instant value per 6 s sample, up to 2 s old.
+A mean over the sample interval (CAN gives 10 Hz) would be cleaner.
+
+### Built (2026-11-17)
+
+- `ClimatePower`: the climate fit, in one place.
+- Hub: `energy.climate_kw` and `energy.other_kw` (CAN only, they add up to
+  `can.power_kw`). Shown in Config > OBD2, CAN block.
+- Per trip (DB v29): `can_net_kwh`, `drive_spent_kwh`, `drive_regen_kwh`,
+  `climate_raw_kwh`, `climate_on_s`. All integrated from the SAME CAN
+  samples. Saved when CAN covered ≥ 90 % of the trip's measured time and
+  the trip was not recovered after a restart. `EnergySplit` scales the three
+  parts to the trip's `net_kwh`, so they add up to the trip's number with
+  or without the dongle. The trip screen shows "Energy by use".
+- ABRP: mean battery power over the last 6 s (`EnergyIntegrator.meanPowerKw`).
+
+### The fan (2026-11-17)
+
+The climate fan runs on 12 V, so `VCU_ThermalPwrAct` leaves it out and it
+landed in "other" (owner saw 150 W "other" with only the fan on). Measured
+parked, compressor off, fan 8 → 0, battery power above fan-off (±20 W, CAN
+steps are 0.1 A ≈ 40 W):
+
+| Fan level | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|---|
+| W | 0 | 0 | 10 | 30 | 55 | 75 | 85 | 100 | 120 |
+
+`FanPower` holds the table; `car.hvac_fan` (hub) gives the level. Climate =
+compressor fit + fan, live and per trip (`trip.fan_kwh`, DB v30). The car
+reports the level as 0 (climate off) to 8, although its config says 1–7.
+
+### Next
+
+1. Check the split on a real drive.
+2. Long drive (30+ km) with CAN and the dongle on: which source matches
+   SoC drop × 39.6 kWh.
+3. A cleaner 12 V test: phone unplugged, one load at a time.

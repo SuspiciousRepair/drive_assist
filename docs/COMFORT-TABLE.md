@@ -22,7 +22,7 @@ Each column in the table configures five distinct HVAC control levers:
 | **Power** | `HVAC_POWER_ON` | Binary master power. Level `0` is strictly **OFF**. Levels `C1..C5` and `W1..W5` are **ON**. |
 | **Machine (AC)** | `HVAC_AC_ON` | Engages compressor for cooling or heat pump for heating. False in free ambient columns. |
 | **Setpoint** | `HVAC_TEMPERATURE_SET` | Target cabin temperature (°C). Active when `machine = true`, `NaN` when off. |
-| **Fan Speed** | `HVAC_FAN_SPEED` | Blower intensity: `[1, 2, 4, 6, 8]` across levels 1 to 5. |
+| **Fan Speed** | `HVAC_FAN_SPEED` | Blower intensity across levels 1 to 5: `[1, 2, 3, 6, 8]` cooling (C3 is fan 3 so C2 -> C3 is a small step), `[1, 2, 4, 6, 8]` heating. |
 | **Airflow Direction** | `HVAC_FAN_DIRECTION` | Distribution mask: `DIR_FACE` (1), `DIR_FEET` (2), `DIR_FACE_FEET` (3), `DIR_GLASS` (4), or `DIR_GLASS_FEET` (6). |
 | **Recirculation** | `HVAC_RECIRC_ON` | Cabin air recirculation. Used as an intensity lever on cooling; restricted on heating. |
 
@@ -108,3 +108,42 @@ To avoid erratic changes, an automatic re-slide only occurs when **all** of the 
 
 > [!NOTE]
 > **User Taps Bypass Timers**: When the driver taps **Cool** or **Warm**, the ruler immediately checks if ambient temperature has drifted by $\ge 2.0^\circ\text{C}$ and rebuilds the table instantly, ensuring immediate user actions always reflect current weather.
+
+## 6. The Table File (`ComfortTable`)
+
+The ruler reads its columns from one file, `files/comfort-table.json`. The rules above only make its **defaults**.
+
+* **One set of columns per weather band.** Each side has 4 bands, by its free-column count: cold `28 C and up`, `24-28 C`, `20-24 C`, `below 20 C`; warm `below 23 C`, `23-25 C`, `25-27 C`, `27 C and up`. Inside a band nothing changes with the outside temperature. The rules made each setpoint from the exact temperature, and it moved inside a band, sometimes the wrong way (C4 was 18, 19, 18, 19, 20, 19 °C from 20 to 25 °C outside).
+* **Defaults**: the rules at one temperature inside each band (`ComfortLearn.bandOutC`).
+* **Who writes it**: the app writes the defaults on the first start, and the weekly learning changes one column in place. It can be edited by hand; the ruler does not care who wrote a value. A hand edit counts from the next tap or band change.
+* **A file the ruler cannot use is written again**: missing, not JSON, a missing value, fan outside 1..8, setpoint outside 17..32 °C or on the wrong side of 24.5 °C, AC on a fan-only column (or off on an AC column), or a column that does not read back as itself. The new file is the defaults plus every learned value that still fits.
+* **Software update**: `ComfortTable.VERSION`. Bump it when the defaults change; a file of another version is written again the same way.
+* **Re-slide**: a weather change re-applies the level only when it crosses into another band; inside a band the columns are the same.
+* **In the app backup**, next to the certificates.
+
+```json
+{
+  "version": 1,
+  "cold": [
+    { "outside": "24-28 C", "fan_only_columns": 1,
+      "C1": { "ac": false, "fan": 1, "dir": "face", "rec": false },
+      "C2": { "ac": true, "sp": 24, "fan": 2, "dir": "glass", "rec": false },
+      "...": "C3..C5" },
+    "... 3 more bands"
+  ],
+  "warm": [ "... 4 bands, W1..W5" ]
+}
+```
+
+## 7. Learn Mode (`ComfortLearn`)
+
+On by default. Switch: **Config → Climate → Learn from my changes**. With it off the ruler keeps its table and stops learning. **Reset ruler to default** writes the default table and forgets what was learned.
+
+* **The signal (a "hold")**: a change made by hand on the car's own climate panel, after the ruler set a column exactly, held for 10 minutes with no tap and no suspend in between. The ruler checks every beat (30 s, 10 s with the screen open); a gap over 2 minutes is a suspend and starts the hold again. One hold counts once, however long it lasts.
+* **The column it counts for**: on the fitted side, the column with the fewest different levers (ties go to the column the ruler last set). A different machine (AC) state, or more than 2 different levers, is not a tweak: it is logged as `skip` and not counted. The pinned columns (`0`, `C5`, `W5`) are never counted.
+* **Weekly decision**: the ruler changes once a week, and only while the climate is off, so it never changes during a drive. Per column and lever, the value held most often that week wins, if it was held at least 2 times and more often than any other value. Then the week's holds are cleared. The value goes into the table file's column in place, so a hand edit of another lever in that column stays. Learning the default value again removes it from the record.
+* **Per weather band**: the key is the level plus the free-column count of that side (`3@1` = `C3` at 24–28 °C outside), so a change at 26 °C does not touch `C3` at 30 °C.
+* **Order is kept**: a learned value is used only if the column's fan and setpoint stay between its neighbours, it still fits back to its own level, and no other column stops doing so. Otherwise it is refused.
+* **Levers learned**: fan, setpoint, air direction, recirculation.
+* **Log**: every hold, skip and weekly result is a `comfort_event` row with `event = 'learn'` (detail like `hold C3@1 fan=4 x2`, `skip C3@1 fan=5 sp=22.0 dir=4`, `learn C3@1 fan=4 x2`, `undecided ...`, `refuse ...`).
+* **Storage**: the table is the file (section 6). One text pref, `comfort_learn_book`, holds this week's holds and the record of every learned value, used to try them again when a new table is written. Both are in the app backup. The settings page lists what was learned, the last change date, and this week's count.

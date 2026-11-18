@@ -30,10 +30,6 @@ public final class Prefs {
     public static void setAbrpSendLocation(Context ctx, boolean v) { file(ctx).edit().putBoolean("abrp_send_location", v).apply(); }
 
     // --- Driver assistance toggles ---
-    public static boolean getAebOn(Context ctx) { return file(ctx).getBoolean("aeb_on", true); }
-    public static void setAebOn(Context ctx, boolean v) { file(ctx).edit().putBoolean("aeb_on", v).apply(); }
-    public static boolean getAvasOn(Context ctx) { return file(ctx).getBoolean("avas_on", true); }
-    public static void setAvasOn(Context ctx, boolean v) { file(ctx).edit().putBoolean("avas_on", v).apply(); }
     public static boolean getParkedMonitoring(Context ctx) { return file(ctx).getBoolean("parked_monitoring", false); }
     public static void setParkedMonitoring(Context ctx, boolean v) { file(ctx).edit().putBoolean("parked_monitoring", v).apply(); }
 
@@ -86,6 +82,16 @@ public final class Prefs {
     public static void removeBeat(Context ctx, String who) { file(ctx).edit().remove("beat_" + who).apply(); }
     public static long getRestart(Context ctx, String who, long def) { return file(ctx).getLong("restart_" + who, def); }
     public static void setRestart(Context ctx, String who, long v) { file(ctx).edit().putLong("restart_" + who, v).apply(); }
+
+    // --- Comfort ruler learn mode (hvac.ComfortLearn) ---
+    // On by default (owner's choice, 2026-11-17): it only acts on hand changes
+    // held 10 min, twice. Off means "use the default table"; what was learned
+    // is kept until reset.
+    public static boolean getComfortLearn(Context ctx) { return file(ctx).getBoolean("comfort_learn_on", true); }
+    public static void setComfortLearn(Context ctx, boolean v) { file(ctx).edit().putBoolean("comfort_learn_on", v).apply(); }
+    /** ComfortLearn.Book as text; empty when nothing was learned. */
+    public static String getComfortBook(Context ctx) { return file(ctx).getString("comfort_learn_book", ""); }
+    public static void setComfortBook(Context ctx, String v) { file(ctx).edit().putString("comfort_learn_book", v).apply(); }
 
     // --- Commands / MQTT ---
     public static boolean getCommandsEnabled(Context ctx) { return file(ctx).getBoolean("commands_enabled", true); }

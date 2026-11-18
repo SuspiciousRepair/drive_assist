@@ -22,7 +22,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class DailyStatsProvider {
 
     private static final SimpleDateFormat DAY_FMT = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-    private static final SimpleDateFormat SHORT_DAY_FMT = new SimpleDateFormat("d/M", Locale.US);
     private static final SimpleDateFormat DISPLAY_DAY_FMT = new SimpleDateFormat("EEEE, d 'de' MMMM", new Locale("pt", "BR"));
     private static final SimpleDateFormat TIME_FMT = new SimpleDateFormat("HH:mm", Locale.US);
 
@@ -36,17 +35,11 @@ public final class DailyStatsProvider {
     // as long as the process lives -- not a real growth risk in practice.
     private static final Map<String, DayOverview> DAY_CACHE = new ConcurrentHashMap<>();
 
-    /** Bar chart day item representing one column of daily km. */
-    public static final class DayItem {
-        public final String date;       // 'YYYY-MM-DD'
-        public final String shortLabel; // 'd/M'
-        public final double km;
-
-        public DayItem(String date, String shortLabel, double km) {
-            this.date = date;
-            this.shortLabel = shortLabel;
-            this.km = km;
-        }
+    /** Forget every kept day. A past day is NOT frozen when one of its charges
+     * changes after the fact (cost edited, a charge that ends after midnight),
+     * so ChargeSession calls this before it announces such a change. */
+    public static void forgetDays() {
+        DAY_CACHE.clear();
     }
 
     /** Base session item for the ABRP-style daily chronological log. */
@@ -79,6 +72,10 @@ public final class DailyStatsProvider {
         public final double energyKwh;      // 1. Power as a whole (net kWh = spent - regen)
         public final double efficiencyKwh100km;
         public final EnergySource energySource;
+        /** Where this trip's energy went (drive, climate, other), scaled to
+         * energyKwh; null when CAN did not measure the trip. Set after
+         * construction by queryTrips, like DayOverview's extras. */
+        public EnergySplit split;
 
         public DriveSession(long tripId, long startMs, long endMs, double distanceKm,
                             int socStart, int socEnd, double ascentDPlusM, double descentDMinusM,
@@ -398,7 +395,7 @@ public final class DailyStatsProvider {
         }
     }
 
-    private static String monthLabel(String anyDateInMonth) {
+    public static String monthLabel(String anyDateInMonth) {
         String s = MONTH_LABEL_FMT.format(dayCalendar(anyDateInMonth).getTime());
         return s.substring(0, 1).toUpperCase(new Locale("pt", "BR")) + s.substring(1);
     }
@@ -747,9 +744,7 @@ public final class DailyStatsProvider {
             Context ctx, List<com.geely.drivemem.state.ChargeSession.Summary> sessions, int days) {
         List<DayEnergyBalance> out = new ArrayList<>(days);
         Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(System.currentTimeMillis() - days * 24L * 3600 * 1000);
-        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0);
-        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0);
+        cal.setTimeInMillis(firstBalanceDayStart(System.currentTimeMillis(), days));
 
         SQLiteDatabase db = CarDb.get(ctx).db();
         for (int i = 0; i < days; i++) {
@@ -787,6 +782,23 @@ public final class DailyStatsProvider {
         return out;
     }
 
+    /**
+     * Midnight that starts the first of the {@code days} chart days, so that
+     * the LAST one is today. It used to start one day earlier and end
+     * yesterday: an overnight charge that ended this morning showed only its
+     * evening share, and today's driving and charging were missing until
+     * tomorrow (seen 2026-11-17: 32.6 kWh from 21:04 to 07:00, the chart
+     * showed ~9.5 kWh on the 16th and nothing for the 17th).
+     */
+    public static long firstBalanceDayStart(long nowMs, int days) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(nowMs);
+        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0);
+        cal.add(Calendar.DAY_OF_MONTH, -(days - 1));
+        return cal.getTimeInMillis();
+    }
+
     /** Fraction of a charge session's wall-clock duration that falls within
      * [dayStart, dayEnd) -- how getEnergyBalanceDays splits one session's kWh
      * across the calendar days it spans. 0 for a session with no overlap, or
@@ -811,51 +823,66 @@ public final class DailyStatsProvider {
         return DAY_FMT.format(new Date());
     }
 
-    /** Returns the most recent N days for the bar chart. */
-    public static List<DayItem> getRecentDays(Context ctx, int limitDays) {
-        List<DayItem> list = new ArrayList<>();
+    /** Every calendar day from `from` to today (inclusive), oldest first,
+     * for the stats navigator: km and charge count per day, 0 for a day with
+     * no record at all. See StatsCalendar for why every day is listed. */
+    public static List<StatsCalendar.Cell> getCalendarDays(Context ctx, java.time.LocalDate from) {
         SQLiteDatabase db = CarDb.get(ctx).db();
+        java.util.Map<String, double[]> rows = new java.util.HashMap<>();
 
-        // 1. Fetch days from daily_stat
+        // 1. Frozen days (TelemetryRollup).
         Cursor c1 = db.rawQuery(
-            "SELECT date, MAX(0, last_odo_km - first_odo_km) AS km FROM daily_stat "
-          + "ORDER BY date DESC LIMIT ?", new String[]{String.valueOf(limitDays)});
-        java.util.Map<String, Double> dayKms = new java.util.TreeMap<>();
+            "SELECT date, MAX(0, last_odo_km - first_odo_km), charge_count FROM daily_stat "
+          + "WHERE date >= ?", new String[]{from.toString()});
         try {
             while (c1.moveToNext()) {
-                dayKms.put(c1.getString(0), c1.getDouble(1));
+                rows.put(c1.getString(0), new double[]{c1.getDouble(1), c1.getInt(2)});
             }
         } finally { c1.close(); }
 
-        // 2. Fetch days currently in telemetry_sample not in daily_stat (e.g.
-        // today). In practice that's only ever the last day or two -- older
-        // days are already frozen into daily_stat by TelemetryRollup -- so
-        // bound the GROUP BY to a generous recent window instead of grouping
-        // the whole (up to 90-day) table on every chart load. ts_ms >= ? uses
-        // idx_sample_ts to skip the rest before GROUP BY ever sees it.
+        // 2. Days not frozen yet (today, maybe yesterday): km from the samples,
+        // charges from charge_session. Bounded to the last week, as before, so
+        // the GROUP BY never walks the whole 90-day table.
         long recentCutoffMs = dayBoundsMs(todayDateStr())[0] - 7L * 24 * 3600 * 1000;
+        String[] recentArgs = new String[]{String.valueOf(recentCutoffMs)};
         Cursor c2 = db.rawQuery(
             "SELECT grp.day, MAX(0, last.odo_km - first.odo_km) AS km FROM "
           + "(SELECT date(ts_ms/1000,'unixepoch','localtime') AS day, "
           + "        MIN(id) AS first_id, MAX(id) AS last_id "
           + " FROM telemetry_sample WHERE odo_km > 0 AND ts_ms >= ? GROUP BY day) grp "
           + "JOIN telemetry_sample first ON first.id = grp.first_id "
-          + "JOIN telemetry_sample last ON last.id = grp.last_id "
-          + "WHERE grp.day NOT IN (SELECT date FROM daily_stat) "
-          + "ORDER BY grp.day DESC LIMIT ?",
-            new String[]{String.valueOf(recentCutoffMs), String.valueOf(limitDays)});
+          + "JOIN telemetry_sample last ON last.id = grp.last_id", recentArgs);
         try {
             while (c2.moveToNext()) {
-                dayKms.put(c2.getString(0), c2.getDouble(1));
+                if (!rows.containsKey(c2.getString(0))) {
+                    rows.put(c2.getString(0), new double[]{c2.getDouble(1), 0});
+                }
             }
         } finally { c2.close(); }
+        // Charges over the whole grid, for AC/DC: daily_stat only keeps a
+        // count. charge_session is small (one row per charge), so the full
+        // window is cheap. A day is DC when any of its charges peaked above
+        // the DC voltage cut (ChargeSession.isDcfc); no voltage = not DC.
+        long fromMs = dayBoundsMs(from.toString())[0];
+        Cursor c3 = db.rawQuery(
+            "SELECT date(start_ms/1000,'unixepoch','localtime') AS day, COUNT(*), MAX(max_charge_v) "
+          + "FROM charge_session WHERE start_ms >= ? GROUP BY day", new String[]{String.valueOf(fromMs)});
+        try {
+            while (c3.moveToNext()) {
+                boolean dc = !c3.isNull(2)
+                    && com.geely.drivemem.state.ChargeSession.isDcfc(c3.getDouble(2));
+                double[] r = rows.get(c3.getString(0));
+                if (r == null) {
+                    rows.put(c3.getString(0), new double[]{0, c3.getInt(1), dc ? 1 : 0});
+                } else {
+                    if (r[1] == 0) r[1] = c3.getInt(1);
+                    if (dc) rows.put(c3.getString(0), new double[]{r[0], r[1], 1});
+                }
+            }
+        } finally { c3.close(); }
 
+        // 3. Today's km from the live odometer, when the car is on.
         String today = todayDateStr();
-        if (!dayKms.containsKey(today)) {
-            dayKms.put(today, 0.0);
-        }
-
-        // Live refine today's km with live CarActor odometer if available
         long[] todayBounds = dayBoundsMs(today);
         Cursor todayFirstC = db.rawQuery(
             "SELECT odo_km FROM telemetry_sample WHERE ts_ms >= ? AND ts_ms < ? "
@@ -868,21 +895,25 @@ public final class DailyStatsProvider {
                 if (odoR.status == com.geely.drivemem.car.CarActor.Reading.Status.OK && odoR.value instanceof Number) {
                     double liveOdo = ((Number) odoR.value).doubleValue();
                     if (liveOdo >= firstOdo) {
-                        dayKms.put(today, liveOdo - firstOdo);
+                        double[] r = rows.get(today);
+                        rows.put(today, new double[]{liveOdo - firstOdo, r == null ? 0 : r[1],
+                                                     r != null && r.length > 2 ? r[2] : 0});
                     }
                 }
             }
         } finally { todayFirstC.close(); }
 
-        // Limit to latest limitDays and format
-        List<String> sortedDays = new ArrayList<>(dayKms.keySet());
-        int startIdx = Math.max(0, sortedDays.size() - limitDays);
-        for (int i = startIdx; i < sortedDays.size(); i++) {
-            String d = sortedDays.get(i);
-            String label = shortLabel(d);
-            list.add(new DayItem(d, label, dayKms.get(d)));
-        }
-        return list;
+        return StatsCalendar.fill(rows, from, java.time.LocalDate.parse(today));
+    }
+
+    /** The oldest day with any record, or null when there is none. */
+    public static java.time.LocalDate firstRecordedDay(Context ctx) {
+        SQLiteDatabase db = CarDb.get(ctx).db();
+        Cursor c = db.rawQuery("SELECT MIN(date) FROM daily_stat", null);
+        try {
+            if (c.moveToFirst() && !c.isNull(0)) return java.time.LocalDate.parse(c.getString(0));
+        } finally { c.close(); }
+        return null;
     }
 
     /** Returns the comprehensive overview and session log for a selected day. */
@@ -920,6 +951,10 @@ public final class DailyStatsProvider {
 
         String today = todayDateStr();
         boolean isToday = dateStr.equals(today);
+        // Week/Month ask for every day of the period, future days too; those
+        // must not be kept as "empty" (they showed 0 km once they happened).
+        boolean frozen = StatsCalendar.isFrozen(
+            java.time.LocalDate.parse(dateStr), java.time.LocalDate.parse(today));
 
         if (!isToday) {
             DayOverview cached = DAY_CACHE.get(dateStr);
@@ -974,7 +1009,7 @@ public final class DailyStatsProvider {
         if (!foundInStat && !isToday && !hasAnyTelemetry(db, dateStr)) {
             DayOverview empty = new DayOverview(dateStr, displayDate, 0, 0, 0, 0,
                 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, new ArrayList<>());
-            DAY_CACHE.put(dateStr, empty);
+            if (frozen) DAY_CACHE.put(dateStr, empty);
             return empty;
         }
 
@@ -1126,7 +1161,7 @@ public final class DailyStatsProvider {
             if (altC.moveToFirst() && !altC.isNull(0)) ov.maxAltitudeM = altC.getDouble(0);
         } finally { altC.close(); }
 
-        if (!isToday) DAY_CACHE.put(dateStr, ov);
+        if (frozen) DAY_CACHE.put(dateStr, ov);
         return ov;
     }
 
@@ -1205,8 +1240,16 @@ public final class DailyStatsProvider {
         double eff = DrivingConsumption.efficiencyKwh100km(distanceKm, spent, regen);
 
         // endMs = 0 indicates active session ("em andamento")
-        return new DriveSession(0, startMs, 0, distanceKm, socStart, socEnd,
+        DriveSession ds = new DriveSession(0, startMs, 0, distanceKm, socStart, socEnd,
                 ascent, descent, regen, spent, net, eff, activeEnergy.energySource());
+        // Where the energy went so far: the live trip split, the same numbers
+        // the trip will save when it ends, scaled to this net like a saved one.
+        EnergyIntegrator.TripSnapshot live = EnergyIntegrator.currentTrip();
+        if (live.splitValid && ds.energySource != EnergySource.ESTIMATED) {
+            ds.split = EnergySplit.of(net, live.canNetKwh, live.driveSpentKwh, live.driveRegenKwh,
+                live.climateRawKwh, live.climateOnSeconds, live.fanKwh);
+        }
+        return ds;
     }
 
     /** Convenience overload for callers without an already-open db handle. */
@@ -1229,7 +1272,9 @@ public final class DailyStatsProvider {
         Cursor tc = db.rawQuery(
             "SELECT t.id, t.start_ms, t.end_ms, t.ascent_m, t.descent_m, t.regen_kwh, "
           + "       s1.odo_km, s2.odo_km, s1.battery_pct, s2.battery_pct, "
-          + "       t.spent_kwh, t.net_kwh, t.energy_source, t.estimated_net_kwh FROM trip t "
+          + "       t.spent_kwh, t.net_kwh, t.energy_source, t.estimated_net_kwh, "
+          + "       t.can_net_kwh, t.drive_spent_kwh, t.drive_regen_kwh, t.climate_raw_kwh, t.climate_on_s, "
+          + "       t.fan_kwh FROM trip t "
           + "LEFT JOIN telemetry_sample s1 ON t.start_sample_id = s1.id "
           + "LEFT JOIN telemetry_sample s2 ON t.end_sample_id = s2.id "
           + "WHERE t.start_ms >= ? AND t.start_ms < ? "
@@ -1275,10 +1320,40 @@ public final class DailyStatsProvider {
                 double eff = tripSource == EnergySource.ESTIMATED
                     ? (distanceKm > 0.2 ? Math.max(0, tripNet) * 100 / distanceKm : 0)
                     : DrivingConsumption.efficiencyKwh100km(distanceKm, tripSpent, regen);
-                out.add(new DriveSession(id, startMs, endMs, distanceKm, socStart, socEnd,
-                        ascent, descent, regen, tripSpent, tripNet, eff, tripSource));
+                DriveSession ds = new DriveSession(id, startMs, endMs, distanceKm, socStart, socEnd,
+                        ascent, descent, regen, tripSpent, tripNet, eff, tripSource);
+                if (!tc.isNull(14) && tripSource != EnergySource.ESTIMATED) {
+                    ds.split = EnergySplit.of(tripNet, tc.getDouble(14), d(tc, 15), d(tc, 16), d(tc, 17),
+                        d(tc, 18), d(tc, 19));
+                }
+                out.add(ds);
             }
         } finally { tc.close(); }
+    }
+
+    private static double d(Cursor c, int i) { return c.isNull(i) ? 0 : c.getDouble(i); }
+
+    /** The split summed over the measured trips in `sessions`: drive,
+     * climate, other kWh, the km those trips covered (the right divisor
+     * for Wh/km, since older trips have no split), and the same trips' used
+     * and regen kWh (for the Sankey: used - regen = the three parts). Null
+     * when none has one. */
+    public static double[] splitTotals(List<? extends DaySession> sessions) {
+        double drive = 0, climate = 0, other = 0, km = 0, spent = 0, regen = 0;
+        boolean any = false;
+        for (DaySession s : sessions) {
+            if (!(s instanceof DriveSession)) continue;
+            DriveSession t = (DriveSession) s;
+            if (t.split == null) continue;
+            any = true;
+            drive += t.split.driveKwh;
+            climate += t.split.climateKwh;
+            other += t.split.otherKwh;
+            km += t.distanceKm;
+            spent += t.spentKwh;
+            regen += t.regenKwh;
+        }
+        return any ? new double[]{drive, climate, other, km, spent, regen} : null;
     }
 
     private static List<DaySession> queryDaySessions(Context ctx, SQLiteDatabase db, String dateStr) {
@@ -1367,11 +1442,6 @@ public final class DailyStatsProvider {
         // Sort interleaved sessions chronologically
         out.sort((a, b) -> Long.compare(a.startMs, b.startMs));
         return out;
-    }
-
-    private static String shortLabel(String dateStr) {
-        try { return SHORT_DAY_FMT.format(DAY_FMT.parse(dateStr)); }
-        catch (Exception e) { return dateStr; }
     }
 
     private static String formatDisplayDate(String dateStr) {

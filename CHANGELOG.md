@@ -2,6 +2,145 @@
 
 ## [Unreleased]
 
+## [v0.9.0] — 2026-11-18
+
+### Changed
+- **Trip routes are on a map.** The trip route and All routes screens now
+  draw the route over an OpenStreetMap map, with the streets under the
+  line. No API key and no use limit. The map is kept on the car, so a
+  place seen once shows again with no internet; with no internet and no
+  saved map, the route shows on the plain background as before.
+- **Charging page: where we charged.** A map card next to the battery
+  range chart shows a pin at each place the car charged in the month or
+  year shown, with the number of charges there. Touch a pin to select its
+  newest charge in the list and the chart; selecting a charge lights its
+  pin. Only charges from 16 Nov 2026 on saved their place, so older
+  charges have no pin.
+- **Config → System → Trip routes: clear the saved map.** Shows how much
+  map is saved in the car, with a button to clear it. The map downloads
+  again the next time it is shown.
+- **Config → Drive mode: the regen buttons show the regen icon.** Low,
+  Medium and High now show the same ring as the Turbo card and the
+  floating panel, filled to their level, in place of the three dots.
+- **Regen icon: the arrow always comes out of a lit segment.** The ring
+  now fills from the segment that carries the arrow, so on Low and Medium
+  the arrow no longer starts from a dim part. On the Turbo card and the
+  floating panel too.
+- **Config → Drive mode is calmer.** The Eco/Comfort/Sport and regen buttons
+  are about half as tall, and the selected one is a quiet tint instead of
+  green, amber, red or blue. When "Show the Turbo card" is off, its
+  duration and button switches are hidden, and the "Regen button
+  cycles" switch is hidden while the card has no Regen button. The "Restore defaults" button is
+  gone: it only picked Eco and Média, the same as two taps, and its message
+  showed raw placeholders. No button in Config stretches across the page
+  any more (this also makes the MQTT page buttons small).
+- **Stats page: "All routes" moved.** The loose "Todas as rotas" button in
+  the top bar is gone. The "N trips · N charges" count on the day's trip
+  list is now that button, with a map icon. In Day view it opens on that
+  day; in Week and Month it shows all days. Each trip keeps its own map.
+- **Stats page: charge and trip cards line up.** A charge's energy added
+  now sits in the same column as a trip's net energy (the second one),
+  next to the battery, instead of at the right of the title line.
+- **Extra dark goes darker.** At its floor the screen now goes to 2 of 255
+  instead of Android's lowest, 10 (1 turns the screen off).
+- **Climate: C3 blows softer.** C3 now runs the fan at 3, not 4. Before, the
+  step from C2 to C3 doubled the fan in the same tap that moved the air from
+  the windshield to your face, which felt like too much. C1, C2, C4, C5 and
+  all warm levels are unchanged.
+- **Consumption is now shown in Wh/km, everywhere.** 15.2 kWh/100 km is now
+  152 Wh/km: whole numbers, shorter, and the unit ABRP uses. The car's own
+  screens still show kWh/100 km (ten times smaller). This changes the stats
+  page, the trip cards, the trip screen, the live badge on the Dashboard and
+  the CSV export (`efficiency_kwh_100km` is now `efficiency_wh_km`). Stored
+  data is unchanged.
+- **Stats page: new "Energy by use" card.** For trips measured by CAN, a
+  Sankey chart shows where the energy went: used, what came back as regen,
+  and the net split into drive, climate and other (12 V loads and losses),
+  each part in kWh and Wh/km. Every band is to scale. It sits next to
+  Consumption, which no longer repeats net / used / regen. The trip screen
+  shows the same chart. The trip you are driving shows it too, live, and a
+  trip keeps it after an app update mid-drive when CAN measured most of it.
+- **Stats page: "Time & Speed" and "Relief" are one "Trip" card.** Driving
+  time, average speed, and the net climb with the climb and descent under it.
+  The distance is no longer repeated there: the chart above shows it.
+- **Trip cards** show where each km went, under the consumption: drive ·
+  climate · other, in Wh/km.
+
+### Added
+- **Charge page: four data cards and a month/year picker.** Recargas
+  (count, AC/DC split, the charge to 100 %), Custo (total, per 100 km, per
+  kWh for AC and DC), Bateria baixa (lowest daily battery, days under 10 %
+  and 20 %) and Temperatura da bateria (highest, average, lowest, and time
+  at 100 %). They replace the metrics card and the Energy balance chart.
+  The period is a calendar month or year, picked like on the stats page.
+  Each day's battery temperature is now kept for good. (#119, #120, DB v32)
+- **Stats page: a year of days.** One square per day, coloured by its km,
+  replaces the 14-bar chart. Tap a day, a week or a month; days with no
+  driving show too. (#118)
+- **Trip routes as GPX files**, one per day, to the USB stick (with the
+  export) and to the phone page. The CSV export gets the trip and charge
+  places. (#106)
+- **Cleanup removes all of Drive Assist.** It now also removes the helper
+  app and the CAN reader, restores the lock sound, and asks whether to keep
+  or close ADB. It no longer offers to remove other apps. (#104)
+- **The climate ruler's table is a file**, with one set of columns for each
+  outside temperature band, so a level no longer moves inside one band.
+  (#117)
+- **Climate ruler learn mode.** Config → Climate (a new page). When you
+  change the climate by hand on the car's panel after a ruler tap and keep it
+  10 minutes, it is counted. Once a week, with the climate off, each level
+  takes the setting you kept most often that week (at least 2 times): fan,
+  temperature, air direction or recirculation. It learns per outside
+  temperature band, keeps every level stronger than the one below it, and
+  never changes 0, C5 or W5. The page lists what was learned and when.
+  "Reset ruler to default" deletes it. On by default; the switch turns it off.
+- **Charge spots on the route maps.** All routes shows every place the car
+  charged, with the blue plug for AC and the green CCS2 plug for DC (a place
+  with any DC charge shows DC; charges within 100 m are one place). A trip's
+  map shows only the charge right before it at its start, or right after it
+  at its end. A charge's place is where the last trip before it ended; charges
+  saved since the route update (16 Nov) get it too.
+- **Where a trip's energy went.** Trips measured by CAN save how much went to
+  drive, to climate (air-con, heat pump and fan) and to everything else. Open
+  a trip to see it. With or without the OBD2 dongle, the three parts add up to
+  the trip's energy. (#96, #98)
+- **Live power by use** in Config → OBD2, CAN block: drive, climate and other.
+  (#96)
+- ABRP now gets the battery's average power over each 6 s, not one instant
+  reading. (#96)
+
+### Fixed
+- **The floating button shows after a new install.** Its draw-over-apps
+  permission was granted only on an update, so a fresh install (after a
+  reset, or a downgrade) never got it. Now the floating panel asks for it
+  whenever it starts without it, opening ADB for the moment if needed.
+  (#123, #124)
+- **Review fixes** from the week of 16 Nov: settings restore, climate
+  learn mode, Extra dark and more, 11 in all. (#116)
+- **The AVAS switch no longer jumps from off to on** when you open Config →
+  Drive. It drew from a saved copy that went stale whenever AVAS changed
+  elsewhere (the Home AVAS button, the car's settings). The copy is gone:
+  the AVAS and AEB switches show the car's own state, and appear a
+  moment later if the car has not answered yet. The app now also asks
+  for AVAS when it starts, so the answer is usually already there.
+- **Charge stats: the Energy balance chart shows today.** It ended at
+  yesterday, so an overnight charge that ended this morning showed only
+  its evening part, and today's driving and charging were missing until
+  the next day. The 30 bars now end with today.
+- **Tapping a charge opens its details**, on the charge page and on the
+  stats page: the cost in its own block with a clear "Change" button (or
+  "+ Cost" when there is none yet), the battery % as a light line with
+  its start and end value, and the charging power
+  curve. In Park only, like before. On the stats page this replaces the cost
+  window the tap used to open; on the charge page, while driving, the tap
+  only selects the charge.
+- **Charges saved no place.** The place was taken from the GPS when the
+  charge ended, and by then the GPS is long off. It now comes from where the
+  last trip before the charge ended (the car does not move while it charges),
+  and older charges get theirs filled in once. (DB v31)
+- **CAN battery current read 0.2 A low** (about 80 W at 400 V), so CAN power
+  was always a little below the OBD2 dongle. (#97)
+
 ## [v0.8.0] — 2026-11-17
 
 ### Added

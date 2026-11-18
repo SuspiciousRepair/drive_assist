@@ -311,8 +311,21 @@ public class Style {
      * the theme's own primary tone, not the two-stop gradient -- those
      * sections have nothing that needs the extra depth, and a flat fill
      * reads as deliberately plainer next to the sections that carry the
-     * OEM render. */
-    public static android.graphics.drawable.Drawable configScreenBgSolid() {
+     * OEM render.
+     *
+     * In the Default (geely) theme the fill is the OEM render's OWN
+     * backdrop colour, read off config_bg_day/config_bg_night (their flat
+     * field, every corner and edge): otherwise moving between Driving mode /
+     * Doors / Elements and any other section flips the whole screen between
+     * two different greys (#115). */
+    public static final int OEM_BG_DAY   = 0xFFD2D9E5; // config_bg_day.webp backdrop
+    public static final int OEM_BG_NIGHT = 0xFF1E262D; // config_bg_night.webp backdrop
+
+    public static android.graphics.drawable.Drawable configScreenBgSolid(Context c) {
+        if ("geely".equals(current.id)) {
+            return new android.graphics.drawable.ColorDrawable(
+                resolvedLight(c, current) ? OEM_BG_DAY : OEM_BG_NIGHT);
+        }
         return new android.graphics.drawable.ColorDrawable(BG_TOP);
     }
 
@@ -509,21 +522,11 @@ public class Style {
         return e;
     }
 
-    /** Half-width call-to-action button (fills its row, shared with a sibling). */
+    /** Call-to-action button. It used to stretch to fill half its row; the
+     * owner ruled on 2026-11-17 that no button should be that large, so it is
+     * now the same self-sized button as {@link #button}. */
     public static TextView action(Context c, String label, int color, Runnable onClick) {
-        TextView t = new TextView(c);
-        t.setText(label); t.setTextColor(onFill(color)); t.setTextSize(18);
-        t.setTypeface(null, Typeface.BOLD);
-        t.setGravity(Gravity.CENTER);
-        t.setBackground(card(color, c));
-        int pv = dp(c, 16);
-        t.setPadding(pv, pv, pv, pv);
-        t.setOnClickListener(v -> onClick.run());
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        int m = dp(c, 4);
-        lp.setMargins(m, dp(c, 8), m, 0);
-        t.setLayoutParams(lp);
-        return t;
+        return button(c, label, color, onClick);
     }
 
     /** Small, self-sized action button (Save, Connect, Import, ...), unlike
