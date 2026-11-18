@@ -84,6 +84,21 @@ public final class StatsCalendar {
         return !p[0].isAfter(max) && !p[1].isBefore(min);
     }
 
+    /** Where an arrow press lands: one step, kept inside [min, max]. A
+     * week/month step whose period still overlaps the data can land on a day
+     * outside it (Oct 5 back one month = Sep 5, before a Sep 9 first record);
+     * left there, Day view had both arrows dead on an empty day. */
+    public static LocalDate arrowStep(LocalDate d, Grain grain, int dir, LocalDate min, LocalDate max) {
+        return clamp(step(d, grain, dir), min, max);
+    }
+
+    /** May the overview of `d` be kept for the life of the process? Only a
+     * day that is over: today still changes, and a future day (Week/Month
+     * load the whole period) is empty only until it happens. */
+    public static boolean isFrozen(LocalDate d, LocalDate today) {
+        return d.isBefore(today);
+    }
+
     /** Keeps d inside [min, max]. */
     public static LocalDate clamp(LocalDate d, LocalDate min, LocalDate max) {
         if (d.isBefore(min)) return min;

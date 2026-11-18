@@ -76,20 +76,26 @@ public class DailyStatsView extends LinearLayout {
         post(this::onLiveTick);
     };
 
+    /** A charge ended or its cost was edited: it can belong to any day and
+     * adds a dot to the navigator, so reload the year and the selection. */
+    private final EntityBus.Listener chargeListener = (key, reading) -> {
+        post(() -> { if (isShown() && selected != null) refresh(); });
+    };
+
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         EntityBus.subscribe("telemetry.tick", tickListener);
-        EntityBus.subscribe("charge.cost_updated", tickListener);
-        EntityBus.subscribe("charge.completed", tickListener);
+        EntityBus.subscribe("charge.cost_updated", chargeListener);
+        EntityBus.subscribe("charge.completed", chargeListener);
     }
 
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         EntityBus.unsubscribe("telemetry.tick", tickListener);
-        EntityBus.unsubscribe("charge.cost_updated", tickListener);
-        EntityBus.unsubscribe("charge.completed", tickListener);
+        EntityBus.unsubscribe("charge.cost_updated", chargeListener);
+        EntityBus.unsubscribe("charge.completed", chargeListener);
     }
 
     public DailyStatsView(Context context) {
@@ -361,8 +367,17 @@ public class DailyStatsView extends LinearLayout {
         firstData = DailyStatsProvider.firstRecordedDay(c);
         if (firstData == null || firstData.isAfter(today)) firstData = today;
         navigator.setData(DailyStatsProvider.getCalendarDays(c, from), firstData);
-        if (selected == null || selected.isAfter(today)) selected = today;
+        selected = selected == null ? today
+            : com.geely.drivemem.sensors.StatsCalendar.clamp(selected, navMin(today), today);
         render();
+    }
+
+    /** The earliest day the arrows may reach: the first record, but never
+     * before the navigator's grid. */
+    private java.time.LocalDate navMin(java.time.LocalDate today) {
+        java.time.LocalDate min = firstData != null ? firstData : today;
+        java.time.LocalDate gridStart = CalendarNavigatorView.gridStartFor(today);
+        return min.isBefore(gridStart) ? gridStart : min;
     }
 
     /** Live tick (telemetry.tick cadence) while the screen is shown: today's
@@ -399,9 +414,7 @@ public class DailyStatsView extends LinearLayout {
     private void render() {
         java.time.LocalDate today = java.time.LocalDate.parse(DailyStatsProvider.todayDateStr());
         lastLoadedToday = today;
-        java.time.LocalDate min = firstData != null ? firstData : today;
-        java.time.LocalDate gridStart = CalendarNavigatorView.gridStartFor(today);
-        if (min.isBefore(gridStart)) min = gridStart;
+        java.time.LocalDate min = navMin(today);
         com.geely.drivemem.sensors.StatsCalendar.Grain g = grain();
 
         navigator.setSelection(g, selected);
@@ -430,10 +443,10 @@ public class DailyStatsView extends LinearLayout {
 
     private void stepBy(int dir) {
         java.time.LocalDate today = java.time.LocalDate.parse(DailyStatsProvider.todayDateStr());
-        java.time.LocalDate next = com.geely.drivemem.sensors.StatsCalendar.step(selected, grain(), dir);
-        // A week/month step past today lands on today (its period is still
-        // the one after); a step before the data is refused by canStep().
-        selected = next.isAfter(today) ? today : next;
+        // A week/month step past today lands on today, one before the first
+        // record lands on that record (its period is still the one stepped to).
+        selected = com.geely.drivemem.sensors.StatsCalendar.arrowStep(
+            selected, grain(), dir, navMin(today), today);
         render();
     }
 

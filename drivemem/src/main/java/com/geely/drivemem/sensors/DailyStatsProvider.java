@@ -35,6 +35,13 @@ public final class DailyStatsProvider {
     // as long as the process lives -- not a real growth risk in practice.
     private static final Map<String, DayOverview> DAY_CACHE = new ConcurrentHashMap<>();
 
+    /** Forget every kept day. A past day is NOT frozen when one of its charges
+     * changes after the fact (cost edited, a charge that ends after midnight),
+     * so ChargeSession calls this before it announces such a change. */
+    public static void forgetDays() {
+        DAY_CACHE.clear();
+    }
+
     /** Base session item for the ABRP-style daily chronological log. */
     public static abstract class DaySession {
         public final long startMs, endMs;
@@ -932,6 +939,10 @@ public final class DailyStatsProvider {
 
         String today = todayDateStr();
         boolean isToday = dateStr.equals(today);
+        // Week/Month ask for every day of the period, future days too; those
+        // must not be kept as "empty" (they showed 0 km once they happened).
+        boolean frozen = StatsCalendar.isFrozen(
+            java.time.LocalDate.parse(dateStr), java.time.LocalDate.parse(today));
 
         if (!isToday) {
             DayOverview cached = DAY_CACHE.get(dateStr);
@@ -986,7 +997,7 @@ public final class DailyStatsProvider {
         if (!foundInStat && !isToday && !hasAnyTelemetry(db, dateStr)) {
             DayOverview empty = new DayOverview(dateStr, displayDate, 0, 0, 0, 0,
                 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, new ArrayList<>());
-            DAY_CACHE.put(dateStr, empty);
+            if (frozen) DAY_CACHE.put(dateStr, empty);
             return empty;
         }
 
@@ -1138,7 +1149,7 @@ public final class DailyStatsProvider {
             if (altC.moveToFirst() && !altC.isNull(0)) ov.maxAltitudeM = altC.getDouble(0);
         } finally { altC.close(); }
 
-        if (!isToday) DAY_CACHE.put(dateStr, ov);
+        if (frozen) DAY_CACHE.put(dateStr, ov);
         return ov;
     }
 

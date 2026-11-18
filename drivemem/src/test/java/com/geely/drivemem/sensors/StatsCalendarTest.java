@@ -97,6 +97,33 @@ public class StatsCalendarTest {
     }
 
     @Test
+    public void monthStepBeforeTheFirstRecordLandsOnTheFirstRecord() {
+        // Data from Sep 9; Oct 5 back one month is Sep 5. September overlaps
+        // the data so the arrow is on, but the day must not be before Sep 9.
+        LocalDate min = d("2026-09-09"), today = d("2026-11-18");
+        assertTrue(StatsCalendar.canStep(d("2026-10-05"), StatsCalendar.Grain.MONTH, -1, min, today));
+        LocalDate landed = StatsCalendar.arrowStep(d("2026-10-05"), StatsCalendar.Grain.MONTH, -1, min, today);
+        assertEquals(min, landed);
+        // Day view from there: next works, so the screen is never stuck.
+        assertTrue(StatsCalendar.canStep(landed, StatsCalendar.Grain.DAY, +1, min, today));
+    }
+
+    @Test
+    public void stepPastTodayLandsOnToday() {
+        LocalDate today = d("2026-11-18");
+        assertEquals(today, StatsCalendar.arrowStep(d("2026-11-17"), StatsCalendar.Grain.WEEK, +1,
+            d("2026-09-09"), today));
+    }
+
+    @Test
+    public void onlyPastDaysAreFrozen() {
+        LocalDate today = d("2026-11-18");
+        assertTrue(StatsCalendar.isFrozen(d("2026-11-17"), today));
+        assertFalse(StatsCalendar.isFrozen(today, today));
+        assertFalse(StatsCalendar.isFrozen(d("2026-11-19"), today));   // Week view loads it
+    }
+
+    @Test
     public void noDrivingDaysMeansEverySquareIsLevelZero() {
         List<StatsCalendar.Cell> cells = new ArrayList<>();
         cells.add(new StatsCalendar.Cell(d("2026-11-17"), 0, 0));
