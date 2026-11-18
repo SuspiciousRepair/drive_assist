@@ -540,7 +540,6 @@
     <string name="routes_hint">บันทึกว่าแต่ละทริปไปที่ไหน และชาร์จที่ไหน ข้อมูลอยู่ในรถเท่านั้น ไม่มีการส่งไปที่ใด และรวมอยู่ในข้อมูลสำรองของคุณ ทริปก่อนเปิดตัวเลือกนี้จะไม่มีเส้นทาง</string>
     <string name="route_title">เส้นทาง</string>
     <string name="route_none">ทริปนี้ไม่มีเส้นทาง ระบบจะบันทึกเส้นทางเฉพาะทริปที่ขับขณะเปิด Config → ระบบ → เส้นทางการเดินทาง</string>
-    <string name="route_parked_only">เปิดเส้นทางได้เมื่อรถอยู่ในเกียร์ P</string>
     <string name="routes_all_title">เส้นทางทั้งหมด</string>
     <string name="routes_all_count">%1$d ทริป</string>
     <string name="routes_all_show">ดูทั้งหมด</string>
@@ -679,7 +678,6 @@
     <string name="soc_history_empty">ไม่มีข้อมูลแบตเตอรี่ในช่วงนี้</string>
     <string name="charge_card_charges">การชาร์จ</string>
     <string name="charge_card_energy_cap">ชาร์จแล้ว %1$s kWh</string>
-    <string name="charge_card_power_note">กำลังเฉลี่ย: %1$s</string>
     <string name="charge_card_cost">ค่าใช้จ่าย</string>
     <string name="charge_card_cost_cap">%1$s / 100 กม. · %2$s / kWh</string>
     <string name="charge_card_per_kwh">%1$s ต่อ kWh</string>
@@ -691,17 +689,26 @@
     <string name="charge_card_low_cap">ต่ำสุด · %1$s</string>
     <string name="charge_card_below">วันที่ต่ำกว่า %1$d%%</string>
     <string name="charge_card_plug_note">โดยเฉลี่ยคุณเสียบชาร์จที่ %1$d%%</string>
-    <string name="charge_card_full" formatted="false">ชาร์จถึง 100%</string>
     <string name="charge_card_today">วันนี้</string>
     <string name="charge_card_yesterday">เมื่อวาน</string>
     <string name="charge_card_days_ago">%1$d วันที่แล้ว</string>
     <string name="charge_card_never">ไม่เคย</string>
-    <string name="charge_card_full_cap">ครั้งล่าสุด · %1$s</string>
-    <string name="charge_card_full_count" formatted="false">ชาร์จถึง 100%</string>
-    <string name="charge_card_full_of">%1$d จาก %2$d</string>
-    <string name="charge_card_gap">ช่วงห่างนานที่สุด</string>
     <string name="charge_card_gap_days">%1$d วัน</string>
     <string name="charge_card_gap_open">%1$s → วันนี้</string>
-    <string name="charge_card_full_note" formatted="false">LFP: ชาร์จถึง 100% สัปดาห์ละครั้งช่วยให้ % แม่นยำ</string>
-    <string name="charge_range_label">%1$s – %2$s · %3$s กม.</string>
+    <string name="charge_card_avg_kw">เฉลี่ย %1$s kW</string>
+    <string name="charge_card_full_band">ถึง 100%%: %1$d จาก %2$d · ล่าสุด %3$s</string>
+    <string name="charge_card_gap_line">ช่วงที่ไม่ถึง 100%% นานที่สุด: %1$s (%2$s)</string>
+    <string name="charge_card_temp">อุณหภูมิแบตเตอรี่</string>
+    <string name="charge_card_temp_cap">สูงสุด · %1$s · เฉลี่ย %2$s · ต่ำสุด %3$s</string>
+    <string name="charge_card_full_time" formatted="false">เวลาที่ 100%</string>
+    <string name="charge_card_full_time_val">เฉลี่ย %1$s</string>
+    <string name="charge_card_full_time_sub">รวม %1$s · นานสุด %2$s</string>
+    <string name="charge_card_full_temp" formatted="false">อุณหภูมิที่ 100%</string>
+    <string name="charge_card_full_temp_val">สูงสุด %1$s</string>
+    <string name="charge_card_full_temp_sub">เฉลี่ย %1$s</string>
+    <string name="charge_card_temp_note">LFP ทำงานได้ดีที่ 15–35 °C</string>
+    <string name="charge_card_temp_since">ข้อมูลตั้งแต่ %1$s</string>
+    <string name="charge_card_no_temp">ไม่มีค่า (ต้องใช้ OBD2)</string>
+    <string name="charge_period_month">เดือน</string>
+    <string name="charge_period_year">ปี</string>
 </resources>

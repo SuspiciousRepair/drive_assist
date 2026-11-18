@@ -32,6 +32,7 @@ public final class ChargePeriodSummary {
     public double avgPlugPct = -1;                      // average SoC when plugged in
 
     public long lastFullMs = -1;                        // over ALL charges, not just the period
+    public long lastFullInPeriodMs = -1;                // the last one inside the period
     public int fullInPeriod;
     public long longestGapFromMs = -1, longestGapToMs = -1;  // to = -1 while still open
 
@@ -49,20 +50,21 @@ public final class ChargePeriodSummary {
     /**
      * @param all     every charge, any order (for the last full charge and
      *                the gaps, which reach back before the period)
-     * @param fromMs  the period's start; charges starting before it are not
-     *                counted in the period's numbers
+     * @param fromMs  the period's start, inclusive
+     * @param toMs    the period's end, exclusive; only charges starting in
+     *                [fromMs, toMs) count in the period's numbers
      * @param nowMs   now: an open gap (no full charge since) runs to here
      * @param days    the period's daily SoC ranges (SocHistory.dailyRanges)
      */
-    public static ChargePeriodSummary of(List<ChargeSession.Summary> all, long fromMs, long nowMs,
-                                         List<SocHistory.DayRange> days) {
+    public static ChargePeriodSummary of(List<ChargeSession.Summary> all, long fromMs, long toMs,
+                                         long nowMs, List<SocHistory.DayRange> days) {
         ChargePeriodSummary r = new ChargePeriodSummary();
         double plugSum = 0;
         int plugN = 0;
         List<Long> fullEnds = new ArrayList<>();
         for (ChargeSession.Summary s : all) {
             if (s.socEnd >= FULL_PCT && s.endWallMs > 0) fullEnds.add(s.endWallMs);
-            if (s.startWallMs < fromMs) continue;
+            if (s.startWallMs < fromMs || s.startWallMs >= toMs) continue;
             r.count++;
             boolean dc = s.isDcfc();
             if (dc) { r.dcCount++; r.dcKwh += s.kwh; r.dcPowerW += s.avgPowerW; }
@@ -73,7 +75,10 @@ public final class ChargePeriodSummary {
                 else    { r.acCost += s.cost; r.acKwhCosted += s.kwh; }
             }
             if (s.socStart > 0 && s.socStart <= 100) { plugSum += s.socStart; plugN++; }
-            if (s.socEnd >= FULL_PCT) r.fullInPeriod++;
+            if (s.socEnd >= FULL_PCT) {
+                r.fullInPeriod++;
+                if (s.endWallMs > r.lastFullInPeriodMs) r.lastFullInPeriodMs = s.endWallMs;
+            }
         }
         if (r.acCount > 0) r.acPowerW /= r.acCount;
         if (r.dcCount > 0) r.dcPowerW /= r.dcCount;
@@ -83,15 +88,15 @@ public final class ChargePeriodSummary {
         r.daysBelow10 = SocHistory.daysBelow(days, 10);
         r.daysBelow20 = SocHistory.daysBelow(days, 20);
 
-        // Gaps between full charges. Only gaps that reach into the period
-        // count, and the one since the last full charge is open to now.
+        // Gaps between full charges. Only gaps that overlap the period count,
+        // and the one since the last full charge is open to now.
         Collections.sort(fullEnds);
         if (!fullEnds.isEmpty()) r.lastFullMs = fullEnds.get(fullEnds.size() - 1);
         long best = -1;
         for (int i = 0; i < fullEnds.size(); i++) {
             long a = fullEnds.get(i);
             long b = i + 1 < fullEnds.size() ? fullEnds.get(i + 1) : nowMs;
-            if (b < fromMs) continue;
+            if (b < fromMs || a >= toMs) continue;
             if (b - a > best) {
                 best = b - a;
                 r.longestGapFromMs = a;

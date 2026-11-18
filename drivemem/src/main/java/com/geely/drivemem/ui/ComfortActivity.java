@@ -676,7 +676,7 @@ public class ComfortActivity extends Activity {
             statsContainer.setVisibility(View.GONE);
             chargeStatsContainer.setVisibility(View.VISIBLE);
             if (konamiZone != null) konamiZone.setVisibility(View.GONE);
-            if (chargeStatsView != null) chargeStatsView.refresh();
+            if (chargeStatsView != null) chargeStatsView.showCurrent();
         } else {
             statsContainer.setVisibility(View.GONE);
             chargeStatsContainer.setVisibility(View.GONE);

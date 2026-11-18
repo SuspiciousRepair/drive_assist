@@ -23,13 +23,23 @@ import com.geely.drivemem.util.Style;
 
 import java.util.Locale;
 
-/** Dialog for inputting and editing the monetary cost of a charging session. */
+/** Dialog for inputting and editing the monetary cost of a charging session.
+ *
+ * The one Park lock on the stats and charge pages lives here: typing a cost
+ * is the only thing on them that needs the keyboard. Reading (details,
+ * curves, maps) opens on the move (owner, 2026-11-18: "be surgical"). */
 public final class ChargeCostDialog {
 
     private ChargeCostDialog() {}
 
+    /** Null, with a short note, when the car is not in Park. */
     public static AlertDialog show(Context context, long sessionId, double kwh, int socStart, int socEnd,
                                    Double currentCost, Runnable onUpdated) {
+        if (!com.geely.drivemem.state.CarState.isParked()) {
+            android.widget.Toast.makeText(context, com.geely.drivemem.R.string.charge_cost_parked_only,
+                android.widget.Toast.LENGTH_SHORT).show();
+            return null;
+        }
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
 
         LinearLayout card = new LinearLayout(context);
