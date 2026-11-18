@@ -859,14 +859,25 @@ public final class DailyStatsProvider {
                 }
             }
         } finally { c2.close(); }
+        // Charges over the whole grid, for AC/DC: daily_stat only keeps a
+        // count. charge_session is small (one row per charge), so the full
+        // window is cheap. A day is DC when any of its charges peaked above
+        // the DC voltage cut (ChargeSession.isDcfc); no voltage = not DC.
+        long fromMs = dayBoundsMs(from.toString())[0];
         Cursor c3 = db.rawQuery(
-            "SELECT date(start_ms/1000,'unixepoch','localtime') AS day, COUNT(*) FROM charge_session "
-          + "WHERE start_ms >= ? GROUP BY day", recentArgs);
+            "SELECT date(start_ms/1000,'unixepoch','localtime') AS day, COUNT(*), MAX(max_charge_v) "
+          + "FROM charge_session WHERE start_ms >= ? GROUP BY day", new String[]{String.valueOf(fromMs)});
         try {
             while (c3.moveToNext()) {
+                boolean dc = !c3.isNull(2)
+                    && com.geely.drivemem.state.ChargeSession.isDcfc(c3.getDouble(2));
                 double[] r = rows.get(c3.getString(0));
-                if (r == null) rows.put(c3.getString(0), new double[]{0, c3.getInt(1)});
-                else if (r[1] == 0) r[1] = c3.getInt(1);
+                if (r == null) {
+                    rows.put(c3.getString(0), new double[]{0, c3.getInt(1), dc ? 1 : 0});
+                } else {
+                    if (r[1] == 0) r[1] = c3.getInt(1);
+                    if (dc) rows.put(c3.getString(0), new double[]{r[0], r[1], 1});
+                }
             }
         } finally { c3.close(); }
 
@@ -885,7 +896,8 @@ public final class DailyStatsProvider {
                     double liveOdo = ((Number) odoR.value).doubleValue();
                     if (liveOdo >= firstOdo) {
                         double[] r = rows.get(today);
-                        rows.put(today, new double[]{liveOdo - firstOdo, r == null ? 0 : r[1]});
+                        rows.put(today, new double[]{liveOdo - firstOdo, r == null ? 0 : r[1],
+                                                     r != null && r.length > 2 ? r[2] : 0});
                     }
                 }
             }

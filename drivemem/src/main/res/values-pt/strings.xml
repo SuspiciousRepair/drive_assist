@@ -493,7 +493,8 @@
     <!-- daily stats day navigator -->
     <string name="daily_stats_prev_day">Anterior</string>
     <string name="daily_stats_next_day">Próximo</string>
-    <string name="stats_nav_charge">Recarga</string>
+    <string name="stats_nav_charge_dc">Recarga DC</string>
+    <string name="stats_nav_charge_ac">Recarga AC</string>
 
     <!-- Backup and restore (AppBackup, BackupDialogs) -->
     <string name="backup_header">Backup</string>

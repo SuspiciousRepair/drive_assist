@@ -508,7 +508,8 @@
     <!-- daily stats day navigator -->
     <string name="daily_stats_prev_day">Previous</string>
     <string name="daily_stats_next_day">Next</string>
-    <string name="stats_nav_charge">Charge</string>
+    <string name="stats_nav_charge_dc">DC charge</string>
+    <string name="stats_nav_charge_ac">AC charge</string>
 
     <!-- Backup and restore (AppBackup, BackupDialogs) -->
     <string name="backup_header">Backup</string>

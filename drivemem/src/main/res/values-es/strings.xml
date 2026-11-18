@@ -481,7 +481,8 @@
     <!-- daily stats day navigator -->
     <string name="daily_stats_prev_day">Anterior</string>
     <string name="daily_stats_next_day">Siguiente</string>
-    <string name="stats_nav_charge">Carga</string>
+    <string name="stats_nav_charge_dc">Carga DC</string>
+    <string name="stats_nav_charge_ac">Carga AC</string>
 
     <!-- Backup and restore (AppBackup, BackupDialogs) -->
     <string name="backup_header">Copia de seguridad</string>

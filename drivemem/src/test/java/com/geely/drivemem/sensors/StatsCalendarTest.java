@@ -132,4 +132,17 @@ public class StatsCalendarTest {
         assertEquals(0, StatsCalendar.level(0, cuts));
         assertEquals(1, StatsCalendar.level(5, cuts));
     }
+
+    @Test
+    public void fillCarriesTheDcFlagAndOldRowsStayAc() {
+        Map<String, double[]> rows = new HashMap<>();
+        rows.put("2026-11-01", new double[]{40, 1, 1});   // a DC charge
+        rows.put("2026-11-02", new double[]{30, 2, 0});   // AC only
+        rows.put("2026-11-03", new double[]{10, 1});      // count only (daily_stat)
+        List<StatsCalendar.Cell> cells = StatsCalendar.fill(rows, d("2026-11-01"), d("2026-11-03"));
+        assertTrue(cells.get(0).dc);
+        assertFalse(cells.get(1).dc);
+        assertFalse(cells.get(2).dc);
+        assertEquals(1, cells.get(2).charges);
+    }
 }

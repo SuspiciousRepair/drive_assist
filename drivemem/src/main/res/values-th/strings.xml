@@ -405,7 +405,8 @@
     <string name="stats_chart_header">กม. ต่อวัน</string>
     <string name="daily_stats_prev_day">ก่อนหน้า</string>
     <string name="daily_stats_next_day">ถัดไป</string>
-    <string name="stats_nav_charge">ชาร์จ</string>
+    <string name="stats_nav_charge_dc">ชาร์จ DC</string>
+    <string name="stats_nav_charge_ac">ชาร์จ AC</string>
     <!-- OBD2 + ABRP -->
     <string name="obd_title">ดองเกิล OBD2</string>
     <string name="obd_status_connected">เชื่อมต่อแล้ว — กำลังอ่านพลังงานจริงจากแบตเตอรี่</string>

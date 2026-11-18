@@ -29,11 +29,16 @@ public final class StatsCalendar {
         public final LocalDate date;
         public final double km;
         public final int charges;
+        /** At least one charge that day was DC (ChargeSession.isDcfc). */
+        public final boolean dc;
 
-        public Cell(LocalDate date, double km, int charges) {
+        public Cell(LocalDate date, double km, int charges) { this(date, km, charges, false); }
+
+        public Cell(LocalDate date, double km, int charges, boolean dc) {
             this.date = date;
             this.km = km;
             this.charges = charges;
+            this.dc = dc;
         }
     }
 
@@ -43,7 +48,8 @@ public final class StatsCalendar {
         List<Cell> out = new ArrayList<>();
         for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
             double[] r = rows.get(d.toString());
-            out.add(r == null ? new Cell(d, 0, 0) : new Cell(d, Math.max(0, r[0]), (int) r[1]));
+            out.add(r == null ? new Cell(d, 0, 0)
+                : new Cell(d, Math.max(0, r[0]), (int) r[1], r.length > 2 && r[2] > 0));
         }
         return out;
     }

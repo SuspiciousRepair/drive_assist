@@ -57,6 +57,7 @@ public class CalendarNavigatorView extends View {
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint glow = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF r = new RectF();
     private final Path outline = new Path();
 
@@ -103,7 +104,7 @@ public class CalendarNavigatorView extends View {
     public void updateToday(double km) {
         StatsCalendar.Cell old = byDate.get(today);
         if (old == null || Math.abs(old.km - km) < 0.05) return;
-        StatsCalendar.Cell now = new StatsCalendar.Cell(today, km, old.charges);
+        StatsCalendar.Cell now = new StatsCalendar.Cell(today, km, old.charges, old.dc);
         byDate.put(today, now);
         cells.set(cells.size() - 1, now);
         invalidate();
@@ -211,9 +212,8 @@ public class CalendarNavigatorView extends View {
                 fill.setColor(levelColor(StatsCalendar.level(km, cuts)));
                 cv.drawRoundRect(r, rad, rad, fill);
                 if (c != null && c.charges > 0) {
-                    fill.setColor(Style.GOOD);
-                    float dr = cell * 0.13f;
-                    cv.drawCircle(r.right - dr * 1.8f, r.top + dr * 1.8f, dr, fill);
+                    float dr = cell * 0.15f;
+                    drawChargeDot(cv, r.right - dr * 1.6f, r.top + dr * 1.6f, dr, c.dc);
                 }
             }
         }
@@ -238,6 +238,27 @@ public class CalendarNavigatorView extends View {
 
         drawLegend(cv);
     }
+
+    /** A charge: green for DC, blue for AC (the charge screens' colours).
+     * On a blue square a blue dot vanishes, so it gets a glow in its own
+     * colour and a thin ring of the card colour that cuts it out of the
+     * square. */
+    private void drawChargeDot(Canvas cv, float cx, float cy, float dr, boolean dc) {
+        int col = dc ? Style.GOOD : chargeAcColor();
+        float gr = dr * 2.6f;
+        glow.setShader(new android.graphics.RadialGradient(cx, cy, gr,
+            new int[]{(col & 0x00FFFFFF) | 0xB0000000, (col & 0x00FFFFFF) | 0x40000000, col & 0x00FFFFFF},
+            new float[]{0f, 0.5f, 1f}, android.graphics.Shader.TileMode.CLAMP));
+        cv.drawCircle(cx, cy, gr, glow);
+        fill.setColor(Style.cardFillColor());
+        cv.drawCircle(cx, cy, dr + Style.dp(getContext(), 2), fill);
+        fill.setColor(col);
+        cv.drawCircle(cx, cy, dr, fill);
+    }
+
+    /** AC blue: the accent, pulled toward cyan so it does not sit at the
+     * same hue as the km squares under it. */
+    private int chargeAcColor() { return Style.blend(Style.ACCENT, 0xFF00C8FF, 0.35f); }
 
     /** Traces the outer edge of the squares first..last (clipped to the grid
      * and to today) along the gap midlines: one edge per side of a square whose
@@ -276,10 +297,10 @@ public class CalendarNavigatorView extends View {
         text.setColor(Style.TEXT_DIM);
         text.setTextAlign(Paint.Align.LEFT);
         String[] labels = levelLabels();
-        String charge = c.getString(R.string.stats_nav_charge);
+        String dcL = c.getString(R.string.stats_nav_charge_dc), acL = c.getString(R.string.stats_nav_charge_ac);
         float total = 0;
         for (String l : labels) total += sq + gap + text.measureText(l) + itemGap;
-        total += sq + text.measureText(charge);
+        total += itemGap + 2 * (sq + gap) + text.measureText(dcL) + itemGap + text.measureText(acL);
         float x = getWidth() - total;
         float base = y + sq * 0.8f;
         float rad = sq * 0.2f;
@@ -291,9 +312,14 @@ public class CalendarNavigatorView extends View {
             cv.drawText(labels[lv], x, base, text);
             x += text.measureText(labels[lv]) + itemGap;
         }
-        fill.setColor(Style.GOOD);
-        cv.drawCircle(x + sq * 0.3f, y + sq / 2f, sq * 0.25f, fill);
-        cv.drawText(charge, x + sq * 0.8f, base, text);
+        x += itemGap;
+        drawChargeDot(cv, x + sq / 2f, y + sq / 2f, sq * 0.3f, true);
+        x += sq + gap;
+        cv.drawText(dcL, x, base, text);
+        x += text.measureText(dcL) + itemGap;
+        drawChargeDot(cv, x + sq / 2f, y + sq / 2f, sq * 0.3f, false);
+        x += sq + gap;
+        cv.drawText(acL, x, base, text);
     }
 
     /** The km range of each level, from the cuts (StatsCalendar.level: level
