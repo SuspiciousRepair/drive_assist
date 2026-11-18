@@ -19,6 +19,7 @@ import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.controls.GeelySwitch;
 import com.geely.drivemem.controls.AvasState;
 import com.geely.drivemem.controls.HelperSync;
+import com.geely.drivemem.controls.RegenTap;
 import com.geely.drivemem.controls.TurboMode;
 import com.geely.drivemem.util.Modes;
 import com.geely.drivemem.util.Prefs;
@@ -92,7 +93,7 @@ public final class TelemetryDriveSection extends LinearLayout {
         status.setText(activity.getString(R.string.cfg_connecting));
         left.addView(status);
 
-        // the glyphs "🍃 ☁ ⚡ ◦ ◉ ●" are icons, not text: they do not get translated
+        // the mode and regen icons are drawables, not text: they do not get translated
         //
         // Capped width, not MATCH_PARENT: small tiles/fields/rows stretched
         // across the whole panel turn into oversized slabs. pageWidth keeps
@@ -112,9 +113,9 @@ public final class TelemetryDriveSection extends LinearLayout {
         LinearLayout regenRow = new LinearLayout(activity);
         regenRow.setOrientation(LinearLayout.HORIZONTAL);
         regenRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        regenRow.addView(modeCard("◦", activity.getString(R.string.cfg_regen_low), Modes.REGEN_LOW, Style.CARD_ON, regenCards, () -> pickRegen(Modes.REGEN_LOW)));
-        regenRow.addView(modeCard("◉", activity.getString(R.string.cfg_regen_mid), Modes.REGEN_MID, Style.CARD_ON, regenCards, () -> pickRegen(Modes.REGEN_MID)));
-        regenRow.addView(modeCard("●", activity.getString(R.string.cfg_regen_high), Modes.REGEN_HIGH, Style.CARD_ON, regenCards, () -> pickRegen(Modes.REGEN_HIGH)));
+        regenRow.addView(modeCard(RegenTap.icon(Modes.REGEN_LOW), activity.getString(R.string.cfg_regen_low), Modes.REGEN_LOW, Style.CARD_ON, regenCards, () -> pickRegen(Modes.REGEN_LOW)));
+        regenRow.addView(modeCard(RegenTap.icon(Modes.REGEN_MID), activity.getString(R.string.cfg_regen_mid), Modes.REGEN_MID, Style.CARD_ON, regenCards, () -> pickRegen(Modes.REGEN_MID)));
+        regenRow.addView(modeCard(RegenTap.icon(Modes.REGEN_HIGH), activity.getString(R.string.cfg_regen_high), Modes.REGEN_HIGH, Style.CARD_ON, regenCards, () -> pickRegen(Modes.REGEN_HIGH)));
         left.addView(regenRow);
 
         left.addView(Style.header(activity, activity.getString(R.string.turbo_header)));
@@ -314,23 +315,12 @@ public final class TelemetryDriveSection extends LinearLayout {
         refresh();
     }
 
-    // Regen (Fraca/Média/Forte) has no real icon set -- these three dots are
-    // a plain geometric affordance, not a brand/style pastiche in need of a
-    // license, so they stay a plain glyph.
-    private LinearLayout modeCard(String symbol, String label, int key, int onColor,
-                                  Map<Integer, LinearLayout> reg, Runnable onClick) {
-        LinearLayout card = modeCardShell(label, key, onColor, reg, onClick);
-        TextView ic = new TextView(activity);
-        ic.setText(symbol); ic.setTextColor(Style.TEXT); ic.setTextSize(22);
-        ic.setGravity(Gravity.CENTER);
-        card.addView(ic, 0);
-        return card;
-    }
-
     // Eco/Comfort/Sport get a real vector icon (Google Material Symbols,
-    // Apache-2.0 -- see the drawable files' own header comments) instead of
-    // an emoji glyph, tinted the same way the label already is so selection
-    // recolors both together (see paintCard()).
+    // Apache-2.0 -- see the drawable files' own header comments) and
+    // Low/Medium/High get Drive Assist's own regen ring (RegenTap.icon(),
+    // the same one the Turbo card and the floating panel show), each
+    // tinted the same way the label already is so selection recolors both
+    // together (see paintCard()).
     private LinearLayout modeCard(int iconRes, String label, int key, int onColor,
                                   Map<Integer, LinearLayout> reg, Runnable onClick) {
         LinearLayout card = modeCardShell(label, key, onColor, reg, onClick);
@@ -343,9 +333,8 @@ public final class TelemetryDriveSection extends LinearLayout {
         return card;
     }
 
-    // Shared shell: padding, label, click, sizing/tag/registration -- the
-    // two overloads above differ only in how the icon view itself is built,
-    // so that's the only thing each adds, at index 0 (before the label).
+    // Shared shell: padding, label, click, sizing/tag/registration. modeCard()
+    // adds only the icon view, at index 0 (before the label).
     private LinearLayout modeCardShell(String label, int key, int onColor,
                                        Map<Integer, LinearLayout> reg, Runnable onClick) {
         LinearLayout card = new LinearLayout(activity);
