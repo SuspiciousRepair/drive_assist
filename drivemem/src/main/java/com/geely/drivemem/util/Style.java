@@ -311,8 +311,21 @@ public class Style {
      * the theme's own primary tone, not the two-stop gradient -- those
      * sections have nothing that needs the extra depth, and a flat fill
      * reads as deliberately plainer next to the sections that carry the
-     * OEM render. */
-    public static android.graphics.drawable.Drawable configScreenBgSolid() {
+     * OEM render.
+     *
+     * In the Default (geely) theme the fill is the OEM render's OWN
+     * backdrop colour, read off config_bg_day/config_bg_night (their flat
+     * field, every corner and edge): otherwise moving between Driving mode /
+     * Doors / Elements and any other section flips the whole screen between
+     * two different greys (#115). */
+    public static final int OEM_BG_DAY   = 0xFFD2D9E5; // config_bg_day.webp backdrop
+    public static final int OEM_BG_NIGHT = 0xFF1E262D; // config_bg_night.webp backdrop
+
+    public static android.graphics.drawable.Drawable configScreenBgSolid(Context c) {
+        if ("geely".equals(current.id)) {
+            return new android.graphics.drawable.ColorDrawable(
+                resolvedLight(c, current) ? OEM_BG_DAY : OEM_BG_NIGHT);
+        }
         return new android.graphics.drawable.ColorDrawable(BG_TOP);
     }
 

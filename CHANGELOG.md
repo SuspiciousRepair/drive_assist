@@ -16,6 +16,13 @@
 - **Config → System → Trip routes: clear the saved map.** Shows how much
   map is saved in the car, with a button to clear it. The map downloads
   again the next time it is shown.
+- **Config → Drive mode: the regen buttons show the regen icon.** Low,
+  Medium and High now show the same ring as the Turbo card and the
+  floating panel, filled to their level, in place of the three dots.
+- **Regen icon: the arrow always comes out of a lit segment.** The ring
+  now fills from the segment that carries the arrow, so on Low and Medium
+  the arrow no longer starts from a dim part. On the Turbo card and the
+  floating panel too.
 - **Config → Drive mode is calmer.** The Eco/Comfort/Sport and regen buttons
   are about half as tall, and the selected one is a quiet tint instead of
   green, amber, red or blue. When "Show the Turbo card" is off, its
