@@ -216,8 +216,18 @@ public class ChargeStatsView extends LinearLayout {
         btn30.setTextColor(Style.onFill(periodDays == 30 ? Style.CARD_ON : Style.CARD));
         btn365.setBackground(Style.card(periodDays == 365 ? Style.CARD_ON : Style.CARD, c));
         btn365.setTextColor(Style.onFill(periodDays == 365 ? Style.CARD_ON : Style.CARD));
+        // The span the numbers really cover: from the first record inside
+        // the period (a year back is before the data starts, and "18/11 –
+        // 18/11" read as one day).
+        long shownFrom = now;
+        if (!days.isEmpty()) shownFrom = days.get(0).date
+            .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+        for (ChargeSession.Summary s : allSessions) {
+            if (s.startWallMs >= cutoff && s.startWallMs < shownFrom) shownFrom = s.startWallMs;
+        }
         rangeLabel.setText(c.getString(R.string.charge_range_label,
-            shortDate(cutoff), shortDate(now), String.format(Locale.getDefault(), "%,.0f", kmDriven)));
+            shortDate(Math.max(cutoff, shownFrom)), shortDate(now),
+            String.format(Locale.getDefault(), "%,.0f", kmDriven)));
 
         // Four data cards (owner's mock, 2026-11-18): charges, cost, how low
         // the battery went, and the last charge to 100 %. They replaced the
