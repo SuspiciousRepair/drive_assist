@@ -78,7 +78,8 @@
   the next day. The 30 bars now end with today.
 - **Tapping a charge opens its details**, on the charge page and on the
   stats page: the cost in its own block with a clear "Change" button (or
-  "+ Cost" when there is none yet), and the charging power
+  "+ Cost" when there is none yet), the battery % as a light line with
+  its start and end value, and the charging power
   curve. In Park only, like before. On the stats page this replaces the cost
   window the tap used to open; on the charge page, while driving, the tap
   only selects the charge.
