@@ -140,4 +140,25 @@ public class SettingsFileTest {
         Map<String, Object> back = SettingsFile.parseSettings(SettingsFile.toJson(prefs, "v1", 25, 1L));
         assertEquals(1, back.size());
     }
+
+    @Test public void aValueOfAnotherTypeThanTheStoredOneIsDropped() throws Exception {
+        // A crafted file says theme is an int; the app stores and reads it as a String.
+        String json = "{\"format\":2,\"settings\":{\"theme\":5,\"tele_enabled\":true},"
+            + "\"types\":{\"theme\":\"int\",\"tele_enabled\":\"bool\"}}";
+        Map<String, Object> parsed = SettingsFile.parseSettings(json);
+        assertEquals(5, parsed.get("theme"));               // the file alone cannot tell
+
+        Map<String, Object> stored = new HashMap<>();
+        stored.put("theme", "vapor");
+        stored.put("tele_enabled", false);
+        Map<String, Object> kept = SettingsFile.matchStoredTypes(parsed, stored);
+        assertFalse(kept.containsKey("theme"));
+        assertEquals(true, kept.get("tele_enabled"));       // same type: restored
+    }
+
+    @Test public void aKeyTheAppDoesNotHoldYetKeepsTheFileType() throws Exception {
+        Map<String, Object> parsed = new HashMap<>();
+        parsed.put("tele_interval_s", 10);
+        assertEquals(10, SettingsFile.matchStoredTypes(parsed, new HashMap<>()).get("tele_interval_s"));
+    }
 }

@@ -51,4 +51,15 @@ public class ChargeSpotsTest {
             Arrays.asList(ch(0, 11 * H, 12 * H, false)), 10 * H, 0, LAT, LON, LAT, LON);
         assertTrue(s.isEmpty());
     }
+
+    @Test public void oneDayKeepsOnlyTheSpotsNearItsRoutes() {
+        double m = 1 / 111_195.0;   // one metre of latitude
+        double[] lat = {LAT, LAT + 3000 * m}, lon = {LON, LON};
+        ChargeSpots.Spot near = new ChargeSpots.Spot(LAT + 3500 * m, LON, false);   // 500 m past the end
+        ChargeSpots.Spot far = new ChargeSpots.Spot(LAT + 400_000 * m, LON, true);  // 400 km away
+        List<ChargeSpots.Spot> kept = ChargeSpots.inBox(Arrays.asList(near, far), lat, lon, 1000);
+        assertEquals(1, kept.size());
+        assertSame(near, kept.get(0));
+        assertTrue(ChargeSpots.inBox(Arrays.asList(near), new double[0], new double[0], 1000).isEmpty());
+    }
 }

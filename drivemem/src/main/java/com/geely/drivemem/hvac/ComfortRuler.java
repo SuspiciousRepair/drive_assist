@@ -545,6 +545,10 @@ public class ComfortRuler {
             if (o.changed) {
                 Log.i(TAG, "ruler: weekly learn " + o.notes);
                 table = buildTable(tableOutC);
+                // The car may still hold our old column exactly; against the
+                // new table that reads as a hand change. Only a fresh exact
+                // fit may arm learning again.
+                seenExact = false;
                 notifyUi();
             }
             return;
@@ -554,6 +558,15 @@ public class ComfortRuler {
             && now - lastTapMs >= QUIET_AFTER_TAP_MS;
         ComfortLearn.State held = watcher.observe(now, lastState, eligible);
         if (held == null) return;
+        // While a hand state is in place doMaintenance() does not follow the
+        // weather, so the table can be from another day. A hold is filed under
+        // tableOutC's band; drop it when today is outside that band.
+        Float outNow = car().readOutsideTempC();
+        if (outNow == null || Math.abs(outNow - tableOutC) >= DRIFT_C) {
+            ComfortEvents.event(ctx, "learn", ComfortEvents.snap(car(), level),
+                "skip: table out=" + tableOutC + " now=" + outNow);
+            return;
+        }
         ComfortLearn.Book book = ComfortLearn.Book.decode(Prefs.getComfortBook(ctx));
         String note = ComfortLearn.hold(book, table, tableOutC, now, level, lastApplied, held);
         if (note == null) return;
@@ -567,6 +580,7 @@ public class ComfortRuler {
         CarActor.get(ctx).runOnCarThread(() -> {
             if (!armed || Float.isNaN(tableOutC)) return;
             table = buildTable(tableOutC);
+            seenExact = false;   // same reason as the weekly rebuild
             if (car().isReady()) refit();
             notifyUi();
         });
