@@ -240,18 +240,22 @@ public class CalendarNavigatorView extends View {
     }
 
     /** A charge: green for DC, blue for AC (the charge screens' colours).
-     * On a blue square a blue dot vanishes, so it gets a glow in its own
-     * colour and a thin ring of the card colour that cuts it out of the
-     * square. */
+     * On a blue square a blue dot vanishes, so a soft halo of the card colour
+     * lifts it off the square, and a faint glow in its own colour sits on
+     * top. Both fade to nothing: no hard ring (a hard ring read as a sticker,
+     * owner 2026-11-18). */
     private void drawChargeDot(Canvas cv, float cx, float cy, float dr, boolean dc) {
         int col = dc ? Style.GOOD : chargeAcColor();
-        float gr = dr * 2.6f;
+        float gr = dr * 2.8f, edge = dr / gr;
+        int card = Style.cardFillColor() & 0x00FFFFFF, rgb = col & 0x00FFFFFF;
         glow.setShader(new android.graphics.RadialGradient(cx, cy, gr,
-            new int[]{(col & 0x00FFFFFF) | 0xB0000000, (col & 0x00FFFFFF) | 0x40000000, col & 0x00FFFFFF},
-            new float[]{0f, 0.5f, 1f}, android.graphics.Shader.TileMode.CLAMP));
+            new int[]{card | 0xE6000000, card | 0xE6000000, card | 0x70000000, card},
+            new float[]{0f, edge, 0.6f, 1f}, android.graphics.Shader.TileMode.CLAMP));
         cv.drawCircle(cx, cy, gr, glow);
-        fill.setColor(Style.cardFillColor());
-        cv.drawCircle(cx, cy, dr + Style.dp(getContext(), 2), fill);
+        glow.setShader(new android.graphics.RadialGradient(cx, cy, gr,
+            new int[]{rgb | 0x66000000, rgb | 0x66000000, rgb | 0x1A000000, rgb},
+            new float[]{0f, edge, 0.6f, 1f}, android.graphics.Shader.TileMode.CLAMP));
+        cv.drawCircle(cx, cy, gr, glow);
         fill.setColor(col);
         cv.drawCircle(cx, cy, dr, fill);
     }
