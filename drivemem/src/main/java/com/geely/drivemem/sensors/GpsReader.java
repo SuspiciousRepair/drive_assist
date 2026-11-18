@@ -35,6 +35,19 @@ public class GpsReader {
         return ageMs >= 0 && ageMs <= LIVE_MAX_AGE_MS;
     }
 
+    static final int SRC_LIVE = 0, SRC_NONE = 1, SRC_LAST_KNOWN = 2;
+
+    /** Where the position comes from. A fresh live fix is used. A stale one
+     * means the listener is on but the fix stopped (a tunnel, no sky): no
+     * position, because the last-known fallback would hand back that same
+     * old fix as if it were current. No live fix at all (GpsOwner removed
+     * its listener in Park and cleared it, or no first fix yet): the last
+     * known place is the best there is. Pure. */
+    static int source(boolean hasLive, long liveAgeMs) {
+        if (!hasLive) return SRC_LAST_KNOWN;
+        return liveFresh(liveAgeMs) ? SRC_LIVE : SRC_NONE;
+    }
+
     /** The altitude, or NaN ("no value") when the fix has none. A fix
      * without altitude reports 0.0, which is not a height. Pure. */
     static double altitudeOrNaN(boolean hasAltitude, double altitude) {
@@ -56,12 +69,10 @@ public class GpsReader {
         try {
             LocationManager lm = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
             Location best = live;   // the live GPS fix, if GpsOwner's listener has one yet
-            // Too old (listener gone, or no signal): do not serve it as current.
-            if (best != null && !liveFresh(
-                    (SystemClock.elapsedRealtimeNanos() - best.getElapsedRealtimeNanos()) / 1_000_000L)) {
-                best = null;
-            }
-            if (best == null) {
+            int src = source(best != null, best == null ? 0
+                : (SystemClock.elapsedRealtimeNanos() - best.getElapsedRealtimeNanos()) / 1_000_000L);
+            if (src == SRC_NONE) return null;
+            if (src == SRC_LAST_KNOWN) {
                 // Strict quality order, NOT "whoever has the newest timestamp
                 // wins": NETWORK_PROVIDER has no real vertical signal (its
                 // altitude is routinely 0 or a rough cell/WiFi estimate), and

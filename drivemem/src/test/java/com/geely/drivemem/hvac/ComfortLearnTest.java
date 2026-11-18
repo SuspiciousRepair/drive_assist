@@ -194,6 +194,40 @@ public class ComfortLearnTest {
         assertNull(tap.observe(t + ComfortLearn.HOLD_MS + 30_000, FAN4, true));
     }
 
+    @Test public void aBreakInTheHoldDoesNotCountTheSameChangeTwice() {
+        ComfortLearn.State other = new ComfortLearn.State(true, 21f, 5, FACE, true);
+        ComfortLearn.Watcher w = new ComfortLearn.Watcher();
+        long t = 1_000_000L, m = 0;
+        int votes = 0;
+        for (; m <= ComfortLearn.HOLD_MS; m += 30_000) if (w.observe(t + m, FAN4, true) != null) votes++;
+        w.observe(t + m, FAN4, false); m += 30_000;            // defrost press
+        w.observe(t + m, other, true); m += 30_000;            // passenger, and back
+        w.observe(t + m, null, true);  m += 30_000;            // one failed read
+        for (long end = m + 2 * ComfortLearn.HOLD_MS; m <= end; m += 30_000) {
+            if (w.observe(t + m, FAN4, true) != null) votes++;
+        }
+        assertEquals(1, votes);
+
+        // The next drive (after a suspend) counts it again.
+        m += 8 * 60 * 60_000L;
+        for (long end = m + ComfortLearn.HOLD_MS; m <= end; m += 30_000) {
+            if (w.observe(t + m, FAN4, true) != null) votes++;
+        }
+        assertEquals(2, votes);
+    }
+
+    @Test public void aNewStateAfterAVoteStillCounts() {
+        ComfortLearn.State other = new ComfortLearn.State(true, 21f, 5, FACE, true);
+        ComfortLearn.Watcher w = new ComfortLearn.Watcher();
+        long t = 1_000_000L, m = 0;
+        int votes = 0;
+        for (; m <= ComfortLearn.HOLD_MS; m += 30_000) if (w.observe(t + m, FAN4, true) != null) votes++;
+        for (long end = m + ComfortLearn.HOLD_MS; m <= end; m += 30_000) {
+            if (w.observe(t + m, other, true) != null) votes++;
+        }
+        assertEquals(2, votes);
+    }
+
     @Test public void bandsMatchTheFreeColumns() {
         assertArrayEquals(new float[]{24f, 28f}, ComfortLearn.band(3, EffortTable.freeColumns(26f, true)), 0f);
         assertEquals(28f, ComfortLearn.band(3, EffortTable.freeColumns(30f, true))[0], 0f);

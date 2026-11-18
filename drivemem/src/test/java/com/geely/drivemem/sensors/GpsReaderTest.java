@@ -27,6 +27,12 @@ public class GpsReaderTest {
         assertFalse(GpsReader.liveFresh(-1));
     }
 
+    @Test public void aStaleLiveFixGivesNoPositionNotTheLastKnownOne() {
+        assertEquals(GpsReader.SRC_LIVE, GpsReader.source(true, 2_000));
+        assertEquals(GpsReader.SRC_NONE, GpsReader.source(true, GpsReader.LIVE_MAX_AGE_MS + 1));   // tunnel
+        assertEquals(GpsReader.SRC_LAST_KNOWN, GpsReader.source(false, 0));                          // parked, no listener
+    }
+
     @Test public void aFixWithoutAltitudeHasNoValueNotZero() {
         assertTrue(Double.isNaN(GpsReader.altitudeOrNaN(false, 0.0)));
         assertTrue(Double.isNaN(GpsReader.altitudeOrNaN(true, Double.NaN)));
