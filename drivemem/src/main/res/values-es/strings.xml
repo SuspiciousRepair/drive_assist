@@ -674,9 +674,9 @@
     <string name="charge_card_cost_share">%1$s · %2$d%% del costo</string>
     <string name="charge_card_no_dc">sin cargas DC</string>
     <string name="charge_card_no_cost">ningún costo informado</string>
-    <string name="charge_card_low">Batería baja</string>
+    <string name="charge_card_low">Salud de la batería</string>
     <string name="charge_card_low_cap">carga mínima · %1$s</string>
-    <string name="charge_card_below">Días bajo %1$d%%</string>
+    <string name="charge_card_below">Horas bajo %1$d%%</string>
     <string name="charge_card_plug_note">En promedio enchufas con %1$d%%</string>
     <string name="charge_card_today">hoy</string>
     <string name="charge_card_yesterday">ayer</string>

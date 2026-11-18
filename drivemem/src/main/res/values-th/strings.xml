@@ -690,9 +690,9 @@
     <string name="charge_card_cost_share">%1$s · %2$d%% ของค่าใช้จ่าย</string>
     <string name="charge_card_no_dc">ไม่มีการชาร์จ DC</string>
     <string name="charge_card_no_cost">ยังไม่ได้ใส่ค่าใช้จ่าย</string>
-    <string name="charge_card_low">แบตเตอรี่ต่ำ</string>
+    <string name="charge_card_low">สุขภาพแบตเตอรี่</string>
     <string name="charge_card_low_cap">ต่ำสุด · %1$s</string>
-    <string name="charge_card_below">วันที่ต่ำกว่า %1$d%%</string>
+    <string name="charge_card_below">ชั่วโมงที่ต่ำกว่า %1$d%%</string>
     <string name="charge_card_plug_note">โดยเฉลี่ยคุณเสียบชาร์จที่ %1$d%%</string>
     <string name="charge_card_today">วันนี้</string>
     <string name="charge_card_yesterday">เมื่อวาน</string>

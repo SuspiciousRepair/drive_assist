@@ -43,6 +43,30 @@ public class BatteryHeatTest {
         assertEquals(0, next.fullN);
     }
 
+    /** Hours low, not days: a night parked at 8 % counts whole, cut at
+     * midnight; time at exactly 20 % is not "below 20". */
+    @Test
+    public void lowHoursCountTheTimeBetweenLowSamples() {
+        long[] ts = {
+            DAY + 20 * H,                 // 25 %
+            DAY + 21 * H,                 // 18 %  (20:00-21:00 not low: 25 on one side)
+            DAY + 22 * H,                 // 8 %   21-22 under 20, not under 10
+            2 * DAY + 6 * H,              // 8 %   parked overnight: 22:00-06:00 under both
+            2 * DAY + 7 * H,              // 20 %  charging: 06-07 not under 20 (20 is not below)
+        };
+        int[] pct = {25, 18, 8, 8, 20};
+        List<Double> t = Arrays.asList(null, null, null, null, null);
+        BatteryHeat.Day day = BatteryHeat.computeDay(D, DAY, 2 * DAY, ts, pct, t);
+        assertEquals(2 * H, day.below10Ms);              // 22:00-24:00
+        assertEquals(3 * H, day.below20Ms);              // 21:00-24:00
+        BatteryHeat.Day next = BatteryHeat.computeDay(D.plusDays(1), 2 * DAY, 3 * DAY, ts, pct, t);
+        assertEquals(6 * H, next.below10Ms);             // 00:00-06:00
+        assertEquals(6 * H, next.below20Ms);
+        BatteryHeat.Stats s = BatteryHeat.aggregate(Arrays.asList(day, next));
+        assertEquals(8 * H, s.below10Ms);
+        assertEquals(9 * H, s.below20Ms);
+    }
+
     @Test
     public void shortStaysDoNotCount() {
         long[] ts = {DAY + H, DAY + H + 10 * MIN, DAY + H + 20 * MIN};

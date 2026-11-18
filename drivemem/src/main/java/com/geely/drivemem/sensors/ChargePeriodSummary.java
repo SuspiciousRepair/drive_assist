@@ -28,7 +28,6 @@ public final class ChargePeriodSummary {
     public boolean anyCost;
 
     public SocHistory.DayRange lowest;                  // null without daily data
-    public int daysBelow10, daysBelow20;
     public double avgPlugPct = -1;                      // average SoC when plugged in
 
     public long lastFullMs = -1;                        // over ALL charges, not just the period
@@ -87,8 +86,6 @@ public final class ChargePeriodSummary {
         if (plugN > 0) r.avgPlugPct = plugSum / plugN;
 
         r.lowest = SocHistory.lowest(days);
-        r.daysBelow10 = SocHistory.daysBelow(days, 10);
-        r.daysBelow20 = SocHistory.daysBelow(days, 20);
 
         // Gaps between full charges. Only gaps that overlap the period count,
         // and the one since the last full charge is open to now.

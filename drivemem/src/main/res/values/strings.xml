@@ -701,9 +701,9 @@
     <string name="charge_card_cost_share">%1$s · %2$d%% of the cost</string>
     <string name="charge_card_no_dc">no DC charges</string>
     <string name="charge_card_no_cost">no cost entered</string>
-    <string name="charge_card_low">Low battery</string>
+    <string name="charge_card_low">Battery health</string>
     <string name="charge_card_low_cap">lowest charge · %1$s</string>
-    <string name="charge_card_below">Days below %1$d%%</string>
+    <string name="charge_card_below">Hours below %1$d%%</string>
     <string name="charge_card_plug_note">On average you plug in at %1$d%%</string>
     <string name="charge_card_today">today</string>
     <string name="charge_card_yesterday">yesterday</string>

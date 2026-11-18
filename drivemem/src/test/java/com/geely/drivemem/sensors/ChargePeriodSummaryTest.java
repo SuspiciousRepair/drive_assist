@@ -85,8 +85,6 @@ public class ChargePeriodSummaryTest {
             new SocHistory.DayRange(LocalDate.parse("2026-10-02"), 40, 90));
         ChargePeriodSummary m = ChargePeriodSummary.of(Collections.emptyList(), 0, 0, 0, days);
         assertEquals(8, m.lowest.min);
-        assertEquals(1, m.daysBelow10);
-        assertEquals(2, m.daysBelow20);
         assertEquals(-1, m.avgPlugPct, 1e-9);
     }
 

@@ -444,7 +444,7 @@ public class ChargeStatsView extends LinearLayout {
         boolean current = !periodEnd(start).isBefore(java.time.LocalDate.now().plusDays(1));
         cards.addView(chargesCard(l.sum, now, current), cardLp(false));
         cards.addView(costCard(l.sum, l.km), cardLp(false));
-        cards.addView(lowCard(l.sum), cardLp(false));
+        cards.addView(lowCard(l.sum, l.heat), cardLp(false));
         cards.addView(heatCard(l.heat, start), cardLp(true));
         kpiContainer.addView(cards);
 
@@ -701,7 +701,7 @@ public class ChargeStatsView extends LinearLayout {
             acTile, dcTile, null);
     }
 
-    private View lowCard(ChargePeriodSummary m) {
+    private View lowCard(ChargePeriodSummary m, BatteryHeat.Stats heat) {
         Context c = getContext();
         CharSequence hero = m.lowest == null ? "—"
             : Style.valueWithUnit(String.valueOf(m.lowest.min), m.lowest.min < 10 ? Style.DANGER : Style.TEXT,
@@ -712,15 +712,19 @@ public class ChargeStatsView extends LinearLayout {
         String note = m.avgPlugPct >= 0
             ? c.getString(R.string.charge_card_plug_note, (int) Math.round(m.avgPlugPct)) : null;
         return dataCard(c.getString(R.string.charge_card_low), hero, Style.TEXT, cap,
-            tile(c.getString(R.string.charge_card_below, 10), String.valueOf(m.daysBelow10),
-                m.daysBelow10 == 0 ? Style.GOOD : Style.DANGER, null),
-            tile(c.getString(R.string.charge_card_below, 20), String.valueOf(m.daysBelow20),
-                m.daysBelow20 == 0 ? Style.GOOD : Style.TEXT, null),
+            tile(c.getString(R.string.charge_card_below, BatteryHeat.LOW_PCT), lowHours(heat.below10Ms),
+                heat.below10Ms == 0 ? Style.GOOD : Style.DANGER, null),
+            tile(c.getString(R.string.charge_card_below, BatteryHeat.LOW2_PCT), lowHours(heat.below20Ms),
+                heat.below20Ms == 0 ? Style.GOOD : Style.TEXT, null),
             note);
     }
 
     private static String deg(double t) {
         return String.format(Locale.getDefault(), "%.0f °C", t);
+    }
+
+    private static String lowHours(long ms) {
+        return ms == 0 ? "0" : hours(ms);
     }
 
     private static String hours(long ms) {
