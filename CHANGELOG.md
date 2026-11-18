@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.9.0] — 2026-11-18
+
 ### Changed
 - **Trip routes are on a map.** The trip route and All routes screens now
   draw the route over an OpenStreetMap map, with the streets under the
@@ -65,6 +67,25 @@
   climate · other, in Wh/km.
 
 ### Added
+- **Charge page: four data cards and a month/year picker.** Recargas
+  (count, AC/DC split, the charge to 100 %), Custo (total, per 100 km, per
+  kWh for AC and DC), Bateria baixa (lowest daily battery, days under 10 %
+  and 20 %) and Temperatura da bateria (highest, average, lowest, and time
+  at 100 %). They replace the metrics card and the Energy balance chart.
+  The period is a calendar month or year, picked like on the stats page.
+  Each day's battery temperature is now kept for good. (#119, #120, DB v32)
+- **Stats page: a year of days.** One square per day, coloured by its km,
+  replaces the 14-bar chart. Tap a day, a week or a month; days with no
+  driving show too. (#118)
+- **Trip routes as GPX files**, one per day, to the USB stick (with the
+  export) and to the phone page. The CSV export gets the trip and charge
+  places. (#106)
+- **Cleanup removes all of Drive Assist.** It now also removes the helper
+  app and the CAN reader, restores the lock sound, and asks whether to keep
+  or close ADB. It no longer offers to remove other apps. (#104)
+- **The climate ruler's table is a file**, with one set of columns for each
+  outside temperature band, so a level no longer moves inside one band.
+  (#117)
 - **Climate ruler learn mode.** Config → Climate (a new page). When you
   change the climate by hand on the car's panel after a ruler tap and keep it
   10 minutes, it is counted. Once a week, with the climate off, each level
@@ -89,6 +110,13 @@
   reading. (#96)
 
 ### Fixed
+- **The floating button shows after a new install.** Its draw-over-apps
+  permission was granted only on an update, so a fresh install (after a
+  reset, or a downgrade) never got it. Now the floating panel asks for it
+  whenever it starts without it, opening ADB for the moment if needed.
+  (#123, #124)
+- **Review fixes** from the week of 16 Nov: settings restore, climate
+  learn mode, Extra dark and more, 11 in all. (#116)
 - **The AVAS switch no longer jumps from off to on** when you open Config →
   Drive. It drew from a saved copy that went stale whenever AVAS changed
   elsewhere (the Home AVAS button, the car's settings). The copy is gone:
