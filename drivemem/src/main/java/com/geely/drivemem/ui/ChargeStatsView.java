@@ -331,6 +331,13 @@ public class ChargeStatsView extends LinearLayout {
         final java.util.Set<Long> placed = new java.util.HashSet<>();
     }
 
+    /** Coming to the page: back to the current month or year (owner,
+     * 2026-11-18). Browsing to October and leaving kept October for good. */
+    public void showCurrent() {
+        anchor = java.time.LocalDate.now();
+        refresh();
+    }
+
     public void refresh() {
         final Context c = getContext().getApplicationContext();
         final int gen = ++loadGen;
@@ -841,13 +848,7 @@ public class ChargeStatsView extends LinearLayout {
         // 44dp touch target around a 24dp glyph -- a hand-sized tap area, not
         // just a visually-sized one (see CLAUDE.md's note on touch targets).
         curveBtn.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(c, 44), Style.dp(c, 44)));
-        curveBtn.setOnClickListener(v -> {
-            if (!com.geely.drivemem.state.CarState.isParked()) {
-                Toast.makeText(c, R.string.charge_cost_parked_only, Toast.LENGTH_SHORT).show();
-                return;
-            }
-            ChargeCurrentCurveDialog.show(c, s, this::refresh);
-        });
+        curveBtn.setOnClickListener(v -> ChargeCurrentCurveDialog.show(c, s, this::refresh));
         powerCell.addView(curveBtn);
         // Where it charged: only charges that saved their place (from
         // 2026-11-16 on). Opens the routes map on that day, where the charge
@@ -860,10 +861,6 @@ public class ChargeStatsView extends LinearLayout {
             mapBtn.setPadding(curvePad, curvePad, curvePad, curvePad);
             mapBtn.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(c, 44), Style.dp(c, 44)));
             mapBtn.setOnClickListener(v -> {
-                if (!com.geely.drivemem.state.CarState.isParked()) {
-                    Toast.makeText(c, R.string.route_parked_only, Toast.LENGTH_SHORT).show();
-                    return;
-                }
                 android.content.Intent i = new android.content.Intent(c, AllRoutesActivity.class);
                 i.putExtra(AllRoutesActivity.EXTRA_DAY,
                     new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new java.util.Date(s.startWallMs)));
@@ -894,19 +891,11 @@ public class ChargeStatsView extends LinearLayout {
             costText.setTextSize(19);
             costText.setTypeface(null, Typeface.BOLD);
             costText.setOnClickListener(v -> {
-                if (!com.geely.drivemem.state.CarState.isParked()) {
-                    Toast.makeText(c, R.string.charge_cost_parked_only, Toast.LENGTH_SHORT).show();
-                    return;
-                }
                 ChargeCostDialog.show(c, s.id, s.kwh, s.socStart, s.socEnd, s.cost, this::refresh);
             });
             costCell.addView(costText);
         } else {
             TextView costBtn = Style.cardButton(c, "+ " + c.getString(R.string.charge_cost_label), false, () -> {
-                if (!com.geely.drivemem.state.CarState.isParked()) {
-                    Toast.makeText(c, R.string.charge_cost_parked_only, Toast.LENGTH_SHORT).show();
-                    return;
-                }
                 ChargeCostDialog.show(c, s.id, s.kwh, s.socStart, s.socEnd, null, this::refresh);
             });
             costCell.addView(costBtn);
@@ -914,11 +903,11 @@ public class ChargeStatsView extends LinearLayout {
         bottomRow.addView(costCell);
         card.addView(bottomRow);
         // Tapping the card selects it (outline + its bar in the chart above)
-        // and opens its details, the same dialog as the chart icon. The
-        // details are Park only; on the move the tap only selects.
+        // and opens its details, the same dialog as the chart icon. Reading
+        // opens anywhere; only typing a cost waits for Park (ChargeCostDialog).
         card.setOnClickListener(v -> {
             selectSession(s.id, false);
-            if (com.geely.drivemem.state.CarState.isParked()) ChargeCurrentCurveDialog.show(c, s, this::refresh);
+            ChargeCurrentCurveDialog.show(c, s, this::refresh);
         });
         card.setBackground(s.id == selectedSessionId
             ? Style.outlinedCard(isDcfc ? Style.GOOD : Style.ACCENT, c)

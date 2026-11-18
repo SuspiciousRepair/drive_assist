@@ -524,7 +524,6 @@
     <string name="routes_hint">Guarda por dónde pasó cada viaje y dónde se hizo cada carga. Se queda en el coche: no se envía nada a ningún sitio. Entra en tu copia de seguridad. Los viajes de antes de esta opción no tienen ruta.</string>
     <string name="route_title">Ruta</string>
     <string name="route_none">Este viaje no tiene ruta. Las rutas se guardan en los viajes hechos con Config → Sistema → Rutas de los viajes activado.</string>
-    <string name="route_parked_only">Abre la ruta con el coche en P</string>
     <string name="routes_all_title">Todas las rutas</string>
     <string name="routes_all_count">%1$d viajes</string>
     <string name="routes_all_show">Ver todas</string>

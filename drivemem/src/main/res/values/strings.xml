@@ -551,7 +551,6 @@
     <string name="routes_hint">Saves where each trip went and where each charge was. It stays in the car: nothing is sent anywhere. It goes into your backup. Trips from before this setting have no route.</string>
     <string name="route_title">Route</string>
     <string name="route_none">No route for this trip. Routes are saved for trips driven with Config → System → Trip routes on.</string>
-    <string name="route_parked_only">Open the route in Park</string>
     <string name="routes_all_title">All routes</string>
     <string name="routes_all_count">%1$d trips</string>
     <string name="routes_all_show">Show all</string>

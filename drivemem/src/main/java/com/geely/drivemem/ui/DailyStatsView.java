@@ -876,13 +876,9 @@ public class DailyStatsView extends LinearLayout {
         return item;
     }
 
-    /** Every recorded route in one picture. Park only, same rule as opening
-     * one trip's route. Day view opens on the day shown here. */
+    /** Every recorded route in one picture. Day view opens on the day shown
+     * here. Reading opens anywhere; only typing waits for Park. */
     private void openAllRoutes() {
-        if (!CarState.isParked()) {
-            Toast.makeText(getContext(), R.string.route_parked_only, Toast.LENGTH_SHORT).show();
-            return;
-        }
         android.content.Intent i = new android.content.Intent(getContext(), AllRoutesActivity.class);
         if (period == Period.DAY && selected != null) {
             i.putExtra(AllRoutesActivity.EXTRA_DAY, selected.toString());
@@ -1678,14 +1674,9 @@ public class DailyStatsView extends LinearLayout {
             stat(R.string.session_stat_efficiency, eff, splitNote),
             stat(R.string.session_stat_elevation, alt, null)));
 
-        // Tapping a finished trip opens its route (issue #19), Park only,
-        // same rule as the charge card's cost dialog.
+        // Tapping a finished trip opens its route (issue #19).
         if (t.endMs > 0 && t.tripId > 0) {
             card.setOnClickListener(v -> {
-                if (!CarState.isParked()) {
-                    Toast.makeText(getContext(), R.string.route_parked_only, Toast.LENGTH_SHORT).show();
-                    return;
-                }
                 android.content.Intent i = TripRouteActivity.intent(getContext(), t);
                 getContext().startActivity(i);
             });
@@ -1727,14 +1718,10 @@ public class DailyStatsView extends LinearLayout {
             energy, power, third));
 
         // Tapping a finished charge opens its details (ChargeCurrentCurveDialog:
-        // the cost, editable there, and the power curve), Park only, the same
+        // the cost, editable there in Park, and the power curve), the same
         // window the charge page opens.
         if (ch.endMs > 0 && ch.chargeId > 0) {
             card.setOnClickListener(v -> {
-                if (!CarState.isParked()) {
-                    Toast.makeText(getContext(), R.string.charge_cost_parked_only, Toast.LENGTH_SHORT).show();
-                    return;
-                }
                 for (com.geely.drivemem.state.ChargeSession.Summary s
                         : com.geely.drivemem.state.ChargeSession.readLog(getContext())) {
                     if (s.id == ch.chargeId) {

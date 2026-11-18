@@ -540,7 +540,6 @@
     <string name="routes_hint">บันทึกว่าแต่ละทริปไปที่ไหน และชาร์จที่ไหน ข้อมูลอยู่ในรถเท่านั้น ไม่มีการส่งไปที่ใด และรวมอยู่ในข้อมูลสำรองของคุณ ทริปก่อนเปิดตัวเลือกนี้จะไม่มีเส้นทาง</string>
     <string name="route_title">เส้นทาง</string>
     <string name="route_none">ทริปนี้ไม่มีเส้นทาง ระบบจะบันทึกเส้นทางเฉพาะทริปที่ขับขณะเปิด Config → ระบบ → เส้นทางการเดินทาง</string>
-    <string name="route_parked_only">เปิดเส้นทางได้เมื่อรถอยู่ในเกียร์ P</string>
     <string name="routes_all_title">เส้นทางทั้งหมด</string>
     <string name="routes_all_count">%1$d ทริป</string>
     <string name="routes_all_show">ดูทั้งหมด</string>
