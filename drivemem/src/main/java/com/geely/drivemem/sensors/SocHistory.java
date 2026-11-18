@@ -14,14 +14,10 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Battery state of charge over time, for the charge page's SoC chart: how
- * often the pack goes low. Two shapes, because the raw samples are only kept
- * for ~90 days (TelemetryRollup prunes them) while daily_stat is kept for good:
- *
- *  - trace(): the real curve for a short window (30 days), one min/max/avg
- *    per bucket, read straight from telemetry_sample;
- *  - dailyRanges(): one min..max per calendar day for a long window (a year),
- *    from daily_stat, with the days not frozen yet read from the samples.
+ * How low the battery went, per calendar day, for the charge page's "Bateria
+ * baixa" card: one min..max per day from daily_stat (kept for good), with the
+ * days not frozen yet read from telemetry_sample. Daily lows count every dip,
+ * drives included, which the per-charge bars (SoC at plug-in) cannot.
  *
  * The counting (days below a floor, the lowest point) is pure and tested.
  */
@@ -29,7 +25,7 @@ public final class SocHistory {
 
     private SocHistory() {}
 
-    /** The line on the chart. LFP has no hard floor: 20 % is the usual
+    /** The line on the per-charge bars. LFP has no hard floor: 20 % is the usual
      * daily-use comfort line, but going under it now and then does no harm;
      * what does is sitting near empty. 10 % marks that (owner, 2026-11-18). */
     public static final int LOW_PCT = 10;
@@ -37,38 +33,12 @@ public final class SocHistory {
     /** A plausible battery_pct: 0 and above-100 rows are sensor noise. */
     private static final String VALID = "battery_pct BETWEEN 1 AND 100";
 
-    public static final class Bucket {
-        public final long startMs;
-        public final int min, max;
-        public final double avg;
-        public Bucket(long startMs, int min, int max, double avg) {
-            this.startMs = startMs; this.min = min; this.max = max; this.avg = avg;
-        }
-    }
-
     public static final class DayRange {
         public final LocalDate date;
         public final int min, max;
         public DayRange(LocalDate date, int min, int max) {
             this.date = date; this.min = min; this.max = max;
         }
-    }
-
-    /** One bucket per `bucketMs` that has samples, oldest first. */
-    public static List<Bucket> trace(Context ctx, long fromMs, long toMs, long bucketMs) {
-        SQLiteDatabase db = CarDb.get(ctx).db();
-        List<Bucket> out = new ArrayList<>();
-        Cursor c = db.rawQuery(
-            "SELECT ts_ms / ? AS b, MIN(battery_pct), MAX(battery_pct), AVG(battery_pct) "
-          + "FROM telemetry_sample WHERE ts_ms >= ? AND ts_ms < ? AND " + VALID + " "
-          + "GROUP BY b ORDER BY b",
-            new String[]{String.valueOf(bucketMs), String.valueOf(fromMs), String.valueOf(toMs)});
-        try {
-            while (c.moveToNext()) {
-                out.add(new Bucket(c.getLong(0) * bucketMs, c.getInt(1), c.getInt(2), c.getDouble(3)));
-            }
-        } finally { c.close(); }
-        return out;
     }
 
     /** One min..max per calendar day from `from` to today, oldest first; a

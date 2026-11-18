@@ -392,7 +392,7 @@
     <string name="cam_orbit">หมุนรอบคัน</string>
     <!-- charging history -->
     <string name="charge_sessions_title">ประวัติการชาร์จ · ล่าสุดก่อน</string>
-    <string name="charge_soc_chart_title">ระดับแบตเตอรี่ · ตามลำดับเวลา</string>
+    <string name="charge_soc_chart_title">ช่วงแบตเตอรี่ · ล่าสุดก่อน</string>
     <string name="charge_ltm_title">12 เดือนล่าสุด</string>
     <string name="charge_period_30d">30 วันล่าสุด</string>
     <string name="charge_ltm_count_label">ครั้ง</string>
@@ -674,10 +674,32 @@
     <string name="phone_routes_day">ทั้งวัน</string>
     <string name="phone_routes_trip">การเดินทางนี้</string>
     <string name="phone_msg_no_route">ยังไม่มีการเดินทางที่บันทึกเส้นทาง</string>
-    <string name="soc_history_title">แบตเตอรี่ตามเวลา</string>
-    <string name="soc_history_none">ไม่มีวันที่ต่ำกว่า %1$d%% · ต่ำสุด %2$d%% วันที่ %3$s</string>
     <string name="soc_history_empty">ไม่มีข้อมูลแบตเตอรี่ในช่วงนี้</string>
-    <plurals name="soc_history_below">
-        <item quantity="other">%1$d วันที่ต่ำกว่า %2$d%% · ต่ำสุด %3$d%% วันที่ %4$s</item>
-    </plurals>
+    <string name="charge_card_charges">การชาร์จ</string>
+    <string name="charge_card_energy_cap">ชาร์จแล้ว %1$s kWh</string>
+    <string name="charge_card_power_note">กำลังเฉลี่ย: %1$s</string>
+    <string name="charge_card_cost">ค่าใช้จ่าย</string>
+    <string name="charge_card_cost_cap">%1$s / 100 กม. · %2$s / kWh</string>
+    <string name="charge_card_per_kwh">%1$s ต่อ kWh</string>
+    <string name="charge_card_cost_total">รวม %1$s</string>
+    <string name="charge_card_cost_share">%1$s · %2$d%% ของค่าใช้จ่าย</string>
+    <string name="charge_card_no_dc">ไม่มีการชาร์จ DC</string>
+    <string name="charge_card_no_cost">ยังไม่ได้ใส่ค่าใช้จ่าย</string>
+    <string name="charge_card_low">แบตเตอรี่ต่ำ</string>
+    <string name="charge_card_low_cap">ต่ำสุด · %1$s</string>
+    <string name="charge_card_below">วันที่ต่ำกว่า %1$d%%</string>
+    <string name="charge_card_plug_note">โดยเฉลี่ยคุณเสียบชาร์จที่ %1$d%%</string>
+    <string name="charge_card_full" formatted="false">ชาร์จถึง 100%</string>
+    <string name="charge_card_today">วันนี้</string>
+    <string name="charge_card_yesterday">เมื่อวาน</string>
+    <string name="charge_card_days_ago">%1$d วันที่แล้ว</string>
+    <string name="charge_card_never">ไม่เคย</string>
+    <string name="charge_card_full_cap">ครั้งล่าสุด · %1$s</string>
+    <string name="charge_card_full_count" formatted="false">ชาร์จถึง 100%</string>
+    <string name="charge_card_full_of">%1$d จาก %2$d</string>
+    <string name="charge_card_gap">ช่วงห่างนานที่สุด</string>
+    <string name="charge_card_gap_days">%1$d วัน</string>
+    <string name="charge_card_gap_open">%1$s → วันนี้</string>
+    <string name="charge_card_full_note" formatted="false">LFP: ชาร์จถึง 100% สัปดาห์ละครั้งช่วยให้ % แม่นยำ</string>
+    <string name="charge_range_label">%1$s – %2$s · %3$s กม.</string>
 </resources>

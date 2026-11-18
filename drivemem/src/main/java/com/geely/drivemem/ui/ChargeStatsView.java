@@ -14,7 +14,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.geely.drivemem.R;
+import com.geely.drivemem.car.CarDb;
 import com.geely.drivemem.car.EntityBus;
+import com.geely.drivemem.sensors.ChargePeriodSummary;
+import com.geely.drivemem.sensors.SocHistory;
 import com.geely.drivemem.sensors.DailyStatsProvider;
 import com.geely.drivemem.sensors.OdoStats;
 import com.geely.drivemem.state.ChargeSession;
@@ -37,7 +40,9 @@ public class ChargeStatsView extends LinearLayout {
 
     private LinearLayout headerContainer;
     private LinearLayout kpiContainer;
-    private SocHistoryChart socHistoryChart;
+    private TextView rangeLabel;
+    private TextView btn30, btn365;
+    private final java.util.Set<Long> placedIds = new java.util.HashSet<>();
     private LinearLayout listContainer;
     private ScrollView sessionListScroll;
     private ChargeSocChart chargeSocChart;
@@ -81,7 +86,8 @@ public class ChargeStatsView extends LinearLayout {
     private void buildSkeleton() {
         Context c = getContext();
 
-        // 1. Header row
+        // 1. Header row: the period, what it covers, and export. No page
+        // title, same as the stats page (owner's mock, 2026-11-18).
         headerContainer = new LinearLayout(c);
         headerContainer.setOrientation(LinearLayout.HORIZONTAL);
         headerContainer.setGravity(Gravity.CENTER_VERTICAL);
@@ -89,7 +95,25 @@ public class ChargeStatsView extends LinearLayout {
             headerContainer.addView(Style.backButton(c, onBack));
             Style.gap(headerContainer, c, 16);
         }
-        headerContainer.addView(Style.header(c, c.getString(R.string.charge_stats_title)));
+        btn30 = periodButton(30, c.getString(R.string.charge_period_30d));
+        btn365 = periodButton(365, c.getString(R.string.charge_ltm_title));
+        headerContainer.addView(btn30);
+        Style.gap(headerContainer, c, 12);
+        headerContainer.addView(btn365);
+        rangeLabel = new TextView(c);
+        rangeLabel.setTextColor(Style.TEXT_DIM);
+        rangeLabel.setTextSize(17);
+        rangeLabel.setPadding(Style.dp(c, 24), 0, Style.dp(c, 12), 0);
+        headerContainer.addView(rangeLabel, new LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView exportBtn = Style.cardButton(c, c.getString(R.string.charge_export), false, () ->
+            CsvExport.exportToUsb(c, (ok, drive, copied) -> post(() -> {
+                String msg = drive == null ? c.getString(R.string.charge_export_no_drive)
+                           : !ok || copied == 0 ? c.getString(R.string.charge_export_nothing)
+                           : c.getString(R.string.charge_export_ok, copied);
+                Toast.makeText(c, msg, Toast.LENGTH_LONG).show();
+            })));
+        headerContainer.addView(exportBtn);
         addView(headerContainer);
 
         // 2. KPI Summary Container
@@ -159,29 +183,16 @@ public class ChargeStatsView extends LinearLayout {
         chartCard.addView(chartHeading);
         chargeSocChart = new ChargeSocChart(c);
         chargeSocChart.setListener(id -> selectSession(id, true));
-        // WRAP_CONTENT, not a shared weighted fill: ChargeSocChart already
-        // computes its own ideal height from its session count (see its
-        // setMinimumHeight call), so this card is exactly as tall as its own
-        // bars need, independent of the list card beside it.
+        // A fixed height, the same as the list beside it: the bars scroll
+        // inside the card. Sized to its bars, a year (18 charges) made the
+        // card grow off the screen (2026-11-18).
         chartCard.addView(chargeSocChart, new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 340)));
 
-        // The battery-over-time chart sits ABOVE the per-charge SoC bars, in
-        // the same column: both are about the battery's range, and the bars
-        // grow with the charge count (18 in a year), which pushed a chart
-        // below them off the screen (owner's pick, 2026-11-18). It replaced
-        // the Energy Balance bars (owner, 2026-11-18), which did not answer
-        // anything at a glance; this one answers "how often do I go low".
         LinearLayout rightColumn = new LinearLayout(c);
         rightColumn.setOrientation(LinearLayout.VERTICAL);
-        socHistoryChart = new SocHistoryChart(c);
-        rightColumn.addView(socHistoryChart, new LinearLayout.LayoutParams(
+        rightColumn.addView(chartCard, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        LinearLayout.LayoutParams barsLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        barsLp.topMargin = Style.dp(c, 12);
-        rightColumn.addView(chartCard, barsLp);
 
         overview.addView(rightColumn, new LinearLayout.LayoutParams(0,
             ViewGroup.LayoutParams.WRAP_CONTENT, 54f));
@@ -192,94 +203,40 @@ public class ChargeStatsView extends LinearLayout {
         Context c = getContext();
         List<ChargeSession.Summary> allSessions = ChargeSession.readLog(c);
 
-        long cutoff = System.currentTimeMillis() - periodDays * 24L * 3600 * 1000;
-        int count = 0;
-        double totalKwh = 0;
-        double totalCost = 0;
-        int costSessionCount = 0;
-
-        for (ChargeSession.Summary s : allSessions) {
-            if (s.startWallMs < cutoff) continue;
-            count++;
-            totalKwh += s.kwh;
-            if (s.cost != null && s.cost >= 0) {
-                totalCost += s.cost;
-                costSessionCount++;
-            }
-        }
+        long now = System.currentTimeMillis();
+        long cutoff = now - periodDays * 24L * 3600 * 1000;
         double kmDriven = OdoStats.kmSince(c, periodDays);
+        java.time.LocalDate today = java.time.LocalDate.parse(DailyStatsProvider.todayDateStr());
+        java.time.LocalDate from = java.time.Instant.ofEpochMilli(cutoff)
+            .atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+        List<SocHistory.DayRange> days = SocHistory.dailyRanges(c, from, today);
+        ChargePeriodSummary sum = ChargePeriodSummary.of(allSessions, cutoff, now, days);
 
-        // Rebuild KPI row: a standalone metrics card (three columns, two rows,
-        // same as before) beside a narrow controls column (period toggle +
-        // export) -- 2026-09-13, replacing the previous stack of controls
-        // above metrics. The metrics are the primary content here; the
-        // period/export controls are secondary, so they get a slim side
-        // column (~1/8 of the row) instead of a full-width band of their own.
+        btn30.setBackground(Style.card(periodDays == 30 ? Style.CARD_ON : Style.CARD, c));
+        btn30.setTextColor(Style.onFill(periodDays == 30 ? Style.CARD_ON : Style.CARD));
+        btn365.setBackground(Style.card(periodDays == 365 ? Style.CARD_ON : Style.CARD, c));
+        btn365.setTextColor(Style.onFill(periodDays == 365 ? Style.CARD_ON : Style.CARD));
+        rangeLabel.setText(c.getString(R.string.charge_range_label,
+            shortDate(cutoff), shortDate(now), String.format(Locale.getDefault(), "%,.0f", kmDriven)));
+
+        // Four data cards (owner's mock, 2026-11-18): charges, cost, how low
+        // the battery went, and the last charge to 100 %. They replaced the
+        // single metrics card and the Energy Balance chart.
         kpiContainer.removeAllViews();
-        LinearLayout topRowSection = new LinearLayout(c);
-        topRowSection.setOrientation(LinearLayout.HORIZONTAL);
-        topRowSection.setBaselineAligned(false);
+        LinearLayout cards = new LinearLayout(c);
+        cards.setOrientation(LinearLayout.HORIZONTAL);
+        cards.setBaselineAligned(false);
+        cards.addView(chargesCard(sum), cardLp(false));
+        cards.addView(costCard(sum, kmDriven), cardLp(false));
+        cards.addView(lowCard(sum), cardLp(false));
+        cards.addView(fullCard(sum, now), cardLp(true));
+        kpiContainer.addView(cards);
 
-        LinearLayout statsCard = new LinearLayout(c);
-        statsCard.setOrientation(LinearLayout.VERTICAL);
-        int pad = Style.dp(c, 20);
-        statsCard.setPadding(pad, pad, pad, pad);
-        statsCard.setBackground(Style.card(Style.CARD, c));
-
-        // Metric row 1: Count, Energy, Cost
-        LinearLayout statsRow1 = new LinearLayout(c);
-        statsRow1.setOrientation(LinearLayout.HORIZONTAL);
-        statsRow1.addView(statTile(String.valueOf(count), c.getString(R.string.charge_ltm_count_label), Style.TEXT));
-        // Unit style guide (2026-09-13): the unit renders smaller/dimmer than
-        // its value everywhere -- Style.valueWithUnit, not a plain concatenated string.
-        statsRow1.addView(statTile(Style.valueWithUnit(String.format(Locale.US, "%.1f", totalKwh),
-            Style.COOL, "kWh", Style.UNIT_SCALE_HERO), "Energia", Style.COOL));
-        String costStr = costSessionCount > 0 ? String.format(Locale.getDefault(), "R$ %.2f", totalCost) : "—";
-        statsRow1.addView(statTile(costStr, c.getString(R.string.charge_stat_total_cost), Style.TEXT));
-        statsCard.addView(statsRow1);
-
-        // Metric row 2: Cost/kWh, Cost/100km, km driven
-        LinearLayout statsRow2 = new LinearLayout(c);
-        statsRow2.setOrientation(LinearLayout.HORIZONTAL);
-        statsRow2.setPadding(0, Style.dp(c, 12), 0, 0);
-
-        String costPerKwhStr = (costSessionCount > 0 && totalKwh > 0)
-            ? String.format(Locale.getDefault(), "R$ %.2f", totalCost / totalKwh) : "—";
-        statsRow2.addView(statTile(costPerKwhStr, c.getString(R.string.charge_stat_avg_cost_kwh), Style.TEXT));
-
-        String costPer100kmStr = (costSessionCount > 0 && kmDriven > 0)
-            ? String.format(Locale.getDefault(), "R$ %.2f", (totalCost / kmDriven) * 100) : "—";
-        statsRow2.addView(statTile(costPer100kmStr, c.getString(R.string.charge_stat_cost_100km), Style.TEXT));
-        statsRow2.addView(statTile(Style.valueWithUnit(String.format(Locale.US, "%.0f", kmDriven),
-            Style.TEXT_DIM, "km", Style.UNIT_SCALE_HERO), "Distância", Style.TEXT_DIM));
-        statsCard.addView(statsRow2);
-
-        LinearLayout.LayoutParams statsCardLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 7f);
-        statsCardLp.rightMargin = Style.dp(c, 12);
-        topRowSection.addView(statsCard, statsCardLp);
-
-        LinearLayout controlsCol = new LinearLayout(c);
-        controlsCol.setOrientation(LinearLayout.VERTICAL);
-        controlsCol.addView(sideButton(30, c.getString(R.string.charge_period_30d)));
-        Style.gap(controlsCol, c, 10);
-        controlsCol.addView(sideButton(365, c.getString(R.string.charge_ltm_title)));
-        Style.gap(controlsCol, c, 10);
-        TextView exportBtn = Style.cardButton(c, c.getString(R.string.charge_export), false, () ->
-            CsvExport.exportToUsb(c, (ok, drive, copied) -> post(() -> {
-                String msg = drive == null ? c.getString(R.string.charge_export_no_drive)
-                           : !ok || copied == 0 ? c.getString(R.string.charge_export_nothing)
-                           : c.getString(R.string.charge_export_ok, copied);
-                Toast.makeText(c, msg, Toast.LENGTH_LONG).show();
-            })));
-        exportBtn.setLayoutParams(new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        controlsCol.addView(exportBtn);
-        topRowSection.addView(controlsCol, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-        kpiContainer.addView(topRowSection);
-
-        // Follows the period toggle: 30 days = the curve, 12 months = a bar per day.
-        socHistoryChart.show(periodDays);
+        placedIds.clear();
+        try (android.database.Cursor pc = CarDb.get(c).db().rawQuery(
+                "SELECT id FROM charge_session WHERE lat IS NOT NULL AND lon IS NOT NULL", null)) {
+            while (pc.moveToNext()) placedIds.add(pc.getLong(0));
+        } catch (Exception ignored) { }
 
         // Rebuild session navigator and chart in the same order (newest
         // first) -- they used to disagree (list newest-first, chart
@@ -314,41 +271,216 @@ public class ChargeStatsView extends LinearLayout {
         chargeSocChart.select(selectedSessionId, true);
     }
 
-    /** A period-toggle button sized for the narrow controls column -- full
-     * width, stacked vertically with its sibling, rather than splitting a
-     * row's width with it (2026-09-13). */
-    private View sideButton(int days, String label) {
-        boolean sel = periodDays == days;
-        TextView b = Style.cardButton(getContext(), label, sel, () -> {
+    /** A period pill in the header row; refresh() paints the selected one. */
+    private TextView periodButton(int days, String label) {
+        return Style.cardButton(getContext(), label, periodDays == days, () -> {
             periodDays = days;
             refresh();
         });
-        b.setLayoutParams(new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        return b;
     }
 
-    private LinearLayout statTile(CharSequence value, String label, int color) {
-        LinearLayout t = new LinearLayout(getContext());
+    // ---- the four cards ----
+
+    private LinearLayout.LayoutParams cardLp(boolean last) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+        if (!last) lp.rightMargin = Style.dp(getContext(), 13);
+        return lp;
+    }
+
+    private static String money(double v) {
+        return String.format(Locale.getDefault(), "R$ %,.2f", v);
+    }
+
+    private static String shortDate(long ms) {
+        return new SimpleDateFormat("d/M", Locale.getDefault()).format(new java.util.Date(ms));
+    }
+
+    private static String kwh(double v) {
+        return String.format(Locale.getDefault(), v >= 100 ? "%,.0f" : "%.1f", v);
+    }
+
+    /** Title, a big number, a caption, two tiles side by side, an optional
+     * note at the bottom: the stats page's card shape. */
+    private LinearLayout dataCard(String title, CharSequence hero, int heroColor, String caption,
+                                  View left, View right, String note) {
+        Context c = getContext();
+        LinearLayout card = new LinearLayout(c);
+        card.setOrientation(LinearLayout.VERTICAL);
+        int pad = Style.dp(c, 16);
+        card.setPadding(pad, pad, pad, pad);
+        card.setBackground(Style.card(Style.cardFillColor(), c));
+
+        TextView t = new TextView(c);
+        t.setText(title);
+        t.setTextColor(Style.TEXT);
+        t.setTextSize(16);
+        t.setTypeface(null, Typeface.BOLD);
+        card.addView(t);
+
+        TextView h = new TextView(c);
+        h.setText(hero);
+        h.setTextColor(heroColor);
+        h.setTextSize(36);
+        h.setTypeface(null, Typeface.BOLD);
+        LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        hlp.topMargin = Style.dp(c, 8);
+        card.addView(h, hlp);
+
+        TextView cap = new TextView(c);
+        cap.setText(caption);
+        cap.setTextColor(Style.TEXT_DIM);
+        cap.setTextSize(14);
+        card.addView(cap);
+
+        LinearLayout tiles = new LinearLayout(c);
+        tiles.setOrientation(LinearLayout.HORIZONTAL);
+        tiles.setBaselineAligned(false);
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+        tlp.rightMargin = Style.dp(c, 10);
+        tiles.addView(left, tlp);
+        tiles.addView(right, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        LinearLayout.LayoutParams tilesLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tilesLp.topMargin = Style.dp(c, 14);
+        card.addView(tiles, tilesLp);
+
+        if (note != null) {
+            View spacer = new View(c);
+            card.addView(spacer, new LinearLayout.LayoutParams(0, 0, 1f));
+            TextView n = new TextView(c);
+            n.setText(note);
+            n.setTextColor(Style.TEXT_DIM);
+            n.setTextSize(13);
+            LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            nlp.topMargin = Style.dp(c, 12);
+            card.addView(n, nlp);
+        }
+        return card;
+    }
+
+    private View tile(String label, CharSequence value, int valueColor, String sub) {
+        Context c = getContext();
+        LinearLayout t = new LinearLayout(c);
         t.setOrientation(LinearLayout.VERTICAL);
-        t.setGravity(Gravity.CENTER_HORIZONTAL);
-        t.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-        TextView v = new TextView(getContext());
-        v.setText(value);
-        v.setTextColor(color);
-        v.setTextSize(26);
-        v.setTypeface(null, Typeface.BOLD);
-        v.setGravity(Gravity.CENTER_HORIZONTAL);
-        t.addView(v);
-
-        TextView l = new TextView(getContext());
+        int p = Style.dp(c, 12);
+        t.setPadding(p, Style.dp(c, 8), p, Style.dp(c, 8));
+        t.setBackground(Style.tile(c));
+        TextView l = new TextView(c);
         l.setText(label);
         l.setTextColor(Style.TEXT_DIM);
         l.setTextSize(13);
-        l.setGravity(Gravity.CENTER_HORIZONTAL);
         t.addView(l);
+        TextView v = new TextView(c);
+        v.setText(value);
+        v.setTextColor(valueColor);
+        v.setTextSize(19);
+        v.setTypeface(null, Typeface.BOLD);
+        t.addView(v);
+        if (sub != null) {
+            TextView s = new TextView(c);
+            s.setText(sub);
+            s.setTextColor(Style.TEXT_DIM);
+            s.setTextSize(12);
+            t.addView(s);
+        }
         return t;
+    }
+
+    private View chargesCard(ChargePeriodSummary m) {
+        Context c = getContext();
+        String note = null;
+        if (m.acCount > 0 && m.dcCount > 0) {
+            note = c.getString(R.string.charge_card_power_note, String.format(Locale.getDefault(),
+                "AC %.1f kW · DC %.0f kW", m.acPowerW / 1000, m.dcPowerW / 1000));
+        } else if (m.count > 0) {
+            note = c.getString(R.string.charge_card_power_note, String.format(Locale.getDefault(),
+                "%s %.1f kW", m.dcCount > 0 ? "DC" : "AC", (m.dcCount > 0 ? m.dcPowerW : m.acPowerW) / 1000));
+        }
+        return dataCard(c.getString(R.string.charge_card_charges), String.valueOf(m.count), Style.TEXT,
+            c.getString(R.string.charge_card_energy_cap, kwh(m.totalKwh())),
+            tile("AC", m.acCount + " · " + kwh(m.acKwh) + " kWh", Style.ACCENT, null),
+            tile("DC", m.dcCount == 0 ? "0" : m.dcCount + " · " + kwh(m.dcKwh) + " kWh", Style.GOOD, null),
+            note);
+    }
+
+    private View costCard(ChargePeriodSummary m, double km) {
+        Context c = getContext();
+        if (!m.anyCost) {
+            return dataCard(c.getString(R.string.charge_card_cost), "—", Style.TEXT,
+                c.getString(R.string.charge_card_no_cost),
+                tile(c.getString(R.string.charge_card_per_kwh, "AC"), "—", Style.TEXT, null),
+                tile(c.getString(R.string.charge_card_per_kwh, "DC"), "—", Style.TEXT, null), null);
+        }
+        String per100 = km > 0 ? money(m.totalCost() / km * 100) : "—";
+        String cap = c.getString(R.string.charge_card_cost_cap, per100, money(m.perKwh()));
+        double ac = m.acPerKwh(), dc = m.dcPerKwh();
+        View acTile = tile(c.getString(R.string.charge_card_per_kwh, "AC"), ac >= 0 ? money(ac) : "—", Style.TEXT,
+            ac >= 0 ? c.getString(R.string.charge_card_cost_total, money(m.acCost)) : null);
+        // DC in the danger colour when it costs well over AC: that gap is
+        // the one fact on this card worth acting on.
+        int dcColor = dc >= 0 && ac > 0 && dc > 2 * ac ? Style.DANGER : Style.TEXT;
+        View dcTile = tile(c.getString(R.string.charge_card_per_kwh, "DC"), dc >= 0 ? money(dc) : "—", dcColor,
+            dc >= 0 ? c.getString(R.string.charge_card_cost_share, money(m.dcCost),
+                          (int) Math.round(m.dcCostShare() * 100))
+                    : c.getString(R.string.charge_card_no_dc));
+        return dataCard(c.getString(R.string.charge_card_cost), money(m.totalCost()), Style.TEXT, cap,
+            acTile, dcTile, null);
+    }
+
+    private View lowCard(ChargePeriodSummary m) {
+        Context c = getContext();
+        CharSequence hero = m.lowest == null ? "—"
+            : Style.valueWithUnit(String.valueOf(m.lowest.min), m.lowest.min < 10 ? Style.DANGER : Style.TEXT,
+                "%", Style.UNIT_SCALE_HERO);
+        String cap = m.lowest == null ? c.getString(R.string.soc_history_empty)
+            : c.getString(R.string.charge_card_low_cap,
+                m.lowest.date.format(java.time.format.DateTimeFormatter.ofPattern("d/M")));
+        String note = m.avgPlugPct >= 0
+            ? c.getString(R.string.charge_card_plug_note, (int) Math.round(m.avgPlugPct)) : null;
+        return dataCard(c.getString(R.string.charge_card_low), hero, Style.TEXT, cap,
+            tile(c.getString(R.string.charge_card_below, 10), String.valueOf(m.daysBelow10),
+                m.daysBelow10 == 0 ? Style.GOOD : Style.DANGER, null),
+            tile(c.getString(R.string.charge_card_below, 20), String.valueOf(m.daysBelow20),
+                m.daysBelow20 == 0 ? Style.GOOD : Style.TEXT, null),
+            note);
+    }
+
+    private View fullCard(ChargePeriodSummary m, long now) {
+        Context c = getContext();
+        String hero, cap;
+        if (m.lastFullMs < 0) {
+            hero = c.getString(R.string.charge_card_never);
+            cap = "";
+        } else {
+            long d = java.time.temporal.ChronoUnit.DAYS.between(
+                java.time.Instant.ofEpochMilli(m.lastFullMs).atZone(java.time.ZoneId.systemDefault()).toLocalDate(),
+                java.time.LocalDate.now());
+            hero = d <= 0 ? c.getString(R.string.charge_card_today)
+                 : d == 1 ? c.getString(R.string.charge_card_yesterday)
+                 : c.getString(R.string.charge_card_days_ago, (int) d);
+            cap = c.getString(R.string.charge_card_full_cap, shortDate(m.lastFullMs));
+        }
+        View gap;
+        if (m.longestGapFromMs < 0) {
+            gap = tile(c.getString(R.string.charge_card_gap), "—", Style.TEXT, null);
+        } else {
+            long to = m.longestGapToMs < 0 ? now : m.longestGapToMs;
+            int days = (int) ((to - m.longestGapFromMs) / (24L * 3600 * 1000));
+            String span = m.longestGapToMs < 0
+                ? c.getString(R.string.charge_card_gap_open, shortDate(m.longestGapFromMs))
+                : shortDate(m.longestGapFromMs) + " → " + shortDate(m.longestGapToMs);
+            // LFP wants a full charge about weekly; past that, amber.
+            gap = tile(c.getString(R.string.charge_card_gap), c.getString(R.string.charge_card_gap_days, days),
+                days > 7 ? Style.WARN : Style.TEXT, span);
+        }
+        return dataCard(c.getString(R.string.charge_card_full), hero, Style.TEXT, cap,
+            tile(c.getString(R.string.charge_card_full_count),
+                c.getString(R.string.charge_card_full_of, m.fullInPeriod, m.count), Style.TEXT, null),
+            gap, c.getString(R.string.charge_card_full_note));
     }
 
     private View chargeRow(ChargeSession.Summary s) {
@@ -502,6 +634,28 @@ public class ChargeStatsView extends LinearLayout {
             ChargeCurrentCurveDialog.show(c, s, this::refresh);
         });
         powerCell.addView(curveBtn);
+        // Where it charged: only charges that saved their place (from
+        // 2026-11-16 on). Opens the routes map on that day, where the charge
+        // is drawn as its icon (ChargeSpots).
+        if (placedIds.contains(s.id)) {
+            ImageView mapBtn = new ImageView(c);
+            mapBtn.setImageResource(R.drawable.ic_map);
+            mapBtn.setColorFilter(Style.TEXT_DIM, android.graphics.PorterDuff.Mode.SRC_IN);
+            mapBtn.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+            mapBtn.setPadding(curvePad, curvePad, curvePad, curvePad);
+            mapBtn.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(c, 44), Style.dp(c, 44)));
+            mapBtn.setOnClickListener(v -> {
+                if (!com.geely.drivemem.state.CarState.isParked()) {
+                    Toast.makeText(c, R.string.route_parked_only, Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                android.content.Intent i = new android.content.Intent(c, AllRoutesActivity.class);
+                i.putExtra(AllRoutesActivity.EXTRA_DAY,
+                    new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new java.util.Date(s.startWallMs)));
+                c.startActivity(i);
+            });
+            powerCell.addView(mapBtn);
+        }
         bottomRow.addView(powerCell);
 
         // Bottom-right: Cost, anchored to that corner. Total and its per-kWh
