@@ -20,6 +20,10 @@ import com.geely.drivemem.controls.GeelySwitch;
 import com.geely.drivemem.controls.AvasState;
 import com.geely.drivemem.controls.HelperSync;
 import com.geely.drivemem.controls.TurboMode;
+import com.geely.drivemem.hvac.ComfortHub;
+import com.geely.drivemem.hvac.ComfortLearn;
+import com.geely.drivemem.hvac.ComfortRuler;
+import com.geely.drivemem.hvac.EffortTable;
 import com.geely.drivemem.util.Modes;
 import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.Style;
@@ -52,6 +56,7 @@ public final class TelemetryDriveSection extends LinearLayout {
     private final EditText fTurbo;
     private final GeelySwitch avasSwitch;
     private final GeelySwitch aebSwitch;
+    private final TextView learned;
 
     // Drive/Regen mode cards, indexed by mode value (e.g., Modes.DRIVE_ECO).
     private final Map<Integer, LinearLayout> driveCards = new HashMap<>();
@@ -271,6 +276,43 @@ public final class TelemetryDriveSection extends LinearLayout {
         addRestoreRow(advanced, pageWidth, R.string.cfg_aeb_label, Prefs.RESTORE_AEB);
         addRestoreRow(advanced, pageWidth, R.string.cfg_avas_label, Prefs.RESTORE_AVAS);
 
+        // ---- Climate ruler learn mode (hvac.ComfortLearn) ----
+        left.addView(Style.header(activity, activity.getString(R.string.cfg_learn_header)));
+        TextView learnHint = new TextView(activity);
+        learnHint.setText(activity.getString(R.string.cfg_learn_hint));
+        learnHint.setTextColor(Style.TEXT_DIM);
+        learnHint.setTextSize(14);
+        learnHint.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
+        left.addView(learnHint);
+        LinearLayout learnRow = Style.toggleRow(activity, activity.getString(R.string.cfg_learn_toggle),
+            Prefs.getComfortLearn(activity), on -> {
+                Prefs.setComfortLearn(activity, on);
+                reloadRuler();
+            });
+        learnRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
+        left.addView(learnRow);
+        learned = new TextView(activity);
+        learned.setTextColor(Style.TEXT);
+        learned.setTextSize(16);
+        learned.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
+        left.addView(learned);
+        showLearned();
+        LinearLayout learnActions = new LinearLayout(activity);
+        learnActions.setOrientation(LinearLayout.HORIZONTAL);
+        learnActions.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
+        learnActions.addView(Style.action(activity, activity.getString(R.string.cfg_learn_reset), Style.ACCENT, () ->
+            new android.app.AlertDialog.Builder(activity)
+                .setTitle(activity.getString(R.string.cfg_learn_reset_title))
+                .setMessage(activity.getString(R.string.cfg_learn_reset_body))
+                .setPositiveButton(activity.getString(R.string.cfg_learn_reset_ok), (d, w) -> {
+                    Prefs.setComfortBook(activity, "");
+                    reloadRuler();
+                    showLearned();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()));
+        left.addView(learnActions);
+
         left.addView(Style.header(activity, activity.getString(R.string.cfg_actions_header)));
         LinearLayout actionRow = new LinearLayout(activity);
         actionRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -289,6 +331,63 @@ public final class TelemetryDriveSection extends LinearLayout {
 
         highlight();
         refresh();
+    }
+
+    private void reloadRuler() {
+        ComfortRuler r = ComfortHub.peek();
+        if (r != null) r.reloadLearned();
+    }
+
+    /** Lists what the ruler learned, one line per column and weather band. */
+    private void showLearned() {
+        ComfortLearn.Book book = ComfortLearn.Book.decode(Prefs.getComfortBook(activity));
+        StringBuilder b = new StringBuilder();
+        for (Map.Entry<String, ComfortLearn.Patch> e : book.learned().entrySet()) {
+            int[] k = ComfortLearn.parseKey(e.getKey());
+            if (k == null) continue;
+            ComfortLearn.Patch p = e.getValue();
+            StringBuilder what = new StringBuilder();
+            if (p.fan != null) what.append(activity.getString(R.string.cfg_learn_fan, p.fan));
+            if (p.sp != null) sep(what).append(activity.getString(R.string.cfg_learn_sp,
+                p.sp % 1f == 0f ? String.valueOf(p.sp.intValue()) : String.valueOf(p.sp)));
+            if (p.dir != null) sep(what).append(dirName(p.dir));
+            if (p.rec != null) sep(what).append(activity.getString(
+                p.rec ? R.string.cfg_learn_rec_on : R.string.cfg_learn_rec_off));
+            String level = activity.getString(R.string.ruler_level,
+                activity.getString(k[0] > 0 ? R.string.ruler_src_cold : R.string.ruler_src_hot), Math.abs(k[0]));
+            if (b.length() > 0) b.append('\n');
+            b.append(activity.getString(R.string.cfg_learn_item, level, band(k[0], k[1]), what));
+        }
+        if (b.length() == 0) b.append(activity.getString(R.string.cfg_learn_none));
+        java.text.DateFormat df = java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM);
+        if (book.lastChangeMs() > 0) {
+            b.append('\n').append(activity.getString(R.string.cfg_learn_last, df.format(new java.util.Date(book.lastChangeMs()))));
+        }
+        if (book.nextDecisionMs() > 0) {
+            b.append('\n').append(activity.getString(R.string.cfg_learn_week, book.holdCount(),
+                df.format(new java.util.Date(book.nextDecisionMs()))));
+        }
+        learned.setText(b.toString());
+    }
+
+    private static StringBuilder sep(StringBuilder b) { return b.length() > 0 ? b.append(", ") : b; }
+
+    private String band(int level, int free) {
+        float[] r = ComfortLearn.band(level, free);
+        if (Float.isNaN(r[0])) return activity.getString(R.string.cfg_learn_band_below, (int) r[1]);
+        if (Float.isNaN(r[1])) return activity.getString(R.string.cfg_learn_band_above, (int) r[0]);
+        return activity.getString(R.string.cfg_learn_band, (int) r[0], (int) r[1]);
+    }
+
+    private String dirName(int dir) {
+        switch (dir) {
+            case EffortTable.DIR_FACE:       return activity.getString(R.string.cfg_learn_dir_face);
+            case EffortTable.DIR_FEET:       return activity.getString(R.string.cfg_learn_dir_feet);
+            case EffortTable.DIR_FACE_FEET:  return activity.getString(R.string.cfg_learn_dir_face_feet);
+            case EffortTable.DIR_GLASS:      return activity.getString(R.string.cfg_learn_dir_glass);
+            case EffortTable.DIR_GLASS_FEET: return activity.getString(R.string.cfg_learn_dir_glass_feet);
+            default:                         return String.valueOf(dir);
+        }
     }
 
     // Regen (Fraca/Média/Forte) has no real icon set -- these three dots are
