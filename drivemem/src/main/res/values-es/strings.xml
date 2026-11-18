@@ -481,8 +481,7 @@
     <!-- daily stats day navigator -->
     <string name="daily_stats_prev_day">Anterior</string>
     <string name="daily_stats_next_day">Siguiente</string>
-    <string name="stats_nav_charge_dc">Carga DC</string>
-    <string name="stats_nav_charge_ac">Carga AC</string>
+    <string name="stats_nav_charge">Carga</string>
 
     <!-- Backup and restore (AppBackup, BackupDialogs) -->
     <string name="backup_header">Copia de seguridad</string>
@@ -553,6 +552,7 @@
     <string name="stats_by_use_none">Aparece en los nuevos viajes medidos por CAN</string>
     <string name="stats_card_trip">Viaje</string>
     <string name="stats_driving_time">Tiempo conduciendo</string>
+    <string name="stats_distance">Distancia</string>
     <string name="stats_avg_speed">Vel. media</string>
     <string name="stats_relief">Relieve</string>
     <string name="stats_relief_net">neto</string>

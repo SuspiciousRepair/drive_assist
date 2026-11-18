@@ -246,14 +246,14 @@ public class CalendarNavigatorView extends View {
      * owner 2026-11-18). */
     private void drawChargeDot(Canvas cv, float cx, float cy, float dr, boolean dc) {
         int col = dc ? Style.GOOD : chargeAcColor();
-        float gr = dr * 2.8f, edge = dr / gr;
+        float gr = dr * 1.9f, edge = dr / gr;
         int card = Style.cardFillColor() & 0x00FFFFFF, rgb = col & 0x00FFFFFF;
         glow.setShader(new android.graphics.RadialGradient(cx, cy, gr,
-            new int[]{card | 0xE6000000, card | 0xE6000000, card | 0x70000000, card},
+            new int[]{card | 0x99000000, card | 0x99000000, card | 0x33000000, card},
             new float[]{0f, edge, 0.6f, 1f}, android.graphics.Shader.TileMode.CLAMP));
         cv.drawCircle(cx, cy, gr, glow);
         glow.setShader(new android.graphics.RadialGradient(cx, cy, gr,
-            new int[]{rgb | 0x66000000, rgb | 0x66000000, rgb | 0x1A000000, rgb},
+            new int[]{rgb | 0x40000000, rgb | 0x40000000, rgb | 0x10000000, rgb},
             new float[]{0f, edge, 0.6f, 1f}, android.graphics.Shader.TileMode.CLAMP));
         cv.drawCircle(cx, cy, gr, glow);
         fill.setColor(col);
@@ -291,49 +291,45 @@ public class CalendarNavigatorView extends View {
         stroke.setStrokeCap(Paint.Cap.BUTT);
     }
 
-    /** Each level's square with the km range it stands for, on this
-     * driver's own scale: "0  <12  12–30  30–55  55–90  90+ km". */
+    /** Lean: "0 ■■■■■■ 52+ km   Recarga ● AC ● DC". Only the two ends of
+     * the scale get a number; the top one is where this driver's darkest
+     * square starts (StatsCalendar.levelCuts). */
     private void drawLegend(Canvas cv) {
         Context c = getContext();
-        float y = rowY(7) + Style.dp(c, 4), sq = Style.dp(c, 16), gap = Style.dp(c, 6),
-              itemGap = Style.dp(c, 16);
+        float y = rowY(7) + Style.dp(c, 4), sq = Style.dp(c, 16), gap = Style.dp(c, 5),
+              textGap = Style.dp(c, 8), groupGap = Style.dp(c, 32);
         text.setTextSize(Style.dp(c, 14));
         text.setColor(Style.TEXT_DIM);
         text.setTextAlign(Paint.Align.LEFT);
-        String[] labels = levelLabels();
-        String dcL = c.getString(R.string.stats_nav_charge_dc), acL = c.getString(R.string.stats_nav_charge_ac);
-        float total = 0;
-        for (String l : labels) total += sq + gap + text.measureText(l) + itemGap;
-        total += itemGap + 2 * (sq + gap) + text.measureText(dcL) + itemGap + text.measureText(acL);
+        String lo = "0", hi = cuts.length == 4 ? Math.round(cuts[3]) + "+ km" : "km";
+        String charge = c.getString(R.string.stats_nav_charge);
+        float total = text.measureText(lo) + textGap + 6 * sq + 5 * gap + textGap + text.measureText(hi)
+                    + groupGap + text.measureText(charge)
+                    + 2 * (textGap + sq * 0.6f + gap + text.measureText("AC"));
         float x = getWidth() - total;
-        float base = y + sq * 0.8f;
+        float base = y + sq * 0.8f, mid = y + sq / 2f;
         float rad = sq * 0.2f;
-        for (int lv = 0; lv < labels.length; lv++) {
+        cv.drawText(lo, x, base, text);
+        x += text.measureText(lo) + textGap;
+        for (int lv = 0; lv <= 5; lv++) {
             fill.setColor(levelColor(lv));
             r.set(x, y, x + sq, y + sq);
             cv.drawRoundRect(r, rad, rad, fill);
-            x += sq + gap;
-            cv.drawText(labels[lv], x, base, text);
-            x += text.measureText(labels[lv]) + itemGap;
+            x += sq + (lv < 5 ? gap : 0);
         }
-        x += itemGap;
-        drawChargeDot(cv, x + sq / 2f, y + sq / 2f, sq * 0.3f, true);
-        x += sq + gap;
-        cv.drawText(dcL, x, base, text);
-        x += text.measureText(dcL) + itemGap;
-        drawChargeDot(cv, x + sq / 2f, y + sq / 2f, sq * 0.3f, false);
-        x += sq + gap;
-        cv.drawText(acL, x, base, text);
-    }
-
-    /** The km range of each level, from the cuts (StatsCalendar.level: level
-     * 1 is below cut 0, level n+2 starts at cut n). Only "0" before any driving. */
-    private String[] levelLabels() {
-        if (cuts.length < 4) return new String[]{"0 km"};
-        long[] k = new long[4];
-        for (int i = 0; i < 4; i++) k[i] = Math.round(cuts[i]);
-        return new String[]{
-            "0", "< " + k[0], k[0] + "–" + k[1], k[1] + "–" + k[2], k[2] + "–" + k[3], k[3] + "+ km"};
+        x += textGap;
+        cv.drawText(hi, x, base, text);
+        x += text.measureText(hi) + groupGap;
+        cv.drawText(charge, x, base, text);
+        x += text.measureText(charge);
+        for (boolean dc : new boolean[]{false, true}) {
+            x += textGap;
+            fill.setColor(dc ? Style.GOOD : chargeAcColor());
+            cv.drawCircle(x + sq * 0.3f, mid, sq * 0.3f, fill);
+            x += sq * 0.6f + gap;
+            cv.drawText(dc ? "DC" : "AC", x, base, text);
+            x += text.measureText("AC");
+        }
     }
 
     // ---- touch: tap only ----

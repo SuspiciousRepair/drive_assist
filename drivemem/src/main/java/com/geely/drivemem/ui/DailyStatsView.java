@@ -659,9 +659,13 @@ public class DailyStatsView extends LinearLayout {
     /** "Setembro de 2026 · 1.577 km": the period's total distance next to
      * its name, the one number the old bar chart gave at a glance. */
     private static String withKm(String label, double km) {
-        String n = km >= 100 ? String.format(Locale.getDefault(), "%,.0f", km)
-                             : String.format(Locale.getDefault(), "%.1f", km);
-        return label + "  ·  " + n + " km";
+        return label + "  ·  " + kmNumber(km) + " km";
+    }
+
+    /** 1.591 from 100 km up, 3,5 below (the default locale's separators). */
+    private static String kmNumber(double km) {
+        return km >= 100 ? String.format(Locale.getDefault(), "%,.0f", km)
+                         : String.format(Locale.getDefault(), "%.1f", km);
     }
 
     private void renderOverview(DailyStatsProvider.DayOverview ov) {
@@ -922,9 +926,11 @@ public class DailyStatsView extends LinearLayout {
         tripCard.removeAllViews();
         cardTitle(tripCard, c.getString(R.string.stats_card_trip));
 
+        // Distance is the hero: the 14-bar chart used to give it, and the
+        // owner missed it here once the chart became the navigator.
         long dMin = Math.round(ov.drivingMinutes);
-        tripCard.addView(createHeroView(c, String.format(Locale.US, "%dh %02dm", dMin / 60, dMin % 60),
-            c.getString(R.string.stats_driving_time)));
+        tripCard.addView(createHeroView(c, valueWithUnit(kmNumber(ov.distanceKm), null, "km", HERO_UNIT_SCALE),
+            c.getString(R.string.stats_distance)));
         Style.gap(tripCard, c, 14);
 
         CharSequence velVal = valueWithUnit(String.format(Locale.US, "%.0f", ov.avgSpeedKmh), null, "km/h", ROW_UNIT_SCALE);
@@ -944,6 +950,8 @@ public class DailyStatsView extends LinearLayout {
         upDown.append(" m");
 
         List<View> chips = new ArrayList<>();
+        chips.add(metricChip(c, c.getString(R.string.stats_driving_time),
+            String.format(Locale.US, "%dh %02dm", dMin / 60, dMin % 60)));
         chips.add(metricChip(c, c.getString(R.string.stats_avg_speed), velVal));
         chips.add(metricChip(c, c.getString(R.string.stats_relief), netVal, upDown));
         distributeInPairs(c, tripCard, chips, 10);
