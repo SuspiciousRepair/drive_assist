@@ -713,8 +713,11 @@
     <string name="charge_card_full_temp_val">สูงสุด %1$s</string>
     <string name="charge_card_full_temp_sub">เฉลี่ย %1$s</string>
     <string name="charge_card_temp_note">LFP ทำงานได้ดีที่ 15–35 °C</string>
-    <string name="charge_card_temp_since">ข้อมูลตั้งแต่ %1$s</string>
+    <string name="charge_card_temp_since">เริ่มมีข้อมูลวันที่ %1$s</string>
     <string name="charge_card_no_temp">ไม่มีค่า (ต้องใช้ OBD2)</string>
+    <string name="charge_card_out_temp">อุณหภูมิภายนอก</string>
+    <string name="charge_temp_info_batt">วัดภายในแบตเตอรี่และอ่านผ่าน OBD2 dongle นับเฉพาะช่วงที่เชื่อมต่อ dongle อยู่</string>
+    <string name="charge_temp_info_out">ช่วงนี้ไม่มี OBD2 dongle จึงเป็นอุณหภูมิอากาศภายนอกที่รถวัดได้ ไม่ใช่อุณหภูมิแบตเตอรี่ ขณะชาร์จและขับ แบตเตอรี่จะอุ่นกว่าอากาศ เชื่อมต่อ OBD2 dongle เพื่ออ่านค่าจากแบตเตอรี่โดยตรง</string>
     <string name="charge_period_month">เดือน</string>
     <string name="charge_period_year">ปี</string>
 </resources>

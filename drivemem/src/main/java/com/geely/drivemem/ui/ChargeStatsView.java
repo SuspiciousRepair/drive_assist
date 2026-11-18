@@ -741,22 +741,22 @@ public class ChargeStatsView extends LinearLayout {
 
     /** How warm the pack got, and how long it sat at 100 % and how warm
      * (LFP: heat and a full pack together are what age it). Battery
-     * temperature comes from the OBD2 dongle, so the card says where its
-     * readings start when that is inside the period. */
+     * temperature comes from the OBD2 dongle; in a period the dongle never
+     * read, the card shows the outside air (the car's own sensor) under its
+     * own title. Either way the (i) says where the numbers come from, so the
+     * card carries no "data from" line of its own. */
     private View heatCard(BatteryHeat.Stats h, java.time.LocalDate periodStart) {
         Context c = getContext();
-        String note = c.getString(R.string.charge_card_temp_note);
-        if (h.firstTempDay != null && h.firstTempDay.isAfter(periodStart)) {
-            note += " · " + c.getString(R.string.charge_card_temp_since,
-                h.firstTempDay.format(java.time.format.DateTimeFormatter.ofPattern("d/M")));
-        }
+        boolean batt = h.showsBattery();
+        BatteryHeat.Temps t = h.shown();
+        String title = c.getString(batt ? R.string.charge_card_temp : R.string.charge_card_out_temp);
         CharSequence hero;
         String cap;
-        if (h.hasTemp()) {
-            int col = h.maxTemp >= 40 ? Style.DANGER : h.maxTemp >= 35 ? Style.WARN : Style.TEXT;
-            hero = Style.valueWithUnit(String.format(Locale.getDefault(), "%.0f", h.maxTemp), col, "°C",
+        if (t.n > 0) {
+            int col = t.max >= 40 ? Style.DANGER : t.max >= 35 ? Style.WARN : Style.TEXT;
+            hero = Style.valueWithUnit(String.format(Locale.getDefault(), "%.0f", t.max), col, "°C",
                 Style.UNIT_SCALE_HERO);
-            cap = c.getString(R.string.charge_card_temp_cap, shortDate(h.maxTempMs), deg(h.avgTemp), deg(h.minTemp));
+            cap = c.getString(R.string.charge_card_temp_cap, shortDate(t.maxMs), deg(t.avg()), deg(t.min));
         } else {
             hero = "—";
             cap = c.getString(R.string.charge_card_no_temp);
@@ -766,14 +766,65 @@ public class ChargeStatsView extends LinearLayout {
             : tile(c.getString(R.string.charge_card_full_time),
                 c.getString(R.string.charge_card_full_time_val, hours(h.avgFullMs())), Style.TEXT,
                 c.getString(R.string.charge_card_full_time_sub, hours(h.fullTotalMs), hours(h.fullLongestMs)));
-        double tMax = h.fullTMax;
-        View temp = Double.isNaN(tMax)
+        View temp = t.fullN == 0
             ? tile(c.getString(R.string.charge_card_full_temp), "—", Style.TEXT, null)
             : tile(c.getString(R.string.charge_card_full_temp),
-                c.getString(R.string.charge_card_full_temp_val, deg(tMax)),
-                tMax >= 35 ? Style.WARN : Style.TEXT,
-                c.getString(R.string.charge_card_full_temp_sub, deg(h.fullTAvg)));
-        return dataCard(c.getString(R.string.charge_card_temp), hero, Style.TEXT, cap, time, temp, note);
+                c.getString(R.string.charge_card_full_temp_val, deg(t.fullMax)),
+                t.fullMax >= 35 ? Style.WARN : Style.TEXT,
+                c.getString(R.string.charge_card_full_temp_sub, deg(t.fullAvg())));
+        LinearLayout card = dataCard(title, hero, Style.TEXT, cap, time, temp,
+            c.getString(R.string.charge_card_temp_note));
+        if (t.has()) {
+            String info = c.getString(batt ? R.string.charge_temp_info_batt : R.string.charge_temp_info_out);
+            if (batt && t.firstDay != null && t.firstDay.isAfter(periodStart)) {
+                info += "\n\n" + c.getString(R.string.charge_card_temp_since,
+                    t.firstDay.format(java.time.format.DateTimeFormatter.ofPattern("d/M")));
+            }
+            withInfo(card, title, info);
+        }
+        return card;
+    }
+
+    /** An (i) at the end of a card's title, and the whole card opens the
+     * explanation: a big target, read from the driver's seat. */
+    private void withInfo(LinearLayout card, String title, String info) {
+        Context c = getContext();
+        TextView t = (TextView) card.getChildAt(0);
+        android.graphics.drawable.Drawable icon = c.getDrawable(R.drawable.ic_info_outline).mutate();
+        icon.setTint(Style.TEXT_DIM);
+        int size = Style.dp(c, 22);
+        icon.setBounds(0, 0, size, size);
+        t.setCompoundDrawablesRelative(null, null, icon, null);
+        t.setCompoundDrawablePadding(Style.dp(c, 8));
+        card.setOnClickListener(v -> showInfo(title, info));
+    }
+
+    /** Title and text on a card; tap outside to close, like the charge details. */
+    private void showInfo(String title, String info) {
+        Context c = getContext();
+        android.app.Dialog dialog = new android.app.Dialog(c);
+        dialog.setCanceledOnTouchOutside(true);
+        LinearLayout root = new LinearLayout(c);
+        root.setOrientation(LinearLayout.VERTICAL);
+        int pad = Style.dp(c, 32);
+        root.setPadding(pad, pad, pad, pad);
+        root.setBackground(Style.card(Style.cardFillColor(), c));
+        root.addView(Style.title(c, title));
+        TextView body = new TextView(c);
+        body.setText(info);
+        body.setTextColor(Style.TEXT);
+        body.setTextSize(20);
+        body.setLineSpacing(0, 1.2f);
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        blp.topMargin = Style.dp(c, 12);
+        root.addView(body, blp);
+        root.setOnClickListener(v -> dialog.dismiss());
+        dialog.setContentView(root);
+        android.view.Window window = dialog.getWindow();
+        if (window != null) window.setLayout(Style.dp(c, 760), ViewGroup.LayoutParams.WRAP_CONTENT);
+        dialog.show();
+        if (window != null) window.setLayout(Style.dp(c, 760), ViewGroup.LayoutParams.WRAP_CONTENT);
     }
 
     private View chargeRow(ChargeSession.Summary s) {

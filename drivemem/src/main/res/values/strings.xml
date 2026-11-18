@@ -724,8 +724,11 @@
     <string name="charge_card_full_temp_val">max %1$s</string>
     <string name="charge_card_full_temp_sub">average %1$s</string>
     <string name="charge_card_temp_note">LFP is comfortable between 15 and 35 °C</string>
-    <string name="charge_card_temp_since">data from %1$s</string>
+    <string name="charge_card_temp_since">Readings start on %1$s.</string>
     <string name="charge_card_no_temp">no reading (needs the OBD2 dongle)</string>
+    <string name="charge_card_out_temp">Outside temperature</string>
+    <string name="charge_temp_info_batt">Measured inside the battery and read through the OBD2 dongle. Only the time the dongle was connected counts.</string>
+    <string name="charge_temp_info_out">No OBD2 dongle in this period, so these are the outside air temperatures the car reads, not the battery\'s. While charging and driving, the battery runs warmer than the air. Connect an OBD2 dongle to read the battery itself.</string>
     <string name="charge_period_month">Month</string>
     <string name="charge_period_year">Year</string>
 </resources>

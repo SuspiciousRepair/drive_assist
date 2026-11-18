@@ -32,7 +32,7 @@ public final class CarDb extends SQLiteOpenHelper {
     // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
     // every write failed until this was bumped past 14. See the v15 entry in
     // onUpgrade below for what v15 itself actually does.
-    private static final int VERSION = 33;
+    private static final int VERSION = 34;
 
     /** SQL predicate for telemetry rows representing driving: gear is not Park (4),
      * or if gear is missing, car is not charging. */
@@ -228,7 +228,7 @@ public final class CarDb extends SQLiteOpenHelper {
             + "regen_kwh REAL NOT NULL DEFAULT 0,"
             + "net_kwh REAL NOT NULL DEFAULT 0,"
             + "energy_source TEXT, "
-            + HEAT_COLUMNS_V32 + ", " + LOW_COLUMNS_V33 + ")");
+            + HEAT_COLUMNS_V32 + ", " + LOW_COLUMNS_V33 + ", " + OUT_COLUMNS_V34 + ")");
     }
 
     /** Immutable source-specific portions of a trip; never merge estimated and measured energy. */
@@ -550,7 +550,20 @@ public final class CarDb extends SQLiteOpenHelper {
             for (String col : LOW_COLUMNS_V33.split(",")) db.execSQL("ALTER TABLE daily_stat ADD COLUMN " + col.trim());
             db.execSQL("UPDATE daily_stat SET heat_done = NULL WHERE date >= date('now', 'localtime', '-88 days')");
         }
+        // v34: the same numbers for the outside air (sensors.BatteryHeat),
+        // shown on the charge page when no dongle read the battery. The days
+        // the samples still cover are stored again, as in v33.
+        if (oldVersion < 34) {
+            for (String col : OUT_COLUMNS_V34.split(",")) db.execSQL("ALTER TABLE daily_stat ADD COLUMN " + col.trim());
+            db.execSQL("UPDATE daily_stat SET heat_done = NULL WHERE date >= date('now', 'localtime', '-88 days')");
+        }
     }
+
+    /** sensors.BatteryHeat's outside air per day: min, max and when, sum and
+     * count, and the readings while at 100 % (max, sum, count). */
+    static final String OUT_COLUMNS_V34 =
+        "out_t_min REAL, out_t_max REAL, out_t_max_ms INTEGER, out_t_sum REAL, out_t_n INTEGER, "
+      + "full_out_t_max REAL, full_out_t_sum REAL, full_out_t_n INTEGER";
 
     /** sensors.BatteryHeat's time under 10 % and under 20 %, ms per day. */
     static final String LOW_COLUMNS_V33 = "below10_ms INTEGER, below20_ms INTEGER";
