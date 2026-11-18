@@ -77,9 +77,13 @@ final class TileCache {
     // The views waiting on a failed tile, told to redraw when the network
     // comes back.
     private final Set<Runnable> waiting = new HashSet<>();
+    // Tiles a prefetch is fetching now: any thread.
+    private final Set<String> prefetching = java.util.Collections.synchronizedSet(new HashSet<>());
+    private final Context app;
     private int writes;
 
     private TileCache(Context app) {
+        this.app = app;
         dir = new File(app.getCacheDir(), "map-tiles");
         String ver = "?";
         try {
@@ -93,6 +97,7 @@ final class TileCache {
                 new android.net.ConnectivityManager.NetworkCallback() {
                     @Override public void onAvailable(android.net.Network n) {
                         main.post(TileCache.this::retryNow);
+                        MapPreload.retryPending(TileCache.this.app);
                     }
                 });
         } catch (Exception e) {
@@ -155,6 +160,40 @@ final class TileCache {
             });
         });
         return null;
+    }
+
+    /** Puts these tiles on the disk, for a screen that is not open yet
+     * (MapPreload). Nothing is drawn. Tiles on the disk and fresh are
+     * skipped. One task on one tile thread, one tile after the other, so
+     * a screen that is open keeps the other thread. Stops at the first
+     * failure: with no network the rest would only wait for timeouts.
+     * onDone (may be null) gets true when every tile is on the disk; it
+     * runs on the tile thread. Any thread. */
+    void prefetch(java.util.List<MapTiles.Tile> tiles, java.util.function.Consumer<Boolean> onDone) {
+        if (tiles.isEmpty()) { if (onDone != null) onDone.accept(true); return; }
+        net.execute(() -> {
+            boolean ok = true;
+            for (MapTiles.Tile t : tiles) {
+                File f = file(t.z, t.x, t.y);
+                if (f.isFile() && System.currentTimeMillis() - f.lastModified() < FRESH_MS) continue;
+                String key = t.key();
+                // Another prefetch has it: not on the disk yet, so not ok.
+                if (!prefetching.add(key)) { ok = false; continue; }
+                try {
+                    byte[] png = fetch(t.z, t.x, t.y);
+                    if (png == null || !isPng(png)) { ok = false; break; }
+                    save(f, png);
+                } finally {
+                    prefetching.remove(key);
+                }
+            }
+            if (onDone != null) onDone.accept(ok);
+        });
+    }
+
+    /** The PNG signature: a tile, not an error page. */
+    static boolean isPng(byte[] b) {
+        return b != null && b.length > 8 && (b[0] & 0xFF) == 0x89 && b[1] == 'P' && b[2] == 'N' && b[3] == 'G';
     }
 
     private File file(int z, int x, int y) {

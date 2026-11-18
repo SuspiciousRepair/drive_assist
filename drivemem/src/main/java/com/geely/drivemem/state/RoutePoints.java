@@ -33,7 +33,10 @@ public final class RoutePoints {
     private RoutePoints() {}
 
     /** A new trip starts with no last point. */
-    static void reset() { lastTs = -1; }
+    static void reset() {
+        lastTs = -1;
+        com.geely.drivemem.ui.MapPreload.reset();
+    }
 
     /** True when this fix should become a point. */
     static boolean keep(long lastTs, double lastLat, double lastLon, long ts, double lat, double lon) {
@@ -53,6 +56,8 @@ public final class RoutePoints {
             try { CarDb.get(ctx).db().insert("trip_point", null, v); }
             catch (Throwable t) { Log.w(TAG, "trip point: " + t); }
         });
+        // The trip screen's map, saved on the car while there is a signal.
+        com.geely.drivemem.ui.MapPreload.onPoint(ctx, f.lat, f.lon, now);
     }
 
     private static ContentValues row(Context ctx, LocationHub.Fix f, long now) {
