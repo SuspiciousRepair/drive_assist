@@ -407,6 +407,7 @@ public final class ChargeSession {
             if (l != null) l.onSession(complete);
             ProgressListener pl = progressListener;
             if (pl != null) pl.onCompleted(complete);
+            com.geely.drivemem.sensors.DailyStatsProvider.forgetDays();
             EntityBus.publish("charge.completed", CarActor.Reading.ok(complete));
             return;
         }
@@ -473,6 +474,7 @@ public final class ChargeSession {
                     if (l != null) l.onSession(complete);
                     ProgressListener pl = progressListener;
                     if (pl != null) pl.onCompleted(complete);
+                    com.geely.drivemem.sensors.DailyStatsProvider.forgetDays();
                     EntityBus.publish("charge.completed", CarActor.Reading.ok(complete));
                 };
                 if (actor != null) {
@@ -753,6 +755,7 @@ public final class ChargeSession {
                   + ") WHERE date IN ("
                   + "  SELECT date(start_ms/1000,'unixepoch','localtime') FROM charge_session WHERE id = ?"
                   + ")", new Object[]{id});
+                com.geely.drivemem.sensors.DailyStatsProvider.forgetDays();
                 CarActor actor = CarActor.get(ctx);
                 if (actor != null) {
                     actor.runOnCarThread(() -> EntityBus.publish("charge.cost_updated", CarActor.Reading.ok(id)));

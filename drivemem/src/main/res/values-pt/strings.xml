@@ -493,6 +493,7 @@
     <!-- daily stats day navigator -->
     <string name="daily_stats_prev_day">Anterior</string>
     <string name="daily_stats_next_day">Próximo</string>
+    <string name="stats_nav_charge">Recarga</string>
 
     <!-- Backup and restore (AppBackup, BackupDialogs) -->
     <string name="backup_header">Backup</string>
@@ -563,6 +564,7 @@
     <string name="stats_by_use_none">Aparece nas novas viagens medidas pelo CAN</string>
     <string name="stats_card_trip">Viagem</string>
     <string name="stats_driving_time">Tempo dirigindo</string>
+    <string name="stats_distance">Distância</string>
     <string name="stats_avg_speed">Vel. média</string>
     <string name="stats_relief">Relevo</string>
     <string name="stats_relief_net">saldo</string>

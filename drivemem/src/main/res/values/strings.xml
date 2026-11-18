@@ -508,6 +508,7 @@
     <!-- daily stats day navigator -->
     <string name="daily_stats_prev_day">Previous</string>
     <string name="daily_stats_next_day">Next</string>
+    <string name="stats_nav_charge">Charge</string>
 
     <!-- Backup and restore (AppBackup, BackupDialogs) -->
     <string name="backup_header">Backup</string>
@@ -578,6 +579,7 @@
     <string name="stats_by_use_none">Shows on new trips measured by CAN</string>
     <string name="stats_card_trip">Trip</string>
     <string name="stats_driving_time">Driving time</string>
+    <string name="stats_distance">Distance</string>
     <string name="stats_avg_speed">Avg. speed</string>
     <string name="stats_relief">Elevation</string>
     <string name="stats_relief_net">net</string>
