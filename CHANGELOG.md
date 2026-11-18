@@ -18,6 +18,8 @@
 - **Stats page: charge and trip cards line up.** A charge's energy added
   now sits in the same column as a trip's net energy (the second one),
   next to the battery, instead of at the right of the title line.
+- **Extra dark goes darker.** At its floor the screen now goes to 2 of 255
+  instead of Android's lowest, 10 (1 turns the screen off).
 - **Climate: C3 blows softer.** C3 now runs the fan at 3, not 4. Before, the
   step from C2 to C3 doubled the fan in the same tap that moved the air from
   the windshield to your face, which felt like too much. C1, C2, C4, C5 and

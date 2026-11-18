@@ -92,6 +92,13 @@
         </receiver>
         <!-- One-off diagnostic, hardcoded to the AEB property only — see the
              class header. Not a general write capability. -->
+        <!-- Extra dark's floor: backlight below Android's 10, through the
+             local root adbd when it is open. See the class header. -->
+        <receiver android:name=".BacklightFloorReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.geely.modehelper.BACKLIGHT_FLOOR" />
+            </intent-filter>
+        </receiver>
         <receiver android:name=".AebWriteTestReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="com.geely.modehelper.AEBWRITETEST" />
