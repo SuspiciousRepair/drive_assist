@@ -29,10 +29,10 @@ public final class SocHistory {
 
     private SocHistory() {}
 
-    /** The usual floor for daily use. LFP has no hard limit here; 20 % is
-     * where the SoC estimate gets least reliable (flat voltage curve) and
-     * where a small error starts to matter for range. */
-    public static final int LOW_PCT = 20;
+    /** The line on the chart. LFP has no hard floor: 20 % is the usual
+     * daily-use comfort line, but going under it now and then does no harm;
+     * what does is sitting near empty. 10 % marks that (owner, 2026-11-18). */
+    public static final int LOW_PCT = 10;
 
     /** A plausible battery_pct: 0 and above-100 rows are sensor noise. */
     private static final String VALID = "battery_pct BETWEEN 1 AND 100";

@@ -22,7 +22,8 @@ public class SocHistoryTest {
             d("2026-09-10", 18, 90), d("2026-09-11", 20, 100), d("2026-09-12", 35, 60),
             d("2026-09-13", 9, 70));
         // 20 itself is not "below 20"
-        assertEquals(2, SocHistory.daysBelow(days, SocHistory.LOW_PCT));
+        assertEquals(2, SocHistory.daysBelow(days, 20));
+        assertEquals(1, SocHistory.daysBelow(days, SocHistory.LOW_PCT));
         assertEquals(0, SocHistory.daysBelow(days, 5));
     }
 
