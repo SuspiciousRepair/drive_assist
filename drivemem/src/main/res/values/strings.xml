@@ -588,6 +588,7 @@
     <string name="session_stat_battery">Battery</string>
     <string name="session_stat_efficiency">Efficiency</string>
     <string name="session_stat_net_energy">Net energy</string>
+    <string name="session_stat_charged_energy">Energy added</string>
     <string name="session_stat_net_breakdown">%1$s used − %2$s regen</string>
     <string name="session_stat_elevation">Climb / descent</string>
     <string name="session_stat_avg_power">Average power</string>

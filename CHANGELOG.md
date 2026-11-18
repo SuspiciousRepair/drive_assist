@@ -15,6 +15,9 @@
   the top bar is gone. The "N trips · N charges" count on the day's trip
   list is now that button, with a map icon. In Day view it opens on that
   day; in Week and Month it shows all days. Each trip keeps its own map.
+- **Stats page: charge and trip cards line up.** A charge's energy added
+  now sits in the same column as a trip's net energy (the second one),
+  next to the battery, instead of at the right of the title line.
 - **Climate: C3 blows softer.** C3 now runs the fan at 3, not 4. Before, the
   step from C2 to C3 doubled the fan in the same tap that moved the air from
   the windshield to your face, which felt like too much. C1, C2, C4, C5 and
@@ -74,8 +77,8 @@
   its evening part, and today's driving and charging were missing until
   the next day. The 30 bars now end with today.
 - **Tapping a charge opens its details**, on the charge page and on the
-  stats page: the cost, with a "Change" button (or "+ Cost" when there is
-  none yet), and the charging power
+  stats page: the cost in its own block with a clear "Change" button (or
+  "+ Cost" when there is none yet), and the charging power
   curve. In Park only, like before. On the stats page this replaces the cost
   window the tap used to open; on the charge page, while driving, the tap
   only selects the charge.

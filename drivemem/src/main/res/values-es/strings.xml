@@ -561,6 +561,7 @@
     <string name="session_stat_battery">Batería</string>
     <string name="session_stat_efficiency">Eficiencia</string>
     <string name="session_stat_net_energy">Energía neta</string>
+    <string name="session_stat_charged_energy">Energía cargada</string>
     <string name="session_stat_net_breakdown">%1$s gastado − %2$s regen</string>
     <string name="session_stat_elevation">Subida / bajada</string>
     <string name="session_stat_avg_power">Potencia media</string>

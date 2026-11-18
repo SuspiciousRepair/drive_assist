@@ -577,6 +577,7 @@
     <string name="session_stat_battery">แบตเตอรี่</string>
     <string name="session_stat_efficiency">ประสิทธิภาพ</string>
     <string name="session_stat_net_energy">พลังงานสุทธิ</string>
+    <string name="session_stat_charged_energy">พลังงานที่ชาร์จ</string>
     <string name="session_stat_net_breakdown">ใช้ %1$s − คืน %2$s</string>
     <string name="session_stat_elevation">ขึ้น / ลง</string>
     <string name="session_stat_avg_power">กำลังเฉลี่ย</string>

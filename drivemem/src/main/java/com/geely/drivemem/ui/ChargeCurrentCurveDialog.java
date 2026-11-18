@@ -54,41 +54,60 @@ public final class ChargeCurrentCurveDialog {
         TextView title = Style.title(c, c.getString(R.string.charge_curve_title));
         root.addView(title);
 
-        // Cost: the value and its per-kWh rate, or "+ Custo" when none was
-        // entered. Either one opens the cost editor; saving closes this
+        // Cost, in its own framed block with room around it: caption and
+        // value on the left, a real outlined button on the far right ("too
+        // close to the elements", owner 2026-11-17). Saving closes this
         // window so the screen behind shows the new value.
-        LinearLayout costRow = new LinearLayout(c);
-        costRow.setOrientation(LinearLayout.HORIZONTAL);
-        costRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        costRow.setPadding(0, Style.dp(c, 8), 0, Style.dp(c, 12));
         Runnable editCost = () -> ChargeCostDialog.show(c, session.id, session.kwh, session.socStart,
             session.socEnd, session.cost, () -> {
                 dialog.dismiss();
                 if (onCostChanged != null) onCostChanged.run();
             });
-        if (session.cost != null && session.cost >= 0) {
-            TextView costText = new TextView(c);
-            android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder();
-            sb.append(c.getString(R.string.charge_cost_label)).append(": ").append(session.costLabel());
+        LinearLayout costRow = new LinearLayout(c);
+        costRow.setOrientation(LinearLayout.HORIZONTAL);
+        costRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        costRow.setBackground(Style.card(Style.CARD, c));
+        int cp = Style.dp(c, 16);
+        costRow.setPadding(cp + Style.dp(c, 4), cp, cp, cp);
+        LinearLayout costCol = new LinearLayout(c);
+        costCol.setOrientation(LinearLayout.VERTICAL);
+        TextView costCaption = new TextView(c);
+        costCaption.setText(R.string.charge_cost_label);
+        costCaption.setTextColor(Style.TEXT_DIM);
+        costCaption.setTextSize(15);
+        costCol.addView(costCaption);
+        TextView costValue = new TextView(c);
+        boolean hasCost = session.cost != null && session.cost >= 0;
+        if (hasCost) {
+            android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder(session.costLabel());
             if (session.costPerKwhLabel() != null) {
                 Style.appendUnit(sb, "  " + session.costPerKwhLabel(), Style.UNIT_SCALE_ROW);
             }
-            costText.setText(sb);
-            costText.setTextColor(Style.ACCENT);
-            costText.setTextSize(19);
-            costText.setTypeface(null, android.graphics.Typeface.BOLD);
-            costText.setOnClickListener(v -> editCost.run());
-            costRow.addView(costText);
-            // The value alone did not read as editable (owner, 2026-11-17).
-            TextView change = Style.button(c, c.getString(R.string.charge_cost_change), Style.CARD_HI, editCost);
-            LinearLayout.LayoutParams clp = (LinearLayout.LayoutParams) change.getLayoutParams();
-            clp.leftMargin = Style.dp(c, 16);
-            clp.topMargin = 0;
-            costRow.addView(change, clp);
+            costValue.setText(sb);
+            costValue.setTextColor(Style.TEXT);
         } else {
-            costRow.addView(Style.button(c, "+ " + c.getString(R.string.charge_cost_label), Style.CARD_HI, editCost));
+            costValue.setText("—");
+            costValue.setTextColor(Style.TEXT_DIM);
         }
-        root.addView(costRow);
+        costValue.setTextSize(22);
+        costValue.setTypeface(null, android.graphics.Typeface.BOLD);
+        costCol.addView(costValue);
+        costRow.addView(costCol);
+        costRow.addView(new android.view.View(c), new LinearLayout.LayoutParams(0, 1, 1f));
+        TextView costBtn = Style.button(c, hasCost ? c.getString(R.string.charge_cost_change)
+                : "+ " + c.getString(R.string.charge_cost_label), Style.CARD, editCost);
+        costBtn.setBackground(Style.outlinedCard(Style.ACCENT, c));
+        costBtn.setTextColor(Style.ACCENT);
+        costBtn.setTextSize(17);
+        int bh = Style.dp(c, 28), bv = Style.dp(c, 14);
+        costBtn.setPadding(bh, bv, bh, bv);
+        LinearLayout.LayoutParams blp = (LinearLayout.LayoutParams) costBtn.getLayoutParams();
+        blp.setMargins(Style.dp(c, 24), 0, 0, 0);
+        costRow.addView(costBtn, blp);
+        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        rowLp.setMargins(0, Style.dp(c, 16), 0, Style.dp(c, 20));
+        root.addView(costRow, rowLp);
 
         Curves curves = read(c, session);
         if (curves.power.isEmpty()) {
