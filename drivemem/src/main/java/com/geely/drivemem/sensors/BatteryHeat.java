@@ -28,10 +28,19 @@ import java.util.Set;
  * the SoC drops; a gap while the car was off counts (the pack showed 100 % on
  * both sides of it) but has no temperature of its own. A stay belongs to the
  * day it STARTED on, whole, so a period's count, total and longest agree.
+ *
+ * Also the time spent low (under 10 % and under 20 %), for the "Saúde da
+ * bateria" card: what ages LFP is sitting near empty, so hours count, not
+ * days that dipped (owner, 2026-11-18). The time between two samples counts
+ * when both are under the floor, so a night parked low counts whole; it is
+ * cut at midnight, each day keeping its own share.
  */
 public final class BatteryHeat {
 
     private BatteryHeat() {}
+
+    /** The two floors of the low-battery hours. */
+    public static final int LOW_PCT = SocHistory.LOW_PCT, LOW2_PCT = 20;
 
     /** Shorter stays are a charge ending and a drive starting, not a stay. */
     public static final long MIN_STAY_MS = 30 * 60_000L;
@@ -55,6 +64,7 @@ public final class BatteryHeat {
         public long fullMs, fullLongestMs;
         public double fullTMax = Double.NaN, fullTSum;
         public int fullTN;
+        public long below10Ms, below20Ms;
         public Day(LocalDate date) { this.date = date; }
     }
 
@@ -66,6 +76,7 @@ public final class BatteryHeat {
         public int fullCount;
         public long fullTotalMs, fullLongestMs;
         public double fullTMax = Double.NaN, fullTAvg = Double.NaN;
+        public long below10Ms, below20Ms;
 
         public boolean hasTemp() { return !Double.isNaN(maxTemp); }
         public long avgFullMs() { return fullCount == 0 ? 0 : fullTotalMs / fullCount; }
@@ -96,6 +107,12 @@ public final class BatteryHeat {
             }
         }
         if (runFrom >= 0) addStay(d, dayStartMs, dayEndMs, runFrom, runTo, runMax, runSum, runN);
+        for (int i = 0; i + 1 < ts.length; i++) {
+            long from = Math.max(ts[i], dayStartMs), to = Math.min(ts[i + 1], dayEndMs);
+            if (to <= from) continue;
+            if (pct[i] < LOW_PCT && pct[i + 1] < LOW_PCT) d.below10Ms += to - from;
+            if (pct[i] < LOW2_PCT && pct[i + 1] < LOW2_PCT) d.below20Ms += to - from;
+        }
         return d;
     }
 
@@ -124,6 +141,8 @@ public final class BatteryHeat {
             s.fullCount += d.fullN;
             s.fullTotalMs += d.fullMs;
             s.fullLongestMs = Math.max(s.fullLongestMs, d.fullLongestMs);
+            s.below10Ms += d.below10Ms;
+            s.below20Ms += d.below20Ms;
             if (d.fullTN > 0) {
                 if (!(d.fullTMax <= s.fullTMax)) s.fullTMax = d.fullTMax;
                 fSum += d.fullTSum; fN += d.fullTN;
@@ -163,7 +182,7 @@ public final class BatteryHeat {
     }
 
     private static final String COLS = "date, batt_t_min, batt_t_max, batt_t_max_ms, batt_t_sum, batt_t_n, "
-        + "full_n, full_ms, full_longest_ms, full_t_max, full_t_sum, full_t_n";
+        + "full_n, full_ms, full_longest_ms, full_t_max, full_t_sum, full_t_n, below10_ms, below20_ms";
 
     private static Day fromRow(Cursor c) {
         Day d = new Day(LocalDate.parse(c.getString(0)));
@@ -178,6 +197,8 @@ public final class BatteryHeat {
         if (!c.isNull(9)) d.fullTMax = c.getDouble(9);
         d.fullTSum = c.getDouble(10);
         d.fullTN = c.getInt(11);
+        d.below10Ms = c.getLong(12);   // NULL (stored before v33, past the samples) reads 0
+        d.below20Ms = c.getLong(13);
         return d;
     }
 
@@ -206,6 +227,8 @@ public final class BatteryHeat {
             v.put("full_t_max", d.fullTN > 0 ? d.fullTMax : null);
             v.put("full_t_sum", d.fullTSum);
             v.put("full_t_n", d.fullTN);
+            v.put("below10_ms", d.below10Ms);
+            v.put("below20_ms", d.below20Ms);
             v.put("heat_done", 1);
             db.update("daily_stat", v, "date = ?", new String[]{date.toString()});
         }

@@ -22,13 +22,12 @@ public final class ChargePeriodSummary {
     public static final int FULL_PCT = 100;
 
     public int count, acCount, dcCount;
-    public double acKwh, dcKwh, acPowerW, dcPowerW;     // power: average over the charges
+    public double acKwh, dcKwh;
     public double acCost, dcCost;                       // only charges with a cost
     public double acKwhCosted, dcKwhCosted;             // their kWh, for R$/kWh
     public boolean anyCost;
 
     public SocHistory.DayRange lowest;                  // null without daily data
-    public int daysBelow10, daysBelow20;
     public double avgPlugPct = -1;                      // average SoC when plugged in
 
     public long lastFullMs = -1;                        // over ALL charges, not just the period
@@ -37,6 +36,10 @@ public final class ChargePeriodSummary {
     public long longestGapFromMs = -1, longestGapToMs = -1;  // to = -1 while still open
 
     public double totalKwh() { return acKwh + dcKwh; }
+    /** kWh per charge, the line under "2 · 58.7 kWh" (owner, 2026-11-18: it
+     * must follow the numbers above it, 58.7 / 2, not a power). */
+    public double acKwhPerCharge() { return acCount > 0 ? acKwh / acCount : 0; }
+    public double dcKwhPerCharge() { return dcCount > 0 ? dcKwh / dcCount : 0; }
     public double totalCost() { return acCost + dcCost; }
     public double acPerKwh() { return acKwhCosted > 0 ? acCost / acKwhCosted : -1; }
     public double dcPerKwh() { return dcKwhCosted > 0 ? dcCost / dcKwhCosted : -1; }
@@ -67,8 +70,8 @@ public final class ChargePeriodSummary {
             if (s.startWallMs < fromMs || s.startWallMs >= toMs) continue;
             r.count++;
             boolean dc = s.isDcfc();
-            if (dc) { r.dcCount++; r.dcKwh += s.kwh; r.dcPowerW += s.avgPowerW; }
-            else    { r.acCount++; r.acKwh += s.kwh; r.acPowerW += s.avgPowerW; }
+            if (dc) { r.dcCount++; r.dcKwh += s.kwh; }
+            else    { r.acCount++; r.acKwh += s.kwh; }
             if (s.cost != null && s.cost >= 0) {
                 r.anyCost = true;
                 if (dc) { r.dcCost += s.cost; r.dcKwhCosted += s.kwh; }
@@ -80,13 +83,9 @@ public final class ChargePeriodSummary {
                 if (s.endWallMs > r.lastFullInPeriodMs) r.lastFullInPeriodMs = s.endWallMs;
             }
         }
-        if (r.acCount > 0) r.acPowerW /= r.acCount;
-        if (r.dcCount > 0) r.dcPowerW /= r.dcCount;
         if (plugN > 0) r.avgPlugPct = plugSum / plugN;
 
         r.lowest = SocHistory.lowest(days);
-        r.daysBelow10 = SocHistory.daysBelow(days, 10);
-        r.daysBelow20 = SocHistory.daysBelow(days, 20);
 
         // Gaps between full charges. Only gaps that overlap the period count,
         // and the one since the last full charge is open to now.

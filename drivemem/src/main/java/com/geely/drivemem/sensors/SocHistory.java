@@ -19,7 +19,8 @@ import java.util.TreeMap;
  * days not frozen yet read from telemetry_sample. Daily lows count every dip,
  * drives included, which the per-charge bars (SoC at plug-in) cannot.
  *
- * The counting (days below a floor, the lowest point) is pure and tested.
+ * Finding the lowest point is pure and tested. The time spent low is in
+ * BatteryHeat (hours, not days).
  */
 public final class SocHistory {
 
@@ -86,13 +87,6 @@ public final class SocHistory {
             out.add(new DayRange(e.getKey(), e.getValue()[0], e.getValue()[1]));
         }
         return out;
-    }
-
-    /** Days whose lowest SoC went under `floor`. */
-    public static int daysBelow(List<DayRange> days, int floor) {
-        int n = 0;
-        for (DayRange d : days) if (d.min < floor) n++;
-        return n;
     }
 
     /** The day with the lowest SoC (the most recent one on a tie), or null. */

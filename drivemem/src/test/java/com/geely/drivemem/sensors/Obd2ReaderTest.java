@@ -26,6 +26,25 @@ public class Obd2ReaderTest {
         Obd2Reader.resetForTest();
     }
 
+    /** DID 4B37, from the owner's Car Scanner log: 03E8 = 100.0 % SoH. */
+    @Test public void stateOfHealthIsTenthsOfAPercent() {
+        assertEquals(true, Obd2Reader.applySoh("7EA05624B3703E8"));
+        assertEquals(100.0, Obd2Reader.sohForTest(), 1e-9);
+        assertEquals(true, Obd2Reader.applySoh("624B3703A2"));      // 930 -> 93.0
+        assertEquals(93.0, Obd2Reader.sohForTest(), 1e-9);
+    }
+
+    @Test public void stateOfHealthOutOfRangeOrMissingIsNotKept() {
+        Obd2Reader.applySoh("624B3703A2");                          // 93.0
+        assertEquals(false, Obd2Reader.applySoh("624B370000"));     // 0 %
+        assertEquals(false, Obd2Reader.applySoh("624B37FFFF"));     // 6553.5 %
+        assertEquals(false, Obd2Reader.applySoh("NO DATA"));
+        assertEquals(false, Obd2Reader.applySoh(null));
+        assertEquals(93.0, Obd2Reader.sohForTest(), 1e-9);
+        // not connected: the hub gets nothing
+        assertNull(Obd2Reader.connectedSoh());
+    }
+
     @Test public void completeRoundComputesPowerNormally() {
         Obd2Reader.applyReading(null, VOLT_380V, CURR_50A, null, null);
         // 380.0V * 50.0A = 19000W = 19.0kW

@@ -686,9 +686,11 @@
     <string name="charge_card_cost_share">%1$s · %2$d%% do custo</string>
     <string name="charge_card_no_dc">sem recargas DC</string>
     <string name="charge_card_no_cost">nenhum custo informado</string>
-    <string name="charge_card_low">Bateria baixa</string>
+    <string name="charge_card_low">Saúde da bateria</string>
     <string name="charge_card_low_cap">menor carga · %1$s</string>
-    <string name="charge_card_below">Dias abaixo de %1$d%%</string>
+    <string name="charge_card_soh_cap">estado de saúde (SoH) · menor carga %1$d%% em %2$s</string>
+    <string name="charge_card_soh_cap_only">estado de saúde (SoH)</string>
+    <string name="charge_card_below">Horas abaixo de %1$d%%</string>
     <string name="charge_card_plug_note">Em média você pluga com %1$d%%</string>
     <string name="charge_card_today">hoje</string>
     <string name="charge_card_yesterday">ontem</string>
@@ -696,7 +698,7 @@
     <string name="charge_card_never">nunca</string>
     <string name="charge_card_gap_days">%1$d dias</string>
     <string name="charge_card_gap_open">%1$s → hoje</string>
-    <string name="charge_card_avg_kw">%1$s kW méd.</string>
+    <string name="charge_card_avg_kwh">%1$s kWh méd.</string>
     <string name="charge_card_full_band">Até 100%%: %1$d de %2$d · última %3$s</string>
     <string name="charge_card_gap_line">maior intervalo sem 100%%: %1$s (%2$s)</string>
     <string name="charge_card_temp">Temperatura da bateria</string>

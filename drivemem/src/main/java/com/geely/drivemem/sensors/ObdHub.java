@@ -19,7 +19,8 @@ public final class ObdHub {
     public static final String PACK_A = "obd.pack_a";           // A, 0.1 steps; + = discharge
     public static final String POWER_KW = "obd.power_kw";       // kW, 0.01 steps; + = discharge
     public static final String BATT_TEMP_C = "obd.batt_temp_c"; // C, 1 step
-    public static final String[] KEYS = {CONNECTED, SOC, PACK_V, PACK_A, POWER_KW, BATT_TEMP_C};
+    public static final String SOH = "obd.soh";                 // %, 0.1 steps; read every 10 min
+    public static final String[] KEYS = {CONNECTED, SOC, PACK_V, PACK_A, POWER_KW, BATT_TEMP_C, SOH};
 
     public static final long FRESH_MS = 15_000;
 
@@ -30,6 +31,9 @@ public final class ObdHub {
         Float packA();
         Float powerKw();
         Float battTempC();
+        /** State of health, %; null when not read. Valid while connected
+         * (it is read every 10 min, so FRESH_MS does not apply). */
+        default Float soh() { return null; }
     }
 
     static final Source READER = new Source() {
@@ -39,6 +43,7 @@ public final class ObdHub {
         @Override public Float packA() { return Obd2Reader.freshCurrent(FRESH_MS); }
         @Override public Float powerKw() { return Obd2Reader.freshPowerKw(FRESH_MS); }
         @Override public Float battTempC() { return Obd2Reader.freshBattTempC(FRESH_MS); }
+        @Override public Float soh() { return Obd2Reader.connectedSoh(); }
     };
 
     private ObdHub() {}
@@ -53,6 +58,7 @@ public final class ObdHub {
         a.registerPoll(PACK_A, CanHub.POLL_MS, c -> CanHub.reading(CanHub.quantize(s.packA(), 0.1)));
         a.registerPoll(POWER_KW, CanHub.POLL_MS, c -> CanHub.reading(CanHub.quantize(s.powerKw(), 0.01)));
         a.registerPoll(BATT_TEMP_C, CanHub.POLL_MS, c -> CanHub.reading(CanHub.quantize(s.battTempC(), 1)));
+        a.registerPoll(SOH, CanHub.POLL_MS, c -> CanHub.reading(CanHub.quantize(s.soh(), 0.1)));
     }
 
     public static void unregister(CarActor a) {

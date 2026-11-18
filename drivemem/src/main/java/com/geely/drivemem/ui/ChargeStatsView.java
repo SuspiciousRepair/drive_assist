@@ -371,6 +371,7 @@ public class ChargeStatsView extends LinearLayout {
         List<ChargeSession.Summary> period = new ArrayList<>();
         ChargePeriodSummary sum;
         BatteryHeat.Stats heat;
+        Double soh;                               // state of health at the period's end, or null
         double km;
         final java.util.Set<Long> placed = new java.util.HashSet<>();
         /** id -> {lat, lon} of every charge that saved its place. */
@@ -408,6 +409,7 @@ public class ChargeStatsView extends LinearLayout {
                 ? new ArrayList<>() : SocHistory.dailyRanges(c, start, last);
             l.sum = ChargePeriodSummary.of(all, fromMs, toMs, now, days);
             l.heat = BatteryHeat.read(c, start, end);
+            l.soh = com.geely.drivemem.sensors.BatteryHealth.latestBefore(c, Math.min(toMs, now));
             if (!start.isAfter(today)) {
                 for (com.geely.drivemem.sensors.StatsCalendar.Cell cell : DailyStatsProvider.getCalendarDays(c, start)) {
                     if (cell.date.isBefore(end)) l.km += cell.km;
@@ -444,7 +446,7 @@ public class ChargeStatsView extends LinearLayout {
         boolean current = !periodEnd(start).isBefore(java.time.LocalDate.now().plusDays(1));
         cards.addView(chargesCard(l.sum, now, current), cardLp(false));
         cards.addView(costCard(l.sum, l.km), cardLp(false));
-        cards.addView(lowCard(l.sum), cardLp(false));
+        cards.addView(lowCard(l.sum, l.heat, l.soh), cardLp(false));
         cards.addView(heatCard(l.heat, start), cardLp(true));
         kpiContainer.addView(cards);
 
@@ -614,9 +616,8 @@ public class ChargeStatsView extends LinearLayout {
         return t;
     }
 
-    private String kwAvg(double watts) {
-        return getContext().getString(R.string.charge_card_avg_kw,
-            String.format(Locale.getDefault(), watts >= 10000 ? "%.0f" : "%.1f", watts / 1000));
+    private String kwhAvg(double kwhPerCharge) {
+        return getContext().getString(R.string.charge_card_avg_kwh, kwh(kwhPerCharge));
     }
 
     /** Recargas, with the charge to 100 % folded in as a band at the bottom
@@ -625,9 +626,9 @@ public class ChargeStatsView extends LinearLayout {
     private View chargesCard(ChargePeriodSummary m, long now, boolean current) {
         Context c = getContext();
         View ac = tile("AC", m.acCount == 0 ? "0" : m.acCount + " · " + kwh(m.acKwh) + " kWh", Style.ACCENT,
-            m.acCount > 0 ? kwAvg(m.acPowerW) : null);
+            m.acCount > 0 ? kwhAvg(m.acKwhPerCharge()) : null);
         View dc = tile("DC", m.dcCount == 0 ? "0" : m.dcCount + " · " + kwh(m.dcKwh) + " kWh", Style.GOOD,
-            m.dcCount > 0 ? kwAvg(m.dcPowerW) : null);
+            m.dcCount > 0 ? kwhAvg(m.dcKwhPerCharge()) : null);
 
         // The current period says how long ago (a fact about now); a past one
         // names its own last full charge, not today's.
@@ -702,26 +703,43 @@ public class ChargeStatsView extends LinearLayout {
             acTile, dcTile, null);
     }
 
-    private View lowCard(ChargePeriodSummary m) {
+    /** Saúde da bateria: the state of health as the big number when the
+     * dongle has read it (the lowest charge moves to the caption), else the
+     * lowest charge as before. */
+    private View lowCard(ChargePeriodSummary m, BatteryHeat.Stats heat, Double soh) {
         Context c = getContext();
-        CharSequence hero = m.lowest == null ? "—"
-            : Style.valueWithUnit(String.valueOf(m.lowest.min), m.lowest.min < 10 ? Style.DANGER : Style.TEXT,
+        String lowDate = m.lowest == null ? null
+            : m.lowest.date.format(java.time.format.DateTimeFormatter.ofPattern("d/M"));
+        CharSequence hero;
+        String cap;
+        if (soh != null) {
+            hero = Style.valueWithUnit(String.format(Locale.getDefault(), "%.1f", soh), Style.TEXT,
                 "%", Style.UNIT_SCALE_HERO);
-        String cap = m.lowest == null ? c.getString(R.string.soc_history_empty)
-            : c.getString(R.string.charge_card_low_cap,
-                m.lowest.date.format(java.time.format.DateTimeFormatter.ofPattern("d/M")));
+            cap = m.lowest == null ? c.getString(R.string.charge_card_soh_cap_only)
+                : c.getString(R.string.charge_card_soh_cap, m.lowest.min, lowDate);
+        } else {
+            hero = m.lowest == null ? "—"
+                : Style.valueWithUnit(String.valueOf(m.lowest.min), m.lowest.min < 10 ? Style.DANGER : Style.TEXT,
+                    "%", Style.UNIT_SCALE_HERO);
+            cap = m.lowest == null ? c.getString(R.string.soc_history_empty)
+                : c.getString(R.string.charge_card_low_cap, lowDate);
+        }
         String note = m.avgPlugPct >= 0
             ? c.getString(R.string.charge_card_plug_note, (int) Math.round(m.avgPlugPct)) : null;
         return dataCard(c.getString(R.string.charge_card_low), hero, Style.TEXT, cap,
-            tile(c.getString(R.string.charge_card_below, 10), String.valueOf(m.daysBelow10),
-                m.daysBelow10 == 0 ? Style.GOOD : Style.DANGER, null),
-            tile(c.getString(R.string.charge_card_below, 20), String.valueOf(m.daysBelow20),
-                m.daysBelow20 == 0 ? Style.GOOD : Style.TEXT, null),
+            tile(c.getString(R.string.charge_card_below, BatteryHeat.LOW_PCT), lowHours(heat.below10Ms),
+                heat.below10Ms == 0 ? Style.GOOD : Style.DANGER, null),
+            tile(c.getString(R.string.charge_card_below, BatteryHeat.LOW2_PCT), lowHours(heat.below20Ms),
+                heat.below20Ms == 0 ? Style.GOOD : Style.TEXT, null),
             note);
     }
 
     private static String deg(double t) {
         return String.format(Locale.getDefault(), "%.0f °C", t);
+    }
+
+    private static String lowHours(long ms) {
+        return ms == 0 ? "0" : hours(ms);
     }
 
     private static String hours(long ms) {

@@ -518,6 +518,8 @@ public final class AbrpUploader {
             if (a != null) tlm.put("current", a);
             Float bt = CanHub.get(hub, ObdHub.BATT_TEMP_C);   // only the dongle has it
             if (bt != null) tlm.put("batt_temp", bt);
+            Float soh = CanHub.get(hub, ObdHub.SOH);          // the dongle too (BMS DID 4B37)
+            if (soh != null) tlm.put("soh", soh);
 
             return tlm;
         } catch (JSONException e) {
