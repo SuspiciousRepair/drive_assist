@@ -216,16 +216,9 @@ public class ChargeStatsView extends LinearLayout {
 
         // Where we charged: the period's charge places on the map, the
         // number of charges in each pin. Touch a pin: its newest charge is
-        // selected in the list and the chart. Same height as the cards
-        // beside it.
-        LinearLayout mapCard = new LinearLayout(c);
-        mapCard.setOrientation(LinearLayout.VERTICAL);
-        mapCard.setPadding(cardPad, cardPad, cardPad, cardPad);
-        mapCard.setBackground(Style.card(Style.cardFillColor(), c));
-        TextView mapTitle = Style.label(c, c.getString(R.string.charge_map_title));
-        mapTitle.setTextSize(14);
-        mapTitle.setTypeface(null, Typeface.BOLD);
-        mapCard.addView(mapTitle);
+        // selected in the list and the chart. The map is the card itself:
+        // no frame, no title (owner, 2026-11-18). RouteView rounds its own
+        // corners like a card, and it takes the height of the cards beside it.
         android.widget.FrameLayout mapFrame = new android.widget.FrameLayout(c);
         chargeMap = new RouteView(c);
         chargeMap.setMinSpanM(3000);
@@ -238,19 +231,17 @@ public class ChargeStatsView extends LinearLayout {
         });
         mapFrame.addView(chargeMap, new android.widget.FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        // No place saved in the period: a plain card with the note instead.
         chargeMapNone = Style.label(c, c.getString(R.string.charge_map_none));
         chargeMapNone.setTextSize(16);
         chargeMapNone.setTextColor(Style.TEXT_DIM);
         chargeMapNone.setGravity(Gravity.CENTER);
+        chargeMapNone.setBackground(Style.card(Style.cardFillColor(), c));
         chargeMapNone.setVisibility(View.GONE);
         mapFrame.addView(chargeMapNone, new android.widget.FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        LinearLayout.LayoutParams mapFrameLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 340));
-        mapFrameLp.topMargin = Style.dp(c, 8);
-        mapCard.addView(mapFrame, mapFrameLp);
-        overview.addView(mapCard, new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.WRAP_CONTENT, 36f));
+        overview.addView(mapFrame, new LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.MATCH_PARENT, 36f));
         addView(overview);
     }
 
@@ -472,6 +463,7 @@ public class ChargeStatsView extends LinearLayout {
         places = ChargeSpots.places(placedNow);
         chargeMap.setChargePlaces(places);
         chargeMapNone.setVisibility(places.isEmpty() ? View.VISIBLE : View.GONE);
+        chargeMap.setVisibility(places.isEmpty() ? View.INVISIBLE : View.VISIBLE);
 
         if (l.period.isEmpty()) {
             listContainer.addView(Style.label(c, c.getString(R.string.charge_none)));

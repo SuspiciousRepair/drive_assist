@@ -432,7 +432,6 @@
     <!-- charging power curve dialog -->
     <string name="charge_sessions_title">Sesiones de carga · más recientes primero</string>
     <string name="charge_soc_chart_title">Rango de batería · más recientes primero</string>
-    <string name="charge_map_title">Dónde cargamos</string>
     <string name="charge_map_none">Ninguna carga de este período guardó su lugar.</string>
     <string name="charge_curve_title">Potencia de carga en el tiempo</string>
     <string name="charge_curve_unavailable">Muestras no disponibles para esta sesión.</string>
