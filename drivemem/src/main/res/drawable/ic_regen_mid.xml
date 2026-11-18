@@ -1,7 +1,9 @@
 <!-- Drive Assist's own regen icon (issue #15), Medium: two segments filled.
      A ring in three segments that fill with the regen level, a chevron at
      one tip (energy going round, back into the battery) and a bolt in the
-     middle. Drawn here, not copied from the car: this repo is public. -->
+     middle. The fill starts at the chevron's segment (the left one) and
+     grows back from it, so the arrow never comes out of a dim segment.
+     Drawn here, not copied from the car: this repo is public. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -10,7 +12,7 @@
     <path
         android:pathData="M13.563,3.137 A9,9 0 0,1 20.457,15.078"
         android:strokeColor="#FFFFFFFF"
-        android:strokeAlpha="1"
+        android:strokeAlpha="0.3"
         android:strokeWidth="2.2"
         android:strokeLineCap="round"/>
     <path
@@ -22,7 +24,7 @@
     <path
         android:pathData="M3.543,15.078 A9,9 0 0,1 10.437,3.137"
         android:strokeColor="#FFFFFFFF"
-        android:strokeAlpha="0.3"
+        android:strokeAlpha="1"
         android:strokeWidth="2.2"
         android:strokeLineCap="round"/>
     <path
