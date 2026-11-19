@@ -88,15 +88,27 @@ final class OemText {
     private static File srcDir(Context c) { return new File(c.getFilesDir(), "oem-text"); }
     private static File stageDir(Context c) { return new File(c.getFilesDir(), "oem-text-stage"); }
 
-    /** One patched app, as remembered between boots. */
+    /** One patched app, as remembered between boots: the factory apk's
+     * SHA-256 (one the manifest allowed) and our copy's. */
     static final class App {
-        final String pkg, apk, fingerprint;
-        App(String pkg, String apk, String fingerprint) { this.pkg = pkg; this.apk = apk; this.fingerprint = fingerprint; }
-        String line() { return pkg + "|" + apk + "|" + fingerprint; }
-        static App parse(String line) {
-            String[] f = line.split("\\|", 3);
-            return f.length == 3 ? new App(f[0], f[1], f[2]) : null;
+        final String pkg, apk, fingerprint, srcSha, copySha;
+        App(String pkg, String apk, String fingerprint, String srcSha, String copySha) {
+            this.pkg = pkg; this.apk = apk; this.fingerprint = fingerprint; this.srcSha = srcSha; this.copySha = copySha;
         }
+        String line() { return pkg + "|" + apk + "|" + fingerprint + "|" + srcSha + "|" + copySha; }
+        static App parse(String line) {
+            String[] f = line.split("\\|", 5);
+            return f.length == 5 && OemTextPolicy.validSha(f[3]) && OemTextPolicy.validSha(f[4])
+                ? new App(f[0], f[1], f[2], f[3], f[4]) : null;
+        }
+    }
+
+    /** What the manifest gives for one app: the text, and the SHA-256 of the
+     * factory apks the text was made for. */
+    static final class Source {
+        final Map<String, Map<String, String>> tr;
+        final List<String> apkSha;
+        Source(Map<String, Map<String, String>> tr, List<String> apkSha) { this.tr = tr; this.apkSha = apkSha; }
     }
 
     static List<App> apps(Context c) {
@@ -164,7 +176,7 @@ final class OemText {
 
     private static void doInstall(Context app) throws Exception {
         step = "download";
-        Map<String, Map<String, Map<String, String>>> files;
+        Map<String, Source> files;
         String system = systemVersion();
         try {
             files = download(app, system);
@@ -194,11 +206,11 @@ final class OemText {
 
         List<App> done = new ArrayList<>();
         List<String> notes = new ArrayList<>();
-        for (Map.Entry<String, Map<String, Map<String, String>>> e : files.entrySet()) {
+        for (Map.Entry<String, Source> e : files.entrySet()) {
             String pkg = e.getKey();
             String apk = systemApk(app, pkg);
             if (apk == null) { notes.add(pkg + ": not on this car"); continue; }
-            App a = patchAndMount(app, adb, pkg, apk, e.getValue(), notes);
+            App a = patchAndMount(app, adb, pkg, apk, e.getValue().tr, e.getValue().apkSha, notes);
             if (a != null) done.add(a);
         }
         save(app, done);
@@ -248,14 +260,17 @@ final class OemText {
             want++;
             if (mounted.contains(a.apk)) { keep.add(a); ok++; continue; }
             if (a.fingerprint.equals(fingerprint(a.apk))) {
-                String out = adb.execute(OemTextPolicy.remountCommand(a.apk, a.pkg));
+                // Mounts our copy only if it still has the hash we wrote.
+                String out = adb.execute(OemTextPolicy.remountCommand(a.apk, a.pkg, a.copySha));
                 if (out.contains(OemTextPolicy.MOUNTED)) { keep.add(a); ok++; continue; }
                 if (!out.contains(OemTextPolicy.NO_FILE)) { notes.add(a.pkg + ": " + out); keep.add(a); continue; }
             }
-            // The OEM app changed, or our copy is gone: make it again from
-            // the translation file we kept.
+            // Our copy is gone (or not ours any more): make it again from the
+            // translation file we kept, but only from the same factory apk
+            // as before. A changed OEM app is refused: Install again.
             Map<String, Map<String, String>> tr = readSaved(app, a.pkg);
-            App b = tr == null ? null : patchAndMount(app, adb, a.pkg, a.apk, tr, notes);
+            App b = tr == null ? null
+                : patchAndMount(app, adb, a.pkg, a.apk, tr, java.util.Collections.singletonList(a.srcSha), notes);
             if (b != null) { keep.add(b); ok++; }
             else if (tr == null) notes.add(a.pkg + ": translation file missing, Install again");
         }
@@ -264,15 +279,25 @@ final class OemText {
         result(app, ok == want ? OK : PARTIAL, String.join("; ", notes));
     }
 
-    /** Patches {@code pkg}'s factory apk with {@code tr} and mounts the copy.
+    /** Patches {@code pkg}'s factory apk with {@code tr} and mounts the copy,
+     * only when the factory apk's SHA-256 is one of {@code allowedSha}.
      * Returns the record to keep, or null (with a note) when it failed. */
     private static App patchAndMount(Context app, LocalAdbShell adb, String pkg, String apk,
-                                     Map<String, Map<String, String>> tr, List<String> notes) throws IOException {
+                                     Map<String, Map<String, String>> tr, List<String> allowedSha,
+                                     List<String> notes) throws IOException {
         step = "patch";
         File stage = stageDir(app);
         if (!stage.isDirectory() && !stage.mkdirs()) throw new IOException("mkdir " + stage);
         File out = new File(stage, new File(apk).getName());
         String fp = fingerprint(apk);
+        // The very file the text was made for, or nothing: a different build
+        // of the app could hold other strings under the same names.
+        String srcSha = OemTextPolicy.sha256(new File(apk));
+        if (allowedSha == null || !allowedSha.contains(srcSha)) {
+            notes.add(pkg + ": not the app the text was made for (" + srcSha.substring(0, 12) + ")");
+            return null;
+        }
+        String copySha;
         try {
             byte[] arsc = ApkRewrite.read(new File(apk), "resources.arsc");
             if (arsc == null) { notes.add(pkg + ": no resources.arsc"); return null; }
@@ -281,6 +306,7 @@ final class OemText {
             // Read our own result back before the car sees it.
             if (!checks(arsc, r.arsc, tr)) { notes.add(pkg + ": patch check failed"); return null; }
             ApkRewrite.replace(new File(apk), out, "resources.arsc", r.arsc);
+            copySha = OemTextPolicy.sha256(out);
             Log.i(TAG, "oem text: " + pkg + " replaced=" + r.replaced + " added=" + r.added + " missing=" + r.missing);
         } catch (RuntimeException e) {
             out.delete();
@@ -294,7 +320,7 @@ final class OemText {
         out.delete();                                    // gone already when the move worked
         if (!res.contains(OemTextPolicy.MOUNTED)) { notes.add(pkg + ": mount: " + res); return null; }
         prefs(app).edit().putLong(K_MOUNTED_AT, System.currentTimeMillis()).commit();
-        return new App(pkg, apk, fp);
+        return new App(pkg, apk, fp, srcSha, copySha);
     }
 
     /** Every changed line reads back as the text we asked for, and the
@@ -427,9 +453,9 @@ final class OemText {
 
     /** package -> language -> name -> text, from the repo. Also kept in our
      * files dir, for a re-patch after an OEM update with no network. */
-    private static Map<String, Map<String, Map<String, String>>> download(Context app, String system)
+    private static Map<String, Source> download(Context app, String system)
             throws IOException, FormatException, SystemException, HashException {
-        Map<String, Map<String, Map<String, String>>> out = new LinkedHashMap<>();
+        Map<String, Source> out = new LinkedHashMap<>();
         Map<String, byte[]> raw = new LinkedHashMap<>();
         try {
             byte[] mb = fetch(OemTextPolicy.BASE_URL + OemTextPolicy.MANIFEST, OemTextPolicy.MAX_MANIFEST_BYTES);
@@ -454,8 +480,15 @@ final class OemText {
                 byte[] body = fetch(OemTextPolicy.BASE_URL + file, OemTextPolicy.MAX_FILE_BYTES);
                 if (!OemTextPolicy.hashOk(file, body)) throw new HashException(file);
                 Map<String, Map<String, String>> tr = parse(body);
-                if (tr.isEmpty()) continue;
-                out.put(pkg, tr);
+                List<String> apkSha = new ArrayList<>();
+                JSONArray hl = a.optJSONArray("apk_sha256");
+                if (hl != null) for (int j = 0; j < hl.length(); j++) {
+                    String h = hl.optString(j).toLowerCase(java.util.Locale.ROOT);
+                    if (OemTextPolicy.validSha(h)) apkSha.add(h);
+                }
+                // No factory hash listed: nothing to check against, so no.
+                if (tr.isEmpty() || apkSha.isEmpty()) continue;
+                out.put(pkg, new Source(tr, apkSha));
                 raw.put(pkg, body);
             }
         } catch (org.json.JSONException e) {

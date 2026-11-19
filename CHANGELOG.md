@@ -12,7 +12,11 @@
   the app: every file must have the SHA-256 the app expects, or nothing
   changes (`tools/pin-oem-translations.sh` updates the pins). It applies only
   on the system versions the text was made for (today 1111,
-  `SW0E22H0128H111100000`); after a system update the next boot removes it.
+  `SW0E22H0128H111100000`), and only on the exact factory app each file was
+  made for (its SHA-256 is in the pinned manifest; another build of the app
+  is left untouched). After a reboot a copy is mounted again only if it
+  still has the hash ModeHelper wrote. After a system update the next boot
+  removes it.
   ModeHelper patches a copy
   of each app from the one on your car (only the text table changes) and
   puts the copy in front of the original with a bind mount, through the

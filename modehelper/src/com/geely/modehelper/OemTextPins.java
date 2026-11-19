@@ -9,11 +9,11 @@ package com.geely.modehelper;
 final class OemTextPins {
     private OemTextPins() {}
 
-    static final String COMMIT = "5d95757a19c9f3b394045e89f459397cb895fa3b";
+    static final String COMMIT = "48c3d878393b30056615528fc8c9b8b2f7def9d9";
 
     /** {path in the repo, SHA-256 of its bytes}. */
     static final String[][] FILES = {
-        { "manifest.json", "8c298b15523261d26e4530af0d8fbdd277f4ec569f7e0debdd87fa1dde968bd5" },
+        { "manifest.json", "0c8dc3b93210e4667eb78c19292f2f132b2b272cc7ebc63b6bd4f0a63fc48023" },
         { "apps/com.flyme.auto.energy.json", "fa11183d9dbbb89b158be25676577be6aef16d8ff6549d08b273b75a5fb6f167" },
         { "apps/com.flyme.auto.connectivitysettings.json", "cfa41ceee6013bf64d67c68e6ef331189cf5db718fd2ce428a0d2558635e1bc9" },
         { "apps/com.flyme.auto.settings.json", "951b68018fc90e09bb44f0e64c8d39ebf3db77f9ee7f780ec5c843ae196b7aa5" },

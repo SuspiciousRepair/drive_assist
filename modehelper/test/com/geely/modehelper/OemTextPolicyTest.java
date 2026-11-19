@@ -58,6 +58,16 @@ public final class OemTextPolicyTest {
         check(!OemTextPolicy.hashOk("apps/evil.json", new byte[0]), "a file that is not pinned fails");
         check(!OemTextPolicy.hashOk(OemTextPolicy.MANIFEST, null), "no bytes fail");
         check(!OemTextPolicy.pinnedAnywhere("x".getBytes()) && !OemTextPolicy.pinnedAnywhere(null), "unpinned bytes");
+        try {
+            java.io.File tmp = java.io.File.createTempFile("oemsha", ".bin");
+            java.nio.file.Files.write(tmp.toPath(), "abc".getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+            check(OemTextPolicy.sha256(tmp).equals(OemTextPolicy.sha256("abc".getBytes(java.nio.charset.StandardCharsets.US_ASCII))),
+                "sha256 of a file equals sha256 of its bytes");
+            tmp.delete();
+        } catch (java.io.IOException e) { throw new AssertionError(e); }
+        String abc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+        check(OemTextPolicy.validSha(abc) && !OemTextPolicy.validSha(abc.toUpperCase()) && !OemTextPolicy.validSha("ab"),
+            "a SHA-256 is 64 lower-case hex digits");
 
         check(OemTextPolicy.copyPath(apk).equals("/data/local/oem-i18n/AutoEnergy.apk"), "copy path");
 
@@ -70,8 +80,13 @@ public final class OemTextPolicyTest {
         check(refused(() -> OemTextPolicy.mountCommand("/tmp/x.apk", apk, pkg)), "mount refuses a staged file outside /data");
         check(refused(() -> OemTextPolicy.mountCommand(staged, "/vendor/app/X/X.apk", pkg)), "mount refuses a non-/system target");
 
-        String r = OemTextPolicy.remountCommand(apk, pkg);
+        String sha = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+        String r = OemTextPolicy.remountCommand(apk, pkg, sha);
         check(r.contains(OemTextPolicy.NO_FILE) && r.contains(OemTextPolicy.MOUNTED), "remount says both outcomes");
+        check(r.contains("sha256sum /data/local/oem-i18n/AutoEnergy.apk") && r.contains("= " + sha + " ]"),
+            "remount checks the copy's hash first");
+        check(r.indexOf(sha) < r.indexOf("mount -o bind"), "the hash is checked before the mount");
+        check(refused(() -> OemTextPolicy.remountCommand(apk, pkg, "abc; reboot")), "remount refuses a bad hash");
         check(!r.contains("mv "), "remount moves nothing");
 
         String u = OemTextPolicy.unmountCommand(apk, pkg);

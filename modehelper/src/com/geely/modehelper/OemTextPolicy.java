@@ -74,12 +74,29 @@ final class OemTextPolicy {
         return false;
     }
 
+    static boolean validSha(String s) { return s != null && s.matches("[0-9a-f]{64}"); }
+
+    /** SHA-256 of a file, read in pieces (the Settings app is 105 MB). */
+    static String sha256(java.io.File f) throws java.io.IOException {
+        try (java.io.InputStream in = new java.io.FileInputStream(f)) {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] buf = new byte[1 << 16];
+            for (int n; (n = in.read(buf)) > 0; ) md.update(buf, 0, n);
+            return hex(md.digest());
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static String hex(byte[] d) {
+        StringBuilder s = new StringBuilder(64);
+        for (byte b : d) s.append(String.format("%02x", b & 0xff));
+        return s.toString();
+    }
+
     static String sha256(byte[] body) {
         try {
-            byte[] d = java.security.MessageDigest.getInstance("SHA-256").digest(body);
-            StringBuilder s = new StringBuilder(64);
-            for (byte b : d) s.append(String.format("%02x", b & 0xff));
-            return s.toString();
+            return hex(java.security.MessageDigest.getInstance("SHA-256").digest(body));
         } catch (java.security.NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
@@ -129,17 +146,20 @@ final class OemTextPolicy {
             + " && am force-stop " + pkg + " && echo " + MOUNTED;
     }
 
-    /** Mounts the copy already in {@link #DIR} again (after a reboot).
-     * Prints {@link #NO_FILE} when there is no copy to mount. */
-    static String remountCommand(String systemApk, String pkg) {
+    /** Mounts the copy already in {@link #DIR} again (after a reboot), only
+     * when it still has the SHA-256 we wrote. Prints {@link #NO_FILE} when
+     * there is no such copy (a copy with another hash is deleted). */
+    static String remountCommand(String systemApk, String pkg, String copySha) {
         check(validSystemApk(systemApk), systemApk);
         check(validPackage(pkg), pkg);
+        check(validSha(copySha), copySha);
         String f = copyPath(systemApk);
-        return "if [ -f " + f + " ]; then am force-stop " + pkg + "; " + unmountLoop(systemApk)
+        return "if [ -f " + f + " ] && [ \"$(sha256sum " + f + " | cut -d' ' -f1)\" = " + copySha + " ]; then"
+            + " am force-stop " + pkg + "; " + unmountLoop(systemApk)
             + "; chcon u:object_r:system_file:s0 " + f
             + " && mount -o bind " + f + " " + systemApk
             + " && am force-stop " + pkg + " && echo " + MOUNTED
-            + "; else echo " + NO_FILE + "; fi";
+            + "; else rm -f " + f + "; echo " + NO_FILE + "; fi";
     }
 
     /** Takes one app's copy away (after it crashed). Prints {@link #REMOVED}. */
