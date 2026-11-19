@@ -60,6 +60,12 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.BLUETOOTH_PRIVILEGED" />
 
+    <!-- OEM translations (OemText): DropBox tells us when a car app we
+         patched crashes, so its copy can be taken away at once. Both are
+         granted to uid system. -->
+    <uses-permission android:name="android.permission.READ_LOGS" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
+
     <application android:label="ModeHelper" android:allowBackup="false">
         <service android:name=".ModeHelperService" android:exported="false" />
         <receiver android:name=".BootReceiver" android:exported="true">
@@ -172,6 +178,16 @@
              stops the CAN reader, gives the car's lock sound back, sets ADB,
              and uninstalls both apps. Exported for the same reason as the
              others; see CleanupReceiver's header for why that is acceptable. -->
+        <!-- Car app translations (Drive Assist > Config > Integrations).
+             Exported for Drive Assist. A caller can only apply the text from
+             the fixed repo, or remove it: see OemTextReceiver. -->
+        <receiver android:name=".OemTextReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.geely.modehelper.OEM_TEXT_INSTALL" />
+                <action android:name="com.geely.modehelper.OEM_TEXT_REMOVE" />
+                <action android:name="com.geely.modehelper.OEM_TEXT_STATUS" />
+            </intent-filter>
+        </receiver>
         <receiver android:name=".CleanupReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="com.geely.modehelper.CLEANUP" />

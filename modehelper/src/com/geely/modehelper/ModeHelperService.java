@@ -222,6 +222,8 @@ public class ModeHelperService extends Service {
                     stopForShutdown(String.valueOf(it.getAction()));
                 }
             }, down);
+            // OEM translations: a crash of a car app we patched takes its copy away.
+            try { OemText.watchCrashes(this); } catch (Throwable t) { Log.w(TAG, "oem text watch: " + t); }
         }
         cleanupInstaller();
         if (!running) { running = true; poll = new Thread(this::pollLoop, "helper-poll"); poll.start(); }

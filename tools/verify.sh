@@ -20,12 +20,21 @@ javac -d "$MH_OUT" \
   modehelper/src/com/geely/modehelper/LocalAdbShell.java \
   modehelper/test/com/geely/modehelper/CanReaderPolicyTest.java \
   modehelper/src/com/geely/modehelper/LockSoundPolicy.java \
-  modehelper/test/com/geely/modehelper/LockSoundPolicyTest.java
+  modehelper/test/com/geely/modehelper/LockSoundPolicyTest.java \
+  modehelper/src/com/geely/modehelper/ArscPatch.java \
+  modehelper/src/com/geely/modehelper/ApkRewrite.java \
+  modehelper/src/com/geely/modehelper/OemTextPolicy.java \
+  modehelper/test/com/geely/modehelper/ArscPatchTest.java \
+  modehelper/test/com/geely/modehelper/ApkRewriteTest.java \
+  modehelper/test/com/geely/modehelper/OemTextPolicyTest.java
 java -cp "$MH_OUT" com.geely.modehelper.RestorePolicyTest
 java -cp "$MH_OUT" com.geely.modehelper.ModeRestoreTest
 java -cp "$MH_OUT" com.geely.modehelper.LockSoundPolicyTest
 java -cp "$MH_OUT" com.geely.modehelper.AvasPolicyTest
 java -cp "$MH_OUT" com.geely.modehelper.CanReaderPolicyTest
+java -cp "$MH_OUT" com.geely.modehelper.ArscPatchTest
+java -cp "$MH_OUT" com.geely.modehelper.ApkRewriteTest
+java -cp "$MH_OUT" com.geely.modehelper.OemTextPolicyTest
 rm -rf "$MH_OUT"   # not a trap: the exec below would skip it
 echo "modehelper policy tests: OK"
 

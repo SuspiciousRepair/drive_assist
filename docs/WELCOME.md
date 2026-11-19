@@ -46,6 +46,10 @@ ModeHelper stops starting it.
   5 A to 32 A.
 - **Parking mode**: keeps the car's accessories on, with a timer.
 - **Lock sound**: the sound the car plays when it locks.
+- **The text of the car's own apps** (Energy, Wi-Fi, Settings), only after
+  you tap Install in **Car app translations**. A patched copy is put in
+  front of each app; the car's own files are not changed. Remove (or a
+  reboot with the integration off) gives the factory text back.
 - **Screen brightness**: Extra dark dims the panel at night.
 - **Wi-Fi and ADB** on the head unit (see below).
 - **Its own updates**: it downloads and installs new versions, only in Park.
@@ -73,6 +77,7 @@ Nothing leaves the car unless one of the rows below applies.
 | GitHub (`github.com`) | A request for the newest version | About once a day, and when you tap update | Set your own update address in Config > System |
 | Spotify | Requests for playback state and commands | Only after you sign in to Spotify in the app | Sign out |
 | A link you paste for a lock sound | One download of that file | Only when you tap Download | Do not use it |
+| GitHub (`api.github.com`, `raw.githubusercontent.com`) | A check for the newest car app translation text, and a download when it changed. It gets no car data | When you tap Install in **Car app translations**, and at each car start while it is on | Remove it in **Car app translations** |
 
 ### Phone access
 
