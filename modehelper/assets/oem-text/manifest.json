@@ -1,0 +1,26 @@
+{
+  "format": 1,
+  "apps": [
+    {
+      "package": "com.flyme.auto.energy",
+      "file": "apps/com.flyme.auto.energy.json",
+      "apk_sha256": [
+        "69c5953ec065680fa94a65711285121443995a4af773893ec2b2d5a42475329d"
+      ]
+    },
+    {
+      "package": "com.flyme.auto.connectivitysettings",
+      "file": "apps/com.flyme.auto.connectivitysettings.json",
+      "apk_sha256": [
+        "2ee4ccff87c5aebdc8bc46d1f3cfaac6950291fa1d12db781ef65519802a34f8"
+      ]
+    },
+    {
+      "package": "com.flyme.auto.settings",
+      "file": "apps/com.flyme.auto.settings.json",
+      "apk_sha256": [
+        "84741dbe56bace0d395eb25bf23484b94df6bfd10e1f658c83d26cfdc1ad5867"
+      ]
+    }
+  ]
+}

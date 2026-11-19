@@ -77,7 +77,6 @@ Nothing leaves the car unless one of the rows below applies.
 | GitHub (`github.com`) | A request for the newest version | About once a day, and when you tap update | Set your own update address in Config > System |
 | Spotify | Requests for playback state and commands | Only after you sign in to Spotify in the app | Sign out |
 | A link you paste for a lock sound | One download of that file | Only when you tap Download | Do not use it |
-| GitHub (`raw.githubusercontent.com`) | Requests for the car app translation files. It gets no car data | Only when you tap Install or Update in **Car app translations** | Do not use it |
 
 ### Phone access
 

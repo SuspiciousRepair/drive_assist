@@ -1,0 +1,16 @@
+{
+ "pt": {
+  "health": "Saudável",
+  "adas_spv_elka_title": "Assistente de Emergência para Permanência na Faixa",
+  "adas_elka_dialog_msg": "Com o Assistente de Emergência para Permanência na Faixa desligado, o sistema não corrige saídas de faixa. Isso pode causar colisão com o meio-fio ou com objetos nas faixas ao lado"
+ },
+ "en": {
+  "health": "Healthy"
+ },
+ "es": {
+  "health": "En buen estado"
+ },
+ "th": {
+  "health": "สภาพดี"
+ }
+}

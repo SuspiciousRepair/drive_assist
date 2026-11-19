@@ -61,8 +61,6 @@ public final class TelemetryOemTextSection extends LinearLayout {
     }
 
     private void show(OemTranslations.Status s) {
-        installButton.setText(activity.getString(OemTranslations.ON.equals(s.state)
-            ? R.string.cfg_oem_update : R.string.cfg_oem_install));
         status.setText(text(s));
     }
 
@@ -72,7 +70,6 @@ public final class TelemetryOemTextSection extends LinearLayout {
                 return activity.getString(R.string.cfg_lock_sound_needs_helper);
             case OemTranslations.BUSY:
                 switch (s.step) {
-                    case "download": return activity.getString(R.string.cfg_oem_st_download);
                     case "patch": return activity.getString(R.string.cfg_oem_st_patch);
                     case "remove": return activity.getString(R.string.cfg_oem_st_remove);
                     default: return activity.getString(R.string.cfg_oem_st_mount);
@@ -84,11 +81,8 @@ public final class TelemetryOemTextSection extends LinearLayout {
             }
             case OemTranslations.ERROR:
                 switch (s.result) {
-                    case "download": return activity.getString(R.string.cfg_oem_st_err_download);
                     case "adb": return activity.getString(R.string.cfg_oem_st_err_adb);
-                    case "format": return activity.getString(R.string.cfg_oem_st_err_format);
-                    case "hash": return activity.getString(R.string.cfg_oem_st_err_hash);
-                    case "system": return activity.getString(R.string.cfg_oem_st_err_system, s.system);
+                    case "none": return activity.getString(R.string.cfg_oem_st_err_none);
                     default: return activity.getString(R.string.cfg_oem_st_err_other);
                 }
             default:

@@ -1,9 +1,15 @@
 package com.geely.modehelper;
 
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-/** Dependency-free test runner for {@link OemTextPolicy}. */
+/** Dependency-free test runner for {@link OemTextPolicy}, and for the text
+ * bundled in modehelper/assets/oem-text (run from the repo root). */
 public final class OemTextPolicyTest {
     private static void check(boolean value, String message) {
         if (!value) throw new AssertionError(message);
@@ -13,7 +19,7 @@ public final class OemTextPolicyTest {
         try { r.run(); return false; } catch (IllegalArgumentException e) { return true; }
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         String apk = "/system/app/AutoEnergy/AutoEnergy.apk";
         String pkg = "com.flyme.auto.energy";
         String staged = "/data/user/0/com.geely.modehelper/files/oem-text-stage/AutoEnergy.apk";
@@ -28,44 +34,14 @@ public final class OemTextPolicyTest {
         check(!OemTextPolicy.validSystemApk("/system/app/A B/A.apk"), "a path with a space is refused");
         check(OemTextPolicy.validFile("apps/com.flyme.auto.energy.json"), "a file in apps/ passes");
         check(!OemTextPolicy.validFile("apps/../x.json"), "a file with .. is refused");
-        check(!OemTextPolicy.validFile("https://evil/x.json"), "a URL as a file is refused");
         check(OemTextPolicy.validLang("pt") && !OemTextPolicy.validLang("pt-BR") && !OemTextPolicy.validLang(""),
             "a language is two lower-case letters");
-        check(OemTextPolicy.validName("wifi_level_strong") && !OemTextPolicy.validName("a b"), "string names");
-        check(!OemTextPolicy.validText("") && OemTextPolicy.validText("Forte"), "an empty text is refused");
-        check(!OemTextPolicy.validText(new String(new char[OemTextPolicy.MAX_TEXT_CHARS + 1])), "a huge text is refused");
 
-        List<String> systems = Arrays.asList("SW0E22H0128H111100000");
-        check(OemTextPolicy.systemAllowed("SW0E22H0128H111100000", systems), "1111 is allowed when listed");
-        check(!OemTextPolicy.systemAllowed("SW0E22H0306H111400000", systems), "1114 is refused when not listed");
-        check(!OemTextPolicy.systemAllowed("", systems) && !OemTextPolicy.systemAllowed(null, systems),
-            "an unknown system version is refused");
-        check(!OemTextPolicy.systemAllowed("SW0E22H0128H111100000", null), "a manifest with no list is refused");
-        check(!OemTextPolicy.systemAllowed("SW0E22H0128H1111", systems), "only an exact match counts");
-
-        // Pins: one exact commit, and a SHA-256 for every file the car may fetch.
-        check(OemTextPins.COMMIT.matches("[0-9a-f]{40}"), "the pin is a full commit hash");
-        check(OemTextPolicy.BASE_URL.contains("/" + OemTextPins.COMMIT + "/") && !OemTextPolicy.BASE_URL.contains("/main/"),
-            "downloads come from the pinned commit, never main");
-        check(OemTextPolicy.pinnedSha256(OemTextPolicy.MANIFEST) != null, "the manifest is pinned");
-        for (String[] f : OemTextPins.FILES) {
-            check(f[1].matches("[0-9a-f]{64}"), "a pin is a SHA-256: " + f[0]);
-            check(f[0].equals(OemTextPolicy.MANIFEST) || OemTextPolicy.validFile(f[0]), "a pinned path is valid: " + f[0]);
-        }
-        check(OemTextPolicy.sha256("abc".getBytes(java.nio.charset.StandardCharsets.US_ASCII))
-            .equals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"), "sha256 of abc");
-        check(!OemTextPolicy.hashOk(OemTextPolicy.MANIFEST, "{\"format\":1}".getBytes()), "other bytes fail the pin");
-        check(!OemTextPolicy.hashOk("apps/evil.json", new byte[0]), "a file that is not pinned fails");
-        check(!OemTextPolicy.hashOk(OemTextPolicy.MANIFEST, null), "no bytes fail");
-        check(!OemTextPolicy.pinnedAnywhere("x".getBytes()) && !OemTextPolicy.pinnedAnywhere(null), "unpinned bytes");
-        try {
-            java.io.File tmp = java.io.File.createTempFile("oemsha", ".bin");
-            java.nio.file.Files.write(tmp.toPath(), "abc".getBytes(java.nio.charset.StandardCharsets.US_ASCII));
-            check(OemTextPolicy.sha256(tmp).equals(OemTextPolicy.sha256("abc".getBytes(java.nio.charset.StandardCharsets.US_ASCII))),
-                "sha256 of a file equals sha256 of its bytes");
-            tmp.delete();
-        } catch (java.io.IOException e) { throw new AssertionError(e); }
         String abc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+        File tmp = File.createTempFile("oemsha", ".bin");
+        Files.write(tmp.toPath(), "abc".getBytes(StandardCharsets.US_ASCII));
+        check(OemTextPolicy.sha256(tmp).equals(abc), "sha256 of a file");
+        tmp.delete();
         check(OemTextPolicy.validSha(abc) && !OemTextPolicy.validSha(abc.toUpperCase()) && !OemTextPolicy.validSha("ab"),
             "a SHA-256 is 64 lower-case hex digits");
 
@@ -79,15 +55,6 @@ public final class OemTextPolicyTest {
         check(refused(() -> OemTextPolicy.mountCommand(staged, apk, "x; rm -rf /")), "mount refuses a bad package");
         check(refused(() -> OemTextPolicy.mountCommand("/tmp/x.apk", apk, pkg)), "mount refuses a staged file outside /data");
         check(refused(() -> OemTextPolicy.mountCommand(staged, "/vendor/app/X/X.apk", pkg)), "mount refuses a non-/system target");
-
-        String sha = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
-        String r = OemTextPolicy.remountCommand(apk, pkg, sha);
-        check(r.contains(OemTextPolicy.NO_FILE) && r.contains(OemTextPolicy.MOUNTED), "remount says both outcomes");
-        check(r.contains("sha256sum /data/local/oem-i18n/AutoEnergy.apk") && r.contains("= " + sha + " ]"),
-            "remount checks the copy's hash first");
-        check(r.indexOf(sha) < r.indexOf("mount -o bind"), "the hash is checked before the mount");
-        check(refused(() -> OemTextPolicy.remountCommand(apk, pkg, "abc; reboot")), "remount refuses a bad hash");
-        check(!r.contains("mv "), "remount moves nothing");
 
         String u = OemTextPolicy.unmountCommand(apk, pkg);
         check(u.contains("umount -l " + apk) && u.contains("rm -f /data/local/oem-i18n/AutoEnergy.apk"), "unmount");
@@ -109,5 +76,29 @@ public final class OemTextPolicyTest {
             "a process name with :suffix gives the package");
         check(OemTextPolicy.crashedPackage("Subject: x") == null, "no Process line gives null");
         check(OemTextPolicy.crashedPackage(null) == null, "null gives null");
+
+        // The bundled text (tools/pin-oem-translations.sh): every app names a
+        // file that is there, and the factory apk hash it was made for.
+        File dir = new File("modehelper/assets/" + OemText_ASSETS);
+        String source = new String(Files.readAllBytes(new File(dir, "SOURCE").toPath()), StandardCharsets.UTF_8).trim();
+        check(source.matches("[0-9a-f]{40}"), "SOURCE is the repo commit: " + source);
+        String manifest = new String(Files.readAllBytes(new File(dir, "manifest.json").toPath()), StandardCharsets.UTF_8);
+        Matcher app = Pattern.compile("\"package\"\\s*:\\s*\"([^\"]+)\"\\s*,\\s*\"file\"\\s*:\\s*\"([^\"]+)\"\\s*,"
+            + "\\s*\"apk_sha256\"\\s*:\\s*\\[([^\\]]*)\\]").matcher(manifest);
+        int apps = 0;
+        while (app.find()) {
+            apps++;
+            check(OemTextPolicy.validPackage(app.group(1)), "bundled package: " + app.group(1));
+            check(OemTextPolicy.validFile(app.group(2)) && new File(dir, app.group(2)).isFile(),
+                "bundled file is there: " + app.group(2));
+            Matcher h = Pattern.compile("\"([^\"]*)\"").matcher(app.group(3));
+            int hashes = 0;
+            while (h.find()) { check(OemTextPolicy.validSha(h.group(1)), "factory hash: " + h.group(1)); hashes++; }
+            check(hashes > 0, "every bundled app names its factory apk hash: " + app.group(1));
+        }
+        check(apps > 0, "the bundle lists apps");
     }
+
+    // OemText itself needs Android; its asset folder name is repeated here.
+    private static final String OemText_ASSETS = "oem-text";
 }

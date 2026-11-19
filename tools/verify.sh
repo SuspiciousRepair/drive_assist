@@ -24,7 +24,6 @@ javac -d "$MH_OUT" \
   modehelper/src/com/geely/modehelper/ArscPatch.java \
   modehelper/src/com/geely/modehelper/ApkRewrite.java \
   modehelper/src/com/geely/modehelper/OemTextPolicy.java \
-  modehelper/src/com/geely/modehelper/OemTextPins.java \
   modehelper/test/com/geely/modehelper/ArscPatchTest.java \
   modehelper/test/com/geely/modehelper/ApkRewriteTest.java \
   modehelper/test/com/geely/modehelper/OemTextPolicyTest.java

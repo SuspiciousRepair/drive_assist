@@ -12,12 +12,13 @@ import android.util.Log;
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.net.Updater;
 
-/** The "OEM translations" integration (Config > Integrations): better text
- * for the car's own apps, from the integration-oem-translations repo.
+/** The "Car app translations" integration (Config > Integrations): better
+ * text for the car's own apps. The text is built into modehelper (from the
+ * integration-oem-translations repo); nothing is downloaded.
  *
- * modehelper does all of it (its OemText: download, patch a copy of each
- * car app, bind-mount the copy, put it back after a reboot, take it away
- * when a patched app crashes) and owns the state. We only ask, with ordered
+ * modehelper does all of it (its OemText: patch a copy of each known car
+ * app, bind-mount the copy, put it back after a reboot, take it away when a
+ * patched app crashes) and owns the state. We only ask, with ordered
  * broadcasts, and keep the last answer in memory to draw the tile. */
 public final class OemTranslations {
     private OemTranslations() {}
@@ -33,12 +34,11 @@ public final class OemTranslations {
     /** modehelper's answer. */
     public static final class Status {
         public final String state;     // OFF, BUSY, ON, ERROR or NO_HELPER
-        public final String step;      // while BUSY: download, patch, mount, remove
-        public final String result;    // last result: ok, partial, download, format, adb, patch, none, error, system, hash
+        public final String step;      // while BUSY: patch, mount, remove
+        public final String result;    // last result: ok, partial, none (no known app), adb, error
         public final String note;
         public final String crashed;   // packages whose copy a crash took away, comma separated
         public final int apps;         // apps with fixed text now
-        public final String system;    // the car's system version (ro.build.version.versionname)
 
         Status(Bundle b) {
             state = b != null ? b.getString("state", NO_HELPER) : NO_HELPER;
@@ -47,7 +47,6 @@ public final class OemTranslations {
             note = b != null ? b.getString("note", "") : "";
             crashed = b != null ? b.getString("crashed", "") : "";
             apps = b != null ? b.getInt("apps", 0) : 0;
-            system = b != null ? b.getString("system", "") : "";
         }
     }
 
@@ -58,7 +57,7 @@ public final class OemTranslations {
     /** The last answer, or null before the first one. */
     public static Status last() { return last; }
 
-    /** Downloads the files, patches and mounts (also "Update"). */
+    /** Patches and mounts the known apps. */
     public static void install(Context ctx, Done cb) { send(ctx, INSTALL, cb); }
 
     /** Takes every copy away: the car's apps show their factory text. */
