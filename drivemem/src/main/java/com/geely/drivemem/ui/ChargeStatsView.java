@@ -801,7 +801,7 @@ public class ChargeStatsView extends LinearLayout {
 
     /** Title and text on a card; tap outside to close, like the charge
      * details. Also the trip screen's (i). */
-    static void showInfo(Context c, String title, String info) {
+    static void showInfo(Context c, String title, CharSequence info) {
         android.app.Dialog dialog = new android.app.Dialog(c);
         dialog.setCanceledOnTouchOutside(true);
         LinearLayout root = new LinearLayout(c);
