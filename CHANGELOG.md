@@ -12,6 +12,10 @@
   motor sends back never gets there. On the trip screen the chart
   replaces the net energy line (the chart's Battery is the same number);
   trips with no chart keep the line.
+  Known issue: the stats page chart counts only the trips that have a
+  split. A trip has none when the app was installed or restarted during
+  it. On such a day the chart's Battery Wh/km can differ from the
+  efficiency next to it, which counts every trip.
 - **Releases check their documents.** `tools/check-docs.sh` runs in CI and
   at release validation: broken links in the Markdown files, hub keys
   missing from `docs/HUB-DATA.md`, plans missing from the plan index, and
