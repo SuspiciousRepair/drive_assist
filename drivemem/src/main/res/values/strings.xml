@@ -506,6 +506,12 @@
     <string name="daily_stats_prev_day">Previous</string>
     <string name="daily_stats_next_day">Next</string>
     <string name="stats_nav_charge">Charge</string>
+    <string name="stats_nav_scale_title">Colours</string>
+    <string name="stats_nav_scale_info" formatted="false">The colours follow your own driving. Your driving days are split into five groups of 20% each, so the darkest colour is the 20% of days when you drove the most.</string>
+    <string name="stats_nav_scale_none">no driving</string>
+    <string name="stats_nav_scale_under">under %s km</string>
+    <string name="stats_nav_scale_range">%1$s – %2$s km</string>
+    <string name="stats_nav_scale_over">%s km or more</string>
 
     <!-- Backup and restore (AppBackup, BackupDialogs) -->
     <string name="backup_header">Backup</string>

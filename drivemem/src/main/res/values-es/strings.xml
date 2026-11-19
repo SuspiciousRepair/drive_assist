@@ -479,6 +479,12 @@
     <string name="daily_stats_prev_day">Anterior</string>
     <string name="daily_stats_next_day">Siguiente</string>
     <string name="stats_nav_charge">Carga</string>
+    <string name="stats_nav_scale_title">Colores</string>
+    <string name="stats_nav_scale_info" formatted="false">Los colores siguen tu propia forma de conducir. Tus días con viajes se dividen en cinco grupos de 20% cada uno, así que el color más oscuro es el 20% de los días en que más recorriste.</string>
+    <string name="stats_nav_scale_none">sin viajes</string>
+    <string name="stats_nav_scale_under">menos de %s km</string>
+    <string name="stats_nav_scale_range">%1$s – %2$s km</string>
+    <string name="stats_nav_scale_over">%s km o más</string>
 
     <!-- Backup and restore (AppBackup, BackupDialogs) -->
     <string name="backup_header">Copia de seguridad</string>

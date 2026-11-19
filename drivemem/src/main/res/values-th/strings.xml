@@ -407,6 +407,12 @@
     <string name="daily_stats_prev_day">ก่อนหน้า</string>
     <string name="daily_stats_next_day">ถัดไป</string>
     <string name="stats_nav_charge">ชาร์จ</string>
+    <string name="stats_nav_scale_title">สี</string>
+    <string name="stats_nav_scale_info" formatted="false">สีเป็นไปตามการขับของคุณเอง วันที่คุณขับรถจะถูกแบ่งเป็นห้ากลุ่ม กลุ่มละ 20% สีเข้มที่สุดคือ 20% ของวันที่คุณขับไกลที่สุด</string>
+    <string name="stats_nav_scale_none">ไม่ได้ขับ</string>
+    <string name="stats_nav_scale_under">น้อยกว่า %s กม.</string>
+    <string name="stats_nav_scale_range">%1$s – %2$s กม.</string>
+    <string name="stats_nav_scale_over">%s กม. ขึ้นไป</string>
     <!-- OBD2 + ABRP -->
     <string name="obd_title">ดองเกิล OBD2</string>
     <string name="obd_status_connected">เชื่อมต่อแล้ว — กำลังอ่านพลังงานจริงจากแบตเตอรี่</string>
