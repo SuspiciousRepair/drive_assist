@@ -287,8 +287,8 @@
     <string name="cfg_drive_card">แสดงการ์ดการขับขี่ปัจจุบัน</string>
     <string name="cfg_appearance_header">ลักษณะที่ปรากฏ</string>
     <string name="cfg_dark_mode_header">โหมดมืด</string>
-    <string name="cfg_extra_dark_label">มืดพิเศษตอนกลางคืน</string>
-    <string name="cfg_extra_dark_note">เมื่อรถอยู่ในโหมดมืด และขับไปหนึ่งนาทีโดยไม่แตะหน้าจอ แดชบอร์ดจะมืดที่สุดเท่าที่หน้าจอทำได้ แตะหน้าจอหรือเปลี่ยนเกียร์เพื่อให้สว่างกลับมา การแตะครั้งแรกจะเปิดความสว่างเท่านั้น ความสว่างของรถไม่เปลี่ยน</string>
+    <string name="cfg_extra_dark_label">โหมดมืดที่สุด</string>
+    <string name="cfg_extra_dark_note">เมื่อรถอยู่ในโหมดมืด และขับไปหนึ่งนาทีโดยไม่แตะหน้าจอ แดชบอร์ดจะมืดมาก: แสงหน้าจอต่ำสุด และมีชั้นสีเข้มอยู่ด้านบน แตะหน้าจอหรือเปลี่ยนเกียร์เพื่อให้สว่างกลับมา การแตะครั้งแรกจะเปิดความสว่างเท่านั้น ความสว่างของรถไม่เปลี่ยน</string>
     <string name="cfg_appearance_light">สว่าง</string>
     <string name="cfg_appearance_dark">มืด</string>
     <string name="cfg_appearance_auto">อัตโนมัติ</string>

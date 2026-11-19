@@ -21,4 +21,10 @@ public class ExtraDarkTest {
         assertTrue(ExtraDark.BACKLIGHT_FLOOR > 0f);
         assertTrue(ExtraDark.BACKLIGHT_FLOOR <= 10f / 255f);
     }
+
+    @Test public void shadeDarkensButLeavesTheNumbersReadable() {
+        // #130: the backlight floor alone looked unchanged to a user
+        assertTrue("darker than the floor alone", ExtraDark.SHADE_ALPHA >= 0.5f);
+        assertTrue("not black: speed still readable", ExtraDark.SHADE_ALPHA < 1f);
+    }
 }

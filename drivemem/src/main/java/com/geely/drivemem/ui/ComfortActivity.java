@@ -370,6 +370,7 @@ public class ComfortActivity extends Activity {
             sizeKonamiZone(konamiZone);
         }
 
+        extraDark.attach(screen);   // last child: the shade is above everything
         setContentView(screen);
 
         CarActor.get(this).runOnCarThread(() -> {

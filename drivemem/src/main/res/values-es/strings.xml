@@ -216,8 +216,8 @@
     <string name="cfg_skyline_random_per_drive_label">Aleatorio en cada trayecto</string>
     <string name="cfg_theme_header">Tema</string>
     <string name="cfg_dark_mode_header">Modo oscuro</string>
-    <string name="cfg_extra_dark_label">Extra oscuro de noche</string>
-    <string name="cfg_extra_dark_note">Con el auto en modo oscuro, después de un minuto conduciendo sin tocar la pantalla, el Panel se pone lo más oscuro que permite la pantalla. Toca la pantalla o cambia de marcha para que vuelva la luz. El primer toque solo enciende la pantalla. El brillo del auto no cambia.</string>
+    <string name="cfg_extra_dark_label">Modo más oscuro</string>
+    <string name="cfg_extra_dark_note">Con el auto en modo oscuro, después de un minuto conduciendo sin tocar la pantalla, el Panel se pone muy oscuro: la luz más baja de la pantalla, con una capa oscura encima. Toca la pantalla o cambia de marcha para que vuelva la luz. El primer toque solo enciende la pantalla. El brillo del auto no cambia.</string>
     <string name="cfg_theme_selection_header">Selección de tema</string>
     <string name="cfg_theme_sub">Se aplica a todas las pantallas de Drive Assist. La miniatura muestra el color y la forma de las tarjetas — el cambio es inmediato.</string>
     <string name="cfg_theme_selected">%1$s  ✓</string>

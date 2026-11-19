@@ -33,6 +33,11 @@
   window. The on signal and the restore rules come from Funkyfal's fork.
 
 ### Changed
+- **Extra dark is now Darkest mode, and it is darker (#130).** The
+  screen light alone went down too little to see. Now a dark layer also
+  covers the Dashboard while it is dimmed. The speed and the numbers stay
+  readable. A touch or a gear change brings the light back, as before.
+  Same switch, new name: Config → Look → Dark mode.
 - **Energy by use: regen is a source now.** The chart starts with where
   the energy came from: the battery, and regen (what the motor sent back
   while braking, which the car used again). Both go into Used, and Used

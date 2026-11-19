@@ -126,8 +126,9 @@ region.
   for backups, clips and trip files. It runs only in Park, on the local network.
 - **Backup and restore**: save your settings, trips and certificates to a USB
   stick and to the car, locked with a password you choose.
-- **Extra dark**: at night, after a minute of driving with no touch, the screen
-  dims further. A touch or a gear change brings it back.
+- **Darkest mode**: at night, after a minute of driving with no touch, the
+  screen goes to its lowest light and a dark layer covers the Dashboard. A
+  touch or a gear change brings it back.
 - **Lock sound**: change the sound the car plays when it locks, or import your
   own.
 - **Cleanup**: a screen that removes Drive Assist, its helper and the CAN reader,

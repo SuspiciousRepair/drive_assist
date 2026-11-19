@@ -4,16 +4,20 @@ import android.app.Activity;
 import android.content.res.Configuration;
 import android.os.Handler;
 import android.os.SystemClock;
+import android.graphics.Color;
 import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 
 import com.geely.drivemem.car.EntityBus;
 import com.geely.drivemem.state.CarState;
 import com.geely.drivemem.util.Prefs;
 
-/** Extra dark (#89): at night, after a while of driving with no touch, the
- * Dashboard dims the panel further. A touch, a gear change or leaving the
- * screen brings the car's own brightness back.
+/** Darkest mode (#89, #130; called "Extra dark" before): at night, after a
+ * while of driving with no touch, the Dashboard dims the panel further. A
+ * touch, a gear change or leaving the screen brings the car's own brightness
+ * back.
  *
  * The panel backlight goes to its floor via a WINDOW override
  * (WindowManager.LayoutParams.screenBrightness), so it is gone when the
@@ -21,8 +25,13 @@ import com.geely.drivemem.util.Prefs;
  * there is no second copy of it to drift. Measured on the car 2026-11-16:
  * the backlight (/sys/class/leds/lcd-backlight) follows Android's
  * brightness, 10..255; 10 is the floor (dumpsys display:
- * mScreenBrightnessRangeMinimum). A black shade on top was tried in sample
- * images and dropped: the owner found the floor dark enough.
+ * mScreenBrightnessRangeMinimum).
+ *
+ * On top of the backlight, a black shade: one more element of the
+ * Dashboard's own layout, the last child of its root so it draws above every
+ * other view (attach()). It is an element, not a window overlay, because it
+ * only darkens Drive Assist. Shown on dim, gone on undim. Brought back
+ * 2026-11-19 (#130): with the backlight alone, a user saw no change.
  *
  * Below that floor: 2 of 255 still lights the panel (1 is off), measured
  * 2026-11-17, and the owner wanted it darker than 10. Android will not go
@@ -43,12 +52,16 @@ public final class ExtraDark {
     static final float BACKLIGHT_FLOOR = 1f / 255f;
     /** After the dim, before asking modehelper for the real floor. */
     static final long FLOOR_DELAY_MS = 2000L;
+    /** Opacity of the black shade: 0.7 lets 30 % of the dimmed light through,
+     * so the speed and the numbers can still be read. */
+    static final float SHADE_ALPHA = 0.7f;
     static final String HELPER_FLOOR = "com.geely.modehelper.BacklightFloorReceiver";
     private static final String GEAR_KEY = "car.gear";
 
     private final Activity activity;
     private final Handler ui;
     private boolean enabled, dimmed, swallowing;
+    private View shade;
     private long lastWakeMs;
     private final Runnable check = this::check;
     private final Runnable floor = () -> { if (dimmed) helperFloor(true); };
@@ -58,6 +71,22 @@ public final class ExtraDark {
         this.activity = activity;
         this.ui = ui;
         this.gearListener = (key, reading) -> ui.post(this::wake);
+    }
+
+    /** Adds the shade as the last child of the Dashboard's root, so it is
+     * above all the other elements. Call once, after the root is built. */
+    public void attach(ViewGroup root) {
+        shade = new View(activity);
+        shade.setBackgroundColor(Color.BLACK);
+        shade.setAlpha(SHADE_ALPHA);
+        shade.setVisibility(View.GONE);
+        shade.setClickable(false);
+        shade.setFocusable(false);
+        shade.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        // Above any child that lifts itself with elevation.
+        shade.setTranslationZ(10_000f);
+        root.addView(shade, new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
     /** Whether the screen should be dimmed now. */
@@ -119,6 +148,7 @@ public final class ExtraDark {
 
     private void dim() {
         setWindow(BACKLIGHT_FLOOR);
+        if (shade != null) shade.setVisibility(View.VISIBLE);
         dimmed = true;
         ui.postDelayed(floor, FLOOR_DELAY_MS);
     }
@@ -127,6 +157,7 @@ public final class ExtraDark {
         if (!dimmed) return;
         ui.removeCallbacks(floor);
         setWindow(WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE);
+        if (shade != null) shade.setVisibility(View.GONE);
         dimmed = false;
         helperFloor(false);
     }
