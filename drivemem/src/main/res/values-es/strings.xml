@@ -538,7 +538,9 @@
     <string name="route_stat_time">Tiempo</string>
     <string name="route_stat_time_split">En marcha %1$s · parado %2$s</string>
     <string name="route_stat_speed">Velocidad</string>
-    <string name="route_stat_speed_value">media %1$s · máx. %2$s km/h</string>
+    <string name="route_stat_speed_avg">media</string>
+    <string name="route_stat_speed_top">máxima</string>
+    <string name="route_stat_speed_info">Media: la distancia recorrida dividida por el tiempo en que el coche estaba en movimiento. Las paradas (semáforos, esperando en D) no cuentan, por eso es mayor que la distancia dividida por el tiempo total del viaje.\n\nMáxima: la mayor velocidad registrada en este viaje.</string>
     <string name="route_stat_height_range">Altitud %1$s – %2$s m</string>
     <string name="route_stat_outside">Fuera</string>
     <string name="route_stat_by_use">Energía por uso</string>

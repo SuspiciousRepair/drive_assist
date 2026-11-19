@@ -796,12 +796,12 @@ public class ChargeStatsView extends LinearLayout {
         icon.setBounds(0, 0, size, size);
         t.setCompoundDrawablesRelative(null, null, icon, null);
         t.setCompoundDrawablePadding(Style.dp(c, 8));
-        card.setOnClickListener(v -> showInfo(title, info));
+        card.setOnClickListener(v -> showInfo(c, title, info));
     }
 
-    /** Title and text on a card; tap outside to close, like the charge details. */
-    private void showInfo(String title, String info) {
-        Context c = getContext();
+    /** Title and text on a card; tap outside to close, like the charge
+     * details. Also the trip screen's (i). */
+    static void showInfo(Context c, String title, String info) {
         android.app.Dialog dialog = new android.app.Dialog(c);
         dialog.setCanceledOnTouchOutside(true);
         LinearLayout root = new LinearLayout(c);

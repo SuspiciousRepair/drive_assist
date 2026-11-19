@@ -265,8 +265,7 @@ public class TripRouteActivity extends Activity {
             double avgKmh = TripRouteStats.avgMovingKmh(d.lat, d.lon, d.ts);
             String avg = Double.isNaN(avgKmh) ? "—" : String.format(Locale.US, "%.0f", avgKmh);
             stat(R.string.route_stat_time, TripRouteStats.duration(total), timeSub);
-            stat(R.string.route_stat_speed, getString(R.string.route_stat_speed_value, avg,
-                String.format(Locale.US, "%.0f", TripRouteStats.max(d.speed))), null);
+            speedStat(avg, String.format(Locale.US, "%.0f", TripRouteStats.max(d.speed)));
         } else {
             stat(R.string.route_stat_time, TripRouteStats.duration(total), null);
         }
@@ -312,6 +311,60 @@ public class TripRouteActivity extends Activity {
                 ? String.format(Locale.US, "%.0f °C", d.tempMin)
                 : String.format(Locale.US, "%.0f – %.0f °C", d.tempMin, d.tempMax), null);
         }
+    }
+
+    /** Speed: two numbers side by side, each with its name small and dim
+     * under it, so the words do not fight the numbers. The label has an
+     * (i), and a tap anywhere on the block says what the numbers are. */
+    private void speedStat(String avg, String top) {
+        LinearLayout block = new LinearLayout(this);
+        block.setOrientation(LinearLayout.VERTICAL);
+        TextView l = new TextView(this);
+        l.setText(R.string.route_stat_speed);
+        l.setTextColor(Style.TEXT_DIM);
+        l.setTextSize(17);
+        l.setPadding(0, Style.dp(this, 10), 0, 0);
+        android.graphics.drawable.Drawable icon = getDrawable(R.drawable.ic_info_outline).mutate();
+        icon.setTint(Style.TEXT_DIM);
+        int size = Style.dp(this, 20);
+        icon.setBounds(0, 0, size, size);
+        l.setCompoundDrawablesRelative(null, null, icon, null);
+        l.setCompoundDrawablePadding(Style.dp(this, 8));
+        block.addView(l);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.addView(speedPart(avg, R.string.route_stat_speed_avg));
+        View top_ = speedPart(top, R.string.route_stat_speed_top);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.leftMargin = Style.dp(this, 48);
+        row.addView(top_, lp);
+        block.addView(row);
+        block.setOnClickListener(v -> ChargeStatsView.showInfo(this,
+            getString(R.string.route_stat_speed), getString(R.string.route_stat_speed_info)));
+        stats.addView(block);
+    }
+
+    /** "15 km/h" (the unit smaller and dim) over "average". */
+    private View speedPart(String number, int name) {
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        TextView v = new TextView(this);
+        android.text.SpannableString s = new android.text.SpannableString(number + " km/h");
+        int from = number.length();
+        s.setSpan(new android.text.style.RelativeSizeSpan(0.65f), from, s.length(), 0);
+        s.setSpan(new android.text.style.ForegroundColorSpan(Style.TEXT_DIM), from, s.length(), 0);
+        v.setText(s);
+        v.setTextColor(Style.TEXT);
+        v.setTextSize(26);
+        v.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        col.addView(v);
+        TextView n = new TextView(this);
+        n.setText(name);
+        n.setTextColor(Style.TEXT_DIM);
+        n.setTextSize(16);
+        col.addView(n);
+        return col;
     }
 
     // One number: a small dim label, the value, and an optional dim line under it.
