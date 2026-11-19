@@ -38,8 +38,8 @@ import java.util.Locale;
  * One number per part, in one unit at a time: kWh, Wh/km (over the km the
  * trips covered) or % of Used. All in one unit, so they still add up.
  * Each label is the name (regular), the number (bold) and the unit (small,
- * dim) right after it; on the left the number goes under the name, so the
- * labels take little width. A tap goes to
+ * dim) right after it. Beside the bars the number goes under the name, so
+ * the labels take little width and never run off a narrow card. A tap goes to
  * the next unit. The choice is kept (Prefs) and is the same on the trip
  * screen and the stats page. */
 final class EnergySankeyView extends View {
@@ -61,7 +61,7 @@ final class EnergySankeyView extends View {
     private final String[] partNames;
 
     // Layout, in px (dp = px on this panel, see CLAUDE.md).
-    private final float chartH, top, nodeW, midGap, rightGap, labelGap, leftLabelGap;
+    private final float chartH, top, nodeW, midGap, rightGap, labelGap;
 
     EnergySankeyView(Context c) {
         super(c);
@@ -70,8 +70,7 @@ final class EnergySankeyView extends View {
         nodeW = Style.dp(c, 8);
         midGap = Style.dp(c, 32);
         rightGap = Style.dp(c, 12);
-        labelGap = Style.dp(c, 26);
-        leftLabelGap = Style.dp(c, 46);
+        labelGap = Style.dp(c, 46);
         bold.setTextSize(Style.dp(c, 17));
         bold.setTypeface(Typeface.DEFAULT_BOLD);
         dim.setTextSize(Style.dp(c, 14));
@@ -181,10 +180,11 @@ final class EnergySankeyView extends View {
     private float[] leftLabelYs() {
         float cBat = yLeft() + hBattery() / 2;
         if (!(hRegen() > 0)) return new float[]{cBat};
-        return labelYs(new float[]{cBat, yRegen() + hRegen() / 2}, leftLabelGap);
+        return labelYs(new float[]{cBat, yRegen() + hRegen() / 2}, labelGap);
     }
 
-    // The first part's label stays clear of Used's label above the chart.
+    // Two-line labels, like the left ones. The first stays clear of Used's
+    // label above the chart.
     private float[] partLabelYs() { return labelYs(partCentres(), labelGap, top + Style.dp(getContext(), 16)); }
 
     @Override protected void onMeasure(int wSpec, int hSpec) {
@@ -243,18 +243,19 @@ final class EnergySankeyView extends View {
             + dim.measureText(UNIT_NAMES[u]);
     }
 
-    private float leftLabelWidth(String text, double kwhValue) {
+    private float twoLineWidth(String text, double kwhValue) {
         return Math.max(name.measureText(text), valueWidth(kwhValue));
     }
 
-    /** A left-hand label: the name, and the number under it, both ending
-     * at {@code xEnd}. {@code y} is the block's centre. */
-    private void leftLabel(Canvas cv, String text, double kwhValue, float xEnd, float y, int color) {
+    /** A two-line label: the name, and the number under it. Ends at
+     * {@code x} on the left of the chart, starts there on the right.
+     * {@code y} is the block's centre. */
+    private void twoLineLabel(Canvas cv, String text, double kwhValue, float x0, float y, boolean endsAtX) {
         int u = shownUnit(unit, km);
-        name.setColor(color);
-        bold.setColor(color);
-        cv.drawText(text, xEnd - name.measureText(text), y - Style.dp(getContext(), 4), name);
-        float x = xEnd - valueWidth(kwhValue);
+        name.setColor(Style.TEXT);
+        bold.setColor(Style.TEXT);
+        cv.drawText(text, endsAtX ? x0 - name.measureText(text) : x0, y - Style.dp(getContext(), 4), name);
+        float x = endsAtX ? x0 - valueWidth(kwhValue) : x0;
         float yv = y + Style.dp(getContext(), 17);
         String v = value(kwhValue, u, used, km);
         cv.drawText(v, x, yv, bold);
@@ -265,10 +266,13 @@ final class EnergySankeyView extends View {
         if (!hasData) return;
         float w = getWidth();
         boolean hasRegen = hRegen() > 0;
-        float leftW = leftLabelWidth(sBattery, battery);
-        if (hasRegen) leftW = Math.max(leftW, leftLabelWidth(sRegen, regen));
+        float leftW = twoLineWidth(sBattery, battery);
+        if (hasRegen) leftW = Math.max(leftW, twoLineWidth(sRegen, regen));
         float pad = Style.dp(getContext(), 8);
-        float xLeft = Math.round(leftW + pad), xRight = Math.round(w * 0.62f);
+        double[] v = {drive, climate, other};
+        float rightW = 0;
+        for (int i = 0; i < 3; i++) rightW = Math.max(rightW, twoLineWidth(partNames[i], v[i]));
+        float xLeft = Math.round(leftW + pad), xRight = Math.round(w - rightW - pad - nodeW);
         float xMid = Math.round((xLeft + xRight) / 2f);
         float hBat = hBattery(), hReg = hRegen();
         float yBat = yLeft(), yReg = yRegen();
@@ -284,7 +288,7 @@ final class EnergySankeyView extends View {
         float[] ly = leftLabelYs();
         node(cv, xLeft, yBat, hBat, Style.GOOD);
         band(cv, xLeft + nodeW, yBat, xMid, top, hBat, Style.GOOD);
-        leftLabel(cv, sBattery, battery, xLeft - pad, ly[0], Style.TEXT);
+        twoLineLabel(cv, sBattery, battery, xLeft - pad, ly[0], true);
         if (hasRegen) {
             node(cv, xLeft, yReg, hReg, Style.PURPLE);
             band(cv, xLeft + nodeW, yReg, xMid, top + hBat, hReg, Style.PURPLE);
@@ -292,7 +296,7 @@ final class EnergySankeyView extends View {
                 line.setColor(Style.PURPLE);
                 cv.drawLine(xLeft, lc[1], xLeft - pad + 3, ly[1], line);
             }
-            leftLabel(cv, sRegen, regen, xLeft - pad, ly[1], Style.TEXT);
+            twoLineLabel(cv, sRegen, regen, xLeft - pad, ly[1], true);
         }
 
         node(cv, xMid, top, chartH, Style.TEXT_DIM);
@@ -302,7 +306,6 @@ final class EnergySankeyView extends View {
 
         // Drive, climate, other from Used.
         float[] h = partHeights();
-        double[] v = {drive, climate, other};
         float ySrc = top, yDst = top;
         float[] centres = new float[3];
         for (int i = 0; i < 3; i++) {
@@ -313,13 +316,13 @@ final class EnergySankeyView extends View {
             yDst += h[i] + rightGap;
         }
         float[] ry = partLabelYs();
-        float lx = xRight + nodeW + Style.dp(getContext(), 10);
+        float lx = xRight + nodeW + pad;
         for (int i = 0; i < 3; i++) {
             if (Math.abs(ry[i] - centres[i]) > 1) {
                 line.setColor(colors[i]);
-                cv.drawLine(xRight + nodeW, centres[i], lx - 3, ry[i] - Style.dp(getContext(), 6), line);
+                cv.drawLine(xRight + nodeW, centres[i], lx - 3, ry[i], line);
             }
-            label(cv, partNames[i], v[i], lx, ry[i], Style.TEXT);
+            twoLineLabel(cv, partNames[i], v[i], lx, ry[i], false);
         }
     }
 }
