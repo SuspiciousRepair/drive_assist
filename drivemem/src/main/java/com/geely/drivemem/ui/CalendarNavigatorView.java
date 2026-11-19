@@ -298,9 +298,11 @@ public class CalendarNavigatorView extends View {
         text.setTextSize(Style.dp(c, 14));
         text.setColor(Style.TEXT_DIM);
         text.setTextAlign(Paint.Align.LEFT);
+        legendTop = rowY(7);
         String lo = "0", hi = cuts.length == 4 ? Math.round(cuts[3]) + "+ km" : "km";
         String charge = c.getString(R.string.stats_nav_charge);
         float total = text.measureText(lo) + textGap + 6 * sq + 5 * gap + textGap + text.measureText(hi)
+                    + textGap + sq
                     + groupGap + text.measureText(charge)
                     + 2 * (textGap + sq * 0.6f + gap + text.measureText("AC"));
         float x = getWidth() - total;
@@ -316,7 +318,13 @@ public class CalendarNavigatorView extends View {
         }
         x += textGap;
         cv.drawText(hi, x, base, text);
-        x += text.measureText(hi) + groupGap;
+        x += text.measureText(hi) + textGap;
+        // (i): a tap on the key explains the scale (showScale).
+        android.graphics.drawable.Drawable info = c.getDrawable(R.drawable.ic_info_outline).mutate();
+        info.setTint(Style.TEXT_DIM);
+        info.setBounds((int) x, (int) y, (int) (x + sq), (int) (y + sq));
+        info.draw(cv);
+        x += sq + groupGap;
         cv.drawText(charge, x, base, text);
         x += text.measureText(charge);
         for (boolean dc : new boolean[]{false, true}) {
@@ -344,6 +352,12 @@ public class CalendarNavigatorView extends View {
             case MotionEvent.ACTION_UP:
                 if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
                 if (moved(e)) return true;
+                // Under the grid is the colour key: a tap there explains it.
+                if (legendTop > 0 && e.getY() >= legendTop) {
+                    performClick();
+                    showScale();
+                    return true;
+                }
                 LocalDate d = dateAt(e.getX(), e.getY());
                 if (d != null && onPick != null) {
                     performClick();
@@ -364,6 +378,45 @@ public class CalendarNavigatorView extends View {
 
     @Override
     public boolean performClick() { return super.performClick(); }
+
+    // Top of the colour key, set when it is drawn; 0 before.
+    private float legendTop;
+
+    /** The colour key, spelled out: each colour with its km range, from
+     * this driver's own cut points (StatsCalendar.levelCuts). */
+    private void showScale() {
+        Context c = getContext();
+        android.text.SpannableStringBuilder b = new android.text.SpannableStringBuilder(
+            c.getString(R.string.stats_nav_scale_info));
+        b.append("\n");
+        String[] ranges = scaleRanges(cuts,
+            c.getString(R.string.stats_nav_scale_none), c.getString(R.string.stats_nav_scale_under),
+            c.getString(R.string.stats_nav_scale_range), c.getString(R.string.stats_nav_scale_over));
+        for (int lv = 0; lv < ranges.length; lv++) {
+            b.append("\n");
+            int at = b.length();
+            b.append("\u25A0");
+            b.setSpan(new android.text.style.ForegroundColorSpan(levelColor(lv)), at, b.length(), 0);
+            b.setSpan(new android.text.style.RelativeSizeSpan(1.4f), at, b.length(), 0);
+            b.append("  ").append(ranges[lv]);
+        }
+        ChargeStatsView.showInfo(c, c.getString(R.string.stats_nav_scale_title), b);
+    }
+
+    /** One line per colour, level 0 (no driving) to 5. With no driving
+     * days yet, only level 0. under, range and over are format strings
+     * (km as whole numbers): "under %s km", "%1$s – %2$s km", "%s km or more". */
+    static String[] scaleRanges(double[] cuts, String none, String under, String range, String over) {
+        if (cuts.length != 4) return new String[]{none};
+        String[] k = new String[4];
+        for (int i = 0; i < 4; i++) k[i] = String.valueOf(Math.round(cuts[i]));
+        return new String[]{none,
+            String.format(java.util.Locale.US, under, k[0]),
+            String.format(java.util.Locale.US, range, k[0], k[1]),
+            String.format(java.util.Locale.US, range, k[1], k[2]),
+            String.format(java.util.Locale.US, range, k[2], k[3]),
+            String.format(java.util.Locale.US, over, k[3])};
+    }
 
     /** The day under (x, y). Off the grid's edges it clamps to the nearest
      * column/row; after today it is today; before the data it is the first
