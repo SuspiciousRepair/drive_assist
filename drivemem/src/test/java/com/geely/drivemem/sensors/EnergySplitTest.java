@@ -231,6 +231,25 @@ public class EnergySplitTest {
         assertEquals(t.fanKwh, s.climateKwh, 1e-12);
     }
 
+    // --- Why a trip has no split (can-events.log) ---
+
+    @Test public void splitWhyIsNullWhenCanCoveredTheTrip() {
+        assertNull(EnergyIntegrator.splitWhy(0, 950, 1000));
+    }
+
+    // 2026-11-19: the app was installed during two trips; both lost the split.
+    @Test public void splitWhyNamesAnAppRestart() {
+        assertEquals("app restarted during the trip",
+            EnergyIntegrator.splitWhy(Long.MAX_VALUE, 1000, 1000));
+        assertEquals("app restarted 18 min into the trip; CAN covered 33 % of it (needs 90 %)",
+            EnergyIntegrator.splitWhy(18 * 60_000L, 9 * 60_000L, 9 * 60_000L));
+    }
+
+    @Test public void splitWhyNamesMissingCan() {
+        assertEquals("no CAN reading", EnergyIntegrator.splitWhy(0, 0, 1000));
+        assertEquals("CAN covered 50 % of it (needs 90 %)", EnergyIntegrator.splitWhy(0, 500, 1000));
+    }
+
     // --- Stats page: the split summed over a period ---
 
     @Test public void splitTotalsSkipTripsWithoutASplit() {

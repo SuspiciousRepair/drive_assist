@@ -85,6 +85,7 @@ public final class CanEnergyReader {
     /** Idempotent; no-op while the switch is off. */
     public static synchronized void ensureStarted(Context ctx) {
         if (!Prefs.getCanEnergyEnabled(ctx)) return;
+        CanEventLog.init(ctx);
         wanted = true;
         // Hub first (CLAUDE.md rule 7): consumers read the can.* keys.
         CanHub.register(com.geely.drivemem.car.CarActor.get(ctx));
@@ -103,8 +104,7 @@ public final class CanEnergyReader {
         POWER.reset();
         BRAKE.reset();
         SPEED.reset();
-        status = "off";
-        statusDetail = null;
+        setStatus("off", null);
         CanHub.unregister(com.geely.drivemem.car.CarActor.get());
     }
 
@@ -123,7 +123,7 @@ public final class CanEnergyReader {
             if (!wanted) { closeSocket(); break; }
             final boolean[] sub = {false};
             try {
-                status = "connecting";
+                status = "connecting";   // not logged: it lasts a moment
                 s.connect(new LocalSocketAddress("roadcast", LocalSocketAddress.Namespace.ABSTRACT));
                 s.setSoTimeout(READ_TIMEOUT_MS);   // after connect: needs the socket's fd
                 RoadcastClient c = new RoadcastClient(s.getInputStream(), s.getOutputStream(), want);
@@ -142,28 +142,26 @@ public final class CanEnergyReader {
                         long now = SystemClock.elapsedRealtime();
                         Double kw = POWER.onHeartbeat(sourceState, now);
                         if (kw != null && sub[0]) deliver(now, kw);
-                        status = sourceState == 1 ? "live" : "no_source";
+                        setStatus(sourceState == 1 ? "live" : "no_source", sourceState == 1 ? statusDetail : null);
                     }
                     @Override public void onSubscribed() {
                         if (!wanted) { close(s); return; }
                         sub[0] = true;
-                        status = "live";
-                        statusDetail = c.missing().isEmpty() ? null : "missing " + c.missing();
-                        Log.i(TAG, "can: reading the CAN bus" + (statusDetail != null ? " (" + statusDetail + ")" : ""));
+                        setStatus("live", c.missing().isEmpty() ? null : "missing " + c.missing());
                     }
                 });
             } catch (IOException e) {
                 String m = String.valueOf(e.getMessage());
                 // connect() failing = no daemon; a reset or close mid-session =
                 // the daemon went away (restarted, or the HAL changed).
-                if (m.contains("Connection refused") || m.contains("No such file")) status = "no_daemon";
+                String st;
+                if (m.contains("Connection refused") || m.contains("No such file")) st = "no_daemon";
                 // "Try again" (EAGAIN) = the read timed out: a stalled daemon.
-                else if (m.contains("reset") || m.contains("closed by daemon") || m.contains("Try again")) status = "dropped";
-                else status = "error";
-                statusDetail = m;
+                else if (m.contains("reset") || m.contains("closed by daemon") || m.contains("Try again")) st = "dropped";
+                else st = "error";
+                if (wanted) setStatus(st, m);
             } catch (Throwable t) {
-                status = "error";
-                statusDetail = String.valueOf(t);
+                if (wanted) setStatus("error", String.valueOf(t));
             } finally {
                 closeSocket();
                 POWER.reset();
@@ -176,7 +174,20 @@ public final class CanEnergyReader {
             try { Thread.sleep(backoff); } catch (InterruptedException e) { if (!wanted) break; }
             backoff = Math.min(backoff * 2, 60_000);
         }
-        status = "off";
+        setStatus("off", null);
+    }
+
+    /** The last status written to can-events.log; "connecting" is never. */
+    private static String loggedStatus;
+
+    /** Sets what this side sees, and writes it to can-events.log when it
+     * changed (CanEventLog). */
+    private static void setStatus(String st, String detail) {
+        status = st;
+        statusDetail = detail;
+        if (st.equals(loggedStatus)) return;
+        loggedStatus = st;
+        CanEventLog.log("app " + st + (detail != null ? ": " + detail : ""));
     }
 
     private static void deliverSpeed() {
@@ -249,8 +260,14 @@ public final class CanEnergyReader {
     public static final class StatusReceiver extends BroadcastReceiver {
         @Override public void onReceive(Context ctx, Intent i) {
             if (!STATUS_ACTION.equals(i.getAction())) return;
-            helperStatus = i.getStringExtra("status");
-            helperDetail = i.getStringExtra("detail");
+            String st = i.getStringExtra("status");
+            String detail = i.getStringExtra("detail");
+            // modehelper reports every minute; only a change is written.
+            if (st != null && (!st.equals(helperStatus) || !java.util.Objects.equals(detail, helperDetail))) {
+                CanEventLog.log(ctx, "helper " + st + (detail != null ? ": " + detail : ""));
+            }
+            helperStatus = st;
+            helperDetail = detail;
             helperAdbOpens = i.getIntExtra("adb_opens", 0);
             helperAdbOpenedAt = i.getLongExtra("adb_opened_at", 0);
         }

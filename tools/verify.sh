@@ -11,6 +11,8 @@ set -euo pipefail
 MH_OUT="$(mktemp -d)"
 javac -d "$MH_OUT" \
   modehelper/src/com/geely/modehelper/RestorePolicy.java \
+  modehelper/src/com/geely/modehelper/ModeRestore.java \
+  modehelper/test/com/geely/modehelper/ModeRestoreTest.java \
   modehelper/src/com/geely/modehelper/AvasPolicy.java \
   modehelper/test/com/geely/modehelper/RestorePolicyTest.java \
   modehelper/test/com/geely/modehelper/AvasPolicyTest.java \
@@ -20,6 +22,7 @@ javac -d "$MH_OUT" \
   modehelper/src/com/geely/modehelper/LockSoundPolicy.java \
   modehelper/test/com/geely/modehelper/LockSoundPolicyTest.java
 java -cp "$MH_OUT" com.geely.modehelper.RestorePolicyTest
+java -cp "$MH_OUT" com.geely.modehelper.ModeRestoreTest
 java -cp "$MH_OUT" com.geely.modehelper.LockSoundPolicyTest
 java -cp "$MH_OUT" com.geely.modehelper.AvasPolicyTest
 java -cp "$MH_OUT" com.geely.modehelper.CanReaderPolicyTest
