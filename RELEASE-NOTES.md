@@ -12,6 +12,19 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.9.1 — 2026-11-19
+
+- New: tap a Valet card to see a map of the moves, a timeline, the dashcam clips and the numbers.
+- New: trip maps are saved in the car while you drive, so a trip that ends in a garage still shows its map.
+- New: on the charging page, battery health shows the hours below 10% and 20%, and the battery's health with the OBD2 dongle.
+- Changed: trip maps show a green dot at the start and a checkered dot at the finish.
+- Changed: on the trip screen, the height chart shows at least 200 m, so small hills look small.
+- Changed: on the trip screen, speed is two big numbers. Tap them to see what they mean.
+- Changed: tap the energy chart to show kWh, Wh/km or %.
+- Changed: tap under the year of days to see what each colour means in km.
+- Changed: the charging page shows kWh per charge, and the outside temperature when there is no OBD2 dongle.
+- Fixed: a piece of trip map that did not load now loads again by itself.
+
 ## v0.9.0 — 2026-11-18
 
 - New: trip routes are drawn on a map (OpenStreetMap). The map is kept in the car, so a place seen once shows again with no internet.

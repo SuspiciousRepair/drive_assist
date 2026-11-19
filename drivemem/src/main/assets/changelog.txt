@@ -1,19 +1,10 @@
-- New: trip routes are drawn on a map (OpenStreetMap). The map is kept in the car, so a place seen once shows again with no internet.
-- New: the charging page shows a map of the places where you charged. Charges from before 16 Nov 2026 have no place, so they have no pin.
-- New: the charging page has four cards (charges, cost, low battery, battery temperature) and a month or year picker.
-- New: the stats page shows a year of days. Tap a day, a week or a month to see it.
-- New: export trip routes as GPX files, to the USB stick and to the phone.
-- New: open a trip to see where its energy went: drive, climate and other.
-- New: the climate ruler learns the changes you keep by hand (Config, Climate).
-- New: Cleanup also removes the helper app and the CAN reader, and asks what to do with ADB.
-- Changed: consumption is shown in Wh/km everywhere.
-- Changed: the climate ruler uses one set of settings for each outside temperature band.
-- Changed: Config, Drive mode is calmer, and the regen buttons show the regen icon.
-- Changed: Extra dark goes darker.
-- Changed: C3 blows softer.
-- Changed: Config, System, Trip routes can clear the saved map.
-- Fixed: a charge now saves the place where it took place.
-- Fixed: the floating button shows after a new install.
-- Fixed: the AVAS switch no longer jumps from off to on.
-- Fixed: CAN power read a little low.
-- Fixed: many small fixes from a code review.
+- New: tap a Valet card to see a map of the moves, a timeline, the dashcam clips and the numbers.
+- New: trip maps are saved in the car while you drive, so a trip that ends in a garage still shows its map.
+- New: on the charging page, battery health shows the hours below 10% and 20%, and the battery's health with the OBD2 dongle.
+- Changed: trip maps show a green dot at the start and a checkered dot at the finish.
+- Changed: on the trip screen, the height chart shows at least 200 m, so small hills look small.
+- Changed: on the trip screen, speed is two big numbers. Tap them to see what they mean.
+- Changed: tap the energy chart to show kWh, Wh/km or %.
+- Changed: tap under the year of days to see what each colour means in km.
+- Changed: the charging page shows kWh per charge, and the outside temperature when there is no OBD2 dongle.
+- Fixed: a piece of trip map that did not load now loads again by itself.
