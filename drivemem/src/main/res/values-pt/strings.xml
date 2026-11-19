@@ -563,7 +563,7 @@
     <string name="route_stat_outside">Lá fora</string>
     <string name="route_stat_by_use">Energia por uso</string>
     <string name="sankey_used">Gasto</string>
-    <string name="sankey_net">Líquido</string>
+    <string name="sankey_battery">Bateria</string>
     <string name="sankey_regen">Regen</string>
     <string name="stats_part_drive">Tração</string>
     <string name="stats_part_climate">Clima</string>

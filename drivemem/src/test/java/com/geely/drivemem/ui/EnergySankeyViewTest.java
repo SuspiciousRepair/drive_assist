@@ -17,9 +17,19 @@ public class EnergySankeyViewTest {
         assertArrayEquals(new float[]{100, 205, 245}, y, 0f);
     }
 
-    @Test public void kwhHasTwoDecimalsWhenSmall() {
-        assertEquals("0.12", EnergySankeyView.kwh(0.12));
-        assertEquals("6.5", EnergySankeyView.kwh(6.5));
+    // The first label never goes above the floor (Used's label is there).
+    @Test public void firstLabelStaysUnderTheFloor() {
+        float[] y = EnergySankeyView.labelYs(new float[]{5, 200, 300}, 40, 16);
+        assertArrayEquals(new float[]{16, 200, 300}, y, 0f);
+    }
+
+    // Every label has the decimals of the total: the trip from the
+    // screenshot showed "Used 2.3" over parts of 1.86, 0.29, 0.19.
+    @Test public void kwhDecimalsFollowTheTotal() {
+        assertEquals("2.34", EnergySankeyView.kwh(2.34, 2.34));
+        assertEquals("0.19", EnergySankeyView.kwh(0.19, 2.34));
+        assertEquals("12.3", EnergySankeyView.kwh(12.34, 12.34));
+        assertEquals("0.8", EnergySankeyView.kwh(0.84, 12.34));
     }
 
     // A tap goes kWh -> Wh/km -> % -> kWh.
