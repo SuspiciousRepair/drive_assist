@@ -45,6 +45,8 @@
   - **On every screen**: the dark layer covers every app, not only the
     Dashboard. The car's own top and bottom bars get the low screen light
     only.
+  - **Darkness**: how dark the layer is, 50 % to 90 % (70 % unless you
+    change it).
   - **Try it**: goes dark at once, in Park and by day too.
 - **Energy by use: regen is a source now.** The chart starts with where
   the energy came from: the battery, and regen (what the motor sent back

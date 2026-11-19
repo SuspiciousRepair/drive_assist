@@ -30,7 +30,7 @@ import android.view.WindowManager;
  *  - awake: 1 x 1 px in a corner, transparent, FLAG_WATCH_OUTSIDE_TOUCH. It
  *    hears every touch on the screen as ACTION_OUTSIDE (no position, which
  *    is all it needs): that is the "no touch for 60 s" clock.
- *  - dimmed: the whole screen, black at ExtraDark.SHADE_ALPHA, with the
+ *  - dimmed: the whole screen, black at the driver's darkness, with the
  *    backlight override at the panel floor. It takes the touch that wakes
  *    the screen, so nobody presses a button they could not see; the rest of
  *    that gesture stays with this window, which is already back to 1 x 1.
@@ -136,7 +136,7 @@ public final class DarkestOverlayService extends Service {
             lp.height = WindowManager.LayoutParams.MATCH_PARENT;
             lp.screenBrightness = ExtraDark.BACKLIGHT_FLOOR;
             view.setBackgroundColor(Color.BLACK);
-            view.setAlpha(ExtraDark.SHADE_ALPHA);
+            view.setAlpha(ExtraDark.shadeAlpha(this));
         } else {
             lp.width = 1;
             lp.height = 1;

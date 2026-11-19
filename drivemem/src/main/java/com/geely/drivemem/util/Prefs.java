@@ -200,6 +200,9 @@ public final class Prefs {
     public static void setExtraDarkStartMin(Context ctx, int v) { file(ctx).edit().putInt("extra_dark_start_min", v).apply(); }
     public static int getExtraDarkEndMin(Context ctx) { return file(ctx).getInt("extra_dark_end_min", 6 * 60); }
     public static void setExtraDarkEndMin(Context ctx, int v) { file(ctx).edit().putInt("extra_dark_end_min", v).apply(); }
+    // Darkest mode's shade, percent black (ExtraDark.shadeAlpha clamps it).
+    public static int getExtraDarkShadePct(Context ctx) { return file(ctx).getInt("extra_dark_shade_pct", 70); }
+    public static void setExtraDarkShadePct(Context ctx, int v) { file(ctx).edit().putInt("extra_dark_shade_pct", v).apply(); }
     // Darkest mode over every app (services/DarkestOverlayService), not only the Dashboard.
     public static boolean getExtraDarkGlobal(Context ctx) { return file(ctx).getBoolean("extra_dark_global", false); }
     public static void setExtraDarkGlobal(Context ctx, boolean v) { file(ctx).edit().putBoolean("extra_dark_global", v).apply(); }

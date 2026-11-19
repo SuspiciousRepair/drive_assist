@@ -218,6 +218,7 @@
     <string name="cfg_dark_mode_header">Modo oscuro</string>
     <string name="cfg_extra_dark_try">Probar</string>
     <string name="cfg_extra_dark_global">En todas las pantallas</string>
+    <string name="cfg_extra_dark_shade">Oscuridad</string>
     <string name="cfg_extra_dark_label">Modo más oscuro</string>
     <string name="cfg_extra_dark_note">En su horario, con el auto en modo oscuro, después de un minuto conduciendo sin tocar la pantalla, el Panel se pone muy oscuro: la luz más baja de la pantalla, con una capa oscura encima. Toca la pantalla o cambia de marcha para que vuelva la luz. El primer toque solo enciende la pantalla. El brillo del auto no cambia.</string>
     <string name="cfg_theme_selection_header">Selección de tema</string>

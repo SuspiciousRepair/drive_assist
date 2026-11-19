@@ -60,9 +60,25 @@ public final class ExtraDark {
     public static final float BACKLIGHT_FLOOR = 1f / 255f;
     /** After the dim, before asking modehelper for the real floor. */
     static final long FLOOR_DELAY_MS = 2000L;
-    /** Opacity of the black shade: 0.7 lets 30 % of the dimmed light through,
-     * so the speed and the numbers can still be read. */
+    /** Default opacity of the black shade: 0.7 lets 30 % of the dimmed light
+     * through, so the speed and the numbers can still be read. The driver
+     * picks another in Config (SHADE_CHOICES). */
     public static final float SHADE_ALPHA = 0.7f;
+    /** Config's darkness buttons, percent black. */
+    public static final int[] SHADE_CHOICES = {50, 60, 70, 80, 90};
+
+    /** A stored percent as an opacity, kept between the lightest and the
+     * darkest choice, so a bad value can neither hide the layer nor black
+     * the screen out. */
+    public static float shadeAlpha(int pct) {
+        int lo = SHADE_CHOICES[0], hi = SHADE_CHOICES[SHADE_CHOICES.length - 1];
+        return Math.max(lo, Math.min(hi, pct)) / 100f;
+    }
+
+    /** The driver's choice, as an opacity. */
+    public static float shadeAlpha(Context ctx) {
+        return shadeAlpha(Prefs.getExtraDarkShadePct(ctx));
+    }
     static final String HELPER_FLOOR = "com.geely.modehelper.BacklightFloorReceiver";
     /** Intent extra on ComfortActivity: Config's Try button. */
     public static final String EXTRA_TRY = "darkest_try";
@@ -94,7 +110,10 @@ public final class ExtraDark {
             WindowManager.LayoutParams lp = activity.getWindow().getAttributes();
             lp.screenBrightness = dimmed ? BACKLIGHT_FLOOR : WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
             activity.getWindow().setAttributes(lp);
-            if (shade != null) shade.setVisibility(dimmed ? View.VISIBLE : View.GONE);
+            if (shade != null) {
+                shade.setAlpha(shadeAlpha(activity));
+                shade.setVisibility(dimmed ? View.VISIBLE : View.GONE);
+            }
         };
     }
 

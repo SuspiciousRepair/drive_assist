@@ -65,6 +65,13 @@ public class ExtraDarkTest {
         assertTrue(ExtraDark.BACKLIGHT_FLOOR <= 10f / 255f);
     }
 
+    @Test public void shadeChoiceIsKeptInRange() {
+        assertTrue(ExtraDark.shadeAlpha(80) == 0.8f);
+        assertTrue("too light: lightest choice", ExtraDark.shadeAlpha(0) == 0.5f);
+        assertTrue("too dark: darkest choice, never black", ExtraDark.shadeAlpha(100) == 0.9f);
+        assertTrue("default is a choice", ExtraDark.shadeAlpha(70) == ExtraDark.SHADE_ALPHA);
+    }
+
     @Test public void shadeDarkensButLeavesTheNumbersReadable() {
         // #130: the backlight floor alone looked unchanged to a user
         assertTrue("darker than the floor alone", ExtraDark.SHADE_ALPHA >= 0.5f);
