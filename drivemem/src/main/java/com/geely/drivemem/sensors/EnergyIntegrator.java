@@ -128,6 +128,8 @@ public final class EnergyIntegrator {
         public final double climateOnSeconds;
         /** The fan (FanPower), kWh. Part of climate. */
         public final double fanKwh;
+        /** Why there is no split (null when there is one), for can-events.log. */
+        public final String splitWhy;
 
         public TripSnapshot(double spentKwh, double regenKwh, double netKwh, int sampleCount) {
             this(spentKwh, regenKwh, netKwh, sampleCount, false, 0, 0, 0, 0, 0, 0);
@@ -136,6 +138,16 @@ public final class EnergyIntegrator {
         public TripSnapshot(double spentKwh, double regenKwh, double netKwh, int sampleCount,
                             boolean splitValid, double canNetKwh, double driveSpentKwh, double driveRegenKwh,
                             double climateRawKwh, double climateOnSeconds, double fanKwh) {
+            this(spentKwh, regenKwh, netKwh, sampleCount, splitValid ? null : "no split", canNetKwh,
+                driveSpentKwh, driveRegenKwh, climateRawKwh, climateOnSeconds, fanKwh);
+        }
+
+        /** {@code splitWhy} null = the split is valid. */
+        public TripSnapshot(double spentKwh, double regenKwh, double netKwh, int sampleCount,
+                            String splitWhy, double canNetKwh, double driveSpentKwh, double driveRegenKwh,
+                            double climateRawKwh, double climateOnSeconds, double fanKwh) {
+            this.splitWhy = splitWhy;
+            boolean splitValid = splitWhy == null;
             this.spentKwh = spentKwh;
             this.regenKwh = regenKwh;
             this.netKwh = netKwh;
@@ -501,11 +513,24 @@ public final class EnergyIntegrator {
     }
 
     private static TripSnapshot tripSnapshot() {
-        boolean valid = tripSeededMs != Long.MAX_VALUE && tripCanMs > 0
-            && tripCanMs >= SPLIT_MIN_COVERAGE * ((double) tripMeasuredMs + tripSeededMs);
         return new TripSnapshot(tripSpentKwh, tripRegenKwh, tripNetKwh, tripSampleCount,
-            valid, tripCanNetKwh, tripDriveSpentKwh, tripDriveRegenKwh, tripClimateRawKwh, tripClimateOnMs / 1000.0,
+            splitWhy(tripSeededMs, tripCanMs, tripMeasuredMs), tripCanNetKwh, tripDriveSpentKwh, tripDriveRegenKwh, tripClimateRawKwh, tripClimateOnMs / 1000.0,
             tripFanKwh);
+    }
+
+    /** Null when CAN covered enough of the trip for a split, else why not:
+     * the app restarted during the trip (its first part has no split), or
+     * CAN covered too little of it. seededMs is Long.MAX_VALUE when a
+     * restart's time is unknown. */
+    static String splitWhy(long seededMs, long canMs, long measuredMs) {
+        if (seededMs == Long.MAX_VALUE) return "app restarted during the trip";
+        double total = (double) measuredMs + seededMs;
+        if (canMs > 0 && canMs >= SPLIT_MIN_COVERAGE * total) return null;
+        String cov = canMs <= 0 ? "no CAN reading"
+            : String.format(java.util.Locale.US, "CAN covered %.0f %% of it (needs %.0f %%)",
+                100.0 * canMs / total, 100 * SPLIT_MIN_COVERAGE);
+        if (seededMs > 0) return "app restarted " + seededMs / 60_000 + " min into the trip; " + cov;
+        return cov;
     }
 
     /** Adds already-known energy to the active trip's accumulators. For recovering

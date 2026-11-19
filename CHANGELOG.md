@@ -13,6 +13,12 @@
   window. The on signal and the restore rules come from Funkyfal's fork.
 
 ### Changed
+- **A log for "Exact energy" (CAN).** `can-events.log` (next to the other
+  logs, see `docs/DIAGNOSTICS.md`) writes one line whenever something
+  changes: the app connects to the CAN reader or loses it, modehelper
+  starts the reader (and why) or cannot, and a trip ends with no split
+  for its energy chart, with the reason (for example, the app was
+  installed during the trip). It holds no readings.
 - **Releases check their documents.** `tools/check-docs.sh` runs in CI and
   at release validation: broken links in the Markdown files, hub keys
   missing from `docs/HUB-DATA.md`, plans missing from the plan index, and
