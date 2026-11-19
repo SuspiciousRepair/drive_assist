@@ -109,6 +109,7 @@ public class TripRouteActivity extends Activity {
         body.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
 
         route = new RouteView(this);
+        route.setTripScreen(true);
         left.addView(route, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         note = new TextView(this);
         note.setTextColor(Style.TEXT_DIM);

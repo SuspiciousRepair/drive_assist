@@ -305,8 +305,13 @@ public class RouteView extends View {
         invalidate();
     }
 
+    // The trip screen's map: its size is kept for MapPreload.
+    private boolean tripScreen;
+    void setTripScreen(boolean b) { tripScreen = b; }
+
     @Override protected void onSizeChanged(int w, int h, int oldW, int oldH) {
         super.onSizeChanged(w, h, oldW, oldH);
+        if (tripScreen) MapPreload.rememberSize(getContext(), w, h);
         rebuild();
     }
 

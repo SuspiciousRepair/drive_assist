@@ -34,13 +34,19 @@ import java.util.concurrent.Executors;
  * Kept on disk, a place seen once draws again with no network: the car is
  * often parked where the signal is poor. A tile that cannot be fetched is
  * simply not drawn (the plain background shows, as before the map) and is
- * tried again after {@link #RETRY_MS}. */
+ * tried again by itself: soon at first, then less often, up to every
+ * {@link #RETRY_MS} ({@link #retryDelayMs}), and at once when the car gets
+ * a network again. Before this, a failed tile only came back if something
+ * else redrew the map, so a gap made while the car was joining a network
+ * stayed blank for as long as the screen was open. */
 final class TileCache {
     private static final String TAG = "TileCache";
     static final String URL_FMT = "https://tile.openstreetmap.org/%d/%d/%d.png";
     /** Disk tiles younger than this are not fetched again. */
     static final long FRESH_MS = 30L * 24 * 3600_000L;
-    /** A failed tile waits this long before the next try. */
+    /** The first retry of a failed tile; each later one waits twice as long. */
+    static final long FIRST_RETRY_MS = 5_000L;
+    /** The longest wait between two tries of a failed tile. */
     static final long RETRY_MS = 2 * 60_000L;
     /** Disk budget; past it the oldest tiles go. */
     static final long DISK_BYTES = 150L * 1024 * 1024;
@@ -66,16 +72,55 @@ final class TileCache {
     };
     // Main thread only.
     private final Set<String> pending = new HashSet<>();
-    private final Map<String, Long> failedAt = new HashMap<>();
+    private final Map<String, Long> retryAt = new HashMap<>();
+    private final Map<String, Integer> failures = new HashMap<>();
+    // The views waiting on a failed tile, told to redraw when the network
+    // comes back.
+    private final Set<Runnable> waiting = new HashSet<>();
+    // Tiles a prefetch is fetching now: any thread.
+    private final Set<String> prefetching = java.util.Collections.synchronizedSet(new HashSet<>());
+    private final Context app;
     private int writes;
 
     private TileCache(Context app) {
+        this.app = app;
         dir = new File(app.getCacheDir(), "map-tiles");
         String ver = "?";
         try {
             ver = app.getPackageManager().getPackageInfo(app.getPackageName(), 0).versionName;
         } catch (Exception ignored) { }
         userAgent = "DriveAssist/" + ver + " (+https://github.com/SuspiciousRepair/drive_assist)";
+        try {
+            android.net.ConnectivityManager cm = (android.net.ConnectivityManager)
+                app.getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm != null) cm.registerDefaultNetworkCallback(
+                new android.net.ConnectivityManager.NetworkCallback() {
+                    @Override public void onAvailable(android.net.Network n) {
+                        main.post(TileCache.this::retryNow);
+                        MapPreload.retryPending(TileCache.this.app);
+                    }
+                });
+        } catch (Exception e) {
+            Log.w(TAG, "no network callback: " + e);
+        }
+    }
+
+    /** How long a tile waits for its next try after it failed this many
+     * times in a row: FIRST_RETRY_MS, doubled each time, at most RETRY_MS. */
+    static long retryDelayMs(int failures) {
+        if (failures <= 1) return FIRST_RETRY_MS;
+        int shift = Math.min(failures - 1, 20);
+        return Math.min(RETRY_MS, FIRST_RETRY_MS << shift);
+    }
+
+    /** A network is back: every failed tile may be tried again now. */
+    private void retryNow() {
+        if (retryAt.isEmpty()) return;
+        retryAt.clear();
+        failures.clear();
+        java.util.List<Runnable> run = new java.util.ArrayList<>(waiting);
+        waiting.clear();
+        for (Runnable r : run) r.run();
     }
 
     /** The tile's picture, or null for now: then it is loaded in the
@@ -86,19 +131,69 @@ final class TileCache {
         Bitmap b = mem.get(key);
         if (b != null) return b;
         if (pending.contains(key)) return null;
-        Long failed = failedAt.get(key);
-        if (failed != null && System.currentTimeMillis() - failed < RETRY_MS) return null;
+        Long at = retryAt.get(key);
+        if (at != null && System.currentTimeMillis() < at) return null;
         pending.add(key);
         net.execute(() -> {
             Bitmap got = load(z, x, y);
             main.post(() -> {
                 pending.remove(key);
-                if (got != null) { mem.put(key, got); failedAt.remove(key); }
-                else failedAt.put(key, System.currentTimeMillis());
-                if (got != null && onReady != null) onReady.run();
+                if (got != null) {
+                    mem.put(key, got);
+                    retryAt.remove(key);
+                    failures.remove(key);
+                    // Nothing failed is left: let go of the waiting views.
+                    if (retryAt.isEmpty()) waiting.clear();
+                    if (onReady != null) onReady.run();
+                    return;
+                }
+                // Failed: come back by itself, so the gap does not stay
+                // until something else redraws the map.
+                int n = failures.containsKey(key) ? failures.get(key) + 1 : 1;
+                failures.put(key, n);
+                long delay = retryDelayMs(n);
+                retryAt.put(key, System.currentTimeMillis() + delay);
+                if (onReady != null) {
+                    waiting.add(onReady);
+                    main.postDelayed(onReady, delay);
+                }
             });
         });
         return null;
+    }
+
+    /** Puts these tiles on the disk, for a screen that is not open yet
+     * (MapPreload). Nothing is drawn. Tiles on the disk and fresh are
+     * skipped. One task on one tile thread, one tile after the other, so
+     * a screen that is open keeps the other thread. Stops at the first
+     * failure: with no network the rest would only wait for timeouts.
+     * onDone (may be null) gets true when every tile is on the disk; it
+     * runs on the tile thread. Any thread. */
+    void prefetch(java.util.List<MapTiles.Tile> tiles, java.util.function.Consumer<Boolean> onDone) {
+        if (tiles.isEmpty()) { if (onDone != null) onDone.accept(true); return; }
+        net.execute(() -> {
+            boolean ok = true;
+            for (MapTiles.Tile t : tiles) {
+                File f = file(t.z, t.x, t.y);
+                if (f.isFile() && System.currentTimeMillis() - f.lastModified() < FRESH_MS) continue;
+                String key = t.key();
+                // Another prefetch has it: not on the disk yet, so not ok.
+                if (!prefetching.add(key)) { ok = false; continue; }
+                try {
+                    byte[] png = fetch(t.z, t.x, t.y);
+                    if (png == null || !isPng(png)) { ok = false; break; }
+                    save(f, png);
+                } finally {
+                    prefetching.remove(key);
+                }
+            }
+            if (onDone != null) onDone.accept(ok);
+        });
+    }
+
+    /** The PNG signature: a tile, not an error page. */
+    static boolean isPng(byte[] b) {
+        return b != null && b.length > 8 && (b[0] & 0xFF) == 0x89 && b[1] == 'P' && b[2] == 'N' && b[3] == 'G';
     }
 
     private File file(int z, int x, int y) {
@@ -183,7 +278,8 @@ final class TileCache {
     void clear(Runnable onDone) {
         main.post(() -> {
             mem.evictAll();
-            failedAt.clear();
+            retryAt.clear();
+            failures.clear();
             net.execute(() -> {
                 java.util.List<File> all = new java.util.ArrayList<>();
                 collect(dir, all);
