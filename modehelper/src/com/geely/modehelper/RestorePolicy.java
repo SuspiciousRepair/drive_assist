@@ -31,7 +31,26 @@ final class RestorePolicy {
      * suspended and woke: a fallback for when SUSPEND_EXIT never arrives. */
     static final long SLEEP_GAP_MS = 5_000L;
 
+    /** Vendor property that follows the car's on/off state: 4 while the car is
+     * on, 2 while it is switched off (same coding as IGNITION_STATE). Found by
+     * Funkyfal (github.com/Funkyfal/drive_assist, seen 2026-11-15); the car
+     * resets the drive mode at the moment it is switched off. Used to re-arm
+     * the drive/regen restore (ModeRestore), issue #130. */
+    static final int VEHICLE_STATE_PROP = 557875211;
+    static final int VEHICLE_ON = 4;
+
     private RestorePolicy() {}
+
+    /** The car was just switched on. An unknown earlier state (first
+     * reading) is no edge: the service start already armed the restore. */
+    static boolean turnedOn(Integer before, Integer now) {
+        return before != null && now != null && before != VEHICLE_ON && now == VEHICLE_ON;
+    }
+
+    /** The car was just switched off. */
+    static boolean turnedOff(Integer before, Integer now) {
+        return before != null && now != null && before == VEHICLE_ON && now != VEHICLE_ON;
+    }
 
     /** The "Restore at start" switch. ON until the user turns it off. */
     static boolean restoreOn(boolean hasFlag, boolean flag) {

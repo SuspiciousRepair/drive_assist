@@ -18,7 +18,7 @@ import android.util.Log;
 
 // System helper (uid system), no UI. Runs continuously, watching drive mode and
 // WiFi state. Polls at 4-second intervals to:
-// 1) Enforce saved drive/regen mode while parked (P), overriding car defaults
+// 1) Restore saved drive/regen mode in Park after each start (ModeRestore)
 // 2) Keep WiFi on when charging/connected (to maintain telemetry/HA/adb)
 // The preferred mode defaults are received from drivemem via SET_MODE broadcast.
 public class ModeHelperService extends Service {
@@ -66,10 +66,45 @@ public class ModeHelperService extends Service {
         return android.os.SystemClock.elapsedRealtime() - android.os.SystemClock.uptimeMillis();
     }
 
+    // Drive mode and regen: restored after each start until they match, the
+    // driver picks another, or time runs out, and only in Park (ModeRestore,
+    // issue #130). Armed with the window below, and again by the car's on signal.
+    private final ModeRestore driveRestore = new ModeRestore(), regenRestore = new ModeRestore();
+    // Last RestorePolicy.VEHICLE_STATE_PROP reading, for its on/off edges.
+    private Integer lastVehicleState;
+    // ModeRestore is the poll thread's only. A wake on the power-watch thread
+    // asks for an arm here; the poll thread does it (enforceModes).
+    private volatile boolean armModesNow = true;
+
     private void openRestoreWindow(String why) {
         windowOpenedMs = android.os.SystemClock.elapsedRealtime();
         restoreUntil = windowOpenedMs + RestorePolicy.WINDOW_MS;
+        armModeRestore();
         Log.i(TAG, "restore window open (" + why + ", " + RestorePolicy.WINDOW_MS / 1000 + " s)");
+    }
+
+    private void armModeRestore() {
+        armModesNow = true;
+    }
+
+    // The car's on/off signal (#130). The screen can wake long before the
+    // driver presses the brake; the car sets its own drive mode when it is
+    // switched on, after the wake window closed. Only drive/regen are re-armed
+    // here: AEB/AVAS keep the short wake window (#88).
+    private void watchVehicleState() {
+        Integer vs = car.readIntProp(RestorePolicy.VEHICLE_STATE_PROP, 0);
+        if (vs == null) return;
+        if (!vs.equals(lastVehicleState)) Log.i(TAG, "vehicle state " + lastVehicleState + " -> " + vs);
+        if (RestorePolicy.turnedOn(lastVehicleState, vs)) {
+            armModeRestore();
+            Log.i(TAG, "modes: car on, drive/regen restore armed");
+        } else if (RestorePolicy.turnedOff(lastVehicleState, vs)) {
+            armModesNow = false;
+            driveRestore.cancel();
+            regenRestore.cancel();
+            Log.i(TAG, "modes: car off, drive/regen restore stopped");
+        }
+        lastVehicleState = vs;
     }
 
     @Override public int onStartCommand(Intent i, int flags, int startId) {
@@ -248,9 +283,10 @@ public class ModeHelperService extends Service {
                     long slept = sleepMs();
                     if (RestorePolicy.sleptBetween(lastSleepMs, slept)) openRestoreWindow("slept");
                     lastSleepMs = slept;
+                    watchVehicleState();
                     boolean window = RestorePolicy.inWindow(
                         android.os.SystemClock.elapsedRealtime(), restoreUntil);
-                    if (parked) enforceModeParked(window);
+                    enforceModes(parked);
                     boolean tapAeb = applyAebNow, tapAvas = applyAvasNow;
                     applyAebNow = false; applyAvasNow = false;
                     enforceAeb(window, tapAeb);
@@ -407,20 +443,32 @@ public class ModeHelperService extends Service {
         }
     }
 
-    // PARKED: read the mode and, if it differs from the default, correct it with ONE write.
+    // Drive mode and regen after a start: ModeRestore decides, Park only.
     // Only a setting with a saved value AND "Restore at start" on is written —
     // no more forcing Eco/Mid on a car whose owner never picked anything.
-    private void enforceModeParked(boolean window) {
+    private void enforceModes(boolean parked) {
         SharedPreferences p = getSharedPreferences("modehelper", MODE_PRIVATE);
-        if (shouldWrite(p, "restore_drive", "drive", window, false)) {
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (armModesNow) {
+            armModesNow = false;
+            driveRestore.arm(now);
+            regenRestore.arm(now);
+        }
+        if (driveRestore.isPending() && shouldWrite(p, "restore_drive", "drive", true, false)) {
             int drive = p.getInt("drive", CarMode.DRIVE_ECO);
             Integer cd = car.readDrive();
-            if (cd != null && cd != drive) { car.writeDrive(drive); Log.i(TAG, "modo: drive " + cd + " -> " + drive); }
+            Integer w = driveRestore.observe(cd, drive, parked, now);
+            if (w != null) car.writeDrive(w);
+            String note = driveRestore.takeNote();
+            if (note != null) Log.i(TAG, "modo: drive " + note + " (car " + cd + ", saved " + drive + ")");
         }
-        if (shouldWrite(p, "restore_regen", "regen", window, false)) {
+        if (regenRestore.isPending() && shouldWrite(p, "restore_regen", "regen", true, false)) {
             int regen = p.getInt("regen", CarMode.REGEN_MID);
             Integer cr = car.readRegen();
-            if (cr != null && cr != regen) { car.writeRegen(regen); Log.i(TAG, "modo: regen " + cr + " -> " + regen); }
+            Integer w = regenRestore.observe(cr, regen, parked, now);
+            if (w != null) car.writeRegen(w);
+            String note = regenRestore.takeNote();
+            if (note != null) Log.i(TAG, "modo: regen " + note + " (car " + cr + ", saved " + regen + ")");
         }
     }
 
@@ -431,7 +479,7 @@ public class ModeHelperService extends Service {
             RestorePolicy.restoreOn(p.contains(flagKey), p.getBoolean(flagKey, true)), window, tap);
     }
 
-    // Same shape as enforceModeParked(), for AEB, but not Park-gated. Called only
+    // Same saved-value rule as enforceModes(), for AEB, but not Park-gated. Called only
     // in the post-wake window (RestorePolicy) or for a user tap. No preference
     // yet (no "aeb" extra ever sent) means "don't touch it", not "force it on".
     // tap = a user tap in Drive Assist: written even if "Restore at start" is off.

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Drive mode and regeneration come back after a slow start (#130).**
+  The saved choice was put back only in the 15 seconds after the screen
+  woke. A driver who waited before pressing the brake started the car
+  after that, and the car kept its own default. Now the car's on signal
+  starts the restore again. Drive mode and regeneration are written only
+  in Park, a few times, for up to 3 minutes, and the restore stops when
+  you pick another mode in the car. AEB and AVAS keep the 15-second
+  window. The on signal and the restore rules come from Funkyfal's fork.
+
 ### Changed
 - **Releases check their documents.** `tools/check-docs.sh` runs in CI and
   at release validation: broken links in the Markdown files, hub keys
