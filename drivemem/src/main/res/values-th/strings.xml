@@ -393,7 +393,6 @@
     <!-- charging history -->
     <string name="charge_sessions_title">ประวัติการชาร์จ · ล่าสุดก่อน</string>
     <string name="charge_soc_chart_title">ช่วงแบตเตอรี่ · ล่าสุดก่อน</string>
-    <string name="charge_map_title">ที่ที่เราชาร์จ</string>
     <string name="charge_map_none">ไม่มีการชาร์จในช่วงนี้ที่บันทึกตำแหน่งไว้</string>
     <string name="charge_ltm_title">12 เดือนล่าสุด</string>
     <string name="charge_period_30d">30 วันล่าสุด</string>
@@ -408,6 +407,12 @@
     <string name="daily_stats_prev_day">ก่อนหน้า</string>
     <string name="daily_stats_next_day">ถัดไป</string>
     <string name="stats_nav_charge">ชาร์จ</string>
+    <string name="stats_nav_scale_title">สี</string>
+    <string name="stats_nav_scale_info" formatted="false">สีเป็นไปตามการขับของคุณเอง วันที่คุณขับรถจะถูกแบ่งเป็นห้ากลุ่ม กลุ่มละ 20% สีเข้มที่สุดคือ 20% ของวันที่คุณขับไกลที่สุด</string>
+    <string name="stats_nav_scale_none">ไม่ได้ขับ</string>
+    <string name="stats_nav_scale_under">น้อยกว่า %s กม.</string>
+    <string name="stats_nav_scale_range">%1$s – %2$s กม.</string>
+    <string name="stats_nav_scale_over">%s กม. ขึ้นไป</string>
     <!-- OBD2 + ABRP -->
     <string name="obd_title">ดองเกิล OBD2</string>
     <string name="obd_status_connected">เชื่อมต่อแล้ว — กำลังอ่านพลังงานจริงจากแบตเตอรี่</string>
@@ -555,7 +560,9 @@
     <string name="route_stat_time">เวลา</string>
     <string name="route_stat_time_split">ขณะวิ่ง %1$s · จอด %2$s</string>
     <string name="route_stat_speed">ความเร็ว</string>
-    <string name="route_stat_speed_value">เฉลี่ย %1$s · สูงสุด %2$s กม./ชม.</string>
+    <string name="route_stat_speed_avg">เฉลี่ย</string>
+    <string name="route_stat_speed_top">สูงสุด</string>
+    <string name="route_stat_speed_info">เฉลี่ย: ระยะทางที่ขับหารด้วยเวลาที่รถกำลังเคลื่อนที่ ไม่นับเวลาที่จอด (ไฟแดง รอในเกียร์ D) จึงสูงกว่าระยะทางหารด้วยเวลาทั้งหมดของการเดินทาง\n\nสูงสุด: ความเร็วสูงสุดที่บันทึกได้ในการเดินทางนี้</string>
     <string name="route_stat_height_range">ความสูง %1$s – %2$s ม.</string>
     <string name="route_stat_outside">ภายนอก</string>
     <string name="route_stat_by_use">พลังงานตามการใช้</string>
@@ -611,6 +618,8 @@
     <string name="energy_net_short">สุทธิ</string>
     <string name="valet_end_short">สิ้นสุด</string>
     <string name="valet_short">วาเลต์</string>
+    <string name="valet_stat_moves">การเคลื่อนรถ</string>
+    <string name="valet_route_none">ไม่มีเส้นทางที่บันทึกในช่วงเวลานี้ ระบบจะบันทึกเส้นทางเมื่อเปิด Config → ระบบ → เส้นทางการเดินทาง</string>
     <!-- เข้าใช้งานจากโทรศัพท์ (web/PhoneServer) -->
     <string name="phone_header">เข้าใช้งานจากโทรศัพท์</string>
     <string name="phone_card_hint">เปิดหน้าเว็บบนโทรศัพท์เพื่อดาวน์โหลดข้อมูลการเดินทาง การชาร์จ ไฟล์สำรอง และคลิปกล้องหน้ารถ กู้คืนไฟล์สำรอง และพิมพ์การตั้งค่าที่ยาว เช่น โทเคน โทรศัพท์ต้องอยู่ใน Wi-Fi เดียวกับรถ ใช้งานได้เฉพาะในเกียร์ P</string>
@@ -690,9 +699,11 @@
     <string name="charge_card_cost_share">%1$s · %2$d%% ของค่าใช้จ่าย</string>
     <string name="charge_card_no_dc">ไม่มีการชาร์จ DC</string>
     <string name="charge_card_no_cost">ยังไม่ได้ใส่ค่าใช้จ่าย</string>
-    <string name="charge_card_low">แบตเตอรี่ต่ำ</string>
+    <string name="charge_card_low">สุขภาพแบตเตอรี่</string>
     <string name="charge_card_low_cap">ต่ำสุด · %1$s</string>
-    <string name="charge_card_below">วันที่ต่ำกว่า %1$d%%</string>
+    <string name="charge_card_soh_cap">สุขภาพแบตเตอรี่ (SoH) · ประจุต่ำสุด %1$d%% วันที่ %2$s</string>
+    <string name="charge_card_soh_cap_only">สุขภาพแบตเตอรี่ (SoH)</string>
+    <string name="charge_card_below">ชั่วโมงที่ต่ำกว่า %1$d%%</string>
     <string name="charge_card_plug_note">โดยเฉลี่ยคุณเสียบชาร์จที่ %1$d%%</string>
     <string name="charge_card_today">วันนี้</string>
     <string name="charge_card_yesterday">เมื่อวาน</string>
@@ -700,7 +711,7 @@
     <string name="charge_card_never">ไม่เคย</string>
     <string name="charge_card_gap_days">%1$d วัน</string>
     <string name="charge_card_gap_open">%1$s → วันนี้</string>
-    <string name="charge_card_avg_kw">เฉลี่ย %1$s kW</string>
+    <string name="charge_card_avg_kwh">เฉลี่ย %1$s kWh</string>
     <string name="charge_card_full_band">ถึง 100%%: %1$d จาก %2$d · ล่าสุด %3$s</string>
     <string name="charge_card_gap_line">ช่วงที่ไม่ถึง 100%% นานที่สุด: %1$s (%2$s)</string>
     <string name="charge_card_temp">อุณหภูมิแบตเตอรี่</string>
@@ -712,8 +723,11 @@
     <string name="charge_card_full_temp_val">สูงสุด %1$s</string>
     <string name="charge_card_full_temp_sub">เฉลี่ย %1$s</string>
     <string name="charge_card_temp_note">LFP ทำงานได้ดีที่ 15–35 °C</string>
-    <string name="charge_card_temp_since">ข้อมูลตั้งแต่ %1$s</string>
+    <string name="charge_card_temp_since">เริ่มมีข้อมูลวันที่ %1$s</string>
     <string name="charge_card_no_temp">ไม่มีค่า (ต้องใช้ OBD2)</string>
+    <string name="charge_card_out_temp">อุณหภูมิภายนอก</string>
+    <string name="charge_temp_info_batt">วัดภายในแบตเตอรี่และอ่านผ่าน OBD2 dongle นับเฉพาะช่วงที่เชื่อมต่อ dongle อยู่</string>
+    <string name="charge_temp_info_out">ช่วงนี้ไม่มี OBD2 dongle จึงเป็นอุณหภูมิอากาศภายนอกที่รถวัดได้ ไม่ใช่อุณหภูมิแบตเตอรี่ ขณะชาร์จและขับ แบตเตอรี่จะอุ่นกว่าอากาศ เชื่อมต่อ OBD2 dongle เพื่ออ่านค่าจากแบตเตอรี่โดยตรง</string>
     <string name="charge_period_month">เดือน</string>
     <string name="charge_period_year">ปี</string>
 </resources>

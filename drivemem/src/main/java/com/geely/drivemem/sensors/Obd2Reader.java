@@ -81,6 +81,11 @@ public final class Obd2Reader {
     private static volatile Double current;
     private static volatile Double battTempC;
     private static volatile Double powerKw;
+    // State of health, DID 4B37 on the BMS (7E2), tenths of %. Moves over
+    // months, so it is read once per connection and then every SOH_EVERY_MS,
+    // not on the 2 s poll. Valid for as long as the link is up.
+    private static volatile Double soh;
+    private static final long SOH_EVERY_MS = 10 * 60_000L;
     private static volatile Integer reportedSpeedKmh;
     private static volatile long lastReadingAtMs = 0;
 
@@ -89,6 +94,7 @@ public final class Obd2Reader {
     // test methods in the same JVM run. Package-visible, not public.
     static void resetForTest() {
         soc = null; voltage = null; current = null; battTempC = null;
+        soh = null;
         powerKw = null; reportedSpeedKmh = null; lastReadingAtMs = 0;
     }
 
@@ -190,6 +196,13 @@ public final class Obd2Reader {
     /** Returns the last measured battery temperature (C) if within maxAgeMs, or null. */
     static Float freshBattTempC(long maxAgeMs) {
         return (fresh(maxAgeMs) && battTempC != null) ? battTempC.floatValue() : null;
+    }
+
+    static Double sohForTest() { return soh; }
+
+    /** The last state of health read (%), while the dongle is connected; else null. */
+    static Float connectedSoh() {
+        return (connected && soh != null) ? soh.floatValue() : null;
     }
 
     private static volatile Thread readerThread;
@@ -338,7 +351,13 @@ public final class Obd2Reader {
             ch.command(cmd);
         }
         setConnected(true);
+        long sohAt = 0;
         while (enabledWanted && ch.isConnected()) {
+            long now = System.currentTimeMillis();
+            if (sohAt == 0 || now - sohAt >= SOH_EVERY_MS) {
+                if (applySoh(ch.command("224B37"))) sohAt = now;
+                else if (sohAt == 0) sohAt = now - SOH_EVERY_MS + 60_000L;  // no answer: again in a minute
+            }
             String socResp   = ch.command("224B36");
             String voltResp  = ch.command("224B21");
             String currResp  = ch.command("224B22");
@@ -870,6 +889,25 @@ public final class Obd2Reader {
         boolean any = newSoc != null || newVolt != null || newCurr != null;
         if (any) { lastReadingAtMs = System.currentTimeMillis(); notifyReading(); }
         return any;
+    }
+
+    /** DID 4B37: state of health, two bytes, tenths of % (03E8 = 100.0).
+     * Found in the owner's Car Scanner log on 2026-11-18: Car Scanner's
+     * "[BMS] Battery pack State of health" read 100 %, and 4B37 answered
+     * 03E8 in every session; its neighbours 4B03 (1060 = 106.0 Ah) and 4B04
+     * (409 = 40.9 kWh) match the same screen's specified capacity and
+     * energy, so the group and its x0.1 scale are right. A value outside
+     * 50..100 % is not kept. Package-visible for Obd2ReaderTest. */
+    static boolean applySoh(String resp) {
+        int[] b = parseDataBytes(resp, "4B37", 2);
+        if (b == null) return false;
+        double v = (b[0] * 256 + b[1]) / 10.0;
+        if (v < 50 || v > 100) {
+            Log.w(TAG, "obd2: state of health out of range: " + v + " (\"" + resp + "\")");
+            return false;
+        }
+        soh = v;
+        return true;
     }
 
     // UDS ReadDataByIdentifier response = request service id + 0x40 (0x22 ->

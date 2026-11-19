@@ -432,7 +432,6 @@
     <!-- charging power curve dialog -->
     <string name="charge_sessions_title">Sesiones de carga · más recientes primero</string>
     <string name="charge_soc_chart_title">Rango de batería · más recientes primero</string>
-    <string name="charge_map_title">Dónde cargamos</string>
     <string name="charge_map_none">Ninguna carga de este período guardó su lugar.</string>
     <string name="charge_curve_title">Potencia de carga en el tiempo</string>
     <string name="charge_curve_unavailable">Muestras no disponibles para esta sesión.</string>
@@ -480,6 +479,12 @@
     <string name="daily_stats_prev_day">Anterior</string>
     <string name="daily_stats_next_day">Siguiente</string>
     <string name="stats_nav_charge">Carga</string>
+    <string name="stats_nav_scale_title">Colores</string>
+    <string name="stats_nav_scale_info" formatted="false">Los colores siguen tu propia forma de conducir. Tus días con viajes se dividen en cinco grupos de 20% cada uno, así que el color más oscuro es el 20% de los días en que más recorriste.</string>
+    <string name="stats_nav_scale_none">sin viajes</string>
+    <string name="stats_nav_scale_under">menos de %s km</string>
+    <string name="stats_nav_scale_range">%1$s – %2$s km</string>
+    <string name="stats_nav_scale_over">%s km o más</string>
 
     <!-- Backup and restore (AppBackup, BackupDialogs) -->
     <string name="backup_header">Copia de seguridad</string>
@@ -539,7 +544,9 @@
     <string name="route_stat_time">Tiempo</string>
     <string name="route_stat_time_split">En marcha %1$s · parado %2$s</string>
     <string name="route_stat_speed">Velocidad</string>
-    <string name="route_stat_speed_value">media %1$s · máx. %2$s km/h</string>
+    <string name="route_stat_speed_avg">media</string>
+    <string name="route_stat_speed_top">máxima</string>
+    <string name="route_stat_speed_info">Media: la distancia recorrida dividida por el tiempo en que el coche estaba en movimiento. Las paradas (semáforos, esperando en D) no cuentan, por eso es mayor que la distancia dividida por el tiempo total del viaje.\n\nMáxima: la mayor velocidad registrada en este viaje.</string>
     <string name="route_stat_height_range">Altitud %1$s – %2$s m</string>
     <string name="route_stat_outside">Fuera</string>
     <string name="route_stat_by_use">Energía por uso</string>
@@ -595,6 +602,8 @@
     <string name="energy_net_short">neta</string>
     <string name="valet_end_short">Terminar</string>
     <string name="valet_short">Valet</string>
+    <string name="valet_stat_moves">Maniobras</string>
+    <string name="valet_route_none">No se guardó ninguna ruta en este período. Las rutas se guardan con Config → Sistema → Rutas de los viajes activado.</string>
     <!-- Acceso desde el móvil (web/PhoneServer) -->
     <string name="phone_header">Acceso desde el móvil</string>
     <string name="phone_card_hint">Abre una página en tu móvil para descargar viajes, cargas, copias de seguridad y vídeos de la dashcam, restaurar una copia y escribir ajustes largos, como tokens. El móvil debe estar en la misma Wi-Fi que el coche. Solo funciona en P.</string>
@@ -674,9 +683,11 @@
     <string name="charge_card_cost_share">%1$s · %2$d%% del costo</string>
     <string name="charge_card_no_dc">sin cargas DC</string>
     <string name="charge_card_no_cost">ningún costo informado</string>
-    <string name="charge_card_low">Batería baja</string>
+    <string name="charge_card_low">Salud de la batería</string>
     <string name="charge_card_low_cap">carga mínima · %1$s</string>
-    <string name="charge_card_below">Días bajo %1$d%%</string>
+    <string name="charge_card_soh_cap">estado de salud (SoH) · carga mínima %1$d%% el %2$s</string>
+    <string name="charge_card_soh_cap_only">estado de salud (SoH)</string>
+    <string name="charge_card_below">Horas bajo %1$d%%</string>
     <string name="charge_card_plug_note">En promedio enchufas con %1$d%%</string>
     <string name="charge_card_today">hoy</string>
     <string name="charge_card_yesterday">ayer</string>
@@ -684,7 +695,7 @@
     <string name="charge_card_never">nunca</string>
     <string name="charge_card_gap_days">%1$d días</string>
     <string name="charge_card_gap_open">%1$s → hoy</string>
-    <string name="charge_card_avg_kw">%1$s kW prom.</string>
+    <string name="charge_card_avg_kwh">%1$s kWh prom.</string>
     <string name="charge_card_full_band">Al 100%%: %1$d de %2$d · última %3$s</string>
     <string name="charge_card_gap_line">mayor intervalo sin 100%%: %1$s (%2$s)</string>
     <string name="charge_card_temp">Temperatura de la batería</string>
@@ -696,8 +707,11 @@
     <string name="charge_card_full_temp_val">máx %1$s</string>
     <string name="charge_card_full_temp_sub">media %1$s</string>
     <string name="charge_card_temp_note">LFP está bien entre 15 y 35 °C</string>
-    <string name="charge_card_temp_since">datos desde %1$s</string>
+    <string name="charge_card_temp_since">Las lecturas empiezan el %1$s.</string>
     <string name="charge_card_no_temp">sin lectura (necesita el OBD2)</string>
+    <string name="charge_card_out_temp">Temperatura exterior</string>
+    <string name="charge_temp_info_batt">Medida dentro de la batería y leída por el dongle OBD2. Solo cuenta el tiempo en que el dongle estaba conectado.</string>
+    <string name="charge_temp_info_out">Sin dongle OBD2 en este período, así que estas son las temperaturas del aire exterior que lee el coche, no las de la batería. Al cargar y al conducir, la batería está más caliente que el aire. Conecta un dongle OBD2 para leer la propia batería.</string>
     <string name="charge_period_month">Mes</string>
     <string name="charge_period_year">Año</string>
 </resources>

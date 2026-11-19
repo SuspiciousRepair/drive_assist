@@ -11,8 +11,8 @@ import android.view.View;
 
 /** A trip's route as lines over an OpenStreetMap map (issue #19). Each
  * segment between two points gets the colour of their average speed
- * (SpeedBucketColors). North is up. A dot marks the start, a ring
- * the end, and a bar in the corner gives the scale. The map tiles
+ * (SpeedBucketColors). North is up. A green dot marks the start, a
+ * checkered one the finish, and a bar in the corner gives the scale. The map tiles
  * (MapTiles, TileCache) are drawn under everything; a tile that is not
  * here yet leaves the plain background, so with no network the view is
  * what it was before the map.
@@ -298,6 +298,30 @@ public class RouteView extends View {
         addTrip(markA, markB, bucketPaths, casingPath);
     }
 
+    /** The start dot's green, the same in every theme: a start light. */
+    static final int START_GREEN = 0xFF22C55E;
+    private final Path checkClip = new Path();
+
+    /** A round checkered flag: 4 x 4 black and white squares in a circle. */
+    private void drawChecker(Canvas c, float cx, float cy, float r) {
+        checkClip.rewind();
+        checkClip.addCircle(cx, cy, r, Path.Direction.CW);
+        c.save();
+        c.clipPath(checkClip);
+        dot.setStyle(Paint.Style.FILL);
+        dot.setColor(0xFFFFFFFF);
+        c.drawCircle(cx, cy, r, dot);
+        dot.setColor(0xFF111111);
+        float n = 4, side = 2 * r / n, x0 = cx - r, y0 = cy - r;
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                if ((i + j) % 2 == 1) c.drawRect(x0 + i * side, y0 + j * side,
+                    x0 + (i + 1) * side, y0 + (j + 1) * side, dot);
+            }
+        }
+        c.restore();
+    }
+
     /** Marks one point (picked on the height profile); -1 for none. */
     public void setMarker(int index) {
         if (index == marker) return;
@@ -305,8 +329,13 @@ public class RouteView extends View {
         invalidate();
     }
 
+    // The trip screen's map: its size is kept for MapPreload.
+    private boolean tripScreen;
+    void setTripScreen(boolean b) { tripScreen = b; }
+
     @Override protected void onSizeChanged(int w, int h, int oldW, int oldH) {
         super.onSizeChanged(w, h, oldW, oldH);
+        if (tripScreen) MapPreload.rememberSize(getContext(), w, h);
         rebuild();
     }
 
@@ -405,17 +434,18 @@ public class RouteView extends View {
                 c.drawPath(bucketPaths[j], line);
             }
 
-            // Start: a filled dot. End: a ring. Both white with a dark edge.
-            float r = Style.dp(ctx, 11);
+            // Start: a green dot. Finish: a checkered flag dot. Both with
+            // a dark edge, so they read on any map. The finish is drawn
+            // last: on a round trip it sits on top of the start.
+            float r = Style.dp(ctx, 12);
             dot.setStyle(Paint.Style.FILL);
             dot.setColor(0xCC000000);
             c.drawCircle(sx[markA], sy[markA], r + Style.dp(ctx, 3), dot);
-            c.drawCircle(sx[markB], sy[markB], r + Style.dp(ctx, 3), dot);
-            dot.setColor(0xFFFFFFFF);
+            dot.setColor(START_GREEN);
             c.drawCircle(sx[markA], sy[markA], r, dot);
-            dot.setStyle(Paint.Style.STROKE);
-            dot.setStrokeWidth(Style.dp(ctx, 4));
-            c.drawCircle(sx[markB], sy[markB], r - Style.dp(ctx, 2), dot);
+            dot.setColor(0xCC000000);
+            c.drawCircle(sx[markB], sy[markB], r + Style.dp(ctx, 3), dot);
+            drawChecker(c, sx[markB], sy[markB], r);
         }
 
         // Charge spots: a pin above the place, so the trip's start and end

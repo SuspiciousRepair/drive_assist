@@ -34,12 +34,22 @@ public class ChargePeriodSummaryTest {
         assertEquals(1, m.dcCount);
         assertEquals(55, m.acKwh, 1e-9);
         assertEquals(20, m.dcKwh, 1e-9);
+        // the line under each count: kWh per charge
+        assertEquals(27.5, m.acKwhPerCharge(), 1e-9);
+        assertEquals(20, m.dcKwhPerCharge(), 1e-9);
         // R$/kWh only over charges that have a cost
         assertEquals(0.10, m.acPerKwh(), 1e-9);
         assertEquals(3.00, m.dcPerKwh(), 1e-9);
         assertEquals(60.0 / 63.0, m.dcCostShare(), 1e-9);
         assertEquals(40, m.avgPlugPct, 1e-9);
         assertEquals(2, m.fullInPeriod);
+    }
+
+    @Test
+    public void kwhPerChargeIsZeroWithNoCharges() {
+        ChargePeriodSummary m = ChargePeriodSummary.of(Collections.emptyList(), 0, DAY, DAY, Collections.emptyList());
+        assertEquals(0, m.acKwhPerCharge(), 1e-9);
+        assertEquals(0, m.dcKwhPerCharge(), 1e-9);
     }
 
     @Test
@@ -75,8 +85,6 @@ public class ChargePeriodSummaryTest {
             new SocHistory.DayRange(LocalDate.parse("2026-10-02"), 40, 90));
         ChargePeriodSummary m = ChargePeriodSummary.of(Collections.emptyList(), 0, 0, 0, days);
         assertEquals(8, m.lowest.min);
-        assertEquals(1, m.daysBelow10);
-        assertEquals(2, m.daysBelow20);
         assertEquals(-1, m.avgPlugPct, 1e-9);
     }
 

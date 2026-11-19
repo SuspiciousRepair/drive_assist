@@ -72,6 +72,7 @@ public final class DriveMemApplication extends Application {
         // Keeps the GPS producing fixes for that key, MQTT or not.
         com.geely.drivemem.sensors.GpsOwner.ensure(this);
         Obd2Reader.ensureStarted(this);   // no-ops unless obd2_enabled is set
+        com.geely.drivemem.sensors.BatteryHealth.ensureSubscribed(this);   // keeps obd.soh
         CanEnergyReader.ensureStarted(this);   // no-ops unless can_energy is set
         AbrpUploader.ensureSubscribed(this);
         CarplayState.ensureSubscribed(this);

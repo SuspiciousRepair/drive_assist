@@ -102,6 +102,7 @@ plugged in. Updated every 2 s; a value older than 15 s becomes
 | `obd.soc` | SoC with one decimal |
 | `obd.pack_v`, `obd.pack_a`, `obd.power_kw` | pack voltage, current, power |
 | `obd.batt_temp_c` | battery temperature, °C. **Only the dongle has it** |
+| `obd.soh` | battery state of health, %, one decimal (BMS DID 4B37). Read once per connection, then every 10 min; valid while the dongle is connected. **Only the dongle has it**: the head unit's CAN carries no SoH. Kept once a day in `battery_health_reading` (`BatteryHealth`) |
 
 ### Best measured source (`EnergyHub`), derived in the hub
 

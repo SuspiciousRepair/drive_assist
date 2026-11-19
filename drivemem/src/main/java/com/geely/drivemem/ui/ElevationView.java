@@ -101,10 +101,8 @@ public class ElevationView extends View {
         Context ctx = getContext();
         float l = left(), r = getWidth() - right();
         top = Style.dp(ctx, 12); bottom = getHeight() - Style.dp(ctx, 26);
-        double lo = TripRouteStats.min(alt), hi = TripRouteStats.max(alt);
-        // At least 20 m of height on screen, so flat roads look flat.
-        double span = Math.max(hi - lo, 20), mid = (lo + hi) / 2;
-        lo = mid - span / 2; hi = mid + span / 2;
+        double[] range = range(TripRouteStats.min(alt), TripRouteStats.max(alt));
+        double lo = range[0], hi = range[1];
         double tot = total();
 
         xs = new float[n]; ys = new float[n];
@@ -134,6 +132,19 @@ public class ElevationView extends View {
         hiLabel = String.format(Locale.US, "%.0f m", hi);
         loLabel = String.format(Locale.US, "%.0f m", lo);
         kmLabel = String.format(Locale.US, "%.1f km", km[n - 1]);
+    }
+
+    /** At least this much height on screen. A city trip climbs some tens
+     * of metres; drawn over the whole chart that looked like a roller
+     * coaster. With 200 m, 50 m of hills fill a quarter of the height and
+     * a mountain road still uses all of it. */
+    static final double MIN_SPAN_M = 200;
+
+    /** The heights at the bottom and the top of the chart: the trip's
+     * lowest and highest, widened around their middle to MIN_SPAN_M. */
+    static double[] range(double lo, double hi) {
+        double span = Math.max(hi - lo, MIN_SPAN_M), mid = (lo + hi) / 2;
+        return new double[]{mid - span / 2, mid + span / 2};
     }
 
     @Override protected void onDraw(Canvas c) {

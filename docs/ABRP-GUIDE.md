@@ -68,6 +68,7 @@ The telemetry payload conforms to the official **ITERNIO Telemetry Specification
 | `voltage` | High-voltage pack voltage (V) | OBD2 Battery ECU | — |
 | `current` | High-voltage pack current (A) | OBD2 Battery ECU (+ discharge, - charge) | — |
 | `batt_temp` | Battery cell core temperature (°C)| OBD2 BMS internal sensor | — |
+| `soh` | Battery state of health (%) | OBD2 BMS (DID 4B37) | — |
 
 ---
 

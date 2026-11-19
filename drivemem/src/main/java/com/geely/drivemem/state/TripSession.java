@@ -350,6 +350,7 @@ public final class TripSession {
                             CarDb.get(ctx).db().execSQL(CarDb.CLAIM_TRIP_POINTS_SQL,
                                 new Object[]{tripId, startMs0, endMs});
                             CarDb.get(ctx).db().execSQL(CarDb.DROP_LOOSE_TRIP_POINTS_SQL, new Object[]{endMs});
+                            com.geely.drivemem.ui.MapPreload.onTripSaved(ctx, tripId);
                         } catch (Throwable t) { Log.w(TAG, "trip points: " + t); }
                     } catch (Throwable t) {
                         Log.w(TAG, "triplog: " + t);

@@ -53,6 +53,8 @@ public class CalendarNavigatorView extends View {
     private LocalDate gridStart = StatsCalendar.weekStart(today).minusWeeks(WEEKS - 1);
     private LocalDate firstData;
     private StatsCalendar.Grain grain = StatsCalendar.Grain.DAY;
+    /** A square's corner radius, as a share of its side. */
+    private static final float CORNER = 0.2f;
     private LocalDate selected = today;
     private OnPick onPick;
 
@@ -178,7 +180,7 @@ public class CalendarNavigatorView extends View {
     @Override
     protected void onDraw(Canvas cv) {
         super.onDraw(cv);
-        float rad = cell * 0.2f;
+        float rad = cell * CORNER;
 
         // weekday letters
         text.setColor(Style.TEXT_DIM);
@@ -262,21 +264,28 @@ public class CalendarNavigatorView extends View {
         long a = java.time.temporal.ChronoUnit.DAYS.between(gridStart, first);
         long b = java.time.temporal.ChronoUnit.DAYS.between(gridStart, last);
         float half = (pitch - cell) / 2f;
+        // The union of the squares grown by half a gap: one closed shape,
+        // whose corners are then rounded. A hair of overlap so neighbours
+        // merge despite float rounding.
+        float eps = 0.01f;
         outline.reset();
+        Path one = new Path();
         for (long i = a; i <= b; i++) {
             int col = (int) (i / 7), rw = (int) (i % 7);
-            float x0 = colX(col) - half, x1 = colX(col) + cell + half;
-            float y0 = rowY(rw) - half, y1 = rowY(rw) + cell + half;
-            if (!(rw > 0 && i - 1 >= a)) { outline.moveTo(x0, y0); outline.lineTo(x1, y0); }   // top
-            if (!(rw < 6 && i + 1 <= b)) { outline.moveTo(x0, y1); outline.lineTo(x1, y1); }   // bottom
-            if (!(i - 7 >= a))           { outline.moveTo(x0, y0); outline.lineTo(x0, y1); }   // left
-            if (!(i + 7 <= b))           { outline.moveTo(x1, y0); outline.lineTo(x1, y1); }   // right
+            one.reset();
+            one.addRect(colX(col) - half - eps, rowY(rw) - half - eps,
+                colX(col) + cell + half + eps, rowY(rw) + cell + half + eps, Path.Direction.CW);
+            outline.op(one, Path.Op.UNION);
         }
         stroke.setColor(selColor());
         stroke.setStrokeWidth(Style.dp(getContext(), 4));
-        stroke.setStrokeCap(Paint.Cap.SQUARE);
+        stroke.setStrokeJoin(Paint.Join.ROUND);
+        // Same centre as the squares' own rounded corners, so the curves
+        // match: the squares' radius plus the half gap the outline sits out.
+        stroke.setPathEffect(new android.graphics.CornerPathEffect(cell * CORNER + half));
         cv.drawPath(outline, stroke);
-        stroke.setStrokeCap(Paint.Cap.BUTT);
+        stroke.setPathEffect(null);
+        stroke.setStrokeJoin(Paint.Join.MITER);
     }
 
     /** Lean: "0 ■■■■■■ 52+ km   Recarga ● AC ● DC". Only the two ends of
@@ -289,9 +298,11 @@ public class CalendarNavigatorView extends View {
         text.setTextSize(Style.dp(c, 14));
         text.setColor(Style.TEXT_DIM);
         text.setTextAlign(Paint.Align.LEFT);
+        legendTop = rowY(7);
         String lo = "0", hi = cuts.length == 4 ? Math.round(cuts[3]) + "+ km" : "km";
         String charge = c.getString(R.string.stats_nav_charge);
         float total = text.measureText(lo) + textGap + 6 * sq + 5 * gap + textGap + text.measureText(hi)
+                    + textGap + sq
                     + groupGap + text.measureText(charge)
                     + 2 * (textGap + sq * 0.6f + gap + text.measureText("AC"));
         float x = getWidth() - total;
@@ -307,7 +318,13 @@ public class CalendarNavigatorView extends View {
         }
         x += textGap;
         cv.drawText(hi, x, base, text);
-        x += text.measureText(hi) + groupGap;
+        x += text.measureText(hi) + textGap;
+        // (i): a tap on the key explains the scale (showScale).
+        android.graphics.drawable.Drawable info = c.getDrawable(R.drawable.ic_info_outline).mutate();
+        info.setTint(Style.TEXT_DIM);
+        info.setBounds((int) x, (int) y, (int) (x + sq), (int) (y + sq));
+        info.draw(cv);
+        x += sq + groupGap;
         cv.drawText(charge, x, base, text);
         x += text.measureText(charge);
         for (boolean dc : new boolean[]{false, true}) {
@@ -335,6 +352,12 @@ public class CalendarNavigatorView extends View {
             case MotionEvent.ACTION_UP:
                 if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
                 if (moved(e)) return true;
+                // Under the grid is the colour key: a tap there explains it.
+                if (legendTop > 0 && e.getY() >= legendTop) {
+                    performClick();
+                    showScale();
+                    return true;
+                }
                 LocalDate d = dateAt(e.getX(), e.getY());
                 if (d != null && onPick != null) {
                     performClick();
@@ -355,6 +378,45 @@ public class CalendarNavigatorView extends View {
 
     @Override
     public boolean performClick() { return super.performClick(); }
+
+    // Top of the colour key, set when it is drawn; 0 before.
+    private float legendTop;
+
+    /** The colour key, spelled out: each colour with its km range, from
+     * this driver's own cut points (StatsCalendar.levelCuts). */
+    private void showScale() {
+        Context c = getContext();
+        android.text.SpannableStringBuilder b = new android.text.SpannableStringBuilder(
+            c.getString(R.string.stats_nav_scale_info));
+        b.append("\n");
+        String[] ranges = scaleRanges(cuts,
+            c.getString(R.string.stats_nav_scale_none), c.getString(R.string.stats_nav_scale_under),
+            c.getString(R.string.stats_nav_scale_range), c.getString(R.string.stats_nav_scale_over));
+        for (int lv = 0; lv < ranges.length; lv++) {
+            b.append("\n");
+            int at = b.length();
+            b.append("\u25A0");
+            b.setSpan(new android.text.style.ForegroundColorSpan(levelColor(lv)), at, b.length(), 0);
+            b.setSpan(new android.text.style.RelativeSizeSpan(1.4f), at, b.length(), 0);
+            b.append("  ").append(ranges[lv]);
+        }
+        ChargeStatsView.showInfo(c, c.getString(R.string.stats_nav_scale_title), b);
+    }
+
+    /** One line per colour, level 0 (no driving) to 5. With no driving
+     * days yet, only level 0. under, range and over are format strings
+     * (km as whole numbers): "under %s km", "%1$s – %2$s km", "%s km or more". */
+    static String[] scaleRanges(double[] cuts, String none, String under, String range, String over) {
+        if (cuts.length != 4) return new String[]{none};
+        String[] k = new String[4];
+        for (int i = 0; i < 4; i++) k[i] = String.valueOf(Math.round(cuts[i]));
+        return new String[]{none,
+            String.format(java.util.Locale.US, under, k[0]),
+            String.format(java.util.Locale.US, range, k[0], k[1]),
+            String.format(java.util.Locale.US, range, k[1], k[2]),
+            String.format(java.util.Locale.US, range, k[2], k[3]),
+            String.format(java.util.Locale.US, over, k[3])};
+    }
 
     /** The day under (x, y). Off the grid's edges it clamps to the nearest
      * column/row; after today it is today; before the data it is the first
