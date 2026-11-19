@@ -8,7 +8,12 @@
   English, Spanish and Thai: lines left in Chinese, English left inside
   other languages, and wrong meanings (the maintenance tag "Saúde" now says
   "Saudável"). Tap Install. The text comes from
-  `SuspiciousRepair/integration-oem-translations`. ModeHelper patches a copy
+  `SuspiciousRepair/integration-oem-translations`, from one commit pinned in
+  the app: every file must have the SHA-256 the app expects, or nothing
+  changes (`tools/pin-oem-translations.sh` updates the pins). It applies only
+  on the system versions the text was made for (today 1111,
+  `SW0E22H0128H111100000`); after a system update the next boot removes it.
+  ModeHelper patches a copy
   of each app from the one on your car (only the text table changes) and
   puts the copy in front of the original with a bind mount, through the
   local ADB. The car's own files are never changed. Remove takes the copies

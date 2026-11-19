@@ -50,6 +50,11 @@ import java.util.concurrent.Executors;
  *    takes that app's copy away at once, and it stays away until the next
  *    Install.
  *
+ * Only on the system versions the manifest lists ({@link
+ * OemTextPolicy#VERSION_PROP}): the text was made against those apps. On any
+ * other, Install changes nothing, and after a system update the next boot
+ * removes the copies and turns the integration off.
+ *
  * Text only. The Wi-Fi strength word (a hard-coded string in code) is not
  * fixed here.
  *
@@ -66,10 +71,11 @@ final class OemText {
     static final String K_MOUNTED_AT = "oem_mounted_at";
     static final String K_RESULT = "oem_result";      // last result code, see below
     static final String K_NOTE = "oem_note";
+    static final String K_SYSTEM = "oem_system";      // system version the copies were made on
 
     // Result codes, given to Drive Assist in STATUS.
     static final String OK = "ok", PARTIAL = "partial", DOWNLOAD = "download", FORMAT = "format",
-            ADB = "adb", PATCH = "patch", NONE = "none", ERROR = "error";
+            ADB = "adb", PATCH = "patch", NONE = "none", ERROR = "error", SYSTEM = "system", HASH = "hash";
 
     static final int ADB_MINUTES = 2;
     static final long PORT_WAIT_MS = 8000;
@@ -159,8 +165,15 @@ final class OemText {
     private static void doInstall(Context app) throws Exception {
         step = "download";
         Map<String, Map<String, Map<String, String>>> files;
+        String system = systemVersion();
         try {
-            files = download(app);
+            files = download(app, system);
+        } catch (SystemException e) {
+            result(app, SYSTEM, e.getMessage());
+            return;
+        } catch (HashException e) {
+            result(app, HASH, e.getMessage());
+            return;
         } catch (FormatException e) {
             result(app, FORMAT, e.getMessage());
             return;
@@ -176,7 +189,8 @@ final class OemText {
         step = "remove";
         String wiped = adb.execute(OemTextPolicy.wipeCommand(packagesOf(apps(app))));
         if (!wiped.contains(OemTextPolicy.WIPED)) throw new IOException("wipe: " + wiped);
-        prefs(app).edit().putBoolean(K_ON, true).remove(K_APPS).remove(K_CRASHED).commit();
+        prefs(app).edit().putBoolean(K_ON, true).putString(K_SYSTEM, system)
+            .remove(K_APPS).remove(K_CRASHED).commit();
 
         List<App> done = new ArrayList<>();
         List<String> notes = new ArrayList<>();
@@ -202,7 +216,8 @@ final class OemText {
         if (!out.contains(OemTextPolicy.WIPED)) throw new IOException("wipe: " + out);
         deleteTree(srcDir(app));
         deleteTree(stageDir(app));
-        prefs(app).edit().remove(K_APPS).remove(K_CRASHED).remove(K_MOUNTED_AT).remove(K_RESULT).remove(K_NOTE).commit();
+        prefs(app).edit().remove(K_APPS).remove(K_CRASHED).remove(K_MOUNTED_AT).remove(K_RESULT).remove(K_NOTE)
+            .remove(K_SYSTEM).commit();
         Log.i(TAG, "oem text: removed");
     }
 
@@ -214,6 +229,16 @@ final class OemText {
         step = "mount";
         LocalAdbShell adb = openAdb(app);
         if (adb == null) { result(app, ADB, null); return; }
+        // A system update came in: these copies were made for the old apps.
+        // Take them away and stay off until an Install on a listed version.
+        String system = systemVersion();
+        if (!system.equals(prefs(app).getString(K_SYSTEM, ""))) {
+            prefs(app).edit().putBoolean(K_ON, false).commit();
+            String out = adb.execute(OemTextPolicy.wipeCommand(packagesOf(list)));
+            prefs(app).edit().remove(K_APPS).remove(K_CRASHED).remove(K_SYSTEM).commit();
+            result(app, SYSTEM, system + (out.contains(OemTextPolicy.WIPED) ? "" : "; wipe: " + out));
+            return;
+        }
         List<String> mounted = OemTextPolicy.parseList(adb.execute(OemTextPolicy.listCommand()));
         List<App> keep = new ArrayList<>();
         List<String> notes = new ArrayList<>();
@@ -369,6 +394,7 @@ final class OemText {
         for (App a : apps(ctx)) if (!crashed.contains(a.pkg)) on++;
         b.putInt("apps", on);
         b.putString("crashed", String.join(",", crashed));
+        b.putString("system", systemVersion());
         return b;
     }
 
@@ -378,24 +404,55 @@ final class OemText {
         FormatException(String m) { super(m); }
     }
 
+    /** A downloaded file is not pinned, or its SHA-256 is not the pinned one. */
+    static final class HashException extends Exception {
+        HashException(String m) { super(m); }
+    }
+
+    /** The manifest does not list this car's system version. */
+    static final class SystemException extends Exception {
+        SystemException(String m) { super(m); }
+    }
+
+    /** The car's system version ({@link OemTextPolicy#VERSION_PROP}), or "". */
+    static String systemVersion() {
+        try {
+            Class<?> sp = Class.forName("android.os.SystemProperties");
+            Object v = sp.getMethod("get", String.class, String.class).invoke(null, OemTextPolicy.VERSION_PROP, "");
+            return v == null ? "" : v.toString().trim();
+        } catch (Throwable t) {
+            return "";
+        }
+    }
+
     /** package -> language -> name -> text, from the repo. Also kept in our
      * files dir, for a re-patch after an OEM update with no network. */
-    private static Map<String, Map<String, Map<String, String>>> download(Context app)
-            throws IOException, FormatException {
+    private static Map<String, Map<String, Map<String, String>>> download(Context app, String system)
+            throws IOException, FormatException, SystemException, HashException {
         Map<String, Map<String, Map<String, String>>> out = new LinkedHashMap<>();
         Map<String, byte[]> raw = new LinkedHashMap<>();
         try {
-            JSONObject m = new JSONObject(new String(
-                fetch(OemTextPolicy.BASE_URL + OemTextPolicy.MANIFEST, OemTextPolicy.MAX_MANIFEST_BYTES),
-                StandardCharsets.UTF_8));
+            byte[] mb = fetch(OemTextPolicy.BASE_URL + OemTextPolicy.MANIFEST, OemTextPolicy.MAX_MANIFEST_BYTES);
+            // Checked before anything in it is read.
+            if (!OemTextPolicy.hashOk(OemTextPolicy.MANIFEST, mb)) throw new HashException(OemTextPolicy.MANIFEST);
+            JSONObject m = new JSONObject(new String(mb, StandardCharsets.UTF_8));
             if (m.optInt("format", -1) != OemTextPolicy.FORMAT)
                 throw new FormatException("manifest format " + m.opt("format") + ", this helper reads " + OemTextPolicy.FORMAT);
+            // Checked before any app file is fetched: on a version the text
+            // was not made for, nothing is downloaded and nothing changes.
+            List<String> systems = new ArrayList<>();
+            JSONArray sl = m.optJSONArray("systems");
+            if (sl != null) for (int i = 0; i < sl.length(); i++) systems.add(sl.optString(i));
+            if (!OemTextPolicy.systemAllowed(system, systems))
+                throw new SystemException(system.isEmpty() ? "unknown system version" : system);
             JSONArray list = m.getJSONArray("apps");
             for (int i = 0; i < list.length(); i++) {
                 JSONObject a = list.getJSONObject(i);
                 String pkg = a.optString("package"), file = a.optString("file");
                 if (!OemTextPolicy.validPackage(pkg) || !OemTextPolicy.validFile(file)) continue;
+                if (OemTextPolicy.pinnedSha256(file) == null) throw new HashException("not pinned: " + file);
                 byte[] body = fetch(OemTextPolicy.BASE_URL + file, OemTextPolicy.MAX_FILE_BYTES);
+                if (!OemTextPolicy.hashOk(file, body)) throw new HashException(file);
                 Map<String, Map<String, String>> tr = parse(body);
                 if (tr.isEmpty()) continue;
                 out.put(pkg, tr);
@@ -421,7 +478,11 @@ final class OemText {
             byte[] b = new byte[(int) f.length()];
             int got = 0;
             for (int n; got < b.length && (n = in.read(b, got, b.length - got)) > 0; ) got += n;
-            Map<String, Map<String, String>> tr = parse(Arrays.copyOf(b, got));
+            byte[] body = Arrays.copyOf(b, got);
+            // Still one of the pinned files: after an update with new pins,
+            // an old saved file is refused and the owner taps Install again.
+            if (!OemTextPolicy.pinnedAnywhere(body)) return null;
+            Map<String, Map<String, String>> tr = parse(body);
             return tr.isEmpty() ? null : tr;
         } catch (Exception e) {
             return null;

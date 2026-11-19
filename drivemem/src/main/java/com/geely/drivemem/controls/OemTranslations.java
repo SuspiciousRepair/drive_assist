@@ -34,10 +34,11 @@ public final class OemTranslations {
     public static final class Status {
         public final String state;     // OFF, BUSY, ON, ERROR or NO_HELPER
         public final String step;      // while BUSY: download, patch, mount, remove
-        public final String result;    // last result: ok, partial, download, format, adb, patch, none, error
+        public final String result;    // last result: ok, partial, download, format, adb, patch, none, error, system, hash
         public final String note;
         public final String crashed;   // packages whose copy a crash took away, comma separated
         public final int apps;         // apps with fixed text now
+        public final String system;    // the car's system version (ro.build.version.versionname)
 
         Status(Bundle b) {
             state = b != null ? b.getString("state", NO_HELPER) : NO_HELPER;
@@ -46,6 +47,7 @@ public final class OemTranslations {
             note = b != null ? b.getString("note", "") : "";
             crashed = b != null ? b.getString("crashed", "") : "";
             apps = b != null ? b.getInt("apps", 0) : 0;
+            system = b != null ? b.getString("system", "") : "";
         }
     }
 

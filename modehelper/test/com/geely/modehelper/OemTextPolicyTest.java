@@ -35,6 +35,30 @@ public final class OemTextPolicyTest {
         check(!OemTextPolicy.validText("") && OemTextPolicy.validText("Forte"), "an empty text is refused");
         check(!OemTextPolicy.validText(new String(new char[OemTextPolicy.MAX_TEXT_CHARS + 1])), "a huge text is refused");
 
+        List<String> systems = Arrays.asList("SW0E22H0128H111100000");
+        check(OemTextPolicy.systemAllowed("SW0E22H0128H111100000", systems), "1111 is allowed when listed");
+        check(!OemTextPolicy.systemAllowed("SW0E22H0306H111400000", systems), "1114 is refused when not listed");
+        check(!OemTextPolicy.systemAllowed("", systems) && !OemTextPolicy.systemAllowed(null, systems),
+            "an unknown system version is refused");
+        check(!OemTextPolicy.systemAllowed("SW0E22H0128H111100000", null), "a manifest with no list is refused");
+        check(!OemTextPolicy.systemAllowed("SW0E22H0128H1111", systems), "only an exact match counts");
+
+        // Pins: one exact commit, and a SHA-256 for every file the car may fetch.
+        check(OemTextPins.COMMIT.matches("[0-9a-f]{40}"), "the pin is a full commit hash");
+        check(OemTextPolicy.BASE_URL.contains("/" + OemTextPins.COMMIT + "/") && !OemTextPolicy.BASE_URL.contains("/main/"),
+            "downloads come from the pinned commit, never main");
+        check(OemTextPolicy.pinnedSha256(OemTextPolicy.MANIFEST) != null, "the manifest is pinned");
+        for (String[] f : OemTextPins.FILES) {
+            check(f[1].matches("[0-9a-f]{64}"), "a pin is a SHA-256: " + f[0]);
+            check(f[0].equals(OemTextPolicy.MANIFEST) || OemTextPolicy.validFile(f[0]), "a pinned path is valid: " + f[0]);
+        }
+        check(OemTextPolicy.sha256("abc".getBytes(java.nio.charset.StandardCharsets.US_ASCII))
+            .equals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"), "sha256 of abc");
+        check(!OemTextPolicy.hashOk(OemTextPolicy.MANIFEST, "{\"format\":1}".getBytes()), "other bytes fail the pin");
+        check(!OemTextPolicy.hashOk("apps/evil.json", new byte[0]), "a file that is not pinned fails");
+        check(!OemTextPolicy.hashOk(OemTextPolicy.MANIFEST, null), "no bytes fail");
+        check(!OemTextPolicy.pinnedAnywhere("x".getBytes()) && !OemTextPolicy.pinnedAnywhere(null), "unpinned bytes");
+
         check(OemTextPolicy.copyPath(apk).equals("/data/local/oem-i18n/AutoEnergy.apk"), "copy path");
 
         String m = OemTextPolicy.mountCommand(staged, apk, pkg);

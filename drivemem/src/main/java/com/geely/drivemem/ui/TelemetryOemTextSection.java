@@ -87,6 +87,8 @@ public final class TelemetryOemTextSection extends LinearLayout {
                     case "download": return activity.getString(R.string.cfg_oem_st_err_download);
                     case "adb": return activity.getString(R.string.cfg_oem_st_err_adb);
                     case "format": return activity.getString(R.string.cfg_oem_st_err_format);
+                    case "hash": return activity.getString(R.string.cfg_oem_st_err_hash);
+                    case "system": return activity.getString(R.string.cfg_oem_st_err_system, s.system);
                     default: return activity.getString(R.string.cfg_oem_st_err_other);
                 }
             default:

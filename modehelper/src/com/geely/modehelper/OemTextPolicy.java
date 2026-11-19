@@ -8,6 +8,10 @@ import java.util.regex.Pattern;
 /** The pure part of {@link OemText}: what is allowed, and the root shell
  * commands. No Android, so tools/verify.sh tests it on the desktop.
  *
+ * Every downloaded file must have the SHA-256 pinned in {@link OemTextPins}
+ * (made by tools/pin-oem-translations.sh), so a hijacked repo, account or
+ * CDN cannot change what a car gets.
+ *
  * Every value that goes into a command is checked against a strict pattern
  * first (package names, /system paths, our own file paths), so nothing from
  * the downloaded files can reach the shell as a command. */
@@ -19,12 +23,18 @@ final class OemTextPolicy {
     static final String DIR = "/data/local/oem-i18n";
     /** How /proc/self/mountinfo names our sources: relative to the /data mount. */
     static final String MOUNT_ROOT = "/local/oem-i18n/";
-    /** The only place the translations come from. Fixed here, never taken from
+    /** The only place the translations come from: one commit of the repo
+     * ({@link OemTextPins#COMMIT}), never "main". Fixed here, never taken from
      * a broadcast: a caller can install the reviewed files or remove them,
      * nothing else. */
     static final String BASE_URL =
-        "https://raw.githubusercontent.com/SuspiciousRepair/integration-oem-translations/main/";
+        "https://raw.githubusercontent.com/SuspiciousRepair/integration-oem-translations/"
+        + OemTextPins.COMMIT + "/";
     static final String MANIFEST = "manifest.json";
+    /** The car's system version, for example SW0E22H0128H111100000 ("1111").
+     * The translations are made against the apps of given versions; the
+     * manifest lists them ("systems"), and nothing is applied on any other. */
+    static final String VERSION_PROP = "ro.build.version.versionname";
     static final int FORMAT = 1;
     static final int MAX_MANIFEST_BYTES = 64 * 1024;
     static final int MAX_FILE_BYTES = 512 * 1024;
@@ -43,6 +53,38 @@ final class OemTextPolicy {
     private static final Pattern NAME = Pattern.compile("[A-Za-z0-9_.]{1,200}");
     private static final Pattern LANG = Pattern.compile("[a-z]{2}");
 
+    /** The SHA-256 a file must have ({@link OemTextPins}), or null when the
+     * file is not pinned and must not be used. */
+    static String pinnedSha256(String path) {
+        for (String[] f : OemTextPins.FILES) if (f[0].equals(path)) return f[1];
+        return null;
+    }
+
+    /** True only when {@code path} is pinned and {@code body} has its hash. */
+    static boolean hashOk(String path, byte[] body) {
+        String want = pinnedSha256(path);
+        return want != null && body != null && want.equals(sha256(body));
+    }
+
+    /** True when {@code body} is one of the pinned files, whichever. */
+    static boolean pinnedAnywhere(byte[] body) {
+        if (body == null) return false;
+        String h = sha256(body);
+        for (String[] f : OemTextPins.FILES) if (f[1].equals(h)) return true;
+        return false;
+    }
+
+    static String sha256(byte[] body) {
+        try {
+            byte[] d = java.security.MessageDigest.getInstance("SHA-256").digest(body);
+            StringBuilder s = new StringBuilder(64);
+            for (byte b : d) s.append(String.format("%02x", b & 0xff));
+            return s.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     static boolean validPackage(String s) { return s != null && s.length() <= 200 && PKG.matcher(s).matches(); }
     static boolean validFile(String s) { return s != null && !s.contains("..") && FILE.matcher(s).matches(); }
     static boolean validSystemApk(String s) { return s != null && !s.contains("..") && SYSTEM_APK.matcher(s).matches(); }
@@ -50,6 +92,12 @@ final class OemTextPolicy {
     static boolean validName(String s) { return s != null && NAME.matcher(s).matches(); }
     static boolean validLang(String s) { return s != null && LANG.matcher(s).matches(); }
     static boolean validText(String s) { return s != null && !s.isEmpty() && s.length() <= MAX_TEXT_CHARS; }
+
+    /** True only when the car's system version is one the manifest lists,
+     * exactly. An unknown version (empty) or no list means no. */
+    static boolean systemAllowed(String version, Collection<String> allowed) {
+        return version != null && !version.isEmpty() && allowed != null && allowed.contains(version);
+    }
 
     /** The copy's path in {@link #DIR}: the same file name as on /system. */
     static String copyPath(String systemApk) {

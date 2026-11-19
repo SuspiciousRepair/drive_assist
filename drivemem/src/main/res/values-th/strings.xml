@@ -619,7 +619,7 @@
     <string name="cfg_oem_install">ติดตั้ง</string>
     <string name="cfg_oem_update">อัปเดต</string>
     <string name="cfg_oem_remove">ลบออก</string>
-    <string name="cfg_oem_hint">แก้คำภาษาจีนและคำผิดในแอปพลังงาน Wi-Fi และการตั้งค่าของรถ เปลี่ยนเฉพาะข้อความ ไฟล์ของรถไม่ถูกแก้ไข กดลบออกเพื่อกลับไปใช้ข้อความเดิมจากโรงงาน</string>
+    <string name="cfg_oem_hint">แก้คำภาษาจีนและคำผิดในแอปพลังงาน Wi-Fi และการตั้งค่าของรถ เปลี่ยนเฉพาะข้อความ ไฟล์ของรถไม่ถูกแก้ไข กดลบออกเพื่อกลับไปใช้ข้อความเดิมจากโรงงาน ใช้ได้เฉพาะเวอร์ชันระบบที่ทำข้อความไว้ให้</string>
     <string name="cfg_oem_st_off">ปิดอยู่ แอปของรถแสดงข้อความเดิมจากโรงงาน</string>
     <string name="cfg_oem_st_download">กำลังดาวน์โหลด…</string>
     <string name="cfg_oem_st_patch">กำลังเตรียมแอป…</string>
@@ -630,6 +630,8 @@
     <string name="cfg_oem_st_err_download">ไม่สำเร็จ: ดาวน์โหลดไฟล์ไม่ได้ ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต</string>
     <string name="cfg_oem_st_err_adb">ไม่สำเร็จ: เปิด ADB ไม่ได้</string>
     <string name="cfg_oem_st_err_format">ไม่สำเร็จ: ไฟล์เหล่านี้ต้องใช้ Drive Assist เวอร์ชันใหม่กว่า</string>
+    <string name="cfg_oem_st_err_system">ไม่ได้ทำมาสำหรับเวอร์ชันระบบนี้: %s</string>
+    <string name="cfg_oem_st_err_hash">ไม่สำเร็จ: ไฟล์ที่ดาวน์โหลดไม่ใช่ไฟล์ที่ตรวจสอบแล้ว ไม่มีการเปลี่ยนแปลงใดๆ</string>
     <string name="cfg_oem_st_err_other">ไม่สำเร็จ ลองอีกครั้ง</string>
     <string name="cfg_oem_st_busy">ไม่ว่าง รอสักครู่</string>
     <string name="obd_live_header">ข้อมูลสด</string>

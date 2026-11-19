@@ -615,7 +615,7 @@
     <string name="cfg_oem_install">Instalar</string>
     <string name="cfg_oem_update">Atualizar</string>
     <string name="cfg_oem_remove">Remover</string>
-    <string name="cfg_oem_hint">Corrige palavras em chinês e erradas nos apps Energia, Wi-Fi e Configurações do carro. Só o texto: os arquivos do carro não mudam. Remover traz o texto de fábrica de volta.</string>
+    <string name="cfg_oem_hint">Corrige palavras em chinês e erradas nos apps Energia, Wi-Fi e Configurações do carro. Só o texto: os arquivos do carro não mudam. Remover traz o texto de fábrica de volta. Só para as versões do sistema para as quais o texto foi feito.</string>
     <string name="cfg_oem_st_off">Desligado. Os apps do carro mostram o texto de fábrica.</string>
     <string name="cfg_oem_st_download">Baixando…</string>
     <string name="cfg_oem_st_patch">Preparando os apps…</string>
@@ -626,6 +626,8 @@
     <string name="cfg_oem_st_err_download">Falhou: não foi possível baixar os arquivos. Verifique a conexão com a internet.</string>
     <string name="cfg_oem_st_err_adb">Falhou: não foi possível abrir o ADB.</string>
     <string name="cfg_oem_st_err_format">Falhou: estes arquivos precisam de um Drive Assist mais novo.</string>
+    <string name="cfg_oem_st_err_system">Não é para esta versão do sistema: %s</string>
+    <string name="cfg_oem_st_err_hash">Falhou: os arquivos baixados não são os conferidos. Nada foi alterado.</string>
     <string name="cfg_oem_st_err_other">Falhou. Tente de novo.</string>
     <string name="cfg_oem_st_busy">Ocupado. Aguarde um pouco.</string>
     <string name="obd_live_header">Dados ao vivo</string>
