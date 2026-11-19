@@ -9,7 +9,7 @@ below. Their licenses are compatible with GPLv3 and are kept with their code.
 - Copyright 2026 Timoteo Sousa. Apache License 2.0.
 - **What we use:** the whole CAN reader daemon, `roadcastd`, in
   `third_party/roadcast/` (upstream commit 22153ec). Its C code is unchanged.
-  It ships inside the ModeHelper apk and powers "Exact energy".
+  It ships inside the ModeHelper apk and powers "Car data (CAN)".
 - Its signal catalog (`data/dbc.json`), protocol design and the research
   behind them (reading the VHAL's `MMI_Rx_*` buffers) are Timoteo's work.
 - Full license and notice: `third_party/roadcast/LICENSE`,
@@ -37,6 +37,30 @@ exact energy without a dongle.
   in this repo: `tools/build-roadcastd.sh` downloads the official v1.51.0
   source and checks its SHA-256. Its license ships in the helper apk with
   the binary (`assets/licenses/libuv-LICENSE`).
+
+## Eclipse Paho MQTT client
+
+- https://github.com/eclipse-paho/paho.mqtt.java, v1.2.5
+- Copyright the Eclipse Paho contributors. Dual licensed: Eclipse Public
+  License 2.0 or Eclipse Distribution License 1.0 (see `about.html` inside
+  the jar).
+- **What we use:** the library, unchanged, as `drivemem/libs/paho.jar`. It is
+  the MQTT connection to Home Assistant.
+
+## MPAndroidChart — by Philipp Jahoda
+
+- https://github.com/PhilJay/MPAndroidChart, v3.1.0
+- Copyright Philipp Jahoda. Apache License 2.0.
+- **What we use:** the library, unchanged, for charts in the statistics
+  screens.
+
+## OpenStreetMap
+
+- https://www.openstreetmap.org/copyright
+- Map data © OpenStreetMap contributors, Open Database License (ODbL).
+- **What we use:** map pictures from `tile.openstreetmap.org` under the trip
+  routes, within its tile usage policy. The map shows the
+  "© OpenStreetMap" credit.
 
 ## QR Code generator library — by Project Nayuki
 

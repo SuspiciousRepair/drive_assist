@@ -112,7 +112,7 @@ cd drivemem && ./build.sh             # compile, verify guard, publish, and inst
 * `adb reboot` causes an abrupt audio pop through the vehicle speakers.
 * To test startup receivers cleanly without rebooting:
   ```bash
-  adb shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.geely.drivemem/.BootReceiver
+  adb shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.geely.drivemem/.util.BootReceiver
   ```
 
 ### 5. Bluetooth OBD2 PIN Fix

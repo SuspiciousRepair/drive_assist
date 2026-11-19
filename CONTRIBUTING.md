@@ -131,7 +131,7 @@ Modifications interacting with vehicle systems must strictly respect the followi
 * Power-cycling the digital signal processor (DSP) causes a loud, jarring acoustic pop through the vehicle cabin speakers that can startle the driver and damage audio equipment.
 * To test boot-triggered workflows, simulate the broadcast safely:
   ```bash
-  adb shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.geely.drivemem/.BootReceiver
+  adb shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.geely.drivemem/.util.BootReceiver
   ```
 * For daemon restarts, restart the specific process or service (`kill -9 <PID>`).
 

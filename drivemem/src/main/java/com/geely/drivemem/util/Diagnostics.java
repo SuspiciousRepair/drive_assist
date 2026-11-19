@@ -525,7 +525,7 @@ public final class Diagnostics {
     // happen naturally. Value is parsed as Integer, then Float, then left
     // as a String — whichever a card's own code expects to unbox.
     //   adb shell am broadcast -a com.geely.drivemem.FAKESET \
-    //     -n com.geely.drivemem/.BootReceiver \
+    //     -n com.geely.drivemem/.util.BootReceiver \
     //     --es key telemetry.battery --es value 55
     private static void fakeSet(Context app, Intent intent, Runnable onDone) {
         String key = intent.getStringExtra("key");

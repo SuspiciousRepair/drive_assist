@@ -29,13 +29,14 @@ a confiabilidade da central e as interfaces do veículo.
 
 ## Saiba o que o instalador do Drive Assist adiciona
 
-Uma instalação normal por USB possui três partes identificáveis:
+Uma instalação normal por USB possui quatro partes identificáveis:
 
 | Nome | Pacote Android | Para que serve |
 | :--- | :--- | :--- |
 | Drive Assist | `com.geely.drivemem` | O painel, as configurações, as estatísticas e as integrações opcionais que você usa. |
 | ModeHelper | `com.geely.modehelper` | Um pequeno auxiliar privilegiado para operações compatíveis do sistema e do veículo. Ele possui muito mais acesso que um aplicativo comum. |
 | Instalador do Drive Assist | `com.geely.installer` | Instala os dois pacotes acima e depois remove a si mesmo. Ele não deve permanecer instalado. |
+| Leitor CAN (`roadcastd`) | Não é um pacote Android | Um programa pequeno que o ModeHelper inicia como root pelo ADB local do carro. Ele lê o barramento CAN do carro e nunca envia nada para ele. Fica ativo enquanto **Dados do carro (CAN)** estiver ligado em **Configurações → Sistema**, e essa chave vem ligada. |
 
 A ferramenta opcional de engenharia SysProbe (`com.geely.sysprobe`) não é
 necessária para o uso normal e não faz parte da instalação comum. Se você não
@@ -58,9 +59,12 @@ do que será colocado no carro.
 1. Instale APKs apenas pela versão oficial do projeto ou compile o código-fonte.
    Nome e ícone conhecidos não provam que um arquivo é seguro.
 2. Compare o SHA-256 do APK com o valor publicado na versão antes de instalar.
-3. Deixe o ADB pela rede desligado quando não estiver usando. O Drive Assist
-   limita seu portão ADB ao Wi-Fi confiável configurado e o fecha automaticamente,
-   mas ainda assim confirme que ele foi desligado.
+3. Deixe o ADB pela rede desligado quando não estiver usando. O ModeHelper abre
+   o ADB por 5 minutos depois que a central liga, mantém aberto enquanto o carro
+   está no Wi-Fi que você definiu como de casa e, fora isso, fecha por tempo.
+   **Manter o ADB sempre ligado** (Configurações → Sistema) remove esse tempo:
+   deixe desligado, a não ser que outro aplicativo precise do ADB. Confirme que
+   o ADB está desligado quando você espera que esteja.
 4. Coloque o carro em uma rede Wi-Fi de convidados ou IoT isolada. Não libere
    acesso direto a computadores, armazenamento ou outros equipamentos sensíveis.
 5. Não publique imagens que mostrem tokens, senhas, endereços de servidores,
