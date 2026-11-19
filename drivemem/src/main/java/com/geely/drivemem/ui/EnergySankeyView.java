@@ -296,7 +296,9 @@ final class EnergySankeyView extends View {
         }
 
         node(cv, xMid, top, chartH, Style.TEXT_DIM);
-        label(cv, sUsed, used, xMid, top - labelUp, Style.TEXT);
+        // Gasto centred over its bar.
+        float usedW = name.measureText(sUsed + " ") + valueWidth(used);
+        label(cv, sUsed, used, xMid + nodeW / 2 - usedW / 2, top - labelUp, Style.TEXT);
 
         // Drive, climate, other from Used.
         float[] h = partHeights();

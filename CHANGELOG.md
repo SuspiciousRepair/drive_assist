@@ -8,9 +8,10 @@
   while braking, which the car used again). Both go into Used, and Used
   goes to drive, climate and other. Drive is now the motor's whole energy
   out, so it is larger than before. Regen in the chart is the motor's
-  number. It is larger than the regen in the trip's energy line, which is
-  what reached the battery: part of what the motor sends back never gets
-  there.
+  number. It is larger than what reached the battery: part of what the
+  motor sends back never gets there. On the trip screen the chart
+  replaces the net energy line (the chart's Battery is the same number);
+  trips with no chart keep the line.
 - **Releases check their documents.** `tools/check-docs.sh` runs in CI and
   at release validation: broken links in the Markdown files, hub keys
   missing from `docs/HUB-DATA.md`, plans missing from the plan index, and
