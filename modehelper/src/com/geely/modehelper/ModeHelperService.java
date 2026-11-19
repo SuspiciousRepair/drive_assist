@@ -454,6 +454,9 @@ public class ModeHelperService extends Service {
             driveRestore.arm(now);
             regenRestore.arm(now);
         }
+        // Car off: nothing to write. The restore stays armed, and the car-on
+        // edge re-arms it anyway (watchVehicleState).
+        if (RestorePolicy.knownOff(lastVehicleState)) return;
         if (driveRestore.isPending() && shouldWrite(p, "restore_drive", "drive", true, false)) {
             int drive = p.getInt("drive", CarMode.DRIVE_ECO);
             Integer cd = car.readDrive();

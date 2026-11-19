@@ -47,6 +47,15 @@ final class RestorePolicy {
         return before != null && now != null && before != VEHICLE_ON && now == VEHICLE_ON;
     }
 
+    /** The car is known to be off (2, or 3 on the way on). The screen can
+     * wake while the car is off (door opened); a drive/regen write then
+     * changes nothing, seen on the car 2026-11-19: 5 wakes, 30 writes, all
+     * ignored. Unknown (null, property missing) is not off: the wake window
+     * keeps working on a unit without this property. */
+    static boolean knownOff(Integer state) {
+        return state != null && state != VEHICLE_ON;
+    }
+
     /** The car was just switched off. */
     static boolean turnedOff(Integer before, Integer now) {
         return before != null && now != null && before == VEHICLE_ON && now != VEHICLE_ON;

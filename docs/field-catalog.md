@@ -136,7 +136,7 @@ To distinguish DC fast charging from AC charging reliably across power tapering 
 | `537003264` | `int` | 0, 1 | RW | Regenerative braking: Low=`537003265`, Mid=`537003266`, High=`537003267` | ✅ |
 | `557885172` | `int` | 0 | RW | Brake pedal feel: `1`=Comfort, `2`=Sport | ✅ |
 | `557885465` | `int` | 0 | RW | Comfortable Stop (smooth braking deceleration): `1`=ON, `0`=OFF | ✅ |
-| `557875211` | `int` | 0 | R | Vehicle on/off: `4`=on, `2`=switched off (same coding as IGNITION_STATE). The car resets the drive mode when it is switched off. Reported by Funkyfal (2026-11-15); modehelper re-arms the drive/regen restore on 2→4 (#130). Not yet checked on the owner's car | 🟡 |
+| `557875211` | `int` | 0 | R | Vehicle on/off (`IGNITION_STATE`): `2`=off, `3`=on the way on (about 10 s), `4`=on. The car resets the drive mode when it is switched off. Found by Funkyfal; seen on the owner's car 2026-11-19 (4→2 at switch-off, 2→3→4 at switch-on). modehelper re-arms the drive/regen restore on →4 and writes nothing while it is not 4 (#130) | ✅ |
 
 ---
 

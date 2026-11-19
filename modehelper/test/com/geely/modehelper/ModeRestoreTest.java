@@ -21,6 +21,12 @@ public final class ModeRestoreTest {
         check(RestorePolicy.turnedOff(4, 2), "4 -> 2 is the car switched off");
         check(!RestorePolicy.turnedOff(2, 2), "still off is no edge");
         check(!RestorePolicy.turnedOff(null, 2), "first reading is no edge");
+        // seen on the car 2026-11-19: 2 -> 3 -> 4 at switch-on
+        check(RestorePolicy.turnedOn(3, 4), "3 -> 4 is the car switched on");
+        check(RestorePolicy.knownOff(2), "2: car off, do not write");
+        check(RestorePolicy.knownOff(3), "3: car not on yet, do not write");
+        check(!RestorePolicy.knownOff(4), "4: car on");
+        check(!RestorePolicy.knownOff(null), "property missing: not off, the wake window still works");
 
         // not armed: never writes
         ModeRestore r = new ModeRestore();
