@@ -200,6 +200,9 @@ public final class Prefs {
     public static void setExtraDarkStartMin(Context ctx, int v) { file(ctx).edit().putInt("extra_dark_start_min", v).apply(); }
     public static int getExtraDarkEndMin(Context ctx) { return file(ctx).getInt("extra_dark_end_min", 6 * 60); }
     public static void setExtraDarkEndMin(Context ctx, int v) { file(ctx).edit().putInt("extra_dark_end_min", v).apply(); }
+    // Darkest mode over every app (services/DarkestOverlayService), not only the Dashboard.
+    public static boolean getExtraDarkGlobal(Context ctx) { return file(ctx).getBoolean("extra_dark_global", false); }
+    public static void setExtraDarkGlobal(Context ctx, boolean v) { file(ctx).edit().putBoolean("extra_dark_global", v).apply(); }
     public static boolean getSpotifyLargeCard(Context ctx) { return file(ctx).getBoolean("spotify_large_card", false); }
     public static void setSpotifyLargeCard(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_large_card", v).apply(); }
     public static String getSpotifyClientId(Context ctx) { return file(ctx).getString("spotify_client_id", ""); }

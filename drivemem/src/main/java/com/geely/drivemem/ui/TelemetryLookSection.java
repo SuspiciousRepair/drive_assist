@@ -124,27 +124,53 @@ public final class TelemetryLookSection extends LinearLayout {
         appNote.setText(activity.getString(R.string.cfg_appearance_note));
         appCard.addView(appNote);
 
-        // Extra dark (#89): read by the Dashboard on its next onResume, so
-        // no recreate is needed.
+        // Darkest mode (#89, #130): read by the Dashboard on its next onResume,
+        // so no recreate is needed. Its settings show only while it is on.
+        LinearLayout darkOpts = new LinearLayout(activity);
+        darkOpts.setOrientation(LinearLayout.VERTICAL);
+        darkOpts.setVisibility(com.geely.drivemem.util.Prefs.getExtraDark(activity) ? View.VISIBLE : View.GONE);
         appCard.addView(toggleRow(activity, activity.getString(R.string.cfg_extra_dark_label),
             com.geely.drivemem.util.Prefs.getExtraDark(activity),
-            on -> com.geely.drivemem.util.Prefs.setExtraDark(activity, on)));
+            on -> {
+                com.geely.drivemem.util.Prefs.setExtraDark(activity, on);
+                darkOpts.setVisibility(on ? View.VISIBLE : View.GONE);
+                com.geely.drivemem.services.DarkestOverlayService.sync(activity);
+            }));
         TextView darkNote = new TextView(activity);
         darkNote.setTextColor(Style.TEXT_DIM); darkNote.setTextSize(14);
         darkNote.setText(activity.getString(R.string.cfg_extra_dark_note));
         appCard.addView(darkNote);
+        appCard.addView(darkOpts);
         // Its own hours (#130): the car's dark mode starts too early for it.
-        appCard.addView(hoursRow(activity.getString(R.string.cfg_extra_dark_from),
+        // One 24 h line with midnight in the middle, two handles.
+        darkOpts.addView(new HoursBar(activity,
             com.geely.drivemem.util.Prefs.getExtraDarkStartMin(activity),
-            v -> com.geely.drivemem.util.Prefs.setExtraDarkStartMin(activity, v)));
-        appCard.addView(hoursRow(activity.getString(R.string.cfg_extra_dark_until),
             com.geely.drivemem.util.Prefs.getExtraDarkEndMin(activity),
-            v -> com.geely.drivemem.util.Prefs.setExtraDarkEndMin(activity, v)));
-        // Try: opens the Dashboard already dimmed, so the mode can be seen in
-        // Park, by day. A touch brings the light back.
-        appCard.addView(Style.action(activity, activity.getString(R.string.cfg_extra_dark_try), 0xFF4A6B82,
-            () -> activity.startActivity(new android.content.Intent(activity, ComfortActivity.class)
-                .putExtra(ExtraDark.EXTRA_TRY, true))));
+            (start, end) -> {
+                com.geely.drivemem.util.Prefs.setExtraDarkStartMin(activity, start);
+                com.geely.drivemem.util.Prefs.setExtraDarkEndMin(activity, end);
+            }), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        // Over every app (DarkestOverlayService), not only the Dashboard.
+        darkOpts.addView(toggleRow(activity, activity.getString(R.string.cfg_extra_dark_global),
+            com.geely.drivemem.util.Prefs.getExtraDarkGlobal(activity),
+            on -> {
+                com.geely.drivemem.util.Prefs.setExtraDarkGlobal(activity, on);
+                com.geely.drivemem.services.DarkestOverlayService.sync(activity);
+            }));
+        // Try: dims at once, in Park and by day too. A touch brings the light
+        // back. On every screen: the overlay dims over this screen; else the
+        // Dashboard opens already dimmed.
+        darkOpts.addView(Style.action(activity, activity.getString(R.string.cfg_extra_dark_try), 0xFF4A6B82, () -> {
+            if (com.geely.drivemem.util.Prefs.getExtraDarkGlobal(activity)) {
+                android.content.Intent t = new android.content.Intent(activity,
+                    com.geely.drivemem.services.DarkestOverlayService.class)
+                    .setAction(com.geely.drivemem.services.DarkestOverlayService.ACTION_TRY);
+                try { activity.startForegroundService(t); } catch (Throwable ignored) {}
+            } else {
+                activity.startActivity(new android.content.Intent(activity, ComfortActivity.class)
+                    .putExtra(ExtraDark.EXTRA_TRY, true));
+            }
+        }));
 
         TextView sub = new TextView(activity);
         sub.setTextColor(Style.TEXT_DIM); sub.setTextSize(14);
@@ -318,38 +344,5 @@ public final class TelemetryLookSection extends LinearLayout {
         lp.bottomMargin = Style.dp(activity, 8);
         t.setLayoutParams(lp);
         return t;
-    }
-
-    /** Step for Darkest mode's hours. */
-    static final int HOURS_STEP_MIN = 30;
-
-    /** "Label  [-] 21:00 [+]": a time in 30-minute steps, sized for the
-     * panel (no phone-sized time picker). Saved at each tap. */
-    private LinearLayout hoursRow(String label, int startMin, java.util.function.IntConsumer save) {
-        LinearLayout row = new LinearLayout(activity);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        TextView lbl = Style.label(activity, label);
-        lbl.setMinWidth(220);
-        row.addView(lbl);
-        TextView value = Style.label(activity, hhmm(startMin));
-        value.setGravity(Gravity.CENTER);
-        value.setMinWidth(120);
-        final int[] cur = {startMin};
-        Runnable minus = () -> { cur[0] = stepMin(cur[0], -HOURS_STEP_MIN); value.setText(hhmm(cur[0])); save.accept(cur[0]); };
-        Runnable plus = () -> { cur[0] = stepMin(cur[0], HOURS_STEP_MIN); value.setText(hhmm(cur[0])); save.accept(cur[0]); };
-        row.addView(Style.button(activity, "\u2212", 0xFF4A6B82, minus));
-        row.addView(value);
-        row.addView(Style.button(activity, "+", 0xFF4A6B82, plus));
-        return row;
-    }
-
-    /** Minutes after midnight moved by delta, wrapped to one day. */
-    static int stepMin(int min, int delta) {
-        return ((min + delta) % (24 * 60) + 24 * 60) % (24 * 60);
-    }
-
-    static String hhmm(int min) {
-        return String.format(java.util.Locale.US, "%02d:%02d", min / 60, min % 60);
     }
 }

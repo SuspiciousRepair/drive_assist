@@ -26,11 +26,31 @@ public class ExtraDarkTest {
         assertFalse("06:00 ends", ExtraDark.inHours(6 * 60, start, end));
     }
 
-    @Test public void hoursStepWrapsAroundMidnight() {
-        assertTrue(TelemetryLookSection.stepMin(23 * 60 + 30, 30) == 0);
-        assertTrue(TelemetryLookSection.stepMin(0, -30) == 23 * 60 + 30);
-        assertTrue(TelemetryLookSection.hhmm(21 * 60).equals("21:00"));
-        assertTrue(TelemetryLookSection.hhmm(6 * 60 + 30).equals("06:30"));
+    @Test public void hoursLineHasMidnightInTheMiddle() {
+        assertTrue(HoursBar.posOf(0) == HoursBar.DAY / 2);
+        assertTrue(HoursBar.posOf(12 * 60) == 0);
+        assertTrue(HoursBar.minOf(HoursBar.posOf(21 * 60)) == 21 * 60);
+        assertTrue("21:00 to 06:00 is one piece of line",
+            HoursBar.posOf(21 * 60) < HoursBar.posOf(6 * 60));
+    }
+
+    @Test public void hoursHandlesSnapAndNeverCross() {
+        assertTrue(HoursBar.snap(44f) == 30);
+        assertTrue(HoursBar.snap(-90f) == 0);
+        assertTrue(HoursBar.snap(HoursBar.DAY + 90f) == HoursBar.DAY);
+        int[] r = HoursBar.move(540, 1080, 0, 1200);
+        assertTrue("start stops a step before end", r[0] == 1080 - HoursBar.STEP && r[1] == 1080);
+        r = HoursBar.move(540, 1080, 1, 0);
+        assertTrue("end stops a step after start", r[1] == 540 + HoursBar.STEP);
+        assertTrue(HoursBar.hhmm(6 * 60 + 30).equals("06:30"));
+    }
+
+    @Test public void dashboardAndOverlayNeverBothRun() {
+        assertTrue("dashboard only", ExtraDark.runs(true, false, false));
+        assertFalse(ExtraDark.runs(true, false, true));
+        assertTrue("every screen: the overlay", ExtraDark.runs(true, true, true));
+        assertFalse("every screen: the Dashboard stays idle", ExtraDark.runs(true, true, false));
+        assertFalse("switch off: neither", ExtraDark.runs(false, true, true));
     }
 
     @Test public void hoursInsideOneDay() {

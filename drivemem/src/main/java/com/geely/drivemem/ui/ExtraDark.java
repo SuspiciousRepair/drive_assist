@@ -1,6 +1,7 @@
 package com.geely.drivemem.ui;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.res.Configuration;
 import android.os.Handler;
 import android.os.SystemClock;
@@ -33,6 +34,11 @@ import com.geely.drivemem.util.Prefs;
  * only darkens Drive Assist. Shown on dim, gone on undim. Brought back
  * 2026-11-19 (#130): with the backlight alone, a user saw no change.
  *
+ * "On every screen" (Prefs.getExtraDarkGlobal): the same rules run in
+ * DarkestOverlayService instead, with a real overlay window over every app
+ * (its own Target), and the Dashboard's element stays idle so the two never
+ * stack. Only one of the two is ever enabled: see runs().
+ *
  * Below that floor: 2 of 255 still lights the panel (1 is off), measured
  * 2026-11-17, and the owner wanted it darker than 10. Android will not go
  * below 10 and SELinux keeps modehelper off the backlight file, so
@@ -51,19 +57,29 @@ public final class ExtraDark {
     static final long DIM_AFTER_MS = 60_000L;
     /** Asks for the lowest backlight: the system clamps it to the panel's
      * floor (10 of 255 on this unit), the darkest it goes. */
-    static final float BACKLIGHT_FLOOR = 1f / 255f;
+    public static final float BACKLIGHT_FLOOR = 1f / 255f;
     /** After the dim, before asking modehelper for the real floor. */
     static final long FLOOR_DELAY_MS = 2000L;
     /** Opacity of the black shade: 0.7 lets 30 % of the dimmed light through,
      * so the speed and the numbers can still be read. */
-    static final float SHADE_ALPHA = 0.7f;
+    public static final float SHADE_ALPHA = 0.7f;
     static final String HELPER_FLOOR = "com.geely.modehelper.BacklightFloorReceiver";
     /** Intent extra on ComfortActivity: Config's Try button. */
     public static final String EXTRA_TRY = "darkest_try";
     private static final String GEAR_KEY = "car.gear";
 
-    private final Activity activity;
+    /** What dimming does on screen: the Dashboard's window and element, or
+     * the overlay window over every app. */
+    public interface Target {
+        /** Dims (backlight override + shade) or brings the light back. */
+        void apply(boolean dimmed);
+    }
+
+    private final Context ctx;
     private final Handler ui;
+    /** True for the overlay over every app, false for the Dashboard. */
+    private final boolean overlay;
+    private Target target;
     private boolean enabled, dimmed, swallowing;
     private View shade;
     private long lastWakeMs;
@@ -71,16 +87,40 @@ public final class ExtraDark {
     private final Runnable floor = () -> { if (dimmed) helperFloor(true); };
     private final EntityBus.Listener gearListener;
 
+    /** The Dashboard's own Darkest mode: window brightness + an element. */
     public ExtraDark(Activity activity, Handler ui) {
-        this.activity = activity;
+        this(activity, ui, false, null);
+        this.target = dimmed -> {
+            WindowManager.LayoutParams lp = activity.getWindow().getAttributes();
+            lp.screenBrightness = dimmed ? BACKLIGHT_FLOOR : WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
+            activity.getWindow().setAttributes(lp);
+            if (shade != null) shade.setVisibility(dimmed ? View.VISIBLE : View.GONE);
+        };
+    }
+
+    /** Darkest mode over every app (DarkestOverlayService). */
+    public ExtraDark(Context ctx, Handler ui, Target target) {
+        this(ctx, ui, true, target);
+    }
+
+    private ExtraDark(Context ctx, Handler ui, boolean overlay, Target target) {
+        this.ctx = ctx;
         this.ui = ui;
+        this.overlay = overlay;
+        this.target = target;
         this.gearListener = (key, reading) -> ui.post(this::wake);
+    }
+
+    /** Whether this copy (Dashboard or overlay) runs: the switch on, and the
+     * overlay only "On every screen", the Dashboard only without it. */
+    static boolean runs(boolean on, boolean everyScreen, boolean overlay) {
+        return on && everyScreen == overlay;
     }
 
     /** Adds the shade as the last child of the Dashboard's root, so it is
      * above all the other elements. Call once, after the root is built. */
     public void attach(ViewGroup root) {
-        shade = new View(activity);
+        shade = new View(ctx);
         shade.setBackgroundColor(Color.BLACK);
         shade.setAlpha(SHADE_ALPHA);
         shade.setVisibility(View.GONE);
@@ -109,11 +149,11 @@ public final class ExtraDark {
     private boolean inHoursNow() {
         java.util.Calendar c = java.util.Calendar.getInstance();
         int now = c.get(java.util.Calendar.HOUR_OF_DAY) * 60 + c.get(java.util.Calendar.MINUTE);
-        return inHours(now, Prefs.getExtraDarkStartMin(activity), Prefs.getExtraDarkEndMin(activity));
+        return inHours(now, Prefs.getExtraDarkStartMin(ctx), Prefs.getExtraDarkEndMin(ctx));
     }
 
     public void resume() {
-        enabled = Prefs.getExtraDark(activity);
+        enabled = runs(Prefs.getExtraDark(ctx), Prefs.getExtraDarkGlobal(ctx), overlay);
         if (enabled) EntityBus.subscribe(GEAR_KEY, gearListener);
         wake();
     }
@@ -143,6 +183,8 @@ public final class ExtraDark {
         dim();
     }
 
+    public boolean isDimmed() { return dimmed; }
+
     /** Called from the activity's dispatchTouchEvent. Returns true when the
      * touch only woke a dimmed screen and must not reach the views: nobody
      * presses a button they could not see. */
@@ -169,13 +211,12 @@ public final class ExtraDark {
     }
 
     private boolean night() {
-        int m = activity.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        int m = ctx.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
         return m == Configuration.UI_MODE_NIGHT_YES;
     }
 
     private void dim() {
-        setWindow(BACKLIGHT_FLOOR);
-        if (shade != null) shade.setVisibility(View.VISIBLE);
+        target.apply(true);
         dimmed = true;
         ui.postDelayed(floor, FLOOR_DELAY_MS);
     }
@@ -183,8 +224,7 @@ public final class ExtraDark {
     private void undim() {
         if (!dimmed) return;
         ui.removeCallbacks(floor);
-        setWindow(WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE);
-        if (shade != null) shade.setVisibility(View.GONE);
+        target.apply(false);
         dimmed = false;
         helperFloor(false);
     }
@@ -193,15 +233,9 @@ public final class ExtraDark {
      * Does nothing without modehelper (see its receiver). */
     private void helperFloor(boolean floor) {
         try {
-            activity.sendBroadcast(new android.content.Intent("com.geely.modehelper.BACKLIGHT_FLOOR")
+            ctx.sendBroadcast(new android.content.Intent("com.geely.modehelper.BACKLIGHT_FLOOR")
                 .setClassName(com.geely.drivemem.net.Updater.HELPER_PKG, HELPER_FLOOR)
                 .putExtra("floor", floor));
         } catch (Throwable ignored) {}
-    }
-
-    private void setWindow(float level) {
-        WindowManager.LayoutParams lp = activity.getWindow().getAttributes();
-        lp.screenBrightness = level;
-        activity.getWindow().setAttributes(lp);
     }
 }

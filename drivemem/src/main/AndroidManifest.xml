@@ -115,6 +115,7 @@
         <service android:name=".services.WifiIconService" android:exported="false" />
         <service android:name=".services.SocIconService" android:exported="false" />
         <service android:name=".services.OverlayService" android:exported="false" />
+        <service android:name=".services.DarkestOverlayService" android:exported="false" />
         <!-- MediaMuxer can abort native code on a damaged raw stream. Recovery
              therefore has its own disposable process, never the UI process. -->
         <service android:name=".util.ClipRecoveryService" android:exported="false"

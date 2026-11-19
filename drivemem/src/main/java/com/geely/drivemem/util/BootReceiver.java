@@ -233,6 +233,9 @@ public class BootReceiver extends BroadcastReceiver {
         // needs a Beat key with a real periodic tick behind it, and the overlay
         // has none — startForegroundService()'s own no-op on an already-running
         // instance is all the restart-safety this one needs.
+        // Darkest mode over every app: starts or stops to match its switches.
+        com.geely.drivemem.services.DarkestOverlayService.sync(ctx);
+
         if (Prefs.getOverlayOn(ctx)) {
             try {
                 Intent s = new Intent(ctx, com.geely.drivemem.services.OverlayService.class);
