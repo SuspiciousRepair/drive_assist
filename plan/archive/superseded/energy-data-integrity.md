@@ -1,5 +1,7 @@
 # Data integrity: verify, make sense of, and heal energy totals
 
+> **Superseded.** A different design shipped in v0.4.0.
+
 **Status: planned, not started.** Hold on implementing per explicit request
 — this doc records the agreed approach for later execution.
 

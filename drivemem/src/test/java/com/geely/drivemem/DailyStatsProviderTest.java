@@ -14,7 +14,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 // Covers DailyStatsProvider.aggregate() and the week/month date-range
-// helpers added for plan/active/STATS-PERIOD-VIEWS-ROADMAP.md. getDayOverview
+// helpers added for plan/archive/implemented/STATS-PERIOD-VIEWS-ROADMAP.md. getDayOverview
 // / recentWeeks / recentMonths themselves are DB-backed and not unit-tested
 // here, same reasoning OdoStatsTest gives for its own DB-touching methods --
 // aggregate() is the pure, testable half of that split.

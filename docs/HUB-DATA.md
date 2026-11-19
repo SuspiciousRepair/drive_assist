@@ -9,7 +9,7 @@ when it is available.
 value, search the code for that key or its constant.
 
 Property IDs and scales of the car's own (VHAL) properties are in
-[DATA-CATALOG.md](DATA-CATALOG.md). This page is about availability.
+[field-catalog.md](field-catalog.md). This page is about availability.
 
 ## 1. When anything updates at all
 
@@ -79,7 +79,7 @@ switch is off or the reader has not sent a heartbeat for 3 s.
 | `can.live` | reader live (1/0) |
 | `can.pack_v`, `can.pack_a` | pack voltage, current (+ = discharge) |
 | `can.power_kw` | pack power, V × I. `NOT_AVAILABLE` while volts or amps are not valid, also when `can.live` is 1 |
-| `can.climate_kw` | climate (compressor + heater) power, raw `VCU_ThermalPwrAct`. Reads low (see `plan/active/CAN-ENERGY-ROADMAP.md`, "Power map") |
+| `can.climate_kw` | climate (compressor + heater) power, raw `VCU_ThermalPwrAct`. Reads low (see `plan/archive/implemented/CAN-ENERGY-ROADMAP.md`, "Power map") |
 | `can.drive_kw` | drive motor power, raw `VCU_DrvPwrAct`. Not battery power: use `can.power_kw` for that |
 | `can.charger_w` | on-board charger's mains input, only while AC charging |
 | `can.speed_kmh` | vehicle speed, 0.1 steps (`ESC_VehicleSpeed`, frame 0x125, **raw × 0.05625**: the raw count is 1/64 m/s; roadcast's catalog says ×1, which is wrong). The art also gets every change directly (~10 Hz while moving) through `CanEnergyReader.SpeedListener` |

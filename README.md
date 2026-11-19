@@ -4,10 +4,9 @@
 
 **English** · [Português (Brasil)](README.pt-BR.md)
 
-[![CI Build](https://img.shields.io/badge/build-passing-brightgreen.svg)](#building)
-[![JaCoCo Coverage](https://img.shields.io/badge/coverage-19.84%25%20%28325%20tests%29-blue.svg)](docs/CODE-QUALITY-REPORT.md)
+[![Verify](https://github.com/SuspiciousRepair/drive_assist/actions/workflows/verify.yml/badge.svg?branch=next)](https://github.com/SuspiciousRepair/drive_assist/actions/workflows/verify.yml)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Geely%20IHU629G%20%7C%20Android%209-orange.svg)](docs/ARCHITECTURE-SAFETY-AUDIT.md)
+[![Platform](https://img.shields.io/badge/Platform-Geely%20IHU629G%20%7C%20Android%209-orange.svg)](docs/WELCOME.md)
 
 **A better everyday dashboard for the Geely EX2 / Geometry E.**
 
@@ -148,18 +147,16 @@ Full architectural documentation and reverse-engineering guides are located in t
 - [Vehicle Security & Sideloading Guide](docs/SECURITY-SAFETY.md) — Sideloading risks, platform test keys, APK repackaging, and data exposure
 
 ### Audits, Quality & Governance
-- [Release Readiness Matrix](docs/RELEASE-READINESS-MATRIX.md) — Comprehensive Go/No-Go release audit and remediation roadmap
-- [Software Architecture & Vehicle Safety Audit](docs/ARCHITECTURE-SAFETY-AUDIT.md) — Multi-perspective audit of UID separation, Park invariants, and VHAL safety
-- [Open-source Head-unit Software Review](docs/OPEN-SOURCE-HEAD-UNIT-REVIEW.md) — Prioritized maintainability, architecture, performance, safety, and community recommendations for rooted sideloaded deployment
-- [Code Quality & Test Coverage Report](docs/CODE-QUALITY-REPORT.md) — JaCoCo test metrics (19.84% scoped instruction coverage / 325 tests), Lint tuning, Checkstyle, and SpotBugs catalog
-- [Contributing Guidelines](CONTRIBUTING.md) — Branching rules (`dev`/`master`), Conventional Commits, and pull request checklist
+- [Software Architecture & Vehicle Safety Audit](docs/archive/ARCHITECTURE-SAFETY-AUDIT.md) — Audit of UID separation, Park invariants, and VHAL safety (snapshot, September 2026)
+- [Open-source Head-unit Software Review](docs/archive/OPEN-SOURCE-HEAD-UNIT-REVIEW.md) — Maintainability, architecture, performance, safety, and community recommendations (snapshot, September 2026)
+- [Code Quality & Test Coverage Report](docs/archive/CODE-QUALITY-REPORT.md) — JaCoCo, Lint, Checkstyle, and SpotBugs findings (snapshot, September 2026)
+- [Contributing Guidelines](CONTRIBUTING.md) — Branching rules (`next`/`master`), Conventional Commits, and pull request checklist
 - [Changelog](CHANGELOG.md) — Full version history, release notes, and unreleased enhancements
 - [License](LICENSE) — GNU General Public License v3.0 terms
 - [Car data: what is available, and when](docs/HUB-DATA.md) — every hub key, its source, update rate and conditions (CAN, OBD2, VHAL)
 - [Third-party notices and credits](THIRD-PARTY-NOTICES.md) — roadcast and Capy by Timoteo Sousa, libuv
 
 ### Engineering References
-- [Vehicle Data Catalog](docs/DATA-CATALOG.md) — Confirmed properties and function IDs
 - [Field Catalog](docs/field-catalog.md) — Exhaustive hardware signals, probes, and VHAL references
 - [Climate & Comfort Ruler](docs/COMFORT-TABLE.md) — Thermal effort scale and HVAC state machine
 - [Cameras & EVS HAL](docs/EVS-CAMERA.md) — Extended View System architecture and binder interface
@@ -182,7 +179,7 @@ Car permissions (`CAR_POWERTRAIN`, `CAR_ENERGY`) are `signature|privileged`. The
 
 ## Vehicle Data Catalog
 
-A consolidated reference of confirmed vehicle properties and Geely adaptation layer function IDs on the IHU629G. All properties are accessed via `CarPropertyManager` inside the installed APK. For detailed probing methodologies, logs, and historical investigations, see [field-catalog.md](docs/field-catalog.md) and [DATA-CATALOG.md](docs/DATA-CATALOG.md).
+A consolidated reference of confirmed vehicle properties and Geely adaptation layer function IDs on the IHU629G. All properties are accessed via `CarPropertyManager` inside the installed APK. For detailed probing methodologies, logs, and historical investigations, see [field-catalog.md](docs/field-catalog.md) and [field-catalog.md](docs/field-catalog.md).
 
 ## Architecture: CarActor & EntityBus
 
@@ -327,7 +324,7 @@ adb shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.geely.driv
 Drive Assist welcomes contributions from automotive software developers and the Geely community!
 
 - **Contributing Guidelines**: Review [CONTRIBUTING.md](CONTRIBUTING.md) for the public `next` / release-branch workflow, pre-push PII checks, Conventional Commits, local validation, and vehicle safety rules.
-- **Release Readiness & Audits**: See [docs/RELEASE-READINESS-MATRIX.md](docs/RELEASE-READINESS-MATRIX.md) for the objective release assessment matrix, [docs/ARCHITECTURE-SAFETY-AUDIT.md](docs/ARCHITECTURE-SAFETY-AUDIT.md) for vehicle safety invariant analyses, and [docs/CODE-QUALITY-REPORT.md](docs/CODE-QUALITY-REPORT.md) for test coverage and static analysis findings.
+- **Audits**: The dated audits and quality reports are in [docs/archive/](docs/archive/). They describe the code as it was in September 2026.
 - **Changelog**: See [CHANGELOG.md](CHANGELOG.md) for release notes across all versions and unreleased staging features.
 - **License**: Drive Assist is licensed under the [GNU General Public License v3.0](LICENSE). Any distributed modified version must also stay open source under GPLv3.
 

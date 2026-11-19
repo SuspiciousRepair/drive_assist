@@ -1,5 +1,7 @@
 # EntityBus execution domains plan
 
+> **Deferred.** Not planned for now.
+
 ## Why this is deferred
 
 `EntityBus` currently delivers synchronously on `CarActor`'s single thread.

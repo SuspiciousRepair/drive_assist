@@ -6,7 +6,7 @@ package com.geely.drivemem.sensors;
  *
  *   real kW = 1.19 x signal + 0.2   while the climate runs (signal > 0)
  *
- * (plan/active/CAN-ENERGY-ROADMAP.md, "Power map"). The 1.19 suggests the
+ * (plan/archive/implemented/CAN-ENERGY-ROADMAP.md, "Power map"). The 1.19 suggests the
  * true scale is 0.1 kW/bit, not the catalog's 0.08; the 0.2 kW is likely
  * pumps and electronics the signal leaves out.
  *

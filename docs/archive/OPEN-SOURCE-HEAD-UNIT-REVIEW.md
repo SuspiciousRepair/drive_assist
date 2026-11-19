@@ -1,5 +1,7 @@
 # Open-source head-unit software review
 
+> **Snapshot, September 2026.** This review describes the code as it was then.
+
 **Project:** Drive Assist  
 **Scope:** whole repository review, 2026-09-15  
 **Audience:** maintainers and contributors of a sideloaded utility for rooted Geely IHU629G head units (Android 9 / API 28)

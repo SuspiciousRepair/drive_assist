@@ -1,5 +1,7 @@
 # Trip details, routes and per-mode efficiency, no map API (issue #19)
 
+> **Implemented** (v0.8.0 and v0.9.0). Kept for the reasoning.
+
 Status (2026-11-17): phases 0, 1 and 2 merged into `next` (#51, #62, #64,
 #65); #19 closed. Charge places on the route maps: #101, #103. Phase 3
 (GPX and CSV export, USB and phone): `feat/gpx-export`, for #82.

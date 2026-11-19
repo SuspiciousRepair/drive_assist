@@ -33,22 +33,28 @@
     - title: Statistics calculations
       url: /TRIP-STATISTICS.html
     - title: Vehicle data catalog
-      url: /DATA-CATALOG.html
+      url: /field-catalog.html
     - title: Field history and timeline
       url: /field-history.html
-    - title: Climate and HVAC facts
-      url: /CLIMATE-FACTS.html
-    - title: Dashcam architecture
-      url: /DASHCAM.html
+    - title: Car data and when it is available
+      url: /HUB-DATA.html
+    - title: CAN data for other apps
+      url: /CAN-API.html
+    - title: Climate ruler table
+      url: /COMFORT-TABLE.html
+    - title: Vehicle integration
+      url: /VEHICLE-INTEGRATION.html
+    - title: Diagnostics
+      url: /DIAGNOSTICS.html
+    - title: Unlock ADB on the head unit (Português)
+      url: /GUIA-ADB-IHU629G.html
 
 - title: Project
   links:
     - title: Write documentation
       url: /CONTRIBUTING-TO-DOCS.html
-    - title: Code quality and test coverage
-      url: /CODE-QUALITY-REPORT.html
-    - title: Release readiness
-      url: /RELEASE-READINESS-MATRIX.html
+    - title: Release process
+      url: /RELEASE-PROCESS.html
     - title: GitHub repository
       url: https://github.com/SuspiciousRepair/drive_assist
     - title: Releases and downloads
