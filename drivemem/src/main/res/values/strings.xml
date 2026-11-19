@@ -578,7 +578,7 @@
     <string name="route_stat_outside">Outside</string>
     <string name="route_stat_by_use">Energy by use</string>
     <string name="sankey_used">Used</string>
-    <string name="sankey_net">Net</string>
+    <string name="sankey_battery">Battery</string>
     <string name="sankey_regen">Regen</string>
     <string name="stats_part_drive">Drive</string>
     <string name="stats_part_climate">Climate</string>

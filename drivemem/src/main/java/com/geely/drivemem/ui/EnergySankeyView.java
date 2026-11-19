@@ -13,20 +13,27 @@ import com.geely.drivemem.util.Style;
 
 import java.util.Locale;
 
-/** Where the energy went, as a Sankey:
+/** Where the energy came from and where it went, as a Sankey:
  *
- *   Used ─┬─ Regen
- *         └─ Net ─┬─ Drive
- *                 ├─ Climate
- *                 └─ Other
+ *   Battery ─┐
+ *            ├─ Used ─┬─ Drive
+ *   Regen ───┘        ├─ Climate
+ *                     └─ Other
+ *
+ * Battery is what the battery gave (the trip's net). Regen is what the
+ * motor sent back while braking, which the car used again. Both are
+ * sources: Used = battery + regen. Drive is the motor's whole energy out,
+ * so the two sides add up: drive + climate + other = battery + regen.
+ *
+ * Regen here is the MOTOR's number, not the battery's (the trip's
+ * regen_kwh). The motor sends back more than the battery gets: part of it
+ * never reaches the battery. With the battery's number, Drive would have
+ * to be a made-up figure for the chart to add up (EnergySplit).
  *
  * Every band is to scale (thickness = kWh, one scale for the whole chart).
  * No minimum thickness, on purpose: a small part stays thin. Only the gaps
  * between the right-hand parts and the label positions move, so labels never
  * overlap; a label that moved gets a thin leader line to its band.
- *
- * Used and Regen must come from the same trips as the split, so that
- * drive + climate + other = used - regen (EnergySplit scales them so).
  *
  * One number per part, in one unit at a time: kWh, Wh/km (over the km the
  * trips covered) or % of Used. Each label is the name (regular), the
@@ -34,7 +41,7 @@ import java.util.Locale;
  * the next unit. The choice is kept (Prefs) and is the same on the trip
  * screen and the stats page. */
 final class EnergySankeyView extends View {
-    private double used, regen, drive, climate, other, km;
+    private double used, battery, regen, drive, climate, other, km;
     private boolean hasData;
 
     static final int UNIT_KWH = 0, UNIT_WH_KM = 1, UNIT_PCT = 2;
@@ -48,11 +55,11 @@ final class EnergySankeyView extends View {
     private final Paint dim = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint name = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
-    private final String sUsed, sNet, sRegen;
+    private final String sUsed, sBattery, sRegen;
     private final String[] partNames;
 
     // Layout, in px (dp = px on this panel, see CLAUDE.md).
-    private final float chartH, top, nodeW, midGap, rightGap, labelGap;
+    private final float chartH, top, nodeW, midGap, rightGap, labelGap, labelRow;
 
     EnergySankeyView(Context c) {
         super(c);
@@ -62,6 +69,7 @@ final class EnergySankeyView extends View {
         midGap = Style.dp(c, 32);
         rightGap = Style.dp(c, 12);
         labelGap = Style.dp(c, 26);
+        labelRow = Style.dp(c, 26);
         bold.setTextSize(Style.dp(c, 17));
         bold.setTypeface(Typeface.DEFAULT_BOLD);
         dim.setTextSize(Style.dp(c, 14));
@@ -69,7 +77,7 @@ final class EnergySankeyView extends View {
         line.setStyle(Paint.Style.STROKE);
         line.setStrokeWidth(Style.dp(c, 1));
         sUsed = c.getString(R.string.sankey_used);
-        sNet = c.getString(R.string.sankey_net);
+        sBattery = c.getString(R.string.sankey_battery);
         sRegen = c.getString(R.string.sankey_regen);
         partNames = new String[]{c.getString(R.string.stats_part_drive),
             c.getString(R.string.stats_part_climate), c.getString(R.string.stats_part_other)};
@@ -112,9 +120,12 @@ final class EnergySankeyView extends View {
         }
     }
 
-    /** kWh for each node, and the km the trips covered (for Wh/km). */
-    void setData(double used, double regen, double drive, double climate, double other, double km) {
-        this.used = used; this.regen = Math.max(0, regen);
+    /** kWh for each node, and the km the trips covered (for Wh/km).
+     * battery + regen must equal drive + climate + other (EnergySplit's
+     * batteryKwh, motorRegenKwh and motorOutKwh do). */
+    void setData(double battery, double regen, double drive, double climate, double other, double km) {
+        this.battery = Math.max(0, battery); this.regen = Math.max(0, regen);
+        this.used = this.battery + this.regen;
         this.drive = drive; this.climate = climate; this.other = other; this.km = km;
         hasData = used > 0;
         requestLayout();
@@ -126,8 +137,13 @@ final class EnergySankeyView extends View {
     /** Label centres: each at its band's centre, pushed down until it is at
      * least {@code minGap} below the one above. Never moves a band. */
     static float[] labelYs(float[] centres, float minGap) {
+        return labelYs(centres, minGap, -Float.MAX_VALUE);
+    }
+
+    /** The same, and no label above {@code minFirst}. */
+    static float[] labelYs(float[] centres, float minGap, float minFirst) {
         float[] out = new float[centres.length];
-        float prev = -Float.MAX_VALUE;
+        float prev = minFirst - minGap;
         for (int i = 0; i < centres.length; i++) {
             out[i] = Math.max(centres[i], prev + minGap);
             prev = out[i];
@@ -136,7 +152,13 @@ final class EnergySankeyView extends View {
     }
 
     private float k() { return used > 0 ? (float) (chartH / used) : 0; }
-    private float yNet() { return top + (float) (regen * k()) + midGap; }
+
+    // Used and the parts start at the top. Battery and regen start one label
+    // row lower, so Battery's label sits under Used's, never beside it.
+    private float yLeft() { return top + labelRow; }
+    private float hBattery() { return (float) (battery * k()); }
+    private float hRegen() { return (float) (regen * k()); }
+    private float yRegen() { return yLeft() + hBattery() + midGap; }
 
     private float[] partHeights() {
         float k = k();
@@ -145,11 +167,14 @@ final class EnergySankeyView extends View {
 
     private float[] partCentres() {
         float[] h = partHeights();
-        float y = yNet();
+        float y = top;
         float[] c = new float[3];
         for (int i = 0; i < 3; i++) { c[i] = y + h[i] / 2; y += h[i] + rightGap; }
         return c;
     }
+
+    // The first part's label stays clear of Used's label above the chart.
+    private float[] partLabelYs() { return labelYs(partCentres(), labelGap, top + Style.dp(getContext(), 16)); }
 
     @Override protected void onMeasure(int wSpec, int hSpec) {
         int w = MeasureSpec.getSize(wSpec);
@@ -157,9 +182,10 @@ final class EnergySankeyView extends View {
         if (!hasData) {
             h = 0;
         } else {
-            float[] ys = labelYs(partCentres(), labelGap);
-            float bottomBands = yNet() + (float) (Math.max(0, used - regen) * k()) + 2 * rightGap;
-            h = (int) Math.ceil(Math.max(top + chartH, Math.max(ys[2] + Style.dp(getContext(), 24), bottomBands)));
+            float[] ys = partLabelYs();
+            float leftBottom = hRegen() > 0 ? yRegen() + hRegen() : yLeft() + hBattery();
+            float rightBottom = top + chartH + 2 * rightGap;
+            h = (int) Math.ceil(Math.max(Math.max(leftBottom, rightBottom), ys[2] + Style.dp(getContext(), 24)));
         }
         setMeasuredDimension(w, h);
     }
@@ -201,33 +227,31 @@ final class EnergySankeyView extends View {
     @Override protected void onDraw(Canvas cv) {
         if (!hasData) return;
         float w = getWidth();
-        float k = k();
-        float xUsed = 0, xMid = Math.round(w * 0.36f), xRight = Math.round(w * 0.60f);
-        double net = used - regen;
-        float hReg = (float) (regen * k), hNet = (float) (Math.max(0, net) * k);
-        float yReg = top, yNet = yNet();
+        float xLeft = 0, xMid = Math.round(w * 0.36f), xRight = Math.round(w * 0.60f);
+        float hBat = hBattery(), hReg = hRegen();
+        float yBat = yLeft(), yReg = yRegen();
         int[] colors = {Style.ACCENT, Style.HEAT, Style.TEXT_DIM};
         bold.setColor(Style.TEXT);
         dim.setColor(Style.TEXT_DIM);
+        float labelUp = Style.dp(getContext(), 10);
 
-        // Used, its top part came back.
-        node(cv, xUsed, top, (float) (used * k), Style.TEXT_DIM);
-        label(cv, sUsed, used, xUsed, top - Style.dp(getContext(), 10), Style.TEXT);
+        // Battery and regen, into Used: battery on top, regen under it.
+        node(cv, xLeft, yBat, hBat, Style.TEXT_DIM);
+        band(cv, xLeft + nodeW, yBat, xMid, top, hBat, Style.TEXT_DIM);
+        label(cv, sBattery, battery, xLeft, yBat - labelUp, Style.TEXT);
+        if (hReg > 0) {
+            node(cv, xLeft, yReg, hReg, Style.PURPLE);
+            band(cv, xLeft + nodeW, yReg, xMid, top + hBat, hReg, Style.PURPLE);
+            label(cv, sRegen, regen, xLeft, yReg - labelUp, Style.PURPLE);
+        }
 
-        // Regen on top, Net under it.
-        band(cv, xUsed + nodeW, top, xMid, yReg, hReg, Style.PURPLE);
-        band(cv, xUsed + nodeW, top + hReg, xMid, yNet, hNet, Style.TEXT_DIM);
-        if (hReg > 0) node(cv, xMid, yReg, hReg, Style.PURPLE);
-        node(cv, xMid, yNet, hNet, Style.TEXT_DIM);
-        float tx = xMid + nodeW + Style.dp(getContext(), 8);
-        float regY = yReg + hReg / 2 + Style.dp(getContext(), 6);
-        label(cv, sRegen, regen, tx, regY, Style.PURPLE);
-        label(cv, sNet, net, tx, yNet - Style.dp(getContext(), 9), Style.TEXT);
+        node(cv, xMid, top, chartH, Style.TEXT_DIM);
+        label(cv, sUsed, used, xMid, top - labelUp, Style.TEXT);
 
-        // Drive, climate, other from Net.
+        // Drive, climate, other from Used.
         float[] h = partHeights();
         double[] v = {drive, climate, other};
-        float ySrc = yNet, yDst = yNet;
+        float ySrc = top, yDst = top;
         float[] centres = new float[3];
         for (int i = 0; i < 3; i++) {
             band(cv, xMid + nodeW, ySrc, xRight, yDst, h[i], colors[i]);
@@ -236,7 +260,7 @@ final class EnergySankeyView extends View {
             ySrc += h[i];
             yDst += h[i] + rightGap;
         }
-        float[] ly = labelYs(centres, labelGap);
+        float[] ly = partLabelYs();
         float lx = xRight + nodeW + Style.dp(getContext(), 10);
         for (int i = 0; i < 3; i++) {
             if (Math.abs(ly[i] - centres[i]) > 1) {

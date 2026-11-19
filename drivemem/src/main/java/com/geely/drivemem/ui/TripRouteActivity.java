@@ -284,7 +284,7 @@ public class TripRouteActivity extends Activity {
             l.setPadding(0, Style.dp(this, 10), 0, 0);
             stats.addView(l);
             EnergySankeyView sankey = new EnergySankeyView(this);
-            sankey.setData(spent, regen, sp.driveKwh, sp.climateKwh, sp.otherKwh, km);
+            sankey.setData(sp.batteryKwh(), sp.motorRegenKwh, sp.motorOutKwh, sp.climateKwh, sp.otherKwh, km);
             stats.addView(sankey, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }

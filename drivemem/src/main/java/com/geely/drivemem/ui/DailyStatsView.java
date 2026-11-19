@@ -971,8 +971,8 @@ public class DailyStatsView extends LinearLayout {
                 : buildSpeedBucketChart(c, buckets, ov.efficiencyKwh100km));
         Style.gap(consumptionCard, c, 14);
 
-        // Net / used / regen are not repeated here: the Energy by use card's
-        // Sankey shows them, with where the net went.
+        // Battery / regen / used are not repeated here: the Energy by use
+        // card's Sankey shows them, with where the energy went.
     }
 
     private void renderBatteryCard(DailyStatsProvider.DayOverview ov) {
@@ -1038,8 +1038,9 @@ public class DailyStatsView extends LinearLayout {
         Style.gap(card, c, 8);
     }
 
-    /** Where the period's energy went, as a Sankey (EnergySankeyView): used
-     * -> regen + net -> drive, climate, other, over the trips CAN measured
+    /** Where the period's energy came from and went, as a Sankey
+     * (EnergySankeyView): battery + regen -> used -> drive, climate, other,
+     * over the trips CAN measured
      * (EnergySplit), each part also in Wh/km over the km those trips covered. */
     private void renderEnergyCard(DailyStatsProvider.DayOverview ov) {
         Context c = getContext();

@@ -17,6 +17,12 @@ public class EnergySankeyViewTest {
         assertArrayEquals(new float[]{100, 205, 245}, y, 0f);
     }
 
+    // The first label never goes above the floor (Used's label is there).
+    @Test public void firstLabelStaysUnderTheFloor() {
+        float[] y = EnergySankeyView.labelYs(new float[]{5, 200, 300}, 40, 16);
+        assertArrayEquals(new float[]{16, 200, 300}, y, 0f);
+    }
+
     @Test public void kwhHasTwoDecimalsWhenSmall() {
         assertEquals("0.12", EnergySankeyView.kwh(0.12));
         assertEquals("6.5", EnergySankeyView.kwh(6.5));
