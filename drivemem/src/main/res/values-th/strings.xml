@@ -610,6 +610,8 @@
     <string name="energy_net_short">สุทธิ</string>
     <string name="valet_end_short">สิ้นสุด</string>
     <string name="valet_short">วาเลต์</string>
+    <string name="valet_stat_moves">การเคลื่อนรถ</string>
+    <string name="valet_route_none">ไม่มีเส้นทางที่บันทึกในช่วงเวลานี้ ระบบจะบันทึกเส้นทางเมื่อเปิด Config → ระบบ → เส้นทางการเดินทาง</string>
     <!-- เข้าใช้งานจากโทรศัพท์ (web/PhoneServer) -->
     <string name="phone_header">เข้าใช้งานจากโทรศัพท์</string>
     <string name="phone_card_hint">เปิดหน้าเว็บบนโทรศัพท์เพื่อดาวน์โหลดข้อมูลการเดินทาง การชาร์จ ไฟล์สำรอง และคลิปกล้องหน้ารถ กู้คืนไฟล์สำรอง และพิมพ์การตั้งค่าที่ยาว เช่น โทเคน โทรศัพท์ต้องอยู่ใน Wi-Fi เดียวกับรถ ใช้งานได้เฉพาะในเกียร์ P</string>

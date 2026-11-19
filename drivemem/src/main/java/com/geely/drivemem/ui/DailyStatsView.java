@@ -1613,6 +1613,8 @@ public class DailyStatsView extends LinearLayout {
             stat(R.string.session_stat_max_speed, valueWithUnit(
                 String.format(Locale.US, "%.0f", v.maxSpeedKmh), null, "km/h", ROW_UNIT_SCALE), null),
             stat(R.string.session_stat_max_power, v.maxPowerKw == null ? "—" : number(v.maxPowerKw, "kW"), null)));
+        // Tapping a Valet card opens its detail: map, timeline, clips.
+        card.setOnClickListener(x -> getContext().startActivity(ValetDetailActivity.intent(getContext(), v)));
     }
 
     private void buildDriveSessionCard(LinearLayout card, DailyStatsProvider.DriveSession t, long dayStartMs) {

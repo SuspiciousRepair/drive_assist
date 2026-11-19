@@ -606,6 +606,8 @@
     <string name="energy_net_short">líq.</string>
     <string name="valet_end_short">Encerrar</string>
     <string name="valet_short">Manobrista</string>
+    <string name="valet_stat_moves">Manobras</string>
+    <string name="valet_route_none">Nenhuma rota foi salva neste período. As rotas são salvas com Config → Sistema → Rotas das viagens ligado.</string>
     <!-- Acesso pelo celular (web/PhoneServer) -->
     <string name="phone_header">Acesso pelo celular</string>
     <string name="phone_card_hint">Abra uma página no celular para baixar viagens, recargas, backups e vídeos da dashcam, restaurar um backup e digitar configurações longas, como tokens. O celular precisa estar no mesmo Wi-Fi do carro. Só funciona em P.</string>

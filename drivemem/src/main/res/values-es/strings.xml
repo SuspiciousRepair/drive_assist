@@ -594,6 +594,8 @@
     <string name="energy_net_short">neta</string>
     <string name="valet_end_short">Terminar</string>
     <string name="valet_short">Valet</string>
+    <string name="valet_stat_moves">Maniobras</string>
+    <string name="valet_route_none">No se guardó ninguna ruta en este período. Las rutas se guardan con Config → Sistema → Rutas de los viajes activado.</string>
     <!-- Acceso desde el móvil (web/PhoneServer) -->
     <string name="phone_header">Acceso desde el móvil</string>
     <string name="phone_card_hint">Abre una página en tu móvil para descargar viajes, cargas, copias de seguridad y vídeos de la dashcam, restaurar una copia y escribir ajustes largos, como tokens. El móvil debe estar en la misma Wi-Fi que el coche. Solo funciona en P.</string>
