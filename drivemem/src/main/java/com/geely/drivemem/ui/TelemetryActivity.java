@@ -98,6 +98,8 @@ public class TelemetryActivity extends Activity {
     static final int SEC_ABRP = 12;
     // The comfort ruler's learn mode (ComfortLearn). Appended, same reason as SEC_DOORS.
     private static final int SEC_CLIMATE = 13;
+    // Car app translations (OemTranslations). Appended, same reason as SEC_DOORS.
+    static final int SEC_OEM_TEXT = 14;
 
     private final List<TextView> navItems = new ArrayList<>();
     private TextView status;                  // recreated by each panel that needs it
@@ -369,6 +371,7 @@ public class TelemetryActivity extends Activity {
                 spotifySection = new TelemetrySpotifySection(this);
                 content.addView(spotifySection);
                 break;
+            case SEC_OEM_TEXT: content.addView(new TelemetryOemTextSection(this)); break;
             case SEC_SYSTEM: systemSection = new TelemetrySystemSection(this); content.addView(systemSection); break;
             default:       // SEC_DRIVE, and the landing page
                 driveSection = new TelemetryDriveSection(this);
