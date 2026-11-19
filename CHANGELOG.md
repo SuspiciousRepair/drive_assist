@@ -38,7 +38,9 @@
   covers the Dashboard while it is dimmed. The speed and the numbers stay
   readable. A touch or a gear change brings the light back, as before.
   Same switch, new name: Config → Look → Dark mode. A Try button next to
-  it opens the Dashboard already dark, in Park and by day too.
+  it opens the Dashboard already dark, in Park and by day too. It has its
+  own hours, 21:00 to 06:00 unless you change them: the car's dark mode
+  started it too early in the evening.
 - **Energy by use: regen is a source now.** The chart starts with where
   the energy came from: the battery, and regen (what the motor sent back
   while braking, which the car used again). Both go into Used, and Used

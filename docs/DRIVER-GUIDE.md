@@ -128,7 +128,8 @@ region.
   stick and to the car, locked with a password you choose.
 - **Darkest mode**: at night, after a minute of driving with no touch, the
   screen goes to its lowest light and a dark layer covers the Dashboard. A
-  touch or a gear change brings it back. Its Try button shows it at once.
+  touch or a gear change brings it back. It runs only in its own hours
+  (21:00 to 06:00 by default). Its Try button shows it at once.
 - **Lock sound**: change the sound the car plays when it locks, or import your
   own.
 - **Cleanup**: a screen that removes Drive Assist, its helper and the CAN reader,

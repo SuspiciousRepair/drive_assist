@@ -194,6 +194,12 @@ public final class Prefs {
     // Config > Look > Extra dark (#89, ui/ExtraDark). Off until chosen.
     public static boolean getExtraDark(Context ctx) { return file(ctx).getBoolean("extra_dark", false); }
     public static void setExtraDark(Context ctx, boolean v) { file(ctx).edit().putBoolean("extra_dark", v).apply(); }
+    // Darkest mode's own hours (#130): minutes after midnight. The car's dark
+    // mode starts too early in the evening for it.
+    public static int getExtraDarkStartMin(Context ctx) { return file(ctx).getInt("extra_dark_start_min", 21 * 60); }
+    public static void setExtraDarkStartMin(Context ctx, int v) { file(ctx).edit().putInt("extra_dark_start_min", v).apply(); }
+    public static int getExtraDarkEndMin(Context ctx) { return file(ctx).getInt("extra_dark_end_min", 6 * 60); }
+    public static void setExtraDarkEndMin(Context ctx, int v) { file(ctx).edit().putInt("extra_dark_end_min", v).apply(); }
     public static boolean getSpotifyLargeCard(Context ctx) { return file(ctx).getBoolean("spotify_large_card", false); }
     public static void setSpotifyLargeCard(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_large_card", v).apply(); }
     public static String getSpotifyClientId(Context ctx) { return file(ctx).getString("spotify_client_id", ""); }

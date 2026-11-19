@@ -43,7 +43,9 @@ import com.geely.drivemem.util.Prefs;
  * Undim asks for the car's level back as well as dropping the override.
  *
  * "Night" is the car's dark mode (Configuration.uiMode night), the same
- * signal the Auto appearance follows. */
+ * signal the Auto appearance follows, AND the mode's own hours (Config,
+ * default 21:00 to 06:00): the car's dark mode starts too early in the
+ * evening for it (#130). */
 public final class ExtraDark {
     /** No touch for this long while driving at night: dim. */
     static final long DIM_AFTER_MS = 60_000L;
@@ -92,8 +94,22 @@ public final class ExtraDark {
     }
 
     /** Whether the screen should be dimmed now. */
-    static boolean shouldDim(boolean enabled, boolean night, boolean parked, long quietMs) {
-        return enabled && night && !parked && quietMs >= DIM_AFTER_MS;
+    static boolean shouldDim(boolean enabled, boolean night, boolean inHours, boolean parked, long quietMs) {
+        return enabled && night && inHours && !parked && quietMs >= DIM_AFTER_MS;
+    }
+
+    /** Minutes after midnight: is {@code now} inside start..end? The window
+     * may cross midnight (21:00 to 06:00). Start equal to end: all day. */
+    static boolean inHours(int nowMin, int startMin, int endMin) {
+        if (startMin == endMin) return true;
+        if (startMin < endMin) return nowMin >= startMin && nowMin < endMin;
+        return nowMin >= startMin || nowMin < endMin;
+    }
+
+    private boolean inHoursNow() {
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        int now = c.get(java.util.Calendar.HOUR_OF_DAY) * 60 + c.get(java.util.Calendar.MINUTE);
+        return inHours(now, Prefs.getExtraDarkStartMin(activity), Prefs.getExtraDarkEndMin(activity));
     }
 
     public void resume() {
@@ -144,10 +160,10 @@ public final class ExtraDark {
 
     private void check() {
         long quiet = SystemClock.uptimeMillis() - lastWakeMs;
-        if (shouldDim(enabled, night(), CarState.isParked(), quiet)) {
+        if (shouldDim(enabled, night(), inHoursNow(), CarState.isParked(), quiet)) {
             dim();
         } else if (enabled && !dimmed) {
-            // Parked or daytime now: look again later (one post a minute).
+            // Parked, daytime or outside the hours now: look again later (one post a minute).
             ui.postDelayed(check, DIM_AFTER_MS);
         }
     }
