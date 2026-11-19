@@ -2,6 +2,57 @@
 
 ## [Unreleased]
 
+## [v0.9.1] — 2026-11-19
+
+### Changed
+- **Valet: a detail screen.** Tap a Valet card on the stats page to open
+  it: a map of every move (one green dot where the first move started and
+  one checkered dot where the last ended, so many moves do not crowd it),
+  a timeline of the whole Valet time with each move where it happened,
+  the dashcam clips recorded in that time (tap one to play it), and the
+  numbers: moves, time moving and parked, distance, top speed (red above
+  20 km/h), top power, battery and outside temperature low to high. Valet
+  times from before 16 Nov 2026 saved no route, so they show no map.
+- **Trip maps: green start, checkered finish.** The start of a trip is a
+  green dot and the finish a round checkered flag, in place of a white
+  dot and a white ring that were easy to mix up.
+- **Trip maps are saved on the car while driving.** The trip screen's map
+  is downloaded about once a minute during the drive and again at the
+  end, so a trip that ends where there is no signal (a garage) still
+  shows its map there. A trip end that could not get the whole map tries
+  again when the car is online. Only the map the trip screen shows is
+  downloaded, never an area around the car.
+- **Trip maps fill their gaps.** A piece of map that did not load (for
+  example while the car was joining a network) now loads again by itself
+  a few seconds later, and at once when the car is back online. Before,
+  the gap stayed until the screen was opened again.
+- **Trip screen: the height chart shows at least 200 m.** Small hills no
+  longer look like a roller coaster: 50 m of climb now fills about a
+  quarter of the chart. Bigger climbs keep their own range.
+- **Trip screen: speed is two numbers.** Average and top speed are two
+  big numbers, each with its name small under it. Tap them for what they
+  mean: the average counts only the time the car was moving.
+- **Energy by use: one unit at a time, tap to switch.** Each part of the
+  chart shows one number, in kWh, Wh/km or % of what was used, with the
+  unit small after it. A tap switches the unit, and the choice is kept,
+  on the trip screen and on the stats page.
+- **Stats page: the day grid's colours explained.** The colour key has an
+  (i): tap under the grid to see what each colour means in km. The colours
+  follow your own driving, five groups of 20% of your driving days each.
+  The selection box around a day, week or month now has rounded corners,
+  like the squares.
+- **Charging page: battery health.** The low-battery card is now
+  "Battery health". It counts the hours spent below 10% and below 20%,
+  not the days that dipped below them, and shows the battery's state of
+  health read through the OBD2 dongle.
+- **Charging page: kWh per charge.** The Charges card shows the kWh per
+  charge under the count, which follows the numbers above it.
+- **Charging page: outside temperature without a dongle.** With no OBD2
+  dongle, the battery temperature card shows the car's outside air
+  temperature in the same way, with an (i) that says which one it is.
+- **Charging page: the places map is its own card**, with no frame or
+  title, as tall as the cards next to it.
+
 ## [v0.9.0] — 2026-11-18
 
 ### Changed
