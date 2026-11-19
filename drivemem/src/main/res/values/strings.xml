@@ -565,7 +565,9 @@
     <string name="route_stat_time">Time</string>
     <string name="route_stat_time_split">Moving %1$s · stopped %2$s</string>
     <string name="route_stat_speed">Speed</string>
-    <string name="route_stat_speed_value">avg %1$s · top %2$s km/h</string>
+    <string name="route_stat_speed_avg">average</string>
+    <string name="route_stat_speed_top">top</string>
+    <string name="route_stat_speed_info">Average: the distance driven divided by the time the car was moving. Stops (traffic lights, waiting in Drive) do not count, so it is higher than the distance divided by the whole trip time.\n\nTop: the highest speed recorded on this trip.</string>
     <string name="route_stat_height_range">Height %1$s – %2$s m</string>
     <string name="route_stat_outside">Outside</string>
     <string name="route_stat_by_use">Energy by use</string>

@@ -554,7 +554,9 @@
     <string name="route_stat_time">เวลา</string>
     <string name="route_stat_time_split">ขณะวิ่ง %1$s · จอด %2$s</string>
     <string name="route_stat_speed">ความเร็ว</string>
-    <string name="route_stat_speed_value">เฉลี่ย %1$s · สูงสุด %2$s กม./ชม.</string>
+    <string name="route_stat_speed_avg">เฉลี่ย</string>
+    <string name="route_stat_speed_top">สูงสุด</string>
+    <string name="route_stat_speed_info">เฉลี่ย: ระยะทางที่ขับหารด้วยเวลาที่รถกำลังเคลื่อนที่ ไม่นับเวลาที่จอด (ไฟแดง รอในเกียร์ D) จึงสูงกว่าระยะทางหารด้วยเวลาทั้งหมดของการเดินทาง\n\nสูงสุด: ความเร็วสูงสุดที่บันทึกได้ในการเดินทางนี้</string>
     <string name="route_stat_height_range">ความสูง %1$s – %2$s ม.</string>
     <string name="route_stat_outside">ภายนอก</string>
     <string name="route_stat_by_use">พลังงานตามการใช้</string>
