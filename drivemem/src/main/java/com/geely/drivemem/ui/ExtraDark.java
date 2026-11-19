@@ -56,6 +56,8 @@ public final class ExtraDark {
      * so the speed and the numbers can still be read. */
     static final float SHADE_ALPHA = 0.7f;
     static final String HELPER_FLOOR = "com.geely.modehelper.BacklightFloorReceiver";
+    /** Intent extra on ComfortActivity: Config's Try button. */
+    public static final String EXTRA_TRY = "darkest_try";
     private static final String GEAR_KEY = "car.gear";
 
     private final Activity activity;
@@ -114,6 +116,15 @@ public final class ExtraDark {
         undim();
         ui.removeCallbacks(check);
         if (enabled) ui.postDelayed(check, DIM_AFTER_MS);
+    }
+
+    /** Config's Try button: dim now, whatever the hour, the gear or the
+     * quiet time, and even with the switch off, so the driver sees what the
+     * mode looks like. A touch or a gear change undoes it, as always. */
+    public void tryNow() {
+        lastWakeMs = SystemClock.uptimeMillis();
+        ui.removeCallbacks(check);
+        dim();
     }
 
     /** Called from the activity's dispatchTouchEvent. Returns true when the

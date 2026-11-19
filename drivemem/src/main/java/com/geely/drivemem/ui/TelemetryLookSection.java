@@ -133,6 +133,11 @@ public final class TelemetryLookSection extends LinearLayout {
         darkNote.setTextColor(Style.TEXT_DIM); darkNote.setTextSize(14);
         darkNote.setText(activity.getString(R.string.cfg_extra_dark_note));
         appCard.addView(darkNote);
+        // Try: opens the Dashboard already dimmed, so the mode can be seen in
+        // Park, by day. A touch brings the light back.
+        appCard.addView(Style.action(activity, activity.getString(R.string.cfg_extra_dark_try), 0xFF4A6B82,
+            () -> activity.startActivity(new android.content.Intent(activity, ComfortActivity.class)
+                .putExtra(ExtraDark.EXTRA_TRY, true))));
 
         TextView sub = new TextView(activity);
         sub.setTextColor(Style.TEXT_DIM); sub.setTextSize(14);
