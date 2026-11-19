@@ -5,7 +5,7 @@ set -euo pipefail
 
 usage() {
   echo "Usage: $0 [source-ref]" >&2
-  echo "Example: $0 dev" >&2
+  echo "Example: $0 release/v1.2" >&2
   exit 2
 }
 
@@ -45,3 +45,7 @@ cat > "$OUT" <<EOF
 EOF
 
 echo "Release validation recorded: $OUT"
+
+# What a person still has to read before the tag: docs/RELEASE-PROCESS.md,
+# "Documentation". Printed last so it is on the screen.
+./tools/check-docs.sh --report

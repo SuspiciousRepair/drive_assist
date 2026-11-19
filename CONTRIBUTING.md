@@ -42,6 +42,8 @@ trailer where the contributor has agreed to it.
 1. Integrate reviewed work on `next`; every push creates a downloadable
    candidate artifact, never an automatic OTA.
 2. Cut `release/vX.Y` from `next` when feature work is complete.
+   Update the documents for the release: the list is in
+   [the release process](docs/RELEASE-PROCESS.md#documentation).
 3. Validate its exact clean source SHA: `./tools/validate-release.sh release/vX.Y`.
 4. Complete applicable vehicle checks in [the device validation checklist](docs/DEVICE-VALIDATION.md).
 5. Publish the vetted tree only: `./tools/push-release.sh vX.Y.Z "summary" release/vX.Y`.
