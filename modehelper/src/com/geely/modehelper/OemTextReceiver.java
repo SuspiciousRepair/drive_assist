@@ -8,7 +8,7 @@ import android.os.Bundle;
 
 /** Drive Assist's "OEM translations" page talks to {@link OemText} here.
  *
- *  - {@code OEM_TEXT_INSTALL}: patch and mount the known apps;
+ *  - {@code OEM_TEXT_INSTALL}: get the newest text, patch and mount the known apps;
  *  - {@code OEM_TEXT_REMOVE}: take every copy away, delete the folder;
  *  - {@code OEM_TEXT_STATUS}: no change.
  *
@@ -19,7 +19,7 @@ import android.os.Bundle;
  * open.
  *
  * Exported because Drive Assist is another app. A caller can only apply the
- * text built into this app or remove it; it cannot name a file, a text or an
+ * text from the fixed repo or remove it; it cannot name a URL, a file or an
  * app. */
 public class OemTextReceiver extends BroadcastReceiver {
     static final String INSTALL = "com.geely.modehelper.OEM_TEXT_INSTALL";

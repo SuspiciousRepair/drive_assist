@@ -13,8 +13,7 @@ import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.net.Updater;
 
 /** The "Car app translations" integration (Config > Integrations): better
- * text for the car's own apps. The text is built into modehelper (from the
- * integration-oem-translations repo); nothing is downloaded.
+ * text for the car's own apps, from the integration-oem-translations repo.
  *
  * modehelper does all of it (its OemText: patch a copy of each known car
  * app, bind-mount the copy, put it back after a reboot, take it away when a
@@ -34,8 +33,8 @@ public final class OemTranslations {
     /** modehelper's answer. */
     public static final class Status {
         public final String state;     // OFF, BUSY, ON, ERROR or NO_HELPER
-        public final String step;      // while BUSY: patch, mount, remove
-        public final String result;    // last result: ok, partial, none (no known app), adb, error
+        public final String step;      // while BUSY: download, patch, mount, remove
+        public final String result;    // last result: ok, partial, none (no known app), download, adb, error
         public final String note;
         public final String crashed;   // packages whose copy a crash took away, comma separated
         public final int apps;         // apps with fixed text now
@@ -57,7 +56,7 @@ public final class OemTranslations {
     /** The last answer, or null before the first one. */
     public static Status last() { return last; }
 
-    /** Patches and mounts the known apps. */
+    /** Gets the newest text, then patches and mounts the known apps. */
     public static void install(Context ctx, Done cb) { send(ctx, INSTALL, cb); }
 
     /** Takes every copy away: the car's apps show their factory text. */

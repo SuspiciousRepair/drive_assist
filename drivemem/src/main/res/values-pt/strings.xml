@@ -616,11 +616,13 @@
     <string name="cfg_oem_remove">Remover</string>
     <string name="cfg_oem_hint">Corrige palavras em chinês e erradas nos apps Energia, Wi-Fi e Configurações do carro. Só o texto: os arquivos do carro não mudam. Remover traz o texto de fábrica de volta. Só nas versões exatas dos apps para as quais o texto foi feito.</string>
     <string name="cfg_oem_st_off">Desligado. Os apps do carro mostram o texto de fábrica.</string>
+    <string name="cfg_oem_st_download">Baixando…</string>
     <string name="cfg_oem_st_patch">Preparando os apps…</string>
     <string name="cfg_oem_st_mount">Aplicando…</string>
     <string name="cfg_oem_st_remove">Removendo…</string>
     <string name="cfg_oem_st_on">Ligado. Apps corrigidos: %d</string>
     <string name="cfg_oem_st_crashed">Retirado após um travamento: %s</string>
+    <string name="cfg_oem_st_err_download">Falhou: não foi possível baixar o texto. Verifique a conexão com a internet.</string>
     <string name="cfg_oem_st_err_adb">Falhou: não foi possível abrir o ADB.</string>
     <string name="cfg_oem_st_err_none">Os apps do carro não são os mesmos para os quais o texto foi feito. Nada foi alterado.</string>
     <string name="cfg_oem_st_err_other">Falhou. Tente de novo.</string>

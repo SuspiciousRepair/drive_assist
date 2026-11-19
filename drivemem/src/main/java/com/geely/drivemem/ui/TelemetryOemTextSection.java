@@ -70,6 +70,7 @@ public final class TelemetryOemTextSection extends LinearLayout {
                 return activity.getString(R.string.cfg_lock_sound_needs_helper);
             case OemTranslations.BUSY:
                 switch (s.step) {
+                    case "download": return activity.getString(R.string.cfg_oem_st_download);
                     case "patch": return activity.getString(R.string.cfg_oem_st_patch);
                     case "remove": return activity.getString(R.string.cfg_oem_st_remove);
                     default: return activity.getString(R.string.cfg_oem_st_mount);
@@ -81,6 +82,7 @@ public final class TelemetryOemTextSection extends LinearLayout {
             }
             case OemTranslations.ERROR:
                 switch (s.result) {
+                    case "download": return activity.getString(R.string.cfg_oem_st_err_download);
                     case "adb": return activity.getString(R.string.cfg_oem_st_err_adb);
                     case "none": return activity.getString(R.string.cfg_oem_st_err_none);
                     default: return activity.getString(R.string.cfg_oem_st_err_other);

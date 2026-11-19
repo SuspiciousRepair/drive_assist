@@ -18,6 +18,15 @@ final class OemTextPolicy {
     static final String DIR = "/data/local/oem-i18n";
     /** How /proc/self/mountinfo names our sources: relative to the /data mount. */
     static final String MOUNT_ROOT = "/local/oem-i18n/";
+    /** The newest commit of the text repo's main branch (GitHub API, the
+     * commit hash as plain text). Fixed here, never taken from a broadcast. */
+    static final String LATEST_URL =
+        "https://api.github.com/repos/SuspiciousRepair/integration-oem-translations/commits/main";
+    /** The files of one commit: RAW_URL + commit + "/" + path. */
+    static final String RAW_URL =
+        "https://raw.githubusercontent.com/SuspiciousRepair/integration-oem-translations/";
+    static final int MAX_FILE_BYTES = 512 * 1024;
+
     static final String MOUNTED = "OEMTEXT_MOUNTED";
     static final String REMOVED = "OEMTEXT_REMOVED";
     static final String WIPED = "OEMTEXT_WIPED";
@@ -30,6 +39,7 @@ final class OemTextPolicy {
     private static final Pattern LANG = Pattern.compile("[a-z]{2}");
 
     static boolean validSha(String s) { return s != null && s.matches("[0-9a-f]{64}"); }
+    static boolean validCommit(String s) { return s != null && s.matches("[0-9a-f]{40}"); }
 
     /** SHA-256 of a file, read in pieces (the Settings app is 105 MB). */
     static String sha256(java.io.File f) throws java.io.IOException {

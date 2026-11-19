@@ -5,8 +5,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /** Dependency-free test runner for {@link OemTextPolicy}, and for the text
  * bundled in modehelper/assets/oem-text (run from the repo root). */
@@ -77,28 +75,10 @@ public final class OemTextPolicyTest {
         check(OemTextPolicy.crashedPackage("Subject: x") == null, "no Process line gives null");
         check(OemTextPolicy.crashedPackage(null) == null, "null gives null");
 
-        // The bundled text (tools/pin-oem-translations.sh): every app names a
-        // file that is there, and the factory apk hash it was made for.
-        File dir = new File("modehelper/assets/" + OemText_ASSETS);
-        String source = new String(Files.readAllBytes(new File(dir, "SOURCE").toPath()), StandardCharsets.UTF_8).trim();
-        check(source.matches("[0-9a-f]{40}"), "SOURCE is the repo commit: " + source);
-        String manifest = new String(Files.readAllBytes(new File(dir, "manifest.json").toPath()), StandardCharsets.UTF_8);
-        Matcher app = Pattern.compile("\"package\"\\s*:\\s*\"([^\"]+)\"\\s*,\\s*\"file\"\\s*:\\s*\"([^\"]+)\"\\s*,"
-            + "\\s*\"apk_sha256\"\\s*:\\s*\\[([^\\]]*)\\]").matcher(manifest);
-        int apps = 0;
-        while (app.find()) {
-            apps++;
-            check(OemTextPolicy.validPackage(app.group(1)), "bundled package: " + app.group(1));
-            check(OemTextPolicy.validFile(app.group(2)) && new File(dir, app.group(2)).isFile(),
-                "bundled file is there: " + app.group(2));
-            Matcher h = Pattern.compile("\"([^\"]*)\"").matcher(app.group(3));
-            int hashes = 0;
-            while (h.find()) { check(OemTextPolicy.validSha(h.group(1)), "factory hash: " + h.group(1)); hashes++; }
-            check(hashes > 0, "every bundled app names its factory apk hash: " + app.group(1));
-        }
-        check(apps > 0, "the bundle lists apps");
+        check(OemTextPolicy.validCommit("a6d9ad6fea7f0817605ebdb50ce96788b38fcc1b"), "a full commit hash");
+        check(!OemTextPolicy.validCommit("a6d9ad6") && !OemTextPolicy.validCommit("<html>"), "anything else is not");
+        check(OemTextPolicy.LATEST_URL.startsWith("https://api.github.com/repos/SuspiciousRepair/integration-oem-translations/")
+            && OemTextPolicy.RAW_URL.startsWith("https://raw.githubusercontent.com/SuspiciousRepair/integration-oem-translations/"),
+            "the text comes only from the integration repo, over https");
     }
-
-    // OemText itself needs Android; its asset folder name is repeated here.
-    private static final String OemText_ASSETS = "oem-text";
 }

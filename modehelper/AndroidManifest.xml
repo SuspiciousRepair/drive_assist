@@ -179,8 +179,8 @@
              and uninstalls both apps. Exported for the same reason as the
              others; see CleanupReceiver's header for why that is acceptable. -->
         <!-- Car app translations (Drive Assist > Config > Integrations).
-             Exported for Drive Assist. A caller can only apply the text built
-             into this app, or remove it: see OemTextReceiver. -->
+             Exported for Drive Assist. A caller can only apply the text from
+             the fixed repo, or remove it: see OemTextReceiver. -->
         <receiver android:name=".OemTextReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="com.geely.modehelper.OEM_TEXT_INSTALL" />

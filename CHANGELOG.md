@@ -7,16 +7,17 @@
   car's own Energy, Wi-Fi/Bluetooth and Settings apps in Portuguese,
   English, Spanish and Thai: lines left in Chinese, English left inside
   other languages, and wrong meanings (the maintenance tag "Saúde" now says
-  "Saudável"). Tap Install. Two checks, nothing else trusted: the text is
-  built into ModeHelper (from one commit of
-  `SuspiciousRepair/integration-oem-translations`, by
-  `tools/pin-oem-translations.sh`; nothing is downloaded), and an app is
+  "Saudável"). Tap Install. The text is the newest commit of
+  `SuspiciousRepair/integration-oem-translations` on GitHub: ModeHelper
+  checks for it on Install and at each car start, and downloads it only
+  when it changed (with no network it uses the text it kept). An app is
   patched only if the SHA-256 of the car's own copy is the one the text was
-  made for (today the apps of system 1111). ModeHelper patches a copy (only
+  made for (today the apps of system 1111); any other build is left alone.
+  ModeHelper patches a copy (only
   the text table changes) and puts it in front of the original with a bind
   mount, through the local ADB. The car's own files are never changed.
   Remove takes the copies away. After a reboot ModeHelper makes them again,
-  with the same checks, only while the integration is on, and a copy whose
+  with the same check, only while the integration is on, and a copy whose
   app crashes is taken away at once. The Cleanup screen removes it too. The
   Wi-Fi signal word ("强") is in the app's code, not its text, so it stays
   Chinese.
