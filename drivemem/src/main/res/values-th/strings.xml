@@ -190,7 +190,7 @@
     <string name="cfg_avas_label">AVAS (เสียงเตือนคนเดินถนน)</string>
     <string name="cfg_advanced">ขั้นสูง</string>
     <string name="cfg_restore_header">คืนค่าเมื่อสตาร์ทรถ</string>
-    <string name="cfg_restore_hint">Drive Assist จะคืนค่าที่บันทึกไว้ใน 15 วินาทีแรกหลังสตาร์ทรถ หลังจากนั้นการเปลี่ยนแปลงในรถหรือในแอปอื่นจะคงอยู่ตลอดการเดินทาง ปิดการตั้งค่าที่แอปอื่นคืนค่าให้อยู่แล้ว</string>
+    <string name="cfg_restore_hint">Drive Assist จะคืนค่าที่บันทึกไว้เมื่อสตาร์ทรถ โหมดการขับขี่และการคืนพลังงานจะคืนค่าขณะอยู่ในเกียร์ P จนกว่าจะตรงกันหรือคุณเลือกค่าอื่นในรถ AEB และ AVAS จะคืนค่าใน 15 วินาทีแรก หลังจากนั้นการเปลี่ยนแปลงในรถหรือในแอปอื่นจะคงอยู่ตลอดการเดินทาง ปิดการตั้งค่าที่แอปอื่นคืนค่าให้อยู่แล้ว</string>
     <string name="cfg_park_monitor_label">ระบบเฝ้าระวังขณะจอด</string>
 
     <string name="cfg_doors_header">ประตู</string>
@@ -567,7 +567,7 @@
     <string name="route_stat_outside">ภายนอก</string>
     <string name="route_stat_by_use">พลังงานตามการใช้</string>
     <string name="sankey_used">ใช้</string>
-    <string name="sankey_net">สุทธิ</string>
+    <string name="sankey_battery">แบตเตอรี่</string>
     <string name="sankey_regen">คืน</string>
     <string name="stats_part_drive">ขับเคลื่อน</string>
     <string name="stats_part_climate">แอร์</string>
