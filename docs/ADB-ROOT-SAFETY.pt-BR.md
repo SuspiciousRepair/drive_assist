@@ -29,7 +29,7 @@ a confiabilidade da central e as interfaces do veículo.
 
 ## Saiba o que o instalador do Drive Assist adiciona
 
-Uma instalação normal por USB possui quatro partes identificáveis:
+Uma instalação normal por USB possui quatro partes identificáveis, mais uma opcional que você mesmo adiciona:
 
 | Nome | Pacote Android | Para que serve |
 | :--- | :--- | :--- |
@@ -37,6 +37,7 @@ Uma instalação normal por USB possui quatro partes identificáveis:
 | ModeHelper | `com.geely.modehelper` | Um pequeno auxiliar privilegiado para operações compatíveis do sistema e do veículo. Ele possui muito mais acesso que um aplicativo comum. |
 | Instalador do Drive Assist | `com.geely.installer` | Instala os dois pacotes acima e depois remove a si mesmo. Ele não deve permanecer instalado. |
 | Leitor CAN (`roadcastd`) | Não é um pacote Android | Um programa pequeno que o ModeHelper inicia como root pelo ADB local do carro. Ele lê o barramento CAN do carro e nunca envia nada para ele. Fica ativo enquanto **Dados do carro (CAN)** estiver ligado em **Configurações → Sistema**, e essa chave vem ligada. |
+| Tradução dos apps do carro | Não é um pacote Android | Só depois que você toca em Instalar em **Configurações → Integrações → Tradução dos apps do carro**. O ModeHelper coloca cópias corrigidas dos apps Energia, Wi-Fi e Configurações do carro em `/data/local/oem-i18n` e as monta sobre os originais como root, pelo ADB local do carro. Só o texto dos apps muda. O `/system` não é alterado. Remover, ou a **Limpeza**, desmonta as cópias e apaga a pasta. Para conferir: `adb shell grep oem-i18n /proc/self/mountinfo`. |
 
 A ferramenta opcional de engenharia SysProbe (`com.geely.sysprobe`) não é
 necessária para o uso normal e não faz parte da instalação comum. Se você não

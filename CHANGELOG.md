@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### Added
+- **Car app translations (Config > Integrations).** Better text for the
+  car's own Energy, Wi-Fi/Bluetooth and Settings apps in Portuguese,
+  English, Spanish and Thai: lines left in Chinese, English left inside
+  other languages, and wrong meanings (the maintenance tag "Saúde" now says
+  "Saudável"). Tap Install. The text comes from
+  `SuspiciousRepair/integration-oem-translations`. ModeHelper patches a copy
+  of each app from the one on your car (only the text table changes) and
+  puts the copy in front of the original with a bind mount, through the
+  local ADB. The car's own files are never changed. Remove takes the copies
+  away. After a reboot ModeHelper puts them back only while the integration
+  is on, and a copy whose app crashes is taken away at once. The Cleanup
+  screen removes it too. The Wi-Fi signal word ("强") is in the app's code,
+  not its text, so it stays Chinese.
+
 ### Fixed
 - **Drive mode and regeneration come back after a slow start (#130).**
   The saved choice was put back only in the 15 seconds after the screen
