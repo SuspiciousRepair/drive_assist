@@ -33,9 +33,10 @@ not from any Settings UI) write a plain-text file to
 | File | Written by | Lifetime |
 |---|---|---|
 | `obd2-reading.log` | `Obd2Reader` | Capped at 5 MB — deletes and restarts itself once exceeded. |
+| `obd2-events.log` | `Obd2Reader` — why there is no reading: connect failures, link lost, rounds the car did not answer, with the raw answer | Capped at 1 MB, same self-rotation. |
 | `abrp-attempt.log` | `AbrpUploader` | Capped at 5 MB, same self-rotation. |
 
-Both are read with `adb pull` after reproducing whatever is being diagnosed;
+All three are read with `adb pull` after reproducing whatever is being diagnosed;
 neither uploads anywhere.
 
 ## 3. Legacy files — dead, migration-only

@@ -189,6 +189,7 @@ except the SoC-based driving energy, which is marked "estimated".
 | `car.db` `trip`, `charge_session` | per trip / per charge totals; on a trip CAN measured (≥ 90 % of its time), where the energy went, raw: `can_net_kwh`, `drive_spent_kwh`, `drive_regen_kwh`, `climate_raw_kwh`, `climate_on_s`, `fan_kwh` (read through `sensors.EnergySplit`); `charge_session.lat` / `lon` where it charged (with "Record trip routes" on) | when the trip or charge ends |
 | `car.db` `trip_point` | the route (`state.RoutePoints`): time, lat, lon, altitude, GPS speed, bearing, accuracy, `drive_mode`, `regen_mode`, `power_kw` (`energy.power_kw`), and the trip's `spent_kwh` / `regen_kwh` so far. Raw, for later analysis | every 5 s while out of Park, only after 25 m of movement, with "Record trip routes" on (default on). `trip_id` is NULL until the trip is saved; points of a trip too short to keep are deleted. Kept for good |
 | `files/obd2-reading.log` | every dongle reading | while the dongle is connected (5 MB, then restarts) |
+| `files/obd2-events.log` | why the dongle gave nothing: connect failures, link lost, rounds with no answer (with the dongle's raw answer) | on each change; a repeat at most once a minute (1 MB, then restarts) |
 | `files/abrp-attempt.log` | every ABRP send and its payload | while ABRP is on (5 MB, then restarts) |
 
 `files/` is `Android/data/com.geely.drivemem/files/` on the car's storage.
