@@ -271,11 +271,17 @@ public class TripRouteActivity extends Activity {
             stat(R.string.route_stat_time, TripRouteStats.duration(total), null);
         }
 
-        String netText = String.format(Locale.US, "%.1f kWh%s", net, est ? " ~" : "");
-        String netSub = !est && regen > 0 ? getString(R.string.session_stat_net_breakdown,
-            String.format(Locale.US, "%.1f", spent), String.format(Locale.US, "%.1f", regen)) : null;
-        stat(R.string.session_stat_net_energy, netText, netSub);
-        if (!est && d != null && d.split != null) {
+        // With the Energy by use chart, the net energy line is not shown: the
+        // chart's Battery is the same number, and its Regen and Gasto say
+        // the rest. Trips with no chart (estimated, or older) keep the line.
+        boolean chart = !est && d != null && d.split != null;
+        if (!chart) {
+            String netText = String.format(Locale.US, "%.1f kWh%s", net, est ? " ~" : "");
+            String netSub = !est && regen > 0 ? getString(R.string.session_stat_net_breakdown,
+                String.format(Locale.US, "%.1f", spent), String.format(Locale.US, "%.1f", regen)) : null;
+            stat(R.string.session_stat_net_energy, netText, netSub);
+        }
+        if (chart) {
             EnergySplit sp = EnergySplit.of(net, d.split[0], d.split[1], d.split[2], d.split[3], d.split[4], d.split[5]);
             TextView l = new TextView(this);
             l.setText(R.string.route_stat_by_use);
@@ -284,7 +290,7 @@ public class TripRouteActivity extends Activity {
             l.setPadding(0, Style.dp(this, 10), 0, 0);
             stats.addView(l);
             EnergySankeyView sankey = new EnergySankeyView(this);
-            sankey.setData(spent, regen, sp.driveKwh, sp.climateKwh, sp.otherKwh, km);
+            sankey.setData(sp.batteryKwh(), sp.motorRegenKwh, sp.motorOutKwh, sp.climateKwh, sp.otherKwh, km);
             stats.addView(sankey, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }

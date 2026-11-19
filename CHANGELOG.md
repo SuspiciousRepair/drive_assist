@@ -33,6 +33,19 @@
   window. The on signal and the restore rules come from Funkyfal's fork.
 
 ### Changed
+- **Energy by use: regen is a source now.** The chart starts with where
+  the energy came from: the battery, and regen (what the motor sent back
+  while braking, which the car used again). Both go into Used, and Used
+  goes to drive, climate and other. Drive is now the motor's whole energy
+  out, so it is larger than before. Regen in the chart is the motor's
+  number. It is larger than what reached the battery: part of what the
+  motor sends back never gets there. On the trip screen the chart
+  replaces the net energy line (the chart's Battery is the same number);
+  trips with no chart keep the line.
+  Known issue: the stats page chart counts only the trips that have a
+  split. A trip has none when the app was installed or restarted during
+  it. On such a day the chart's Battery Wh/km can differ from the
+  efficiency next to it, which counts every trip.
 - **A log for "Exact energy" (CAN).** `can-events.log` (next to the other
   logs, see `docs/DIAGNOSTICS.md`) writes one line whenever something
   changes: the app connects to the CAN reader or loses it, modehelper

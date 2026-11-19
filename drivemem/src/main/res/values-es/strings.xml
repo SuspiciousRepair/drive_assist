@@ -551,7 +551,7 @@
     <string name="route_stat_outside">Fuera</string>
     <string name="route_stat_by_use">Energía por uso</string>
     <string name="sankey_used">Gastado</string>
-    <string name="sankey_net">Neto</string>
+    <string name="sankey_battery">Batería</string>
     <string name="sankey_regen">Regen</string>
     <string name="stats_part_drive">Tracción</string>
     <string name="stats_part_climate">Clima</string>

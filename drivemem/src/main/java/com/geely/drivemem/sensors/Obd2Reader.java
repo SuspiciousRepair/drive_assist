@@ -96,6 +96,7 @@ public final class Obd2Reader {
         soc = null; voltage = null; current = null; battTempC = null;
         soh = null;
         powerKw = null; reportedSpeedKmh = null; lastReadingAtMs = 0;
+        silentSinceMs = 0; silentLoggedAtMs = 0;
     }
 
     // Listeners are notified on state change (edge events) rather than by polling
@@ -233,34 +234,92 @@ public final class Obd2Reader {
         new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US);
 
     private static void logReading(Reading r) {
+        String line = LOG_FMT.format(new java.util.Date(r.atMs)) + '\t'
+            + r.soc + '\t' + r.voltage + '\t' + r.current + '\t'
+            + r.powerKw + '\t' + r.battTempC + '\t' + r.speedKmh;
+        appendLine("obd2-reading.log", "wall\tsoc\tvoltage\tcurrent\tpowerKw\tbattTempC\tspeedKmh",
+            line, LOG_CAP_BYTES);
+    }
+
+    // Why the dongle gave nothing. obd2-reading.log keeps only the rounds that
+    // parsed something, so a stretch with no answers is just a gap in it: the
+    // whole of a DC fast charge on 2026-11-19 (#144), and logcat had rotated
+    // before anyone looked. This file keeps the reason: the link state and
+    // the dongle's own raw answer ("NO DATA", a 7F negative response, ...).
+    // A run of rounds with no answer is written once per EVENT_REPEAT_MS, and
+    // the same connect failure once per SAME_EVENT_MS, not every retry.
+    private static final long EVENT_CAP_BYTES = 1024L * 1024;
+    static final long EVENT_REPEAT_MS = 60_000L;
+    private static final long SAME_EVENT_MS = 10 * 60_000L;
+    private static String lastEvent;
+    private static long lastEventAtMs;
+    // A run of rounds with no answer. Reader thread only.
+    private static long silentSinceMs;
+    private static long silentLoggedAtMs;
+
+    private static void logEvent(String msg) {
+        long now = System.currentTimeMillis();
+        if (msg.equals(lastEvent) && now - lastEventAtMs < SAME_EVENT_MS) return;
+        lastEvent = msg;
+        lastEventAtMs = now;
+        Log.i(TAG, "obd2: " + msg);
+        appendLine("obd2-events.log", "wall\tevent",
+            LOG_FMT.format(new java.util.Date(now)) + '\t' + msg, EVENT_CAP_BYTES);
+    }
+
+    /** The event line for one poll round, or null when there is nothing new
+     * to say: the first round with no answer (with the raw answers), again
+     * once per EVENT_REPEAT_MS while it lasts, and the round answers come
+     * back. Package-visible for Obd2ReaderTest. */
+    static String roundEvent(boolean answered, long now, String socResp, String tempResp) {
+        if (answered) {
+            if (silentSinceMs == 0) return null;
+            String msg = "answers again after " + (now - silentSinceMs) / 1000 + " s";
+            silentSinceMs = 0;
+            return msg;
+        }
+        if (silentSinceMs == 0) {
+            silentSinceMs = now;
+        } else if (now - silentLoggedAtMs < EVENT_REPEAT_MS) {
+            return null;
+        }
+        silentLoggedAtMs = now;
+        return "no answer for " + (now - silentSinceMs) / 1000 + " s: soc=\""
+            + oneLine(socResp) + "\" temp=\"" + oneLine(tempResp) + "\"";
+    }
+
+    private static String oneLine(String s) {
+        if (s == null) return "(link error)";
+        String t = s.replaceAll("[\\r\\n\\t]+", " ").trim();
+        return t.length() > 80 ? t.substring(0, 80) + "..." : t;
+    }
+
+    private static void appendLine(String name, String header, String line, long cap) {
         Context app = appCtx;
         if (app == null) {
             return;
         }
-        String line = LOG_FMT.format(new java.util.Date(r.atMs)) + '\t'
-            + r.soc + '\t' + r.voltage + '\t' + r.current + '\t'
-            + r.powerKw + '\t' + r.battTempC + '\t' + r.speedKmh;
         try {
             java.io.File dir = app.getExternalFilesDir(null);
             if (dir == null) {
                 dir = app.getFilesDir();
             }
-            java.io.File f = new java.io.File(dir, "obd2-reading.log");
-            if (f.exists() && f.length() > LOG_CAP_BYTES) {
+            java.io.File f = new java.io.File(dir, name);
+            if (f.exists() && f.length() > cap) {
                 f.delete(); // rotate: start over, don't grow forever
             }
             boolean fresh = !f.exists();
             java.io.FileWriter w = new java.io.FileWriter(f, true);
             try {
                 if (fresh) {
-                    w.write("wall\tsoc\tvoltage\tcurrent\tpowerKw\tbattTempC\tspeedKmh\n");
+                    w.write(header + "\n");
                 }
                 w.write(line + "\n");
             } finally {
                 w.close();
             }
         } catch (Throwable t) {
-            Log.w(TAG, "obd2: reading log write: " + t);
+            Log.w(TAG, "obd2: " + name + " write: " + t);
         }
     }
 
@@ -313,14 +372,15 @@ public final class Obd2Reader {
                     ch = openBle(ctx);
                 }
                 if (ch == null) {
-                    Log.i(TAG, "obd2: nothing found this attempt, retrying in " + (RETRY_MS / 1000) + "s");
+                    logEvent("not connected: " + whyNotConnected());
                     sleep(RETRY_MS);
                     continue;
                 }
-                Log.i(TAG, "obd2: connected (" + ch.getClass().getSimpleName() + ")");
+                logEvent("connected (" + ch.getClass().getSimpleName() + ")");
                 runSession(ch);
+                logEvent(enabledWanted ? "link lost" : "turned off");
             } catch (Throwable t) {
-                Log.w(TAG, "obd2: " + t);
+                logEvent("error: " + t);
             } finally {
                 setConnected(false);
                 if (ch != null) {
@@ -351,6 +411,7 @@ public final class Obd2Reader {
             ch.command(cmd);
         }
         setConnected(true);
+        silentSinceMs = 0;
         long sohAt = 0;
         while (enabledWanted && ch.isConnected()) {
             long now = System.currentTimeMillis();
@@ -363,7 +424,9 @@ public final class Obd2Reader {
             String currResp  = ch.command("224B22");
             String tempResp  = ch.command("224B48");
             String speedResp = ch.command("22DF01");
-            applyReading(socResp, voltResp, currResp, tempResp, speedResp);
+            boolean answered = applyReading(socResp, voltResp, currResp, tempResp, speedResp);
+            String event = roundEvent(answered, System.currentTimeMillis(), socResp, tempResp);
+            if (event != null) logEvent(event);
             sleep(POLL_MS);
         }
     }
@@ -417,6 +480,13 @@ public final class Obd2Reader {
             }
             return null;
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    private static String whyNotConnected() {
+        BluetoothAdapter a = BluetoothAdapter.getDefaultAdapter();
+        if (a == null || !a.isEnabled()) return "Bluetooth off";
+        return hasBondedClassicCandidate() ? "dongle paired but did not connect" : "no dongle found";
     }
 
     // Distinguishes "no classic device bonded" from "one is bonded but this
@@ -543,7 +613,7 @@ public final class Obd2Reader {
                 return sb.toString();
             } catch (Throwable t) {
                 alive = false;
-                Log.w(TAG, "obd2: classic command " + cmd + ": " + t);
+                logEvent("command " + cmd + " failed: " + t);
                 return null;
             }
         }
