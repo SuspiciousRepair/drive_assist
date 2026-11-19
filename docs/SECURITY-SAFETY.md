@@ -146,10 +146,13 @@ Confirm the certificate fingerprint matches the authorized developer build key.
 * Enable client isolation so the head unit cannot scan, communicate with, or access personal computers, NAS devices, or sensitive servers on your home network.
 
 ### 5. Keep ADB Gated and Restricted
-* In Drive Assist's System and MQTT settings, leave network ADB **disabled** during everyday driving.
-* Drive Assist includes an **AdbGate** watchdog:
-  * Network ADB can only be toggled when connected to your configured **Privileged Wi-Fi SSID**.
-  * Network ADB automatically powers down after **15 minutes** of inactivity to prevent leaving a root port (`5555`) open indefinitely.
+* In Drive Assist's System settings, leave network ADB **closed** during everyday driving.
+* ModeHelper controls when network ADB is open:
+  * It opens for 5 minutes after the head unit boots.
+  * The ADB switch opens it for **15 minutes** (120 at most). The timer starts when ADB opens; it does not wait for inactivity.
+  * It stays open while the car is on the network named in **Privileged Wi-Fi (SSID)** (Settings → System). That name is `car` until you change it, so set it to your own network.
+  * Home Assistant can open it, only while the car is on the home network and only while commands from Home Assistant are accepted.
+  * **Keep ADB always on** removes the timer. It is off by default; leave it off unless another app needs ADB.
 
 ---
 
@@ -161,4 +164,4 @@ Confirm the certificate fingerprint matches the authorized developer build key.
 | **APK Repackaging** | Decompilation + public AOSP test key re-signing | Hidden trojans in seemingly reputable apps | Download only from official GitHub releases |
 | **Home Network Breach**| Head unit connects to home Wi-Fi | Rogue device pivot into private home LAN | Isolate car on Guest/IoT VLAN |
 | **12V Battery Depletion**| Rogue service prevents deep sleep | Flat auxiliary battery; car immobilized | Inspect background wake-locks |
-| **Exposed Root Shell** | Persistent ADB over port 5555 | Arbitrary root execution over vehicle network | Use Drive Assist's 15m ADB auto-timeout |
+| **Exposed Root Shell** | Persistent ADB over port 5555 | Arbitrary root execution over vehicle network | Keep ADB closed; leave **Keep ADB always on** off |
