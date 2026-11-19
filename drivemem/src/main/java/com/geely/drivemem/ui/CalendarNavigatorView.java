@@ -53,6 +53,8 @@ public class CalendarNavigatorView extends View {
     private LocalDate gridStart = StatsCalendar.weekStart(today).minusWeeks(WEEKS - 1);
     private LocalDate firstData;
     private StatsCalendar.Grain grain = StatsCalendar.Grain.DAY;
+    /** A square's corner radius, as a share of its side. */
+    private static final float CORNER = 0.2f;
     private LocalDate selected = today;
     private OnPick onPick;
 
@@ -178,7 +180,7 @@ public class CalendarNavigatorView extends View {
     @Override
     protected void onDraw(Canvas cv) {
         super.onDraw(cv);
-        float rad = cell * 0.2f;
+        float rad = cell * CORNER;
 
         // weekday letters
         text.setColor(Style.TEXT_DIM);
@@ -262,21 +264,28 @@ public class CalendarNavigatorView extends View {
         long a = java.time.temporal.ChronoUnit.DAYS.between(gridStart, first);
         long b = java.time.temporal.ChronoUnit.DAYS.between(gridStart, last);
         float half = (pitch - cell) / 2f;
+        // The union of the squares grown by half a gap: one closed shape,
+        // whose corners are then rounded. A hair of overlap so neighbours
+        // merge despite float rounding.
+        float eps = 0.01f;
         outline.reset();
+        Path one = new Path();
         for (long i = a; i <= b; i++) {
             int col = (int) (i / 7), rw = (int) (i % 7);
-            float x0 = colX(col) - half, x1 = colX(col) + cell + half;
-            float y0 = rowY(rw) - half, y1 = rowY(rw) + cell + half;
-            if (!(rw > 0 && i - 1 >= a)) { outline.moveTo(x0, y0); outline.lineTo(x1, y0); }   // top
-            if (!(rw < 6 && i + 1 <= b)) { outline.moveTo(x0, y1); outline.lineTo(x1, y1); }   // bottom
-            if (!(i - 7 >= a))           { outline.moveTo(x0, y0); outline.lineTo(x0, y1); }   // left
-            if (!(i + 7 <= b))           { outline.moveTo(x1, y0); outline.lineTo(x1, y1); }   // right
+            one.reset();
+            one.addRect(colX(col) - half - eps, rowY(rw) - half - eps,
+                colX(col) + cell + half + eps, rowY(rw) + cell + half + eps, Path.Direction.CW);
+            outline.op(one, Path.Op.UNION);
         }
         stroke.setColor(selColor());
         stroke.setStrokeWidth(Style.dp(getContext(), 4));
-        stroke.setStrokeCap(Paint.Cap.SQUARE);
+        stroke.setStrokeJoin(Paint.Join.ROUND);
+        // Same centre as the squares' own rounded corners, so the curves
+        // match: the squares' radius plus the half gap the outline sits out.
+        stroke.setPathEffect(new android.graphics.CornerPathEffect(cell * CORNER + half));
         cv.drawPath(outline, stroke);
-        stroke.setStrokeCap(Paint.Cap.BUTT);
+        stroke.setPathEffect(null);
+        stroke.setStrokeJoin(Paint.Join.MITER);
     }
 
     /** Lean: "0 ■■■■■■ 52+ km   Recarga ● AC ● DC". Only the two ends of
