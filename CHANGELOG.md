@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Changed
+- **Releases check their documents.** `tools/check-docs.sh` runs in CI and
+  at release validation: broken links in the Markdown files, hub keys
+  missing from `docs/HUB-DATA.md`, plans missing from the plan index, and
+  an in-app changelog that is not the newest release notes. A tag with no
+  section in `CHANGELOG.md` and `RELEASE-NOTES.md` is refused. The list a
+  person goes through is in `docs/RELEASE-PROCESS.md`, "Documentation".
+
 ## [v0.9.1] — 2026-11-19
 
 ### Changed

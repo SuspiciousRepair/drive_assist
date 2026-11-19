@@ -4,6 +4,7 @@
 set -euo pipefail
 
 ./tools/check-active-locales.sh
+./tools/check-docs.sh
 
 # modehelper's pure policy tests (plain main() runners; modehelper is not a
 # Gradle module). Only classes with no Android dependency are compiled here.
