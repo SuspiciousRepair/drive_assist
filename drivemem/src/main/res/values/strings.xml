@@ -629,6 +629,8 @@
     <string name="energy_net_short">net</string>
     <string name="valet_end_short">End</string>
     <string name="valet_short">Valet</string>
+    <string name="valet_stat_moves">Moves</string>
+    <string name="valet_route_none">No route was saved in this time. Routes are saved with Config → System → Trip routes on.</string>
     <!-- Phone access (web/PhoneServer) -->
     <string name="phone_header">Phone access</string>
     <string name="phone_card_hint">Open a page on your phone to download trips, charges, backups and dashcam clips, restore a backup, and type long settings such as tokens. The phone must be on the same Wi-Fi as the car. It works only in Park.</string>
