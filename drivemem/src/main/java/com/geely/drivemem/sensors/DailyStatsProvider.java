@@ -248,7 +248,7 @@ public final class DailyStatsProvider {
      * the period (see aggregate()), so any rendering code written for a
      * single day already knows how to draw the period's headline numbers.
      * `days` is the underlying daily breakdown, for a day-grouped session
-     * log -- see plan/active/STATS-PERIOD-VIEWS-ROADMAP.md. */
+     * log -- see plan/archive/implemented/STATS-PERIOD-VIEWS-ROADMAP.md. */
     public static final class PeriodOverview {
         public final DayOverview totals;
         public final List<DayOverview> days;

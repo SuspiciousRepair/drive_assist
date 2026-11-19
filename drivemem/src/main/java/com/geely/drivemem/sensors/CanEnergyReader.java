@@ -18,7 +18,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /** "Exact energy (experimental)": battery V x I from the CAN bus, with no
- * OBD2 dongle. plan/active/CAN-ENERGY-ROADMAP.md.
+ * OBD2 dongle. plan/archive/implemented/CAN-ENERGY-ROADMAP.md.
  *
  * roadcastd (third_party/roadcast) reads the vehicle HAL's copy of the CAN
  * frames and serves them on the abstract socket @roadcast. modehelper starts

@@ -1,5 +1,7 @@
 # Software Architecture & Vehicle Safety Audit: Drive Assist
 
+> **Snapshot, September 2026.** This audit describes the code as it was then. Later features (CAN reader, phone access, AEB and AVAS switches) are not covered. For the current statements see [Safety and privacy](../WELCOME.md).
+
 **Target Platform**: Geely EX2 / Geometry E (IHU629G Head Unit, Android 9 / API 28, ECARX 250060)  
 **Display Specification**: 1920x1080 @ 160 dpi (Density 1.0, 1 dp = 1 px)  
 **Scope**: Privilege Separation, Vehicle State Invariants, Suspend Lifecycle, Database Compatibility, Telemetry Pipelines, UI Ergonomics, and Credential Sanitization  

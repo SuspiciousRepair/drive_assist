@@ -1,5 +1,7 @@
 # Weekly / monthly stats views roadmap
 
+> **Implemented.** Kept for the reasoning.
+
 **Status: not deferred — designed, just not urgent.** The design below is
 decided. It's low priority only because nobody has been running the app
 long enough yet for weeks/months of accumulated data to be worth
@@ -83,7 +85,7 @@ into that day's existing daily view.
   samples). The Month view's session log should show a "detail unavailable
   — older than 90 days" state for those days rather than an empty list.
   This is the same territory a separate ad hoc note
-  (`docs/plan/long-term-driving-stats.md`, written before this roadmap
+  (`plan/archive/superseded/long-term-driving-stats.md`, written before this roadmap
   resurfaced) was covering — that note is superseded by this section and
   should be retired once this ships.
 

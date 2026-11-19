@@ -1,5 +1,7 @@
 # Exact energy without a dongle (roadcastd)
 
+> **Implemented** (v0.5.0 and later). Kept for the reasoning. Current behaviour: `docs/HUB-DATA.md` and `docs/CAN-API.md`.
+
 Status: phases 1-4 built on `feat/can-energy` (2026-11-14), off by default.
 Phase 0 items that need a drive or a night are still open (see below).
 

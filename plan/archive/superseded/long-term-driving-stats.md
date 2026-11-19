@@ -1,5 +1,7 @@
 # Long-term driving stats from frozen daily totals
 
+> **Superseded** by the week, month and year views.
+
 ## Context
 
 Raw `telemetry_sample` rows are pruned after 90 days (see `TelemetryRollup`

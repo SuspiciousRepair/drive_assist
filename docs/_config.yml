@@ -19,6 +19,10 @@ defaults:
       path: ""
     values:
       layout: page
+  - scope:
+      path: "*.pt-BR.md"
+    values:
+      locale: pt-BR
 exclude:
   - Gemfile
   - Gemfile.lock
