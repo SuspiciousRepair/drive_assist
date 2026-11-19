@@ -103,4 +103,27 @@ public class Obd2ReaderTest {
 
         assertNull(Obd2Reader.freshBattTempC(5000));
     }
+
+    /** #144: during a DC fast charge the dongle gave nothing for 38 min and
+     * no file said why. A run of silent rounds is now written: once at the
+     * start with the raw answers, again once a minute, and when it ends. */
+    @Test public void silentRoundsAreLoggedAtStartOncePerMinuteAndAtTheEnd() {
+        long t = 1_000_000L;
+        assertNull(Obd2Reader.roundEvent(true, t, "624B3602A3", "624B483D"));
+
+        assertEquals("no answer for 0 s: soc=\"7EA 03 7F 22 22\" temp=\"NO DATA\"",
+            Obd2Reader.roundEvent(false, t, "7EA 03 7F 22 22\r\n", "NO DATA\r"));
+        assertNull(Obd2Reader.roundEvent(false, t + 2_000, "NO DATA", "NO DATA"));
+        assertNull(Obd2Reader.roundEvent(false, t + 59_000, "NO DATA", "NO DATA"));
+        assertEquals("no answer for 60 s: soc=\"(link error)\" temp=\"NO DATA\"",
+            Obd2Reader.roundEvent(false, t + Obd2Reader.EVENT_REPEAT_MS, null, "NO DATA"));
+
+        assertEquals("answers again after 120 s",
+            Obd2Reader.roundEvent(true, t + 120_000, "624B3602A3", "624B483D"));
+        assertNull(Obd2Reader.roundEvent(true, t + 122_000, "624B3602A3", "624B483D"));
+
+        // A new silent run is written at once, not held back by the old one.
+        assertEquals("no answer for 0 s: soc=\"NO DATA\" temp=\"NO DATA\"",
+            Obd2Reader.roundEvent(false, t + 124_000, "NO DATA", "NO DATA"));
+    }
 }
