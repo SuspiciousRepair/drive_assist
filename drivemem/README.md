@@ -134,5 +134,5 @@ adb install -r drive_assist.apk
 Do not run `adb reboot` (it restarts the audio amplifier and causes a loud speaker pop). Simulate boot broadcast instead:
 
 ```bash
-adb shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.geely.drivemem/.BootReceiver
+adb shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.geely.drivemem/.util.BootReceiver
 ```

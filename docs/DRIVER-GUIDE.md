@@ -117,8 +117,12 @@ drive mode, regeneration, cabin lighting, charging preferences, and the optional
 Home Assistant gate command.
 
 It does not steer, brake, accelerate, unlock doors, or release the boot. Door and
-body signals shown by the app are read-only. The [safety and privacy guide](WELCOME.md)
-lists the boundaries and their implementation.
+body signals shown by the app are read-only.
+
+Two switches affect safety systems, and both are your choice: one can turn off
+AEB (automatic emergency braking), and one can mute AVAS (the pedestrian warning
+sound). The [safety and privacy guide](WELCOME.md) lists everything the app can
+read, change and send.
 
 ## Getting it onto the car
 

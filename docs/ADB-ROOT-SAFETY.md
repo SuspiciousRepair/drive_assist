@@ -29,13 +29,14 @@ and vehicle-interface risk.
 
 ## Know what the Drive Assist installer adds
 
-A normal USB installation has three identifiable parts:
+A normal USB installation has four identifiable parts:
 
 | Name | Android package | Why it is there |
 | :--- | :--- | :--- |
 | Drive Assist | `com.geely.drivemem` | The dashboard, settings, statistics, and optional integrations you use. |
 | ModeHelper | `com.geely.modehelper` | A small privileged companion used for supported system and vehicle operations. It has much greater access than an ordinary app. |
 | Drive Assist Installer | `com.geely.installer` | Installs the two packages above, then removes itself when setup succeeds. It should not remain installed. |
+| CAN reader (`roadcastd`) | Not an Android package | A small program that ModeHelper starts as root through the car's local ADB. It reads the car's CAN bus and never sends anything to it. It runs while **Car data (CAN)** is on in **Settings → System**, and that switch is on by default. |
 
 The optional SysProbe engineering tool (`com.geely.sysprobe`) is not required for
 normal use and is not part of the normal owner installation. If you did not
@@ -60,9 +61,11 @@ explanation of what will be installed.
    A familiar name and icon do not prove that an APK is safe.
 2. Compare the APK's SHA-256 checksum with the published release value before
    installing it.
-3. Keep network ADB off when you are not actively using it. Drive Assist limits
-   its ADB gate to the configured trusted Wi-Fi and closes it automatically, but
-   you should still check that it is off.
+3. Keep network ADB off when you are not actively using it. ModeHelper opens it
+   for 5 minutes after the head unit boots, keeps it open while the car is on
+   the Wi-Fi you named as home, and closes it on a timer otherwise. **Keep ADB
+   always on** (Settings → System) removes that timer: leave it off unless
+   another app needs ADB. Check that ADB is off when you expect it to be.
 4. Put the car on an isolated guest or IoT Wi-Fi network. Do not give the head
    unit open access to computers, storage devices, or other sensitive equipment.
 5. Do not share screenshots that contain tokens, passwords, server addresses,

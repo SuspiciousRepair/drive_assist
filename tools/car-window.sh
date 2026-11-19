@@ -23,7 +23,7 @@ say() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$OUT/log.txt"; }
 
 probe() { # probe <label> <props-csv> [areas-csv]
   timeout $T adb -s $D logcat -c 2>/dev/null
-  timeout $T adb -s $D shell "am broadcast -n com.geely.drivemem/.BootReceiver \
+  timeout $T adb -s $D shell "am broadcast -n com.geely.drivemem/.util.BootReceiver \
     -a com.geely.drivemem.READPROP --es props '$2' --es areas '${3:-75,0,1}'" >/dev/null 2>&1
   sleep 4
   timeout $T adb -s $D logcat -d -s DriveMem 2>/dev/null | grep "rp:" | tee -a "$OUT/$1.txt"
@@ -31,7 +31,7 @@ probe() { # probe <label> <props-csv> [areas-csv]
 
 hvacflag() { # hvacflag <which> [0|1]  — read (and optionally write) a bool flag
   timeout $T adb -s $D logcat -c 2>/dev/null
-  timeout $T adb -s $D shell "am broadcast -n com.geely.drivemem/.BootReceiver \
+  timeout $T adb -s $D shell "am broadcast -n com.geely.drivemem/.util.BootReceiver \
     -a com.geely.drivemem.HVAC --es p '$1' ${2:+--ei v $2}" >/dev/null 2>&1
   if [ -n "$2" ]; then sleep 4; else sleep 2; fi
   timeout $T adb -s $D logcat -d -s DriveMem 2>/dev/null | grep "hvac\[" | tee -a "$OUT/log.txt"
@@ -39,7 +39,7 @@ hvacflag() { # hvacflag <which> [0|1]  — read (and optionally write) a bool fl
 
 wprop() { # wprop <prop> <area> <val>
   timeout $T adb -s $D logcat -c 2>/dev/null
-  timeout $T adb -s $D shell "am broadcast -n com.geely.drivemem/.BootReceiver \
+  timeout $T adb -s $D shell "am broadcast -n com.geely.drivemem/.util.BootReceiver \
     -a com.geely.drivemem.WRITEPROP --ei prop $1 --ei area $2 --ei val $3" >/dev/null 2>&1
   sleep 5
   timeout $T adb -s $D logcat -d -s DriveMem 2>/dev/null | grep "wp:" | tee -a "$OUT/log.txt"

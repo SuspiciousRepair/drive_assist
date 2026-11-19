@@ -106,8 +106,12 @@ modo de condução, regeneração, iluminação interna, preferências de recarg
 comando opcional do portão pelo Home Assistant.
 
 O aplicativo não dirige, freia, acelera, destranca portas nem abre o porta-malas.
-Os sinais de portas e carroceria exibidos são apenas de leitura. O
-[guia de segurança e privacidade](WELCOME.md) explica esses limites.
+Os sinais de portas e carroceria exibidos são apenas de leitura.
+
+Duas chaves afetam sistemas de segurança, e as duas são escolha sua: uma pode
+desligar o AEB (frenagem automática de emergência) e outra pode silenciar o AVAS
+(o som de aviso para pedestres). O [guia de segurança e privacidade](WELCOME.md)
+lista tudo o que o aplicativo pode ler, mudar e enviar.
 
 ## Instalação
 

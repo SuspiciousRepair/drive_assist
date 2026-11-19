@@ -66,11 +66,13 @@ doorbell image.
 
 ### What it will not do
 
-Drive Assist only touches comfort and convenience: climate, drive mode, cabin
+Drive Assist mostly touches comfort and convenience: climate, drive mode, cabin
 lights, windows, charging. It has no ability to steer, brake, accelerate, lock or
-unlock your doors, or open the boot — those signals are read and displayed only,
-never commanded. The full, plain-language rundown of everything the app can see
-and do is in the [Welcome & Transparency Guide](docs/WELCOME.md).
+unlock your doors, or open the boot. Two of its switches do affect safety
+systems, and both are your choice: one can turn off AEB (automatic emergency
+braking), and one can mute AVAS (the pedestrian warning sound). The full,
+plain-language list of everything the app can read, change and send is in the
+[safety and privacy guide](docs/WELCOME.md).
 
 ### Who it is for
 
@@ -315,7 +317,7 @@ Instead of typing MQTT credentials, mTLS certificates, ABRP tokens, and Spotify 
 Do not run `adb reboot` (it restarts the audio amplifier and causes a loud speaker pop). Simulate boot broadcast instead:
 
 ```bash
-adb shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.geely.drivemem/.BootReceiver
+adb shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.geely.drivemem/.util.BootReceiver
 ```
 
 ---

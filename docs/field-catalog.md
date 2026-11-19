@@ -31,14 +31,14 @@ To systematically verify signals without false positives or synthetic defaults, 
 
 ```bash
 # Full property sweep snapshot
-adb shell am broadcast -n com.geely.drivemem/.BootReceiver -a com.geely.drivemem.DISCOVER
+adb shell am broadcast -n com.geely.drivemem/.util.BootReceiver -a com.geely.drivemem.DISCOVER
 
 # Direct property write
-adb shell am broadcast -n com.geely.drivemem/.BootReceiver -a com.geely.drivemem.WRITEPROP --ei prop <id> --ei area <area> --ei val <int_val>
-adb shell am broadcast -n com.geely.drivemem/.BootReceiver -a com.geely.drivemem.WRITEPROP --ei prop <id> --ei area <area> --ef fval <float_val>
+adb shell am broadcast -n com.geely.drivemem/.util.BootReceiver -a com.geely.drivemem.WRITEPROP --ei prop <id> --ei area <area> --ei val <int_val>
+adb shell am broadcast -n com.geely.drivemem/.util.BootReceiver -a com.geely.drivemem.WRITEPROP --ei prop <id> --ei area <area> --ef fval <float_val>
 
 # Read-only query
-adb shell am broadcast -n com.geely.drivemem/.BootReceiver -a com.geely.drivemem.READPROP --es props "<id1,id2>" --es areas "<a1,a2>"
+adb shell am broadcast -n com.geely.drivemem/.util.BootReceiver -a com.geely.drivemem.READPROP --es props "<id1,id2>" --es areas "<a1,a2>"
 ```
 
 Status Key:
