@@ -190,5 +190,6 @@ except the SoC-based driving energy, which is marked "estimated".
 | `car.db` `trip_point` | the route (`state.RoutePoints`): time, lat, lon, altitude, GPS speed, bearing, accuracy, `drive_mode`, `regen_mode`, `power_kw` (`energy.power_kw`), and the trip's `spent_kwh` / `regen_kwh` so far. Raw, for later analysis | every 5 s while out of Park, only after 25 m of movement, with "Record trip routes" on (default on). `trip_id` is NULL until the trip is saved; points of a trip too short to keep are deleted. Kept for good |
 | `files/obd2-reading.log` | every dongle reading | while the dongle is connected (5 MB, then restarts) |
 | `files/abrp-attempt.log` | every ABRP send and its payload | while ABRP is on (5 MB, then restarts) |
+| `files/can-events.log` | "Exact energy" (CAN): the app's link to the CAN reader, modehelper's reports (started and why, failed), and each trip with no split and why (for example "app restarted 18 min into the trip") | on each change, with "Exact energy" on; the same line at most once per 10 min (1 MB, then restarts) |
 
 `files/` is `Android/data/com.geely.drivemem/files/` on the car's storage.
