@@ -26,10 +26,21 @@ import java.util.Locale;
  * overlap; a label that moved gets a thin leader line to its band.
  *
  * Used and Regen must come from the same trips as the split, so that
- * drive + climate + other = used - regen (EnergySplit scales them so). */
+ * drive + climate + other = used - regen (EnergySplit scales them so).
+ *
+ * One number per part, in one unit at a time: kWh, Wh/km (over the km the
+ * trips covered) or % of Used. A tap goes to the next unit; the units sit
+ * at the top right, the one in use in bold, so the chart says it can be
+ * tapped and which unit its numbers are in. The choice is kept (Prefs) and
+ * is the same on the trip screen and the stats page. */
 final class EnergySankeyView extends View {
     private double used, regen, drive, climate, other, km;
     private boolean hasData;
+
+    static final int UNIT_KWH = 0, UNIT_WH_KM = 1, UNIT_PCT = 2;
+    static final String[] UNIT_NAMES = {"kWh", EnergyUnits.WH_PER_KM, "%"};
+    private static final String PREF_UNIT = "sankey_unit";
+    private int unit;
 
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -49,10 +60,10 @@ final class EnergySankeyView extends View {
         nodeW = Style.dp(c, 8);
         midGap = Style.dp(c, 32);
         rightGap = Style.dp(c, 12);
-        labelGap = Style.dp(c, 36);
+        labelGap = Style.dp(c, 26);
         bold.setTextSize(Style.dp(c, 17));
         bold.setTypeface(Typeface.DEFAULT_BOLD);
-        dim.setTextSize(Style.dp(c, 14));
+        dim.setTextSize(Style.dp(c, 17));
         line.setStyle(Paint.Style.STROKE);
         line.setStrokeWidth(Style.dp(c, 1));
         sUsed = c.getString(R.string.sankey_used);
@@ -60,6 +71,43 @@ final class EnergySankeyView extends View {
         sRegen = c.getString(R.string.sankey_regen);
         partNames = new String[]{c.getString(R.string.stats_part_drive),
             c.getString(R.string.stats_part_climate), c.getString(R.string.stats_part_other)};
+        unit = com.geely.drivemem.util.Prefs.file(c).getInt(PREF_UNIT, UNIT_KWH);
+        if (unit < 0 || unit >= UNIT_NAMES.length) unit = UNIT_KWH;
+        setOnClickListener(v -> {
+            unit = nextUnit(unit, km);
+            com.geely.drivemem.util.Prefs.file(getContext()).edit().putInt(PREF_UNIT, unit).apply();
+            invalidate();
+        });
+    }
+
+    /** The unit after this one. Wh/km is skipped when there is no distance. */
+    static int nextUnit(int unit, double km) {
+        int n = (unit + 1) % UNIT_NAMES.length;
+        if (n == UNIT_WH_KM && !(km > 0)) n = UNIT_PCT;
+        return n;
+    }
+
+    /** The unit drawn: Wh/km falls back to kWh when there is no distance. */
+    static int shownUnit(int unit, double km) {
+        return unit == UNIT_WH_KM && !(km > 0) ? UNIT_KWH : unit;
+    }
+
+    /** One part's number in a unit, with no unit after it: "0.52", "124",
+     * "37". Percent is of used. */
+    static String value(double kwhValue, int unit, double used, double km) {
+        switch (unit) {
+            case UNIT_WH_KM: {
+                double wh = EnergyUnits.whPerKm(kwhValue, km);
+                return Double.isNaN(wh) ? "—" : EnergyUnits.wholeWh(wh);
+            }
+            case UNIT_PCT: {
+                if (!(used > 0)) return "—";
+                double p = kwhValue / used * 100;
+                return p > 0 && p < 1 ? "<1" : String.format(Locale.US, "%.0f", p);
+            }
+            default:
+                return kwh(kwhValue);
+        }
     }
 
     /** kWh for each node, and the km the trips covered (for Wh/km). */
@@ -133,16 +181,23 @@ final class EnergySankeyView extends View {
         cv.drawRect(x, y, x + nodeW, y + Math.max(h, 1f), fill);
     }
 
-    /** "  152 Wh/km" over the trips' km, or "" without distance. */
-    private String perKm(double kwhValue) {
-        double wh = EnergyUnits.whPerKm(kwhValue, km);
-        return Double.isNaN(wh) ? "" : "  " + EnergyUnits.wholeWh(wh) + " " + EnergyUnits.WH_PER_KM;
+    /** "Drive 0.52": the name, then the number in the unit in use. */
+    private String label(String name, double kwhValue) {
+        return name + " " + value(kwhValue, shownUnit(unit, km), used, km);
     }
 
-    /** A bold value and its dim Wh/km after it, on one line. */
-    private void pair(Canvas cv, String value, String perKm, float x, float y) {
-        cv.drawText(value, x, y, bold);
-        if (!perKm.isEmpty()) cv.drawText(perKm, x + bold.measureText(value), y, dim);
+    /** The units at the top right, the one in use bold. */
+    private void units(Canvas cv, float right, float y) {
+        int shown = shownUnit(unit, km);
+        float gap = Style.dp(getContext(), 14);
+        float x = right;
+        for (int i = UNIT_NAMES.length - 1; i >= 0; i--) {
+            if (i == UNIT_WH_KM && !(km > 0)) continue;
+            Paint p = i == shown ? bold : dim;
+            x -= p.measureText(UNIT_NAMES[i]);
+            cv.drawText(UNIT_NAMES[i], x, y, p);
+            x -= gap;
+        }
     }
 
     @Override protected void onDraw(Canvas cv) {
@@ -157,9 +212,11 @@ final class EnergySankeyView extends View {
         bold.setColor(Style.TEXT);
         dim.setColor(Style.TEXT_DIM);
 
-        // Used, its top part came back.
+        // Used, its top part came back. The units on the same line, right.
         node(cv, xUsed, top, (float) (used * k), Style.TEXT_DIM);
-        pair(cv, sUsed + " " + kwh(used) + " kWh", perKm(used), xUsed, top - Style.dp(getContext(), 10));
+        float headY = top - Style.dp(getContext(), 10);
+        cv.drawText(label(sUsed, used), xUsed, headY, bold);
+        units(cv, w, headY);
 
         // Regen on top, Net under it.
         band(cv, xUsed + nodeW, top, xMid, yReg, hReg, Style.PURPLE);
@@ -168,11 +225,10 @@ final class EnergySankeyView extends View {
         node(cv, xMid, yNet, hNet, Style.TEXT_DIM);
         float tx = xMid + nodeW + Style.dp(getContext(), 8);
         bold.setColor(Style.PURPLE);
-        String reg = sRegen + " " + kwh(regen);
         float regY = yReg + hReg / 2 + Style.dp(getContext(), 6);
-        pair(cv, reg, perKm(regen), tx, regY);
+        cv.drawText(label(sRegen, regen), tx, regY, bold);
         bold.setColor(Style.TEXT);
-        pair(cv, sNet + " " + kwh(net), perKm(net), tx, yNet - Style.dp(getContext(), 9));
+        cv.drawText(label(sNet, net), tx, yNet - Style.dp(getContext(), 9), bold);
 
         // Drive, climate, other from Net.
         float[] h = partHeights();
@@ -193,11 +249,7 @@ final class EnergySankeyView extends View {
                 line.setColor(colors[i]);
                 cv.drawLine(xRight + nodeW, centres[i], lx - 3, ly[i] - Style.dp(getContext(), 6), line);
             }
-            cv.drawText(partNames[i] + " " + kwh(v[i]), lx, ly[i], bold);
-            double wh = EnergyUnits.whPerKm(v[i], km);
-            if (!Double.isNaN(wh)) {
-                cv.drawText(EnergyUnits.wholeWh(wh) + " " + EnergyUnits.WH_PER_KM, lx, ly[i] + Style.dp(getContext(), 18), dim);
-            }
+            cv.drawText(label(partNames[i], v[i]), lx, ly[i], bold);
         }
     }
 }
