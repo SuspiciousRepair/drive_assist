@@ -38,7 +38,16 @@ import java.util.concurrent.Executors;
  * {@link #RETRY_MS} ({@link #retryDelayMs}), and at once when the car gets
  * a network again. Before this, a failed tile only came back if something
  * else redrew the map, so a gap made while the car was joining a network
- * stayed blank for as long as the screen was open. */
+ * stayed blank for as long as the screen was open.
+ *
+ * Every view that asks for a tile is told when to look again, not only
+ * the first one: a screen opened again (a new view) while the tile was
+ * still loading, or still waiting for its retry, used to get null and no
+ * call back, so its gap stayed blank (charging map, 2026-11-20). The retry
+ * clock is elapsedRealtime, which a clock set by the network cannot move.
+ * "Network back" listens to every network, not the default one: with an
+ * always-on VPN the default network stays the VPN while Wi-Fi comes and
+ * goes, so that call never came. */
 final class TileCache {
     private static final String TAG = "TileCache";
     static final String URL_FMT = "https://tile.openstreetmap.org/%d/%d/%d.png";
@@ -72,7 +81,12 @@ final class TileCache {
     };
     // Main thread only.
     private final Set<String> pending = new HashSet<>();
+    // Everyone who asked for a tile that is loading: all told when it ends.
+    private final Map<String, Set<Runnable>> askers = new HashMap<>();
+    // elapsedRealtime of the next try of a failed tile.
     private final Map<String, Long> retryAt = new HashMap<>();
+    // elapsedRealtime of the redraw already posted for each waiting view.
+    private final Map<Runnable, Long> wakeAt = new HashMap<>();
     private final Map<String, Integer> failures = new HashMap<>();
     // The views waiting on a failed tile, told to redraw when the network
     // comes back.
@@ -93,7 +107,12 @@ final class TileCache {
         try {
             android.net.ConnectivityManager cm = (android.net.ConnectivityManager)
                 app.getSystemService(Context.CONNECTIVITY_SERVICE);
-            if (cm != null) cm.registerDefaultNetworkCallback(
+            // Any network with internet, not the default one: see the class
+            // comment (always-on VPN).
+            if (cm != null) cm.registerNetworkCallback(
+                new android.net.NetworkRequest.Builder()
+                    .addCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    .build(),
                 new android.net.ConnectivityManager.NetworkCallback() {
                     @Override public void onAvailable(android.net.Network n) {
                         main.post(TileCache.this::retryNow);
@@ -113,11 +132,33 @@ final class TileCache {
         return Math.min(RETRY_MS, FIRST_RETRY_MS << shift);
     }
 
+    /** Whether a view needs a new redraw posted for a tile due at
+     * {@code dueAt}: not when one already posted ({@code postedAt}, null
+     * for none) comes first, and is not past. */
+    static boolean needsWake(Long postedAt, long now, long dueAt) {
+        return postedAt == null || postedAt < now || postedAt > dueAt;
+    }
+
+    /** Redraws this view when the tile is due, unless a redraw already
+     * posted comes first. Main thread. */
+    private void wakeAt(Runnable view, long dueAt) {
+        waiting.add(view);
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (!needsWake(wakeAt.get(view), now, dueAt)) return;
+        wakeAt.put(view, dueAt);
+        main.postDelayed(() -> {
+            Long w = wakeAt.get(view);
+            if (w != null && w == dueAt) wakeAt.remove(view);
+            view.run();
+        }, Math.max(0L, dueAt - now));
+    }
+
     /** A network is back: every failed tile may be tried again now. */
     private void retryNow() {
         if (retryAt.isEmpty()) return;
         retryAt.clear();
         failures.clear();
+        wakeAt.clear();
         java.util.List<Runnable> run = new java.util.ArrayList<>(waiting);
         waiting.clear();
         for (Runnable r : run) r.run();
@@ -130,33 +171,43 @@ final class TileCache {
         String key = z + "/" + x + "/" + y;
         Bitmap b = mem.get(key);
         if (b != null) return b;
-        if (pending.contains(key)) return null;
+        if (pending.contains(key)) {
+            // Loading for another view: this one is told too.
+            if (onReady != null) askers.get(key).add(onReady);
+            return null;
+        }
         Long at = retryAt.get(key);
-        if (at != null && System.currentTimeMillis() < at) return null;
+        if (at != null && android.os.SystemClock.elapsedRealtime() < at) {
+            // Waiting for its retry: look again then.
+            if (onReady != null) wakeAt(onReady, at);
+            return null;
+        }
         pending.add(key);
+        Set<Runnable> who = new HashSet<>();
+        if (onReady != null) who.add(onReady);
+        askers.put(key, who);
         net.execute(() -> {
             Bitmap got = load(z, x, y);
             main.post(() -> {
                 pending.remove(key);
+                Set<Runnable> told = askers.remove(key);
+                if (told == null) told = new HashSet<>();
                 if (got != null) {
                     mem.put(key, got);
                     retryAt.remove(key);
                     failures.remove(key);
                     // Nothing failed is left: let go of the waiting views.
-                    if (retryAt.isEmpty()) waiting.clear();
-                    if (onReady != null) onReady.run();
+                    if (retryAt.isEmpty()) { waiting.clear(); wakeAt.clear(); }
+                    for (Runnable r : told) r.run();
                     return;
                 }
                 // Failed: come back by itself, so the gap does not stay
                 // until something else redraws the map.
                 int n = failures.containsKey(key) ? failures.get(key) + 1 : 1;
                 failures.put(key, n);
-                long delay = retryDelayMs(n);
-                retryAt.put(key, System.currentTimeMillis() + delay);
-                if (onReady != null) {
-                    waiting.add(onReady);
-                    main.postDelayed(onReady, delay);
-                }
+                long due = android.os.SystemClock.elapsedRealtime() + retryDelayMs(n);
+                retryAt.put(key, due);
+                for (Runnable r : told) wakeAt(r, due);
             });
         });
         return null;
@@ -280,6 +331,7 @@ final class TileCache {
             mem.evictAll();
             retryAt.clear();
             failures.clear();
+            wakeAt.clear();
             net.execute(() -> {
                 java.util.List<File> all = new java.util.ArrayList<>();
                 collect(dir, all);
