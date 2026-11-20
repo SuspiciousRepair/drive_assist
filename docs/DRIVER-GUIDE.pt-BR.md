@@ -34,8 +34,8 @@ ser lida de longe.
 ![Modo de condução e regeneração](screenshots/settings-overview-live.png)
 
 Escolha o modo de condução e o nível de regeneração que você prefere. O Drive
-Assist os reaplica quando o carro acorda, para você não repetir o ajuste a cada
-viagem. Cada ajuste tem uma chave **Restaurar ao ligar** (ligada por padrão);
+Assist os reaplica quando o carro acorda ou é ligado, para você não repetir o
+ajuste a cada viagem. Modo de condução e regeneração são reaplicados só em P. Cada ajuste tem uma chave **Restaurar ao ligar** (ligada por padrão);
 desligue para um ajuste que você prefere mudar na tela do próprio carro.
 
 Os ajustes ficam em **Config**: Portas, Climatização, Modo de condução, Elementos
@@ -132,8 +132,16 @@ gravação variam por região.
   local.
 - **Backup e restauração**: salva seus ajustes, viagens e certificados em um pen
   drive e no carro, com uma senha que você escolhe.
-- **Extra escuro**: à noite, após um minuto dirigindo sem tocar na tela, ela
-  escurece mais. Um toque ou uma troca de marcha traz a luz de volta.
+- **Modo mais escuro**: à noite, após um minuto dirigindo sem tocar na tela, a
+  tela vai para a luz mínima e uma camada escura cobre o Painel. Um toque ou uma
+  troca de marcha traz a luz de volta. Funciona só no próprio horário (21:00 às
+  06:00 por padrão; arraste as alças na linha de 24 horas). Escuridão deixa
+  ainda mais escuro: 0 % é só a luz mínima, 100 % desliga a tela (70 % por
+  padrão). Ligue **Em todas as telas** para escurecer todos os apps, não só o
+  Painel. O botão Experimentar mostra na hora.
+- **Tradução dos apps do carro** (Config → Integrações): texto melhor nos apps
+  Energia, Wi-Fi e Configurações do próprio carro. Os arquivos do carro não
+  mudam; Remover ou a Limpeza tira. Instalar e Remover esperam o carro em P.
 - **Som de travamento**: troca o som que o carro faz ao travar, ou importa o seu.
 - **Limpeza**: uma tela que remove o Drive Assist, o auxiliar e o leitor CAN, e
   devolve o som de travamento do próprio carro — útil antes de uma visita à
