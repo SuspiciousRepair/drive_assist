@@ -52,8 +52,11 @@
   - **On every screen**: the dark layer covers every app, not only the
     Dashboard. The car's own top and bottom bars get the low screen light
     only.
-  - **Darkness**: how dark the layer is, 50 % to 90 % (70 % unless you
-    change it).
+  - **Darkness**: Darkest mode always dims the screen to its lowest
+    light. Darkness makes it even darker with the dark layer: 0 % is the
+    lowest light only, 100 % turns the screen off (70 % unless you change
+    it). If Drive Assist stops while the screen is dark, the helper turns
+    the light back on by itself within 15 seconds.
   - **Try it**: goes dark at once, in Park and by day too.
 - **Energy by use: regen is a source now.** The chart starts with where
   the energy came from: the battery, and regen (what the motor sent back
