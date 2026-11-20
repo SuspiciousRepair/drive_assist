@@ -37,6 +37,7 @@ public class ModeHelperService extends Service {
     private volatile boolean running = false;
     private Thread poll;
     private BroadcastReceiver rx;
+    private android.database.ContentObserver lockSoundWatch;
     private int lastGear = -999;
     private long lastLog = 0;
     private final ParkedMonitorPolicy parkedMonitorPolicy = new ParkedMonitorPolicy();
@@ -203,6 +204,15 @@ public class ModeHelperService extends Service {
                 }
             };
             registerReceiver(rx, new IntentFilter(SET_MODE));
+            // A new pick in the car's own lock sound Settings takes our
+            // lock sound off (LockSoundReceiver.settingChanged).
+            try {
+                lockSoundWatch = new android.database.ContentObserver(new android.os.Handler(android.os.Looper.getMainLooper())) {
+                    @Override public void onChange(boolean self) { LockSoundReceiver.settingChanged(ModeHelperService.this); }
+                };
+                getContentResolver().registerContentObserver(
+                    android.provider.Settings.System.getUriFor(LockSoundPolicy.SETTING), false, lockSoundWatch);
+            } catch (Throwable t) { Log.w(TAG, "lock sound watch: " + t); }
             // Car going off, earliest first: the head unit's own
             // ACTION_SHUTDOWN_HU (the cameras stop at that moment), then screen
             // off three seconds later, then the suspend. Close the segment at
@@ -698,6 +708,10 @@ public class ModeHelperService extends Service {
         stopForShutdown("service destroyed");
         running = false;
         if (rx != null) { try { unregisterReceiver(rx); } catch (Throwable ignored) {} rx = null; }
+        if (lockSoundWatch != null) {
+            try { getContentResolver().unregisterContentObserver(lockSoundWatch); } catch (Throwable ignored) {}
+            lockSoundWatch = null;
+        }
         car.disconnect();
         super.onDestroy();
     }

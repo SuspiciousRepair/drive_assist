@@ -19,16 +19,24 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Sets the sound the car plays when it is locked with the key.
  *
  * {@code SET_LOCK_SOUND}, {@code sound} = "car", "fart" or "custom" (see
  * {@link LockSoundPolicy}). Sent ordered, the result data says "ok",
- * "no_custom" (nothing imported yet), "unknown" or "error". We put the file in our files dir and point
- * {@code Settings.System lock_car_audio_path} at it. CarService runs as uid
- * system too and may read our files, so the car plays it with no root and no
- * remount. The setting survives a reboot.
+ * "no_custom" (nothing imported yet), "unknown", "adb" (the local root
+ * shell did not open) or "error". Fart and custom are bind-mounted, through
+ * the local root shell, over the car sound picked in the car's own
+ * Settings; car takes the mount away. Picking another sound in the car's
+ * Settings takes it away too ({@link #settingChanged}, watched by
+ * ModeHelperService): the owner chose a car sound. Why not just point the
+ * setting at our file: see {@link LockSoundPolicy}. This app owns the
+ * choice (pref {@link #KEY_MODE}); {@code GET_LOCK_SOUND} answers it
+ * (ordered, result data "car", "fart" or "custom"). A reboot drops the
+ * mount: {@link #reapply} puts it back.
  *
  * {@code IMPORT_LOCK_SOUND} fetches the "custom" sound: from {@code url} when
  * given (http or https, also after a redirect), else
@@ -50,23 +58,53 @@ public class LockSoundReceiver extends BroadcastReceiver {
     static final String TAG = "ModeHelper";
     static final String ACTION = "com.geely.modehelper.SET_LOCK_SOUND";
     static final String ACTION_IMPORT = "com.geely.modehelper.IMPORT_LOCK_SOUND";
+    static final String ACTION_GET = "com.geely.modehelper.GET_LOCK_SOUND";
     private static final String PREFS = "modehelper";
+    /** Only an old helper wrote it: the car sound to give back. Read once, then removed. */
     private static final String KEY_PREV = "lock_sound_prev";
+    /** The chosen sound: "car", "fart" or "custom". The one place it is kept. */
+    static final String KEY_MODE = "lock_sound_mode";
 
     static final String NOT_FOUND = "not_found";
     static final String DOWNLOAD = "download";
     static final String ERROR = "error";
     static final String NO_CUSTOM = "no_custom";
     static final String UNKNOWN = "unknown";
+    static final String ADB = "adb";
+
+    // Mount work runs here, one job at a time, off the main thread.
+    private static final ExecutorService WORKER = Executors.newSingleThreadExecutor();
+    // apply() runs from WORKER and from an import thread: one at a time.
+    private static final Object APPLY = new Object();
 
     @Override public void onReceive(Context ctx, Intent i) {
         final Context app = ctx.getApplicationContext();
+        if (ACTION_GET.equals(i.getAction())) {
+            // A pick in the car's Settings the service did not see yet (it
+            // was not running): answer "car" now, take the mount off after.
+            String m = mode(app);
+            if (LockSoundPolicy.pickedAnother(m, ourTargets(), currentSetting(app))) {
+                settingChanged(app);
+                m = LockSoundPolicy.CAR;
+            }
+            if (isOrderedBroadcast()) setResult(Activity.RESULT_OK, m, null);
+            return;
+        }
         if (ACTION.equals(i.getAction())) {
-            String code = apply(app, i.getStringExtra("sound"));
-            // Sent ordered by Drive Assist, so it can say "import one first"
-            // instead of guessing whether we hold a custom sound.
-            if (isOrderedBroadcast()) setResult(LockSoundPolicy.OK.equals(code)
-                ? Activity.RESULT_OK : Activity.RESULT_FIRST_USER, code, null);
+            // The root shell can take seconds (it may have to open ADB):
+            // answered when done. Sent ordered by Drive Assist, so it can say
+            // "import one first" instead of guessing.
+            final String id = i.getStringExtra("sound");
+            final PendingResult pr = goAsync();
+            try {
+                WORKER.execute(() -> {
+                    String code = ERROR;
+                    try { code = apply(app, id); }
+                    finally { answer(pr, code); }
+                });
+            } catch (Throwable t) {
+                answer(pr, ERROR);
+            }
             return;
         }
         if (!ACTION_IMPORT.equals(i.getAction())) return;
@@ -163,33 +201,116 @@ public class LockSoundReceiver extends BroadcastReceiver {
         }
     }
 
-    /** Returns "ok", "no_custom" (custom asked, nothing imported), "unknown" or "error". */
-    static String apply(Context ctx, String id) {
-        try {
-            String current = Settings.System.getString(ctx.getContentResolver(), LockSoundPolicy.SETTING);
-            SharedPreferences p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-            String prev = p.getString(KEY_PREV, null);
-            File dir = ctx.getFilesDir();
-            boolean haveCustom = new File(dir, LockSoundPolicy.fileName(LockSoundPolicy.CUSTOM)).isFile();
-            LockSoundPolicy.Decision d = LockSoundPolicy.decide(current, prev, id, dir.getAbsolutePath(), haveCustom);
-            if (d == null) {
-                Log.w(TAG, "lock sound: cannot apply " + id);
-                return LockSoundPolicy.CUSTOM.equals(id) ? NO_CUSTOM : UNKNOWN;
-            }
+    /** The chosen sound. A helper older than the mounts kept no choice and
+     * pointed the setting at our file instead: that is read once and kept. */
+    static String mode(Context ctx) {
+        SharedPreferences p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        String m = p.getString(KEY_MODE, null);
+        if (m != null) return m;
+        String current = null;
+        try { current = Settings.System.getString(ctx.getContentResolver(), LockSoundPolicy.SETTING); }
+        catch (Throwable ignored) {}
+        m = LockSoundPolicy.idForSetting(current);
+        p.edit().putString(KEY_MODE, m).commit();
+        return m;
+    }
 
-            if (LockSoundPolicy.FART.equals(id)) copyAsset(ctx, id, new File(dir, LockSoundPolicy.fileName(id)));
-            // Save what to give back BEFORE replacing it, so a crash in
-            // between cannot lose the car's own sound.
-            if (d.savedPrev == null) p.edit().remove(KEY_PREV).commit();
-            else p.edit().putString(KEY_PREV, d.savedPrev).commit();
-            if (d.write != null) {
-                Settings.System.putString(ctx.getContentResolver(), LockSoundPolicy.SETTING, d.write);
-            }
-            Log.i(TAG, "lock sound: " + id + " -> " + (d.write != null ? d.write : "unchanged (" + current + ")"));
-            return LockSoundPolicy.OK;
+    /** After a boot, or after this app was updated: puts our mount back when
+     * a sound of ours is chosen and none is mounted (a reboot drops it).
+     * Also moves a car left by an old helper (setting on our file, which the
+     * car cannot play) onto the mount, and takes the mount off when the
+     * owner picked another sound meanwhile. */
+    static void reapply(Context ctx) {
+        final Context app = ctx.getApplicationContext();
+        WORKER.execute(() -> reconcile(app, "reapply"));
+    }
+
+    /** The lock sound setting changed (the car's own Settings, or us).
+     * When it now names a sound our mount does not cover, the owner picked
+     * a car sound: ours comes off, and the choice becomes "car". */
+    static void settingChanged(Context ctx) {
+        final Context app = ctx.getApplicationContext();
+        try { WORKER.execute(() -> reconcile(app, "setting changed")); }
+        catch (Throwable t) { Log.w(TAG, "lock sound: " + t); }
+    }
+
+    // Under APPLY, so it sees the end state of any apply() (ours writes the
+    // setting too, and must not count as the owner's pick).
+    private static void reconcile(Context app, String why) {
+        synchronized (APPLY) {
+            String m = mode(app);
+            String current = currentSetting(app);
+            java.util.List<String> mounted = ourTargets();
+            String id = null;
+            if (LockSoundPolicy.isOurs(current)) id = m;   // an old helper's setting
+            else if (LockSoundPolicy.pickedAnother(m, mounted, current)) id = LockSoundPolicy.CAR;
+            else if (!LockSoundPolicy.CAR.equals(m) && mounted.isEmpty()) id = m;   // after a reboot
+            if (id == null) return;
+            Log.i(TAG, "lock sound " + why + " (" + m + ", setting " + current + ", mounted " + mounted
+                + "): " + id + " -> " + apply(app, id));
+        }
+    }
+
+    /** The car sounds our mounts cover, as this process sees them (its own
+     * mountinfo: no root needed). */
+    static java.util.List<String> ourTargets() {
+        try (InputStream in = new FileInputStream("/proc/self/mountinfo")) {
+            java.io.ByteArrayOutputStream b = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[16384];
+            for (int n; (n = in.read(buf)) > 0; ) b.write(buf, 0, n);
+            return LockSoundPolicy.mountedTargets(b.toString("UTF-8"));
         } catch (Throwable t) {
-            Log.w(TAG, "lock sound " + id + ": " + t);
-            return ERROR;
+            return new java.util.ArrayList<>();
+        }
+    }
+
+    private static String currentSetting(Context ctx) {
+        try { return Settings.System.getString(ctx.getContentResolver(), LockSoundPolicy.SETTING); }
+        catch (Throwable t) { return null; }
+    }
+
+    /** Returns "ok", "no_custom" (custom asked, nothing imported), "unknown",
+     * "adb" (no root shell) or "error". Blocks: never on the main thread. */
+    static String apply(Context ctx, String id) {
+        synchronized (APPLY) {
+            try {
+                SharedPreferences p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+                File dir = ctx.getFilesDir();
+                File ours = new File(dir, LockSoundPolicy.fileName(id == null ? "" : id));
+                boolean haveCustom = new File(dir, LockSoundPolicy.fileName(LockSoundPolicy.CUSTOM)).isFile();
+                if (!LockSoundPolicy.valid(id, haveCustom)) {
+                    Log.w(TAG, "lock sound: cannot apply " + id);
+                    return LockSoundPolicy.CUSTOM.equals(id) ? NO_CUSTOM : UNKNOWN;
+                }
+                boolean car = LockSoundPolicy.CAR.equals(id);
+                if (LockSoundPolicy.FART.equals(id)) copyAsset(ctx, id, ours);
+
+                String current = currentSetting(ctx);
+                String prev = p.getString(KEY_PREV, null);
+                String target = LockSoundPolicy.target(current, prev);
+
+                // Car with nothing of ours mounted needs no root shell.
+                if (!car || !ourTargets().isEmpty()) {
+                    LocalAdbShell adb = OemText.openAdb(ctx);
+                    if (adb == null) { Log.w(TAG, "lock sound " + id + ": no root shell"); return ADB; }
+                    String out = adb.execute(car ? LockSoundPolicy.unmountCommand()
+                                                 : LockSoundPolicy.mountCommand(ours.getAbsolutePath(), target));
+                    if (!out.contains(car ? LockSoundPolicy.REMOVED : LockSoundPolicy.MOUNTED)) {
+                        Log.w(TAG, "lock sound " + id + ": " + out.trim());
+                        return ERROR;
+                    }
+                }
+
+                String write = LockSoundPolicy.settingFor(id, current, prev);
+                if (write != null) Settings.System.putString(ctx.getContentResolver(), LockSoundPolicy.SETTING, write);
+                p.edit().putString(KEY_MODE, id).remove(KEY_PREV).commit();
+                Log.i(TAG, "lock sound: " + id + (car ? ", mount off" : ", mounted over " + target)
+                    + (write != null ? ", setting -> " + write : ", setting kept (" + current + ")"));
+                return LockSoundPolicy.OK;
+            } catch (Throwable t) {
+                Log.w(TAG, "lock sound " + id + ": " + t);
+                return ERROR;
+            }
         }
     }
 
