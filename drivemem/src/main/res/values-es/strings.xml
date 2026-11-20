@@ -117,7 +117,8 @@
     <string name="cfg_lock_sound_import_download">No se pudo descargar ese enlace.</string>
     <string name="cfg_lock_sound_import_failed">Falló la importación.</string>
     <string name="cfg_lock_sound_import_first">Importa un sonido primero: desde USB o un enlace.</string>
-    <string name="cfg_lock_sound_hint">Suena cuando cierras el auto con la llave. Sonido personalizado: un archivo WAV de hasta 1 MB, llamado LockChime.wav en la raíz del USB, o un enlace. Elegir un sonido en los Ajustes del propio auto reemplaza este. Sonido del auto devuelve el que tenías antes.</string>
+    <string name="cfg_lock_sound_hint">Suena cuando cierras el auto con la llave. Sonido personalizado: un archivo WAV de hasta 1 MB, llamado LockChime.wav en la raíz del USB, o un enlace. Suena en lugar del sonido elegido en los Ajustes del propio auto. Elegir otro sonido allí, o Sonido del auto, devuelve el sonido del propio auto.</string>
+    <string name="cfg_lock_sound_no_shell">No se pudo acceder al sistema del auto. Inténtalo de nuevo.</string>
     <string name="cfg_lock_sound_needs_helper">Necesita un ModeHelper más nuevo. Actualízalo en Config &gt; Sistema.</string>
     <string name="cfg_purge_open_header">Objetivo del botón de abrir todas las ventanillas (0–100)</string>
     <string name="cfg_purge_open_hint">Cuánto baja cada ventanilla al presionar el botón de ventilar. 0 = cerrada, 100 = completamente abierta. El mismo número no abre cada ventanilla la misma cantidad real — ajusta cada una según lo que realmente veas.</string>

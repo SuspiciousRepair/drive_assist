@@ -15,7 +15,8 @@ import java.io.IOException;
  * In order:
  *   0. the CAN reader switch and the Wi-Fi guard are turned off, so neither
  *      starts roadcastd or re-opens ADB while the steps below run;
- *   1. the car's own lock sound comes back (our file stops being referenced);
+ *   1. the car's own lock sound comes back (our mount over the car's
+ *      sounds is taken away, through the local root shell);
  *   2. roadcastd is stopped and {@link CanReaderPolicy#DIR} is deleted — a
  *      reader another app started, in another dir, is never touched; the
  *      OEM translations copies are unmounted and {@link OemTextPolicy#DIR}

@@ -15,12 +15,12 @@ import com.geely.drivemem.util.Prefs;
 
 /** The sound the car plays when it is locked with the key (Config > Doors).
  *
- * The car plays the file named by {@code Settings.System lock_car_audio_path}.
- * modehelper owns the files: it ships the fart, imports a custom WAV (from a
- * USB stick or a link), and points that setting at the chosen one (see
- * modehelper's LockSoundReceiver). We only ask, and read the setting back to
- * show what the car really has: a sound picked in the car's own Settings
- * replaces ours, and the screen must say so.
+ * modehelper owns the sound and the choice: it ships the fart, imports a
+ * custom WAV (from a USB stick or a link), and mounts the chosen one over
+ * the sound picked in the car's own Settings; picking another sound there
+ * takes ours off (see modehelper's LockSoundReceiver). We only ask: SET to
+ * choose, GET to show what is chosen. An old modehelper has no GET; then
+ * the setting it pointed at our file is what we read.
  *
  * One small pref here: which sound fart mode gives back when switched off
  * (car or custom). Whether a custom sound exists is modehelper's to say:
@@ -28,6 +28,7 @@ import com.geely.drivemem.util.Prefs;
 public final class LockSound {
     static final String HELPER_SET = "com.geely.modehelper.SET_LOCK_SOUND";
     static final String HELPER_IMPORT = "com.geely.modehelper.IMPORT_LOCK_SOUND";
+    static final String HELPER_GET = "com.geely.modehelper.GET_LOCK_SOUND";
     static final String SETTING = "lock_car_audio_path";
 
     /** Give the car back the sound it had before we changed it. */
@@ -65,7 +66,17 @@ public final class LockSound {
         return CUSTOM.equals(savedBase) ? CUSTOM : CAR;
     }
 
-    /** What the car will play now. */
+    /** What is chosen now, from modehelper. {@code cb} runs on the main
+     * thread with {@link #CAR}, {@link #FART} or {@link #CUSTOM}. */
+    public static void mode(Context ctx, Result cb) {
+        Intent i = new Intent(HELPER_GET).setPackage(Updater.HELPER_PKG);
+        ordered(ctx, i, code -> {
+            if (FART.equals(code) || CUSTOM.equals(code) || CAR.equals(code)) cb.done(code);
+            else cb.done(current(ctx));   // old helper: no GET, the setting says
+        });
+    }
+
+    /** What an old modehelper set: it pointed the car's setting at our file. */
     public static String current(Context ctx) {
         try {
             return idForPath(Settings.System.getString(ctx.getContentResolver(), SETTING));
@@ -75,9 +86,10 @@ public final class LockSound {
         }
     }
 
-    /** The sound to give back when fart mode goes off. */
-    public static String base(Context ctx) {
-        return base(current(ctx), Prefs.file(ctx).getString(KEY_BASE, CAR));
+    /** The sound to give back when fart mode goes off; {@code now} is what
+     * {@link #mode} said. */
+    public static String base(Context ctx, String now) {
+        return base(now, Prefs.file(ctx).getString(KEY_BASE, CAR));
     }
 
     /** True when the installed modehelper is new enough (it can import). */
@@ -94,9 +106,11 @@ public final class LockSound {
      * gives back; switching fart mode on saves what was playing, so a sound
      * picked in the car's own Settings since then is what comes back.
      * {@code cb} runs on the main thread with modehelper's code ("ok",
-     * "no_custom" when nothing was imported yet, ...) or {@link #NO_ANSWER}. */
-    public static void set(Context ctx, String id, Result cb) {
-        String keep = FART.equals(id) ? current(ctx) : id;
+     * "no_custom" when nothing was imported yet, "adb" when its root shell
+     * did not open, ...) or {@link #NO_ANSWER}. {@code now} is what
+     * {@link #mode} said. */
+    public static void set(Context ctx, String id, String now, Result cb) {
+        String keep = FART.equals(id) ? now : id;
         Intent i = new Intent(HELPER_SET).setPackage(Updater.HELPER_PKG).putExtra("sound", id);
         ordered(ctx, i, code -> {
             if ("ok".equals(code) && (CAR.equals(keep) || CUSTOM.equals(keep))) {
