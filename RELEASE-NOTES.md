@@ -12,6 +12,15 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.10.0 — 2026-11-20
+
+- New: Darkest mode. At night, after a minute of driving with no touch, the screen goes to its lowest light. Darkness makes it darker, up to the screen off. It has its own hours, can cover every screen, and Try it shows it at once. A touch or a gear change brings the light back.
+- New: better text for the car's own Energy, Wi-Fi and Settings apps (Config, Integrations, Car app translations).
+- New: the energy chart shows where the energy came from: the battery and regeneration.
+- Fixed: the drive mode and regeneration you saved come back even when you wait before you start the car. They are put back only in Park.
+- Fixed: combustion mode and your own lock sound play when the car locks.
+- Fixed: the charging map fills in the pieces that did not load.
+
 ## v0.9.1 — 2026-11-19
 
 - New: tap a Valet card to see a map of the moves, a timeline, the dashcam clips and the numbers.

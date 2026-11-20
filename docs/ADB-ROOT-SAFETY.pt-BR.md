@@ -62,8 +62,9 @@ do que será colocado no carro.
 2. Compare o SHA-256 do APK com o valor publicado na versão antes de instalar.
 3. Deixe o ADB pela rede desligado quando não estiver usando. O ModeHelper abre
    o ADB por 5 minutos depois que a central liga, mantém aberto enquanto o carro
-   está no Wi-Fi que você definiu como de casa e, fora isso, fecha por tempo.
-   **Manter o ADB sempre ligado** (Configurações → Sistema) remove esse tempo:
+   está no Wi-Fi que você definiu como de casa e, fora isso, fecha por tempo. O
+   Modo mais escuro e o leitor CAN também o abrem por alguns segundos para o
+   passo como root, e fecham logo depois. **Manter o ADB sempre ligado** (Configurações → Sistema) remove esse tempo:
    deixe desligado, a não ser que outro aplicativo precise do ADB. Confirme que
    o ADB está desligado quando você espera que esteja.
 4. Coloque o carro em uma rede Wi-Fi de convidados ou IoT isolada. Não libere

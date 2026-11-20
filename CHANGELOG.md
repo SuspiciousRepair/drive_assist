@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.10.0] — 2026-11-20
+
 ### Added
 - **Car app translations (Config > Integrations).** Better text for the
   car's own Energy, Wi-Fi/Bluetooth and Settings apps in Portuguese,
@@ -64,7 +66,7 @@
   screen light alone went down too little to see. Now a dark layer also
   covers the Dashboard while it is dimmed. The speed and the numbers stay
   readable. A touch or a gear change brings the light back, as before.
-  Same switch, new name: Config → Look → Dark mode. Its settings show
+  Same switch, new name: Config → Look → Darkest mode. Its settings show
   only while it is on:
   - **Its own hours**, 21:00 to 06:00 unless you change them: the car's
     dark mode started it too early in the evening. Drag the two handles

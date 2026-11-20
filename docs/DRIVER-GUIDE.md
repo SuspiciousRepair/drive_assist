@@ -34,7 +34,8 @@ easy to read at arm's length.
 ![Drive mode and regeneration](screenshots/settings-overview-live.png)
 
 Pick the drive mode and the regeneration level you like. Drive Assist puts them
-back when the car wakes, so you do not set them again every trip. Each setting
+back when the car wakes or is switched on, so you do not set them again every
+trip. Drive mode and regeneration are put back only in Park. Each setting
 has a **Restore at start** switch (on by default); turn it off for a setting you
 would rather change in the car's own screen.
 
@@ -131,8 +132,11 @@ region.
   touch or a gear change brings it back. It runs only in its own hours
   (21:00 to 06:00 by default; drag the handles on the 24-hour line).
   Darkness makes it even darker: 0 % is the lowest light only, 100 %
-  turns the screen off (70 % by default). Turn on **On every screen** to darken every app, not only the Dashboard. Its
-  Try button shows it at once.
+  turns the screen off (70 % by default). Turn on **On every screen** to
+  darken every app, not only the Dashboard. Its Try button shows it at once.
+- **Car app translations** (Config → Integrations): better text for the car's
+  own Energy, Wi-Fi and Settings apps. The car's files are not changed; Remove
+  or Cleanup takes it away. Install and Remove wait for Park.
 - **Lock sound**: change the sound the car plays when it locks, or import your
   own.
 - **Cleanup**: a screen that removes Drive Assist, its helper and the CAN reader,
