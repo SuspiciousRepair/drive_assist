@@ -173,12 +173,26 @@ public final class DashRecorder {
     // An event is declared about two key frames after motion begins, and a
     // key frame is analysed up to a second late, so the pre-roll must cover
     // well over three seconds to catch the start.
+    //
+    // When the watch ends (the car left Park) the pre-roll opens the
+    // ordinary clip that follows. The helper reads the gear every 4 s, so
+    // the watch ends up to 5 s after the shift; dropping the pre-roll there
+    // left that long a hole at the start of every drive (seen on the car
+    // 2026-11-20: nothing between 16:53:02 and 16:53:05, the car moving at
+    // 16:53:06). A parked clip still open at that moment is closed, so the
+    // drive is not labelled as parked movement.
+    //
+    // A watch that cannot start, or whose decoder stops giving pictures
+    // (MotionStall), is given up until the car leaves Park: the recorder
+    // then writes all the time, as with the switch off. Writing nothing
+    // because the detector died is the one failure not allowed here.
     static final long PRE_ROLL_MS = 6_000L;
     static final String PARK_SUFFIX = "_park";
 
     private volatile boolean motionWanted;
     private volatile boolean motionEvent;          // set on the motion thread
     private KeyframeMotion motion;                // encoder thread only
+    private boolean motionBroken;                 // encoder thread only
     private final PreRoll preRoll = new PreRoll(PRE_ROLL_MS);   // encoder thread only
 
     /** Parked motion watch on or off; ModeHelperService calls this on every
@@ -187,8 +201,10 @@ public final class DashRecorder {
 
     // Encoder thread, for each key frame.
     private void motionFrame(MediaFormat outFmt, ByteBuffer buf, MediaCodec.BufferInfo info) {
-        if (motionWanted && motion == null && outFmt != null) {
+        if (!motionWanted) motionBroken = false;       // a new Park stay tries again
+        if (motionWanted && !motionBroken && motion == null && outFmt != null) {
             try {
+                motionEvent = false;
                 motion = new KeyframeMotion(outFmt, W, H, new KeyframeMotion.Listener() {
                     @Override public void onEventStarted(int changed) {
                         motionEvent = true;
@@ -202,21 +218,28 @@ public final class DashRecorder {
                 });
                 Log.i(TAG, "motion: watching, recording only on motion");
             } catch (Throwable t) {
-                Log.w(TAG, "motion: could not start: " + t);
-                motionWanted = false;
+                Log.w(TAG, "motion: could not start, recording all the time until Park is left: " + t);
+                motionBroken = true;
             }
         } else if (!motionWanted && motion != null) {
             stopMotion();
         }
-        if (motion != null) motion.offer(buf, info.offset, info.size, info.presentationTimeUs);
+        if (motion == null) return;
+        motion.offer(buf, info.offset, info.size, info.presentationTimeUs);
+        if (motion.stalled()) {
+            Log.w(TAG, "motion: " + MotionStall.LIMIT + " key frames with no picture analysed,"
+                + " recording all the time until Park is left");
+            motionBroken = true;
+            stopMotion();
+        }
     }
 
+    // Leaves the pre-roll alone: the loop opens the next clip with it.
     private void stopMotion() {
         if (motion == null) return;
         motion.close();
         motion = null;
         motionEvent = false;
-        preRoll.clear();
         Log.i(TAG, "motion: stopped watching");
     }
 
@@ -380,11 +403,18 @@ public final class DashRecorder {
                 if (config || buf == null || outFmt == null) { codec.releaseOutputBuffer(idx, false); continue; }
                 long nowUp = SystemClock.uptimeMillis();
                 // Watched whether or not anything is being written.
+                boolean watched = motion != null;
                 if (key) motionFrame(outFmt, buf, info);
+                // The watch ended with a parked clip open: the car left Park
+                // during an event. What follows is a drive and gets its own
+                // clip (this is a key frame, so the rotation below does it).
+                if (watched && motion == null && seg != null && seg.park) rotateArmed = true;
+                // Read once: the motion thread changes it at any moment.
+                boolean event = motion != null && motionEvent;
 
                 // Armed and nothing moving: close what is open, keep the last
                 // seconds in memory, write nothing.
-                if (motion != null && !motionEvent) {
+                if (motion != null && !event) {
                     if (seg != null) {
                         final Seg old = seg;
                         closer.execute(() -> { old.finish(); enforceBudget(ctx, null); });
@@ -399,9 +429,10 @@ public final class DashRecorder {
                     continue;
                 }
 
-                // An event just started: its clip begins with the pre-roll.
-                if (seg == null && motionEvent && !preRoll.isEmpty()) {
-                    seg = new Seg(outFmt, preRoll.firstUptimeMs(), preRoll.firstWallMs(), true);
+                // An event just started, or the watch just ended: the clip
+                // begins with the pre-roll (a parked clip only for an event).
+                if (seg == null && !preRoll.isEmpty()) {
+                    seg = new Seg(outFmt, preRoll.firstUptimeMs(), preRoll.firstWallMs(), event);
                     activeSegment = seg;
                     lastCue = -1;
                     for (PreRoll.Frame f : preRoll.frames()) {
@@ -413,7 +444,7 @@ public final class DashRecorder {
                 }
                 preRoll.clear();
                 if (seg == null && key) {
-                    seg = new Seg(outFmt, nowUp, System.currentTimeMillis(), motionEvent);
+                    seg = new Seg(outFmt, nowUp, System.currentTimeMillis(), event);
                     activeSegment = seg;
                     lastCue = -1;
                 }
@@ -432,7 +463,7 @@ public final class DashRecorder {
                         Seg live = activeSegment;
                         enforceBudget(ctx, live == null ? null : live.stem);
                     });
-                    seg = new Seg(outFmt, nowUp, System.currentTimeMillis(), motionEvent);
+                    seg = new Seg(outFmt, nowUp, System.currentTimeMillis(), event);
                     activeSegment = seg;
                     rotateArmed = false;
                     lastCue = -1;
@@ -469,6 +500,7 @@ public final class DashRecorder {
         } finally {
             running = false;
             stopMotion();
+            preRoll.clear();
             if (seg != null) seg.finish();
             activeSegment = null;
             if (closer != null) {
@@ -499,6 +531,8 @@ public final class DashRecorder {
         final long startMs;
         // Wall-clock start; the name is this second. See the rotation check.
         final long startWallMs;
+        // A parked-motion clip; closed when the watch ends, see the loop.
+        final boolean park;
         FragmentedMp4.Writer out;
         Vtt sub;
         long lastPts = -1;
@@ -508,6 +542,7 @@ public final class DashRecorder {
          * `startWallMs` are those of its first frame. */
         Seg(MediaFormat f, long startUptimeMs, long startWall, boolean park) throws Exception {
             startMs = startUptimeMs;
+            this.park = park;
             // A segment is named after the second it starts in, and only one
             // may start per second (see the rotation check). A recorder
             // restarting within the second its last segment started would

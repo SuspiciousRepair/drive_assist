@@ -28,7 +28,35 @@ javac -d "$MH_OUT" \
   modehelper/test/com/geely/modehelper/ApkRewriteTest.java \
   modehelper/test/com/geely/modehelper/OemTextPolicyTest.java \
   modehelper/src/com/geely/modehelper/BacklightPolicy.java \
-  modehelper/test/com/geely/modehelper/BacklightPolicyTest.java
+  modehelper/test/com/geely/modehelper/BacklightPolicyTest.java \
+  modehelper/src/com/geely/modehelper/MotionGate.java \
+  modehelper/src/com/geely/modehelper/MotionEventPolicy.java \
+  modehelper/src/com/geely/modehelper/MotionStall.java \
+  modehelper/src/com/geely/modehelper/ParkedMonitorPolicy.java \
+  modehelper/src/com/geely/modehelper/PreRoll.java \
+  modehelper/src/com/geely/modehelper/FragmentedMp4.java \
+  modehelper/src/com/geely/modehelper/SegmentFiles.java \
+  modehelper/src/com/geely/modehelper/RecorderState.java \
+  modehelper/src/com/geely/modehelper/RestartBackoff.java \
+  modehelper/src/com/geely/modehelper/PowerWatch.java \
+  modehelper/src/com/geely/modehelper/Vtt.java \
+  modehelper/test/com/geely/modehelper/MotionGateTest.java \
+  modehelper/test/com/geely/modehelper/MotionEventPolicyTest.java \
+  modehelper/test/com/geely/modehelper/MotionStallTest.java \
+  modehelper/test/com/geely/modehelper/ParkedMonitorPolicyTest.java \
+  modehelper/test/com/geely/modehelper/PreRollTest.java \
+  modehelper/test/com/geely/modehelper/FragmentedMp4Test.java \
+  modehelper/test/com/geely/modehelper/SegmentFilesTest.java \
+  modehelper/test/com/geely/modehelper/RecorderStateTest.java \
+  modehelper/test/com/geely/modehelper/RestartBackoffTest.java \
+  modehelper/test/com/geely/modehelper/PowerWatchTest.java \
+  modehelper/test/com/geely/modehelper/VttTest.java
+# The dashcam's own: parked motion (gate, events, pre-roll, the stalled
+# decoder), the segment files, the recorder's state and restarts.
+for t in MotionGate MotionEventPolicy MotionStall ParkedMonitorPolicy PreRoll \
+         FragmentedMp4 SegmentFiles RecorderState RestartBackoff PowerWatch Vtt; do
+  java -cp "$MH_OUT" "com.geely.modehelper.${t}Test" >/dev/null
+done
 java -cp "$MH_OUT" com.geely.modehelper.RestorePolicyTest
 java -cp "$MH_OUT" com.geely.modehelper.ModeRestoreTest
 java -cp "$MH_OUT" com.geely.modehelper.LockSoundPolicyTest

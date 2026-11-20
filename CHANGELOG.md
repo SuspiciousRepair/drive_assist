@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Park monitoring: the first seconds of a drive are recorded.** When the
+  car left Park, the dashcam started the drive's clip up to 5 s late. That
+  clip now starts with the last 6 s kept in memory, so it begins before the
+  shift.
+- **Park monitoring: a drive is no longer labelled "parked: movement".** If
+  something was moving when the car left Park, the parked clip went on into
+  the drive for up to 5 minutes. It now closes there, and the drive gets
+  its own clip.
+- **Park monitoring: no old video at the start of a clip.** The first clip
+  after the car woke could start with a second of video from before it
+  slept, and carry that old time as its name.
+- **Park monitoring cannot stop the dashcam.** If the motion detector
+  stops working, the dashcam records all the time until the car leaves
+  Park, as with the switch off. Before, it would have recorded nothing.
+
 ## [v0.10.0] — 2026-11-20
 
 ### Added

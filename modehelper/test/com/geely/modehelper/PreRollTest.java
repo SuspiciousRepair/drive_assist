@@ -35,6 +35,38 @@ public final class PreRollTest {
 
         p.clear();
         check(p.isEmpty(), "clear");
+
+        // The car slept: uptime stood still (a few seconds pass around the
+        // sleep), the wall clock moved 51 minutes. What was kept before the
+        // sleep must not open the first clip after it.
+        PreRoll s = new PreRoll(6_000);
+        for (long ms = 0; ms < 8_000; ms += 40) frame(s, ms, ms % 1000 == 0);
+        long wake = 8_000 + 5_000, slept = 51 * 60_000L;
+        ByteBuffer b = ByteBuffer.wrap(new byte[] {0, 0, 1, 0x41});
+        s.add(b, 0, 4, false, wake, 1_000_000 + wake + slept, "p");
+        check(s.isEmpty(), "a frame after a hole must drop what was kept, and wait for a key frame");
+        s.add(b, 0, 4, true, wake + 40, 1_000_000 + wake + 40 + slept, "k");
+        s.add(b, 0, 4, false, wake + 80, 1_000_000 + wake + 80 + slept, "p");
+        check(s.frames().size() == 2 && s.firstUptimeMs() == wake + 40
+              && s.firstWallMs() == 1_000_000 + wake + 40 + slept,
+              "after a hole it starts at the first new key frame");
+
+        // Uptime alone (the cameras stopped while the unit stayed awake), and
+        // the wall clock alone (uptime does not count a sleep).
+        PreRoll u = new PreRoll(6_000);
+        frame(u, 0, true);
+        frame(u, 40, false);
+        frame(u, 40 + PreRoll.HOLE_MS + 1, true);
+        check(u.frames().size() == 1 && u.firstUptimeMs() == 40 + PreRoll.HOLE_MS + 1, "hole in uptime");
+        PreRoll w = new PreRoll(6_000);
+        w.add(b, 0, 4, true, 0, 5_000_000, "k");
+        w.add(b, 0, 4, true, 40, 5_000_000 + 40 + PreRoll.HOLE_MS + 1, "k");
+        check(w.frames().size() == 1 && w.firstUptimeMs() == 40, "hole in the wall clock");
+        // An ordinary second between key frames is no hole.
+        PreRoll n = new PreRoll(6_000);
+        frame(n, 0, true);
+        frame(n, PreRoll.HOLE_MS, false);
+        check(n.frames().size() == 2, "frames HOLE_MS apart are still one piece");
         System.out.println("PreRollTest OK");
     }
 }
