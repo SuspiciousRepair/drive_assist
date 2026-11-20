@@ -320,8 +320,11 @@
     <string name="cfg_skyline_random_per_drive_label">Random every drive</string>
     <string name="cfg_theme_header">Theme</string>
     <string name="cfg_dark_mode_header">Dark mode</string>
-    <string name="cfg_extra_dark_label">Extra dark at night</string>
-    <string name="cfg_extra_dark_note">When the car is in dark mode and you drive for a minute without touching the screen, the Dashboard goes as dark as the screen allows. Touch the screen or change gear to bring the light back. The first touch only lights the screen. Your car\'s brightness setting does not change.</string>
+    <string name="cfg_extra_dark_try">Try it</string>
+    <string name="cfg_extra_dark_global">On every screen</string>
+    <string name="cfg_extra_dark_shade">Darkness</string>
+    <string name="cfg_extra_dark_label">Darkest mode</string>
+    <string name="cfg_extra_dark_note">In its hours, when the car is in dark mode and you drive for a minute without touching the screen, Darkest mode dims the screen to its lowest light. Darkness makes it even darker, with a dark layer on top: 0 % is the lowest light only, 100 % turns the screen off. Touch the screen or change gear to bring the light back. The first touch only lights the screen. Your car\'s brightness setting does not change.</string>
     <string name="cfg_theme_selection_header">Theme selection</string>
     <string name="cfg_theme_sub">Applies to every Drive Assist screen. The thumbnail shows the color and the shape of the cards — the change is immediate.</string>
     <string name="cfg_theme_selected">%1$s  ✓</string>

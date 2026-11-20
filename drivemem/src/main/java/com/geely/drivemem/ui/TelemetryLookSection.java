@@ -124,15 +124,62 @@ public final class TelemetryLookSection extends LinearLayout {
         appNote.setText(activity.getString(R.string.cfg_appearance_note));
         appCard.addView(appNote);
 
-        // Extra dark (#89): read by the Dashboard on its next onResume, so
-        // no recreate is needed.
+        // Darkest mode (#89, #130): read by the Dashboard on its next onResume,
+        // so no recreate is needed. Its settings show only while it is on.
+        LinearLayout darkOpts = new LinearLayout(activity);
+        darkOpts.setOrientation(LinearLayout.VERTICAL);
+        darkOpts.setVisibility(com.geely.drivemem.util.Prefs.getExtraDark(activity) ? View.VISIBLE : View.GONE);
         appCard.addView(toggleRow(activity, activity.getString(R.string.cfg_extra_dark_label),
             com.geely.drivemem.util.Prefs.getExtraDark(activity),
-            on -> com.geely.drivemem.util.Prefs.setExtraDark(activity, on)));
+            on -> {
+                com.geely.drivemem.util.Prefs.setExtraDark(activity, on);
+                darkOpts.setVisibility(on ? View.VISIBLE : View.GONE);
+                com.geely.drivemem.services.DarkestOverlayService.sync(activity);
+            }));
         TextView darkNote = new TextView(activity);
         darkNote.setTextColor(Style.TEXT_DIM); darkNote.setTextSize(14);
         darkNote.setText(activity.getString(R.string.cfg_extra_dark_note));
         appCard.addView(darkNote);
+        appCard.addView(darkOpts);
+        // Its own hours (#130): the car's dark mode starts too early for it.
+        // One 24 h line with midnight in the middle, two handles.
+        darkOpts.addView(new HoursBar(activity,
+            com.geely.drivemem.util.Prefs.getExtraDarkStartMin(activity),
+            com.geely.drivemem.util.Prefs.getExtraDarkEndMin(activity),
+            (start, end) -> {
+                com.geely.drivemem.util.Prefs.setExtraDarkStartMin(activity, start);
+                com.geely.drivemem.util.Prefs.setExtraDarkEndMin(activity, end);
+            }), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        // How dark the layer is (Dashboard and every screen alike).
+        TextView shadeLbl = Style.label(activity, activity.getString(R.string.cfg_extra_dark_shade));
+        shadeLbl.setPadding(0, Style.dp(activity, 8), 0, 0);
+        darkOpts.addView(shadeLbl);
+        // 0 % the lowest light only, 100 % the screen off (ExtraDark.OFF_PCT).
+        darkOpts.addView(new PercentBar(activity,
+            com.geely.drivemem.util.Prefs.getExtraDarkShadePct(activity),
+            pct -> com.geely.drivemem.util.Prefs.setExtraDarkShadePct(activity, pct)),
+            new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        // Over every app (DarkestOverlayService), not only the Dashboard.
+        darkOpts.addView(toggleRow(activity, activity.getString(R.string.cfg_extra_dark_global),
+            com.geely.drivemem.util.Prefs.getExtraDarkGlobal(activity),
+            on -> {
+                com.geely.drivemem.util.Prefs.setExtraDarkGlobal(activity, on);
+                com.geely.drivemem.services.DarkestOverlayService.sync(activity);
+            }));
+        // Try: dims at once, in Park and by day too. A touch brings the light
+        // back. On every screen: the overlay dims over this screen; else the
+        // Dashboard opens already dimmed.
+        darkOpts.addView(Style.action(activity, activity.getString(R.string.cfg_extra_dark_try), 0xFF4A6B82, () -> {
+            if (com.geely.drivemem.util.Prefs.getExtraDarkGlobal(activity)) {
+                android.content.Intent t = new android.content.Intent(activity,
+                    com.geely.drivemem.services.DarkestOverlayService.class)
+                    .setAction(com.geely.drivemem.services.DarkestOverlayService.ACTION_TRY);
+                try { activity.startForegroundService(t); } catch (Throwable ignored) {}
+            } else {
+                activity.startActivity(new android.content.Intent(activity, ComfortActivity.class)
+                    .putExtra(ExtraDark.EXTRA_TRY, true));
+            }
+        }));
 
         TextView sub = new TextView(activity);
         sub.setTextColor(Style.TEXT_DIM); sub.setTextSize(14);

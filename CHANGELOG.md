@@ -40,6 +40,24 @@
   window. The on signal and the restore rules come from Funkyfal's fork.
 
 ### Changed
+- **Extra dark is now Darkest mode, and it is darker (#130).** The
+  screen light alone went down too little to see. Now a dark layer also
+  covers the Dashboard while it is dimmed. The speed and the numbers stay
+  readable. A touch or a gear change brings the light back, as before.
+  Same switch, new name: Config → Look → Dark mode. Its settings show
+  only while it is on:
+  - **Its own hours**, 21:00 to 06:00 unless you change them: the car's
+    dark mode started it too early in the evening. Drag the two handles
+    on a 24-hour line with midnight in the middle.
+  - **On every screen**: the dark layer covers every app, not only the
+    Dashboard. The car's own top and bottom bars get the low screen light
+    only.
+  - **Darkness**: Darkest mode always dims the screen to its lowest
+    light. Darkness makes it even darker with the dark layer: 0 % is the
+    lowest light only, 100 % turns the screen off (70 % unless you change
+    it). If Drive Assist stops while the screen is dark, the helper turns
+    the light back on by itself within 15 seconds.
+  - **Try it**: goes dark at once, in Park and by day too.
 - **Energy by use: regen is a source now.** The chart starts with where
   the energy came from: the battery, and regen (what the motor sent back
   while braking, which the car used again). Both go into Used, and Used

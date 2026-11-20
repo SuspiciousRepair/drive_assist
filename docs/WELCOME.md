@@ -50,7 +50,7 @@ ModeHelper stops starting it.
   you tap Install in **Car app translations**. A patched copy is put in
   front of each app; the car's own files are not changed. Remove (or a
   reboot with the integration off) gives the factory text back.
-- **Screen brightness**: Extra dark dims the panel at night.
+- **Screen brightness**: Darkest mode dims the panel at night.
 - **Wi-Fi and ADB** on the head unit (see below).
 - **Its own updates**: it downloads and installs new versions, only in Park.
 

@@ -68,6 +68,8 @@ public class ComfortActivity extends Activity {
     private final Handler ui = new Handler(Looper.getMainLooper());
     // Config > Look > Extra dark (#89): dims this screen at night while driving.
     private final ExtraDark extraDark = new ExtraDark(this, ui);
+    /** Config's Darkest mode Try button opened this screen. */
+    private boolean tryDarkest;
     private TextView hint;
     // elements that follow the colour of the cabin ambient light
     private ArtView art;
@@ -185,6 +187,7 @@ public class ComfortActivity extends Activity {
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
+        takeTryDarkest(getIntent());
         Style.load(this);                  // before any View: the palette rules the drawing
         themeId = Style.current().id;
         themeLight = Style.LIGHT;
@@ -370,6 +373,7 @@ public class ComfortActivity extends Activity {
             sizeKonamiZone(konamiZone);
         }
 
+        extraDark.attach(screen);   // last child: the shade is above everything
         setContentView(screen);
 
         CarActor.get(this).runOnCarThread(() -> {
@@ -2348,6 +2352,21 @@ public class ComfortActivity extends Activity {
         EntityBus.unsubscribe("car.hvac_rear_defrost", hvacRearDefrostListener);
     }
 
+    // singleInstance: Config's Try button reaches a running Dashboard here.
+    @Override protected void onNewIntent(Intent i) {
+        super.onNewIntent(i);
+        setIntent(i);
+        takeTryDarkest(i);
+    }
+
+    /** Reads the Try extra once, then drops it, so a later recreate() (theme
+     * change) does not dim again. */
+    private void takeTryDarkest(Intent i) {
+        if (i == null || !i.getBooleanExtra(ExtraDark.EXTRA_TRY, false)) return;
+        tryDarkest = true;
+        i.removeExtra(ExtraDark.EXTRA_TRY);
+    }
+
     @Override protected void onResume() {
         super.onResume();
         // theme OR appearance changed on the Config screen -> redraw this
@@ -2388,6 +2407,7 @@ public class ComfortActivity extends Activity {
         catch (Throwable t) { android.util.Log.w(CarAccess.TAG, "resume backup: " + t); }
         startCarActorPolls();
         extraDark.resume();
+        if (tryDarkest) { tryDarkest = false; extraDark.tryNow(); }
         ui.removeCallbacks(rulerPoll);
         ui.post(rulerPoll);
         PanelState.setListener(panelListener);
