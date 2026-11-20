@@ -144,6 +144,13 @@ public final class AbrpUploader {
     // Set directly by post() the moment a request fails -- centralizing it
     // there means every caller (flushQueue, testConnect) gets it for free.
     private static volatile String lastError = null;
+    // What ABRP wrote back to the last request, OK or not. An HTTP 200 alone
+    // proved nothing on 2026-11-19: three late /bulk batches (171, 178 and
+    // 98 points, one of them a whole DC charge) each got a 200 and none of
+    // them showed in ABRP's trip. The body is the only place ABRP can say
+    // why, so it goes in the attempt log next to the status.
+    private static volatile String lastReply = null;
+    static final int REPLY_CAP = 300;
     private static final int LOG_CAP = 30;
     private static final java.util.Deque<String> debugLog = new java.util.concurrent.ConcurrentLinkedDeque<>();
 
@@ -182,7 +189,8 @@ public final class AbrpUploader {
         if (app == null) return;
         String line = ATTEMPT_LOG_FMT.format(new java.util.Date()) + '\t'
             + (ok ? "OK" : "FAILED(" + lastError + ")") + '\t' + kind + '\t'
-            + (representative != null ? representative.toString() : "(no data)");
+            + (representative != null ? representative.toString() : "(no data)")
+            + "\treply=" + (lastReply != null ? lastReply : "(none)");
         try {
             java.io.File dir = app.getExternalFilesDir(null);
             if (dir == null) dir = app.getFilesDir();
@@ -199,7 +207,8 @@ public final class AbrpUploader {
         lastOk = ok;
         for (Listener l : listeners) l.onAbrpAttempt();
         logDebug((ok ? "OK " : "FAILED (" + lastError + ") ") + "[" + kind + "] "
-            + (representative != null ? representative.toString() : "(no data)"));
+            + (representative != null ? representative.toString() : "(no data)")
+            + " reply=" + (lastReply != null ? lastReply : "(none)"));
         logAttemptToFile(ok, kind, representative);
     }
 
@@ -584,7 +593,13 @@ public final class AbrpUploader {
                 }
             }
             int code = conn.getResponseCode();
-            if (code < 200 || code >= 300) {
+            boolean ok2xx = code >= 200 && code < 300;
+            try {
+                lastReply = readReply(ok2xx ? conn.getInputStream() : conn.getErrorStream());
+            } catch (Throwable t) {
+                lastReply = "(unreadable: " + t.getClass().getSimpleName() + ")";
+            }
+            if (!ok2xx) {
                 String msg = "HTTP " + code;
                 Log.w(TAG, "abrp: " + msg + " from " + urlStr);
                 lastError = msg;
@@ -595,10 +610,28 @@ public final class AbrpUploader {
         } catch (Throwable t) {
             Log.w(TAG, "abrp: " + t);
             lastError = t.getClass().getSimpleName() + ": " + t.getMessage();
+            lastReply = null;   // no answer came back at all
             return false;
         } finally {
             if (conn != null) conn.disconnect();
         }
+    }
+
+    /** ABRP's answer as one log-safe line: at most REPLY_CAP characters, with
+     * tabs and line breaks folded to spaces (the attempt log is tab-separated,
+     * one attempt per line). Null stream (no body) gives "(empty)".
+     * Package-visible for the pure unit test. */
+    static String readReply(java.io.InputStream in) throws java.io.IOException {
+        if (in == null) return "(empty)";
+        StringBuilder sb = new StringBuilder();
+        try (java.io.Reader r = new java.io.InputStreamReader(in, StandardCharsets.UTF_8)) {
+            char[] buf = new char[256];
+            int n;
+            while (sb.length() <= REPLY_CAP && (n = r.read(buf)) > 0) sb.append(buf, 0, n);
+        }
+        String one = sb.toString().replaceAll("\\s+", " ").trim();
+        if (one.isEmpty()) return "(empty)";
+        return one.length() > REPLY_CAP ? one.substring(0, REPLY_CAP) + "..." : one;
     }
 
     private static Integer asInt(Object o) {
