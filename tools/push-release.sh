@@ -66,11 +66,14 @@ fi
 
 # The release must describe itself: a CHANGELOG.md section and driver-facing
 # notes for exactly this tag (docs/RELEASE-PROCESS.md, "Documentation").
-if ! git show "$SOURCE_REF:CHANGELOG.md" | grep -q "^## \[$TAG\]"; then
+# grep -c, not grep -q: -q stops reading at the first match, git show then
+# dies of SIGPIPE, and pipefail turns a found section into "missing"
+# (v0.10.0 was blocked by it).
+if ! git show "$SOURCE_REF:CHANGELOG.md" | grep -c "^## \[$TAG\]" >/dev/null; then
     echo "Release blocked: CHANGELOG.md in $SOURCE_REF has no '## [$TAG]' section." >&2
     exit 2
 fi
-if ! git show "$SOURCE_REF:RELEASE-NOTES.md" | grep -qE "^## $TAG([[:space:]]|\$)"; then
+if ! git show "$SOURCE_REF:RELEASE-NOTES.md" | grep -cE "^## $TAG([[:space:]]|\$)" >/dev/null; then
     echo "Release blocked: RELEASE-NOTES.md in $SOURCE_REF has no '## $TAG' section." >&2
     exit 2
 fi

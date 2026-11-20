@@ -110,13 +110,13 @@ fi
 
 # Connect to vehicle
 echo -e "${DIM}Checking vehicle connection at ${D}...${NC}"
-if ! adb devices | grep -q "^${D}[[:space:]]*device"; then
+if ! adb devices | grep -c "^${D}[[:space:]]*device" >/dev/null; then
     echo -e "${YELLOW}Connecting to vehicle at ${D}...${NC}"
     adb connect "$D" >/dev/null 2>&1 || true
     sleep 1
 fi
 
-if ! adb devices | grep -q "^${D}[[:space:]]*device"; then
+if ! adb devices | grep -c "^${D}[[:space:]]*device" >/dev/null; then
     echo -e "${RED}Error: Unable to connect to vehicle at ${D}.${NC}"
     echo "Make sure the car is on the local network and ADB is enabled."
     exit 1
