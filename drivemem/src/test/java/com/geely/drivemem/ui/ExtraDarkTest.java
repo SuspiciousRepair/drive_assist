@@ -102,4 +102,24 @@ public class ExtraDarkTest {
         assertTrue("darker than the floor alone", ExtraDark.SHADE_ALPHA >= 0.5f);
         assertTrue("not black: speed still readable", ExtraDark.SHADE_ALPHA < 1f);
     }
+
+    // Review 2026-11-20: a dark screen lights again when its hours end or
+    // the car leaves dark mode, not only on a touch.
+    @Test public void darkScreenLightsWhenItsTimeIsOver() {
+        assertTrue(ExtraDark.stayDark(true, true, true));
+        assertTrue("hours over", !ExtraDark.stayDark(true, true, false));
+        assertTrue("car left dark mode", !ExtraDark.stayDark(true, false, true));
+        assertTrue("mode switched off", !ExtraDark.stayDark(false, true, true));
+    }
+
+    // Review 2026-11-20: the whole line (12:00 to 12:00, all day) shows as
+    // picked when Config opens again, not as the default.
+    @Test public void wholeDayShowsAsTheWholeLine() {
+        int[] p = HoursBar.positions(12 * 60, 12 * 60);
+        assertTrue(p[0] == 0 && p[1] == HoursBar.DAY);
+        p = HoursBar.positions(21 * 60, 21 * 60);
+        assertTrue("any start equal to end is all day", p[0] == 0 && p[1] == HoursBar.DAY);
+        p = HoursBar.positions(22 * 60, 5 * 60);
+        assertTrue(p[0] == HoursBar.posOf(22 * 60) && p[1] == HoursBar.posOf(5 * 60));
+    }
 }

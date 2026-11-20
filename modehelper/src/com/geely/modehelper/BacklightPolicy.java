@@ -35,6 +35,13 @@ final class BacklightPolicy {
         return nowMs - lastBeatMs >= BEAT_TIMEOUT_MS;
     }
 
+    /** Whether to turn ADB off after a write: only when this write turned
+     * it on ({@code openedAt} is AdbControl.openCount() right after, -1 when
+     * it was already on) and nobody switched it on since (the count moved). */
+    static boolean closeAdbAfter(int openedAt, int countNow) {
+        return openedAt >= 0 && openedAt == countNow;
+    }
+
     /** The car's level, kept lit: a stored 0 or 1 must not leave the panel
      * dark after a restore. */
     static int restoreLevel(int carLevel) {

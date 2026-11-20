@@ -64,7 +64,9 @@ explanation of what will be installed.
    installing it.
 3. Keep network ADB off when you are not actively using it. ModeHelper opens it
    for 5 minutes after the head unit boots, keeps it open while the car is on
-   the Wi-Fi you named as home, and closes it on a timer otherwise. **Keep ADB
+   the Wi-Fi you named as home, and closes it on a timer otherwise. Darkest
+   mode and the CAN reader also open it for a few seconds to do their root
+   step, and close it again right after. **Keep ADB
    always on** (Settings → System) removes that timer: leave it off unless
    another app needs ADB. Check that ADB is off when you expect it to be.
 4. Put the car on an isolated guest or IoT Wi-Fi network. Do not give the head

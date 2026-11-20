@@ -56,7 +56,10 @@
     light. Darkness makes it even darker with the dark layer: 0 % is the
     lowest light only, 100 % turns the screen off (70 % unless you change
     it). If Drive Assist stops while the screen is dark, the helper turns
-    the light back on by itself within 15 seconds.
+    the light back on by itself, in about half a minute at most. The
+    screen also lights again when the mode's hours end or the car leaves
+    dark mode. With ADB off, the helper opens it for a few seconds to set
+    the screen light, then closes it again.
   - **Try it**: goes dark at once, in Park and by day too.
 - **Energy by use: regen is a source now.** The chart starts with where
   the energy came from: the battery, and regen (what the motor sent back

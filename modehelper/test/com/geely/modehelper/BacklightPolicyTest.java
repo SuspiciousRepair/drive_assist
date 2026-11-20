@@ -26,6 +26,11 @@ public final class BacklightPolicyTest {
         check(BacklightPolicy.restoreLevel(0) == 2, "a stored 0 is not off");
         check(BacklightPolicy.restoreLevel(999) == 255, "kept in range");
 
+        // ADB opened for a write is closed after it, unless someone else opened it meanwhile
+        check(BacklightPolicy.closeAdbAfter(7, 7), "we opened it, nobody else since: close");
+        check(!BacklightPolicy.closeAdbAfter(-1, 7), "it was already on: leave it");
+        check(!BacklightPolicy.closeAdbAfter(7, 8), "opened again by someone else: leave it");
+
         System.out.println("BacklightPolicyTest: OK");
     }
 }
