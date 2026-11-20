@@ -17,8 +17,8 @@ import com.geely.drivemem.util.Prefs;
  *
  * modehelper owns the sound and the choice: it ships the fart, imports a
  * custom WAV (from a USB stick or a link), and mounts the chosen one over
- * the car's own sounds, so whichever one is picked in the car's Settings
- * plays ours (see modehelper's LockSoundReceiver). We only ask: SET to
+ * the sound picked in the car's own Settings; picking another sound there
+ * takes ours off (see modehelper's LockSoundReceiver). We only ask: SET to
  * choose, GET to show what is chosen. An old modehelper has no GET; then
  * the setting it pointed at our file is what we read.
  *

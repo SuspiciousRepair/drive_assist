@@ -59,29 +59,54 @@ public final class LockSoundPolicyTest {
         check(eq("car", LockSoundPolicy.idForSetting(DIR + "/lock_flatulence.wav")), "an unknown file of ours is car");
         check(eq("car", LockSoundPolicy.idForSetting(null)), "empty is car");
 
+        // The car sound our mount goes over: the picked one.
+        check(eq(OEM, LockSoundPolicy.target(OEM, null)), "the picked car sound");
+        check(eq(OEM, LockSoundPolicy.target(OURS_FART, OEM)), "an old helper's saved pick");
+        check(eq(LockSoundPolicy.OEM_DEFAULT, LockSoundPolicy.target(null, null)), "empty: the car's default");
+        check(eq(LockSoundPolicy.OEM_DEFAULT, LockSoundPolicy.target(OURS_FART, OURS_CUSTOM)), "never one of ours");
+
         // The root commands.
-        String mount = LockSoundPolicy.mountCommand(OURS_FART);
-        check(mount.contains("mount -o bind " + LockSoundPolicy.MOUNT_FILE + " $t"), "mounts the copy");
-        check(mount.contains("for t in /vendor/etc/carlock/*.wav"), "over every car sound");
+        String mount = LockSoundPolicy.mountCommand(OURS_FART, OEM);
+        check(mount.contains("mount -o bind " + LockSoundPolicy.MOUNT_FILE + " " + OEM), "mounts the copy over the pick");
+        check(!mount.contains("*.wav"), "over the pick only, not every car sound");
+        check(mount.contains("[ -f " + OEM + " ]"), "only over a sound that exists");
         check(mount.contains("chcon " + LockSoundPolicy.LABEL + " "), "labelled like the car's sounds");
         check(mount.indexOf("umount -l") < mount.indexOf("cp -f"), "old mounts off before the copy changes");
-        check(mount.endsWith("echo " + LockSoundPolicy.MOUNTED + "; }"), "says when it mounted");
-        LockSoundPolicy.mountCommand(OURS_CUSTOM);
+        check(mount.endsWith("echo " + LockSoundPolicy.MOUNTED), "says when it mounted");
+        LockSoundPolicy.mountCommand(OURS_CUSTOM, LockSoundPolicy.OEM_DEFAULT);
         for (String bad : new String[] {null, "/data/local/tmp/x.wav", DIR + "/lock_x.wav",
                 DIR + "/lock_fart.wav; reboot", "/data/user/0/com.geely.modehelper/files/../lock_fart.wav"}) {
             boolean refused = false;
-            try { LockSoundPolicy.mountCommand(bad); } catch (IllegalArgumentException e) { refused = true; }
+            try { LockSoundPolicy.mountCommand(bad, OEM); } catch (IllegalArgumentException e) { refused = true; }
             check(refused, "must refuse " + bad);
+        }
+        for (String bad : new String[] {null, "/system/etc/hosts", OURS_FART, OEM + "; reboot",
+                "/vendor/etc/carlock/../../system/x.wav"}) {
+            boolean refused = false;
+            try { LockSoundPolicy.mountCommand(OURS_FART, bad); } catch (IllegalArgumentException e) { refused = true; }
+            check(refused, "must refuse target " + bad);
         }
         String un = LockSoundPolicy.unmountCommand();
         check(un.contains("grep ' " + LockSoundPolicy.MOUNT_ROOT + "'"), "only our mounts are taken away");
         check(un.endsWith("echo " + LockSoundPolicy.REMOVED), "says when done");
 
         String info = "1024 23 259:17 /local/locksound/lock.wav /vendor/etc/carlock/haoyunbugu.wav rw - ext4 x rw\n"
-            + "1025 23 259:17 /local/locksound/lock.wav /vendor/etc/carlock/dajidali.wav rw - ext4 x rw\n"
             + "1021 22 259:17 /local/oem-i18n/AutoEnergy.apk /system/app/AutoEnergy/AutoEnergy.apk rw - ext4 x rw\n";
-        check(LockSoundPolicy.countMounts(info) == 2, "counts our two mounts, not the others");
-        check(LockSoundPolicy.countMounts("") == 0 && LockSoundPolicy.countMounts(null) == 0, "none");
+        java.util.List<String> mounted = LockSoundPolicy.mountedTargets(info);
+        check(mounted.size() == 1 && eq(OEM, mounted.get(0)), "lists our mount, not the others");
+        check(LockSoundPolicy.mountedTargets("").isEmpty() && LockSoundPolicy.mountedTargets(null).isEmpty(), "none");
+
+        // A new pick in the car's own Settings takes ours off.
+        check(!LockSoundPolicy.pickedAnother("fart", mounted, OEM), "same pick: ours stays");
+        check(LockSoundPolicy.pickedAnother("fart", mounted, "/vendor/etc/carlock/dajidali.wav"), "another pick: ours off");
+        check(LockSoundPolicy.pickedAnother("custom", mounted, null), "empty setting is the default, another pick");
+        check(!LockSoundPolicy.pickedAnother("car", mounted, "/vendor/etc/carlock/dajidali.wav"), "car: nothing to take off");
+        check(!LockSoundPolicy.pickedAnother("fart", new java.util.ArrayList<>(), "/vendor/etc/carlock/dajidali.wav"),
+            "nothing mounted (a reboot) is not a new pick");
+        check(!LockSoundPolicy.pickedAnother("fart", mounted, OURS_FART), "an old helper's setting is not a pick");
+        java.util.List<String> def = LockSoundPolicy.mountedTargets(
+            "9 1 259:17 /local/locksound/lock.wav " + LockSoundPolicy.OEM_DEFAULT + " rw - ext4 x rw\n");
+        check(!LockSoundPolicy.pickedAnother("fart", def, null), "empty setting on the default mount: ours stays");
 
         // The import check.
         check(eq("ok", LockSoundPolicy.checkWav(wavHead(), 264678)), "a small wav must pass");

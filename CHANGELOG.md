@@ -26,10 +26,10 @@
 - **Combustion mode plays again.** The car would not play our lock sound:
   its player may read only the car's own sounds, not files from our app,
   so locking played nothing or the car's sound. ModeHelper now places our
-  sound on top of each of the car's own lock sounds (a bind mount, through
-  the local ADB). Whichever sound is picked, here or in the car's own
-  Settings, plays ours. Car's sound takes it away. After a restart of the
-  car, ModeHelper puts it back. The car's own files are never changed.
+  sound on top of the lock sound picked in the car's own Settings (a bind
+  mount, through the local ADB). Picking another sound there takes ours
+  away, and so does Car's sound. After a restart of the car, ModeHelper
+  puts it back. The car's own files are never changed.
 - **Drive mode and regeneration come back after a slow start (#130).**
   The saved choice was put back only in the 15 seconds after the screen
   woke. A driver who waited before pressing the brake started the car

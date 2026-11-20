@@ -215,7 +215,7 @@
     <string name="cfg_lock_sound_import_download">Could not download that link.</string>
     <string name="cfg_lock_sound_import_failed">Import failed.</string>
     <string name="cfg_lock_sound_import_first">Import a sound first: from USB or from a link.</string>
-    <string name="cfg_lock_sound_hint">Plays when you lock the car with the key. Custom sound: a WAV file of 1 MB or less, named LockChime.wav at the top of a USB stick, or a link. It plays whichever sound is picked in the car\'s own Settings. Car\'s sound gives back the car\'s own sounds.</string>
+    <string name="cfg_lock_sound_hint">Plays when you lock the car with the key. Custom sound: a WAV file of 1 MB or less, named LockChime.wav at the top of a USB stick, or a link. It plays over the sound picked in the car\'s own Settings. Picking another sound there, or Car\'s sound, gives back the car\'s own sound.</string>
     <string name="cfg_lock_sound_no_shell">Could not reach the car\'s system shell. Try again.</string>
     <string name="cfg_lock_sound_needs_helper">Needs a newer ModeHelper. Update it in Config &gt; System.</string>
     <string name="cfg_purge_open_header">Crack-all-windows target (0–100)</string>

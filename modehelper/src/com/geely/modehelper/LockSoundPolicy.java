@@ -9,10 +9,11 @@ package com.geely.modehelper;
  * that read the car's own sounds ({@code vendor_configs_file}) and not our
  * files dir: pointed at our file, the car played nothing (avc denied,
  * 2026-11-20). So our sound is bind-mounted, through the local root shell,
- * over EVERY sound in {@link #CARLOCK}. The setting keeps naming a car
- * sound: whichever one is picked, in our screen or in the car's own
- * Settings, plays ours. Nothing on /vendor is written; a reboot drops the
- * mounts and {@link LockSoundReceiver#reapply} puts them back.
+ * over the ONE car sound the setting names (the one picked in the car's own
+ * Settings). Picking another sound there is the owner taking the car's
+ * sounds back: {@link #pickedAnother} sees it and the mount comes off. Nothing
+ * on /vendor is written; a reboot drops the mount and
+ * {@link LockSoundReceiver#reapply} puts it back.
  *
  * Ids: "car" takes our mounts away (the car's sounds play again); "fart" is
  * bundled; "custom" is the file the user imported (USB or link), and exists
@@ -120,7 +121,7 @@ final class LockSoundPolicy {
         return OK;
     }
 
-    /** The car's own lock sounds. Every *.wav here gets our mount. */
+    /** The car's own lock sounds. Our mount goes over one of them. */
     static final String CARLOCK = "/vendor/etc/carlock";
     /** Where the root shell keeps the copy it mounts. */
     static final String MOUNT_DIR = "/data/local/locksound";
@@ -157,7 +158,7 @@ final class LockSoundPolicy {
 
     /**
      * What to write to the setting, or null to leave it. A car sound the
-     * user picked is never changed: our mount is on all of them. Only a
+     * user picked is never changed: our mount goes over it. Only a
      * setting our mount cannot cover is fixed: our own file (left by an old
      * helper; the car cannot play it), or for fart/custom anything that is
      * not a car sound (empty, a USB path).
@@ -171,15 +172,38 @@ final class LockSoundPolicy {
         return isOem(current) ? null : back;
     }
 
-    /** How many of our mounts a mountinfo text lists. */
-    static int countMounts(String mountinfo) {
-        int n = 0;
-        if (mountinfo == null) return 0;
+    /** The car sound our mount goes over: the one the setting names, else
+     * the one an old helper saved, else the car's default. */
+    static String target(String current, String savedPrev) {
+        if (isOem(current)) return current;
+        return isOem(savedPrev) ? savedPrev : OEM_DEFAULT;
+    }
+
+    /** The car sounds our mounts cover, as a mountinfo text lists them. */
+    static java.util.List<String> mountedTargets(String mountinfo) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (mountinfo == null) return out;
         for (String line : mountinfo.split("\n")) {
             String[] f = line.split(" ");
-            if (f.length > 4 && f[3].startsWith(MOUNT_ROOT) && f[4].startsWith(CARLOCK + "/")) n++;
+            if (f.length > 4 && f[3].startsWith(MOUNT_ROOT) && f[4].startsWith(CARLOCK + "/")) out.add(f[4]);
         }
-        return n;
+        return out;
+    }
+
+    /**
+     * Did the owner pick another sound in the car's own Settings while ours
+     * was on? Then the setting names a sound our mount does not cover, and
+     * ours must come off. Nothing mounted (a reboot) is not a new pick.
+     *
+     * @param mode    our chosen id
+     * @param mounted {@link #mountedTargets}
+     * @param current the setting now (empty means the car's default)
+     */
+    static boolean pickedAnother(String mode, java.util.List<String> mounted, String current) {
+        if (CAR.equals(mode) || mounted == null || mounted.isEmpty()) return false;
+        if (isOurs(current)) return false;   // an old helper's setting: reapply moves it
+        String now = (current == null || current.isEmpty()) ? OEM_DEFAULT : current;
+        return !mounted.contains(now);
     }
 
     // Removes every mount whose source is ours, however many. Twice: a file
@@ -191,17 +215,19 @@ final class LockSoundPolicy {
     }
 
     /** Copies {@code src} (our file) to {@link #MOUNT_FILE}, labels it like
-     * the car's sounds and mounts it over each of them. Prints
-     * {@link #MOUNTED} when at least one mount took. */
-    static String mountCommand(String src) {
+     * the car's sounds and mounts it over {@code target}, one car sound.
+     * Any older mount of ours goes first. Prints {@link #MOUNTED} when the
+     * mount took. */
+    static String mountCommand(String src, String target) {
         if (src == null || src.contains("..") || !OUR_FILE.matcher(src).matches())
             throw new IllegalArgumentException("refused: " + src);
+        if (!isOem(target)) throw new IllegalArgumentException("refused: " + target);
         return unmountOurs()
             + "mkdir -p " + MOUNT_DIR + " && chmod 755 " + MOUNT_DIR
             + " && cp -f " + src + " " + MOUNT_FILE + " && chmod 644 " + MOUNT_FILE
             + " && chcon " + LABEL + " " + MOUNT_FILE
-            + " && { ok=; for t in " + CARLOCK + "/*.wav; do mount -o bind " + MOUNT_FILE + " $t && ok=1; done;"
-            + " [ -n \"$ok\" ] && echo " + MOUNTED + "; }";
+            + " && [ -f " + target + " ] && mount -o bind " + MOUNT_FILE + " " + target
+            + " && echo " + MOUNTED;
     }
 
     /** Takes every mount of ours away and deletes the copy. Prints {@link #REMOVED}. */

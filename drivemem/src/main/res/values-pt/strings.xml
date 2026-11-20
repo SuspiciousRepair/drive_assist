@@ -203,7 +203,7 @@
     <string name="cfg_lock_sound_import_download">Não foi possível baixar esse link.</string>
     <string name="cfg_lock_sound_import_failed">Falha ao importar.</string>
     <string name="cfg_lock_sound_import_first">Importe um som primeiro: do USB ou de um link.</string>
-    <string name="cfg_lock_sound_hint">Toca quando você tranca o carro pela chave. Som personalizado: um arquivo WAV de até 1 MB, chamado LockChime.wav na raiz do pendrive, ou um link. Vale para qualquer som escolhido nos Ajustes do próprio carro. Som do carro devolve os sons do próprio carro.</string>
+    <string name="cfg_lock_sound_hint">Toca quando você tranca o carro pela chave. Som personalizado: um arquivo WAV de até 1 MB, chamado LockChime.wav na raiz do pendrive, ou um link. Toca no lugar do som escolhido nos Ajustes do próprio carro. Escolher outro som lá, ou Som do carro, devolve o som do próprio carro.</string>
     <string name="cfg_lock_sound_no_shell">Não foi possível acessar o sistema do carro. Tente de novo.</string>
     <string name="cfg_lock_sound_needs_helper">Precisa de um ModeHelper mais novo. Atualize em Config &gt; Sistema.</string>
     <string name="cfg_purge_open_header">Alvo do botão de abrir todos os vidros (0–100)</string>
