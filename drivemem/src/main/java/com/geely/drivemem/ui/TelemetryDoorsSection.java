@@ -75,9 +75,8 @@ public final class TelemetryDoorsSection extends LinearLayout {
     }
 
     // The sound the car plays when locked with the key. Everything here is
-    // painted from what the car's setting really says (LockSound.current),
-    // not from what was last tapped: a pick in the car's own Settings wins,
-    // and this card must show it. Moves nothing, so unlike the rest of the
+    // painted from what modehelper says is chosen (LockSound.mode), not from
+    // what was last tapped. Moves nothing, so unlike the rest of the
     // page it is not a safety question; it only needs a new enough modehelper.
     //
     // Fart mode is a switch on top of the normal pick: on plays the bundled
@@ -87,19 +86,22 @@ public final class TelemetryDoorsSection extends LinearLayout {
         boolean supported = LockSound.helperSupports(activity);
         LockSoundViews v = new LockSoundViews();
         v.supported = supported;
-        // Every answer from modehelper repaints from the car's setting, so the
-        // screen is the truth, not our hope.
+        // A first guess until modehelper answers (old helpers: the answer).
+        v.mode = LockSound.current(activity);
+        // Every answer from modehelper repaints from what it says is chosen,
+        // so the screen is the truth, not our hope.
         LockSound.Result after = code -> {
             if ("no_custom".equals(code)) v.status.setText(R.string.cfg_lock_sound_import_first);
+            else if ("adb".equals(code)) v.status.setText(R.string.cfg_lock_sound_no_shell);
             else if (LockSound.NO_ANSWER.equals(code)) v.status.setText(R.string.cfg_lock_sound_needs_helper);
             paintLockSound(activity, v);
         };
 
         // 1. Fart mode.
         LinearLayout fartRow = Style.toggleRow(activity, activity.getString(R.string.cfg_lock_sound_fart_mode),
-            LockSound.FART.equals(LockSound.current(activity)), on -> {
+            LockSound.FART.equals(v.mode), on -> {
                 if (!supported) { paintLockSound(activity, v); return; }
-                LockSound.set(activity, on ? LockSound.FART : LockSound.base(activity), after);
+                LockSound.set(activity, on ? LockSound.FART : LockSound.base(activity, v.mode), v.mode, after);
             });
         v.fart = (GeelySwitch) fartRow.getChildAt(0);
         card.addView(fartRow);
@@ -114,7 +116,7 @@ public final class TelemetryDoorsSection extends LinearLayout {
             TextView b = Style.cardButton(activity, labels[k], false, () -> {
                 if (!supported) return;
                 v.status.setText(null);
-                LockSound.set(activity, id, after);
+                LockSound.set(activity, id, v.mode, after);
             });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             if (k > 0) lp.leftMargin = Style.dp(activity, 12);
@@ -205,6 +207,8 @@ public final class TelemetryDoorsSection extends LinearLayout {
         final String[] ids = {LockSound.CAR, LockSound.CUSTOM};
         final TextView[] buttons = new TextView[2];
         boolean supported;
+        /** What modehelper last said is chosen. */
+        String mode;
         GeelySwitch fart;
         LinearLayout pick;
         TextView status;
@@ -214,7 +218,7 @@ public final class TelemetryDoorsSection extends LinearLayout {
         if (!v.supported) return;
         v.status.setText(R.string.cfg_lock_sound_importing);
         // With fart mode on, the import only becomes what fart mode gives back.
-        boolean apply = !LockSound.FART.equals(LockSound.current(activity));
+        boolean apply = !LockSound.FART.equals(v.mode);
         LockSound.importSound(activity, url, apply, code -> {
             v.status.setText(importMessage(code, url != null));
             paintLockSound(activity, v);
@@ -236,10 +240,17 @@ public final class TelemetryDoorsSection extends LinearLayout {
     }
 
     private static void paintLockSound(Activity activity, LockSoundViews v) {
-        String now = LockSound.current(activity);
+        paintLockSound(activity, v, v.mode);
+        LockSound.mode(activity, now -> {
+            v.mode = now;
+            paintLockSound(activity, v, now);
+        });
+    }
+
+    private static void paintLockSound(Activity activity, LockSoundViews v, String now) {
         boolean fartOn = LockSound.FART.equals(now);
         v.fart.setCheckedSilently(fartOn);
-        String lit = LockSound.base(activity);
+        String lit = LockSound.base(activity, now);
         for (int k = 0; k < v.buttons.length; k++) {
             int fill = v.ids[k].equals(lit) ? Style.CARD_ON : Style.CARD;
             v.buttons[k].setBackground(Style.card(fill, activity));

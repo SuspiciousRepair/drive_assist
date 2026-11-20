@@ -172,6 +172,7 @@
             <intent-filter>
                 <action android:name="com.geely.modehelper.SET_LOCK_SOUND" />
                 <action android:name="com.geely.modehelper.IMPORT_LOCK_SOUND" />
+                <action android:name="com.geely.modehelper.GET_LOCK_SOUND" />
             </intent-filter>
         </receiver>
         <!-- Owner's "remove everything" from Drive Assist's Cleanup screen:

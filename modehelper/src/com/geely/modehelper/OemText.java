@@ -474,7 +474,7 @@ final class OemText {
     /** The local root shell, opening ADB for {@link #ADB_MINUTES} when it is
      * off (the same short window the backlight floor and the cleanup use).
      * Null when it did not open. */
-    private static LocalAdbShell openAdb(Context app) {
+    static LocalAdbShell openAdb(Context app) {
         LocalAdbShell adb = new LocalAdbShell();
         if (adb.portOpen(500)) return adb;
         if (!AdbControl.isEnabled(app)) AdbControl.set(app, true, ADB_MINUTES);

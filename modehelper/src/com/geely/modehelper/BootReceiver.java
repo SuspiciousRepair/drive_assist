@@ -85,6 +85,12 @@ public class BootReceiver extends BroadcastReceiver {
         // MY_PACKAGE_REPLACED do no harm.
         try { OemText.reapply(ctx); }
         catch (Throwable t) { Log.w(CarMode.TAG, "oem text reapply failed: " + t); }
+
+        // Lock sound: same story, the mount over the car's sounds is gone
+        // after a reboot. Does nothing while the car's own sound is chosen
+        // or our mount is still there.
+        try { LockSoundReceiver.reapply(ctx); }
+        catch (Throwable t) { Log.w(CarMode.TAG, "lock sound reapply failed: " + t); }
     }
 
     // ELAPSED_REALTIME_WAKEUP counts the suspended time, and an alarm that came

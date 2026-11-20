@@ -214,7 +214,8 @@
     <string name="cfg_lock_sound_import_download">ดาวน์โหลดลิงก์นี้ไม่ได้</string>
     <string name="cfg_lock_sound_import_failed">นำเข้าไม่สำเร็จ</string>
     <string name="cfg_lock_sound_import_first">นำเข้าเสียงก่อน: จาก USB หรือจากลิงก์</string>
-    <string name="cfg_lock_sound_hint">เล่นเมื่อคุณล็อกรถด้วยกุญแจ เสียงกำหนดเอง: ไฟล์ WAV ขนาดไม่เกิน 1 MB ชื่อ LockChime.wav ที่ระดับบนสุดของ USB หรือลิงก์ การเลือกเสียงในการตั้งค่าของรถเองจะแทนที่เสียงนี้ เสียงของรถจะคืนเสียงเดิมที่คุณเคยใช้</string>
+    <string name="cfg_lock_sound_hint">เล่นเมื่อคุณล็อกรถด้วยกุญแจ เสียงกำหนดเอง: ไฟล์ WAV ขนาดไม่เกิน 1 MB ชื่อ LockChime.wav ที่ระดับบนสุดของ USB หรือลิงก์ ใช้กับเสียงใดก็ได้ที่เลือกในการตั้งค่าของรถเอง เสียงของรถจะคืนเสียงเดิมของรถ</string>
+    <string name="cfg_lock_sound_no_shell">ไม่สามารถเข้าถึงระบบของรถได้ ลองอีกครั้ง</string>
     <string name="cfg_lock_sound_needs_helper">ต้องใช้ ModeHelper เวอร์ชันใหม่กว่า อัปเดตได้ที่ Config &gt; ระบบ</string>
     <string name="cfg_purge_open_header">เป้าหมายปุ่มเปิดกระจกทุกบาน (0–100)</string>
     <string name="cfg_purge_open_hint">กระจกแต่ละบานจะเปิดลงมากแค่ไหนเมื่อกดปุ่มเปิดกระจกทั้งหมด 0 = ปิดสนิท, 100 = เปิดสุด ตัวเลขเดียวกันไม่ได้เปิดกระจกแต่ละบานในระยะจริงเท่ากัน — ปรับแต่ละบานให้ตรงกับสิ่งที่คุณเห็นจริง</string>
