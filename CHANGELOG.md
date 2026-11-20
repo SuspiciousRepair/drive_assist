@@ -18,7 +18,10 @@
   mount, through the local ADB. The car's own files are never changed.
   Remove takes the copies away. After a reboot ModeHelper makes them again,
   with the same check, only while the integration is on, and a copy whose
-  app crashes is taken away at once. The Cleanup screen removes it too. The
+  app crashes is taken away at once (if that fails, the next crash tries
+  again). Install, Remove and the copies after a reboot happen only in
+  Park, because they restart these three apps; out of Park they wait, and
+  the page says so. The Cleanup screen removes it too. The
   Wi-Fi signal word ("强") is in the app's code, not its text, so it stays
   Chinese.
 

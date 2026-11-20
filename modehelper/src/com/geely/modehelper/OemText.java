@@ -57,7 +57,15 @@ import java.util.concurrent.Executors;
  *    with the newest text and the same check, only while the integration
  *    is on;
  *  - a crash of a patched app (DropBox) takes that app's copy away at once,
- *    and it stays away until the next Install.
+ *    and it stays away until the next Install. When the root shell does
+ *    not open, the copy is not marked gone, so the next crash tries again.
+ *
+ * Only in Park: mounting, unmounting and wiping stop the car's own apps
+ * (Settings, Energy, Wi-Fi/Bluetooth), and a driver may be using them.
+ * Install, Remove and the reapply after a boot wait for Park when the car
+ * is not in it ({@link #onGear}, from ModeHelperService's poll), and a job
+ * that sees the car leave Park stops before the next app and waits again.
+ * A crash removal does not wait: the app has crashed already.
  *
  * Text only. The Wi-Fi strength word (a hard-coded string in code) is not
  * fixed here.
@@ -75,6 +83,7 @@ final class OemText {
     static final String K_SOURCE = "oem_source";      // the repo commit of the text the copies were made from
     static final String K_RESULT = "oem_result";      // last result code, see below
     static final String K_NOTE = "oem_note";
+    static final String K_PENDING = "oem_pending";    // a job waiting for Park: install, remove or reapply
 
     // Result codes, given to Drive Assist in STATUS.
     static final String OK = "ok", PARTIAL = "partial", NONE = "none", ADB = "adb",
@@ -86,6 +95,8 @@ final class OemText {
     private static final ExecutorService WORKER = Executors.newSingleThreadExecutor();
     /** "download", "patch", "mount" or "remove" while a job runs, else null. */
     private static volatile String step;
+    /** The last gear ModeHelperService read; null until its first poll. */
+    private static volatile Integer gear;
 
     private static SharedPreferences prefs(Context c) { return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE); }
     private static File stageDir(Context c) { return new File(c.getFilesDir(), "oem-text-stage"); }
@@ -128,15 +139,9 @@ final class OemText {
 
     static boolean busy() { return step != null; }
 
-    static void install(Context ctx) {
-        final Context app = ctx.getApplicationContext();
-        WORKER.execute(() -> run(app, "install", () -> apply(app, true)));
-    }
+    static void install(Context ctx) { request(ctx.getApplicationContext(), OemTextPolicy.INSTALL); }
 
-    static void remove(Context ctx) {
-        final Context app = ctx.getApplicationContext();
-        WORKER.execute(() -> run(app, "remove", () -> doRemove(app)));
-    }
+    static void remove(Context ctx) { request(ctx.getApplicationContext(), OemTextPolicy.REMOVE); }
 
     /** After a boot, or after this app was updated: puts the copies back
      * while the integration is on, with the newest text. An app already
@@ -145,7 +150,56 @@ final class OemText {
     static void reapply(Context ctx) {
         final Context app = ctx.getApplicationContext();
         if (!prefs(app).getBoolean(K_ON, false)) return;
-        WORKER.execute(() -> run(app, "reapply", () -> apply(app, false)));
+        request(app, OemTextPolicy.REAPPLY);
+    }
+
+    /** Runs the job now in Park, else keeps it until Park (see the class
+     * comment). */
+    private static synchronized void request(Context app, String job) {
+        if (OemTextPolicy.mayRestartApps(gear)) {
+            prefs(app).edit().remove(K_PENDING).commit();
+            start(app, job);
+            return;
+        }
+        String next = OemTextPolicy.nextPending(prefs(app).getString(K_PENDING, null), job);
+        prefs(app).edit().putString(K_PENDING, next).commit();
+        Log.i(TAG, "oem text: " + next + " waits for Park (gear " + gear + ")");
+    }
+
+    private static void start(Context app, String job) {
+        if (OemTextPolicy.INSTALL.equals(job)) WORKER.execute(() -> run(app, job, () -> apply(app, true)));
+        else if (OemTextPolicy.REMOVE.equals(job)) WORKER.execute(() -> run(app, job, () -> doRemove(app)));
+        else WORKER.execute(() -> run(app, job, () -> apply(app, false)));
+    }
+
+    /** Every poll of ModeHelperService: the gear, and in Park the job that
+     * waited for it. Cheap when nothing waits: one prefs read. */
+    static void onGear(Context ctx, Integer g) {
+        gear = g;
+        if (!OemTextPolicy.mayRestartApps(g)) return;
+        final Context app = ctx.getApplicationContext();
+        String job;
+        synchronized (OemText.class) {
+            job = prefs(app).getString(K_PENDING, null);
+            if (job == null || job.isEmpty()) return;
+            prefs(app).edit().remove(K_PENDING).commit();
+        }
+        if (OemTextPolicy.REAPPLY.equals(job) && !prefs(app).getBoolean(K_ON, false)) return;
+        Log.i(TAG, "oem text: in Park, running " + job);
+        start(app, job);
+    }
+
+    /** True in Park. Out of Park the job stops here and {@code then} waits
+     * for Park (a reapply finishes an Install: the text and the on switch
+     * are saved by then). */
+    private static boolean stillParked(Context app, String then) {
+        if (OemTextPolicy.mayRestartApps(gear)) return true;
+        synchronized (OemText.class) {
+            String next = OemTextPolicy.nextPending(prefs(app).getString(K_PENDING, null), then);
+            prefs(app).edit().putString(K_PENDING, next).commit();
+        }
+        Log.i(TAG, "oem text: left Park, " + then + " waits for Park");
+        return false;
     }
 
     private interface Job { void go() throws Exception; }
@@ -170,6 +224,7 @@ final class OemText {
      * {@code fresh} (Install) first takes every copy away; a reapply does
      * that only when the text changed, and otherwise keeps what is mounted. */
     private static void apply(Context app, boolean fresh) throws Exception {
+        final boolean fresh0 = fresh;
         step = "download";
         try {
             update(app);
@@ -186,6 +241,10 @@ final class OemText {
         if (adb == null) { result(app, ADB, null); return; }
 
         if (!source.equals(prefs(app).getString(K_SOURCE, ""))) fresh = true;
+        if (fresh && !stillParked(app, fresh0 ? OemTextPolicy.INSTALL : OemTextPolicy.REAPPLY)) {
+            result(app, PARTIAL, "waits for Park");
+            return;
+        }
         if (fresh) {
             step = "remove";
             String out = adb.execute(OemTextPolicy.wipeCommand(packagesOf(known)));
@@ -199,24 +258,36 @@ final class OemText {
         List<App> done = new ArrayList<>();
         List<String> notes = new ArrayList<>();
         int want = 0;
-        for (Known k : known) {
-            if (crashed.contains(k.pkg)) continue;
-            String apk = systemApk(app, k.pkg);
-            if (apk == null) { notes.add(k.pkg + ": not on this car"); continue; }
-            want++;
-            if (mounted.contains(apk)) { done.add(new App(k.pkg, apk)); continue; }
-            if (patchAndMount(app, adb, k, apk, notes)) done.add(new App(k.pkg, apk));
-            // Not applied (another build of the app, after a system update):
-            // no old copy of ours stays on the disk.
-            else adb.execute(OemTextPolicy.unmountCommand(apk, k.pkg));
+        try {
+            for (Known k : known) {
+                if (crashed.contains(k.pkg)) continue;
+                String apk = systemApk(app, k.pkg);
+                if (apk == null) { notes.add(k.pkg + ": not on this car"); continue; }
+                want++;
+                if (mounted.contains(apk)) { done.add(new App(k.pkg, apk)); continue; }
+                if (!stillParked(app, OemTextPolicy.REAPPLY)) { notes.add("waits for Park"); break; }
+                // One app's failure (a full disk, a read error) stays with
+                // that app: the others go on, and what is mounted is saved.
+                try {
+                    if (patchAndMount(app, adb, k, apk, notes)) done.add(new App(k.pkg, apk));
+                    // Not applied (another build of the app, after a system
+                    // update): no old copy of ours stays on the disk.
+                    else adb.execute(OemTextPolicy.unmountCommand(apk, k.pkg));
+                } catch (Exception e) {
+                    notes.add(k.pkg + ": " + e.getMessage());
+                    new File(stageDir(app), new File(apk).getName()).delete();
+                }
+            }
+        } finally {
+            save(app, done);
         }
-        save(app, done);
         String note = String.join("; ", notes);
         result(app, done.isEmpty() ? NONE : done.size() == want ? OK : PARTIAL, note);
     }
 
     private static void doRemove(Context app) throws Exception {
         step = "remove";
+        if (!stillParked(app, OemTextPolicy.REMOVE)) return;
         LocalAdbShell adb = openAdb(app);
         if (adb == null) { result(app, ADB, null); return; }
         // Off first, so nothing mounts it again while this runs.
@@ -437,16 +508,22 @@ final class OemText {
         if (hit == null || crashed(app).contains(pkg)) return;
         step = "remove";
         Log.w(TAG, "oem text: " + pkg + " crashed with our copy, taking it away");
+        // No Park check: the app has crashed already. Marked crashed only
+        // once the copy is gone, so a failed try is repeated at the next crash.
+        LocalAdbShell adb = openAdb(app);
+        if (adb == null) { result(app, ADB, pkg + " crashed, copy still mounted, next crash tries again"); return; }
+        String out = adb.execute(OemTextPolicy.unmountCommand(hit.apk, hit.pkg));
+        if (!OemTextPolicy.crashCopyRemoved(out)) {
+            result(app, ERROR, pkg + " crashed, removal failed, next crash tries again: " + out);
+            return;
+        }
         Set<String> s = crashed(app);
         s.add(pkg);
         prefs(app).edit().putString(K_CRASHED, String.join("\n", s)).commit();
-        LocalAdbShell adb = openAdb(app);
-        if (adb == null) { result(app, ADB, pkg + " crashed, copy still mounted"); return; }
-        String out = adb.execute(OemTextPolicy.unmountCommand(hit.apk, hit.pkg));
         List<App> left = new ArrayList<>();
         for (App a : apps(app)) if (!a.pkg.equals(pkg)) left.add(a);
         save(app, left);
-        result(app, PARTIAL, pkg + " crashed, factory text back" + (out.contains(OemTextPolicy.REMOVED) ? "" : ": " + out));
+        result(app, PARTIAL, pkg + " crashed, factory text back");
     }
 
     // ---------------------------------------------------------------- status
@@ -456,6 +533,9 @@ final class OemText {
         SharedPreferences p = prefs(ctx);
         Bundle b = new Bundle();
         String s = step;
+        String pending = p.getString(K_PENDING, null);
+        // A job waiting for Park shows as busy, step "park".
+        if (s == null && pending != null && !pending.isEmpty()) s = "park";
         String res = p.getString(K_RESULT, "");
         String state = s != null ? "busy"
             : p.getBoolean(K_ON, false) ? (OK.equals(res) || PARTIAL.equals(res) ? "on" : "error")

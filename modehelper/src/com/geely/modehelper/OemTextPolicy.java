@@ -134,6 +134,35 @@ final class OemTextPolicy {
         return s.toString();
     }
 
+    /** The gear value for Park (CarMode.GEAR_PARK, VehicleGear PARK). */
+    static final int GEAR_PARK = 4;
+
+    /** Whether the car's apps may be stopped and started again now (mount,
+     * unmount, wipe all force-stop Settings, Energy, Wi-Fi/Bluetooth). Only
+     * in Park: a driver may be using them (review of 2026-11-20). An unknown
+     * gear (the helper has not read it yet) is not Park: the job waits. */
+    static boolean mayRestartApps(Integer gear) {
+        return gear != null && gear == GEAR_PARK;
+    }
+
+    /** Which job waits for Park, when a new one is asked while one already
+     * waits: the newest wins, except that a reapply never replaces an
+     * Install or a Remove the owner asked for. */
+    static String nextPending(String waiting, String asked) {
+        if (REAPPLY.equals(asked) && waiting != null && !waiting.isEmpty()) return waiting;
+        return asked;
+    }
+
+    static final String INSTALL = "install", REMOVE = "remove", REAPPLY = "reapply";
+
+    /** A crashed app's copy counts as taken away only when the unmount said
+     * so. Otherwise the next crash of that app tries again (review of
+     * 2026-11-20: a failed removal used to be marked done and never tried
+     * again). */
+    static boolean crashCopyRemoved(String unmountOut) {
+        return unmountOut != null && unmountOut.contains(REMOVED);
+    }
+
     /** The package a DropBox crash entry is about ("Process: <pkg>" on its
      * first line), or null. */
     static String crashedPackage(String entryText) {
