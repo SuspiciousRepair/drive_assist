@@ -154,10 +154,11 @@ public final class TelemetryLookSection extends LinearLayout {
         TextView shadeLbl = Style.label(activity, activity.getString(R.string.cfg_extra_dark_shade));
         shadeLbl.setPadding(0, Style.dp(activity, 8), 0, 0);
         darkOpts.addView(shadeLbl);
-        LinearLayout shadeRow = new LinearLayout(activity);
-        shadeRow.setOrientation(LinearLayout.HORIZONTAL);
-        fillShadeRow(activity, shadeRow);
-        darkOpts.addView(shadeRow);
+        // 0 % the lowest light only, 100 % the screen off (ExtraDark.OFF_PCT).
+        darkOpts.addView(new PercentBar(activity,
+            com.geely.drivemem.util.Prefs.getExtraDarkShadePct(activity),
+            pct -> com.geely.drivemem.util.Prefs.setExtraDarkShadePct(activity, pct)),
+            new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         // Over every app (DarkestOverlayService), not only the Dashboard.
         darkOpts.addView(toggleRow(activity, activity.getString(R.string.cfg_extra_dark_global),
             com.geely.drivemem.util.Prefs.getExtraDarkGlobal(activity),
@@ -352,24 +353,5 @@ public final class TelemetryLookSection extends LinearLayout {
         lp.bottomMargin = Style.dp(activity, 8);
         t.setLayoutParams(lp);
         return t;
-    }
-
-    /** Darkest mode's darkness: one button per ExtraDark.SHADE_CHOICES, the
-     * saved one selected. A tap saves it and redraws the row. */
-    private void fillShadeRow(Activity activity, LinearLayout row) {
-        row.removeAllViews();
-        int cur = com.geely.drivemem.util.Prefs.getExtraDarkShadePct(activity);
-        for (int pct : ExtraDark.SHADE_CHOICES) {
-            TextView b = Style.cardButton(activity, pct + " %", pct == cur, () -> {
-                com.geely.drivemem.util.Prefs.setExtraDarkShadePct(activity, pct);
-                fillShadeRow(activity, row);
-            });
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            int m = Style.dp(activity, 5);
-            lp.setMargins(m, Style.dp(activity, 6), m, Style.dp(activity, 4));
-            b.setLayoutParams(lp);
-            row.addView(b);
-        }
     }
 }

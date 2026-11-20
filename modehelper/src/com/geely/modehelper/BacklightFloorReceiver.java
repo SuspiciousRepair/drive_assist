@@ -19,7 +19,12 @@ import android.util.Log;
  * window the cleanup uses), so the floor always works (owner, 2026-11-17).
  * ADB that is already on is used as it is: its own window is not touched.
  *
- *  - floor=true:  backlight to {@link #FLOOR}.
+ *  - floor=true:  backlight to {@link #FLOOR}, or to 1 (panel off) when
+ *    level=1 (darkness 100 %).
+ *    With beat=true (Drive Assist that sends a heartbeat) the dark level is
+ *    watched: "keep"=true broadcasts say Drive Assist is still there, and
+ *    when they stop for BacklightPolicy.BEAT_TIMEOUT_MS the car's own level
+ *    comes back by itself, so a crash never leaves the panel dark.
  *  - floor=false: backlight back to the car's own brightness setting
  *    (Settings.System.SCREEN_BRIGHTNESS; on this unit the backlight value is
  *    the setting value, measured 166 = 166). Android also rewrites it when
@@ -31,7 +36,7 @@ import android.util.Log;
  */
 public class BacklightFloorReceiver extends BroadcastReceiver {
     static final String PATH = "/sys/class/leds/lcd-backlight/brightness";
-    static final int FLOOR = 2;
+    static final int FLOOR = BacklightPolicy.FLOOR;
     static final int ADB_MINUTES = 2;
     static final long PORT_WAIT_MS = 8000;
 
@@ -44,10 +49,25 @@ public class BacklightFloorReceiver extends BroadcastReceiver {
     /** The latest request. Read just before the write, so the last broadcast
      * always wins, even if an older job is still waiting for the port. */
     private static volatile boolean wanted;
+    /** The dark level asked for with the latest floor: 2 or 1 (off). */
+    private static volatile int wantedLevel = FLOOR;
+    /** Heartbeat (see the class comment): on while a beat=true floor holds. */
+    private static volatile boolean watched;
+    private static volatile long lastBeat;
+    private static java.util.concurrent.ScheduledExecutorService watcher;
 
     @Override public void onReceive(Context ctx, Intent i) {
-        wanted = i.getBooleanExtra("floor", false);
         final Context app = ctx.getApplicationContext();
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (i.getBooleanExtra("keep", false)) {   // "still here": no write
+            lastBeat = now;
+            return;
+        }
+        wanted = i.getBooleanExtra("floor", false);
+        wantedLevel = BacklightPolicy.darkLevel(i.getIntExtra("level", FLOOR));
+        lastBeat = now;
+        watched = wanted && i.getBooleanExtra("beat", false);
+        if (watched) watch(app);
         final PendingResult pr = goAsync();
         WORKER.execute(() -> {
             try {
@@ -58,6 +78,23 @@ public class BacklightFloorReceiver extends BroadcastReceiver {
                 pr.finish();
             }
         });
+    }
+
+    /** Starts the heartbeat check once; it then looks every 5 s (two
+     * volatile reads while nothing is dark). */
+    private static synchronized void watch(Context app) {
+        if (watcher != null) return;
+        watcher = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+        watcher.scheduleWithFixedDelay(() -> {
+            if (!wanted || !watched) return;
+            if (!BacklightPolicy.expired(lastBeat, android.os.SystemClock.elapsedRealtime())) return;
+            wanted = false;
+            watched = false;
+            Log.w(CarMode.TAG, "backlight: Drive Assist stopped saying it is there, light back");
+            WORKER.execute(() -> {
+                try { write(app); } catch (Throwable t) { Log.w(CarMode.TAG, "backlight: " + t); }
+            });
+        }, 5, 5, java.util.concurrent.TimeUnit.SECONDS);
     }
 
     private static void write(Context app) throws Exception {
@@ -74,10 +111,10 @@ public class BacklightFloorReceiver extends BroadcastReceiver {
             }
         }
         boolean floor = wanted;
-        int level = floor ? FLOOR
+        int level = floor ? wantedLevel
             : Settings.System.getInt(app.getContentResolver(), Settings.System.SCREEN_BRIGHTNESS, -1);
         if (level < 0) { Log.w(CarMode.TAG, "backlight: car level unknown, nothing to restore"); return; }
-        level = Math.max(FLOOR, Math.min(255, level));
+        level = floor ? BacklightPolicy.darkLevel(level) : BacklightPolicy.restoreLevel(level);
         String out = adb.execute("echo " + level + " > " + PATH + " && cat " + PATH);
         Log.i(CarMode.TAG, "backlight: " + (floor ? "floor " : "restore ") + level + " -> " + out.trim());
     }

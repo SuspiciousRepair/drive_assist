@@ -40,7 +40,10 @@ import com.geely.drivemem.util.Prefs;
  * stack. Only one of the two is ever enabled: see runs().
  *
  * Below that floor: 2 of 255 still lights the panel (1 is off), measured
- * 2026-11-17, and the owner wanted it darker than 10. Android will not go
+ * 2026-11-17, and the owner wanted it darker than 10. Darkness 100 % asks
+ * for 1, the panel off (2026-11-20); while the panel is dark Drive Assist
+ * sends modehelper a heartbeat, and modehelper lights it again by itself
+ * when the heartbeat stops (a crash must never leave the screen dark). Android will not go
  * below 10 and SELinux keeps modehelper off the backlight file, so
  * modehelper writes it through the car's local root adbd
  * (BacklightFloorReceiver), turning ADB on for a short window if it is off.
@@ -62,17 +65,31 @@ public final class ExtraDark {
     static final long FLOOR_DELAY_MS = 2000L;
     /** Default opacity of the black shade: 0.7 lets 30 % of the dimmed light
      * through, so the speed and the numbers can still be read. The driver
-     * picks another in Config (SHADE_CHOICES). */
+     * picks another in Config (0 to 100 %, PercentBar). */
     public static final float SHADE_ALPHA = 0.7f;
-    /** Config's darkness buttons, percent black. */
-    public static final int[] SHADE_CHOICES = {50, 60, 70, 80, 90};
+    /** Darkness at which the panel is turned off (backlight 1) instead of
+     * dimmed (owner, 2026-11-20): the "blank screen" of #130. */
+    public static final int OFF_PCT = 100;
+    /** While dark, Drive Assist tells modehelper it is still there this
+     * often; modehelper lights the panel by itself when that stops
+     * (BacklightPolicy, 15 s). */
+    static final long BEAT_MS = 5_000L;
 
-    /** A stored percent as an opacity, kept between the lightest and the
-     * darkest choice, so a bad value can neither hide the layer nor black
-     * the screen out. */
+    /** A stored percent as an opacity: 0 % no layer (the backlight floor
+     * only), 100 % black. Out of range values are kept in range. */
     public static float shadeAlpha(int pct) {
-        int lo = SHADE_CHOICES[0], hi = SHADE_CHOICES[SHADE_CHOICES.length - 1];
-        return Math.max(lo, Math.min(hi, pct)) / 100f;
+        return Math.max(0, Math.min(OFF_PCT, pct)) / 100f;
+    }
+
+    /** Whether this darkness turns the panel off. */
+    static boolean panelOff(int pct) {
+        return pct >= OFF_PCT;
+    }
+
+    /** The backlight level asked of modehelper: 1 (off) at 100 %, else 2,
+     * the lowest lit level. */
+    static int backlightLevel(int pct) {
+        return panelOff(pct) ? 1 : 2;
     }
 
     /** The driver's choice, as an opacity. */
@@ -100,7 +117,15 @@ public final class ExtraDark {
     private View shade;
     private long lastWakeMs;
     private final Runnable check = this::check;
-    private final Runnable floor = () -> { if (dimmed) helperFloor(true); };
+    private final Runnable floor = this::floorNow;
+    // "Still here" to modehelper while dark: see BEAT_MS.
+    private final Runnable beat = new Runnable() {
+        @Override public void run() {
+            if (!dimmed) return;
+            helperKeep();
+            ui.postDelayed(this, BEAT_MS);
+        }
+    };
     private final EntityBus.Listener gearListener;
 
     /** The Dashboard's own Darkest mode: window brightness + an element. */
@@ -243,9 +268,17 @@ public final class ExtraDark {
     private void undim() {
         if (!dimmed) return;
         ui.removeCallbacks(floor);
+        ui.removeCallbacks(beat);
         target.apply(false);
         dimmed = false;
         helperFloor(false);
+    }
+
+    /** FLOOR_DELAY_MS after the dim: the real floor, then the heartbeat. */
+    private void floorNow() {
+        if (!dimmed) return;
+        helperFloor(true);
+        ui.postDelayed(beat, BEAT_MS);
     }
 
     /** floor: the panel's lowest lit level; !floor: the car's own level back.
@@ -254,7 +287,18 @@ public final class ExtraDark {
         try {
             ctx.sendBroadcast(new android.content.Intent("com.geely.modehelper.BACKLIGHT_FLOOR")
                 .setClassName(com.geely.drivemem.net.Updater.HELPER_PKG, HELPER_FLOOR)
-                .putExtra("floor", floor));
+                .putExtra("floor", floor)
+                .putExtra("level", backlightLevel(Prefs.getExtraDarkShadePct(ctx)))
+                .putExtra("beat", true));
+        } catch (Throwable ignored) {}
+    }
+
+    /** "Still here": modehelper keeps the panel dark only while these come. */
+    private void helperKeep() {
+        try {
+            ctx.sendBroadcast(new android.content.Intent("com.geely.modehelper.BACKLIGHT_FLOOR")
+                .setClassName(com.geely.drivemem.net.Updater.HELPER_PKG, HELPER_FLOOR)
+                .putExtra("keep", true));
         } catch (Throwable ignored) {}
     }
 }

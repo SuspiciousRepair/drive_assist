@@ -65,11 +65,36 @@ public class ExtraDarkTest {
         assertTrue(ExtraDark.BACKLIGHT_FLOOR <= 10f / 255f);
     }
 
-    @Test public void shadeChoiceIsKeptInRange() {
+    @Test public void darknessIsTheWholeRange() {
+        assertTrue("0 %: lowest light only, no layer", ExtraDark.shadeAlpha(0) == 0f);
         assertTrue(ExtraDark.shadeAlpha(80) == 0.8f);
-        assertTrue("too light: lightest choice", ExtraDark.shadeAlpha(0) == 0.5f);
-        assertTrue("too dark: darkest choice, never black", ExtraDark.shadeAlpha(100) == 0.9f);
-        assertTrue("default is a choice", ExtraDark.shadeAlpha(70) == ExtraDark.SHADE_ALPHA);
+        assertTrue("100 %: black", ExtraDark.shadeAlpha(100) == 1f);
+        assertTrue("default", ExtraDark.shadeAlpha(70) == ExtraDark.SHADE_ALPHA);
+        assertTrue("bad value kept in range", ExtraDark.shadeAlpha(-20) == 0f);
+        assertTrue("bad value kept in range", ExtraDark.shadeAlpha(250) == 1f);
+    }
+
+    // 2026-11-20: 0 % is backlight 2 (lowest lit), 100 % is 1 (panel off).
+    @Test public void onlyFullDarknessTurnsThePanelOff() {
+        assertTrue(ExtraDark.backlightLevel(0) == 2);
+        assertTrue(ExtraDark.backlightLevel(90) == 2);
+        assertTrue(ExtraDark.backlightLevel(100) == 1);
+        assertTrue(ExtraDark.panelOff(100));
+        assertTrue(!ExtraDark.panelOff(90));
+    }
+
+    // The heartbeat to modehelper comes well inside its 15 s timeout.
+    @Test public void heartbeatBeatsTheHelperTimeout() {
+        assertTrue(ExtraDark.BEAT_MS * 2 < 15_000L);
+    }
+
+    @Test public void darknessBarSnapsToSteps() {
+        assertTrue(PercentBar.snap(0) == 0);
+        assertTrue(PercentBar.snap(44) == 40);
+        assertTrue(PercentBar.snap(46) == 50);
+        assertTrue(PercentBar.snap(97) == 100);
+        assertTrue(PercentBar.snap(130) == 100);
+        assertTrue(PercentBar.snap(-8) == 0);
     }
 
     @Test public void shadeDarkensButLeavesTheNumbersReadable() {
