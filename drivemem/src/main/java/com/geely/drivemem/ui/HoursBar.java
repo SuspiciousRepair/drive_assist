@@ -44,9 +44,9 @@ public final class HoursBar extends View {
     public HoursBar(Context c, int startMin, int endMin, OnChange onChange) {
         super(c);
         this.onChange = onChange;
-        startPos = posOf(startMin);
-        endPos = posOf(endMin);
-        if (endPos - startPos < STEP) { startPos = posOf(21 * 60); endPos = posOf(6 * 60); }
+        int[] p = positions(startMin, endMin);
+        startPos = p[0];
+        endPos = p[1];
         pad = Style.dp(c, 40);
         radius = Style.dp(c, 13);
         stroke = Style.dp(c, 6);
@@ -61,7 +61,19 @@ public final class HoursBar extends View {
         setMinimumHeight((int) Style.dp(c, 100));
     }
 
-    /** Minutes after midnight -> minutes after noon (the line's position). */
+    /** The two handles for stored hours. Start equal to end is the whole
+     * day (ExtraDark.inHours): both handles at the ends of the line, which
+     * is how it was picked, not the default (review, 2026-11-20). Anything
+     * the line cannot show (the window wraps over noon) falls back to the
+     * default 21:00 to 06:00. */
+    static int[] positions(int startMin, int endMin) {
+        if (((startMin - endMin) % DAY + DAY) % DAY == 0) return new int[]{0, DAY};
+        int s = posOf(startMin), e = posOf(endMin);
+        if (e - s < STEP) return new int[]{posOf(21 * 60), posOf(6 * 60)};
+        return new int[]{s, e};
+    }
+
+        /** Minutes after midnight -> minutes after noon (the line's position). */
     static int posOf(int min) { return ((min - ORIGIN) % DAY + DAY) % DAY; }
 
     /** Minutes after noon -> minutes after midnight. */

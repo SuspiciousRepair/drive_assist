@@ -114,6 +114,8 @@ public final class ExtraDark {
     private final boolean overlay;
     private Target target;
     private boolean enabled, dimmed, swallowing;
+    /** Dark because of the Try button: not undone by the hours check. */
+    private boolean trying;
     private View shade;
     private long lastWakeMs;
     private final Runnable check = this::check;
@@ -182,6 +184,12 @@ public final class ExtraDark {
         return enabled && night && inHours && !parked && quietMs >= DIM_AFTER_MS;
     }
 
+    /** Whether a dark screen stays dark: the mode on, the car in dark
+     * mode, inside the hours. Park and gear changes wake it on their own. */
+    static boolean stayDark(boolean enabled, boolean night, boolean inHours) {
+        return enabled && night && inHours;
+    }
+
     /** Minutes after midnight: is {@code now} inside start..end? The window
      * may cross midnight (21:00 to 06:00). Start equal to end: all day. */
     static boolean inHours(int nowMin, int startMin, int endMin) {
@@ -213,6 +221,7 @@ public final class ExtraDark {
      * brightness, and the quiet time starts again. */
     public void wake() {
         lastWakeMs = SystemClock.uptimeMillis();
+        trying = false;
         undim();
         ui.removeCallbacks(check);
         if (enabled) ui.postDelayed(check, DIM_AFTER_MS);
@@ -223,6 +232,7 @@ public final class ExtraDark {
      * mode looks like. A touch or a gear change undoes it, as always. */
     public void tryNow() {
         lastWakeMs = SystemClock.uptimeMillis();
+        trying = true;
         ui.removeCallbacks(check);
         dim();
     }
@@ -245,10 +255,18 @@ public final class ExtraDark {
     }
 
     private void check() {
+        if (dimmed) {
+            // Already dark: light back when the hours end or the car leaves
+            // dark mode, not only on a touch (review, 2026-11-20). A Try
+            // stays until a touch or a gear change, as its button says.
+            if (!trying && !stayDark(enabled, night(), inHoursNow())) wake();
+            else ui.postDelayed(check, DIM_AFTER_MS);
+            return;
+        }
         long quiet = SystemClock.uptimeMillis() - lastWakeMs;
         if (shouldDim(enabled, night(), inHoursNow(), CarState.isParked(), quiet)) {
             dim();
-        } else if (enabled && !dimmed) {
+        } else if (enabled) {
             // Parked, daytime or outside the hours now: look again later (one post a minute).
             ui.postDelayed(check, DIM_AFTER_MS);
         }
@@ -263,6 +281,9 @@ public final class ExtraDark {
         target.apply(true);
         dimmed = true;
         ui.postDelayed(floor, FLOOR_DELAY_MS);
+        // While dark, look once a minute whether it still should be.
+        ui.removeCallbacks(check);
+        ui.postDelayed(check, DIM_AFTER_MS);
     }
 
     private void undim() {
