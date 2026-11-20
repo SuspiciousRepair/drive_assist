@@ -121,10 +121,11 @@ Drive Assist (`drivemem`) and ModeHelper (`modehelper`) are deliberately separat
 ### 8. Lock Sound
 - **Components**: [`LockSoundReceiver.java`](src/com/geely/modehelper/LockSoundReceiver.java), [`LockSoundPolicy.java`](src/com/geely/modehelper/LockSoundPolicy.java)
 - **Mechanism**:
-  - CarService (`CarAudioService`, uid system) plays the file named by `Settings.System lock_car_audio_path` when the car is locked with the key. It only checks that the file exists; the path does not have to be under `/vendor/etc/carlock/`.
-  - Sounds: `fart` (bundled, `assets/locksound/fart.wav`) and `custom` (imported). The helper puts the file in its own files dir as `lock_<id>.wav` and points the setting at it. CarService shares the uid and its SELinux domain (`carservice_app`) may read `system_app_data_file`, so no root and no remount are needed, and the choice survives a reboot.
+  - CarService (`CarAudioService`, uid system) plays the file named by `Settings.System lock_car_audio_path` when the car is locked with the key. It only checks that the file exists, but the file is read by `mediaextractor`, and SELinux lets that read the car's own sounds (`vendor_configs_file`) and NOT our files dir (`system_app_data_file`): a setting pointed at our file plays nothing (`avc: denied { read } ... scontext=u:r:mediaextractor:s0`, seen 2026-11-20).
+  - Sounds: `fart` (bundled, `assets/locksound/fart.wav`) and `custom` (imported), kept in the helper's files dir as `lock_<id>.wav`. To play one, the local root shell copies it to `/data/local/locksound/lock.wav`, labels it `vendor_configs_file`, and bind-mounts it over the ONE `/vendor/etc/carlock/*.wav` the setting names (the sound picked in the car's own Settings; the car's default when empty). `car` takes the mount away. Nothing on `/vendor` is written.
+  - Picking another sound in the car's own Settings is the owner choosing a car sound: `ModeHelperService` watches the setting, and when it names a sound our mount does not cover, the mount comes off and the choice becomes `car`. `GET_LOCK_SOUND` and `BootReceiver` make the same check, for a pick made while the service was not running.
+  - The choice is kept in the helper's pref `lock_sound_mode`; `GET_LOCK_SOUND` answers it. A reboot drops the mount: `BootReceiver` puts it back (opening ADB for 2 minutes if it is off, like the OEM translations). A car left by an older helper (setting on our file) is moved onto the mount at the same moment, and its setting goes back to the car sound it had.
   - Import (`IMPORT_LOCK_SOUND`): from `url` (http or https, also after a redirect), else `LockChime.wav` at the root of a USB stick under `/storage`. Must be a RIFF/WAVE file of 1 MB or less; the download is capped while reading, and the old custom sound stays until a new one passes. One import at a time, and the whole import must end inside 20 s. Send it ordered: the result data is `ok`, `not_found`, `too_big`, `not_wav`, `empty`, `download`, `busy` or `error`.
-  - The car's previous sound is saved before it is replaced; `car` puts it back. A sound picked in the car's own Settings simply replaces ours.
   - The car's hidden USB import (folder `闭锁音效` on a stick) does not work for this: it points the setting at the USB path, which CarService cannot see.
 
 ---
@@ -140,7 +141,8 @@ Drive Assist (`drivemem`) and ModeHelper (`modehelper`) are deliberately separat
 | `com.geely.modehelper.DASHCAM` | `DashReceiver` | **Yes** | `int on` (1=start, 0=stop) | Controls hardware dashcam recording |
 | `com.geely.modehelper.BT_PAIR` | `BtPairReceiver` | **Yes** | `String addr`<br>`String pin` (optional) | Initiates headless Bluetooth pairing with specified device |
 | `com.geely.modehelper.READPROP` | `ProbeReceiver` | **Yes** | `String ids`<br>`int area` (optional) | Safely reads raw VHAL properties by decimal/hex ID |
-| `com.geely.modehelper.SET_LOCK_SOUND` | `LockSoundReceiver` | **Yes** | `String sound` (`car`, `fart`, `custom`) | Sets the sound the car plays when locked with the key; sent ordered, result data is `ok`, `no_custom`, `unknown` or `error` |
+| `com.geely.modehelper.SET_LOCK_SOUND` | `LockSoundReceiver` | **Yes** | `String sound` (`car`, `fart`, `custom`) | Sets the sound the car plays when locked with the key; sent ordered, result data is `ok`, `no_custom`, `unknown`, `adb` (root shell did not open) or `error` |
+| `com.geely.modehelper.GET_LOCK_SOUND` | `LockSoundReceiver` | **Yes** | — | Ordered; result data is the chosen lock sound: `car`, `fart` or `custom` |
 | `com.geely.modehelper.IMPORT_LOCK_SOUND` | `LockSoundReceiver` | **Yes** | `String url` (optional; else USB `LockChime.wav`), `boolean apply` (default true) | Imports the custom lock sound (WAV, max 1 MB); ordered, result data is the outcome code |
 | `android.intent.action.BOOT_COMPLETED` | `BootReceiver` | **Yes** | — | Starts service, opens 5-min ADB window, initializes guards |
 

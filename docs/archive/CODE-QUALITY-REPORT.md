@@ -1,5 +1,7 @@
 # Code Quality & Test Coverage Audit Report
 
+> **Snapshot, September 2026.** The numbers here are from that date and are not kept up to date. CI runs the tests and the coverage report on every push.
+
 **Project**: Drive Assist (`com.geely.drivemem`)  
 **Target Platform**: Geely EX2 / Geometry E (IHU629G Head Unit, Android 9 / API 28)  
 **Date**: 2026-09-10 (Section 2 refreshed 2026-09-24 — see its own note on the methodology change; Sections 3+ are unchanged from the original audit and predate the test/coverage growth below)  

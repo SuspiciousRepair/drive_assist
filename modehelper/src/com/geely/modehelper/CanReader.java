@@ -125,7 +125,7 @@ final class CanReader {
             }
             if (binaryVerified) { ok(ctx, "running"); return; }
             Log.i(TAG, "can: restarting the reader (new binary)");
-            start(ctx, adb);
+            start(ctx, adb, "new binary");
             return;
         }
 
@@ -150,14 +150,16 @@ final class CanReader {
                 Log.i(TAG, "can: opened ADB to start the CAN reader (opening #" + opens + ")");
             }
             if (!waitPort(adb, 15_000)) { fail(ctx, "adb_unreachable", "nothing on 127.0.0.1:5555"); return; }
-            start(ctx, adb);
+            start(ctx, adb, weOpened ? "was not running; opened ADB for it" : "was not running");
         } finally {
             if (weOpened) closeIfStillOurs(ctx, openToken);
         }
     }
 
-    /** Installs the binary if needed, launches it, checks it came up right. */
-    private static void start(Context ctx, LocalAdbShell adb) throws Exception {
+    /** Installs the binary if needed, launches it, checks it came up right.
+     * {@code why} goes to Drive Assist with the "started" report, for its
+     * can-events.log. */
+    private static void start(Context ctx, LocalAdbShell adb, String why) throws Exception {
         String want = assetSha(ctx);
         String have = CanReaderPolicy.parseSha256(adb.execute(CanReaderPolicy.sha256Command()));
         if (!want.equals(have)) {
@@ -190,8 +192,9 @@ final class CanReader {
             return;
         }
         prefs(ctx).edit().putBoolean("can_started", true).apply();
-        Log.i(TAG, "can: reader started");
-        ok(ctx, "running");
+        Log.i(TAG, "can: reader started (" + why + ")");
+        prefs(ctx).edit().putInt("can_fails", 0).apply();
+        report(ctx, "started", why);   // the next check reports "running"
     }
 
     private static boolean isOurs(LocalAdbShell adb) {

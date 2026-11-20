@@ -31,7 +31,7 @@ not an optional hardening step. [NHTSA guidance](https://www.nhtsa.gov/document/
 
 | Confidence | Request / response CAN ID | ECU | Evidence | Use now |
 |---|---:|---|---|---|
-| Confirmed | `0x7E2` / response observed by the existing reader | BMS | The app successfully reads UDS DIDs `4B36`, `4B21`, `4B22`, `4B3C`, and `DF01`; see [field catalog](../field-catalog.md#10-direct-obd2-uds-parameter-identifiers-bms-ecu-0x7e2). | Keep as the reference transport and baseline. |
+| Confirmed | `0x7E2` / response observed by the existing reader | BMS | The app successfully reads UDS DIDs `4B36`, `4B21`, `4B22`, `4B3C`, and `DF01`; see [field catalog](../../docs/field-catalog.md#10-direct-obd2-uds-parameter-identifiers-bms-ecu-0x7e2). | Keep as the reference transport and baseline. |
 | Candidate only | `0x7E0` / `0x7E8` | Typical first diagnostic ECU; public Geely-family listings label it ECM | This is a common 11-bit diagnostic pairing, not Geometry E confirmation. A public Geely-family list also labels `7E0` / `7E8` ECM, but cites a Geometry C BMS separately. [Listing](https://carcoding.app/ecu/marka/geely/) | Identity-read only. Do not assume an ICE/ECM exists on this BEV. |
 | Candidate only | `0x7E1`--`0x7E7` / `0x7E9`--`0x7EF` | Other physically addressed diagnostic ECUs | This is the usual 11-bit OBD/UDS address range; the actual Geometry E gateway may filter it or map modules differently. [ISO-TP/UDS addressing overview](https://uds.readthedocs.io/en/v2.0.0/pages/knowledge_base/can.html) | Probe only with the allowlisted identity/read sequence below, slowly and one address at a time. |
 | Unknown | Any raw broadcast frame | Any ECU reachable beyond the gateway | A passive trace may be empty or may contain only diagnostic-side traffic. The existing ELM family supports monitor-all, but that does not bypass a gateway. [ELM327 monitoring reference](https://www.elmelectronics.com/wp-content/uploads/2016/07/ELM327L_Data_Sheet.pdf) | Capture; never infer that silence means the feature is absent from the car. |
@@ -72,7 +72,7 @@ and radar, immobilizer/PEPS, and high-voltage service operations. The Geometry
 E manual confirms that safety-belt and airbag systems are distinct diagnostic
 systems; that makes them a reason for extra exclusion, not a target. The
 existing head-unit investigation also found rear-seat/buckle signals bypass the
-infotainment path ([field history](../field-history.md#5-seat--occupant-sensor-harness-isolation)).
+infotainment path ([field history](../../docs/field-history.md#5-seat--occupant-sensor-harness-isolation)).
 
 ## Phased verification
 
@@ -106,7 +106,7 @@ vehicle behavior ends testing until inspected by qualified service personnel.
 - In parallel, use the existing head-unit read-only tooling:
   `CONFIGCHECK`, typed `READPROP`/`READGENERIC`, and `PROPLIST`, then compare
   the timestamped VHAL result with the OBD capture. The methodology and area
-  handling are documented in [field catalog](../field-catalog.md#1-probing-methodology--verification-framework).
+  handling are documented in [field catalog](../../docs/field-catalog.md#1-probing-methodology--verification-framework).
 - Build a local signal worksheet: frame ID or DID, byte/bit, observed values,
   trial IDs, VHAL/OEM UI comparison, confidence, and whether the signal is
   merely correlated or causally understood.

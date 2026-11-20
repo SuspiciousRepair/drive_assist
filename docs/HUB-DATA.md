@@ -9,7 +9,7 @@ when it is available.
 value, search the code for that key or its constant.
 
 Property IDs and scales of the car's own (VHAL) properties are in
-[DATA-CATALOG.md](DATA-CATALOG.md). This page is about availability.
+[field-catalog.md](field-catalog.md). This page is about availability.
 
 ## 1. When anything updates at all
 
@@ -79,7 +79,7 @@ switch is off or the reader has not sent a heartbeat for 3 s.
 | `can.live` | reader live (1/0) |
 | `can.pack_v`, `can.pack_a` | pack voltage, current (+ = discharge) |
 | `can.power_kw` | pack power, V × I. `NOT_AVAILABLE` while volts or amps are not valid, also when `can.live` is 1 |
-| `can.climate_kw` | climate (compressor + heater) power, raw `VCU_ThermalPwrAct`. Reads low (see `plan/active/CAN-ENERGY-ROADMAP.md`, "Power map") |
+| `can.climate_kw` | climate (compressor + heater) power, raw `VCU_ThermalPwrAct`. Reads low (see `plan/archive/implemented/CAN-ENERGY-ROADMAP.md`, "Power map") |
 | `can.drive_kw` | drive motor power, raw `VCU_DrvPwrAct`. Not battery power: use `can.power_kw` for that |
 | `can.charger_w` | on-board charger's mains input, only while AC charging |
 | `can.speed_kmh` | vehicle speed, 0.1 steps (`ESC_VehicleSpeed`, frame 0x125, **raw × 0.05625**: the raw count is 1/64 m/s; roadcast's catalog says ×1, which is wrong). The art also gets every change directly (~10 Hz while moving) through `CanEnergyReader.SpeedListener` |
@@ -189,6 +189,8 @@ except the SoC-based driving energy, which is marked "estimated".
 | `car.db` `trip`, `charge_session` | per trip / per charge totals; on a trip CAN measured (≥ 90 % of its time), where the energy went, raw: `can_net_kwh`, `drive_spent_kwh`, `drive_regen_kwh`, `climate_raw_kwh`, `climate_on_s`, `fan_kwh` (read through `sensors.EnergySplit`); `charge_session.lat` / `lon` where it charged (with "Record trip routes" on) | when the trip or charge ends |
 | `car.db` `trip_point` | the route (`state.RoutePoints`): time, lat, lon, altitude, GPS speed, bearing, accuracy, `drive_mode`, `regen_mode`, `power_kw` (`energy.power_kw`), and the trip's `spent_kwh` / `regen_kwh` so far. Raw, for later analysis | every 5 s while out of Park, only after 25 m of movement, with "Record trip routes" on (default on). `trip_id` is NULL until the trip is saved; points of a trip too short to keep are deleted. Kept for good |
 | `files/obd2-reading.log` | every dongle reading | while the dongle is connected (5 MB, then restarts) |
+| `files/obd2-events.log` | why the dongle gave nothing: connect failures, link lost, rounds with no answer (with the dongle's raw answer) | on each change; a repeat at most once a minute (1 MB, then restarts) |
 | `files/abrp-attempt.log` | every ABRP send and its payload | while ABRP is on (5 MB, then restarts) |
+| `files/can-events.log` | "Exact energy" (CAN): the app's link to the CAN reader, modehelper's reports (started and why, failed), and each trip with no split and why (for example "app restarted 18 min into the trip") | on each change, with "Exact energy" on; the same line at most once per 10 min (1 MB, then restarts) |
 
 `files/` is `Android/data/com.geely.drivemem/files/` on the car's storage.

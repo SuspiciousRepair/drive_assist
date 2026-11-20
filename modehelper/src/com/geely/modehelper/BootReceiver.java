@@ -78,6 +78,19 @@ public class BootReceiver extends BroadcastReceiver {
         // Keep WiFi turned on (own implementation — see WifiKeepOnReceiver's header).
         try { WifiKeepOnReceiver.start(ctx); }
         catch (Throwable t) { Log.w(CarMode.TAG, "wifi-keepon start failed: " + t); }
+
+        // OEM translations: a reboot dropped the mounts; put them back while
+        // the integration is on. Runs after the ADB window above opened. An
+        // app already mounted is left alone, so the other boot actions and
+        // MY_PACKAGE_REPLACED do no harm.
+        try { OemText.reapply(ctx); }
+        catch (Throwable t) { Log.w(CarMode.TAG, "oem text reapply failed: " + t); }
+
+        // Lock sound: same story, the mount over the car's sounds is gone
+        // after a reboot. Does nothing while the car's own sound is chosen
+        // or our mount is still there.
+        try { LockSoundReceiver.reapply(ctx); }
+        catch (Throwable t) { Log.w(CarMode.TAG, "lock sound reapply failed: " + t); }
     }
 
     // ELAPSED_REALTIME_WAKEUP counts the suspended time, and an alarm that came

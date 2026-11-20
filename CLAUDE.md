@@ -59,9 +59,14 @@ If the guard blocks a publish, it prints the missing commits and the exact `git 
   release commits and immutable version tags are pushed here.
 * **To publish a new public release**:
   ```bash
+  ./tools/check-docs.sh --report        # what the docs must cover
   ./tools/validate-release.sh release/vX.Y
   ./tools/push-release.sh vX.Y.Z "summary of changes" release/vX.Y
   ```
+  Update the documents first: the list is in `docs/RELEASE-PROCESS.md`,
+  "Documentation". A feature PR that adds a screen, a setting, something the
+  app sends, or a hub key updates its guide in the same PR; the release only
+  checks that nothing was missed.
   This creates a curated commit on `master` matching the validated release
   branch tree, adds an immutable tag, and pushes both to `origin`.
 
@@ -112,7 +117,7 @@ cd drivemem && ./build.sh             # compile, verify guard, publish, and inst
 * `adb reboot` causes an abrupt audio pop through the vehicle speakers.
 * To test startup receivers cleanly without rebooting:
   ```bash
-  adb shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.geely.drivemem/.BootReceiver
+  adb shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.geely.drivemem/.util.BootReceiver
   ```
 
 ### 5. Bluetooth OBD2 PIN Fix

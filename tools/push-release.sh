@@ -64,6 +64,17 @@ if ! grep -Fq "\"source_sha\": \"$SOURCE_SHA\"" "$VALIDATION_FILE"; then
     exit 2
 fi
 
+# The release must describe itself: a CHANGELOG.md section and driver-facing
+# notes for exactly this tag (docs/RELEASE-PROCESS.md, "Documentation").
+if ! git show "$SOURCE_REF:CHANGELOG.md" | grep -q "^## \[$TAG\]"; then
+    echo "Release blocked: CHANGELOG.md in $SOURCE_REF has no '## [$TAG]' section." >&2
+    exit 2
+fi
+if ! git show "$SOURCE_REF:RELEASE-NOTES.md" | grep -qE "^## $TAG([[:space:]]|\$)"; then
+    echo "Release blocked: RELEASE-NOTES.md in $SOURCE_REF has no '## $TAG' section." >&2
+    exit 2
+fi
+
 if [ "$SOURCE_TREE" = "$MASTER_TREE" ]; then
     echo "Notice: source and master trees are identical. Nothing new to release."
     exit 0

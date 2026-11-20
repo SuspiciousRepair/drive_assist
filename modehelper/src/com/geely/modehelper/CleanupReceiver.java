@@ -15,9 +15,12 @@ import java.io.IOException;
  * In order:
  *   0. the CAN reader switch and the Wi-Fi guard are turned off, so neither
  *      starts roadcastd or re-opens ADB while the steps below run;
- *   1. the car's own lock sound comes back (our file stops being referenced);
+ *   1. the car's own lock sound comes back (our mount over the car's
+ *      sounds is taken away, through the local root shell);
  *   2. roadcastd is stopped and {@link CanReaderPolicy#DIR} is deleted — a
- *      reader another app started, in another dir, is never touched;
+ *      reader another app started, in another dir, is never touched; the
+ *      OEM translations copies are unmounted and {@link OemTextPolicy#DIR}
+ *      is deleted, so the car's apps show their factory text;
  *   3. "keep ADB always on" is cleared, so nothing re-opens ADB after we go;
  *   4. ADB is left OFF ({@code close_adb} true, for a workshop visit) or ON
  *      with no auto-off (false, so the owner keeps the shell);
@@ -83,9 +86,13 @@ public class CleanupReceiver extends BroadcastReceiver {
         try { WifiGuardReceiver.stopForCleanup(app); }
         catch (Throwable t) { note = append(note, "wifi guard: " + t); }
 
-        // 1. the car's own lock sound back
-        try { LockSoundReceiver.apply(app, "car"); }
-        catch (Throwable t) { note = append(note, "lock sound: " + t); }
+        // 1. the car's own lock sound back. Its result was dropped before
+        // (review of next, 2026-11-20): with no root shell the mount stayed
+        // after the uninstall and nothing said so. A failure is tried once
+        // more in step 2, once ADB is open, and reported if it still fails.
+        String lock;
+        try { lock = LockSoundReceiver.apply(app, "car"); }
+        catch (Throwable t) { lock = "error: " + t; }
 
         // 2. stop and delete roadcastd — needs the root adb shell
         LocalAdbShell adb = new LocalAdbShell();
@@ -94,14 +101,24 @@ public class CleanupReceiver extends BroadcastReceiver {
                 waitPort(adb, 8000);
             }
             if (adb.portOpen(1000)) {
+                if (!LockSoundPolicy.OK.equals(lock)) {
+                    try { lock = LockSoundReceiver.apply(app, "car"); }
+                    catch (Throwable t) { lock = "error: " + t; }
+                }
                 String out = adb.execute(CanReaderPolicy.wipeCommand());
                 if (!out.contains(CanReaderPolicy.WIPED)) note = append(note, "wipe: " + out);
+                // 2b. the car's own app text back: our patched copies off
+                app.getSharedPreferences(OemText.PREFS, Context.MODE_PRIVATE).edit()
+                    .putBoolean(OemText.K_ON, false).commit();
+                out = adb.execute(OemTextPolicy.wipeCommand(java.util.Collections.<String>emptyList()));
+                if (!out.contains(OemTextPolicy.WIPED)) note = append(note, "oem text: " + out);
             } else {
-                note = append(note, "could not open ADB to stop the CAN reader");
+                note = append(note, "could not open ADB to stop the CAN reader or remove the OEM text");
             }
         } catch (IOException e) {
             note = append(note, "CAN reader: " + e);
         }
+        if (!LockSoundPolicy.OK.equals(lock)) note = append(note, "lock sound: " + lock);
 
         // 3. the final ADB state the owner asked for. The "always on" flag is
         // set to match, so that if this helper outlives the request for a

@@ -1,10 +1,6 @@
-- New: tap a Valet card to see a map of the moves, a timeline, the dashcam clips and the numbers.
-- New: trip maps are saved in the car while you drive, so a trip that ends in a garage still shows its map.
-- New: on the charging page, battery health shows the hours below 10% and 20%, and the battery's health with the OBD2 dongle.
-- Changed: trip maps show a green dot at the start and a checkered dot at the finish.
-- Changed: on the trip screen, the height chart shows at least 200 m, so small hills look small.
-- Changed: on the trip screen, speed is two big numbers. Tap them to see what they mean.
-- Changed: tap the energy chart to show kWh, Wh/km or %.
-- Changed: tap under the year of days to see what each colour means in km.
-- Changed: the charging page shows kWh per charge, and the outside temperature when there is no OBD2 dongle.
-- Fixed: a piece of trip map that did not load now loads again by itself.
+- New: Darkest mode. At night, after a minute of driving with no touch, the screen goes to its lowest light. Darkness makes it darker, up to the screen off. It has its own hours, can cover every screen, and Try it shows it at once. A touch or a gear change brings the light back.
+- New: better text for the car's own Energy, Wi-Fi and Settings apps (Config, Integrations, Car app translations).
+- New: the energy chart shows where the energy came from: the battery and regeneration.
+- Fixed: the drive mode and regeneration you saved come back even when you wait before you start the car. They are put back only in Park.
+- Fixed: combustion mode and your own lock sound play when the car locks.
+- Fixed: the charging map fills in the pieces that did not load.

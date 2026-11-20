@@ -215,7 +215,8 @@
     <string name="cfg_lock_sound_import_download">Could not download that link.</string>
     <string name="cfg_lock_sound_import_failed">Import failed.</string>
     <string name="cfg_lock_sound_import_first">Import a sound first: from USB or from a link.</string>
-    <string name="cfg_lock_sound_hint">Plays when you lock the car with the key. Custom sound: a WAV file of 1 MB or less, named LockChime.wav at the top of a USB stick, or a link. Picking a sound in the car\'s own Settings replaces this. Car\'s sound gives back the one you had before.</string>
+    <string name="cfg_lock_sound_hint">Plays when you lock the car with the key. Custom sound: a WAV file of 1 MB or less, named LockChime.wav at the top of a USB stick, or a link. It plays over the sound picked in the car\'s own Settings. Picking another sound there, or Car\'s sound, gives back the car\'s own sound.</string>
+    <string name="cfg_lock_sound_no_shell">Could not reach the car\'s system shell. Try again.</string>
     <string name="cfg_lock_sound_needs_helper">Needs a newer ModeHelper. Update it in Config &gt; System.</string>
     <string name="cfg_purge_open_header">Crack-all-windows target (0–100)</string>
     <string name="cfg_purge_open_hint">How far each window lowers when you press the crack-windows button. 0 = closed, 100 = fully open. The same number doesn\'t move every window the same real amount — tune each one to match what you actually see.</string>
@@ -280,7 +281,7 @@
     <string name="cfg_avas_label">AVAS (pedestrian warning sound)</string>
     <string name="cfg_advanced">Advanced</string>
     <string name="cfg_restore_header">Restore at car start</string>
-    <string name="cfg_restore_hint">Drive Assist puts your saved choice back during the first 15 seconds after the car starts. After that, changes made in the car or in another app stay for the trip. Turn off a setting that another app already restores.</string>
+    <string name="cfg_restore_hint">Drive Assist puts your saved choice back when the car starts. Drive mode and regeneration come back in Park, until they match or you pick another one in the car. AEB and AVAS come back in the first 15 seconds. After that, changes made in the car or in another app stay for the trip. Turn off a setting that another app already restores.</string>
     <string name="cfg_park_monitor_label">Park monitoring</string>
     <string name="cfg_aeb_confirm_title">Turn off automatic emergency braking?</string>
     <string name="cfg_aeb_confirm_body">Disables automatic emergency braking. It stays off after a restart while Restore at car start is on for AEB (Advanced, below).</string>
@@ -319,8 +320,11 @@
     <string name="cfg_skyline_random_per_drive_label">Random every drive</string>
     <string name="cfg_theme_header">Theme</string>
     <string name="cfg_dark_mode_header">Dark mode</string>
-    <string name="cfg_extra_dark_label">Extra dark at night</string>
-    <string name="cfg_extra_dark_note">When the car is in dark mode and you drive for a minute without touching the screen, the Dashboard goes as dark as the screen allows. Touch the screen or change gear to bring the light back. The first touch only lights the screen. Your car\'s brightness setting does not change.</string>
+    <string name="cfg_extra_dark_try">Try it</string>
+    <string name="cfg_extra_dark_global">On every screen</string>
+    <string name="cfg_extra_dark_shade">Darkness</string>
+    <string name="cfg_extra_dark_label">Darkest mode</string>
+    <string name="cfg_extra_dark_note">In its hours, when the car is in dark mode and you drive for a minute without touching the screen, Darkest mode dims the screen to its lowest light. Darkness makes it even darker, with a dark layer on top: 0 % is the lowest light only, 100 % turns the screen off. Touch the screen or change gear to bring the light back. The first touch only lights the screen. Your car\'s brightness setting does not change.</string>
     <string name="cfg_theme_selection_header">Theme selection</string>
     <string name="cfg_theme_sub">Applies to every Drive Assist screen. The thumbnail shows the color and the shape of the cards — the change is immediate.</string>
     <string name="cfg_theme_selected">%1$s  ✓</string>
@@ -578,7 +582,7 @@
     <string name="route_stat_outside">Outside</string>
     <string name="route_stat_by_use">Energy by use</string>
     <string name="sankey_used">Used</string>
-    <string name="sankey_net">Net</string>
+    <string name="sankey_battery">Battery</string>
     <string name="sankey_regen">Regen</string>
     <string name="stats_part_drive">Drive</string>
     <string name="stats_part_climate">Climate</string>
@@ -624,6 +628,25 @@
     <string name="int_status_needs_setup">Needs setup</string>
     <string name="int_status_failing">Failing</string>
     <string name="int_status_on">On</string>
+    <string name="int_oem_name">Car app translations</string>
+    <string name="int_oem_desc">Better text in the car\'s own apps.</string>
+    <string name="int_status_working">Working…</string>
+    <string name="cfg_oem_install">Install</string>
+    <string name="cfg_oem_remove">Remove</string>
+    <string name="cfg_oem_hint">Fixes Chinese and wrong words in the car\'s Energy, Wi-Fi and Settings apps. Text only: the car\'s own files do not change. Remove gives the factory text back. Only on the exact app versions the text was made for.</string>
+    <string name="cfg_oem_st_off">Off. The car\'s apps show their factory text.</string>
+    <string name="cfg_oem_st_download">Downloading…</string>
+    <string name="cfg_oem_st_patch">Preparing the apps…</string>
+    <string name="cfg_oem_st_mount">Applying…</string>
+    <string name="cfg_oem_st_park">Waits for Park: the car\'s apps restart while it applies.</string>
+    <string name="cfg_oem_st_remove">Removing…</string>
+    <string name="cfg_oem_st_on">On. Apps fixed: %d</string>
+    <string name="cfg_oem_st_crashed">Taken off after a crash: %s</string>
+    <string name="cfg_oem_st_err_download">Failed: could not download the text. Check the internet connection.</string>
+    <string name="cfg_oem_st_err_adb">Failed: could not open ADB.</string>
+    <string name="cfg_oem_st_err_none">The car\'s apps are not the ones the text was made for. Nothing was changed.</string>
+    <string name="cfg_oem_st_err_other">Failed. Try again.</string>
+    <string name="cfg_oem_st_busy">Busy. Wait a moment.</string>
     <string name="obd_live_header">Live data</string>
     <string name="obd_compare_can">Compare with CAN</string>
     <string name="energy_net_short">net</string>

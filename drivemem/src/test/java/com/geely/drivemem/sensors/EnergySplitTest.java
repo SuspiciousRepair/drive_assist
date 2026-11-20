@@ -60,6 +60,25 @@ public class EnergySplitTest {
         assertEquals(2.4 * 1.05, s.driveKwh, 1e-9);
     }
 
+    /** A real trip (2026-11-19, 41 min): battery 2.18 out, 0.61 back; the
+     * motor 1.86 out, 0.77 back. The Sankey's two sides add up with the
+     * motor's regen, and Drive is the motor's real energy out. */
+    @Test public void motorOutAndRegenBalanceTheSankey() {
+        EnergySplit s = EnergySplit.of(1.57, 1.57, 1.86, 0.77, 0.11, 2317, 0.022);
+        assertEquals(1.86, s.motorOutKwh, EPS);
+        assertEquals(0.77, s.motorRegenKwh, EPS);
+        assertEquals(s.motorOutKwh - s.motorRegenKwh, s.driveKwh, EPS);
+        assertEquals(1.57, s.batteryKwh(), EPS);
+        assertEquals(s.batteryKwh() + s.motorRegenKwh,
+            s.motorOutKwh + s.climateKwh + s.otherKwh, EPS);
+    }
+
+    @Test public void motorNumbersScaleWithTheTripNet() {
+        EnergySplit s = EnergySplit.of(3.15, 3.0, 2.8, 0.4, 0.1, 600, 0);
+        assertEquals(2.8 * 1.05, s.motorOutKwh, 1e-9);
+        assertEquals(0.4 * 1.05, s.motorRegenKwh, 1e-9);
+    }
+
     @Test public void tinyCanNetIsNotScaled() {
         EnergySplit s = EnergySplit.of(0.5, 0.01, 0.3, 0.3, 0, 0, 0);
         assertEquals(0, s.driveKwh, EPS);
@@ -212,21 +231,43 @@ public class EnergySplitTest {
         assertEquals(t.fanKwh, s.climateKwh, 1e-12);
     }
 
+    // --- Why a trip has no split (can-events.log) ---
+
+    @Test public void splitWhyIsNullWhenCanCoveredTheTrip() {
+        assertNull(EnergyIntegrator.splitWhy(0, 950, 1000));
+    }
+
+    // 2026-11-19: the app was installed during two trips; both lost the split.
+    @Test public void splitWhyNamesAnAppRestart() {
+        assertEquals("app restarted during the trip",
+            EnergyIntegrator.splitWhy(Long.MAX_VALUE, 1000, 1000));
+        assertEquals("app restarted 18 min into the trip; CAN covered 33 % of it (needs 90 %)",
+            EnergyIntegrator.splitWhy(18 * 60_000L, 9 * 60_000L, 9 * 60_000L));
+    }
+
+    @Test public void splitWhyNamesMissingCan() {
+        assertEquals("no CAN reading", EnergyIntegrator.splitWhy(0, 0, 1000));
+        assertEquals("CAN covered 50 % of it (needs 90 %)", EnergyIntegrator.splitWhy(0, 500, 1000));
+    }
+
     // --- Stats page: the split summed over a period ---
 
     @Test public void splitTotalsSkipTripsWithoutASplit() {
         java.util.List<DailyStatsProvider.DaySession> list = new java.util.ArrayList<>();
         DailyStatsProvider.DriveSession a = new DailyStatsProvider.DriveSession(1, 0, 1, 10, 80, 78, 0, 0, 0, 1.5, 1.5, 15, EnergySource.MEASURED);
-        a.split = EnergySplit.of(1.5, 1.5, 1.2, 0, 0.1, 600, 0.02);
+        a.split = EnergySplit.of(1.5, 1.5, 1.6, 0.4, 0.1, 600, 0.02);
         DailyStatsProvider.DriveSession b = new DailyStatsProvider.DriveSession(2, 2, 3, 20, 78, 74, 0, 0, 0, 3.0, 3.0, 15, EnergySource.MEASURED);
         list.add(a);
         list.add(b);   // older trip, no split: its km must not dilute the Wh/km
         double[] t = DailyStatsProvider.splitTotals(list);
         assertNotNull(t);
-        assertEquals(1.5, t[0] + t[1] + t[2], 1e-9);
+        // {motor out, climate, other, km, battery, motor regen}
+        assertEquals(1.6, t[0], 1e-9);
         assertEquals(10, t[3], 1e-9);
-        // Used - regen of the same trips = the three parts (the Sankey adds up).
-        assertEquals(t[4] - t[5], t[0] + t[1] + t[2], 1e-9);
+        assertEquals(1.5, t[4], 1e-9);
+        assertEquals(0.4, t[5], 1e-9);
+        // Battery + regen = the three parts (the Sankey adds up).
+        assertEquals(t[4] + t[5], t[0] + t[1] + t[2], 1e-9);
         assertNull(DailyStatsProvider.splitTotals(java.util.Collections.singletonList(b)));
     }
 

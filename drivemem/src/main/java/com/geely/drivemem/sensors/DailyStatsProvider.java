@@ -248,7 +248,7 @@ public final class DailyStatsProvider {
      * the period (see aggregate()), so any rendering code written for a
      * single day already knows how to draw the period's headline numbers.
      * `days` is the underlying daily breakdown, for a day-grouped session
-     * log -- see plan/active/STATS-PERIOD-VIEWS-ROADMAP.md. */
+     * log -- see plan/archive/implemented/STATS-PERIOD-VIEWS-ROADMAP.md. */
     public static final class PeriodOverview {
         public final DayOverview totals;
         public final List<DayOverview> days;
@@ -1333,27 +1333,27 @@ public final class DailyStatsProvider {
 
     private static double d(Cursor c, int i) { return c.isNull(i) ? 0 : c.getDouble(i); }
 
-    /** The split summed over the measured trips in `sessions`: drive,
-     * climate, other kWh, the km those trips covered (the right divisor
-     * for Wh/km, since older trips have no split), and the same trips' used
-     * and regen kWh (for the Sankey: used - regen = the three parts). Null
-     * when none has one. */
+    /** The split summed over the measured trips in `sessions`, for the
+     * Sankey: {motor out, climate, other, km, battery, motor regen} kWh.
+     * km is what those trips covered (the right divisor for Wh/km, since
+     * older trips have no split). battery + motor regen = motor out +
+     * climate + other. Null when none has one. */
     public static double[] splitTotals(List<? extends DaySession> sessions) {
-        double drive = 0, climate = 0, other = 0, km = 0, spent = 0, regen = 0;
+        double out = 0, climate = 0, other = 0, km = 0, battery = 0, regen = 0;
         boolean any = false;
         for (DaySession s : sessions) {
             if (!(s instanceof DriveSession)) continue;
             DriveSession t = (DriveSession) s;
             if (t.split == null) continue;
             any = true;
-            drive += t.split.driveKwh;
+            out += t.split.motorOutKwh;
             climate += t.split.climateKwh;
             other += t.split.otherKwh;
             km += t.distanceKm;
-            spent += t.spentKwh;
-            regen += t.regenKwh;
+            battery += t.split.batteryKwh();
+            regen += t.split.motorRegenKwh;
         }
-        return any ? new double[]{drive, climate, other, km, spent, regen} : null;
+        return any ? new double[]{out, climate, other, km, battery, regen} : null;
     }
 
     private static List<DaySession> queryDaySessions(Context ctx, SQLiteDatabase db, String dateStr) {

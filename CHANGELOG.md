@@ -2,6 +2,113 @@
 
 ## [Unreleased]
 
+## [v0.10.0] — 2026-11-20
+
+### Added
+- **Car app translations (Config > Integrations).** Better text for the
+  car's own Energy, Wi-Fi/Bluetooth and Settings apps in Portuguese,
+  English, Spanish and Thai: lines left in Chinese, English left inside
+  other languages, and wrong meanings (the maintenance tag "Saúde" now says
+  "Saudável"). Tap Install. The text is the newest commit of
+  `SuspiciousRepair/integration-oem-translations` on GitHub: ModeHelper
+  checks for it on Install and at each car start, and downloads it only
+  when it changed (with no network it uses the text it kept). An app is
+  patched only if the SHA-256 of the car's own copy is the one the text was
+  made for (today the apps of system 1111); any other build is left alone.
+  ModeHelper patches a copy (only
+  the text table changes) and puts it in front of the original with a bind
+  mount, through the local ADB. The car's own files are never changed.
+  Remove takes the copies away. After a reboot ModeHelper makes them again,
+  with the same check, only while the integration is on, and a copy whose
+  app crashes is taken away at once (if that fails, the next crash tries
+  again). Install, Remove and the copies after a reboot happen only in
+  Park, because they restart these three apps; out of Park they wait, and
+  the page says so. The Cleanup screen removes it too. The
+  Wi-Fi signal word ("强") is in the app's code, not its text, so it stays
+  Chinese.
+- **The ABRP log shows ABRP's answer.** `abrp-attempt.log` now keeps what
+  ABRP replied, not only the HTTP code: a reply of 200 can still mean the
+  data was refused.
+- **The OBD2 log says why the dongle gave no reading (#144).**
+  `obd2-events.log` records connect failures, a lost link and runs of
+  rounds with no answer, with the dongle's raw answer, so a gap in a charge
+  or a trip can be explained afterwards.
+
+### Fixed
+- **Combustion mode plays again.** The car would not play our lock sound:
+  its player may read only the car's own sounds, not files from our app,
+  so locking played nothing or the car's sound. ModeHelper now places our
+  sound on top of the lock sound picked in the car's own Settings (a bind
+  mount, through the local ADB). Picking another sound there takes ours
+  away, and so does Car's sound. After a restart of the car, ModeHelper
+  puts it back. The car's own files are never changed.
+- **Drive mode and regeneration come back after a slow start (#130).**
+  The saved choice was put back only in the 15 seconds after the screen
+  woke. A driver who waited before pressing the brake started the car
+  after that, and the car kept its own default. Now the car's on signal
+  starts the restore again. Drive mode and regeneration are written only
+  in Park, a few times, for up to 3 minutes, and the restore stops when
+  you pick another mode in the car. AEB and AVAS keep the 15-second
+  window. The on signal and the restore rules come from Funkyfal's fork.
+  If the car puts a second default over our write while it is landing,
+  that is not taken as your pick: the saved mode is written again.
+- **The charging map fills in its blank pieces again.** A map piece that
+  did not download (weak signal) stayed blank when you opened the screen
+  again before it was tried once more. Now every open map is told to try
+  again, and a network coming back is noticed even with an always-on VPN.
+- **Cleanup says when the lock sound could not be put back.** Before, a
+  failure was silent and our sound stayed mounted after the uninstall. It
+  is now tried again once ADB is open, and a failure is written in the
+  cleanup log.
+
+### Changed
+- **Extra dark is now Darkest mode, and it is darker (#130).** The
+  screen light alone went down too little to see. Now a dark layer also
+  covers the Dashboard while it is dimmed. The speed and the numbers stay
+  readable. A touch or a gear change brings the light back, as before.
+  Same switch, new name: Config → Look → Darkest mode. Its settings show
+  only while it is on:
+  - **Its own hours**, 21:00 to 06:00 unless you change them: the car's
+    dark mode started it too early in the evening. Drag the two handles
+    on a 24-hour line with midnight in the middle.
+  - **On every screen**: the dark layer covers every app, not only the
+    Dashboard. The car's own top and bottom bars get the low screen light
+    only.
+  - **Darkness**: Darkest mode always dims the screen to its lowest
+    light. Darkness makes it even darker with the dark layer: 0 % is the
+    lowest light only, 100 % turns the screen off (70 % unless you change
+    it). If Drive Assist stops while the screen is dark, the helper turns
+    the light back on by itself, in about half a minute at most. The
+    screen also lights again when the mode's hours end or the car leaves
+    dark mode. With ADB off, the helper opens it for a few seconds to set
+    the screen light, then closes it again.
+  - **Try it**: goes dark at once, in Park and by day too.
+- **Energy by use: regen is a source now.** The chart starts with where
+  the energy came from: the battery, and regen (what the motor sent back
+  while braking, which the car used again). Both go into Used, and Used
+  goes to drive, climate and other. Drive is now the motor's whole energy
+  out, so it is larger than before. Regen in the chart is the motor's
+  number. It is larger than what reached the battery: part of what the
+  motor sends back never gets there. On the trip screen the chart
+  replaces the net energy line (the chart's Battery is the same number);
+  trips with no chart keep the line.
+  Known issue: the stats page chart counts only the trips that have a
+  split. A trip has none when the app was installed or restarted during
+  it. On such a day the chart's Battery Wh/km can differ from the
+  efficiency next to it, which counts every trip.
+- **A log for "Exact energy" (CAN).** `can-events.log` (next to the other
+  logs, see `docs/DIAGNOSTICS.md`) writes one line whenever something
+  changes: the app connects to the CAN reader or loses it, modehelper
+  starts the reader (and why) or cannot, and a trip ends with no split
+  for its energy chart, with the reason (for example, the app was
+  installed during the trip). It holds no readings.
+- **Releases check their documents.** `tools/check-docs.sh` runs in CI and
+  at release validation: broken links in the Markdown files, hub keys
+  missing from `docs/HUB-DATA.md`, plans missing from the plan index, and
+  an in-app changelog that is not the newest release notes. A tag with no
+  section in `CHANGELOG.md` and `RELEASE-NOTES.md` is refused. The list a
+  person goes through is in `docs/RELEASE-PROCESS.md`, "Documentation".
+
 ## [v0.9.1] — 2026-11-19
 
 ### Changed

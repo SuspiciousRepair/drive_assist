@@ -190,7 +190,7 @@
     <string name="cfg_avas_label">AVAS (เสียงเตือนคนเดินถนน)</string>
     <string name="cfg_advanced">ขั้นสูง</string>
     <string name="cfg_restore_header">คืนค่าเมื่อสตาร์ทรถ</string>
-    <string name="cfg_restore_hint">Drive Assist จะคืนค่าที่บันทึกไว้ใน 15 วินาทีแรกหลังสตาร์ทรถ หลังจากนั้นการเปลี่ยนแปลงในรถหรือในแอปอื่นจะคงอยู่ตลอดการเดินทาง ปิดการตั้งค่าที่แอปอื่นคืนค่าให้อยู่แล้ว</string>
+    <string name="cfg_restore_hint">Drive Assist จะคืนค่าที่บันทึกไว้เมื่อสตาร์ทรถ โหมดการขับขี่และการคืนพลังงานจะคืนค่าขณะอยู่ในเกียร์ P จนกว่าจะตรงกันหรือคุณเลือกค่าอื่นในรถ AEB และ AVAS จะคืนค่าใน 15 วินาทีแรก หลังจากนั้นการเปลี่ยนแปลงในรถหรือในแอปอื่นจะคงอยู่ตลอดการเดินทาง ปิดการตั้งค่าที่แอปอื่นคืนค่าให้อยู่แล้ว</string>
     <string name="cfg_park_monitor_label">ระบบเฝ้าระวังขณะจอด</string>
 
     <string name="cfg_doors_header">ประตู</string>
@@ -214,7 +214,8 @@
     <string name="cfg_lock_sound_import_download">ดาวน์โหลดลิงก์นี้ไม่ได้</string>
     <string name="cfg_lock_sound_import_failed">นำเข้าไม่สำเร็จ</string>
     <string name="cfg_lock_sound_import_first">นำเข้าเสียงก่อน: จาก USB หรือจากลิงก์</string>
-    <string name="cfg_lock_sound_hint">เล่นเมื่อคุณล็อกรถด้วยกุญแจ เสียงกำหนดเอง: ไฟล์ WAV ขนาดไม่เกิน 1 MB ชื่อ LockChime.wav ที่ระดับบนสุดของ USB หรือลิงก์ การเลือกเสียงในการตั้งค่าของรถเองจะแทนที่เสียงนี้ เสียงของรถจะคืนเสียงเดิมที่คุณเคยใช้</string>
+    <string name="cfg_lock_sound_hint">เล่นเมื่อคุณล็อกรถด้วยกุญแจ เสียงกำหนดเอง: ไฟล์ WAV ขนาดไม่เกิน 1 MB ชื่อ LockChime.wav ที่ระดับบนสุดของ USB หรือลิงก์ เล่นแทนเสียงที่เลือกในการตั้งค่าของรถเอง การเลือกเสียงอื่นที่นั่น หรือเสียงของรถ จะคืนเสียงเดิมของรถ</string>
+    <string name="cfg_lock_sound_no_shell">ไม่สามารถเข้าถึงระบบของรถได้ ลองอีกครั้ง</string>
     <string name="cfg_lock_sound_needs_helper">ต้องใช้ ModeHelper เวอร์ชันใหม่กว่า อัปเดตได้ที่ Config &gt; ระบบ</string>
     <string name="cfg_purge_open_header">เป้าหมายปุ่มเปิดกระจกทุกบาน (0–100)</string>
     <string name="cfg_purge_open_hint">กระจกแต่ละบานจะเปิดลงมากแค่ไหนเมื่อกดปุ่มเปิดกระจกทั้งหมด 0 = ปิดสนิท, 100 = เปิดสุด ตัวเลขเดียวกันไม่ได้เปิดกระจกแต่ละบานในระยะจริงเท่ากัน — ปรับแต่ละบานให้ตรงกับสิ่งที่คุณเห็นจริง</string>
@@ -287,8 +288,11 @@
     <string name="cfg_drive_card">แสดงการ์ดการขับขี่ปัจจุบัน</string>
     <string name="cfg_appearance_header">ลักษณะที่ปรากฏ</string>
     <string name="cfg_dark_mode_header">โหมดมืด</string>
-    <string name="cfg_extra_dark_label">มืดพิเศษตอนกลางคืน</string>
-    <string name="cfg_extra_dark_note">เมื่อรถอยู่ในโหมดมืด และขับไปหนึ่งนาทีโดยไม่แตะหน้าจอ แดชบอร์ดจะมืดที่สุดเท่าที่หน้าจอทำได้ แตะหน้าจอหรือเปลี่ยนเกียร์เพื่อให้สว่างกลับมา การแตะครั้งแรกจะเปิดความสว่างเท่านั้น ความสว่างของรถไม่เปลี่ยน</string>
+    <string name="cfg_extra_dark_try">ลองดู</string>
+    <string name="cfg_extra_dark_global">ทุกหน้าจอ</string>
+    <string name="cfg_extra_dark_shade">ความมืด</string>
+    <string name="cfg_extra_dark_label">โหมดมืดที่สุด</string>
+    <string name="cfg_extra_dark_note">ในช่วงเวลาที่ตั้งไว้ เมื่อรถอยู่ในโหมดมืด และขับไปหนึ่งนาทีโดยไม่แตะหน้าจอ โหมดมืดที่สุดจะลดแสงหน้าจอให้ต่ำสุด ความมืดทำให้มืดลงอีก ด้วยชั้นสีเข้มด้านบน: 0 % คือแสงต่ำสุดอย่างเดียว 100 % คือปิดหน้าจอ แตะหน้าจอหรือเปลี่ยนเกียร์เพื่อให้สว่างกลับมา การแตะครั้งแรกจะเปิดความสว่างเท่านั้น ความสว่างของรถไม่เปลี่ยน</string>
     <string name="cfg_appearance_light">สว่าง</string>
     <string name="cfg_appearance_dark">มืด</string>
     <string name="cfg_appearance_auto">อัตโนมัติ</string>
@@ -567,7 +571,7 @@
     <string name="route_stat_outside">ภายนอก</string>
     <string name="route_stat_by_use">พลังงานตามการใช้</string>
     <string name="sankey_used">ใช้</string>
-    <string name="sankey_net">สุทธิ</string>
+    <string name="sankey_battery">แบตเตอรี่</string>
     <string name="sankey_regen">คืน</string>
     <string name="stats_part_drive">ขับเคลื่อน</string>
     <string name="stats_part_climate">แอร์</string>
@@ -613,6 +617,25 @@
     <string name="int_status_needs_setup">ต้องตั้งค่า</string>
     <string name="int_status_failing">ล้มเหลว</string>
     <string name="int_status_on">เปิด</string>
+    <string name="int_oem_name">แปลแอปของรถ</string>
+    <string name="int_oem_desc">ข้อความที่ดีขึ้นในแอปของรถเอง</string>
+    <string name="int_status_working">กำลังทำงาน…</string>
+    <string name="cfg_oem_install">ติดตั้ง</string>
+    <string name="cfg_oem_remove">ลบออก</string>
+    <string name="cfg_oem_hint">แก้คำภาษาจีนและคำผิดในแอปพลังงาน Wi-Fi และการตั้งค่าของรถ เปลี่ยนเฉพาะข้อความ ไฟล์ของรถไม่ถูกแก้ไข กดลบออกเพื่อกลับไปใช้ข้อความเดิมจากโรงงาน ใช้ได้เฉพาะแอปเวอร์ชันที่ทำข้อความไว้ให้เท่านั้น</string>
+    <string name="cfg_oem_st_off">ปิดอยู่ แอปของรถแสดงข้อความเดิมจากโรงงาน</string>
+    <string name="cfg_oem_st_download">กำลังดาวน์โหลด…</string>
+    <string name="cfg_oem_st_patch">กำลังเตรียมแอป…</string>
+    <string name="cfg_oem_st_mount">กำลังนำไปใช้…</string>
+    <string name="cfg_oem_st_park">รอเกียร์ P: แอปของรถจะเริ่มใหม่ระหว่างนำไปใช้</string>
+    <string name="cfg_oem_st_remove">กำลังลบออก…</string>
+    <string name="cfg_oem_st_on">เปิดอยู่ แอปที่แก้แล้ว: %d</string>
+    <string name="cfg_oem_st_crashed">นำออกหลังแอปขัดข้อง: %s</string>
+    <string name="cfg_oem_st_err_download">ไม่สำเร็จ: ดาวน์โหลดข้อความไม่ได้ ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต</string>
+    <string name="cfg_oem_st_err_adb">ไม่สำเร็จ: เปิด ADB ไม่ได้</string>
+    <string name="cfg_oem_st_err_none">แอปของรถไม่ใช่แอปที่ทำข้อความไว้ให้ ไม่มีการเปลี่ยนแปลงใดๆ</string>
+    <string name="cfg_oem_st_err_other">ไม่สำเร็จ ลองอีกครั้ง</string>
+    <string name="cfg_oem_st_busy">ไม่ว่าง รอสักครู่</string>
     <string name="obd_live_header">ข้อมูลสด</string>
     <string name="obd_compare_can">เทียบกับ CAN</string>
     <string name="energy_net_short">สุทธิ</string>

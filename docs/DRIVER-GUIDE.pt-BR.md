@@ -2,124 +2,179 @@
 
 [English](DRIVER-GUIDE.md) · **Português (Brasil)**
 
-O Drive Assist acrescenta à central do Geely EX2 / Geometry E recursos que fazem
-falta no dia a dia: atalhos de climatização, histórico de viagens e recargas,
-custos de energia, informações úteis do carro e conexões opcionais com serviços
-que você já usa.
+O Drive Assist acrescenta à central do Geely EX2 / Geometry E o painel que
+faltava: atalhos de climatização, um histórico de verdade de viagens e recargas,
+mapas de viagem, informações úteis e conexões opcionais com serviços que você já
+usa — tudo em um lugar.
 
-Este guia apresenta o produto e sua operação. Protocolos, identificadores do
-veículo e evidências da pesquisa permanecem disponíveis na
+Este guia é sobre usar o app. Protocolos, identificadores do veículo e as
+evidências da pesquisa estão na
 [biblioteca técnica](README.md#technical-library).
 
 ## Seu painel para o dia a dia
 
 ![Painel de conforto do Drive Assist](screenshots/comfort-dashboard-live.png)
 
-A primeira tela foi feita para ser usada rapidamente no carro:
+A tela inicial foi feita para uso rápido enquanto você dirige:
 
-- a temperatura externa aparece em destaque;
-- a régua de conforto pede mais frio ou mais calor sem exigir vários ajustes;
-- botões grandes dão acesso ao ar-condicionado, aquecimento, recirculação e
-  desembaçamento;
-- durante a recarga, um cartão mostra o progresso e a previsão de término;
-- cartões opcionais podem mostrar o portão de casa e informações enviadas pelo
-  Home Assistant.
+- o número grande é a temperatura externa;
+- a escala de conforto pede ar mais frio ou mais quente em um toque, em vez de
+  ajustar ventilador, temperatura e A/C um a um;
+- botões grandes fazem resfriar, aquecer, recirculação e abrir um vão nos vidros;
+- durante a recarga, um cartão de bateria mostra a porcentagem e o tempo estimado
+  até 100%;
+- cartões opcionais mostram o portão da garagem, um painel enviado pelo Home
+  Assistant, ou o que está tocando no Spotify.
 
-Os comandos têm áreas de toque grandes e a tela evita ficar cheia de controles.
-Assim, as informações continuam legíveis com uma olhada rápida.
+Os botões são grandes e a maior parte da tela fica calma, para a informação útil
+ser lida de longe.
 
-## O carro lembra suas preferências
+## O carro lembra das suas preferências
 
-![Configurações do Drive Assist](screenshots/settings-overview-live.png)
+![Modo de condução e regeneração](screenshots/settings-overview-live.png)
 
-Escolha o modo de condução e o nível de regeneração preferidos. O Drive Assist
-pode restaurá-los ao ligar o carro, sem repetir os mesmos ajustes em toda viagem.
-Você também escolhe quais cartões, ícones e imagens aparecem no painel.
+Escolha o modo de condução e o nível de regeneração que você prefere. O Drive
+Assist os reaplica quando o carro acorda ou é ligado, para você não repetir o
+ajuste a cada viagem. Modo de condução e regeneração são reaplicados só em P. Cada ajuste tem uma chave **Restaurar ao ligar** (ligada por padrão);
+desligue para um ajuste que você prefere mudar na tela do próprio carro.
 
-## Entenda cada dia, não apenas o hodômetro
+Os ajustes ficam em **Config**: Portas, Climatização, Modo de condução, Elementos
+(o que aparece na tela inicial), Aparência (temas e dia/noite automático) e
+Sistema.
 
-![Estatísticas diárias](screenshots/daily-statistics-live.png)
+Os ajustes do veículo são aplicados pelo pequeno auxiliar **ModeHelper**,
+instalado junto com o Drive Assist. O painel e o auxiliar privilegiado ficam
+separados, por segurança e confiabilidade.
 
-As Estatísticas Diárias transformam os dados do carro em um diário útil:
+## Entenda cada dia, não só o hodômetro
 
-- distância, tempo em movimento, velocidade média e variação da bateria;
-- energia consumida e recuperada pela regeneração;
-- eficiência por faixa de velocidade;
-- subidas, descidas e balanço de altitude;
-- linha do tempo com viagens e recargas, deixando visível o tempo estacionado;
-- distância percorrida em cada hora, com cores por faixa de velocidade.
+![Estatísticas de condução](screenshots/daily-statistics-live.png)
 
-Toque em uma viagem terminada (em P) para ver a rota. A rota aparece
-como linhas, sem mapa e sem internet, com cores por velocidade. Embaixo fica a
-altitude ao longo da viagem e, ao lado, os números da viagem: distância,
-tempo, velocidades, energia, bateria e subidas. As rotas são gravadas em
-**Config → Sistema → Rotas das viagens** (ligado por padrão) e
-ficam no carro.
+As **Estatísticas de condução** transformam os dados brutos do carro em um
+diário:
 
-O uso do ar-condicionado estacionado não altera a eficiência de condução. Quando
-o carro está engatado, as paradas no trânsito fazem parte da viagem e entram no
-cálculo corretamente.
+- distância, tempo dirigindo, velocidade média e variação da bateria;
+- **Energia por uso**: para onde foi a energia de uma viagem — condução,
+  climatização e outros — e quanto a regeneração devolveu (medido pelo CAN);
+- eficiência por faixa de velocidade, em Wh/km;
+- subida, descida e o saldo de altitude do dia;
+- uma linha do tempo de viagens e recargas, com o tempo parado entre elas;
+- um **ano de dias**: cada dia colorido pela distância, com visão de semana, mês
+  e ano.
 
-## Acompanhe recargas e custos
+Toque em uma viagem terminada (em P) para ver a **rota** em um mapa do
+OpenStreetMap, colorida pela velocidade. O mapa precisa de internet na primeira
+vez que um lugar aparece; depois fica guardado no carro, então uma viagem que
+termina na garagem ainda mostra o mapa. Abaixo da rota está o relevo da viagem, e
+os números dela.
 
-![Estatísticas de recarga e balanço de energia](screenshots/charging-statistics-live.png)
+Toque na contagem de viagens para ver **todas as rotas em uma imagem**. As rotas
+são gravadas em **Config → Sistema** (ligado por padrão) e ficam no carro. Dá
+para exportar como **GPX** (um arquivo por dia) e a lista como **CSV**, para um
+pen drive ou para o celular.
 
-A tela Estatísticas de Recarga guarda as sessões anteriores com energia, duração,
-variação da bateria e potência média. Com o carro estacionado, toque em uma
-sessão para incluir ou corrigir o preço pago. Uma recarga gratuita pode ter preço
-zero, sem ser confundida com uma sessão cujo preço ainda não foi informado.
+Se o carro foi emprestado em modo **Valet**, toque no cartão dele para uma tela
+de detalhe: um mapa de cada trecho, uma linha do tempo, os clipes da dashcam
+daquele período e os números (trechos, tempo em movimento e parado, distância,
+velocidade e potência máximas, bateria e temperatura).
 
-O gráfico de 30 dias compara a energia que saiu da bateria com a energia que
-voltou por regeneração, recarga AC e recarga rápida DC. Uma recarga que atravessa
-a meia-noite é dividida entre os dias em que aconteceu.
+## Recargas e custo
 
-## Conecte seus próprios serviços
+![Estatísticas de recarga](screenshots/charging-statistics-live.png)
 
-As integrações são opcionais. O painel funciona sem elas.
+As **Estatísticas de recarga** guardam cada recarga — energia, tempo, variação da
+bateria e potência média. Toque em uma recarga (em P) para adicionar ou corrigir
+o preço; uma recarga gratuita pode ser salva como zero, e isso continua diferente
+de uma recarga sem preço informado. Há visão de mês e ano, um cartão de
+temperatura da bateria e um mapa dos lugares onde você recarrega.
+
+Um cartão de **saúde da bateria** mostra os kWh por recarga, as horas que a
+bateria passou abaixo de 10% e 20%, e — com um dongle OBD2 — a saúde da bateria.
+Sem o dongle, a tela de recarga ainda mostra a temperatura externa durante a
+recarga.
+
+## Traga seus serviços
+
+São opcionais. O Drive Assist funciona como painel sem nenhum deles. Configure em
+**Config → Integrações**, que mostra o status de cada um (conectado, precisa de
+configuração, ou falhando).
 
 ### Home Assistant
 
-Conecte o Drive Assist ao seu servidor Home Assistant para acompanhar bateria,
-autonomia, localização, recarga, climatização e outros dados. O Home Assistant
-também pode enviar um cartão para a tela do carro e exibir o botão do portão
-quando o veículo chega em casa.
-
-Os dados vão para o servidor configurado por você. O projeto não opera um serviço
-de análise que receba esses dados. Veja o [guia do Home Assistant](HOME-ASSISTANT.pt-BR.md).
+Conecte seu próprio servidor Home Assistant para ver bateria, autonomia,
+localização, recarga, climatização e mais em casa. O Home Assistant também pode
+enviar um painel para o carro — a espera de uma balsa, a imagem da campainha — e
+fazer aparecer um botão de portão quando o carro chega em casa. Os dados do
+veículo vão só para o servidor que você define. Veja o
+[guia do Home Assistant](HOME-ASSISTANT.md).
 
 ### A Better Routeplanner
 
-O Drive Assist pode enviar bateria e posição em tempo real ao ABRP para melhorar
-o planejamento de viagens. Um adaptador Bluetooth OBD2 opcional fornece dados
-mais precisos da bateria. Veja o [guia do ABRP](ABRP.pt-BR.md).
+O Drive Assist pode enviar bateria e posição ao vivo para o ABRP, para o
+planejamento de viagens longas acompanhar o que o carro faz agora. Um dongle OBD2
+Bluetooth opcional dá dados de bateria mais finos. Veja o [guia do ABRP](ABRP.md).
+
+### Spotify
+
+Entre uma vez e a tela inicial mostra o que está tocando, com controles.
 
 ### Dashcam
 
-A dashcam opcional usa as câmeras existentes no carro e pode adicionar horário,
-posição e velocidade às gravações. Os vídeos podem ser copiados para um pen drive.
-Leia o [guia da dashcam](DASHCAM.md) antes de ativá-la.
+A dashcam opcional usa as câmeras do próprio carro e pode gravar hora, posição e
+velocidade na imagem. Os clipes vão para um pen drive, ou baixam para o celular.
+Leia o [guia da dashcam](DASHCAM.md) antes: as regras de armazenamento e de
+gravação variam por região.
 
-## Limites de controle
+## Mais coisas que dá para fazer
 
-O Drive Assist atua em funções de conforto e conveniência, como climatização,
-modo de condução, regeneração, iluminação interna, preferências de recarga e o
-comando opcional do portão pelo Home Assistant.
+- **Acesso pelo celular**: leia um QR code na tela do carro para abrir uma página
+  no celular com backups, clipes e arquivos de viagem. Funciona só em P, na rede
+  local.
+- **Backup e restauração**: salva seus ajustes, viagens e certificados em um pen
+  drive e no carro, com uma senha que você escolhe.
+- **Modo mais escuro**: à noite, após um minuto dirigindo sem tocar na tela, a
+  tela vai para a luz mínima e uma camada escura cobre o Painel. Um toque ou uma
+  troca de marcha traz a luz de volta. Funciona só no próprio horário (21:00 às
+  06:00 por padrão; arraste as alças na linha de 24 horas). Escuridão deixa
+  ainda mais escuro: 0 % é só a luz mínima, 100 % desliga a tela (70 % por
+  padrão). Ligue **Em todas as telas** para escurecer todos os apps, não só o
+  Painel. O botão Experimentar mostra na hora.
+- **Tradução dos apps do carro** (Config → Integrações): texto melhor nos apps
+  Energia, Wi-Fi e Configurações do próprio carro. Os arquivos do carro não
+  mudam; Remover ou a Limpeza tira. Instalar e Remover esperam o carro em P.
+- **Som de travamento**: troca o som que o carro faz ao travar, ou importa o seu.
+- **Limpeza**: uma tela que remove o Drive Assist, o auxiliar e o leitor CAN, e
+  devolve o som de travamento do próprio carro — útil antes de uma visita à
+  oficina.
+
+## O que o Drive Assist controla
+
+O Drive Assist atua sobretudo em conforto e conveniência: climatização, modo de
+condução, regeneração, luz interna, vidros, recarga e o portão opcional do Home
+Assistant.
 
 O aplicativo não dirige, freia, acelera, destranca portas nem abre o porta-malas.
-Os sinais de portas e carroceria exibidos são apenas de leitura. O
-[guia de segurança e privacidade](WELCOME.md) explica esses limites.
+Os sinais de portas e carroceria exibidos são apenas de leitura.
 
-## Instalação
+Duas chaves afetam sistemas de segurança, e as duas são escolha sua: uma pode
+desligar o AEB (frenagem automática de emergência) e outra pode silenciar o AVAS
+(o som de aviso para pedestres). O [guia de segurança e privacidade](WELCOME.md)
+lista tudo o que o aplicativo pode ler, mudar e enviar.
 
-Para a maioria dos proprietários, o caminho mais fácil é o instalador em um único
-arquivo. Siga o [guia rápido de instalação](QUICK-INSTALL.pt-BR.md). A central do
-carro já precisa estar preparada para instalar aplicativos de terceiros.
+## Como instalar no carro
 
-## Próximos passos
+O jeito mais fácil para a maioria é o instalador único por USB — veja o
+[guia rápido de instalação](QUICK-INSTALL.md). O carro já precisa estar liberado
+para instalar aplicativos de terceiros.
 
-- [Instale o Drive Assist](QUICK-INSTALL.pt-BR.md)
-- [Entenda o acesso ADB root](ADB-ROOT-SAFETY.pt-BR.md)
-- [Conecte o Home Assistant](HOME-ASSISTANT.pt-BR.md)
-- [Conecte o ABRP](ABRP.pt-BR.md)
-- [Leia sobre segurança e privacidade](WELCOME.md)
-- [Consulte as descobertas técnicas](README.md#technical-library)
+Quem já usa ADB tem métodos pelo computador também. Comece pelo guia de escolha em
+[Instalação](INSTALL-GUIDE.md).
+
+## Para onde ir agora
+
+- [Instalar o Drive Assist](QUICK-INSTALL.md)
+- [Entender o acesso ADB root](ADB-ROOT-SAFETY.md)
+- [Conectar o Home Assistant](HOME-ASSISTANT.md)
+- [Conectar o ABRP](ABRP.md)
+- [Ler a explicação de segurança e privacidade](WELCOME.md)
+- [Ver as descobertas técnicas](README.md#technical-library)

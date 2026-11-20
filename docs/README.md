@@ -68,7 +68,6 @@ technical detail needed to verify and reproduce each discovery.
 ### Vehicle signals and reverse engineering
 
 - [Vehicle integration paths: head unit, VHAL, OBD2, and TBOX](VEHICLE-INTEGRATION.md)
-- [Verified vehicle data catalog](DATA-CATALOG.md)
 - [Full field catalog](field-catalog.md)
 - [Discovery history and experiments](field-history.md)
 - [OEM module analysis](OEM-MODULES.md)
@@ -77,7 +76,6 @@ technical detail needed to verify and reproduce each discovery.
 ### Climate, cameras, and interface
 
 - [Comfort scale and HVAC state machine](COMFORT-TABLE.md)
-- [Verified climate behaviour](CLIMATE-FACTS.md)
 - [Daily statistics calculations](TRIP-STATISTICS.md)
 - [Camera and EVS interface](EVS-CAMERA.md)
 - [Dashcam architecture](DASHCAM.md)
@@ -85,11 +83,10 @@ technical detail needed to verify and reproduce each discovery.
 
 ### Engineering and project quality
 
-- [Software architecture and safety audit](ARCHITECTURE-SAFETY-AUDIT.md)
+- [Software architecture and safety audit, September 2026](archive/ARCHITECTURE-SAFETY-AUDIT.md)
 - [MQTT and Home Assistant protocol reference](MQTT-GUIDE.md)
 - [ABRP and OBD2 protocol reference](ABRP-GUIDE.md)
-- [Code quality and test report](CODE-QUALITY-REPORT.md)
-- [Release readiness](RELEASE-READINESS-MATRIX.md)
+- [Code quality and test report, September 2026](archive/CODE-QUALITY-REPORT.md)
 - [ModeHelper companion](../modehelper/README.md)
 - [Camera calibration tools](../helpers/calib/README.md)
 

@@ -23,7 +23,7 @@ The IHU is the Android 9 centre display and the host for this project. The norma
 
 The unit's firmware configuration permits these automotive permissions for the installed application on the researched device. That is device-specific, not a portable Android-app guarantee. Another firmware or vehicle may deny the calls, expose different property IDs, or implement them differently.
 
-`modehelper` is a separate, headless companion. It is platform-signed and runs as `android.uid.system`, because durable drive/regen restoration, privileged Bluetooth pairing, settings, and silent installation need system privileges. The UI remains a normal app: Android 9 WebView cannot run under the system UID. See `modehelper/AndroidManifest.xml` and `ARCHITECTURE-SAFETY-AUDIT.md`.
+`modehelper` is a separate, headless companion. It is platform-signed and runs as `android.uid.system`, because durable drive/regen restoration, privileged Bluetooth pairing, settings, and silent installation need system privileges. The UI remains a normal app: Android 9 WebView cannot run under the system UID. See `modehelper/AndroidManifest.xml` and `archive/ARCHITECTURE-SAFETY-AUDIT.md`.
 
 ## VHAL: the main read/write path
 
@@ -33,13 +33,13 @@ VHAL is Android Automotive's Vehicle Hardware Abstraction Layer. Here, `android.
 
 `CarAccess` connects to `Car.PROPERTY_SERVICE` and wraps typed property reads. `CarActor` is the only intended owner of that connection: it puts reads, writes, periodic sampling, and change callbacks on one `HandlerThread` (`drivemem/src/main/java/com/geely/drivemem/car/CarAccess.java` and `CarActor.java`). This prevents concurrent synchronous VHAL Binder calls, which are unreliable on the head unit.
 
-The actor polls sampled properties and registers on-change callbacks where available. It publishes normalized values on `EntityBus`; UI views, local history, MQTT, and ABRP consume those values without each making their own VHAL calls. Confirmed IDs, areas, units, and limitations are maintained in [the vehicle data catalog](DATA-CATALOG.md).
+The actor polls sampled properties and registers on-change callbacks where available. It publishes normalized values on `EntityBus`; UI views, local history, MQTT, and ABRP consume those values without each making their own VHAL calls. Confirmed IDs, areas, units, and limitations are maintained in [the vehicle data catalog](field-catalog.md).
 
 Examples read through this path include gear and speed, odometer, battery state of charge and range, charge-port/charging state, climate state, door/window state, drive and regeneration selections, and ambient-light state. A failed VHAL read is treated as unavailable data, not as a safe inferred value.
 
 ### Writing
 
-The app writes only known, reverse-engineered VHAL/adaptation properties. Implemented controls include climate settings, window/door comfort actions, drive and regeneration mode, charge-current limit and start/stop commands, parking mode, and ambient lighting. The exact supported set and known no-op properties are in [DATA-CATALOG.md](DATA-CATALOG.md).
+The app writes only known, reverse-engineered VHAL/adaptation properties. Implemented controls include climate settings, window/door comfort actions, drive and regeneration mode, charge-current limit and start/stop commands, parking mode, and ambient lighting. The exact supported set and known no-op properties are in [field-catalog.md](field-catalog.md).
 
 A successful `set*Property()` call means only that the VHAL accepted the Binder request; it does **not** prove an ECU performed the action. Where practical the code reads back the result (ambient colour is one example), clamps inputs such as the 5--32 A charge-current limit, and uses validated area fallbacks. Values and areas must not be generalized to another vehicle without testing.
 

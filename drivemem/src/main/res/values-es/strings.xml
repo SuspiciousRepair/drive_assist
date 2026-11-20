@@ -117,7 +117,8 @@
     <string name="cfg_lock_sound_import_download">No se pudo descargar ese enlace.</string>
     <string name="cfg_lock_sound_import_failed">Falló la importación.</string>
     <string name="cfg_lock_sound_import_first">Importa un sonido primero: desde USB o un enlace.</string>
-    <string name="cfg_lock_sound_hint">Suena cuando cierras el auto con la llave. Sonido personalizado: un archivo WAV de hasta 1 MB, llamado LockChime.wav en la raíz del USB, o un enlace. Elegir un sonido en los Ajustes del propio auto reemplaza este. Sonido del auto devuelve el que tenías antes.</string>
+    <string name="cfg_lock_sound_hint">Suena cuando cierras el auto con la llave. Sonido personalizado: un archivo WAV de hasta 1 MB, llamado LockChime.wav en la raíz del USB, o un enlace. Suena en lugar del sonido elegido en los Ajustes del propio auto. Elegir otro sonido allí, o Sonido del auto, devuelve el sonido del propio auto.</string>
+    <string name="cfg_lock_sound_no_shell">No se pudo acceder al sistema del auto. Inténtalo de nuevo.</string>
     <string name="cfg_lock_sound_needs_helper">Necesita un ModeHelper más nuevo. Actualízalo en Config &gt; Sistema.</string>
     <string name="cfg_purge_open_header">Objetivo del botón de abrir todas las ventanillas (0–100)</string>
     <string name="cfg_purge_open_hint">Cuánto baja cada ventanilla al presionar el botón de ventilar. 0 = cerrada, 100 = completamente abierta. El mismo número no abre cada ventanilla la misma cantidad real — ajusta cada una según lo que realmente veas.</string>
@@ -176,7 +177,7 @@
     <string name="cfg_avas_label">AVAS (aviso acústico de peatones)</string>
     <string name="cfg_advanced">Avanzado</string>
     <string name="cfg_restore_header">Restaurar al encender el auto</string>
-    <string name="cfg_restore_hint">Drive Assist vuelve a tu elección guardada en los primeros 15 segundos después de encender el auto. Después, los cambios hechos en el auto o en otra app se mantienen durante el viaje. Desactiva un ajuste que otra app ya restaura.</string>
+    <string name="cfg_restore_hint">Drive Assist vuelve a tu elección guardada cuando enciendes el auto. El modo de conducción y la regeneración vuelven en P, hasta que coincidan o elijas otro en el auto. AEB y AVAS vuelven en los primeros 15 segundos. Después, los cambios hechos en el auto o en otra app se mantienen durante el viaje. Desactiva un ajuste que otra app ya restaura.</string>
     <string name="cfg_park_monitor_label">Vigilancia en estacionamiento</string>
     <string name="cfg_aeb_confirm_title">¿Desactivar el frenado automático de emergencia?</string>
     <string name="cfg_aeb_confirm_body">Desactiva el frenado automático de emergencia. Sigue desactivado tras reiniciar mientras Restaurar al encender el auto esté activado para AEB (Avanzado, abajo).</string>
@@ -216,8 +217,11 @@
     <string name="cfg_skyline_random_per_drive_label">Aleatorio en cada trayecto</string>
     <string name="cfg_theme_header">Tema</string>
     <string name="cfg_dark_mode_header">Modo oscuro</string>
-    <string name="cfg_extra_dark_label">Extra oscuro de noche</string>
-    <string name="cfg_extra_dark_note">Con el auto en modo oscuro, después de un minuto conduciendo sin tocar la pantalla, el Panel se pone lo más oscuro que permite la pantalla. Toca la pantalla o cambia de marcha para que vuelva la luz. El primer toque solo enciende la pantalla. El brillo del auto no cambia.</string>
+    <string name="cfg_extra_dark_try">Probar</string>
+    <string name="cfg_extra_dark_global">En todas las pantallas</string>
+    <string name="cfg_extra_dark_shade">Oscuridad</string>
+    <string name="cfg_extra_dark_label">Modo más oscuro</string>
+    <string name="cfg_extra_dark_note">En su horario, con el auto en modo oscuro, después de un minuto conduciendo sin tocar la pantalla, el Modo más oscuro baja la luz de la pantalla al mínimo. Oscuridad la hace aún más oscura, con una capa oscura encima: 0 % es solo la luz mínima, 100 % apaga la pantalla. Toca la pantalla o cambia de marcha para que vuelva la luz. El primer toque solo enciende la pantalla. El brillo del auto no cambia.</string>
     <string name="cfg_theme_selection_header">Selección de tema</string>
     <string name="cfg_theme_sub">Se aplica a todas las pantallas de Drive Assist. La miniatura muestra el color y la forma de las tarjetas — el cambio es inmediato.</string>
     <string name="cfg_theme_selected">%1$s  ✓</string>
@@ -551,7 +555,7 @@
     <string name="route_stat_outside">Fuera</string>
     <string name="route_stat_by_use">Energía por uso</string>
     <string name="sankey_used">Gastado</string>
-    <string name="sankey_net">Neto</string>
+    <string name="sankey_battery">Batería</string>
     <string name="sankey_regen">Regen</string>
     <string name="stats_part_drive">Tracción</string>
     <string name="stats_part_climate">Clima</string>
@@ -597,6 +601,25 @@
     <string name="int_status_needs_setup">Falta configurar</string>
     <string name="int_status_failing">Con fallos</string>
     <string name="int_status_on">Activado</string>
+    <string name="int_oem_name">Traducción de las apps del coche</string>
+    <string name="int_oem_desc">Mejores textos en las apps del propio coche.</string>
+    <string name="int_status_working">Trabajando…</string>
+    <string name="cfg_oem_install">Instalar</string>
+    <string name="cfg_oem_remove">Quitar</string>
+    <string name="cfg_oem_hint">Corrige palabras en chino o erróneas en las apps Energía, Wi-Fi y Ajustes del coche. Solo el texto: los archivos del coche no cambian. Quitar devuelve el texto de fábrica. Solo en las versiones exactas de las apps para las que se hizo el texto.</string>
+    <string name="cfg_oem_st_off">Apagado. Las apps del coche muestran el texto de fábrica.</string>
+    <string name="cfg_oem_st_download">Descargando…</string>
+    <string name="cfg_oem_st_patch">Preparando las apps…</string>
+    <string name="cfg_oem_st_mount">Aplicando…</string>
+    <string name="cfg_oem_st_park">Esperando la P: las apps del auto se reinician al aplicar.</string>
+    <string name="cfg_oem_st_remove">Quitando…</string>
+    <string name="cfg_oem_st_on">Activado. Apps corregidas: %d</string>
+    <string name="cfg_oem_st_crashed">Quitado tras un fallo: %s</string>
+    <string name="cfg_oem_st_err_download">Error: no se pudo descargar el texto. Revisa la conexión a internet.</string>
+    <string name="cfg_oem_st_err_adb">Error: no se pudo abrir ADB.</string>
+    <string name="cfg_oem_st_err_none">Las apps del coche no son las mismas para las que se hizo el texto. No se cambió nada.</string>
+    <string name="cfg_oem_st_err_other">Error. Inténtalo de nuevo.</string>
+    <string name="cfg_oem_st_busy">Ocupado. Espera un momento.</string>
     <string name="obd_live_header">Datos en vivo</string>
     <string name="obd_compare_can">Comparar con CAN</string>
     <string name="energy_net_short">neta</string>

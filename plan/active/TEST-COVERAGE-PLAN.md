@@ -19,9 +19,9 @@ Reviewed 2026-09-11 by a dedicated code/test review agent, with a fresh JaCoCo r
 
 These are local JVM coverage measurements, not hardware or UI validation. Full line coverage of the accumulator does not prove correct database queries or allocation across gear transitions.
 
-JUnit and JaCoCo are configured in [drivemem/build.gradle](../drivemem/build.gradle). `unitTests.returnDefaultValues = true` permits Android methods to return defaults, so passing tests do not establish real SQLite, Handler, or lifecycle behavior. No Android-capable UI/database test framework is currently configured.
+JUnit and JaCoCo are configured in [drivemem/build.gradle](../../drivemem/build.gradle). `unitTests.returnDefaultValues = true` permits Android methods to return defaults, so passing tests do not establish real SQLite, Handler, or lifecycle behavior. No Android-capable UI/database test framework is currently configured.
 
-[CI](../.github/workflows/build.yml) assembles the release APK but does not run a Gradle unit-test task. [CONTRIBUTING](../CONTRIBUTING.md) still refers to 131 tests.
+[CI](../../.github/workflows/build.yml) assembles the release APK but does not run a Gradle unit-test task. [CONTRIBUTING](../../CONTRIBUTING.md) still refers to 131 tests.
 
 ## User priorities (updated 2026-09-11)
 
@@ -33,9 +33,9 @@ The consumption fix is installed on the car. It excludes Park samples, retains z
 
 The next tests should protect this work before expanding to unrelated features:
 
-1. **Consumption and sampling boundaries.** Extend [DrivingConsumptionTest](../drivemem/src/test/java/com/geely/drivemem/sensors/DrivingConsumptionTest.java) and [EnergyIntegratorTest](../drivemem/src/test/java/com/geely/drivemem/EnergyIntegratorTest.java). Cover Park with AC, D at zero speed, explicit R/N behavior, unknown gear, charging, regeneration, exact 40/80/120 boundaries, absent values, odometer resets, legacy/direct transitions, duplicate and out-of-order timestamps. Replay power and gear events together across P→D and D→P inside a telemetry window. Use independently calculated expected energy.
-2. **Live and historical SQLite calculations.** Execute the actual queries in [DailyStatsProvider](../drivemem/src/main/java/com/geely/drivemem/sensors/DailyStatsProvider.java) against synthetic fixtures. Verify live and frozen-day readings, stale rollups with retained raw data, repeat reads, midnight in America/Sao_Paulo, and isolation from today's live readings when selecting yesterday.
-3. **Retention.** Test [TelemetryRollup](../drivemem/src/main/java/com/geely/drivemem/sensors/TelemetryRollup.java) and historical selection after pruning. Latest 14 recorded dates can span more than 90 calendar days. Define a fallback for missing raw data; absent data must not become an apparent real zero. Preserve corrected driving summaries before pruning if they must remain available indefinitely.
+1. **Consumption and sampling boundaries.** Extend [DrivingConsumptionTest](../../drivemem/src/test/java/com/geely/drivemem/sensors/DrivingConsumptionTest.java) and [EnergyIntegratorTest](../../drivemem/src/test/java/com/geely/drivemem/EnergyIntegratorTest.java). Cover Park with AC, D at zero speed, explicit R/N behavior, unknown gear, charging, regeneration, exact 40/80/120 boundaries, absent values, odometer resets, legacy/direct transitions, duplicate and out-of-order timestamps. Replay power and gear events together across P→D and D→P inside a telemetry window. Use independently calculated expected energy.
+2. **Live and historical SQLite calculations.** Execute the actual queries in [DailyStatsProvider](../../drivemem/src/main/java/com/geely/drivemem/sensors/DailyStatsProvider.java) against synthetic fixtures. Verify live and frozen-day readings, stale rollups with retained raw data, repeat reads, midnight in America/Sao_Paulo, and isolation from today's live readings when selecting yesterday.
+3. **Retention.** Test [TelemetryRollup](../../drivemem/src/main/java/com/geely/drivemem/sensors/TelemetryRollup.java) and historical selection after pruning. Latest 14 recorded dates can span more than 90 calendar days. Define a fallback for missing raw data; absent data must not become an apparent real zero. Preserve corrected driving summaries before pruning if they must remain available indefinitely.
 4. **Historical recharge price persistence.** Edit an earlier session to a positive price and to zero, await database completion, then reopen/reload. Assert the correct session changed, other sessions stayed intact, null remains missing, and both Home and statistics refresh from committed values. Current ChargeSession tests use null Context in relevant cases and therefore bypass database writes.
 5. **CI enforcement.** Run unit tests, generate JaCoCo reports, and upload results before publishing build artifacts. Establish a coverage ratchet for calculation/storage code after the baseline is accepted; avoid an arbitrary whole-app target dominated by UI code.
 
@@ -43,7 +43,7 @@ Acceptance for this first slice: deterministic fixtures reproduce Park/traffic d
 
 ## Hardware behaviors we can simulate
 
-Existing [CarDataHubApplyTest](../drivemem/src/test/java/com/geely/drivemem/CarDataHubApplyTest.java) already uses `FakeCarAccess`. Extend this pattern with scripted sequences for missing properties, read/write errors, delayed readback, disconnection/reconnection, and unsupported properties.
+Existing [CarDataHubApplyTest](../../drivemem/src/test/java/com/geely/drivemem/CarDataHubApplyTest.java) already uses `FakeCarAccess`. Extend this pattern with scripted sequences for missing properties, read/write errors, delayed readback, disconnection/reconnection, and unsupported properties.
 
 Use narrow injectable dependencies for wall and monotonic clocks, scheduling/executors, telemetry input, and database access where needed. Reuse existing timestamps and reset hooks. Prefer deterministic event replay over sleeps or a large architecture rewrite. Test suspend/resume, service restart, duplicate subscriptions, and exactly-once session/row creation.
 

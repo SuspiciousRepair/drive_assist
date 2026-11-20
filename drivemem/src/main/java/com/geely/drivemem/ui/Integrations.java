@@ -3,6 +3,7 @@ package com.geely.drivemem.ui;
 import android.content.Context;
 
 import com.geely.drivemem.R;
+import com.geely.drivemem.controls.OemTranslations;
 import com.geely.drivemem.net.AbrpUploader;
 import com.geely.drivemem.sensors.ObdHub;
 import com.geely.drivemem.services.TelemetryService;
@@ -15,7 +16,8 @@ import java.util.List;
 /** Every integration the Config screen's Integrations page shows as a tile.
  *
  * An integration is anything that talks to an OUTSIDE device, service or
- * account: a broker, a Bluetooth dongle, a web API. The car's own data
+ * account: a broker, a Bluetooth dongle, a web API, a repo of files to
+ * download (the car app translations). The car's own data
  * sources (CAN, the vehicle HAL) are not integrations -- the owner has
  * nothing to set up for them -- so they are not listed here.
  *
@@ -64,7 +66,9 @@ final class Integrations {
         new Integration(TelemetryActivity.SEC_ABRP, R.string.int_abrp_name, R.string.int_abrp_desc,
             R.drawable.ic_route, 0xFF00897B, Integrations::abrp),
         new Integration(TelemetryActivity.SEC_SPOTIFY, R.string.int_spotify_name, R.string.int_spotify_desc,
-            R.drawable.ic_spotify, 0xFF1DB954, Integrations::spotify)
+            R.drawable.ic_spotify, 0xFF1DB954, Integrations::spotify),
+        new Integration(TelemetryActivity.SEC_OEM_TEXT, R.string.int_oem_name, R.string.int_oem_desc,
+            R.drawable.ic_translate, 0xFF5E6AD2, Integrations::oemText)
     );
 
     /** The integration whose settings page is `section`, or null. */
@@ -100,6 +104,26 @@ final class Integrations {
         if (AbrpUploader.lastAttemptAtMs() > 0 && !AbrpUploader.lastAttemptOk())
             return new Status(State.ERROR, c.getString(R.string.int_status_failing));
         return new Status(State.OK, c.getString(R.string.int_status_on));
+    }
+
+    // modehelper owns this state. Each call asks it again (the page calls
+    // every 2 s while open) and shows the answer it already has.
+    private static Status oemText(Context c) {
+        OemTranslations.refresh(c, null);
+        OemTranslations.Status s = OemTranslations.last();
+        if (s == null) return off(c);
+        switch (s.state) {
+            case OemTranslations.ON:
+                return new Status(State.OK, c.getString(R.string.int_status_on));
+            case OemTranslations.BUSY:
+                return new Status(State.BUSY, c.getString(R.string.int_status_working));
+            case OemTranslations.ERROR:
+                return new Status(State.ERROR, c.getString(R.string.int_status_failing));
+            case OemTranslations.NO_HELPER:
+                return new Status(State.ERROR, c.getString(R.string.int_status_needs_setup));
+            default:
+                return off(c);
+        }
     }
 
     private static Status spotify(Context c) {

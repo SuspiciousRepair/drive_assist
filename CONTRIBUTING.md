@@ -42,6 +42,8 @@ trailer where the contributor has agreed to it.
 1. Integrate reviewed work on `next`; every push creates a downloadable
    candidate artifact, never an automatic OTA.
 2. Cut `release/vX.Y` from `next` when feature work is complete.
+   Update the documents for the release: the list is in
+   [the release process](docs/RELEASE-PROCESS.md#documentation).
 3. Validate its exact clean source SHA: `./tools/validate-release.sh release/vX.Y`.
 4. Complete applicable vehicle checks in [the device validation checklist](docs/DEVICE-VALIDATION.md).
 5. Publish the vetted tree only: `./tools/push-release.sh vX.Y.Z "summary" release/vX.Y`.
@@ -131,7 +133,7 @@ Modifications interacting with vehicle systems must strictly respect the followi
 * Power-cycling the digital signal processor (DSP) causes a loud, jarring acoustic pop through the vehicle cabin speakers that can startle the driver and damage audio equipment.
 * To test boot-triggered workflows, simulate the broadcast safely:
   ```bash
-  adb shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.geely.drivemem/.BootReceiver
+  adb shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.geely.drivemem/.util.BootReceiver
   ```
 * For daemon restarts, restart the specific process or service (`kill -9 <PID>`).
 
