@@ -75,6 +75,28 @@ public final class OemTextPolicyTest {
         check(OemTextPolicy.crashedPackage("Subject: x") == null, "no Process line gives null");
         check(OemTextPolicy.crashedPackage(null) == null, "null gives null");
 
+        // Park only: mounting stops the car's own apps.
+        check(OemTextPolicy.mayRestartApps(4), "Park: the apps may restart");
+        check(!OemTextPolicy.mayRestartApps(8), "Drive: wait");
+        check(!OemTextPolicy.mayRestartApps(2), "Reverse: wait");
+        check(!OemTextPolicy.mayRestartApps(1), "Neutral: wait");
+        check(!OemTextPolicy.mayRestartApps(null), "gear not read yet: wait");
+
+        // what waits for Park
+        check(OemTextPolicy.REMOVE.equals(OemTextPolicy.nextPending(OemTextPolicy.INSTALL, OemTextPolicy.REMOVE)),
+            "Remove after Install: Remove");
+        check(OemTextPolicy.INSTALL.equals(OemTextPolicy.nextPending(OemTextPolicy.INSTALL, OemTextPolicy.REAPPLY)),
+            "a reapply does not replace the owner's Install");
+        check(OemTextPolicy.REMOVE.equals(OemTextPolicy.nextPending(OemTextPolicy.REMOVE, OemTextPolicy.REAPPLY)),
+            "a reapply does not replace the owner's Remove");
+        check(OemTextPolicy.REAPPLY.equals(OemTextPolicy.nextPending(null, OemTextPolicy.REAPPLY)), "nothing waiting: reapply");
+        check(OemTextPolicy.REAPPLY.equals(OemTextPolicy.nextPending("", OemTextPolicy.REAPPLY)), "empty: reapply");
+
+        // a crashed app's copy is marked gone only when it is gone
+        check(OemTextPolicy.crashCopyRemoved("x; " + OemTextPolicy.REMOVED), "unmount said removed");
+        check(!OemTextPolicy.crashCopyRemoved(""), "nothing ran: try again at the next crash");
+        check(!OemTextPolicy.crashCopyRemoved(null), "no shell: try again at the next crash");
+
         check(OemTextPolicy.validCommit("a6d9ad6fea7f0817605ebdb50ce96788b38fcc1b"), "a full commit hash");
         check(!OemTextPolicy.validCommit("a6d9ad6") && !OemTextPolicy.validCommit("<html>"), "anything else is not");
         check(OemTextPolicy.LATEST_URL.startsWith("https://api.github.com/repos/SuspiciousRepair/integration-oem-translations/")

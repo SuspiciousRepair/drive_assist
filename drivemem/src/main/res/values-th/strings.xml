@@ -627,6 +627,7 @@
     <string name="cfg_oem_st_download">กำลังดาวน์โหลด…</string>
     <string name="cfg_oem_st_patch">กำลังเตรียมแอป…</string>
     <string name="cfg_oem_st_mount">กำลังนำไปใช้…</string>
+    <string name="cfg_oem_st_park">รอเกียร์ P: แอปของรถจะเริ่มใหม่ระหว่างนำไปใช้</string>
     <string name="cfg_oem_st_remove">กำลังลบออก…</string>
     <string name="cfg_oem_st_on">เปิดอยู่ แอปที่แก้แล้ว: %d</string>
     <string name="cfg_oem_st_crashed">นำออกหลังแอปขัดข้อง: %s</string>

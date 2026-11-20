@@ -611,6 +611,7 @@
     <string name="cfg_oem_st_download">Descargando…</string>
     <string name="cfg_oem_st_patch">Preparando las apps…</string>
     <string name="cfg_oem_st_mount">Aplicando…</string>
+    <string name="cfg_oem_st_park">Esperando la P: las apps del auto se reinician al aplicar.</string>
     <string name="cfg_oem_st_remove">Quitando…</string>
     <string name="cfg_oem_st_on">Activado. Apps corregidas: %d</string>
     <string name="cfg_oem_st_crashed">Quitado tras un fallo: %s</string>

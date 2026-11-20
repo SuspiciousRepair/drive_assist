@@ -73,6 +73,8 @@ public final class TelemetryOemTextSection extends LinearLayout {
                     case "download": return activity.getString(R.string.cfg_oem_st_download);
                     case "patch": return activity.getString(R.string.cfg_oem_st_patch);
                     case "remove": return activity.getString(R.string.cfg_oem_st_remove);
+                    // The helper restarts the car's apps only in Park.
+                    case "park": return activity.getString(R.string.cfg_oem_st_park);
                     default: return activity.getString(R.string.cfg_oem_st_mount);
                 }
             case OemTranslations.ON: {

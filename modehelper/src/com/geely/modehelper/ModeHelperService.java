@@ -280,6 +280,8 @@ public class ModeHelperService extends Service {
                 if (!car.isReady()) car.connect(getApplicationContext());
                 Integer g = car.readGear();
                 boolean parked = (g != null && g == CarMode.GEAR_PARK);
+                // Car app translations wait for Park to restart the car's apps.
+                try { OemText.onGear(this, g); } catch (Throwable t) { Log.w(TAG, "oem text gear: " + t); }
                 maybeAutoStart();
                 superviseDash();
                 maybeWatchPower();
