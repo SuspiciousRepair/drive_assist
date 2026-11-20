@@ -65,6 +65,24 @@ public final class ModeRestoreTest {
         check(r.takeNote().startsWith("driver picked"), "the log says why");
         check(r.takeNote() == null, "note is read once");
 
+        // the car puts a second default over our write before it settles:
+        // that is the car, not the driver (review of next, 2026-11-20)
+        r = new ModeRestore();
+        r.arm(0);
+        check(is(r.observe(SPORT, ECO, true, 0), ECO), "car reset to Sport: write Eco");
+        check(r.observe(COMFORT, ECO, true, 4_000) == null, "Comfort while our write lands: wait");
+        check(r.isPending(), "Comfort while our write lands is not a driver pick");
+        check(is(r.observe(COMFORT, ECO, true, 8_000), ECO), "Comfort is the car's new default: write Eco again");
+        check(r.observe(ECO, ECO, true, 12_000) == null, "matches");
+        check(r.isPending(), "held");
+
+        // a new value after the write settled is still the driver's pick
+        r = new ModeRestore();
+        r.arm(0);
+        check(is(r.observe(SPORT, ECO, true, 0), ECO), "first write");
+        check(r.observe(COMFORT, ECO, true, ModeRestore.SETTLE_MS) == null, "Comfort after settle");
+        check(!r.isPending(), "after settle a third value is the driver's pick");
+
         // time limit
         r = new ModeRestore();
         r.arm(0);

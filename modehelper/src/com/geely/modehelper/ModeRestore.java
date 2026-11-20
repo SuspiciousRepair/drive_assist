@@ -20,7 +20,10 @@ package com.geely.modehelper;
  *   MAX_WRITES times, SETTLE_MS apart, for at most RESTORE_MS;
  * - the first different value seen is the car's reset. A third value, seen
  *   after our last write had time to land, is the driver's pick in the car's
- *   own screen: the restore stops and the pick stays;
+ *   own screen: the restore stops and the pick stays. A third value that
+ *   shows up while our write is still landing is the car answering it (it
+ *   can put a second default over our write): it becomes the reset value
+ *   and is written over like the first (review of next, 2026-11-20);
  * - once the car shows the saved value, it is held for HOLD_MS more, because
  *   the car can apply its own default a few seconds after our write (the
  *   v0.4.9 race). After that the restore ends.
@@ -97,10 +100,15 @@ final class ModeRestore {
         }
         if (resetValue == null) resetValue = car;
 
-        if (car != resetValue.intValue() && settled) {
-            pending = false;                       // the driver picked another mode: keep it
-            note = "driver picked " + car + ", restore stopped";
-            return null;
+        if (car != resetValue.intValue()) {
+            if (settled) {
+                pending = false;                   // the driver picked another mode: keep it
+                note = "driver picked " + car + ", restore stopped";
+                return null;
+            }
+            // Changed while our write was landing: the car's own doing.
+            resetValue = car;
+            note = "car changed its default to " + car;
         }
         if (now > until) {
             pending = false;

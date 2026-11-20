@@ -21,6 +21,13 @@
   app crashes is taken away at once. The Cleanup screen removes it too. The
   Wi-Fi signal word ("强") is in the app's code, not its text, so it stays
   Chinese.
+- **The ABRP log shows ABRP's answer.** `abrp-attempt.log` now keeps what
+  ABRP replied, not only the HTTP code: a reply of 200 can still mean the
+  data was refused.
+- **The OBD2 log says why the dongle gave no reading (#144).**
+  `obd2-events.log` records connect failures, a lost link and runs of
+  rounds with no answer, with the dongle's raw answer, so a gap in a charge
+  or a trip can be explained afterwards.
 
 ### Fixed
 - **Combustion mode plays again.** The car would not play our lock sound:
@@ -38,6 +45,16 @@
   in Park, a few times, for up to 3 minutes, and the restore stops when
   you pick another mode in the car. AEB and AVAS keep the 15-second
   window. The on signal and the restore rules come from Funkyfal's fork.
+  If the car puts a second default over our write while it is landing,
+  that is not taken as your pick: the saved mode is written again.
+- **The charging map fills in its blank pieces again.** A map piece that
+  did not download (weak signal) stayed blank when you opened the screen
+  again before it was tried once more. Now every open map is told to try
+  again, and a network coming back is noticed even with an always-on VPN.
+- **Cleanup says when the lock sound could not be put back.** Before, a
+  failure was silent and our sound stayed mounted after the uninstall. It
+  is now tried again once ADB is open, and a failure is written in the
+  cleanup log.
 
 ### Changed
 - **Extra dark is now Darkest mode, and it is darker (#130).** The
