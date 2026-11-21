@@ -36,9 +36,9 @@ import java.util.Random;
 //
 // The rear wheel reports the pedal: a RED breath while accelerating, BLUE energy
 // converging into the wheel while slowing down (on an electric, regenerating).
-// The signal is the derivative of the speed read at 1 Hz — the only
-// accelerometer this car gives. To use real current/regen, just change `accel`
-// in ArtView.
+// The signal is `accel` in ArtView: the drive motor's real power from CAN
+// when there is one, else the derivative of the speed. The red breath starts
+// only at a real push (MotorPedal.red), not while a speed is held.
 //
 // STOPPED, IT STOPS. With no speed and no pedal the scene freezes and the View
 // stops asking for frames: a live screen only when the car is alive.
@@ -746,7 +746,7 @@ public class VaporArtView extends ArtView {
 
     private void drawWheelFx(Canvas cv) {
         // the pull-away of the entry counts as pedal: the wheel lights up as it arrives
-        float acc = Math.max(Math.max(0f, accel), introAccel), rgn = Math.max(0f, -accel);
+        float acc = Math.max(MotorPedal.red(accel), introAccel), rgn = Math.max(0f, -accel);
         if (acc <= 0.04f && rgn <= 0.04f) return;
         wheelFx(cv, rwx1, acc, rgn);
         wheelFx(cv, rwx2, acc, rgn);

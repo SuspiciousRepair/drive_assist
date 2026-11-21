@@ -51,6 +51,15 @@ public final class CanEnergyReader {
     /** Clears it only if it is still {@code l}: a screen being torn down must
      * not unhook the one that replaced it. */
     public static synchronized void clearSpeedListener(SpeedListener l) { if (speedListener == l) speedListener = null; }
+
+    /** Every change of the drive motor's power (kW, + pushing, -
+     * regenerating; null = not valid), for the art's wheel glow: the 2 s hub
+     * key is too slow to follow a foot. In addition to can.drive_kw. */
+    public interface DriveListener { void onCanDrive(Float kw); }
+    private static volatile DriveListener driveListener;
+    public static void setDriveListener(DriveListener l) { driveListener = l; }
+    /** Clears it only if it is still {@code l}, like the speed's. */
+    public static synchronized void clearDriveListener(DriveListener l) { if (driveListener == l) driveListener = null; }
     private static volatile PowerListener powerListener;
     private static volatile boolean wanted = false;
     private static volatile Thread thread;
@@ -136,6 +145,7 @@ public final class CanEnergyReader {
                         if (SPEED.onSignal(name, raw, valid)) { deliverSpeed(); return; }
                         Double kw = POWER.onSignal(name, physical, valid, now);
                         if (kw != null && sub[0]) deliver(now, kw);
+                        if (CanPower.DRIVE.equals(name)) deliverDrive();
                     }
                     @Override public void onHeartbeat(int sourceState, int milliHz) {
                         if (!wanted) { close(s); return; }
@@ -199,6 +209,17 @@ public final class CanEnergyReader {
 
     /** CAN speed while the reader is live, else null (use the VHAL's). */
     public static Float liveSpeedKmh() { return isLive() ? SPEED.kmh() : null; }
+
+    private static void deliverDrive() {
+        DriveListener l = driveListener;
+        if (l == null) return;
+        try { l.onCanDrive(f(POWER.heldDriveKw())); } catch (Throwable t) { Log.w(TAG, "can: drive listener " + t); }
+    }
+
+    /** Drive motor power while the reader is live and the value is fresh,
+     * else null. For the art's fast path only (DriveListener); everything
+     * else reads the hub's can.drive_kw. */
+    public static Float liveDriveKw() { return freshDriveKw(); }
 
     private static void injectBrake(CarActor.Reading r) {
         CarActor a = CarActor.get();

@@ -36,9 +36,10 @@ All art renderers extend `ArtView`, which enforces standard contracts across the
 ```java
 public abstract class ArtView extends View {
     protected float speedKmh;      // km/h, updated from vehicle telemetry poll (1 Hz)
-    protected float accel;         // -1.0..1.0, derived acceleration (negative = braking/regen)
+    protected float accel;         // -1.0..1.0, the pedal (negative = regen)
 
     public void setSpeed(float kmh);
+    public void setDrivePower(Float kw);             // CAN drive motor power, null = not known
     public abstract void setAmbient(int rgb);        // Raw RGB cabin light color
     public void setAmbientBrightness(int level);     // Raw level 0..20 (0 = off)
 
@@ -58,7 +59,7 @@ public abstract class ArtView extends View {
 ### Key Behavioral Invariants
 
 1. **Fixed Physics Time Step (`steps()`)**: `steps()` returns elapsed time in discrete 1/60 s increments regardless of frame rate. On automotive hardware throttling under thermal load (e.g., dropping to 30 fps), animation speed remains constant rather than slowing down.
-2. **Derived Acceleration (`accel`)**: Derived from speed rate-of-change over time. Decouples art reactivity from specific powertrain sensor implementations.
+2. **The Pedal (`accel`)**: From the drive motor's real power when the CAN reader gives it (`setDrivePower`, `MotorPedal`): power over speed is the force at the wheels, force over mass is acceleration, so the value keeps its unit (km/h per second over 6). It arrives the moment the foot moves. Regeneration is the motor's own force, so it also shows at a held speed down a hill. A push has the cost of holding the speed on a flat road taken off first (rolling and air drag), so a motorway cruise is not a push. Without the CAN reader the value is derived from the speed's rate of change over at least 500 ms, which is half a second to two seconds late. The red breath starts only above about 1 km/h per second (`MotorPedal.red`), for both sources.
 3. **Raw Ambient Ingestion**: `setAmbient` and `setAmbientBrightness` receive raw hardware telemetry (`0..20` brightness, raw hex RGB). Each art implementation applies its own mapping policies independently of theme controls.
 
 ---

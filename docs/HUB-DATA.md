@@ -80,7 +80,7 @@ switch is off or the reader has not sent a heartbeat for 3 s.
 | `can.pack_v`, `can.pack_a` | pack voltage, current (+ = discharge) |
 | `can.power_kw` | pack power, V × I. `NOT_AVAILABLE` while volts or amps are not valid, also when `can.live` is 1 |
 | `can.climate_kw` | climate (compressor + heater) power, raw `VCU_ThermalPwrAct`. Reads low (see `plan/archive/implemented/CAN-ENERGY-ROADMAP.md`, "Power map") |
-| `can.drive_kw` | drive motor power, raw `VCU_DrvPwrAct`. Not battery power: use `can.power_kw` for that |
+| `can.drive_kw` | drive motor power, raw `VCU_DrvPwrAct`. Not battery power: use `can.power_kw` for that. The art also gets every change directly through `CanEnergyReader.DriveListener` (the wheel glow follows the foot; 2 s is too slow for that) |
 | `can.charger_w` | on-board charger's mains input, only while AC charging |
 | `can.speed_kmh` | vehicle speed, 0.1 steps (`ESC_VehicleSpeed`, frame 0x125, **raw × 0.05625**: the raw count is 1/64 m/s; roadcast's catalog says ×1, which is wrong). The art also gets every change directly (~10 Hz while moving) through `CanEnergyReader.SpeedListener` |
 | `can.brake` | brake pedal switch, 1 pressed / 0 released (`ESC_BrakePedalSwitchStatus`, frame 0x125). **Not polled: injected the moment it changes**, so it has no 2 s delay. `NOT_AVAILABLE` while the car flags it invalid or the reader is down |
