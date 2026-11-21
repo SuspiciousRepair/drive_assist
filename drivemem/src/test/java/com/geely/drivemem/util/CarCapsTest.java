@@ -45,6 +45,29 @@ public class CarCapsTest {
         assertTrue(CarCaps.blocksDashcam(c));
     }
 
+    @Test public void noAebHidesTheAebSwitch() throws Exception {
+        CarCaps c = CarCaps.read(file("cameras=no\nconfig=0622\ntype=06\nvariant=22\navm=3\nrvc=2\ndvr=0\n"
+            + "aeb=0\nambient=0\nrhd=1\n"));
+        assertEquals("0", c.aeb);
+        assertEquals("0", c.ambient);
+        assertEquals("1", c.rhd);
+        assertTrue(CarCaps.lacksAeb(c));
+        assertFalse(CarCaps.lacksAeb(CarCaps.read(file("cameras=yes\nconfig=0623\naeb=1\nambient=1\nrhd=0\n"))));
+    }
+
+    // Only a plain "0" hides the switch: no file, a file from before the
+    // value existed, a row not read, and a row too short to have the field
+    // (ModeHelper writes -1) all keep it.
+    @Test public void anUnknownAebKeepsTheAebSwitch() throws Exception {
+        assertFalse(CarCaps.lacksAeb(null));
+        CarCaps old = CarCaps.read(file("cameras=yes\nconfig=0623AB\ntype=06\nvariant=23\navm=2\nrvc=0\ndvr=0\n"));
+        assertEquals("", old.aeb);
+        assertFalse(CarCaps.lacksAeb(old));
+        assertEquals("?", CarCaps.shown(old.aeb));
+        assertFalse(CarCaps.lacksAeb(CarCaps.read(file("cameras=unknown\n"))));
+        assertFalse(CarCaps.lacksAeb(CarCaps.read(file("cameras=yes\nconfig=0623\naeb=-1\n"))));
+    }
+
     // An older ModeHelper writes no file and records without asking, so the
     // settings must stay.
     @Test public void noFileBlocksNothing() throws Exception {

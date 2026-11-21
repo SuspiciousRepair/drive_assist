@@ -769,6 +769,6 @@
     <string name="caps_cameras_yes">360 cameras: fitted.</string>
     <string name="caps_cameras_no">360 cameras: not fitted. The dashcam needs them, so it is off.</string>
     <string name="caps_cameras_unknown">360 cameras: not read yet. The dashcam stays off until the car answers.</string>
-    <string name="caps_readings">Type %1$s · Variant %2$s · AVM %3$s · RVC %4$s · DVR %5$s</string>
+    <string name="caps_readings">Type %1$s · Variant %2$s · AVM %3$s · RVC %4$s · DVR %5$s · AEB %6$s · AMB %7$s · RHD %8$s</string>
     <string name="caps_report">If this is wrong, send these lines in a GitHub issue.</string>
 </resources>

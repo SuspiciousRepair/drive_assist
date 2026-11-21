@@ -758,6 +758,6 @@
     <string name="caps_cameras_yes">กล้อง 360: มี</string>
     <string name="caps_cameras_no">กล้อง 360: ไม่มี Dashcam ต้องใช้กล้องนี้ จึงปิดอยู่</string>
     <string name="caps_cameras_unknown">กล้อง 360: ยังอ่านค่าไม่ได้ Dashcam จะปิดอยู่จนกว่ารถจะตอบ</string>
-    <string name="caps_readings">ประเภท %1$s · รุ่นย่อย %2$s · AVM %3$s · RVC %4$s · DVR %5$s</string>
+    <string name="caps_readings">ประเภท %1$s · รุ่นย่อย %2$s · AVM %3$s · RVC %4$s · DVR %5$s · AEB %6$s · AMB %7$s · RHD %8$s</string>
     <string name="caps_report">หากข้อมูลนี้ไม่ถูกต้อง ส่งบรรทัดเหล่านี้ใน issue บน GitHub</string>
 </resources>

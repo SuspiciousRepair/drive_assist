@@ -159,7 +159,8 @@ body signals it shows are read-only.
 Two switches affect safety systems, and both are your choice: one can turn off
 AEB (automatic emergency braking), and one can mute AVAS (the pedestrian warning
 sound). The [safety and privacy guide](WELCOME.md) lists everything the app can
-read, change and send.
+read, change and send. On a car that reports no AEB, the AEB switch is not
+shown.
 
 ## Getting it onto the car
 

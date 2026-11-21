@@ -9,8 +9,9 @@ import java.io.FileReader;
 /** What the car is fitted with, as ModeHelper read it from the car's own
  * equipment row and wrote to `car.caps` (its CarCaps has the format and the
  * reason). ModeHelper decides; this only reads the answer, to hide the
- * dashcam settings on a car without the 360 cameras and to show the values
- * an owner can send in an issue. */
+ * dashcam settings on a car without the 360 cameras, to hide the AEB switch
+ * on a car without AEB, and to show the values an owner can send in an
+ * issue. */
 public final class CarCaps {
     public static final String FILE = "car.caps";
 
@@ -20,11 +21,15 @@ public final class CarCaps {
     /** The whole row as hex; empty when it was not read. */
     public final String config;
     public final String type, variant, avm, rvc, dvr;
+    /** Emergency braking, cabin ambient light, steering wheel on the right:
+     * "1" or "0"; empty when an older ModeHelper wrote the file. */
+    public final String aeb, ambient, rhd;
 
-    private CarCaps(Cameras cameras, String config, String type, String variant,
-                    String avm, String rvc, String dvr) {
-        this.cameras = cameras; this.config = config; this.type = type; this.variant = variant;
-        this.avm = avm; this.rvc = rvc; this.dvr = dvr;
+    private CarCaps(Cameras cameras, String config, java.util.Map<String, String> m) {
+        this.cameras = cameras; this.config = config;
+        type = or(m.get("type")); variant = or(m.get("variant"));
+        avm = or(m.get("avm")); rvc = or(m.get("rvc")); dvr = or(m.get("dvr"));
+        aeb = or(m.get("aeb")); ambient = or(m.get("ambient")); rhd = or(m.get("rhd"));
     }
 
     /** null when ModeHelper has written nothing: an older ModeHelper, or none. */
@@ -45,8 +50,7 @@ public final class CarCaps {
         String cam = m.get("cameras");
         if (cam == null) return null;
         Cameras cameras = cam.equals("yes") ? Cameras.YES : cam.equals("no") ? Cameras.NO : Cameras.UNKNOWN;
-        return new CarCaps(cameras, or(m.get("config")), or(m.get("type")), or(m.get("variant")),
-            or(m.get("avm")), or(m.get("rvc")), or(m.get("dvr")));
+        return new CarCaps(cameras, or(m.get("config")), m);
     }
 
     private static String or(String s) { return s == null ? "" : s; }
@@ -57,6 +61,16 @@ public final class CarCaps {
     public static boolean blocksDashcam(CarCaps c) {
         return c != null && c.cameras != Cameras.YES;
     }
+
+    /** True only when the car's row says it has no AEB. No file, an older
+     * file without the value, or a row not read yet is not a "no": the AEB
+     * switch stays, as before. */
+    public static boolean lacksAeb(CarCaps c) {
+        return c != null && c.aeb.equals("0");
+    }
+
+    /** A value for the readings line: "?" when the file does not have it. */
+    public static String shown(String v) { return v.isEmpty() ? "?" : v; }
 
     /** The row in groups of eight characters, five groups to a line, so it
      * can be read back from a photo of the screen. */

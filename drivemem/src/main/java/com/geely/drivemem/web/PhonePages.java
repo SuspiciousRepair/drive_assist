@@ -142,7 +142,8 @@ final class PhonePages {
             .append("</p>");
         if (caps != null && !caps.config.isEmpty()) {
             b.append("<p style=\"word-break:break-all\"><code>").append(Http.esc(c.getString(R.string.caps_readings,
-                    caps.type, caps.variant, caps.avm, caps.rvc, caps.dvr)))
+                    caps.type, caps.variant, caps.avm, caps.rvc, caps.dvr,
+                CarCaps.shown(caps.aeb), CarCaps.shown(caps.ambient), CarCaps.shown(caps.rhd))))
              .append("<br>").append(Http.esc(caps.config)).append("</code></p>");
         }
         return b.append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.caps_report)))

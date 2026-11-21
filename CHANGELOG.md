@@ -13,6 +13,13 @@
   the car reported, and the phone page has them as text. If the answer is
   wrong for your car, send those lines in a GitHub issue: one car has
   confirmed the values so far.
+- **No AEB switch on a car without AEB.** The same equipment row says if
+  the car has automatic emergency braking. In the car's own list of trims,
+  AEB is fitted exactly where the 360 cameras are. On a car without it,
+  **Settings → Drive** no longer shows the AEB switch or its "Restore at
+  start" row, and ModeHelper writes no AEB setting. The **Car equipment**
+  card also shows the AEB value, the cabin ambient light value and the
+  steering side, for reports.
 - **Shorter dashcam subtitle.** The line under a clip now shows only the
   time, the speed, the gear, and the speed limit when the car knows one.
   An arrow after the speed shows it rising (↑) or falling (↓), doubled for

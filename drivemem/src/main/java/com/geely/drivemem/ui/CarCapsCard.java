@@ -22,7 +22,8 @@ final class CarCapsCard {
         card.addView(line(c, c.getString(status(caps)), Style.TEXT, false));
         if (caps != null && !caps.config.isEmpty()) {
             card.addView(line(c, c.getString(R.string.caps_readings,
-                caps.type, caps.variant, caps.avm, caps.rvc, caps.dvr), Style.TEXT, true));
+                caps.type, caps.variant, caps.avm, caps.rvc, caps.dvr,
+                CarCaps.shown(caps.aeb), CarCaps.shown(caps.ambient), CarCaps.shown(caps.rhd)), Style.TEXT, true));
             card.addView(line(c, CarCaps.grouped(caps.config), Style.TEXT, true));
         }
         card.addView(line(c, c.getString(R.string.caps_report), Style.TEXT_DIM, false));

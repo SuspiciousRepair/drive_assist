@@ -422,14 +422,15 @@ public class ModeHelperService extends Service {
     }
 
     // The car's equipment row (CarCaps): the dashcam runs only on a car that
-    // reports the 360 cameras. Asked until the car answers, at most once every
+    // reports the 360 cameras, and no AEB setting is written on a car that
+    // reports no AEB. Asked until the car answers, at most once every
     // ten seconds, then kept, because the factory fixed it. The answer goes to
     // car.caps beside the dashcam folder, where Drive Assist reads it.
     private CarCaps caps;
     private boolean capsTried;
     private long capsReadAt;
 
-    private synchronized CarCaps.Cameras cameras() {
+    private synchronized CarCaps caps() {
         long now = SystemClock.elapsedRealtime();
         if (caps == null && (!capsTried || now - capsReadAt >= 10_000)) {
             capsReadAt = now;
@@ -442,8 +443,10 @@ public class ModeHelperService extends Service {
             }
             capsTried = true;
         }
-        return CarCaps.cameras(caps);
+        return caps;
     }
+
+    private CarCaps.Cameras cameras() { return CarCaps.cameras(caps()); }
 
     // android.os.SystemProperties is a hidden class; null when it cannot be read.
     private static String systemProperty(String key) {
@@ -557,6 +560,7 @@ public class ModeHelperService extends Service {
     private void enforceAeb(boolean window, boolean tap) {
         SharedPreferences p = getSharedPreferences("modehelper", MODE_PRIVATE);
         if (!shouldWrite(p, "restore_aeb", "aeb", window, tap)) return;
+        if (CarCaps.lacksAeb(caps())) return;   // the car says it has no AEB: nothing to set
         boolean want = p.getBoolean("aeb", true);
         Boolean have = car.readBoolProp(CarMode.AEB_PROP, CarMode.AEB_AREA);
         if (have != null && have != want) {

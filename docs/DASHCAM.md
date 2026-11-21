@@ -69,6 +69,13 @@ options this car has) and records only when the row reports the cameras.
 * **Result file**: `car.caps`, beside the `dashcam/` folder, holds
   `cameras=yes|no|unknown`, the whole row (`config`), and the fields `type`,
   `variant`, `avm`, `rvc`, `dvr`. Drive Assist reads it.
+* **Other fields in the same file**: `aeb` (emergency braking, byte 37,
+  bit 7), `ambient` (cabin ambient light, byte 30, bit 0) and `rhd`
+  (steering wheel on the right, byte 13, bit 5), each `1` or `0`. `aeb=0`
+  removes the AEB switch from **Settings → Drive** and stops ModeHelper
+  from writing an AEB setting. Nothing acts on `ambient` or `rhd`; they are
+  there for reports. In the car's factory table of 52 trims, `aeb` and
+  `ambient` are `1` exactly on the trims that have the 360 cameras.
 
 When the dashcam is off for this reason, the Dashcam page shows a **Car
 equipment** card in place of the recording settings. The same card is always

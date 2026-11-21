@@ -23,6 +23,13 @@ import java.nio.charset.StandardCharsets;
  *   cameras=yes|no|unknown
  *   config=<the whole row, hex>      (absent when unknown)
  *   type=06  variant=23  avm=2  rvc=0  dvr=0   (one per line)
+ *   aeb=1  ambient=1  rhd=0                    (one per line)
+ *
+ * `aeb` is the emergency braking field: Drive Assist hides its AEB switch,
+ * and ModeHelper writes no AEB setting, on a car where it is 0. In the car's
+ * own table of trims it is 1 exactly where the 360 cameras are fitted.
+ * `ambient` (cabin ambient light) and `rhd` (steering wheel on the right)
+ * are written for the report only; nothing acts on them.
  *
  * The values are shown on the System page so an owner can send them in an
  * issue: only one car has confirmed what a value means so far. */
@@ -75,8 +82,10 @@ final class CarCaps {
     }
 
     // Same arithmetic as the car's own decoder: `length` bits of one byte,
-    // starting at `startBit` from the low end.
+    // starting at `startBit` from the low end, and -1 for a byte the row does
+    // not have.
     private int bits(int index, int startBit, int length) {
+        if (index >= bytes.length) return -1;
         return ((bytes[index] & 0xFF) >> startBit) & ((1 << length) - 1);
     }
 
@@ -88,6 +97,16 @@ final class CarCaps {
     int rvc()         { return bits(22, 4, 2); }
     /** Factory video recorder. */
     int dvr()         { return bits(23, 3, 3); }
+    /** Automatic emergency braking: 1 fitted, 0 not. */
+    int aeb()         { return bits(37, 7, 1); }
+    /** Cabin ambient light: 1 fitted, 0 not. */
+    int ambient()     { return bits(30, 0, 1); }
+    /** Steering wheel on the right: 1 yes, 0 no. */
+    int rhd()         { return bits(13, 5, 1); }
+
+    /** True only when the row was read and says the car has no AEB. A row
+     * that is not read yet, or too short to have the field, is not a "no". */
+    static boolean lacksAeb(CarCaps c) { return c != null && c.aeb() == 0; }
 
     Cameras cameras() { return avm() == AVM_FITTED ? Cameras.YES : Cameras.NO; }
 
@@ -109,7 +128,10 @@ final class CarCaps {
             + "\nvariant=" + String.format("%02X", c.variant())
             + "\navm=" + c.avm()
             + "\nrvc=" + c.rvc()
-            + "\ndvr=" + c.dvr() + "\n";
+            + "\ndvr=" + c.dvr()
+            + "\naeb=" + c.aeb()
+            + "\nambient=" + c.ambient()
+            + "\nrhd=" + c.rhd() + "\n";
     }
 
     static void write(File dir, CarCaps c) {

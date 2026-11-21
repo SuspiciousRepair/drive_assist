@@ -742,6 +742,6 @@
     <string name="caps_cameras_yes">Cámaras 360: instaladas.</string>
     <string name="caps_cameras_no">Cámaras 360: no instaladas. La dashcam las necesita, por eso está apagada.</string>
     <string name="caps_cameras_unknown">Cámaras 360: aún no leídas. La dashcam sigue apagada hasta que el coche responda.</string>
-    <string name="caps_readings">Tipo %1$s · Variante %2$s · AVM %3$s · RVC %4$s · DVR %5$s</string>
+    <string name="caps_readings">Tipo %1$s · Variante %2$s · AVM %3$s · RVC %4$s · DVR %5$s · AEB %6$s · AMB %7$s · RHD %8$s</string>
     <string name="caps_report">Si esto es incorrecto, envía estas líneas en una issue de GitHub.</string>
 </resources>

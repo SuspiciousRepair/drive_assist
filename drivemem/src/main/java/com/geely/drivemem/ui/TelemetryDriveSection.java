@@ -21,6 +21,7 @@ import com.geely.drivemem.controls.AvasState;
 import com.geely.drivemem.controls.HelperSync;
 import com.geely.drivemem.controls.RegenTap;
 import com.geely.drivemem.controls.TurboMode;
+import com.geely.drivemem.util.CarCaps;
 import com.geely.drivemem.util.Modes;
 import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.Style;
@@ -217,40 +218,10 @@ public final class TelemetryDriveSection extends LinearLayout {
 
         left.addView(Style.header(activity, activity.getString(R.string.cfg_adas_header)));
 
-        // AEB: needs Park + its own confirmation, since writing this property
-        // directly (via modehelper) skips the OEM's own warning dialog entirely
-        // — see plan/ADAS-CONTROLS-ROADMAP.md. Built without the toggleRow()
-        // helper's callback param (passed null, overridden below) so the
-        // listener can hold a reference to its own switch, to revert it
-        // silently on cancel/not-parked without rebuilding the whole screen.
-        // Hidden until the car answers (refreshAebFromCar): the car
-        // is the only copy of this setting, so there is no saved value to
-        // show first that could be stale.
-        Boolean aebNow = aebOn(CarActor.get(activity).get(CarActor.AEB));
-        LinearLayout aebRow = Style.toggleRow(activity, activity.getString(R.string.cfg_aeb_label),
-            aebNow != null && aebNow, null);
-        GeelySwitch aebSwitch = (GeelySwitch) aebRow.getChildAt(0);
-        // Hidden, not shown as "off", so it never visibly flips when the answer comes.
-        if (aebNow == null) { aebSwitch.setEnabled(false); aebSwitch.setVisibility(View.INVISIBLE); }
-        this.aebSwitch = aebSwitch;
-        aebSwitch.setOnToggle(on -> {
-            if (!on) {
-                // No Park requirement, by design: applies in any condition,
-                // driving or parked — see plan/ADAS-CONTROLS-ROADMAP.md.
-                new android.app.AlertDialog.Builder(activity)
-                    .setTitle(activity.getString(R.string.cfg_aeb_confirm_title))
-                    .setMessage(activity.getString(R.string.cfg_aeb_confirm_body))
-                    .setPositiveButton(activity.getString(R.string.cfg_aeb_confirm_turn_off), (d, w) ->
-                        HelperSync.applyNow(activity, "aeb", false))
-                    .setNegativeButton(android.R.string.cancel, (d, w) -> aebSwitch.setCheckedSilently(true))
-                    .setOnCancelListener(d -> aebSwitch.setCheckedSilently(true))
-                    .show();
-            } else {
-                HelperSync.applyNow(activity, "aeb", true);
-            }
-        });
-        aebRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
-        left.addView(aebRow);
+        // On a car whose equipment row says it has no AEB (CarCaps), the switch
+        // and its "Restore at start" row are left out: they would set nothing.
+        boolean hasAeb = !CarCaps.lacksAeb(CarCaps.read(activity));
+        this.aebSwitch = hasAeb ? addAebRow(left, pageWidth) : null;
 
         // AVAS mute: no Park-gate, no confirmation — much lower stakes (a
         // pedestrian-warning chime, not braking), matching a "quick per-drive
@@ -298,7 +269,7 @@ public final class TelemetryDriveSection extends LinearLayout {
         advanced.addView(restoreHint);
         addRestoreRow(advanced, pageWidth, R.string.cfg_drive_header, Prefs.RESTORE_DRIVE);
         addRestoreRow(advanced, pageWidth, R.string.cfg_regen_header, Prefs.RESTORE_REGEN);
-        addRestoreRow(advanced, pageWidth, R.string.cfg_aeb_label, Prefs.RESTORE_AEB);
+        if (hasAeb) addRestoreRow(advanced, pageWidth, R.string.cfg_aeb_label, Prefs.RESTORE_AEB);
         addRestoreRow(advanced, pageWidth, R.string.cfg_avas_label, Prefs.RESTORE_AVAS);
 
         left.addView(advToggle);
@@ -510,6 +481,43 @@ public final class TelemetryDriveSection extends LinearLayout {
         ui.post(show);
         HelperSync.queryAvas(activity);
         ui.postDelayed(show, 1500);
+    }
+
+    // AEB: needs Park + its own confirmation, since writing this property
+    // directly (via modehelper) skips the OEM's own warning dialog entirely
+    // — see plan/ADAS-CONTROLS-ROADMAP.md. Built without the toggleRow()
+    // helper's callback param (passed null, overridden below) so the
+    // listener can hold a reference to its own switch, to revert it
+    // silently on cancel/not-parked without rebuilding the whole screen.
+    // Hidden until the car answers (refreshAebFromCar): the car
+    // is the only copy of this setting, so there is no saved value to
+    // show first that could be stale.
+    private GeelySwitch addAebRow(LinearLayout left, int pageWidth) {
+        Boolean aebNow = aebOn(CarActor.get(activity).get(CarActor.AEB));
+        LinearLayout aebRow = Style.toggleRow(activity, activity.getString(R.string.cfg_aeb_label),
+            aebNow != null && aebNow, null);
+        GeelySwitch sw = (GeelySwitch) aebRow.getChildAt(0);
+        // Hidden, not shown as "off", so it never visibly flips when the answer comes.
+        if (aebNow == null) { sw.setEnabled(false); sw.setVisibility(View.INVISIBLE); }
+        sw.setOnToggle(on -> {
+            if (!on) {
+                // No Park requirement, by design: applies in any condition,
+                // driving or parked — see plan/ADAS-CONTROLS-ROADMAP.md.
+                new android.app.AlertDialog.Builder(activity)
+                    .setTitle(activity.getString(R.string.cfg_aeb_confirm_title))
+                    .setMessage(activity.getString(R.string.cfg_aeb_confirm_body))
+                    .setPositiveButton(activity.getString(R.string.cfg_aeb_confirm_turn_off), (d, w) ->
+                        HelperSync.applyNow(activity, "aeb", false))
+                    .setNegativeButton(android.R.string.cancel, (d, w) -> sw.setCheckedSilently(true))
+                    .setOnCancelListener(d -> sw.setCheckedSilently(true))
+                    .show();
+            } else {
+                HelperSync.applyNow(activity, "aeb", true);
+            }
+        });
+        aebRow.setLayoutParams(new LinearLayout.LayoutParams(pageWidth, ViewGroup.LayoutParams.WRAP_CONTENT));
+        left.addView(aebRow);
+        return sw;
     }
 
     // Same idea for AEB: show what the car has now, not what was saved (#13).
