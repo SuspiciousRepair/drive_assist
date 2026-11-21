@@ -256,7 +256,10 @@ public final class DashRecorder {
                     int lim = SubtitleLine.limit(car.readIntProp(P_CAM_LIMIT, 0),
                         car.readIntProp(P_NAVI_LIMIT, 0), car.readIntProp(P_NAVSPEED, 0));
                     // Turn signal omitted: no verified property in field-catalog yet.
-                    tele = SubtitleLine.line(SUB_TIME.format(new Date()), sp, trend, car.readGear(), lim);
+                    // The pedal comes from Drive Assist (BrakeSignal); nothing
+                    // while its CAN reader is off.
+                    boolean brake = BrakeSignal.SHARED.take(SystemClock.elapsedRealtime());
+                    tele = SubtitleLine.line(SUB_TIME.format(new Date()), sp, trend, car.readGear(), brake, lim);
                 }
             } catch (Throwable t) { Log.w(TAG, "dashcam: sample: " + t); }
             try { Thread.sleep(1000); } catch (InterruptedException e) { return; }

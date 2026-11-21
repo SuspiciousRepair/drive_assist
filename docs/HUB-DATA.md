@@ -83,7 +83,7 @@ switch is off or the reader has not sent a heartbeat for 3 s.
 | `can.drive_kw` | drive motor power, raw `VCU_DrvPwrAct`. Not battery power: use `can.power_kw` for that |
 | `can.charger_w` | on-board charger's mains input, only while AC charging |
 | `can.speed_kmh` | vehicle speed, 0.1 steps (`ESC_VehicleSpeed`, frame 0x125, **raw × 0.05625**: the raw count is 1/64 m/s; roadcast's catalog says ×1, which is wrong). The art also gets every change directly (~10 Hz while moving) through `CanEnergyReader.SpeedListener` |
-| `can.brake` | brake pedal switch, 1 pressed / 0 released (`ESC_BrakePedalSwitchStatus`, frame 0x125). **Not polled: injected the moment it changes**, so it has no 2 s delay. `NOT_AVAILABLE` while the car flags it invalid or the reader is down |
+| `can.brake` | brake pedal switch, 1 pressed / 0 released (`ESC_BrakePedalSwitchStatus`, frame 0x125). **Not polled: injected the moment it changes**, so it has no 2 s delay. `NOT_AVAILABLE` while the car flags it invalid or the reader is down. Also passed on to ModeHelper for the dashcam subtitle (`DashBrake`) |
 
 A CAN value also needs its frame to have **changed once** since the reader
 started. A frame that stays constant (for example climate power while the

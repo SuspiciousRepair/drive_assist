@@ -225,6 +225,14 @@ public class ModeHelperService extends Service {
                     if (dash != null && dash.isRunning()) dash.closeSegmentNow(why);
                 }
             }, off);
+            // The brake pedal for the dashcam subtitle, from Drive Assist's
+            // CAN reader: a few messages a minute, and one every 2 s while
+            // the pedal is down. See BrakeSignal.
+            registerReceiver(new BroadcastReceiver() {
+                @Override public void onReceive(Context c, Intent it) {
+                    BrakeSignal.SHARED.report(it.getIntExtra(BrakeSignal.EXTRA, -1), SystemClock.elapsedRealtime());
+                }
+            }, new IntentFilter(BrakeSignal.ACTION));
             IntentFilter down = new IntentFilter(Intent.ACTION_SHUTDOWN);
             down.addAction(Intent.ACTION_REBOOT);
             registerReceiver(new BroadcastReceiver() {

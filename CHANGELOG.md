@@ -9,6 +9,10 @@
   a hard stop or a hard start (↓↓, ↑↑). The date, the outside temperature
   and the compass heading are gone; the date is in the clip's name. The
   recorder no longer runs the GPS.
+- **The dashcam subtitle shows the brake pedal.** `BRAKE` is on the line
+  while the pedal is pressed. It needs the car's CAN reader, which is on
+  by default (Config > System); with it off, the line shows no brake mark
+  at all.
 
 ### Fixed
 - **Park monitoring: the first seconds of a drive are recorded.** When the
