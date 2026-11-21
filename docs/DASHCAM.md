@@ -132,7 +132,7 @@ WEBVTT
 09:03:32 · 62 km/h · D · max 60
 
 00:00:01.000 --> 00:00:02.000
-09:03:33 · 49 km/h ↓↓ · D · max 60
+09:03:33 · 49 km/h ↓↓ · D · BRAKE · max 60
 ```
 
 ### Data Schema & Sources
@@ -143,12 +143,20 @@ WEBVTT
 | **Speed** | VHAL | `291504647` (`PERF_VEHICLE_SPEED`, km/h) |
 | **Speed change** | from the speed | `↑` rising or `↓` falling by 2 km/h a second or more; doubled (`↑↑`, `↓↓`) at 10 km/h a second or more, about 0.28 g. Nothing when steady |
 | **Gear** | VHAL | `289408001` (`GEAR_SELECTION`: 1=N, 2=R, 4=P, 8=D) |
+| **Brake pedal** | CAN, through Drive Assist | `BRAKE` while the pedal switch is pressed (the hub's `can.brake`, `ESC_BrakePedalSwitchStatus`). Only with the CAN reader on |
 | **Speed limit** | VHAL | camera sign, then navigation limit, then navigation speed; only plausible values (5-200) |
 
-The arrow is the change of the speed, not a pedal. The helper has no brake
-or accelerator signal: the brake switch is on the CAN bus, which Drive Assist
-reads, not the helper. So `↓` also shows a lift-off that slows the car by
-regeneration.
+The arrow is the change of the speed, not a pedal. So `↓` also shows a
+lift-off that slows the car by regeneration. There is no accelerator signal.
+
+`BRAKE` is the pedal. The brake switch is on the CAN bus, which Drive Assist
+reads, not the helper that records. Drive Assist passes the hub's `can.brake`
+on with a broadcast (`DashBrake` to `BrakeSignal`): once when the pedal
+changes, and again every 2 s while it is pressed. The helper believes
+"pressed" for 5 s after it last heard it, so the line cannot go on saying
+`BRAKE` if Drive Assist stops. A tap shorter than a second still reaches one
+line. With the CAN reader off (Config > System; it is on by default) there
+is no `BRAKE` at all: the line cannot tell "not pressed" from "not known".
 
 The outside temperature and the compass heading are no longer written, and
 the recorder no longer runs the GPS (the heading was its only use there).

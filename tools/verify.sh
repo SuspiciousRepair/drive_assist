@@ -41,6 +41,7 @@ javac -d "$MH_OUT" \
   modehelper/src/com/geely/modehelper/PowerWatch.java \
   modehelper/src/com/geely/modehelper/Vtt.java \
   modehelper/src/com/geely/modehelper/SubtitleLine.java \
+  modehelper/src/com/geely/modehelper/BrakeSignal.java \
   modehelper/test/com/geely/modehelper/MotionGateTest.java \
   modehelper/test/com/geely/modehelper/MotionEventPolicyTest.java \
   modehelper/test/com/geely/modehelper/MotionStallTest.java \
@@ -52,13 +53,14 @@ javac -d "$MH_OUT" \
   modehelper/test/com/geely/modehelper/RestartBackoffTest.java \
   modehelper/test/com/geely/modehelper/PowerWatchTest.java \
   modehelper/test/com/geely/modehelper/VttTest.java \
-  modehelper/test/com/geely/modehelper/SubtitleLineTest.java
+  modehelper/test/com/geely/modehelper/SubtitleLineTest.java \
+  modehelper/test/com/geely/modehelper/BrakeSignalTest.java
 # The dashcam's own: parked motion (gate, events, pre-roll, the stalled
 # decoder), the segment files, the recorder's state and restarts, the
-# subtitle line.
+# subtitle line and its brake pedal.
 for t in MotionGate MotionEventPolicy MotionStall ParkedMonitorPolicy PreRoll \
          FragmentedMp4 SegmentFiles RecorderState RestartBackoff PowerWatch Vtt \
-         SubtitleLine; do
+         SubtitleLine BrakeSignal; do
   java -cp "$MH_OUT" "com.geely.modehelper.${t}Test" >/dev/null
 done
 java -cp "$MH_OUT" com.geely.modehelper.RestorePolicyTest

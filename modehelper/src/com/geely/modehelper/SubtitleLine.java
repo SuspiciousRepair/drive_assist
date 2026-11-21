@@ -3,17 +3,22 @@ package com.geely.modehelper;
 /** The dashcam's subtitle line, one a second (see DashRecorder.sample and
  * docs/DASHCAM.md):
  *
- *     17:11:07 · 62 km/h ↓↓ · D · max 60
+ *     17:11:07 · 62 km/h ↓↓ · D · BRAKE · max 60
  *
  * Only what tells how the car was driven: the time, the speed and whether
- * it is rising or falling, the gear, and the speed limit when the car knows
- * one. The date is the clip's name. The outside temperature and the compass
+ * it is rising or falling, the gear, the brake pedal, and the speed limit
+ * when the car knows one. The date is the clip's name. The outside temperature and the compass
  * heading used to be here and said nothing about the driving.
  *
- * The arrow is the change of the speed itself, not a pedal: the helper has
- * no brake or accelerator signal (the brake switch is on the CAN bus, which
- * Drive Assist reads, not this process). So ↓ also shows a lift-off that
- * slows the car by regeneration, which is what the car did.
+ * The arrow is the change of the speed itself, not a pedal. So ↓ also
+ * shows a lift-off that slows the car by regeneration, which is what the
+ * car did. BRAKE is the pedal: the brake switch from the CAN bus, which
+ * Drive Assist reads and passes on (BrakeSignal). It is there only while
+ * the CAN reader is on; with it off the line cannot tell "not pressed" from
+ * "not known", and shows nothing for both. There is no accelerator signal.
+ *
+ * The marks are written as Unicode escapes in the code below, so the build
+ * does not depend on the compiler's idea of the file's encoding.
  *
  * Plain Java, so it is tested on a desktop JVM. */
 final class SubtitleLine {
@@ -35,7 +40,7 @@ final class SubtitleLine {
         float rate = (nowKmh - beforeKmh) * 1000f / dtMs;
         float size = Math.abs(rate);
         if (size < TREND_KMH_S) return "";
-        String one = rate > 0 ? "↑" : "↓";
+        String one = rate > 0 ? "\u2191" : "\u2193";
         return size >= HARD_KMH_S ? one + one : one;
     }
 
@@ -52,15 +57,16 @@ final class SubtitleLine {
         return -1;
     }
 
-    /** `time` is HH:mm:ss; `kmh` and `gear` null when unknown; `limit` -1
-     * when there is none. */
-    static String line(String time, Float kmh, String trend, Integer gear, int limit) {
+    /** `time` is HH:mm:ss; `kmh` and `gear` null when unknown; `brake` the
+     * pedal pressed in this second; `limit` -1 when there is none. */
+    static String line(String time, Float kmh, String trend, Integer gear, boolean brake, int limit) {
         StringBuilder b = new StringBuilder(48);
-        b.append(time).append(" · ")
+        b.append(time).append(" \u00B7 ")
          .append(kmh == null ? "?" : String.valueOf(Math.round(kmh))).append(" km/h");
         if (trend != null && !trend.isEmpty()) b.append(' ').append(trend);
-        if (gear != null) b.append(" · ").append(gear(gear));
-        if (limit > 0) b.append(" · max ").append(limit);
+        if (gear != null) b.append(" \u00B7 ").append(gear(gear));
+        if (brake) b.append(" \u00B7 BRAKE");
+        if (limit > 0) b.append(" \u00B7 max ").append(limit);
         return b.toString();
     }
 }

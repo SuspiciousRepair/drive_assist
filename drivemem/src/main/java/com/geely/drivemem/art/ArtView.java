@@ -11,9 +11,12 @@ import android.view.View;
 // Base of the panel arts (a skyline in Geely/Claro/Neon, the vaporwave scene
 // in Noturno). Handles what they all need and none should reimplement:
 //
-// 1. ACCELERATION derived from speed — the car exposes no accelerometer, so the
-//    change in the speed we read IS the signal. Positive = accelerating,
-//    negative = braking (on an electric, regenerating).
+// 1. The PEDAL (`accel`): positive = the motor pushing the car faster,
+//    negative = regenerating. From the drive motor's real power when the CAN
+//    reader gives it (setDrivePower, MotorPedal): that arrives the moment the
+//    foot moves. Without it, derived from the speed — the car exposes no
+//    accelerometer, so the change in the speed we read is the signal, half a
+//    second to two seconds late.
 //
 // 2. FIXED TIME STEP. Integrating "once per frame" ties the animation to the
 //    frame rate: on a head unit that throttles on temperature and drops to
@@ -24,7 +27,7 @@ public abstract class ArtView extends View {
     private static final float STEP_MS  = 1000f / 60f;
     private static final float MAX_ACC_MS = 250f;     // coming back from a pause must not "teleport" the scene
 
-    private static final float ACCEL_REF = 6f;        // km/h per s = full deflection
+    private static final float ACCEL_REF = MotorPedal.FULL_KMH_S;   // km/h per s = full deflection
 
     protected float speedKmh = 0f;
     protected float accel = 0f;      // -1..1 (negative = braking / regen)
@@ -52,7 +55,9 @@ public abstract class ArtView extends View {
     public void setSpeed(float kmh) {
         if (kmh < 0) kmh = 0;
         long now = SystemClock.uptimeMillis();
-        if (lastSpeedT == 0) { lastSpeedT = now; refKmh = kmh; }
+        // The motor's power is known: the pedal is that, at this speed.
+        if (driveKw != null) accel = MotorPedal.of(driveKw, kmh);
+        else if (lastSpeedT == 0) { lastSpeedT = now; refKmh = kmh; }
         else if (now - lastSpeedT >= ACCEL_WIN_MS) {
             float dt = (now - lastSpeedT) / 1000f;
             float a = (kmh - refKmh) / dt;                        // km/h per second
@@ -73,12 +78,36 @@ public abstract class ArtView extends View {
         // `wasMoving` delivers the DECELERATION: without it, the last poll
         // (already at zero) would wake nobody and the ground would stay frozen
         // still running.
-        boolean moving = kmh > 0.5f || Math.abs(accel) > 0.04f;
+        kick();
+    }
+
+    private void kick() {
+        boolean moving = speedKmh > 0.5f || Math.abs(accel) > 0.04f;
         if (moving || wasMoving) postInvalidateOnAnimation();
         wasMoving = moving;
     }
 
     private boolean wasMoving = false;
+
+    // The drive motor's real power in kW (+ pushing, - regenerating), from
+    // CAN on every change; null = not known (the CAN reader is off or not
+    // live). While it is known the pedal comes from it, with no wait for the
+    // speed to change; when it goes away the speed takes over again, with a
+    // fresh window. Like the speed, it only kicks the frames off.
+    private Float driveKw;
+
+    public void setDrivePower(Float kw) {
+        if (kw == null) {
+            if (driveKw == null) return;
+            driveKw = null;
+            accel = 0f;
+            lastSpeedT = 0L;
+        } else {
+            driveKw = kw;
+            accel = MotorPedal.of(kw, speedKmh);
+        }
+        kick();
+    }
 
     // cabin ambient light colour; each art decides whether to use it
     public abstract void setAmbient(int rgb);
