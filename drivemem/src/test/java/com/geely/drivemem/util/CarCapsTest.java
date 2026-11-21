@@ -1,0 +1,109 @@
+package com.geely.drivemem.util;
+
+import org.junit.Test;
+
+import java.io.File;
+import java.nio.file.Files;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+public class CarCapsTest {
+
+    // Exactly what modehelper's CarCaps writes (its CarCapsTest pins the same
+    // text on that side).
+    private static File file(String body) throws Exception {
+        File f = new File(Files.createTempDirectory("caps").toFile(), CarCaps.FILE);
+        try (java.io.FileWriter w = new java.io.FileWriter(f)) { w.write(body); }
+        return f;
+    }
+
+    @Test public void readsWhatModeHelperWrites() throws Exception {
+        CarCaps c = CarCaps.read(file("cameras=yes\nconfig=0623AB\ntype=06\nvariant=23\navm=2\nrvc=0\ndvr=0\n"));
+        assertEquals(CarCaps.Cameras.YES, c.cameras);
+        assertEquals("0623AB", c.config);
+        assertEquals("06", c.type);
+        assertEquals("23", c.variant);
+        assertEquals("2", c.avm);
+        assertEquals("0", c.rvc);
+        assertEquals("0", c.dvr);
+        assertFalse(CarCaps.blocksDashcam(c));
+    }
+
+    @Test public void noCamerasHidesTheDashcam() throws Exception {
+        CarCaps c = CarCaps.read(file("cameras=no\nconfig=0622\ntype=06\nvariant=22\navm=3\nrvc=2\ndvr=0\n"));
+        assertEquals(CarCaps.Cameras.NO, c.cameras);
+        assertTrue(CarCaps.blocksDashcam(c));
+    }
+
+    @Test public void aRowNotReadHidesTheDashcamToo() throws Exception {
+        CarCaps c = CarCaps.read(file("cameras=unknown\n"));
+        assertEquals(CarCaps.Cameras.UNKNOWN, c.cameras);
+        assertEquals("", c.config);
+        assertTrue(CarCaps.blocksDashcam(c));
+    }
+
+    @Test public void noAebHidesTheAebSwitch() throws Exception {
+        CarCaps c = CarCaps.read(file("cameras=no\nconfig=0622\ntype=06\nvariant=22\navm=3\nrvc=2\ndvr=0\n"
+            + "aeb=0\nambient=0\nrhd=1\n"));
+        assertEquals("0", c.aeb);
+        assertEquals("0", c.ambient);
+        assertEquals("1", c.rhd);
+        assertTrue(CarCaps.lacksAeb(c));
+        assertFalse(CarCaps.lacksAeb(CarCaps.read(file("cameras=yes\nconfig=0623\naeb=1\nambient=1\nrhd=0\n"))));
+    }
+
+    // Only a plain "0" hides the switch: no file, a file from before the
+    // value existed, a row not read, and a row too short to have the field
+    // (ModeHelper writes -1) all keep it.
+    @Test public void anUnknownAebKeepsTheAebSwitch() throws Exception {
+        assertFalse(CarCaps.lacksAeb(null));
+        CarCaps old = CarCaps.read(file("cameras=yes\nconfig=0623AB\ntype=06\nvariant=23\navm=2\nrvc=0\ndvr=0\n"));
+        assertEquals("", old.aeb);
+        assertFalse(CarCaps.lacksAeb(old));
+        assertEquals("?", CarCaps.shown(old.aeb));
+        assertFalse(CarCaps.lacksAeb(CarCaps.read(file("cameras=unknown\n"))));
+        assertFalse(CarCaps.lacksAeb(CarCaps.read(file("cameras=yes\nconfig=0623\naeb=-1\n"))));
+    }
+
+    // Ambient light follows the AEB rule: only a plain "0" is a "no".
+    @Test public void noAmbientLightIsOnlyAPlainZero() throws Exception {
+        assertTrue(CarCaps.lacksAmbient(CarCaps.read(file("cameras=no\nconfig=0622\naeb=0\nambient=0\nrhd=0\n"))));
+        assertFalse(CarCaps.lacksAmbient(CarCaps.read(file("cameras=yes\nconfig=0623\naeb=1\nambient=1\nrhd=0\n"))));
+        assertFalse(CarCaps.lacksAmbient(null));
+        assertFalse(CarCaps.lacksAmbient(CarCaps.read(file("cameras=yes\nconfig=0623AB\navm=2\n"))));
+        assertFalse(CarCaps.lacksAmbient(CarCaps.read(file("cameras=unknown\n"))));
+        assertFalse(CarCaps.lacksAmbient(CarCaps.read(file("cameras=yes\nconfig=0623\nambient=-1\n"))));
+    }
+
+    // The phone's Clips card goes only on a clear "no cameras". A row not
+    // read yet keeps it: the dashcam is held off then, but old clips may be
+    // there.
+    @Test public void onlyAClearNoCamerasHidesTheClips() throws Exception {
+        assertTrue(CarCaps.lacksCameras(CarCaps.read(file("cameras=no\nconfig=0622\navm=3\n"))));
+        assertFalse(CarCaps.lacksCameras(CarCaps.read(file("cameras=yes\nconfig=0623\navm=2\n"))));
+        CarCaps unknown = CarCaps.read(file("cameras=unknown\n"));
+        assertTrue(CarCaps.blocksDashcam(unknown));
+        assertFalse(CarCaps.lacksCameras(unknown));
+        assertFalse(CarCaps.lacksCameras(null));
+    }
+
+    // An older ModeHelper writes no file and records without asking, so the
+    // settings must stay.
+    @Test public void noFileBlocksNothing() throws Exception {
+        File missing = new File(Files.createTempDirectory("caps").toFile(), CarCaps.FILE);
+        assertNull(CarCaps.read(missing));
+        assertNull(CarCaps.read(file("garbage\n")));
+        assertFalse(CarCaps.blocksDashcam(null));
+    }
+
+    @Test public void theRowIsGroupedForReadingFromAPhoto() {
+        assertEquals("", CarCaps.grouped(""));
+        assertEquals("0623EAE0 0190", CarCaps.grouped("0623EAE00190"));
+        String row = "0623EAE00190460064CC0010041D30000B82032D88200700000F700A100061000000A000058DFD00";
+        assertEquals("0623EAE0 01904600 64CC0010 041D3000 0B82032D\n"
+            + "88200700 000F700A 10006100 0000A000 058DFD00", CarCaps.grouped(row));
+    }
+}

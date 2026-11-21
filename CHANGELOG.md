@@ -3,6 +3,29 @@
 ## [Unreleased]
 
 ### Changed
+- **The dashcam asks the car for its 360 cameras.** The dashcam needs the
+  four 360 cameras, and it was on by default on every car. On a car without
+  them it tried to start again and again. Now ModeHelper reads the car's
+  equipment row (the bytes the factory wrote to say which options the car
+  has) and records only when the row reports the cameras. If it does not,
+  or the row cannot be read, the dashcam stays off and the Dashcam page says
+  why. **Settings → System** has a new **Car equipment** card with the values
+  the car reported, and the phone page has them as text. If the answer is
+  wrong for your car, send those lines in a GitHub issue: one car has
+  confirmed the values so far.
+- **No AEB switch on a car without AEB.** The same equipment row says if
+  the car has automatic emergency braking. In the car's own list of trims,
+  AEB is fitted exactly where the 360 cameras are. On a car without it,
+  **Settings → Drive** no longer shows the AEB switch or its "Restore at
+  start" row, and ModeHelper writes no AEB setting. The **Car equipment**
+  card also shows the AEB value, the cabin ambient light value and the
+  steering side, for reports.
+- **No ambient light controls on a car without the ambient light.** On
+  such a car, Home Assistant no longer gets an "ambient light" it cannot
+  switch (one announced by an older version is removed), and the buttons
+  use the theme's own colour, not a cabin light colour that is not there.
+- **No Clips card on the phone page of a car without the 360 cameras.**
+  There is no dashcam on that car, so there are no clips to list.
 - **Shorter dashcam subtitle.** The line under a clip now shows only the
   time, the speed, the gear, and the speed limit when the car knows one.
   An arrow after the speed shows it rising (↑) or falling (↓), doubled for
