@@ -13,6 +13,12 @@ import java.util.List;
  * still cover `spanMs`: at a key frame a second, about spanMs plus one
  * second of video, ~2 MB a second at the recorder's bitrate.
  *
+ * It holds ONE piece of video. A frame that arrives more than HOLE_MS after
+ * the one before it starts over: the cameras stopped in between (the car
+ * went off and slept). Without this the last second before a sleep opened
+ * the first clip after it, and gave that clip its name (seen on the car
+ * 2026-11-20: a clip named 17:11:08 holding video from 18:02:18).
+ *
  * Plain Java, so it is tested on a desktop JVM. Encoder thread only. */
 final class PreRoll {
     static final class Frame {
@@ -29,10 +35,17 @@ final class PreRoll {
     private final long spanMs;
     private final ArrayDeque<Frame> frames = new ArrayDeque<>();
 
+    // Frames come 40 ms apart. Both clocks are checked: uptime stands still
+    // while the unit sleeps, and the wall clock does not.
+    static final long HOLE_MS = 2_000L;
+
     PreRoll(long spanMs) { this.spanMs = spanMs; }
 
     /** Copies one access unit (the encoder releases its buffer right after). */
     void add(ByteBuffer buf, int offset, int size, boolean key, long uptimeMs, long wallMs, String tele) {
+        Frame last = frames.peekLast();
+        if (last != null && (uptimeMs - last.uptimeMs > HOLE_MS
+                             || Math.abs(wallMs - last.wallMs) > HOLE_MS)) frames.clear();
         if (frames.isEmpty() && !key) return;          // must start on a key frame
         byte[] data = new byte[size];
         ByteBuffer d = buf.duplicate();

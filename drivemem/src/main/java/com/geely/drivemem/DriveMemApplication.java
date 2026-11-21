@@ -74,6 +74,8 @@ public final class DriveMemApplication extends Application {
         Obd2Reader.ensureStarted(this);   // no-ops unless obd2_enabled is set
         com.geely.drivemem.sensors.BatteryHealth.ensureSubscribed(this);   // keeps obd.soh
         CanEnergyReader.ensureStarted(this);   // no-ops unless can_energy is set
+        // The brake pedal (can.brake) for the dashcam's subtitle line.
+        com.geely.drivemem.sensors.DashBrake.ensureSubscribed(this);
         AbrpUploader.ensureSubscribed(this);
         CarplayState.ensureSubscribed(this);
     }

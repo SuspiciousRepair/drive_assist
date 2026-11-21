@@ -2265,7 +2265,10 @@ public class ComfortActivity extends Activity {
         if (reading.status == CarActor.Reading.Status.OK) {
             Float can = CanEnergyReader.liveSpeedKmh();
             float s = can != null ? can : ((Number) reading.value).floatValue();
-            ui.post(() -> { if (art != null) art.setSpeed(s); });
+            // The motor power too: null once the reader is no longer live,
+            // which hands the pedal back to the speed.
+            Float kw = CanEnergyReader.liveDriveKw();
+            ui.post(() -> { if (art != null) { art.setDrivePower(kw); art.setSpeed(s); } });
         }
     };
 
@@ -2281,6 +2284,20 @@ public class ComfortActivity extends Activity {
     private final CanEnergyReader.SpeedListener canSpeedListener = kmh -> {
         canKmh = kmh;
         if (canKmhPosted.compareAndSet(false, true)) ui.post(applyCanKmh);
+    };
+
+    // CAN drive motor power -> art (the wheel glow: push and regen), on every
+    // change. Same shape as the speed: one Runnable, posted at most once.
+    private volatile Float canDriveKw;
+    private final java.util.concurrent.atomic.AtomicBoolean canDrivePosted =
+        new java.util.concurrent.atomic.AtomicBoolean();
+    private final Runnable applyCanDrive = () -> {
+        canDrivePosted.set(false);
+        if (art != null) art.setDrivePower(canDriveKw);
+    };
+    private final CanEnergyReader.DriveListener canDriveListener = kw -> {
+        canDriveKw = kw;
+        if (canDrivePosted.compareAndSet(false, true)) ui.post(applyCanDrive);
     };
 
     // brake pedal -> art (brake lamps). Injected by the CAN reader the moment
@@ -2309,6 +2326,7 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe("telemetry.speed", speedListener);
         EntityBus.subscribe(CanHub.BRAKE, brakeListener);
         CanEnergyReader.setSpeedListener(canSpeedListener);
+        CanEnergyReader.setDriveListener(canDriveListener);
         if (art != null) art.setBraking(isPressed(a.get(CanHub.BRAKE)));   // no replay on the bus
         EntityBus.subscribe("car.window_pos", windowPosListener);
         EntityBus.subscribe("car.hvac_recirc", hvacRecircListener);
@@ -2345,6 +2363,7 @@ public class ComfortActivity extends Activity {
         EntityBus.unsubscribe("telemetry.speed", speedListener);
         EntityBus.unsubscribe(CanHub.BRAKE, brakeListener);
         CanEnergyReader.clearSpeedListener(canSpeedListener);
+        CanEnergyReader.clearDriveListener(canDriveListener);
         quickButtons.stop();
         EntityBus.unsubscribe("car.window_pos", windowPosListener);
         EntityBus.unsubscribe("car.hvac_recirc", hvacRecircListener);

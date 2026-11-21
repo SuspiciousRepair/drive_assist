@@ -19,6 +19,16 @@ auto-holding kept every parked clip at home (plants in front of the camera),
 600 MB each, never evicted. `MotionGate` learns pixels that change on most
 samples (leaves in the wind) and leaves them out.
 
+Corrections from the car's clips of 2026-11-20: the pre-roll drops what it
+holds across a sleep (frames more than 2 s apart); on leaving Park it opens
+the ordinary clip that follows instead of being dropped, and a parked clip
+still open is closed; a decoder that stops analysing (`MotionStall`, 15 key
+frames) ends the watch until Park is left, and the recorder writes
+continuously. Known and left as is: a light that comes on is recorded as
+motion (the 90 % whole-picture rule cannot see a change in one of the four
+cameras), and someone moving in one spot for more than about 4 s is learned
+like leaves.
+
 ## Goal
 
 Offer optional activity monitoring only while the vehicle is demonstrably

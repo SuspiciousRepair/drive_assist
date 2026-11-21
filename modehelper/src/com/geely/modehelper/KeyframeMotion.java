@@ -48,6 +48,10 @@ final class KeyframeMotion implements AutoCloseable {
     private boolean hasPending;
     private volatile boolean closed;
     private long analysed;
+    private final MotionStall stall = new MotionStall();
+
+    /** No key frame was analysed for a long run of them: see MotionStall. */
+    boolean stalled() { return stall.stalled(); }
 
     /** `format` is the encoder's output format (it carries csd-0/csd-1). */
     KeyframeMotion(MediaFormat format, int width, int height, Listener listener) throws Exception {
@@ -67,6 +71,7 @@ final class KeyframeMotion implements AutoCloseable {
     /** Called on the encoder thread with a key frame; copies it (the
      * encoder's buffer is released right after) unless one is in flight. */
     void offer(ByteBuffer buf, int offset, int size, long ptsUs) {
+        stall.offered();
         synchronized (lock) {
             if (hasPending || closed) return;
             if (pending.length < size) pending = new byte[size * 2];
@@ -128,6 +133,11 @@ final class KeyframeMotion implements AutoCloseable {
     }
 
     private void analyse() {
+        stall.analysed();
+        // Closed while this frame was in the decoder: its owner has moved
+        // on, and a late "event started" would leave it recording an event
+        // nobody is watching.
+        if (closed) return;
         long now = android.os.SystemClock.elapsedRealtime();
         MotionGate.Result r = gate.accept(gray);
         // Proof the decode path works, then a sparse heartbeat: without it a
