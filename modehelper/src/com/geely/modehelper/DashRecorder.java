@@ -4,11 +4,7 @@ import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.content.Context;
-import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
 import android.os.Bundle;
-import android.os.Looper;
 import android.os.Environment;
 import android.os.SystemClock;
 import android.util.Log;
@@ -44,27 +40,18 @@ public final class DashRecorder {
     static final long CUE_US = 1_000_000L;                        // one subtitle per second
 
     // Speed limit candidates for the subtitle overlay: camera sign, then nav,
-    // then nav-speed, in that fallback order — see plausible() below.
+    // then nav-speed, in that fallback order — see SubtitleLine.limit().
     static final int P_CAM_LIMIT = 0x2140b029;
     static final int P_NAVI_LIMIT = 0x2140303a;
     static final int P_NAVSPEED   = 0x2140a405;
 
-    // A real speed limit is a small round number. Anything outside this is an
-    // enum, a sentinel or noise, and putting it on screen would be a lie.
-    private static int plausible(Integer v) {
-        return (v != null && v >= 5 && v <= 200) ? v : -1;
-    }
-
     private static final SimpleDateFormat NAME =
         new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US);
     private static final SimpleDateFormat SUB_TIME =
-        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+        new SimpleDateFormat("HH:mm:ss", Locale.US);    // the date is the clip's name
 
     private final Context ctx;
     private final CarMode car;
-    private volatile Location fix;
-    private LocationManager lm;
-    private LocationListener gps;
     private final EvsClient evs = new EvsClient();
     private volatile boolean running;
     private volatile Seg activeSegment;
@@ -88,41 +75,6 @@ public final class DashRecorder {
 
     public DashRecorder(Context ctx, CarMode car) { this.ctx = ctx; this.car = car; }
 
-    // GPS runs only while recording. It is not free, and this thing now records
-    // whenever the system is up — leaving the receiver on around the clock to
-    // stamp a heading on a parked car would be a poor trade.
-    private void startGps() {
-        try {
-            lm = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
-            if (lm == null) return;
-            fix = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            gps = new LocationListener() {
-                @Override public void onLocationChanged(Location l) { fix = l; }
-                @Override public void onStatusChanged(String p, int st, Bundle e) { }
-                @Override public void onProviderEnabled(String p) { }
-                @Override public void onProviderDisabled(String p) { }
-            };
-            lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0, gps,
-                                      Looper.getMainLooper());
-        } catch (Throwable t) { Log.w(TAG, "dashcam: gps: " + t); }
-    }
-
-    private void stopGps() {
-        try { if (lm != null && gps != null) lm.removeUpdates(gps); }
-        catch (Throwable ignored) { }
-        lm = null; gps = null; fix = null;
-    }
-
-    // 16 points, which is as fine as a heading is worth reading at a glance.
-    private static final String[] ROSE = {
-        "N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW" };
-
-    static String heading(float deg) {
-        int i = (int) Math.round(deg / 22.5) % 16;
-        if (i < 0) i += 16;
-        return ROSE[i] + " " + Math.round(deg) + "\u00B0";
-    }
-
     public boolean isRunning() { return running; }
 
     /** uptime when start() last ran; the supervisor resets its backoff once a
@@ -134,7 +86,6 @@ public final class DashRecorder {
         running = true;
         startedUptimeMs = SystemClock.uptimeMillis();
         lastError = null;
-        startGps();
         thread = new Thread(this::loop, "dashcam");
         thread.start();
         sampler = new Thread(this::sample, "dashcam-tele");
@@ -173,12 +124,26 @@ public final class DashRecorder {
     // An event is declared about two key frames after motion begins, and a
     // key frame is analysed up to a second late, so the pre-roll must cover
     // well over three seconds to catch the start.
+    //
+    // When the watch ends (the car left Park) the pre-roll opens the
+    // ordinary clip that follows. The helper reads the gear every 4 s, so
+    // the watch ends up to 5 s after the shift; dropping the pre-roll there
+    // left that long a hole at the start of every drive (seen on the car
+    // 2026-11-20: nothing between 16:53:02 and 16:53:05, the car moving at
+    // 16:53:06). A parked clip still open at that moment is closed, so the
+    // drive is not labelled as parked movement.
+    //
+    // A watch that cannot start, or whose decoder stops giving pictures
+    // (MotionStall), is given up until the car leaves Park: the recorder
+    // then writes all the time, as with the switch off. Writing nothing
+    // because the detector died is the one failure not allowed here.
     static final long PRE_ROLL_MS = 6_000L;
     static final String PARK_SUFFIX = "_park";
 
     private volatile boolean motionWanted;
     private volatile boolean motionEvent;          // set on the motion thread
     private KeyframeMotion motion;                // encoder thread only
+    private boolean motionBroken;                 // encoder thread only
     private final PreRoll preRoll = new PreRoll(PRE_ROLL_MS);   // encoder thread only
 
     /** Parked motion watch on or off; ModeHelperService calls this on every
@@ -187,8 +152,10 @@ public final class DashRecorder {
 
     // Encoder thread, for each key frame.
     private void motionFrame(MediaFormat outFmt, ByteBuffer buf, MediaCodec.BufferInfo info) {
-        if (motionWanted && motion == null && outFmt != null) {
+        if (!motionWanted) motionBroken = false;       // a new Park stay tries again
+        if (motionWanted && !motionBroken && motion == null && outFmt != null) {
             try {
+                motionEvent = false;
                 motion = new KeyframeMotion(outFmt, W, H, new KeyframeMotion.Listener() {
                     @Override public void onEventStarted(int changed) {
                         motionEvent = true;
@@ -202,21 +169,28 @@ public final class DashRecorder {
                 });
                 Log.i(TAG, "motion: watching, recording only on motion");
             } catch (Throwable t) {
-                Log.w(TAG, "motion: could not start: " + t);
-                motionWanted = false;
+                Log.w(TAG, "motion: could not start, recording all the time until Park is left: " + t);
+                motionBroken = true;
             }
         } else if (!motionWanted && motion != null) {
             stopMotion();
         }
-        if (motion != null) motion.offer(buf, info.offset, info.size, info.presentationTimeUs);
+        if (motion == null) return;
+        motion.offer(buf, info.offset, info.size, info.presentationTimeUs);
+        if (motion.stalled()) {
+            Log.w(TAG, "motion: " + MotionStall.LIMIT + " key frames with no picture analysed,"
+                + " recording all the time until Park is left");
+            motionBroken = true;
+            stopMotion();
+        }
     }
 
+    // Leaves the pre-roll alone: the loop opens the next clip with it.
     private void stopMotion() {
         if (motion == null) return;
         motion.close();
         motion = null;
         motionEvent = false;
-        preRoll.clear();
         Log.i(TAG, "motion: stopped watching");
     }
 
@@ -258,6 +232,8 @@ public final class DashRecorder {
 
     private void sample() {
         int tick = 0;
+        Float lastSpeed = null;
+        long lastSpeedUpMs = 0;
         while (running) {
             Seg open = activeSegment;
             if (tick++ % 5 == 0 && open != null)
@@ -269,41 +245,22 @@ public final class DashRecorder {
                 if (car.isReady()) {
                     boolean valet = new File(dir(), "valet.active").exists();
                     if (valet != lastValet) { lastValet = valet; valetEdge = true; }
-                    StringBuilder b = new StringBuilder(64);
-                    b.append(SUB_TIME.format(new Date()));
+                    // One short line, only what tells how the car was driven:
+                    // see SubtitleLine. No GPS is run for it any more (the
+                    // compass heading was its only use here).
+                    long up = SystemClock.uptimeMillis();
                     Float sp = car.readSpeed();
-                    b.append(" · ").append(sp == null ? "?" : String.valueOf(Math.round(sp))).append(" km/h");
-                    Integer g = car.readGear();
-                    if (g != null) b.append(" · ").append(gear(g));
-                    Float t = car.readOutsideTempC();
-                    if (t != null) b.append(" · ").append(String.format(Locale.US, "%.1f°", t));
-
-                    // Heading only when moving: GPS bearing is derived from velocity
-                    // and unreliable when parked.
-                    Location f = fix;
-                    if (f != null && f.hasBearing() && sp != null && sp > 3f)
-                        b.append(" · ").append(heading(f.getBearing()));
-
-                    Integer camL  = car.readIntProp(P_CAM_LIMIT, 0);
-                    Integer naviL = car.readIntProp(P_NAVI_LIMIT, 0);
-                    Integer navS  = car.readIntProp(P_NAVSPEED, 0);
-
-                    int lim = plausible(camL);
-                    if (lim < 0) lim = plausible(naviL);
-                    if (lim < 0) lim = plausible(navS);
-                    if (lim > 0) b.append(" · max ").append(lim);
-
+                    String trend = SubtitleLine.trend(lastSpeed, sp, up - lastSpeedUpMs);
+                    lastSpeed = sp;
+                    lastSpeedUpMs = up;
+                    int lim = SubtitleLine.limit(car.readIntProp(P_CAM_LIMIT, 0),
+                        car.readIntProp(P_NAVI_LIMIT, 0), car.readIntProp(P_NAVSPEED, 0));
                     // Turn signal omitted: no verified property in field-catalog yet.
-                    tele = b.toString();
+                    tele = SubtitleLine.line(SUB_TIME.format(new Date()), sp, trend, car.readGear(), lim);
                 }
             } catch (Throwable t) { Log.w(TAG, "dashcam: sample: " + t); }
             try { Thread.sleep(1000); } catch (InterruptedException e) { return; }
         }
-    }
-
-    private static String gear(int g) {
-        switch (g) { case 1: return "N"; case 2: return "R"; case 4: return "P"; case 8: return "D"; }
-        return "g" + g;
     }
 
     // ------------------------------------------------------------ the loop
@@ -380,11 +337,18 @@ public final class DashRecorder {
                 if (config || buf == null || outFmt == null) { codec.releaseOutputBuffer(idx, false); continue; }
                 long nowUp = SystemClock.uptimeMillis();
                 // Watched whether or not anything is being written.
+                boolean watched = motion != null;
                 if (key) motionFrame(outFmt, buf, info);
+                // The watch ended with a parked clip open: the car left Park
+                // during an event. What follows is a drive and gets its own
+                // clip (this is a key frame, so the rotation below does it).
+                if (watched && motion == null && seg != null && seg.park) rotateArmed = true;
+                // Read once: the motion thread changes it at any moment.
+                boolean event = motion != null && motionEvent;
 
                 // Armed and nothing moving: close what is open, keep the last
                 // seconds in memory, write nothing.
-                if (motion != null && !motionEvent) {
+                if (motion != null && !event) {
                     if (seg != null) {
                         final Seg old = seg;
                         closer.execute(() -> { old.finish(); enforceBudget(ctx, null); });
@@ -399,9 +363,10 @@ public final class DashRecorder {
                     continue;
                 }
 
-                // An event just started: its clip begins with the pre-roll.
-                if (seg == null && motionEvent && !preRoll.isEmpty()) {
-                    seg = new Seg(outFmt, preRoll.firstUptimeMs(), preRoll.firstWallMs(), true);
+                // An event just started, or the watch just ended: the clip
+                // begins with the pre-roll (a parked clip only for an event).
+                if (seg == null && !preRoll.isEmpty()) {
+                    seg = new Seg(outFmt, preRoll.firstUptimeMs(), preRoll.firstWallMs(), event);
                     activeSegment = seg;
                     lastCue = -1;
                     for (PreRoll.Frame f : preRoll.frames()) {
@@ -413,7 +378,7 @@ public final class DashRecorder {
                 }
                 preRoll.clear();
                 if (seg == null && key) {
-                    seg = new Seg(outFmt, nowUp, System.currentTimeMillis(), motionEvent);
+                    seg = new Seg(outFmt, nowUp, System.currentTimeMillis(), event);
                     activeSegment = seg;
                     lastCue = -1;
                 }
@@ -432,7 +397,7 @@ public final class DashRecorder {
                         Seg live = activeSegment;
                         enforceBudget(ctx, live == null ? null : live.stem);
                     });
-                    seg = new Seg(outFmt, nowUp, System.currentTimeMillis(), motionEvent);
+                    seg = new Seg(outFmt, nowUp, System.currentTimeMillis(), event);
                     activeSegment = seg;
                     rotateArmed = false;
                     lastCue = -1;
@@ -469,6 +434,7 @@ public final class DashRecorder {
         } finally {
             running = false;
             stopMotion();
+            preRoll.clear();
             if (seg != null) seg.finish();
             activeSegment = null;
             if (closer != null) {
@@ -479,7 +445,6 @@ public final class DashRecorder {
             try { if (codec != null) { codec.stop(); codec.release(); } } catch (Throwable ignored) { }
             try { if (input != null) input.release(); } catch (Throwable ignored) { }
             enforceBudget(ctx, null);
-            stopGps();
             RecorderState.write(dir(), "stopped", "", System.currentTimeMillis(), lastError);
             Log.i(TAG, "dashcam: stopped");
         }
@@ -499,6 +464,8 @@ public final class DashRecorder {
         final long startMs;
         // Wall-clock start; the name is this second. See the rotation check.
         final long startWallMs;
+        // A parked-motion clip; closed when the watch ends, see the loop.
+        final boolean park;
         FragmentedMp4.Writer out;
         Vtt sub;
         long lastPts = -1;
@@ -508,6 +475,7 @@ public final class DashRecorder {
          * `startWallMs` are those of its first frame. */
         Seg(MediaFormat f, long startUptimeMs, long startWall, boolean park) throws Exception {
             startMs = startUptimeMs;
+            this.park = park;
             // A segment is named after the second it starts in, and only one
             // may start per second (see the rotation check). A recorder
             // restarting within the second its last segment started would

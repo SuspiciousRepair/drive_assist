@@ -55,7 +55,12 @@ am broadcast -a com.geely.modehelper.DASHCAM --ei on 0
 ### Operational Lifecycle
 
 1. **Auto-Start**: Triggers once on system boot after the first successful vehicle property read.
-2. **Continuous Operation**: Records continuously across all vehicle states, including `PARK` (monitoring parked vehicle surroundings).
+2. **Continuous Operation**: Records continuously across all vehicle states, including `PARK`, with one exception: **Park monitoring**.
+   - With the Park monitoring switch on, after 30 uninterrupted seconds in `PARK` the recorder writes nothing until something moves. The encoder keeps running; a hardware decoder turns one key frame a second back into a picture (`KeyframeMotion`), and `MotionGate` compares it with the scene it has learned. The last 6 s of video wait in memory (`PreRoll`).
+   - On motion a clip named `dash_<time>_park` opens with that pre-roll and closes when it has been quiet for about 14 s. These are ordinary ring-buffer clips; nothing is held.
+   - When the car leaves `PARK` the watch ends (within about 5 s: the helper reads the gear every 4 s) and the pre-roll opens the ordinary clip that follows, so a drive starts a few seconds before the shift. A parked clip still open then is closed, and the drive gets its own clip.
+   - The pre-roll never spans a sleep: frames more than 2 s apart are not one piece of video, and what was kept before is dropped.
+   - If the decoder cannot start, or analyses none of 15 key frames in a row (`MotionStall`), the watch is given up until the car leaves `PARK` and the recorder writes continuously. A dead detector must never mean no recording.
 3. **Close Before Sleep**: The unit suspends rather than shutting down. When the car goes off it first broadcasts `ACTION_SHUTDOWN_HU` (vendor) and the cameras stop at that moment; the screen goes off about three seconds later. On the first of these, or on CarPowerManager `SUSPEND_ENTER`, the open segment closes at once (a fragmented MP4 needs no key frame to end), and the next one starts at the first key frame when pictures return. `SHUTDOWN_ENTER` stops the recorder cleanly.
 4. **Self-Restart**: If the recording loop stops on its own (EVS not ready, a codec error), ModeHelper restarts it while recording is wanted: at once, then after 30 s, 1, 2, 4, 8 and at most 10 minutes. Turning the dashcam off is never undone.
 5. **Status File**: `dashcam/recorder.state` holds `state`, the open segment's `stem`, a `beat` refreshed every 5 s, and the last `error`. Drive Assist reads it to show the live segment as recording and to refuse recovering it.
@@ -107,8 +112,8 @@ logic is `SegmentFiles.repair` then `SegmentFiles.evict`:
 4. Never evicted: anything in `keep/`, and any clip with a `<stem>.hold`
    marker beside it. Held clips still count against the budget.
 
-A segment marked for keeping (a parked-monitoring event, or Hold on a clip
-that is still recording) leaves a `<stem>.hold` marker. The recorder moves
+A segment marked for keeping (Hold on a clip that is still recording; parked
+motion never holds a clip) leaves a `<stem>.hold` marker. The recorder moves
 that clip into `keep/` the moment the segment closes
 (`SegmentFiles.keepIfHeld`).
 
@@ -116,7 +121,7 @@ that clip into `keep/` the moment the segment closes
 
 ## 3. WebVTT Telemetry Sidecar (`.vtt`)
 
-Each video segment is accompanied by a synchronized WebVTT subtitle track containing frame-accurate telemetry sampled at 1 Hz.
+Each video segment is accompanied by a synchronized WebVTT subtitle track, one short line a second. It holds only what tells how the car was driven (`SubtitleLine`).
 
 ### Sample Track
 
@@ -124,23 +129,29 @@ Each video segment is accompanied by a synchronized WebVTT subtitle track contai
 WEBVTT
 
 00:00:00.000 --> 00:00:01.000
-2026-09-26 09:03:32 · 62 km/h · D · 24.5° · NNE 22° · max 60
+09:03:32 · 62 km/h · D · max 60
 
 00:00:01.000 --> 00:00:02.000
-2026-09-26 09:03:33 · 64 km/h · D · 24.5° · NNE 23° · max 60
+09:03:33 · 49 km/h ↓↓ · D · max 60
 ```
 
 ### Data Schema & Sources
 
 | Metric | Source | Property ID / Provider |
 |---|---|---|
-| **Time** | System clock | wall-clock time of the sample |
+| **Time** | System clock | wall-clock time of the sample, `HH:mm:ss`. The date is the clip's name |
 | **Speed** | VHAL | `291504647` (`PERF_VEHICLE_SPEED`, km/h) |
+| **Speed change** | from the speed | `↑` rising or `↓` falling by 2 km/h a second or more; doubled (`↑↑`, `↓↓`) at 10 km/h a second or more, about 0.28 g. Nothing when steady |
 | **Gear** | VHAL | `289408001` (`GEAR_SELECTION`: 1=N, 2=R, 4=P, 8=D) |
-| **Ambient Temp** | HVAC ECU | `557884279` (`AC_AMBIENT_TEMP`, °C) |
-| **Heading** | Android GNSS | GPS bearing, only above 3 km/h |
 | **Speed limit** | VHAL | camera sign, then navigation limit, then navigation speed; only plausible values (5-200) |
 
+The arrow is the change of the speed, not a pedal. The helper has no brake
+or accelerator signal: the brake switch is on the CAN bus, which Drive Assist
+reads, not the helper. So `↓` also shows a lift-off that slows the car by
+regeneration.
+
+The outside temperature and the compass heading are no longer written, and
+the recorder no longer runs the GPS (the heading was its only use there).
 Coordinates are not written to the sidecar.
 
 *Synchronization*: Video timestamps and cue times both come from the
