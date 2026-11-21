@@ -416,7 +416,7 @@ Once installed, Drive Assist integrates naturally into your daily driving routin
 ### 4. Continuous Hardware Dashcam
 * Interfaces directly with native automotive camera feeds (`bdstar.render.engine`).
 * Encodes 1920x800 video at 25 FPS with hardware `MediaCodec` into 5-minute MP4 segments stored on internal storage (`/sdcard/Movies/dashcam/`).
-* Generates synchronized WebVTT subtitle sidecars recording speed, coordinates, gear, and temperature once per second.
+* Generates synchronized WebVTT subtitle sidecars recording the time, the speed and whether it is rising or falling, the gear, and the speed limit once per second.
 * **USB Export**: Plug in a USB flash drive and tap **Exportar Clipes** to back up recent driving footage without removing SD cards.
 
 ---

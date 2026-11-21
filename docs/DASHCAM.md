@@ -121,7 +121,7 @@ that clip into `keep/` the moment the segment closes
 
 ## 3. WebVTT Telemetry Sidecar (`.vtt`)
 
-Each video segment is accompanied by a synchronized WebVTT subtitle track containing frame-accurate telemetry sampled at 1 Hz.
+Each video segment is accompanied by a synchronized WebVTT subtitle track, one short line a second. It holds only what tells how the car was driven (`SubtitleLine`).
 
 ### Sample Track
 
@@ -129,23 +129,29 @@ Each video segment is accompanied by a synchronized WebVTT subtitle track contai
 WEBVTT
 
 00:00:00.000 --> 00:00:01.000
-2026-09-26 09:03:32 · 62 km/h · D · 24.5° · NNE 22° · max 60
+09:03:32 · 62 km/h · D · max 60
 
 00:00:01.000 --> 00:00:02.000
-2026-09-26 09:03:33 · 64 km/h · D · 24.5° · NNE 23° · max 60
+09:03:33 · 49 km/h ↓↓ · D · max 60
 ```
 
 ### Data Schema & Sources
 
 | Metric | Source | Property ID / Provider |
 |---|---|---|
-| **Time** | System clock | wall-clock time of the sample |
+| **Time** | System clock | wall-clock time of the sample, `HH:mm:ss`. The date is the clip's name |
 | **Speed** | VHAL | `291504647` (`PERF_VEHICLE_SPEED`, km/h) |
+| **Speed change** | from the speed | `↑` rising or `↓` falling by 2 km/h a second or more; doubled (`↑↑`, `↓↓`) at 10 km/h a second or more, about 0.28 g. Nothing when steady |
 | **Gear** | VHAL | `289408001` (`GEAR_SELECTION`: 1=N, 2=R, 4=P, 8=D) |
-| **Ambient Temp** | HVAC ECU | `557884279` (`AC_AMBIENT_TEMP`, °C) |
-| **Heading** | Android GNSS | GPS bearing, only above 3 km/h |
 | **Speed limit** | VHAL | camera sign, then navigation limit, then navigation speed; only plausible values (5-200) |
 
+The arrow is the change of the speed, not a pedal. The helper has no brake
+or accelerator signal: the brake switch is on the CAN bus, which Drive Assist
+reads, not the helper. So `↓` also shows a lift-off that slows the car by
+regeneration.
+
+The outside temperature and the compass heading are no longer written, and
+the recorder no longer runs the GPS (the heading was its only use there).
 Coordinates are not written to the sidecar.
 
 *Synchronization*: Video timestamps and cue times both come from the

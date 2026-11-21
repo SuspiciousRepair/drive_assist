@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Changed
+- **Shorter dashcam subtitle.** The line under a clip now shows only the
+  time, the speed, the gear, and the speed limit when the car knows one.
+  An arrow after the speed shows it rising (↑) or falling (↓), doubled for
+  a hard stop or a hard start (↓↓, ↑↑). The date, the outside temperature
+  and the compass heading are gone; the date is in the clip's name. The
+  recorder no longer runs the GPS.
+
 ### Fixed
 - **Park monitoring: the first seconds of a drive are recorded.** When the
   car left Park, the dashcam started the drive's clip up to 5 s late. That

@@ -4,11 +4,7 @@ import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.content.Context;
-import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
 import android.os.Bundle;
-import android.os.Looper;
 import android.os.Environment;
 import android.os.SystemClock;
 import android.util.Log;
@@ -44,27 +40,18 @@ public final class DashRecorder {
     static final long CUE_US = 1_000_000L;                        // one subtitle per second
 
     // Speed limit candidates for the subtitle overlay: camera sign, then nav,
-    // then nav-speed, in that fallback order — see plausible() below.
+    // then nav-speed, in that fallback order — see SubtitleLine.limit().
     static final int P_CAM_LIMIT = 0x2140b029;
     static final int P_NAVI_LIMIT = 0x2140303a;
     static final int P_NAVSPEED   = 0x2140a405;
 
-    // A real speed limit is a small round number. Anything outside this is an
-    // enum, a sentinel or noise, and putting it on screen would be a lie.
-    private static int plausible(Integer v) {
-        return (v != null && v >= 5 && v <= 200) ? v : -1;
-    }
-
     private static final SimpleDateFormat NAME =
         new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US);
     private static final SimpleDateFormat SUB_TIME =
-        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+        new SimpleDateFormat("HH:mm:ss", Locale.US);    // the date is the clip's name
 
     private final Context ctx;
     private final CarMode car;
-    private volatile Location fix;
-    private LocationManager lm;
-    private LocationListener gps;
     private final EvsClient evs = new EvsClient();
     private volatile boolean running;
     private volatile Seg activeSegment;
@@ -88,41 +75,6 @@ public final class DashRecorder {
 
     public DashRecorder(Context ctx, CarMode car) { this.ctx = ctx; this.car = car; }
 
-    // GPS runs only while recording. It is not free, and this thing now records
-    // whenever the system is up — leaving the receiver on around the clock to
-    // stamp a heading on a parked car would be a poor trade.
-    private void startGps() {
-        try {
-            lm = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
-            if (lm == null) return;
-            fix = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            gps = new LocationListener() {
-                @Override public void onLocationChanged(Location l) { fix = l; }
-                @Override public void onStatusChanged(String p, int st, Bundle e) { }
-                @Override public void onProviderEnabled(String p) { }
-                @Override public void onProviderDisabled(String p) { }
-            };
-            lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0, gps,
-                                      Looper.getMainLooper());
-        } catch (Throwable t) { Log.w(TAG, "dashcam: gps: " + t); }
-    }
-
-    private void stopGps() {
-        try { if (lm != null && gps != null) lm.removeUpdates(gps); }
-        catch (Throwable ignored) { }
-        lm = null; gps = null; fix = null;
-    }
-
-    // 16 points, which is as fine as a heading is worth reading at a glance.
-    private static final String[] ROSE = {
-        "N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW" };
-
-    static String heading(float deg) {
-        int i = (int) Math.round(deg / 22.5) % 16;
-        if (i < 0) i += 16;
-        return ROSE[i] + " " + Math.round(deg) + "\u00B0";
-    }
-
     public boolean isRunning() { return running; }
 
     /** uptime when start() last ran; the supervisor resets its backoff once a
@@ -134,7 +86,6 @@ public final class DashRecorder {
         running = true;
         startedUptimeMs = SystemClock.uptimeMillis();
         lastError = null;
-        startGps();
         thread = new Thread(this::loop, "dashcam");
         thread.start();
         sampler = new Thread(this::sample, "dashcam-tele");
@@ -281,6 +232,8 @@ public final class DashRecorder {
 
     private void sample() {
         int tick = 0;
+        Float lastSpeed = null;
+        long lastSpeedUpMs = 0;
         while (running) {
             Seg open = activeSegment;
             if (tick++ % 5 == 0 && open != null)
@@ -292,41 +245,22 @@ public final class DashRecorder {
                 if (car.isReady()) {
                     boolean valet = new File(dir(), "valet.active").exists();
                     if (valet != lastValet) { lastValet = valet; valetEdge = true; }
-                    StringBuilder b = new StringBuilder(64);
-                    b.append(SUB_TIME.format(new Date()));
+                    // One short line, only what tells how the car was driven:
+                    // see SubtitleLine. No GPS is run for it any more (the
+                    // compass heading was its only use here).
+                    long up = SystemClock.uptimeMillis();
                     Float sp = car.readSpeed();
-                    b.append(" · ").append(sp == null ? "?" : String.valueOf(Math.round(sp))).append(" km/h");
-                    Integer g = car.readGear();
-                    if (g != null) b.append(" · ").append(gear(g));
-                    Float t = car.readOutsideTempC();
-                    if (t != null) b.append(" · ").append(String.format(Locale.US, "%.1f°", t));
-
-                    // Heading only when moving: GPS bearing is derived from velocity
-                    // and unreliable when parked.
-                    Location f = fix;
-                    if (f != null && f.hasBearing() && sp != null && sp > 3f)
-                        b.append(" · ").append(heading(f.getBearing()));
-
-                    Integer camL  = car.readIntProp(P_CAM_LIMIT, 0);
-                    Integer naviL = car.readIntProp(P_NAVI_LIMIT, 0);
-                    Integer navS  = car.readIntProp(P_NAVSPEED, 0);
-
-                    int lim = plausible(camL);
-                    if (lim < 0) lim = plausible(naviL);
-                    if (lim < 0) lim = plausible(navS);
-                    if (lim > 0) b.append(" · max ").append(lim);
-
+                    String trend = SubtitleLine.trend(lastSpeed, sp, up - lastSpeedUpMs);
+                    lastSpeed = sp;
+                    lastSpeedUpMs = up;
+                    int lim = SubtitleLine.limit(car.readIntProp(P_CAM_LIMIT, 0),
+                        car.readIntProp(P_NAVI_LIMIT, 0), car.readIntProp(P_NAVSPEED, 0));
                     // Turn signal omitted: no verified property in field-catalog yet.
-                    tele = b.toString();
+                    tele = SubtitleLine.line(SUB_TIME.format(new Date()), sp, trend, car.readGear(), lim);
                 }
             } catch (Throwable t) { Log.w(TAG, "dashcam: sample: " + t); }
             try { Thread.sleep(1000); } catch (InterruptedException e) { return; }
         }
-    }
-
-    private static String gear(int g) {
-        switch (g) { case 1: return "N"; case 2: return "R"; case 4: return "P"; case 8: return "D"; }
-        return "g" + g;
     }
 
     // ------------------------------------------------------------ the loop
@@ -511,7 +445,6 @@ public final class DashRecorder {
             try { if (codec != null) { codec.stop(); codec.release(); } } catch (Throwable ignored) { }
             try { if (input != null) input.release(); } catch (Throwable ignored) { }
             enforceBudget(ctx, null);
-            stopGps();
             RecorderState.write(dir(), "stopped", "", System.currentTimeMillis(), lastError);
             Log.i(TAG, "dashcam: stopped");
         }
