@@ -12,6 +12,7 @@ import android.widget.Toast;
 import com.geely.drivemem.R;
 import com.geely.drivemem.net.Updater;
 import com.geely.drivemem.state.CarState;
+import com.geely.drivemem.util.CarCaps;
 import com.geely.drivemem.util.Style;
 
 import java.io.File;
@@ -215,6 +216,9 @@ public final class TelemetrySystemSection extends LinearLayout {
             })));
         routesCard.addView(mapRow);
         ConfigCards.add(right, routesCard);
+
+        // ---- Car equipment: what the car reports, for an issue ----
+        ConfigCards.add(right, CarCapsCard.card(activity, CarCaps.read(activity)));
 
         // ---- Backup Card ----
         LinearLayout backupCard = ConfigCards.card(activity, activity.getString(R.string.backup_header));

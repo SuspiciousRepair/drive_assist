@@ -14,6 +14,7 @@ import android.widget.Toast;
 
 import com.geely.drivemem.R;
 import com.geely.drivemem.controls.GeelySwitch;
+import com.geely.drivemem.util.CarCaps;
 import com.geely.drivemem.util.ClipExport;
 import com.geely.drivemem.util.ClipRecovery;
 import com.geely.drivemem.util.Clips;
@@ -55,10 +56,22 @@ public final class TelemetryClipsSection extends LinearLayout {
         LinearLayout leftCol = ConfigCards.column(activity);
         LinearLayout rightCol = ConfigCards.column(activity);
         addView(ConfigCards.columns(activity, leftCol, rightCol));
+        List<Clips.Clip> clips = Clips.list(activity);
+
+        // No 360 cameras, no dashcam: ModeHelper refuses to record (its
+        // CarCaps), so the settings would be switches that do nothing. The
+        // card says why and shows what the car reported. Clips already on
+        // the disk stay listed.
+        CarCaps caps = CarCaps.read(activity);
+        if (CarCaps.blocksDashcam(caps)) {
+            ConfigCards.add(leftCol, CarCapsCard.card(activity, caps));
+            addClipList(rightCol, clips);
+            return;
+        }
+
         LinearLayout settings = ConfigCards.card(activity, activity.getString(R.string.clips_title));
         ConfigCards.add(leftCol, settings);
 
-        List<Clips.Clip> clips = Clips.list(activity);
         boolean on = Clips.shownOn(activity);
 
         // A real toggle, not a momentary button: modehelper now persists
@@ -172,6 +185,10 @@ public final class TelemetryClipsSection extends LinearLayout {
         heldUsb.setLayoutParams(hLp);
         settings.addView(heldUsb);
 
+        addClipList(rightCol, clips);
+    }
+
+    private void addClipList(LinearLayout rightCol, List<Clips.Clip> clips) {
         TextView listHeader = Style.header(activity, activity.getString(R.string.clips_list_header));
         listHeader.setPadding(0, 0, 0, Style.dp(activity, 6));
         rightCol.addView(listHeader);

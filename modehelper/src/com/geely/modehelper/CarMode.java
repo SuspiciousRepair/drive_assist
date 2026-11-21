@@ -105,6 +105,14 @@ public class CarMode {
     Integer readIntProp(int prop, int area) {
         try { return cpm.getIntProperty(prop, area); } catch (Throwable t) { return null; }
     }
+    /** A byte-array property (the car's equipment row, see CarCaps). null
+     * when the car is not connected yet or does not give it. */
+    byte[] readBytesProp(int prop, int area) {
+        try {
+            Object v = cpm.getProperty(prop, area).getValue();
+            return v instanceof byte[] ? (byte[]) v : null;
+        } catch (Throwable t) { return null; }
+    }
     // android.car.media.CarAudioManager — hidden framework class, called by
     // reflection rather than compiled against (same class drivemem's
     // CarAccess.audioCall() uses). Package-private: only a narrowly-scoped,

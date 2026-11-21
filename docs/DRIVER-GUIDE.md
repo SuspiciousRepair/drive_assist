@@ -121,6 +121,11 @@ and speed. Clips copy to a USB stick, or download to your phone. Read the
 [dashcam guide](DASHCAM.md) first: storage and local recording rules vary by
 region.
 
+The dashcam works only on cars with the 360 cameras. Drive Assist asks the car.
+If the car does not report them, the dashcam stays off and the Dashcam page
+shows what the car reported. **Settings → System → Car equipment** shows the
+same values on every car.
+
 ## More you can do
 
 - **Phone access**: scan a QR code on the car screen to get a page on your phone

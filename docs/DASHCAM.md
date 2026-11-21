@@ -52,9 +52,33 @@ am broadcast -a com.geely.modehelper.DASHCAM --ei on 1
 am broadcast -a com.geely.modehelper.DASHCAM --ei on 0
 ```
 
+### Cars It Runs On
+
+The dashcam needs the car's four 360 cameras. ModeHelper does not guess: it
+reads the car's equipment row (the bytes the factory wrote to say which
+options this car has) and records only when the row reports the cameras.
+
+* **Where the row comes from**: the car property `VENDOR_OFF_LINE_STATUS`
+  (`561025077`), or the system property `sys.ecarx.local_config` when the
+  first one answers with zeros.
+* **The rule**: the 360-camera field (byte 27, bits 0-1) must be `2`. That is
+  the value on the car where the dashcam is known to work. Any other value
+  keeps the dashcam off.
+* **Not read yet**: the dashcam stays off, and ModeHelper asks again every
+  ten seconds until the car answers.
+* **Result file**: `car.caps`, beside the `dashcam/` folder, holds
+  `cameras=yes|no|unknown`, the whole row (`config`), and the fields `type`,
+  `variant`, `avm`, `rvc`, `dvr`. Drive Assist reads it.
+
+When the dashcam is off for this reason, the Dashcam page shows a **Car
+equipment** card in place of the recording settings. The same card is always
+on **Settings → System**, and on the phone page as text you can copy. If the
+answer is wrong for your car, send those lines in a GitHub issue: only one
+car has confirmed what the values mean.
+
 ### Operational Lifecycle
 
-1. **Auto-Start**: Triggers once on system boot after the first successful vehicle property read.
+1. **Auto-Start**: Triggers once on system boot after the first successful vehicle property read. Only on a car that reports the 360 cameras (see above).
 2. **Continuous Operation**: Records continuously across all vehicle states, including `PARK` (monitoring parked vehicle surroundings).
 3. **Close Before Sleep**: The unit suspends rather than shutting down. When the car goes off it first broadcasts `ACTION_SHUTDOWN_HU` (vendor) and the cameras stop at that moment; the screen goes off about three seconds later. On the first of these, or on CarPowerManager `SUSPEND_ENTER`, the open segment closes at once (a fragmented MP4 needs no key frame to end), and the next one starts at the first key frame when pictures return. `SHUTDOWN_ENTER` stops the recorder cleanly.
 4. **Self-Restart**: If the recording loop stops on its own (EVS not ready, a codec error), ModeHelper restarts it while recording is wanted: at once, then after 30 s, 1, 2, 4, 8 and at most 10 minutes. Turning the dashcam off is never undone.

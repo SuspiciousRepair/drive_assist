@@ -28,7 +28,9 @@ javac -d "$MH_OUT" \
   modehelper/test/com/geely/modehelper/ApkRewriteTest.java \
   modehelper/test/com/geely/modehelper/OemTextPolicyTest.java \
   modehelper/src/com/geely/modehelper/BacklightPolicy.java \
-  modehelper/test/com/geely/modehelper/BacklightPolicyTest.java
+  modehelper/test/com/geely/modehelper/BacklightPolicyTest.java \
+  modehelper/src/com/geely/modehelper/CarCaps.java \
+  modehelper/test/com/geely/modehelper/CarCapsTest.java
 java -cp "$MH_OUT" com.geely.modehelper.RestorePolicyTest
 java -cp "$MH_OUT" com.geely.modehelper.ModeRestoreTest
 java -cp "$MH_OUT" com.geely.modehelper.LockSoundPolicyTest
@@ -38,6 +40,7 @@ java -cp "$MH_OUT" com.geely.modehelper.ArscPatchTest
 java -cp "$MH_OUT" com.geely.modehelper.ApkRewriteTest
 java -cp "$MH_OUT" com.geely.modehelper.OemTextPolicyTest
 java -cp "$MH_OUT" com.geely.modehelper.BacklightPolicyTest
+java -cp "$MH_OUT" com.geely.modehelper.CarCapsTest
 rm -rf "$MH_OUT"   # not a trap: the exec below would skip it
 echo "modehelper policy tests: OK"
 

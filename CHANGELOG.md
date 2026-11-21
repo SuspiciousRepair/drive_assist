@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Changed
+- **The dashcam asks the car for its 360 cameras.** The dashcam needs the
+  four 360 cameras, and it was on by default on every car. On a car without
+  them it tried to start again and again. Now ModeHelper reads the car's
+  equipment row (the bytes the factory wrote to say which options the car
+  has) and records only when the row reports the cameras. If it does not,
+  or the row cannot be read, the dashcam stays off and the Dashcam page says
+  why. **Settings → System** has a new **Car equipment** card with the values
+  the car reported, and the phone page has them as text. If the answer is
+  wrong for your car, send those lines in a GitHub issue: one car has
+  confirmed the values so far.
+
 ## [v0.10.0] — 2026-11-20
 
 ### Added

@@ -16,6 +16,8 @@ import android.os.IBinder;
 import android.os.SystemClock;
 import android.util.Log;
 
+import java.io.File;
+
 // System helper (uid system), no UI. Runs continuously, watching drive mode and
 // WiFi state. Polls at 4-second intervals to:
 // 1) Restore saved drive/regen mode in Park after each start (ModeRestore)
@@ -118,13 +120,21 @@ public class ModeHelperService extends Service {
                 getSharedPreferences("modehelper", MODE_PRIVATE).edit()
                     .putBoolean("dashcam_on", on == 1).commit();
             }
-            if (dash == null) dash = new DashRecorder(getApplicationContext(), car);
-            // The car connection is the poll loop's, and it may not be up yet on
-            // a cold start — the recorder tolerates that for telemetry (cues just
-            // go quiet) but the ENGINE binder is separate and always available.
-            if (on == 1) dash.start();
-            else if (on == 0) dash.stopAndWait(5_000);
-            Log.i(TAG, "dashcam: now " + (dash.isRunning() ? "RUNNING" : "stopped"));
+            CarCaps.Cameras cam = on == 1 ? cameras() : CarCaps.Cameras.YES;
+            if (cam != CarCaps.Cameras.YES) {
+                // No 360 cameras, no dashcam (CarCaps). The wish above is kept:
+                // if the car's row was only not read yet, maybeAutoStart()
+                // starts the recorder when it is.
+                Log.i(TAG, "dashcam: not started, 360 cameras " + cam);
+            } else {
+                if (dash == null) dash = new DashRecorder(getApplicationContext(), car);
+                // The car connection is the poll loop's, and it may not be up yet on
+                // a cold start — the recorder tolerates that for telemetry (cues just
+                // go quiet) but the ENGINE binder is separate and always available.
+                if (on == 1) dash.start();
+                else if (on == 0) dash.stopAndWait(5_000);
+                Log.i(TAG, "dashcam: now " + (dash.isRunning() ? "RUNNING" : "stopped"));
+            }
         }
         if (i != null && ACTION_PARKED_MONITORING.equals(i.getAction())) {
             boolean enabled = i.getIntExtra("on", 0) == 1;
@@ -354,6 +364,7 @@ public class ModeHelperService extends Service {
         long now = SystemClock.uptimeMillis();
         if (dash.isRunning()) { dashBackoff.running(dash.startedUptimeMs(), now); return; }
         if (!getSharedPreferences("modehelper", MODE_PRIVATE).getBoolean("dashcam_on", true)) return;
+        if (cameras() != CarCaps.Cameras.YES) return;   // a stop request can leave a recorder object behind
         if (!dashBackoff.due(now)) return;
         Log.w(TAG, "dashcam: recorder stopped on its own — restarting");
         dash = new DashRecorder(getApplicationContext(), car);
@@ -402,6 +413,38 @@ public class ModeHelperService extends Service {
         }, "dexopt").start();
     }
 
+    // The car's equipment row (CarCaps): the dashcam runs only on a car that
+    // reports the 360 cameras. Asked until the car answers, at most once every
+    // ten seconds, then kept, because the factory fixed it. The answer goes to
+    // car.caps beside the dashcam folder, where Drive Assist reads it.
+    private CarCaps caps;
+    private boolean capsTried;
+    private long capsReadAt;
+
+    private synchronized CarCaps.Cameras cameras() {
+        long now = SystemClock.elapsedRealtime();
+        if (caps == null && (!capsTried || now - capsReadAt >= 10_000)) {
+            capsReadAt = now;
+            caps = CarCaps.of(car.readBytesProp(CarCaps.PROP, 0), systemProperty(CarCaps.SYS_PROP));
+            File dir = DashRecorder.dir().getParentFile();
+            // "unknown" never replaces an answer an earlier run wrote down.
+            if (caps != null || (!capsTried && !new File(dir, CarCaps.FILE).exists())) CarCaps.write(dir, caps);
+            if (caps != null || !capsTried) {
+                Log.i(TAG, "car equipment: " + CarCaps.body(caps).trim().replace('\n', ' '));
+            }
+            capsTried = true;
+        }
+        return CarCaps.cameras(caps);
+    }
+
+    // android.os.SystemProperties is a hidden class; null when it cannot be read.
+    private static String systemProperty(String key) {
+        try {
+            return (String) Class.forName("android.os.SystemProperties")
+                .getMethod("get", String.class).invoke(null, key);
+        } catch (Throwable t) { return null; }
+    }
+
     /** Dashcam auto-start flag: records from boot until shutdown, UNLESS the
      * owner has explicitly turned it off (ACTION_DASHCAM persists that choice
      * to "dashcam_on" — see its own comment). Checked once on first poll tick
@@ -412,7 +455,10 @@ public class ModeHelperService extends Service {
 
     private void maybeAutoStart() {
         if (dashAutoStarted || !car.isReady()) return;
+        CarCaps.Cameras cam = cameras();
+        if (cam == CarCaps.Cameras.UNKNOWN) return;   // asked again on a later tick
         dashAutoStarted = true;
+        if (cam == CarCaps.Cameras.NO) { Log.i(TAG, "dashcam: this car reports no 360 cameras, not starting"); return; }
         boolean wanted = getSharedPreferences("modehelper", MODE_PRIVATE)
             .getBoolean("dashcam_on", true);
         if (!wanted) { Log.i(TAG, "dashcam: system up — recording turned off, not starting"); return; }

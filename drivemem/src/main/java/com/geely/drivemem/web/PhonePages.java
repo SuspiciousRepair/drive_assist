@@ -4,6 +4,7 @@ import android.content.Context;
 
 import com.geely.drivemem.R;
 import com.geely.drivemem.util.AppBackup;
+import com.geely.drivemem.util.CarCaps;
 import com.geely.drivemem.util.Clips;
 import com.geely.drivemem.util.Prefs;
 
@@ -125,7 +126,27 @@ final class PhonePages {
         b.append("<div class=\"card\"><h2>").append(Http.esc(c.getString(R.string.phone_settings))).append("</h2>")
          .append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.phone_settings_hint))).append("</p>")
          .append("<a class=\"btn\" href=\"/settings\">").append(Http.esc(c.getString(R.string.phone_settings_open))).append("</a></div>");
+
+        b.append(carCaps(c, CarCaps.read(c)));
         return page(c, title, b.toString());
+    }
+
+    /** The System page's "Car equipment" card, as text the owner can copy
+     * into an issue. */
+    static String carCaps(Context c, CarCaps caps) {
+        StringBuilder b = new StringBuilder("<div class=\"card\"><h2>")
+            .append(Http.esc(c.getString(R.string.caps_header))).append("</h2><p>")
+            .append(Http.esc(c.getString(caps == null || caps.cameras == CarCaps.Cameras.UNKNOWN
+                ? R.string.caps_cameras_unknown
+                : caps.cameras == CarCaps.Cameras.YES ? R.string.caps_cameras_yes : R.string.caps_cameras_no)))
+            .append("</p>");
+        if (caps != null && !caps.config.isEmpty()) {
+            b.append("<p style=\"word-break:break-all\"><code>").append(Http.esc(c.getString(R.string.caps_readings,
+                    caps.type, caps.variant, caps.avm, caps.rvc, caps.dvr)))
+             .append("<br>").append(Http.esc(caps.config)).append("</code></p>");
+        }
+        return b.append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.caps_report)))
+            .append("</p></div>").toString();
     }
 
     static String clips(Context c, List<Clips.Clip> all) {
