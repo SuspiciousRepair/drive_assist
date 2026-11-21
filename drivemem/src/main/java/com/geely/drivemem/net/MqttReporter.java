@@ -15,6 +15,7 @@ import com.geely.drivemem.state.GateState;
 import com.geely.drivemem.state.PanelState;
 import com.geely.drivemem.ui.ComfortActivity;
 import com.geely.drivemem.util.Beat;
+import com.geely.drivemem.util.CarCaps;
 import com.geely.drivemem.util.SpotifyClient;
 
 import android.content.Context;
@@ -1106,6 +1107,7 @@ public class MqttReporter {
 
     private void doCmdLight(String body) {
         if (cmdBlocked("light")) return;
+        if (noAmbientLight()) return;
         Log.i(TAG, "CMD light from HA: " + body);
         if (ctx == null) return;
         try {
@@ -1670,7 +1672,18 @@ public class MqttReporter {
         pub("homeassistant/binary_sensor/" + DEV_ID + "/plug_connected/config", j, true);
     }
 
+    // A car without the cabin ambient light (CarCaps) gets no light in Home
+    // Assistant. The empty retained message also removes one that an older
+    // version announced.
+    private boolean noAmbientLight() {
+        return ctx != null && CarCaps.lacksAmbient(CarCaps.read(ctx));
+    }
+
     private void sendLightDiscovery() {
+        if (noAmbientLight()) {
+            pub("homeassistant/light/" + DEV_ID + "/ambient/config", "", true);
+            return;
+        }
         String cfg = "{"
             + "\"name\":\"Luz ambiente\",\"uniq_id\":\"" + DEV_ID + "_light\","
             + "\"schema\":\"json\",\"supported_color_modes\":[\"rgb\"],\"brightness\":true,"

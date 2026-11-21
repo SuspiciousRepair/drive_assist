@@ -120,14 +120,18 @@ final class PhonePages {
         b.append("<a class=\"btn\" href=\"/restore\">").append(Http.esc(c.getString(R.string.phone_restore_open))).append("</a>");
         b.append("</div>");
 
-        b.append("<div class=\"card\"><h2>").append(Http.esc(c.getString(R.string.phone_clips))).append("</h2>")
-         .append("<a class=\"btn\" href=\"/clips\">").append(Http.esc(c.getString(R.string.phone_clips_open))).append("</a></div>");
+        // No 360 cameras, no dashcam, no clips: the card is left out.
+        CarCaps caps = CarCaps.read(c);
+        if (!CarCaps.lacksCameras(caps)) {
+            b.append("<div class=\"card\"><h2>").append(Http.esc(c.getString(R.string.phone_clips))).append("</h2>")
+             .append("<a class=\"btn\" href=\"/clips\">").append(Http.esc(c.getString(R.string.phone_clips_open))).append("</a></div>");
+        }
 
         b.append("<div class=\"card\"><h2>").append(Http.esc(c.getString(R.string.phone_settings))).append("</h2>")
          .append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.phone_settings_hint))).append("</p>")
          .append("<a class=\"btn\" href=\"/settings\">").append(Http.esc(c.getString(R.string.phone_settings_open))).append("</a></div>");
 
-        b.append(carCaps(c, CarCaps.read(c)));
+        b.append(carCaps(c, caps));
         return page(c, title, b.toString());
     }
 

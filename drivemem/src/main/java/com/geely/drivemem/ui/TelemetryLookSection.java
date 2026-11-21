@@ -14,6 +14,7 @@ import android.widget.Toast;
 
 import com.geely.drivemem.R;
 import com.geely.drivemem.art.Skyline;
+import com.geely.drivemem.util.CarCaps;
 import com.geely.drivemem.util.Style;
 
 import java.util.ArrayList;
@@ -212,6 +213,9 @@ public final class TelemetryLookSection extends LinearLayout {
             row.addView(filler);
         }
 
+        // The note is about the cabin ambient light; a car without one
+        // (CarCaps) gets no note.
+        if (CarCaps.lacksAmbient(CarCaps.read(activity))) return;
         TextView note = new TextView(activity);
         note.setTextColor(Style.TEXT_DIM); note.setTextSize(14);
         note.setPadding(0, Style.dp(activity, 14), 0, 0);

@@ -28,8 +28,10 @@ import java.nio.charset.StandardCharsets;
  * `aeb` is the emergency braking field: Drive Assist hides its AEB switch,
  * and ModeHelper writes no AEB setting, on a car where it is 0. In the car's
  * own table of trims it is 1 exactly where the 360 cameras are fitted.
- * `ambient` (cabin ambient light) and `rhd` (steering wheel on the right)
- * are written for the report only; nothing acts on them.
+ * `ambient` is the cabin ambient light, set on the same trims: on a car
+ * where it is 0, Drive Assist does not offer the light to Home Assistant
+ * and does not colour its buttons from it. `rhd` (steering wheel on the
+ * right) is written for the report only; nothing acts on it.
  *
  * The values are shown on the System page so an owner can send them in an
  * issue: only one car has confirmed what a value means so far. */

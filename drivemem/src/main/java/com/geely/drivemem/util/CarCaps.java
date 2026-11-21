@@ -10,8 +10,8 @@ import java.io.FileReader;
  * equipment row and wrote to `car.caps` (its CarCaps has the format and the
  * reason). ModeHelper decides; this only reads the answer, to hide the
  * dashcam settings on a car without the 360 cameras, to hide the AEB switch
- * on a car without AEB, and to show the values an owner can send in an
- * issue. */
+ * on a car without AEB, to leave the cabin ambient light alone on a car
+ * without one, and to show the values an owner can send in an issue. */
 public final class CarCaps {
     public static final String FILE = "car.caps";
 
@@ -67,6 +67,19 @@ public final class CarCaps {
      * switch stays, as before. */
     public static boolean lacksAeb(CarCaps c) {
         return c != null && c.aeb.equals("0");
+    }
+
+    /** True only when the car's row says it has no cabin ambient light.
+     * Same rule as {@link #lacksAeb}: an unknown answer hides nothing. */
+    public static boolean lacksAmbient(CarCaps c) {
+        return c != null && c.ambient.equals("0");
+    }
+
+    /** True only when the car said it has no 360 cameras. Unlike
+     * {@link #blocksDashcam}, a row that is not read yet is not a "no": this
+     * one hides the way to clips that may be there. */
+    public static boolean lacksCameras(CarCaps c) {
+        return c != null && c.cameras == Cameras.NO;
     }
 
     /** A value for the readings line: "?" when the file does not have it. */

@@ -242,7 +242,10 @@ public class Style {
         TEXT = pal.text; TEXT_DIM = pal.textDim; TEXT_ON = pal.textOn;
         ACCENT = pal.accent; COOL = pal.cool; HEAT = pal.heat;
         RADIUS_DP = pal.radiusDp; STROKE_DP = pal.strokeDp; STROKE_COLOR = pal.strokeColor;
-        OUTLINE = pal.outline; LIGHT = pal.light; FOLLOW_AMBIENT = pal.followAmbient;
+        OUTLINE = pal.outline; LIGHT = pal.light;
+        // A car without the cabin ambient light (CarCaps) has no colour to
+        // follow: the controls keep the theme's own accent.
+        FOLLOW_AMBIENT = pal.followAmbient && !(c != null && CarCaps.lacksAmbient(CarCaps.read(c)));
         ART = pal.art;
     }
 

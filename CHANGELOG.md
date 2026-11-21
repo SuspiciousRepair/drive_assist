@@ -20,6 +20,12 @@
   start" row, and ModeHelper writes no AEB setting. The **Car equipment**
   card also shows the AEB value, the cabin ambient light value and the
   steering side, for reports.
+- **No ambient light controls on a car without the ambient light.** On
+  such a car, Home Assistant no longer gets an "ambient light" it cannot
+  switch (one announced by an older version is removed), and the buttons
+  use the theme's own colour, not a cabin light colour that is not there.
+- **No Clips card on the phone page of a car without the 360 cameras.**
+  There is no dashcam on that car, so there are no clips to list.
 - **Shorter dashcam subtitle.** The line under a clip now shows only the
   time, the speed, the gear, and the speed limit when the car knows one.
   An arrow after the speed shows it rising (↑) or falling (↓), doubled for

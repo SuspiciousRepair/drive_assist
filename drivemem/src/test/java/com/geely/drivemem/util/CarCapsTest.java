@@ -68,6 +68,28 @@ public class CarCapsTest {
         assertFalse(CarCaps.lacksAeb(CarCaps.read(file("cameras=yes\nconfig=0623\naeb=-1\n"))));
     }
 
+    // Ambient light follows the AEB rule: only a plain "0" is a "no".
+    @Test public void noAmbientLightIsOnlyAPlainZero() throws Exception {
+        assertTrue(CarCaps.lacksAmbient(CarCaps.read(file("cameras=no\nconfig=0622\naeb=0\nambient=0\nrhd=0\n"))));
+        assertFalse(CarCaps.lacksAmbient(CarCaps.read(file("cameras=yes\nconfig=0623\naeb=1\nambient=1\nrhd=0\n"))));
+        assertFalse(CarCaps.lacksAmbient(null));
+        assertFalse(CarCaps.lacksAmbient(CarCaps.read(file("cameras=yes\nconfig=0623AB\navm=2\n"))));
+        assertFalse(CarCaps.lacksAmbient(CarCaps.read(file("cameras=unknown\n"))));
+        assertFalse(CarCaps.lacksAmbient(CarCaps.read(file("cameras=yes\nconfig=0623\nambient=-1\n"))));
+    }
+
+    // The phone's Clips card goes only on a clear "no cameras". A row not
+    // read yet keeps it: the dashcam is held off then, but old clips may be
+    // there.
+    @Test public void onlyAClearNoCamerasHidesTheClips() throws Exception {
+        assertTrue(CarCaps.lacksCameras(CarCaps.read(file("cameras=no\nconfig=0622\navm=3\n"))));
+        assertFalse(CarCaps.lacksCameras(CarCaps.read(file("cameras=yes\nconfig=0623\navm=2\n"))));
+        CarCaps unknown = CarCaps.read(file("cameras=unknown\n"));
+        assertTrue(CarCaps.blocksDashcam(unknown));
+        assertFalse(CarCaps.lacksCameras(unknown));
+        assertFalse(CarCaps.lacksCameras(null));
+    }
+
     // An older ModeHelper writes no file and records without asking, so the
     // settings must stay.
     @Test public void noFileBlocksNothing() throws Exception {
