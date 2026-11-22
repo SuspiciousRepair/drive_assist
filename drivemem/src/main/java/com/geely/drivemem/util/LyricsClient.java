@@ -15,7 +15,8 @@ import java.nio.charset.StandardCharsets;
  * the track name, the artist, the album and the length. Nothing else, and
  * only while Settings > Spotify > Lyrics is on.
  *
- * One request per track. The answer is kept in the cache folder, one file
+ * One request per track, made ahead for the next track in Spotify's queue
+ * (prefetch) and else when the track starts. The answer is kept in the cache folder, one file
  * per Spotify track id, so a song heard again costs no network. A track
  * with no synced lyrics is kept too, as an empty file, and asked again
  * after NONE_RETRY_MS (LRCLIB grows). A network failure is not kept: the
@@ -77,6 +78,19 @@ public final class LyricsClient {
             if (!trackId.equals(inFlightId)) return;
             inFlightId = null;
             if (onDone != null) onDone.run();
+        });
+    }
+
+    /** Puts the lyrics of a track that has not started yet (the next in the
+     * queue) in the cache, so they are there at once when it starts. Does
+     * not touch what the card shows. */
+    public static void prefetch(Context ctx, String trackId, String title, String artist,
+                                String album, long durationMs) {
+        if (trackId == null || title == null || title.isEmpty() || artist == null) return;
+        final Context app = ctx.getApplicationContext();
+        io.execute(() -> {
+            try { load(app, trackId, title, artist, album, durationMs); }
+            catch (Throwable t) { Log.w(TAG, "lyrics prefetch: " + t); }
         });
     }
 

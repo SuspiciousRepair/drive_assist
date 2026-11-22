@@ -28,7 +28,10 @@ public final class SpotifyClient {
     private static final String TOKEN_URL = "https://accounts.spotify.com/api/token";
     private static final String API_BASE = "https://api.spotify.com/v1";
     static final String REDIRECT_URI = "drivemem://spotify-callback";
-    static final String SCOPES = "user-read-playback-state user-modify-playback-state";
+    // user-read-currently-playing: the queue endpoint (lyrics prefetch) asks
+    // for it. A sign-in made before it was added lacks it; the prefetch then
+    // just gets 401/403 and nothing else changes, until the next Connect.
+    static final String SCOPES = "user-read-playback-state user-modify-playback-state user-read-currently-playing";
 
     private static volatile Context appCtx;
     private static HandlerThread thread;
@@ -231,7 +234,64 @@ public final class SpotifyClient {
                 album == null ? null : album.optString("name", null),
                 item.optLong("duration_ms", 0), o.optLong("progress_ms", 0), receivedAt);
             MusicState.set(isPlaying, title, artist, art);
+            prefetchNextLyrics(token, MusicState.trackId());
         } catch (Throwable t) { Log.w(TAG, "spotify poll: " + t); hideIfStale(); }
+    }
+
+    // ---- lyrics prefetch: the next track in the queue, once per track ----
+    private static String queueAskedFor;        // the current track the queue was last read for
+    private static boolean queueRefused;        // 401/403: an old sign-in without the scope
+
+    private static void prefetchNextLyrics(String token, String currentId) {
+        if (currentId == null || currentId.equals(queueAskedFor) || queueRefused) return;
+        if (!Prefs.getSpotifyLyrics(appCtx)) return;
+        queueAskedFor = currentId;
+        try {
+            java.net.HttpURLConnection c =
+                (java.net.HttpURLConnection) new java.net.URL(API_BASE + "/me/player/queue").openConnection();
+            c.setRequestProperty("Authorization", "Bearer " + token);
+            c.setConnectTimeout(6000); c.setReadTimeout(6000);
+            int code = c.getResponseCode();
+            if (code == 401 || code == 403) {
+                queueRefused = true;
+                Log.i(TAG, "spotify queue: HTTP " + code + " -- Connect again to allow the lyrics prefetch");
+                return;
+            }
+            if (code != 200) { Log.w(TAG, "spotify queue: HTTP " + code); return; }
+            QueuedTrack next = firstQueued(new org.json.JSONObject(readAll(c.getInputStream())));
+            if (next != null) {
+                LyricsClient.prefetch(appCtx, next.id, next.title, next.artist, next.album, next.durationMs);
+            }
+        } catch (Throwable t) { Log.w(TAG, "spotify queue: " + t); }
+    }
+
+    static final class QueuedTrack {
+        final String id, title, artist, album; final long durationMs;
+        QueuedTrack(String id, String title, String artist, String album, long durationMs) {
+            this.id = id; this.title = title; this.artist = artist; this.album = album; this.durationMs = durationMs;
+        }
+    }
+
+    /** The first track of a /me/player/queue answer; null when the queue is
+     * empty or its first item is not a track (a podcast episode). */
+    static QueuedTrack firstQueued(org.json.JSONObject o) {
+        org.json.JSONArray q = o == null ? null : o.optJSONArray("queue");
+        if (q == null || q.length() == 0) return null;
+        org.json.JSONObject t = q.optJSONObject(0);
+        if (t == null || !"track".equals(t.optString("type", "track"))) return null;
+        String id = t.optString("id", null);
+        String name = t.optString("name", null);
+        if (id == null || name == null) return null;
+        String artist = null;
+        org.json.JSONArray artists = t.optJSONArray("artists");
+        if (artists != null && artists.length() > 0) {
+            org.json.JSONObject a0 = artists.optJSONObject(0);
+            if (a0 != null) artist = a0.optString("name", null);
+        }
+        if (artist == null) return null;
+        org.json.JSONObject album = t.optJSONObject("album");
+        return new QueuedTrack(id, name, artist, album == null ? null : album.optString("name", null),
+            t.optLong("duration_ms", 0));
     }
 
     // A failed poll (offline, Spotify down) keeps the last song on the card,

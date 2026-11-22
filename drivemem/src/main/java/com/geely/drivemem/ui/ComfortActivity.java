@@ -154,6 +154,7 @@ public class ComfortActivity extends Activity {
     // always, with an open-lyrics button. The setting is read on every onResume.
     private LinearLayout musicJumbo;
     private LinearLayout jumboBar, jumboHeader;
+    private View jumboFade;   // the header's colour fading into the card's
     private android.widget.ImageView jumboArtView;
     private TextView jumboTitleView, jumboArtistView, jumboAlbumView;
     private final java.util.List<View> lyricsOpenButtons = new java.util.ArrayList<>();   // on the condensed card
@@ -1290,6 +1291,10 @@ public class ComfortActivity extends Activity {
         infoLp.leftMargin = Style.dp(this, 26);
         jumboHeader.addView(info, infoLp);
         outer.addView(jumboHeader);
+        // A soft step from the cover's colour to the card's, not a hard edge.
+        jumboFade = new View(this);
+        outer.addView(jumboFade, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 72)));
 
         // Fixed slots, centred between the header and the bar. Each keeps two
         // lines of room, so a long lyric line never moves the others.
@@ -1345,6 +1350,12 @@ public class ComfortActivity extends Activity {
         int fill = jumboFill != 0 ? jumboFill : Style.cardFillColor();
         int text = jumboFill != 0 ? jumboText : Style.TEXT;
         jumboHeader.setBackgroundColor(fill);
+        // Eased, not linear: a straight two-stop ramp shows a visible band
+        // where it ends. Four stops curve into the card colour.
+        int card = Style.cardFillColor();
+        jumboFade.setBackground(new android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+            new int[]{fill, Style.blend(fill, card, 0.45f), Style.blend(fill, card, 0.85f), card}));
         jumboTitleView.setTextColor(text);
         jumboArtistView.setTextColor(text);
         jumboAlbumView.setTextColor(text);

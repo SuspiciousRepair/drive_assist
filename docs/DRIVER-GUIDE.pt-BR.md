@@ -128,7 +128,10 @@ fecha a letra. Ela fica aberta ou fechada de uma música para a outra. O cartão
 fica no tamanho normal quando o painel do Home Assistant aparece, ou quando os
 outros cartões precisam de mais de uma coluna. A letra vem do
 [LRCLIB](https://lrclib.net), um site gratuito de letras. Para achá-la, o carro
-envia para lá os nomes da música, do artista e do álbum. Algumas músicas não têm
+envia para lá os nomes da música, do artista e do álbum. Ele também busca antes
+a próxima música da sua fila no Spotify, para a letra estar pronta quando ela
+começar. Se você entrou no Spotify antes desta versão, toque em **Conectar**
+mais uma vez para permitir isso. Algumas músicas não têm
 letra com tempo no LRCLIB; para essas, o botão Letra fica apagado.
 
 ### Dashcam

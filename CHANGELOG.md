@@ -13,7 +13,9 @@
   normal size when the Home Assistant panel is up, or when the other cards
   need more than one column. The lyrics come from LRCLIB (lrclib.net), a
   free lyrics site: the car sends it the song, artist and album names, once
-  per song, and keeps the answer. Off by default. Some songs have no timed
+  per song, and keeps the answer. The next song in the Spotify queue is
+  looked up ahead, so its lyrics are ready when it starts (this needs
+  **Connect** in Config → Spotify once more, for the queue permission). Off by default. Some songs have no timed
   lyrics there; for those the Lyrics button is dim. After a jump inside a
   song, the lines can be up to 6 seconds behind, until the next Spotify
   check.

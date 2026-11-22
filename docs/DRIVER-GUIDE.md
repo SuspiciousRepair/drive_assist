@@ -124,7 +124,10 @@ closes the lyrics. They stay open or closed from song to song. The card stays at
 its normal size when the Home Assistant panel is up, or when the other cards
 need more than one column. The lyrics come from
 [LRCLIB](https://lrclib.net), a free lyrics site. To find them, the car sends
-the song, artist and album names there. Some songs have no timed lyrics on
+the song, artist and album names there. It also looks up the next song in
+your Spotify queue ahead of time, so its lyrics are ready when it starts. If
+you signed in to Spotify before this version, tap **Connect** once more to
+allow that. Some songs have no timed lyrics on
 LRCLIB; for those the Lyrics button is dim.
 
 ### Dashcam
