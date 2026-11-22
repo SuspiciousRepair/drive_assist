@@ -119,8 +119,10 @@ with the equalizer.
 Turn on **Config → Integrations → Spotify → Bluetooth music** and the card also
 shows what your phone plays over Bluetooth, from any app, with Play and Skip
 (and its lyrics, below). When Spotify is playing, the card follows Spotify.
-Nothing leaves the car for this. ModeHelper must be installed: it gives Drive
-Assist the Android permission to read the car's music player.
+Nothing leaves the car for this. Turning it on opens Android's notification
+access screen: allow Drive Assist there (Android asks for this before an app
+may read the car's music player; Drive Assist reads no notifications). If the
+head unit has no such screen, the switch is not shown.
 
 Turn on **Config → Integrations → Spotify → Lyrics search** to see the words of
 the song. The **Lyrics** button on the card grows it to two columns and the

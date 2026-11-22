@@ -21,9 +21,11 @@ import java.util.List;
  * any app -- for the music card (MusicState's SESSION source).
  *
  * Reading other apps' sessions needs MediaAccessListener to be an enabled
- * notification listener; ModeHelper grants that (SET_MEDIA_ACCESS) when the
- * driver turns on Config's "Bluetooth music". Without it getActiveSessions
- * throws SecurityException and this asks ModeHelper once per start.
+ * notification listener. Only the driver grants that, in the head unit's own
+ * Android screen (accessScreen()), which Config opens when "Bluetooth music"
+ * is turned on -- Drive Assist adds no permission screen of its own and
+ * grants nothing silently. Without it getActiveSessions throws
+ * SecurityException and the card simply stays on Spotify.
  *
  * Runs only while the home screen is up (start/stop from ComfortActivity,
  * like SpotifyClient's poll). Follows one session: the one playing, else
@@ -32,7 +34,6 @@ import java.util.List;
  * elapsedRealtime it was taken at), so the lyrics follow it exactly. */
 public final class CarMediaSessions {
     private static final String TAG = CarAccess.TAG;
-    public static final String HELPER_SET = "com.geely.modehelper.SET_MEDIA_ACCESS";
 
     private static final Handler main = new Handler(Looper.getMainLooper());
     private static MediaSessionManager msm;
@@ -59,8 +60,7 @@ public final class CarMediaSessions {
         try {
             msm.addOnActiveSessionsChangedListener(changed, key, main);
         } catch (SecurityException e) {
-            Log.i(TAG, "bt music: no session access yet, asking ModeHelper");
-            setAccess(app, true);
+            Log.i(TAG, "bt music: notification access not allowed (Config opens Android's screen)");
             return;   // next start (screen resumed) tries again
         } catch (Throwable t) { Log.w(TAG, "bt music: " + t); return; }
         running = true;
@@ -75,13 +75,33 @@ public final class CarMediaSessions {
         MusicState.setSession(null, null);
     }
 
-    /** Asks ModeHelper to grant (or remove) the session access. */
-    public static void setAccess(Context ctx, boolean on) {
+    /** Whether the driver has allowed Drive Assist in Android's notification
+     * access screen. */
+    public static boolean hasAccess(Context ctx) {
         try {
-            ctx.sendBroadcast(new Intent(HELPER_SET)
-                .setClassName("com.geely.modehelper", "com.geely.modehelper.MediaAccessReceiver")
-                .putExtra("on", on));
-        } catch (Throwable t) { Log.w(TAG, "bt music access: " + t); }
+            android.app.NotificationManager nm =
+                (android.app.NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+            return nm != null && nm.isNotificationListenerAccessGranted(
+                new ComponentName(ctx, MediaAccessListener.class));
+        } catch (Throwable t) { return false; }
+    }
+
+    /** The head unit's own screen where the driver allows it: Android's page
+     * for Drive Assist's listener, else Android's notification access list.
+     * Null when this head unit has neither -- then Bluetooth music is not
+     * offered. */
+    public static Intent accessScreen(Context ctx) {
+        android.content.pm.PackageManager pm = ctx.getPackageManager();
+        Intent detail = new Intent("android.settings.NOTIFICATION_LISTENER_DETAIL_SETTINGS")
+            .putExtra("android.provider.extra.NOTIFICATION_LISTENER_COMPONENT_NAME",
+                new ComponentName(ctx, MediaAccessListener.class).flattenToString())
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        Intent list = new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        for (Intent i : new Intent[]{detail, list}) {
+            try { if (pm.resolveActivity(i, 0) != null) return i; } catch (Throwable ignored) { }
+        }
+        return null;
     }
 
     private static List<MediaController> sessions() {

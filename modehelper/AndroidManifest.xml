@@ -148,15 +148,6 @@
         <!-- Keeps WiFi enabled while Drive Assist's "Keep Wi-Fi on" switch is ON.
              Exported for SET_WIFI_KEEPON, which Drive Assist sends; the worst
              any other sender can do is switch the keep-on off or on. -->
-        <!-- Drive Assist asks for its own notification-listener access (the
-             key to reading the car's media sessions: Bluetooth music on the
-             music card). Exported, but it only ever adds or removes that one
-             fixed component (MediaAccessPolicy.COMPONENT). -->
-        <receiver android:name=".MediaAccessReceiver" android:exported="true">
-            <intent-filter>
-                <action android:name="com.geely.modehelper.SET_MEDIA_ACCESS" />
-            </intent-filter>
-        </receiver>
         <receiver android:name=".WifiKeepOnReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="com.geely.modehelper.WIFI_KEEPON_CHECK" />

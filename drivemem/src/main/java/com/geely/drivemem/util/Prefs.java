@@ -209,7 +209,8 @@ public final class Prefs {
     public static boolean getSpotifyLargeCard(Context ctx) { return file(ctx).getBoolean("spotify_large_card", false); }
     public static void setSpotifyLargeCard(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_large_card", v).apply(); }
     // The music card also follows the car's media session: what the phone plays over Bluetooth,
-    // from any app (CarMediaSessions). Off by default; on asks ModeHelper for the access.
+    // from any app (CarMediaSessions). Off by default; it also needs the driver's own OK in the
+    // head unit's Android notification access screen.
     public static boolean getBtMusic(Context ctx) { return file(ctx).getBoolean("bt_music", false); }
     public static void setBtMusic(Context ctx, boolean v) { file(ctx).edit().putBoolean("bt_music", v).apply(); }
     // Lyrics search on the music card: the driver's consent. Off (the default) sends nothing to

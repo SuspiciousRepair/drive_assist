@@ -56,9 +56,7 @@ javac -d "$MH_OUT" \
   modehelper/test/com/geely/modehelper/PowerWatchTest.java \
   modehelper/test/com/geely/modehelper/VttTest.java \
   modehelper/test/com/geely/modehelper/SubtitleLineTest.java \
-  modehelper/test/com/geely/modehelper/BrakeSignalTest.java \
-  modehelper/src/com/geely/modehelper/MediaAccessPolicy.java \
-  modehelper/test/com/geely/modehelper/MediaAccessPolicyTest.java
+  modehelper/test/com/geely/modehelper/BrakeSignalTest.java
 # The dashcam's own: parked motion (gate, events, pre-roll, the stalled
 # decoder), the segment files, the recorder's state and restarts, the
 # subtitle line and its brake pedal.
@@ -77,7 +75,6 @@ java -cp "$MH_OUT" com.geely.modehelper.ApkRewriteTest
 java -cp "$MH_OUT" com.geely.modehelper.OemTextPolicyTest
 java -cp "$MH_OUT" com.geely.modehelper.BacklightPolicyTest
 java -cp "$MH_OUT" com.geely.modehelper.CarCapsTest
-java -cp "$MH_OUT" com.geely.modehelper.MediaAccessPolicyTest
 rm -rf "$MH_OUT"   # not a trap: the exec below would skip it
 echo "modehelper policy tests: OK"
 

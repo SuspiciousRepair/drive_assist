@@ -26,9 +26,10 @@
   phone sends one, Play and Skip, and the lyrics when Lyrics search is on
   (they follow the player's own position, so they are exactly in time).
   When Spotify is playing, the card follows Spotify. Nothing leaves the car
-  for this. It needs ModeHelper, which gives Drive Assist Android's
-  notification-listener access: that is the only way an app may read the
-  car's music player. Drive Assist's listener reads no notifications.
+  for this. Turning it on opens Android's notification access screen, where
+  you allow Drive Assist: Android asks for this before an app may read the
+  car's music player, and Drive Assist reads no notifications. On a head
+  unit without that screen the switch is not shown.
 - **A gear on the Spotify card for the car's sound settings.** The small
   gear in the card's top-right corner opens the car's own sound settings,
   with the equalizer presets (Standard, Pop, Rock, ...). On a car whose

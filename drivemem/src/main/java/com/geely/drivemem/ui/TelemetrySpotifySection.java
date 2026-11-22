@@ -85,11 +85,22 @@ public final class TelemetrySpotifySection extends LinearLayout {
         home.addView(ConfigCards.hint(activity, activity.getString(R.string.cfg_spotify_large_card_hint)));
 
         // Bluetooth music: the card also follows the car's media session.
-        // Turning it on or off asks ModeHelper to grant or remove the access.
-        home.addView(Style.toggleRow(activity, activity.getString(R.string.cfg_bt_music),
-            Prefs.getBtMusic(activity),
-            on -> { Prefs.setBtMusic(activity, on); com.geely.drivemem.util.CarMediaSessions.setAccess(activity, on); }));
-        home.addView(ConfigCards.hint(activity, activity.getString(R.string.cfg_bt_music_hint)));
+        // The access is the driver's to give, in the head unit's own Android
+        // screen: turning this on opens it when it is not given yet. A head
+        // unit without that screen does not get the switch (unless the access
+        // was given some other way, e.g. over adb).
+        android.content.Intent access = com.geely.drivemem.util.CarMediaSessions.accessScreen(activity);
+        if (access != null || com.geely.drivemem.util.CarMediaSessions.hasAccess(activity)) {
+            home.addView(Style.toggleRow(activity, activity.getString(R.string.cfg_bt_music),
+                Prefs.getBtMusic(activity),
+                on -> {
+                    Prefs.setBtMusic(activity, on);
+                    if (on && access != null && !com.geely.drivemem.util.CarMediaSessions.hasAccess(activity)) {
+                        try { activity.startActivity(access); } catch (Throwable ignored) { }
+                    }
+                }));
+            home.addView(ConfigCards.hint(activity, activity.getString(R.string.cfg_bt_music_hint)));
+        }
 
         // Read by ComfortActivity on every onResume -- no recreate needed.
         home.addView(Style.toggleRow(activity, activity.getString(R.string.cfg_spotify_lyrics),
