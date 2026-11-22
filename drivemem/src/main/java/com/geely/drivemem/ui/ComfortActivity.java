@@ -153,7 +153,9 @@ public class ComfortActivity extends Activity {
     // one in the two columns left. Otherwise the music card is packed as
     // always, with an open-lyrics button. The setting is read on every onResume.
     private LinearLayout musicJumbo;
-    private LinearLayout jumboBar;
+    private LinearLayout jumboBar, jumboHeader;
+    private android.widget.ImageView jumboArtView;
+    private TextView jumboTitleView, jumboArtistView, jumboAlbumView;
     private final java.util.List<View> lyricsOpenButtons = new java.util.ArrayList<>();   // on the condensed card
     private boolean lyricsOpen;               // the open/close buttons; Prefs.spotify_lyrics_open
     private int jumboFill = 0, jumboText = 0xFFFFFFFF;   // from the cover, see loadMusicArt()
@@ -1239,14 +1241,16 @@ public class ComfortActivity extends Activity {
         return m;
     }
 
-    // The jumbo music card: across both columns, on the cover's main colour,
-    // four lines of the song -- the one just sung (faint), the one sung now
-    // (large, full), the next two (half) -- and a bar at the bottom with
-    // Play, Skip and Close lyrics. Text is near-black or white, whichever
-    // reads on the colour (ArtColor.textOn).
+    // The jumbo music card, across both columns: a header on the cover's
+    // main colour with the art, song, artist and album (text near-black or
+    // white, whichever reads on that colour -- ArtColor.textOn); under it, on
+    // the theme's own card colours, four lines of the song -- the one just
+    // sung (faint), the one sung now (large, full), the next two (half); and
+    // a bar at the bottom with Play, Skip and Close lyrics.
     private LinearLayout musicJumbo() {
         LinearLayout outer = new LinearLayout(this);
         outer.setOrientation(LinearLayout.VERTICAL);
+        outer.setBackground(Style.card(Style.cardFillColor(), this));
         outer.setClipToOutline(true);
         final int radius = Style.dp(this, Style.RADIUS_DP);
         outer.setOutlineProvider(new android.view.ViewOutlineProvider() {
@@ -1255,24 +1259,57 @@ public class ComfortActivity extends Activity {
             }
         });
 
-        // Fixed slots, centred in the space above the bar. Each keeps two
+        jumboHeader = new LinearLayout(this);
+        jumboHeader.setOrientation(LinearLayout.HORIZONTAL);
+        jumboHeader.setGravity(Gravity.CENTER_VERTICAL);
+        int hp = Style.dp(this, 22);
+        jumboHeader.setPadding(hp, hp, hp, hp);
+        jumboArtView = new android.widget.ImageView(this);
+        jumboArtView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+        jumboArtView.setBackground(Style.tile(this));   // placeholder until the art loads
+        jumboArtView.setClipToOutline(true);
+        final int artRadius = Style.dp(this, Style.RADIUS_DP - 8);
+        jumboArtView.setOutlineProvider(new android.view.ViewOutlineProvider() {
+            @Override public void getOutline(View v, android.graphics.Outline o) {
+                o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), artRadius);
+            }
+        });
+        int art = Style.dp(this, 140);
+        jumboHeader.addView(jumboArtView, new LinearLayout.LayoutParams(art, art));
+        LinearLayout info = new LinearLayout(this);
+        info.setOrientation(LinearLayout.VERTICAL);
+        jumboTitleView = headerText(32, true);
+        jumboArtistView = headerText(24, false);
+        jumboAlbumView = headerText(20, false);
+        jumboArtistView.setPadding(0, Style.dp(this, 6), 0, 0);
+        jumboAlbumView.setPadding(0, Style.dp(this, 4), 0, 0);
+        info.addView(jumboTitleView);
+        info.addView(jumboArtistView);
+        info.addView(jumboAlbumView);
+        LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        infoLp.leftMargin = Style.dp(this, 26);
+        jumboHeader.addView(info, infoLp);
+        outer.addView(jumboHeader);
+
+        // Fixed slots, centred between the header and the bar. Each keeps two
         // lines of room, so a long lyric line never moves the others.
         LinearLayout slots = new LinearLayout(this);
         slots.setOrientation(LinearLayout.VERTICAL);
         slots.setGravity(Gravity.CENTER_VERTICAL);
         int padH = Style.dp(this, 48);
-        slots.setPadding(padH, Style.dp(this, 24), padH, 0);
+        slots.setPadding(padH, 0, padH, 0);
         for (int i = 0; i < lyricSlots.length; i++) {
             TextView t = new TextView(this);
             boolean now = i == LYRIC_NOW_SLOT;
-            t.setTextSize(now ? 48 : 36);
+            t.setTextSize(now ? 44 : 32);
+            t.setTextColor(Style.TEXT);
             t.setTypeface(null, android.graphics.Typeface.BOLD);
             t.setLines(2);
             t.setEllipsize(android.text.TextUtils.TruncateAt.END);
             t.setGravity(Gravity.CENTER_VERTICAL);
             // Sung: faint. Now: full. Coming: half.
             t.setAlpha(i < LYRIC_NOW_SLOT ? 0.35f : now ? 1f : 0.6f);
-            t.setPadding(0, Style.dp(this, 10), 0, Style.dp(this, 10));
+            t.setPadding(0, Style.dp(this, 8), 0, Style.dp(this, 8));
             lyricSlots[i] = t;
             slots.addView(t);
         }
@@ -1282,46 +1319,49 @@ public class ComfortActivity extends Activity {
         jumboBar = new LinearLayout(this);
         jumboBar.setOrientation(LinearLayout.HORIZONTAL);
         int pad = Style.dp(this, 26);
-        jumboBar.setPadding(pad, Style.dp(this, 14), pad, pad);
-        // "⏯"/"⏭"/"✕" are icons, not prose -- same convention as the small card.
-        jumboBar.addView(jumboButton("⏯", MusicState::playPause), tileLp(96, 0));
-        jumboBar.addView(jumboButton("⏭", MusicState::next), tileLp(96, 14));
-        jumboBar.addView(jumboButton("✕", () -> setLyricsOpen(false)), tileLp(96, 14));
+        jumboBar.setPadding(pad, Style.dp(this, 8), pad, pad);
+        // "⏯"/"⏭"/"✕" are icons, not prose -- same tiles as the small card.
+        jumboBar.addView(mediaTile("⏯", MusicState::playPause), tileLp(88, 0));
+        jumboBar.addView(mediaTile("⏭", MusicState::next), tileLp(88, 14));
+        jumboBar.addView(mediaTile("✕", () -> setLyricsOpen(false)), tileLp(88, 14));
         outer.addView(jumboBar);
         paintJumbo();
         return outer;
     }
 
-    private TextView jumboButton(String glyph, Runnable onClick) {
+    private TextView headerText(int sp, boolean bold) {
         TextView t = new TextView(this);
-        t.setText(glyph); t.setTextSize(34);
-        t.setGravity(Gravity.CENTER);
-        t.setOnClickListener(v -> onClick.run());
+        t.setTextSize(sp);
+        if (bold) t.setTypeface(null, android.graphics.Typeface.BOLD);
+        t.setMaxLines(1);
+        t.setEllipsize(android.text.TextUtils.TruncateAt.END);
         return t;
     }
 
-    // The cover's colour on the card, the matching text on lines and buttons.
-    // Before any cover arrives: the theme's own card colours.
+    // The cover's colour on the header, with text that reads on it. Before
+    // any cover arrives: the theme's own colours.
     private void paintJumbo() {
-        if (jumboBar == null) return;
+        if (jumboHeader == null) return;
         int fill = jumboFill != 0 ? jumboFill : Style.cardFillColor();
         int text = jumboFill != 0 ? jumboText : Style.TEXT;
-        View outer = (View) jumboBar.getParent();
-        if (outer != null) outer.setBackground(Style.card(fill, this));
-        for (int i = 0; i < jumboBar.getChildCount(); i++) {
-            TextView t = (TextView) jumboBar.getChildAt(i);
-            t.setTextColor(text);
-            android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-            bg.setColor((text & 0x00FFFFFF) | 0x22000000);
-            bg.setCornerRadius(Style.dp(this, Style.RADIUS_DP - 8));
-            t.setBackground(bg);
-        }
-        for (TextView t : lyricSlots) t.setTextColor(text);
+        jumboHeader.setBackgroundColor(fill);
+        jumboTitleView.setTextColor(text);
+        jumboArtistView.setTextColor(text);
+        jumboAlbumView.setTextColor(text);
+        jumboArtistView.setAlpha(0.85f);
+        jumboAlbumView.setAlpha(0.7f);
     }
 
     private void showMusicText(String title, String artist) {
+        String a = artist == null ? "" : artist;
         musicTitleView.setText(title);
-        musicArtistView.setText(artist == null ? "" : artist);
+        musicArtistView.setText(a);
+        if (jumboTitleView != null) {
+            String album = MusicState.album();
+            jumboTitleView.setText(title);
+            jumboArtistView.setText(a);
+            jumboAlbumView.setText(album == null ? "" : album);
+        }
     }
 
     // Open or close the lyrics (the buttons). Kept across tracks and restarts.
@@ -1931,6 +1971,7 @@ public class ComfortActivity extends Activity {
                 if (!url.equals(lastMusicArtUrl)) return;
                 if (musicArtView != null) musicArtView.setImageBitmap(fbmp);
                 if (musicArtBgView != null) musicArtBgView.setImageBitmap(fblur);
+                if (jumboArtView != null) jumboArtView.setImageBitmap(fbmp);
                 jumboFill = fill;
                 jumboText = ArtColor.textOn(fill);
                 paintJumbo();

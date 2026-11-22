@@ -6,10 +6,10 @@
 - **Song lyrics on the Spotify card.** Turn on **Config → Integrations →
   Spotify → Lyrics** and the music card gets a **Lyrics** button next to
   Play and Skip. It grows the card to two columns and the full height of
-  the screen: the line sung now in large type, the line before it and the next
-  two, in time with the song,
-  on the main colour of the album art, with Play, Skip and a close button
-  at the bottom. Open or closed stays from song to song. The card keeps its
+  the screen: at the top the art, song, artist and album, on the main
+  colour of the album art; under them the line sung now in large type, the
+  line before it and the next two, in time with the song; and Play, Skip
+  and a close button at the bottom. Open or closed stays from song to song. The card keeps its
   normal size when the Home Assistant panel is up, or when the other cards
   need more than one column. The lyrics come from LRCLIB (lrclib.net), a
   free lyrics site: the car sends it the song, artist and album names, once

@@ -85,7 +85,7 @@
     <string name="cfg_spotify_large_card">Tarjeta grande</string>
     <string name="cfg_spotify_large_card_hint">La portada del álbum llena la tarjeta, con una banda grande de Reproducir/Siguiente debajo. Desactivado muestra la tarjeta más pequeña, con la portada junto al título.</string>
     <string name="cfg_spotify_lyrics">Letra</string>
-    <string name="cfg_spotify_lyrics_hint">Añade un botón Letra a la tarjeta de música. Abre la letra de la canción, al ritmo de ella, en una tarjeta de dos columnas y toda la altura, en el color de la portada. Queda la tarjeta normal cuando aparece el panel de Home Assistant, o cuando las otras tarjetas necesitan más de una columna. Los nombres de la canción, del artista y del álbum van a lrclib.net, un sitio gratuito de letras.</string>
+    <string name="cfg_spotify_lyrics_hint">Añade un botón Letra a la tarjeta de música. Abre la letra de la canción, al ritmo de ella, en una tarjeta de dos columnas y toda la altura, bajo una cabecera con la portada, la canción, el artista y el álbum. Queda la tarjeta normal cuando aparece el panel de Home Assistant, o cuando las otras tarjetas necesitan más de una columna. Los nombres de la canción, del artista y del álbum van a lrclib.net, un sitio gratuito de letras.</string>
     <string name="spotify_play_label">Reproducir</string>
     <string name="spotify_skip_label">Siguiente</string>
     <string name="spotify_lyrics_label">Letra</string>

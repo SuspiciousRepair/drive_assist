@@ -120,9 +120,10 @@ Entre uma vez e a tela inicial mostra o que está tocando, com controles.
 
 Ligue **Config → Integrações → Spotify → Letra** para ter um botão **Letra** no
 cartão de música, ao lado de Tocar e Avançar. Ele aumenta o cartão para duas
-colunas e a altura toda da tela, com a letra da música no tempo dela, na cor
-principal da capa do álbum: a linha cantada agora em letra grande, a linha
-anterior e as duas próximas. A barra embaixo tem Tocar, Avançar e **✕**, que
+colunas e a altura toda da tela. No alto, na cor principal da capa do álbum,
+ficam a capa, a música, o artista e o álbum. Embaixo vem a letra da música, no
+tempo dela: a linha cantada agora em letra grande, a linha anterior e as duas
+próximas. A barra embaixo tem Tocar, Avançar e **✕**, que
 fecha a letra. Ela fica aberta ou fechada de uma música para a outra. O cartão
 fica no tamanho normal quando o painel do Home Assistant aparece, ou quando os
 outros cartões precisam de mais de uma coluna. A letra vem do
