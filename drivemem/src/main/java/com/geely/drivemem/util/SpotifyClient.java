@@ -244,7 +244,6 @@ public final class SpotifyClient {
 
     private static void prefetchNextLyrics(String token, String currentId) {
         if (currentId == null || currentId.equals(queueAskedFor) || queueRefused) return;
-        if (!Prefs.getSpotifyLyrics(appCtx)) return;
         queueAskedFor = currentId;
         try {
             java.net.HttpURLConnection c =

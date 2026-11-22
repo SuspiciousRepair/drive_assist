@@ -60,15 +60,15 @@ public final class ComfortCardVisibility {
     }
 
     /**
-     * The jumbo music card (two columns, full height, all lyrics), before the
-     * room check: the setting on, the lyrics opened with the card's button,
-     * music playing, lines for the track. Never with the Home Assistant panel
-     * up: the panel needs the room. Parked or driving alike (owner's call,
-     * 2026-11-22).
+     * The jumbo music card (two columns, full height, lyrics), before the
+     * room check: the lyrics open for this track (Config's "Always open
+     * lyrics", or the card's Lyrics button), music playing, lines for the
+     * track. Never with the Home Assistant panel up: the panel needs the
+     * room. Parked or driving alike (owner's call, 2026-11-22).
      */
-    public static boolean showLyrics(boolean enabled, boolean open, boolean musicShown,
+    public static boolean showLyrics(boolean open, boolean musicShown,
                                      boolean haveLines, boolean panelShown) {
-        return enabled && open && musicShown && haveLines && !panelShown;
+        return open && musicShown && haveLines && !panelShown;
     }
 
     /** The screen shows three columns; a fourth means scrolling sideways. */

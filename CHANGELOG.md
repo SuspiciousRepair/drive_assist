@@ -3,26 +3,28 @@
 ## [Unreleased]
 
 ### Added
-- **A Sound button on the Spotify card.** It opens the car's own sound
-  settings, with the equalizer presets (Standard, Pop, Rock, ...). On a
-  car whose settings app has no such screen it opens the Volume page, and
-  with neither the button is not shown.
-- **Song lyrics on the Spotify card.** Turn on **Config → Integrations →
-  Spotify → Lyrics** and the music card gets a **Lyrics** button next to
-  Play and Skip. It grows the card to two columns and the full height of
-  the screen: at the top the art, song, artist and album, in a soft shade
-  of the album art's main colour; under them the line sung now in large type, the
-  line before it and the next two, in time with the song; and Play, Skip
-  and a close button at the bottom. Open or closed stays from song to song. The card keeps its
+- **Song lyrics on the Spotify card.** The music card has a **Lyrics**
+  button next to Play and Skip. It grows the card to two columns and the
+  full height of the screen: at the top the art, song, artist and album,
+  in a soft shade of the album art's main colour; under them the line
+  sung now in large type, the line before it and the next two, in time
+  with the song; and Play, Skip and a close button at the bottom.
+  **Config → Integrations → Spotify → Always open lyrics** opens them by
+  itself whenever a song has them (off by default). The card keeps its
   normal size when the Home Assistant panel is up, or when the other cards
   need more than one column. The lyrics come from LRCLIB (lrclib.net), a
-  free lyrics site: the car sends it the song, artist and album names, once
-  per song, and keeps the answer. The next song in the Spotify queue is
-  looked up ahead, so its lyrics are ready when it starts (this needs
-  **Connect** in Config → Spotify once more, for the queue permission). Off by default. Some songs have no timed
-  lyrics there; for those the Lyrics button is dim. After a jump inside a
-  song, the lines can be up to 6 seconds behind, until the next Spotify
-  check.
+  free lyrics site: the car sends it the song, artist and album names,
+  once per song, and keeps the answer. The next song in the Spotify queue
+  is looked up ahead, so its lyrics are ready when it starts (this needs
+  **Connect** in Config → Spotify once more, for the queue permission).
+  Some songs have no timed lyrics there; for those the Lyrics button is
+  dim. After a jump inside a song, the lines can be up to 6 seconds
+  behind, until the next Spotify check.
+- **A gear on the Spotify card for the car's sound settings.** The small
+  gear in the card's top-right corner opens the car's own sound settings,
+  with the equalizer presets (Standard, Pop, Rock, ...). On a car whose
+  settings app has no such screen it opens the Volume page, and with
+  neither there is no gear.
 
 ### Changed
 - **The dashcam asks the car for its 360 cameras.** The dashcam needs the

@@ -208,13 +208,10 @@ public final class Prefs {
     public static void setExtraDarkGlobal(Context ctx, boolean v) { file(ctx).edit().putBoolean("extra_dark_global", v).apply(); }
     public static boolean getSpotifyLargeCard(Context ctx) { return file(ctx).getBoolean("spotify_large_card", false); }
     public static void setSpotifyLargeCard(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_large_card", v).apply(); }
-    // Synced lyrics on the music card (LyricsClient). Off by default: it sends the track name to lrclib.net.
-    public static boolean getSpotifyLyrics(Context ctx) { return file(ctx).getBoolean("spotify_lyrics", false); }
-    public static void setSpotifyLyrics(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_lyrics", v).apply(); }
-    // The lyrics buttons on the music card: open (jumbo card) or closed. Open by default, so turning
-    // the setting on shows them. Kept across tracks and restarts.
-    public static boolean getSpotifyLyricsOpen(Context ctx) { return file(ctx).getBoolean("spotify_lyrics_open", true); }
-    public static void setSpotifyLyricsOpen(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_lyrics_open", v).apply(); }
+    // Open the lyrics (the jumbo music card) by itself whenever a track has them. Off: only the
+    // card's Lyrics button opens them.
+    public static boolean getSpotifyLyricsAuto(Context ctx) { return file(ctx).getBoolean("spotify_lyrics_auto", false); }
+    public static void setSpotifyLyricsAuto(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_lyrics_auto", v).apply(); }
     public static String getSpotifyClientId(Context ctx) { return file(ctx).getString("spotify_client_id", ""); }
     public static void setSpotifyClientId(Context ctx, String v) { file(ctx).edit().putString("spotify_client_id", v).apply(); }
     public static String getSpotifyAccessToken(Context ctx) { return file(ctx).getString("spotify_access_token", null); }

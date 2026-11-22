@@ -159,13 +159,17 @@ public class ComfortActivity extends Activity {
     private android.widget.ImageView jumboArtView;
     private TextView jumboTitleView, jumboArtistView, jumboAlbumView;
     private final java.util.List<View> lyricsOpenButtons = new java.util.ArrayList<>();   // on the condensed card
-    private boolean lyricsOpen;               // the open/close buttons; Prefs.spotify_lyrics_open
+    // Open or closed for the track playing now: each new track starts as
+    // Config's "Always open lyrics" says, then the Lyrics/✕ buttons decide.
+    private boolean lyricsOpen;
+    private String lyricsOpenFor;             // the track lyricsOpen belongs to
     private boolean eqAvailable;              // the car's sound settings can be opened (OemSound); read once, at build
+    private final java.util.List<android.widget.ImageView> soundGears = new java.util.ArrayList<>();
     private int jumboFill = 0;   // the cover's main colour, see loadMusicArt()
     // Four lines only: the one just sung, the one sung now, the next two.
     private final TextView[] lyricSlots = new TextView[4];
     private static final int LYRIC_NOW_SLOT = 1;
-    private boolean lyricsEnabled;
+    private boolean lyricsAutoOpen;           // Config: "Always open lyrics"
     private boolean lyricsWantedAtPack;     // what the last repack decided from, so refreshLyrics() repacks only on a change
     private Lrc lyricsTickLines;            // the lines the slots show now
     private int lyricIndex = Integer.MIN_VALUE;
@@ -224,8 +228,7 @@ public class ComfortActivity extends Activity {
         turboEnabledAtBuild = Prefs.getTurboEnabled(this);
         turboSlotsAtBuild = turboSlotsFromPrefs();
         musicLargeCardAtBuild = Prefs.getSpotifyLargeCard(this);
-        lyricsEnabled = Prefs.getSpotifyLyrics(this);
-        lyricsOpen = Prefs.getSpotifyLyricsOpen(this);
+        lyricsAutoOpen = Prefs.getSpotifyLyricsAuto(this);
         eqAvailable = OemSound.intent(this) != null;
         skylineEnabledAtBuild = Prefs.getSkylineEnabled(this);
         skylineSeedAtBuild = Prefs.getSkylineSeed(this, com.geely.drivemem.art.Skyline.DEFAULT_SEED);
@@ -1032,6 +1035,14 @@ public class ComfortActivity extends Activity {
             new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         textLp.leftMargin = Style.dp(this, 18);
         row.addView(textCol, textLp);
+        android.widget.ImageView gear = soundGear(false);
+        if (gear != null) {
+            LinearLayout.LayoutParams gLp = new LinearLayout.LayoutParams(
+                Style.dp(this, 48), Style.dp(this, 48));
+            gLp.gravity = Gravity.TOP;
+            gLp.leftMargin = Style.dp(this, 8);
+            row.addView(gear, gLp);
+        }
         m.addView(row);
         Style.gap(m, this, 18);
 
@@ -1050,7 +1061,6 @@ public class ComfortActivity extends Activity {
         lyr.setOnClickListener(v -> setLyricsOpen(true));
         lyricsOpenButtons.add(lyr);
         btnRow.addView(lyr, tileLp(76, 14));
-        if (eqAvailable) btnRow.addView(iconTile(R.drawable.ic_equalizer, () -> OemSound.open(this)), tileLp(76, 14));
         m.addView(btnRow);
 
         musicCard = m;
@@ -1210,6 +1220,13 @@ public class ComfortActivity extends Activity {
         musicArtistView.setPadding(0, Style.dp(this, 4), 0, 0);
         caption.addView(musicArtistView);
         artFrame.addView(caption, capLp);
+        android.widget.ImageView gear = soundGear(true);
+        if (gear != null) {
+            FrameLayout.LayoutParams gLp = new FrameLayout.LayoutParams(
+                Style.dp(this, 52), Style.dp(this, 52), Gravity.TOP | Gravity.END);
+            gLp.topMargin = Style.dp(this, 12); gLp.rightMargin = Style.dp(this, 12);
+            artFrame.addView(gear, gLp);
+        }
 
         m.addView(artFrame);
 
@@ -1240,19 +1257,6 @@ public class ComfortActivity extends Activity {
         lyricsOpenButtons.add(lyrHalf);
         lyricsOpenButtons.add(divider2);
         btnBand.addView(lyrHalf, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        if (eqAvailable) {
-            View divider3 = new View(this);
-            divider3.setBackgroundColor(Style.TEXT_DIM);
-            divider3.getBackground().setAlpha(60);
-            btnBand.addView(divider3, new LinearLayout.LayoutParams(divLp));
-            LinearLayout eqHalf = turboStyleHalf(getString(R.string.spotify_eq_label), "", () -> OemSound.open(this));
-            eqHalf.removeViewAt(0);   // an icon in place of the glyph, as for Lyrics
-            android.widget.ImageView eqIcon = new android.widget.ImageView(this);
-            eqIcon.setImageResource(R.drawable.ic_equalizer);
-            eqIcon.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
-            eqHalf.addView(eqIcon, 0, new LinearLayout.LayoutParams(Style.dp(this, 40), Style.dp(this, 40)));
-            btnBand.addView(eqHalf, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        }
         m.addView(btnBand);
 
         musicCard = m;
@@ -1307,6 +1311,12 @@ public class ComfortActivity extends Activity {
         LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         infoLp.leftMargin = Style.dp(this, 26);
         jumboHeader.addView(info, infoLp);
+        android.widget.ImageView jGear = soundGear(false);
+        if (jGear != null) {
+            LinearLayout.LayoutParams gLp = new LinearLayout.LayoutParams(Style.dp(this, 52), Style.dp(this, 52));
+            gLp.gravity = Gravity.TOP;
+            jumboHeader.addView(jGear, gLp);
+        }
         // Inset by the card's stroke on three sides, so the border runs
         // unbroken past the header and the fade.
         int stroke = Style.dp(this, Style.STROKE_DP);
@@ -1353,7 +1363,6 @@ public class ComfortActivity extends Activity {
         // "⏯"/"⏭"/"✕" are icons, not prose -- same tiles as the small card.
         jumboBar.addView(mediaTile("⏯", MusicState::playPause), tileLp(88, 0));
         jumboBar.addView(mediaTile("⏭", MusicState::next), tileLp(88, 14));
-        if (eqAvailable) jumboBar.addView(iconTile(R.drawable.ic_equalizer, () -> OemSound.open(this)), tileLp(88, 14));
         jumboBar.addView(mediaTile("✕", () -> setLyricsOpen(false)), tileLp(88, 14));
         outer.addView(jumboBar);
         paintJumbo();
@@ -1390,6 +1399,9 @@ public class ComfortActivity extends Activity {
         jumboAlbumView.setTextColor(text);
         jumboArtistView.setAlpha(0.85f);
         jumboAlbumView.setAlpha(0.7f);
+        // The jumbo header's gear follows the header's text colour.
+        for (android.widget.ImageView g : soundGears)
+            if (g.getParent() == jumboHeader) g.setColorFilter(text, android.graphics.PorterDuff.Mode.SRC_IN);
     }
 
     private void showMusicText(String title, String artist) {
@@ -1405,6 +1417,28 @@ public class ComfortActivity extends Activity {
     }
 
     // Open or close the lyrics (the buttons). Kept across tracks and restarts.
+    // The small gear in the music card's top-right corner: the car's own
+    // sound settings, with the EQ (OemSound). Null when this car has none.
+    // onArt: it sits on the album art, so it gets a dark disc to read on
+    // any picture.
+    private android.widget.ImageView soundGear(boolean onArt) {
+        if (!eqAvailable) return null;
+        android.widget.ImageView g = Style.cogButton(this, () -> OemSound.open(this));
+        int pad = Style.dp(this, 8);
+        g.setPadding(pad, pad, pad, pad);
+        g.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        if (onArt) {
+            android.graphics.drawable.GradientDrawable disc = new android.graphics.drawable.GradientDrawable();
+            disc.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            disc.setColor(0x66000000);
+            g.setBackground(disc);
+            g.setColorFilter(0xFFFFFFFF, android.graphics.PorterDuff.Mode.SRC_IN);
+        } else {
+            soundGears.add(g);
+        }
+        return g;
+    }
+
     // An icon tile with the same shell as mediaTile().
     private android.widget.ImageView iconTile(int drawableRes, Runnable onClick) {
         android.widget.ImageView v = new android.widget.ImageView(this);
@@ -1419,10 +1453,18 @@ public class ComfortActivity extends Activity {
     }
 
     private void setLyricsOpen(boolean open) {
+        followTrack();
         if (open == lyricsOpen) return;
         lyricsOpen = open;
-        Prefs.setSpotifyLyricsOpen(this, open);
         if (columns != null) repackColumns();
+    }
+
+    // A new track starts open or closed as Config says.
+    private void followTrack() {
+        String id = MusicState.trackId();
+        if (id == null || id.equals(lyricsOpenFor)) return;
+        lyricsOpenFor = id;
+        lyricsOpen = lyricsAutoOpen;
     }
 
     // The open-lyrics button on the condensed card: there only with the
@@ -1430,7 +1472,6 @@ public class ComfortActivity extends Activity {
     private void refreshLyricsButtons() {
         boolean have = LyricsClient.linesFor(MusicState.trackId()) != null;
         for (View v : lyricsOpenButtons) {
-            v.setVisibility(lyricsEnabled ? View.VISIBLE : View.GONE);
             if (v.isClickable()) v.setAlpha(have ? 1f : 0.35f);   // not the divider
         }
     }
@@ -1447,7 +1488,7 @@ public class ComfortActivity extends Activity {
     }
 
     private boolean lyricsWanted() {
-        return musicJumbo != null && ComfortCardVisibility.showLyrics(lyricsEnabled, lyricsOpen,
+        return musicJumbo != null && ComfortCardVisibility.showLyrics(lyricsOpen,
             musicCard != null && musicCard.getVisibility() == View.VISIBLE,
             // Still loading counts when the card is already big: it stays big
             // across a track change instead of shrinking for the fetch. Not
@@ -1479,7 +1520,6 @@ public class ComfortActivity extends Activity {
     }
 
     private void requestLyrics() {
-        if (!lyricsEnabled) return;
         LyricsClient.request(this, MusicState.trackId(), MusicState.title(), MusicState.artist(),
             MusicState.album(), MusicState.durationMs(), () -> ui.post(this::refreshLyrics));
     }
@@ -2271,6 +2311,7 @@ public class ComfortActivity extends Activity {
             if (available) {
                 showMusicText(title, artist);
                 loadMusicArt(artUrl);
+                followTrack();
                 requestLyrics();
             }
             if (available != lastMusicAvailable) {
@@ -2835,8 +2876,9 @@ public class ComfortActivity extends Activity {
         // reason: a track can start or end while the screen is off.
         boolean nowMusicAvailable = ComfortCardVisibility.showMusicCard(MusicState.title());
         if (musicCard != null) musicCard.setVisibility(nowMusicAvailable ? View.VISIBLE : View.GONE);
-        lyricsEnabled = Prefs.getSpotifyLyrics(this);   // may have changed in Config
-        lyricsOpen = Prefs.getSpotifyLyricsOpen(this);
+        boolean auto = Prefs.getSpotifyLyricsAuto(this);   // may have changed in Config
+        if (auto != lyricsAutoOpen) { lyricsAutoOpen = auto; lyricsOpen = auto; }
+        followTrack();
         refreshLyricsButtons();
         if (nowMusicAvailable) {
             showMusicText(MusicState.title(), MusicState.artist());
