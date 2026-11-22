@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Added
+- **A Sound button on the Spotify card.** It opens the car's own sound
+  settings, with the equalizer presets (Standard, Pop, Rock, ...). On a
+  car whose settings app has no such screen it opens the Volume page, and
+  with neither the button is not shown.
 - **Song lyrics on the Spotify card.** Turn on **Config → Integrations →
   Spotify → Lyrics** and the music card gets a **Lyrics** button next to
   Play and Skip. It grows the card to two columns and the full height of

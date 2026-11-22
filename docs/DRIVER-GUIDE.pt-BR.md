@@ -116,7 +116,9 @@ Bluetooth opcional dá dados de bateria mais finos. Veja o [guia do ABRP](ABRP.m
 
 ### Spotify
 
-Entre uma vez e a tela inicial mostra o que está tocando, com controles.
+Entre uma vez e a tela inicial mostra o que está tocando, com controles. O
+botão **Som** (três controles deslizantes) abre os ajustes de som do próprio
+carro, com o equalizador.
 
 Ligue **Config → Integrações → Spotify → Letra** para ter um botão **Letra** no
 cartão de música, ao lado de Tocar e Avançar. Ele aumenta o cartão para duas

@@ -40,6 +40,7 @@ import com.geely.drivemem.util.LayoutWait;
 import com.geely.drivemem.util.Lrc;
 import com.geely.drivemem.util.LyricsClient;
 import com.geely.drivemem.util.Modes;
+import com.geely.drivemem.util.OemSound;
 import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.SpotifyClient;
 import com.geely.drivemem.net.Updater;
@@ -159,6 +160,7 @@ public class ComfortActivity extends Activity {
     private TextView jumboTitleView, jumboArtistView, jumboAlbumView;
     private final java.util.List<View> lyricsOpenButtons = new java.util.ArrayList<>();   // on the condensed card
     private boolean lyricsOpen;               // the open/close buttons; Prefs.spotify_lyrics_open
+    private boolean eqAvailable;              // the car's sound settings can be opened (OemSound); read once, at build
     private int jumboFill = 0;   // the cover's main colour, see loadMusicArt()
     // Four lines only: the one just sung, the one sung now, the next two.
     private final TextView[] lyricSlots = new TextView[4];
@@ -224,6 +226,7 @@ public class ComfortActivity extends Activity {
         musicLargeCardAtBuild = Prefs.getSpotifyLargeCard(this);
         lyricsEnabled = Prefs.getSpotifyLyrics(this);
         lyricsOpen = Prefs.getSpotifyLyricsOpen(this);
+        eqAvailable = OemSound.intent(this) != null;
         skylineEnabledAtBuild = Prefs.getSkylineEnabled(this);
         skylineSeedAtBuild = Prefs.getSkylineSeed(this, com.geely.drivemem.art.Skyline.DEFAULT_SEED);
         dismissedHash = Prefs.getPanelDismissed(this);   // the dismissal survives a restart
@@ -1047,6 +1050,7 @@ public class ComfortActivity extends Activity {
         lyr.setOnClickListener(v -> setLyricsOpen(true));
         lyricsOpenButtons.add(lyr);
         btnRow.addView(lyr, tileLp(76, 14));
+        if (eqAvailable) btnRow.addView(iconTile(R.drawable.ic_equalizer, () -> OemSound.open(this)), tileLp(76, 14));
         m.addView(btnRow);
 
         musicCard = m;
@@ -1236,6 +1240,19 @@ public class ComfortActivity extends Activity {
         lyricsOpenButtons.add(lyrHalf);
         lyricsOpenButtons.add(divider2);
         btnBand.addView(lyrHalf, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        if (eqAvailable) {
+            View divider3 = new View(this);
+            divider3.setBackgroundColor(Style.TEXT_DIM);
+            divider3.getBackground().setAlpha(60);
+            btnBand.addView(divider3, new LinearLayout.LayoutParams(divLp));
+            LinearLayout eqHalf = turboStyleHalf(getString(R.string.spotify_eq_label), "", () -> OemSound.open(this));
+            eqHalf.removeViewAt(0);   // an icon in place of the glyph, as for Lyrics
+            android.widget.ImageView eqIcon = new android.widget.ImageView(this);
+            eqIcon.setImageResource(R.drawable.ic_equalizer);
+            eqIcon.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
+            eqHalf.addView(eqIcon, 0, new LinearLayout.LayoutParams(Style.dp(this, 40), Style.dp(this, 40)));
+            btnBand.addView(eqHalf, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        }
         m.addView(btnBand);
 
         musicCard = m;
@@ -1336,6 +1353,7 @@ public class ComfortActivity extends Activity {
         // "⏯"/"⏭"/"✕" are icons, not prose -- same tiles as the small card.
         jumboBar.addView(mediaTile("⏯", MusicState::playPause), tileLp(88, 0));
         jumboBar.addView(mediaTile("⏭", MusicState::next), tileLp(88, 14));
+        if (eqAvailable) jumboBar.addView(iconTile(R.drawable.ic_equalizer, () -> OemSound.open(this)), tileLp(88, 14));
         jumboBar.addView(mediaTile("✕", () -> setLyricsOpen(false)), tileLp(88, 14));
         outer.addView(jumboBar);
         paintJumbo();
@@ -1387,6 +1405,19 @@ public class ComfortActivity extends Activity {
     }
 
     // Open or close the lyrics (the buttons). Kept across tracks and restarts.
+    // An icon tile with the same shell as mediaTile().
+    private android.widget.ImageView iconTile(int drawableRes, Runnable onClick) {
+        android.widget.ImageView v = new android.widget.ImageView(this);
+        v.setImageResource(drawableRes);
+        v.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        int pad = Style.dp(this, 20);
+        v.setPadding(pad, pad, pad, pad);
+        v.setBackground(Style.tile(this));
+        v.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
+        v.setOnClickListener(x -> onClick.run());
+        return v;
+    }
+
     private void setLyricsOpen(boolean open) {
         if (open == lyricsOpen) return;
         lyricsOpen = open;

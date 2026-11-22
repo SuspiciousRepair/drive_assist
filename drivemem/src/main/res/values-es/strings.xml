@@ -89,6 +89,7 @@
     <string name="spotify_play_label">Reproducir</string>
     <string name="spotify_skip_label">Siguiente</string>
     <string name="spotify_lyrics_label">Letra</string>
+    <string name="spotify_eq_label">Sonido</string>
     <string name="cfg_commands_label">Aceptar comandos de Home Assistant</string>
     <string name="cfg_commands_on">Aceptando comandos de Home Assistant</string>
     <string name="cfg_commands_off">Comandos bloqueados — solo telemetría</string>

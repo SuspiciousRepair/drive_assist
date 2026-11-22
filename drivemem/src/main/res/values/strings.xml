@@ -178,6 +178,7 @@
     <string name="spotify_play_label">Play</string>
     <string name="spotify_skip_label">Skip</string>
     <string name="spotify_lyrics_label">Lyrics</string>
+    <string name="spotify_eq_label">Sound</string>
     <string name="cfg_commands_label">Accept commands from Home Assistant</string>
     <string name="cfg_commands_on">Accepting commands from Home Assistant</string>
     <string name="cfg_commands_off">Commands blocked — telemetry only</string>

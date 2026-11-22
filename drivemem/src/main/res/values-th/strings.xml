@@ -164,6 +164,7 @@
     <string name="spotify_play_label">เล่น</string>
     <string name="spotify_skip_label">ข้าม</string>
     <string name="spotify_lyrics_label">เนื้อเพลง</string>
+    <string name="spotify_eq_label">เสียง</string>
     <string name="cfg_commands_label">ยอมรับคำสั่งจาก HA</string>
     <string name="cfg_commands_on">กำลังยอมรับคำสั่งจาก HA</string>
     <string name="cfg_commands_off">คำสั่งถูกบล็อก — เฉพาะการวัดระยะไกลเท่านั้น</string>

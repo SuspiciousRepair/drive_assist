@@ -166,6 +166,7 @@
     <string name="spotify_play_label">Tocar</string>
     <string name="spotify_skip_label">Avançar</string>
     <string name="spotify_lyrics_label">Letra</string>
+    <string name="spotify_eq_label">Som</string>
     <string name="cfg_commands_label">Aceitar comandos do HA</string>
     <string name="cfg_commands_on">Aceitando comandos do HA</string>
     <string name="cfg_commands_off">Comandos BLOQUEADOS — só envia telemetria</string>

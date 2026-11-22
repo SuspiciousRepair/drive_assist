@@ -112,7 +112,9 @@ battery data. See the [ABRP guide](ABRP.md).
 
 ### Spotify
 
-Sign in once and the home screen shows what is playing, with controls.
+Sign in once and the home screen shows what is playing, with controls. The
+**Sound** button (three sliders) opens the car's own sound settings, with the
+equalizer.
 
 Turn on **Config → Integrations → Spotify → Lyrics** to get a **Lyrics** button on the
 music card, next to Play and Skip. It grows the card to two columns and the full
