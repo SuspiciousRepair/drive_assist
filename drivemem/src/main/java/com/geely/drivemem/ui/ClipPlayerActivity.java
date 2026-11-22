@@ -487,8 +487,8 @@ public class ClipPlayerActivity extends Activity {
                 // Cell of each camera in the 2x2: front=BL, right=TR, rear=BR, left=TL.
                 GLES20.glUniform2fv(GLES20.glGetUniformLocation(prog, "uCell"), 4, new float[] {
                     FRONT[0], FRONT[1], RIGHT[0], RIGHT[1], REAR[0], REAR[1], LEFT[0], LEFT[1] }, 0);
-                GLES20.glUniform4f(GLES20.glGetUniformLocation(prog, "uBowl"),
-                    OrbitRig.EYE, OrbitRig.WALL, OrbitRig.HALF_W, OrbitRig.HALF_L);
+                GLES20.glUniform3f(GLES20.glGetUniformLocation(prog, "uBall"),
+                    OrbitRig.EYE, OrbitRig.BALL, OrbitRig.BAND);
                 GLES20.glUniform1f(GLES20.glGetUniformLocation(prog, "uSharp"), SHARPEN);
                 GLES20.glUniform2f(GLES20.glGetUniformLocation(prog, "uTexel"),
                     1f / FULL_W, 1f / FULL_H);
@@ -559,12 +559,13 @@ public class ClipPlayerActivity extends Activity {
 
 
     // Orbit mode: one viewpoint, four cameras. Each output pixel becomes a
-    // ray, turned by yaw/pitch. The ray lands on a point in the world: the
-    // ground, or a wall around the car (OrbitRig). Each camera then looks at
-    // that point from its own place on the car, so the ground lines up where
-    // two cameras meet. Cameras that both see the point are mixed by weight,
-    // so there is no line between them. OrbitRig.cell() and weight() are the
-    // same steps in Java; keep the two in step.
+    // ray, turned by yaw/pitch. The ray lands on a point on a ball around
+    // the car (OrbitRig). Each camera then looks at that point from its own
+    // place on the car, so things about that far away line up where two
+    // cameras meet. The camera the ray points to shows; in a narrow band
+    // where two meet they are mixed, so there is no line between them.
+    // OrbitRig.cell() and weight() are the same steps in Java; keep the two
+    // in step.
     private static final String FRAG_ORBIT =
         "#extension GL_OES_EGL_image_external : require\n" +
         "precision highp float;\n" +
@@ -578,7 +579,7 @@ public class ClipPlayerActivity extends Activity {
         "uniform vec2  uAxis[4];\n" +    // the side each camera looks to (x, z)
         "uniform vec2  uLens[4];\n" +    // lens half angle, squash
         "uniform vec2  uCell[4];\n" +    // its cell in the 2x2
-        "uniform vec4  uBowl;\n" +       // eye height, wall distance, car half width, half length
+        "uniform vec3  uBall;\n" +       // eye height, ball radius, mix band
         "uniform float uSharp;\n" +
         "uniform vec2  uTexel;\n" +
         "void main() {\n" +
@@ -588,40 +589,22 @@ public class ClipPlayerActivity extends Activity {
         "  r = vec3(r.x, r.y * cp - r.z * sp, r.y * sp + r.z * cp);\n" +
         "  float cy = cos(uView.x), sy = sin(uView.x);\n" +
         "  r = vec3(r.x * cy + r.z * sy, r.y, -r.x * sy + r.z * cy);\n" +
-        // The point in the world this ray lands on: ground first, else wall.
-        "  float t = uBowl.y / max(length(r.xz), 1e-4);\n" +
-        "  bool ground = false;\n" +
-        "  if (r.y < -1e-4) {\n" +
-        "    float tg = uBowl.x / -r.y;\n" +
-        "    if (tg < t) { t = tg; ground = true; }\n" +
-        "  }\n" +
-        "  vec3 X = vec3(0.0, uBowl.x, 0.0) + r * t;\n" +
-        // Under the car no camera sees the ground: a dark patch, not a smear.
-        "  if (ground && abs(X.x) < uBowl.z && abs(X.z) < uBowl.w) {\n" +
-        "    gl_FragColor = vec4(0.06, 0.06, 0.07, 1.0); return;\n" +
-        "  }\n" +
-        "  vec3 acc = vec3(0.0); float ws = 0.0; float cover = 0.0;\n" +
+        // The point in the world this ray lands on: the ball.
+        "  vec3 X = vec3(0.0, uBall.x, 0.0) + r * uBall.y;\n" +
+        "  float best = max(abs(r.x), abs(r.z));\n" +
+        "  vec3 acc = vec3(0.0); float ws = 0.0;\n" +
         "  for (int i = 0; i < 4; i++) {\n" +
-        "    vec3 d = normalize(X - uPos[i]);\n" +
-        // Only its own side: behind that a camera sees the car's body.
-        "    float side = smoothstep(0.02, 0.22, dot(d.xz, uAxis[i]));\n" +
-        "    if (side <= 0.0) continue;\n" +
-        "    vec3 rc = uRot[i] * d;\n" +
+        // The camera the ray points to, and its neighbour in a narrow band.
+        "    float w = smoothstep(0.0, 1.0, 1.0 - (best - dot(r.xz, uAxis[i])) / uBall.z);\n" +
+        "    if (w <= 0.0) continue;\n" +
+        "    vec3 rc = uRot[i] * normalize(X - uPos[i]);\n" +
         "    float rad = acos(clamp(rc.z, -1.0, 1.0)) / uLens[i].x;\n" +
-        "    if (rad >= 0.97) continue;\n" +
+        "    if (rad > 1.0) continue;\n" +
         "    float dl = length(rc.xy);\n" +
         // Negated: account for 180-degree rotation
         "    vec2 dir = dl > 1e-6 ? -rc.xy / dl : vec2(0.0);\n" +
         "    vec2 cell = vec2(0.5) + dir * rad * vec2(0.5, 0.5 * uLens[i].y);\n" +
-        "    vec2 e = min(cell, 1.0 - cell);\n" +
-        "    float border = clamp(min(e.x, e.y) / 0.06, 0.0, 1.0);\n" +
-        "    if (border <= 0.0) continue;\n" +
-        // Most weight in the middle of the lens, none at its edge.
-        "    float k = 1.0 - rad / 0.97;\n" +
-        "    k = k * k; k = k * k; k = k * k;\n" +
-        "    float w = k * border * side;\n" +
-        "    cover = max(cover, border * side * clamp((0.97 - rad) / 0.04, 0.0, 1.0));\n" +
-        "    if (w < 1e-5) continue;\n" +
+        "    if (cell.x < 0.0 || cell.x > 1.0 || cell.y < 0.0 || cell.y > 1.0) continue;\n" +
         "    vec2 g = (uCell[i] + cell) * 0.5;\n" +
         "    vec2 sc = (uTexMatrix * vec4(g, 0.0, 1.0)).xy;\n" +
         "    vec3 col = texture2D(sTexture, sc).rgb;\n" +
@@ -632,9 +615,7 @@ public class ClipPlayerActivity extends Activity {
         "    acc += clamp(col + uSharp * (col - b), 0.0, 1.0) * w;\n" +
         "    ws += w;\n" +
         "  }\n" +
-        // Fades to black where no camera sees, in place of a hard edge.
-        "  vec3 outc = ws > 1e-5 ? acc / ws * cover : vec3(0.0);\n" +
-        "  gl_FragColor = vec4(outc, 1.0);\n" +
+        "  gl_FragColor = vec4(ws > 1e-5 ? acc / ws : vec3(0.0), 1.0);\n" +
         "}\n";
 
     // Fisheye-to-rectilinear conversion via 3D geometry: each output pixel

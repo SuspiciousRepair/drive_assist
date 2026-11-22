@@ -55,79 +55,59 @@ public class OrbitRigTest {
         assertEquals(want, cell(OrbitRig.FRONT, far)[2], 1e-3);
     }
 
-    @Test public void aRayDownLandsOnTheGroundAndALevelRayOnTheWall() {
-        double s = Math.sqrt(0.5);
-        double[] g = OrbitRig.surface(0, -s, s);            // 45 degrees down
-        assertEquals(0.0, g[1], 1e-9);
-        assertEquals(OrbitRig.EYE, g[2], 1e-9);
-        double[] w = OrbitRig.surface(1, 0, 0);
-        assertEquals(OrbitRig.WALL, w[0], 1e-9);
-        assertEquals(OrbitRig.EYE, w[1], 1e-9);
-        // Up is the wall too, above the eye.
-        double[] u = OrbitRig.surface(0, s, s);
-        assertEquals(OrbitRig.WALL, u[2], 1e-9);
-        assertTrue(u[1] > OrbitRig.EYE);
+    private static double[] ray(double yawDeg, double pitchDownDeg) {
+        double y = Math.toRadians(yawDeg), p = Math.toRadians(pitchDownDeg);
+        return new double[] { Math.sin(y) * Math.cos(p), -Math.sin(p), Math.cos(y) * Math.cos(p) };
     }
 
-    @Test public void theGroundMeetsTheWallWithNoJump() {
-        // The ray that hits the foot of the wall: a hair above and a hair
-        // below must land at the same place.
-        double a = Math.atan2(OrbitRig.EYE, OrbitRig.WALL);
-        double[] lo = OrbitRig.surface(0, -Math.sin(a + 1e-6), Math.cos(a + 1e-6));
-        double[] hi = OrbitRig.surface(0, -Math.sin(a - 1e-6), Math.cos(a - 1e-6));
-        for (int k = 0; k < 3; k++) assertEquals(lo[k], hi[k], 1e-3);
+    private static double weight(int cam, double[] r) {
+        return OrbitRig.weight(cam, r[0], r[2], cell(cam, OrbitRig.surface(r[0], r[1], r[2])));
     }
 
-    @Test public void underTheCarIsOnlyTheGroundUnderTheCar() {
-        assertTrue(OrbitRig.underCar(new double[] { 0.5, 0, 1.0 }));
-        assertFalse(OrbitRig.underCar(new double[] { 1.5, 0, 1.0 }));
-        assertFalse(OrbitRig.underCar(new double[] { 0.5, 0, 3.0 }));
-        assertFalse(OrbitRig.underCar(new double[] { 0.5, 1.2, 1.0 }));
-    }
-
-    @Test public void eachCameraOwnsTheGroundOnItsSide() {
-        double[][] spot = { { 0, 0, 4 }, { 2.5, 0, 0.6 }, { 0, 0, -4 }, { -2.5, 0, 0.6 } };
-        for (int own = 0; own < 4; own++) {
-            double best = OrbitRig.weight(own, spot[own], cell(own, spot[own]));
-            assertTrue("cam " + own, best > 0.05);
-            for (int other = 0; other < 4; other++) {
-                if (other == own) continue;
-                double w = OrbitRig.weight(other, spot[own], cell(other, spot[own]));
-                assertTrue(own + " over " + other, best > 20 * w);
-            }
+    @Test public void everyRayLandsOnTheBall() {
+        for (double[] r : new double[][] { ray(0, 0), ray(77, 30), ray(200, -20) }) {
+            double[] p = OrbitRig.surface(r[0], r[1], r[2]);
+            assertEquals(OrbitRig.BALL, Math.sqrt(p[0] * p[0]
+                + (p[1] - OrbitRig.EYE) * (p[1] - OrbitRig.EYE) + p[2] * p[2]), 1e-9);
         }
     }
 
-    @Test public void aCameraDoesNotShowWhatIsBehindItsSide() {
-        // The right mirror camera sees the left side of the road only
-        // through the car. It must not count there.
-        double[] left = { -3, 0, 0.6 };
-        assertEquals(0.0, OrbitRig.weight(OrbitRig.RIGHT, left, cell(OrbitRig.RIGHT, left)), 0.0);
-        // Nor the front camera a point behind the car.
-        double[] behind = { 0, 0, -4 };
-        assertEquals(0.0, OrbitRig.weight(OrbitRig.FRONT, behind, cell(OrbitRig.FRONT, behind)), 0.0);
+    @Test public void eachCameraOwnsItsOwnSide() {
+        for (int own = 0; own < 4; own++) {
+            double[] r = ray(own * 90, 15);
+            assertEquals("cam " + own, 1.0, weight(own, r), 1e-9);
+            for (int other = 0; other < 4; other++)
+                if (other != own) assertEquals(own + " not " + other, 0.0, weight(other, r), 0.0);
+        }
+    }
+
+    @Test public void aCameraDoesNotCountOffItsLens() {
+        // Straight up is off the front lens: it points 26 degrees down and
+        // sees about 95 degrees from its middle.
+        double[] up = ray(0, -85);
+        assertEquals(0.0, weight(OrbitRig.FRONT, up), 0.0);
     }
 
     @Test public void twoCamerasShareACornerAndTheMixHasNoStep() {
-        // Walk on the ground round the front right corner, 3 m out. The
-        // front camera's share goes from most to least with no jump.
-        double last = -1, first = -1, max = 0;
-        for (int deg = 10; deg <= 80; deg++) {
-            double a = Math.toRadians(deg);
-            double[] p = { 3 * Math.sin(a), 0, 3 * Math.cos(a) };
-            double wf = OrbitRig.weight(OrbitRig.FRONT, p, cell(OrbitRig.FRONT, p));
-            double wr = OrbitRig.weight(OrbitRig.RIGHT, p, cell(OrbitRig.RIGHT, p));
+        // Turn round the front right corner. The front camera's share goes
+        // from all to none with no jump, and only near the corner.
+        double last = -1, max = 0;
+        int mixed = 0;
+        for (double deg = 30; deg <= 60; deg += 0.25) {
+            double[] r = ray(deg, 15);
+            double wf = weight(OrbitRig.FRONT, r), wr = weight(OrbitRig.RIGHT, r);
             assertTrue("a camera sees " + deg, wf + wr > 0);
             double share = wf / (wf + wr);
-            if (first < 0) first = share;
+            if (deg == 30) assertEquals(1.0, share, 1e-9);
+            if (deg == 45) assertEquals(0.5, share, 1e-9);
+            if (deg == 60) assertEquals(0.0, share, 1e-9);
+            if (share > 0 && share < 1) mixed++;
             if (last >= 0) max = Math.max(max, Math.abs(share - last));
             last = share;
         }
-        assertTrue("front leads ahead: " + first, first > 0.9);
-        assertTrue("right leads at the side: " + last, last < 0.1);
-        // The mix is narrow on purpose (about 8 degrees): a wide one shows a
-        // thing that stands up from the ground two times. Narrow, not a cut.
-        assertTrue("largest step per degree: " + max, max < 0.25);
+        assertTrue("largest step per quarter degree: " + max, max < 0.05);
+        // Narrow: less than 20 degrees of the turn is a mix.
+        assertTrue("mixed quarter degrees: " + mixed, mixed > 8 && mixed < 80);
     }
 
     @Test public void theUniformArraysHaveTheShaderLayout() {

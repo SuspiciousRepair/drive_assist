@@ -6,10 +6,13 @@ package com.geely.drivemem.ui;
  *
  * The Orbit view used to treat the four cameras as one point. They are up to
  * 4 m apart, so a thing near the car showed in two different places where two
- * cameras meet. Now each screen ray first finds a point in the world (the
- * ground, or a wall around the car), and each camera then looks at that point
- * from its own place. The ground is where the cameras agree best, and the
- * ground is most of what is near a car.
+ * cameras meet. Now each screen ray finds a point on a ball around the car,
+ * and each camera looks at that point from its own place. Things about as far
+ * away as the ball line up. The two cameras are mixed in a narrow band where
+ * they meet, so there is no hard line.
+ *
+ * A flat floor was tried first and was worse: it bent every thing that
+ * stands up (cars, trees, fences) and left a large dark patch under the car.
  *
  * Axes: x to the right, y up, z to the front. The origin is the middle of the
  * car, on the ground. Camera order is yaw order: front, right, rear, left. */
@@ -18,15 +21,16 @@ final class OrbitRig {
 
     /** Height of the viewpoint above the ground, metres. */
     static final float EYE = 1.0f;
-    /** Distance of the wall that stands in for everything above the ground. A
-     * far thing and a near thing cannot both line up; 10 m splits the error. */
-    static final float WALL = 10f;
-    /** Half the car's width and length: the ground no camera can see. */
-    static final float HALF_W = 0.92f, HALF_L = 2.08f;
+    /** Radius of the ball the picture is painted on, metres. A far thing and
+     * a near thing cannot both line up; 6 m looked best on parked clips. */
+    static final float BALL = 6f;
+    /** Width of the band where two cameras are mixed, as a part of the ray
+     * (0.12 is about 7 degrees). Narrow on purpose: a wide one shows a thing
+     * near a corner two times. */
+    static final float BAND = 0.12f;
 
     /** Camera positions, metres. Taken from the car's size (4.14 x 1.81 m),
-     * not measured with a tape. Checked against paving stones in parked
-     * clips: the stones line up between the side and rear cameras. */
+     * not measured with a tape. */
     private static final float[][] POS = {
         {  0.00f, 0.60f,  2.00f },   // front, in the grille
         {  0.98f, 1.00f,  0.60f },   // right mirror
@@ -44,8 +48,7 @@ final class OrbitRig {
     }
 
     /** The direction each camera looks, on the ground plane (x, z), for a
-     * vec2[4] uniform. A camera shows only what is on its own side; behind
-     * that line it sees the car's own body. */
+     * vec2[4] uniform. The camera whose direction is nearest the ray shows. */
     static float[] axes() {
         float[] out = new float[8];
         for (int i = 0; i < 4; i++) {
@@ -77,18 +80,10 @@ final class OrbitRig {
         return out;
     }
 
-    /** The world point a ray from the viewpoint lands on: the ground if it
-     * gets there first, else the wall. The ray must have length 1. */
+    /** The world point a ray from the viewpoint lands on: the ball. The
+     * ray must have length 1. */
     static double[] surface(double rx, double ry, double rz) {
-        double flat = Math.max(Math.hypot(rx, rz), 1e-4);
-        double t = WALL / flat;
-        if (ry < -1e-4) t = Math.min(t, EYE / -ry);
-        return new double[] { rx * t, EYE + ry * t, rz * t };
-    }
-
-    /** True when the point is on the ground under the car. */
-    static boolean underCar(double[] p) {
-        return p[1] < 1e-3 && Math.abs(p[0]) < HALF_W && Math.abs(p[2]) < HALF_L;
+        return new double[] { rx * BALL, EYE + ry * BALL, rz * BALL };
     }
 
     /** Where camera cam sees world point p: {u, v, rad}. u and v are in the
@@ -108,20 +103,16 @@ final class OrbitRig {
         return new double[] { 0.5 + ux * rad * 0.5, 0.5 + uy * rad * 0.5 * squash, rad };
     }
 
-    /** How much camera cam counts at a point: most in the middle of its lens,
-     * nothing at the edge, at the border of its cell, or behind its own side.
-     * Two cameras that both see a point are mixed by these weights, so there
-     * is no line where one stops and the next starts. */
-    static double weight(int cam, double[] p, double[] cell) {
-        double dx = p[0] - POS[cam][0], dy = p[1] - POS[cam][1], dz = p[2] - POS[cam][2];
-        double n = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    /** How much camera cam counts for a ray (length 1): all of it where the
+     * ray points most to that camera's side, none where another camera's side
+     * is nearer by more than BAND, and a smooth mix between. Nothing where
+     * the point is off its lens or off its cell. The same steps as FRAG_ORBIT. */
+    static double weight(int cam, double rx, double rz, double[] cell) {
+        if (cell[2] > 1.0 || cell[0] < 0 || cell[0] > 1 || cell[1] < 0 || cell[1] > 1) return 0;
         double w = cam * Math.PI / 2;
-        double side = smooth(0.02, 0.22, (dx * Math.sin(w) + dz * Math.cos(w)) / n);
-        double edge = Math.min(Math.min(cell[0], 1 - cell[0]), Math.min(cell[1], 1 - cell[1]));
-        double border = Math.max(0, Math.min(1, edge / 0.06));
-        double k = Math.max(0, 1 - cell[2] / 0.97);
-        double k2 = k * k, k4 = k2 * k2;
-        return k4 * k4 * border * side;
+        double mine = rx * Math.sin(w) + rz * Math.cos(w);
+        double best = Math.max(Math.abs(rx), Math.abs(rz));
+        return smooth(0, 1, 1 - (best - mine) / BAND);
     }
 
     private static double smooth(double a, double b, double x) {
