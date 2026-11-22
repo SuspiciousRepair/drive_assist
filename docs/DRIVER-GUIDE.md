@@ -117,7 +117,8 @@ Sign in once and the home screen shows what is playing, with controls.
 Turn on **Config → Integrations → Spotify → Lyrics** to get a **Lyrics** button on the
 music card, next to Play and Skip. It grows the card to two columns and the full
 height of the screen, with the words of the song in time with it, on the main
-colour of the album art. The bar at the bottom has Play, Skip and **✕**, which
+colour of the album art: the line sung now in large type, the line before it,
+and the next two. The bar at the bottom has Play, Skip and **✕**, which
 closes the lyrics. They stay open or closed from song to song. The card stays at
 its normal size when the Home Assistant panel is up, or when the other cards
 need more than one column. The lyrics come from

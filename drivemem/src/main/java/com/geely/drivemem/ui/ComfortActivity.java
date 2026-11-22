@@ -157,11 +157,12 @@ public class ComfortActivity extends Activity {
     private final java.util.List<View> lyricsOpenButtons = new java.util.ArrayList<>();   // on the condensed card
     private boolean lyricsOpen;               // the open/close buttons; Prefs.spotify_lyrics_open
     private int jumboFill = 0, jumboText = 0xFFFFFFFF;   // from the cover, see loadMusicArt()
-    private android.widget.ScrollView lyricsScroll;
-    private LinearLayout lyricsList;        // one TextView per LRC line
+    // Four lines only: the one just sung, the one sung now, the next two.
+    private final TextView[] lyricSlots = new TextView[4];
+    private static final int LYRIC_NOW_SLOT = 1;
     private boolean lyricsEnabled;
     private boolean lyricsWantedAtPack;     // what the last repack decided from, so refreshLyrics() repacks only on a change
-    private Lrc lyricsTickLines;            // the lines lyricsList holds now
+    private Lrc lyricsTickLines;            // the lines the slots show now
     private int lyricIndex = Integer.MIN_VALUE;
     // Show a line this much before Spotify's position reaches it: the poll's
     // answer is already a little old when it lands, and the eye needs a beat.
@@ -1238,13 +1239,11 @@ public class ComfortActivity extends Activity {
         return m;
     }
 
-    // The jumbo music card: every line of the song across both columns, on
-    // the cover's main colour, and a bar at the bottom with Play, Skip and
-    // Close lyrics. The list moves so the line sung now sits a third of the
-    // way down. All lines have the same size and weight, so a new line never
-    // re-wraps the list; only the alpha changes. The list does not take
-    // touches: it follows the song only. Text is near-black or white,
-    // whichever reads on the colour (ArtColor.textOn).
+    // The jumbo music card: across both columns, on the cover's main colour,
+    // four lines of the song -- the one just sung (faint), the one sung now
+    // (large, full), the next two (half) -- and a bar at the bottom with
+    // Play, Skip and Close lyrics. Text is near-black or white, whichever
+    // reads on the colour (ArtColor.textOn).
     private LinearLayout musicJumbo() {
         LinearLayout outer = new LinearLayout(this);
         outer.setOrientation(LinearLayout.VERTICAL);
@@ -1256,25 +1255,28 @@ public class ComfortActivity extends Activity {
             }
         });
 
-        lyricsScroll = new android.widget.ScrollView(this);
-        lyricsScroll.setVerticalScrollBarEnabled(false);
-        lyricsScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        lyricsScroll.setOnTouchListener((v, e) -> true);
+        // Fixed slots, centred in the space above the bar. Each keeps two
+        // lines of room, so a long lyric line never moves the others.
+        LinearLayout slots = new LinearLayout(this);
+        slots.setOrientation(LinearLayout.VERTICAL);
+        slots.setGravity(Gravity.CENTER_VERTICAL);
         int padH = Style.dp(this, 48);
-        lyricsScroll.setPadding(padH, 0, padH, 0);
-        lyricsList = new LinearLayout(this);
-        lyricsList.setOrientation(LinearLayout.VERTICAL);
-        lyricsScroll.addView(lyricsList, new ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        // Room above the first line and below the last, so both can reach
-        // the reading position too.
-        lyricsScroll.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or_, ob) -> {
-            int h = b - t;
-            if (h <= 0 || h == ob - ot) return;
-            lyricsList.setPadding(0, h / 3, 0, h - h / 3);
-            lyricIndex = Integer.MIN_VALUE;   // scroll again on the new height
-        });
-        outer.addView(lyricsScroll, new LinearLayout.LayoutParams(
+        slots.setPadding(padH, Style.dp(this, 24), padH, 0);
+        for (int i = 0; i < lyricSlots.length; i++) {
+            TextView t = new TextView(this);
+            boolean now = i == LYRIC_NOW_SLOT;
+            t.setTextSize(now ? 48 : 36);
+            t.setTypeface(null, android.graphics.Typeface.BOLD);
+            t.setLines(2);
+            t.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            t.setGravity(Gravity.CENTER_VERTICAL);
+            // Sung: faint. Now: full. Coming: half.
+            t.setAlpha(i < LYRIC_NOW_SLOT ? 0.35f : now ? 1f : 0.6f);
+            t.setPadding(0, Style.dp(this, 10), 0, Style.dp(this, 10));
+            lyricSlots[i] = t;
+            slots.addView(t);
+        }
+        outer.addView(slots, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
         jumboBar = new LinearLayout(this);
@@ -1314,8 +1316,7 @@ public class ComfortActivity extends Activity {
             bg.setCornerRadius(Style.dp(this, Style.RADIUS_DP - 8));
             t.setBackground(bg);
         }
-        for (int i = 0; i < lyricsList.getChildCount(); i++)
-            ((TextView) lyricsList.getChildAt(i)).setTextColor(text);
+        for (TextView t : lyricSlots) t.setTextColor(text);
     }
 
     private void showMusicText(String title, String artist) {
@@ -1341,40 +1342,15 @@ public class ComfortActivity extends Activity {
         }
     }
 
-    private void fillLyrics(Lrc lines) {
-        lyricsList.removeAllViews();
-        int gap = Style.dp(this, 18);
-        for (int i = 0; i < lines.size(); i++) {
-            TextView t = new TextView(this);
-            t.setText(lyricText(lines, i));
-            t.setTextSize(36);
-            t.setTextColor(jumboFill != 0 ? jumboText : Style.TEXT);
-            t.setTypeface(null, android.graphics.Typeface.BOLD);
-            t.setPadding(0, 0, 0, gap);
-            lyricsList.addView(t);
+    // The line sung now (-1: none yet) in the second slot, the one before it
+    // above, the next two below. Before the first line the now-slot holds a
+    // note, so the first two lines show as coming.
+    private void showLyricLines(Lrc lines, int now) {
+        for (int s = 0; s < lyricSlots.length; s++) {
+            int i = now - LYRIC_NOW_SLOT + s;
+            String text = (s == LYRIC_NOW_SLOT && now < 0) ? "\u266A" : lines == null ? "" : lines.display(i);
+            lyricSlots[s].setText(text);
         }
-        lyricsScroll.scrollTo(0, 0);
-    }
-
-    // Lights the line sung now (-1: none yet), fades the sung ones, and moves
-    // the list to it.
-    private void showLyricLine(int now) {
-        for (int i = 0; i < lyricsList.getChildCount(); i++) {
-            TextView t = (TextView) lyricsList.getChildAt(i);
-            t.setAlpha(i == now ? 1f : i < now ? 0.3f : 0.55f);
-        }
-        View target = lyricsList.getChildAt(Math.max(0, now));
-        if (target == null) return;
-        if (target.getHeight() == 0) {   // just filled: not laid out yet
-            lyricsScroll.post(() -> scrollToLyric(target));
-        } else {
-            scrollToLyric(target);
-        }
-    }
-
-    private void scrollToLyric(View target) {
-        int y = target.getTop() - lyricsList.getPaddingTop();
-        lyricsScroll.smoothScrollTo(0, Math.max(0, y));
     }
 
     private boolean lyricsWanted() {
@@ -1424,31 +1400,20 @@ public class ComfortActivity extends Activity {
             Lrc lines = LyricsClient.linesFor(MusicState.trackId());
             if (lines == null && lyricsTickLines != null) {   // a new track, lines on the way
                 lyricsTickLines = null;
-                lyricsList.removeAllViews();
+                showLyricLines(null, 0);   // blank slots
             }
             if (lines != null) {
-                if (lines != lyricsTickLines) {
-                    lyricsTickLines = lines;
-                    fillLyrics(lines);
-                    lyricIndex = Integer.MIN_VALUE;
-                }
                 long pos = MusicState.positionNowMs(android.os.SystemClock.elapsedRealtime()) + LYRICS_LEAD_MS;
                 int i = lines.indexAt(pos);
-                if (i != lyricIndex) {
+                if (lines != lyricsTickLines || i != lyricIndex) {
+                    lyricsTickLines = lines;
                     lyricIndex = i;
-                    showLyricLine(i);
+                    showLyricLines(lines, i);
                 }
             }
             ui.postDelayed(this, LYRICS_TICK_MS);
         }
     };
-
-    // An empty LRC line is a gap in the singing. "♪" is a sign, not prose --
-    // same convention as the ⏯/⏭ tiles.
-    private static String lyricText(Lrc lines, int i) {
-        String t = lines.textAt(i);
-        return t.isEmpty() ? "♪" : t;
-    }
 
     // One half of musicCardLarge()'s button band -- same visual signature as
     // turboCard()'s two halves (big glyph, full-half tap target), plus a

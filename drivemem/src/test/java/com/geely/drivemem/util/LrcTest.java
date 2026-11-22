@@ -63,4 +63,13 @@ public class LrcTest {
         assertEquals(1, l.indexAt(3000));
         assertEquals(2, l.indexAt(600_000));
     }
+
+    @Test public void displayGivesEmptyOutsideAndANoteForGaps() {
+        Lrc l = Lrc.parse("[00:01.00]a\n[00:05.00]\n[00:09.00]b");
+        assertEquals("", l.display(-1));
+        assertEquals("a", l.display(0));
+        assertEquals("\u266A", l.display(1));
+        assertEquals("b", l.display(2));
+        assertEquals("", l.display(3));
+    }
 }

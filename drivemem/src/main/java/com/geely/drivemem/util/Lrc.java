@@ -78,6 +78,14 @@ public final class Lrc {
     public long timeAt(int i) { return times[i]; }
     public String textAt(int i) { return texts[i]; }
 
+    /** What the card shows for line i: "" when there is no such line (before
+     * the first, after the last), a note for a gap in the singing ("♪" is a
+     * sign, not prose), else the text. */
+    public String display(int i) {
+        if (i < 0 || i >= texts.length) return "";
+        return texts[i].isEmpty() ? "\u266A" : texts[i];
+    }
+
     /** The line sung at positionMs: the last one that started at or before
      * it. -1 before the first line. */
     public int indexAt(long positionMs) {
