@@ -46,12 +46,6 @@ public final class CompiledCodeTest {
         check(!CompiledCode.wanted(7, 7, -1, true), "already runs compiled code");
         check(CompiledCode.wanted(8, 8, 7, false), "a new version restarts again");
 
-        // Only in Park, with no clip open, and not on the way down.
-        check(CompiledCode.safe(true, false, false), "parked and quiet");
-        check(!CompiledCode.safe(false, false, false), "not while driving");
-        check(!CompiledCode.safe(true, true, false), "not during a parked motion clip");
-        check(!CompiledCode.safe(true, false, true), "not during shutdown");
-
         System.out.println("CompiledCodeTest OK");
     }
 }

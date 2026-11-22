@@ -12,8 +12,10 @@ package com.geely.modehelper;
  * So the helper ends its own process once per installed version, as part of
  * the install: its first start compiles it and starts it again at once,
  * before the dashcam or anything else runs. If that could not happen (an
- * install was in progress), it happens later at a moment that loses
- * nothing ({@link #safe}). The service is START_STICKY.
+ * install was in progress), it happens as soon as that install is over: the
+ * open clip is closed and the dashcam starts a new one. It does not wait for
+ * Park or for a quiet camera, which the owner does not control. The service
+ * is START_STICKY.
  *
  * Pure Java (no Android), so the rules are unit-tested. */
 final class CompiledCode {
@@ -37,11 +39,5 @@ final class CompiledCode {
      * Once per version, so a compile that gave no code cannot make a loop. */
     static boolean wanted(int installedVc, int compiledVc, int restartedVc, boolean loaded) {
         return compiledVc == installedVc && restartedVc != installedVc && !loaded;
-    }
-
-    /** For the later restart. The moment loses nothing: the car is in Park, no parked motion clip
-     * is being recorded, and the car is not shutting down. */
-    static boolean safe(boolean parked, boolean motionEvent, boolean shuttingDown) {
-        return parked && !motionEvent && !shuttingDown;
     }
 }

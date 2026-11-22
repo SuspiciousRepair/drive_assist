@@ -354,7 +354,7 @@ public class ModeHelperService extends Service {
                 // "Wi-Fi never came back".)
                 if (parked) ensureWifiOn();
                 nudgeWifiScan();
-                maybeDexopt(parked);
+                maybeDexopt();
                 CanReader.tick(getApplicationContext());
             } catch (Throwable t) { Log.w(TAG, "poll: " + t); }
             // Liveness heartbeat — a timestamp in SharedPreferences (survives process
@@ -431,15 +431,13 @@ public class ModeHelperService extends Service {
     private long lastDexoptCheck;
     private volatile boolean dexoptRunning;
 
-    private void maybeDexopt(boolean parked) {
+    private void maybeDexopt() {
         long now = SystemClock.elapsedRealtime();
         if (dexoptRunning || now - lastDexoptCheck < 60_000) return;
         lastDexoptCheck = now;
         // The start-time restart could not happen (an install was in
-        // progress): do it later, when nothing is lost. See CompiledCode.
-        if (CompiledCode.safe(parked, dash != null && dash.inMotionEvent(), shuttingDown)) {
-            restartIfCompiled("later");
-        }
+        // progress): do it now. It cuts the open clip, which is closed first.
+        restartIfCompiled("later");
         dexoptRunning = true;
         new Thread(() -> {
             try { Dexopt.ensure(getApplicationContext()); }
