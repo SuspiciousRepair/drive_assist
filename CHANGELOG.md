@@ -54,6 +54,11 @@
   at all.
 
 ### Fixed
+- **The Spotify card no longer stays up when the car is offline.** When
+  the car could not reach Spotify, the card kept the last song forever.
+  Now it stays only until that song would have ended, plus 30 seconds
+  (30 seconds after the last answer when the song was paused), then hides.
+  It comes back with the next answer from Spotify.
 - **Park monitoring: the first seconds of a drive are recorded.** When the
   car left Park, the dashcam started the drive's clip up to 5 s late. That
   clip now starts with the last 6 s kept in memory, so it begins before the

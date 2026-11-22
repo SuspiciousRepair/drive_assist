@@ -50,6 +50,18 @@ public final class MusicState {
     public static String album() { return album; }
     public static long durationMs() { return durationMs; }
 
+    /** True when the last good poll is too old to trust: the track it saw
+     * would have ended by now (when it was playing), plus graceMs. Used when
+     * Spotify cannot be reached -- the car offline -- so the card does not
+     * show a song that may have stopped long ago. Paused: graceMs after that
+     * poll, since nothing tells how long a pause lasts. */
+    public static boolean staleAt(long nowMs, long graceMs) {
+        if (title == null) return false;   // nothing shown, nothing to hide
+        long remaining = 0;
+        if (playing && durationMs > 0) remaining = Math.max(0, durationMs - progressMs);
+        return nowMs - progressAtMs > remaining + graceMs;
+    }
+
     /** The position now: the last poll's, moved on by the time since, while
      * playing. Never past the end of the track. */
     public static long positionNowMs(long nowMs) {

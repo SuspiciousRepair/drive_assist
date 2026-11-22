@@ -126,4 +126,28 @@ public class MusicStateTest {
         MusicState.setPosition("id2", null, 200_000, 42_000, 1_000);
         assertEquals(42_000, MusicState.positionNowMs(60_000));
     }
+
+    @Test public void staleOnlyAfterTheSongWouldHaveEndedPlusGrace() {
+        MusicState.setListener(null);
+        MusicState.set(true, "Stale", "A", null);
+        // 200 s song, at 150 s when last polled at t=1000: 50 s left.
+        MusicState.setPosition("id3", null, 200_000, 150_000, 1_000);
+        assertFalse("song still going", MusicState.staleAt(1_000 + 50_000, 30_000));
+        assertFalse("inside the grace", MusicState.staleAt(1_000 + 80_000, 30_000));
+        assertTrue("past end + grace", MusicState.staleAt(1_000 + 80_001, 30_000));
+    }
+
+    @Test public void pausedGoesStaleAfterTheGraceOnly() {
+        MusicState.setListener(null);
+        MusicState.set(false, "PausedStale", "A", null);
+        MusicState.setPosition("id4", null, 200_000, 10_000, 1_000);
+        assertFalse(MusicState.staleAt(1_000 + 30_000, 30_000));
+        assertTrue(MusicState.staleAt(1_000 + 30_001, 30_000));
+    }
+
+    @Test public void nothingShownIsNeverStale() {
+        MusicState.setListener(null);
+        MusicState.set(false, null, null, null);
+        assertFalse(MusicState.staleAt(Long.MAX_VALUE / 2, 0));
+    }
 }

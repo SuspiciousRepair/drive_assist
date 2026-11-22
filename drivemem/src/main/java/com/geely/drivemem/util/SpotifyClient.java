@@ -193,7 +193,7 @@ public final class SpotifyClient {
                 MusicState.set(false, null, null, null);
                 return;
             }
-            if (code != 200) { Log.w(TAG, "spotify poll: HTTP " + code); return; }   // leave last known state
+            if (code != 200) { Log.w(TAG, "spotify poll: HTTP " + code); hideIfStale(); return; }   // last known state, for a while
             org.json.JSONObject o = new org.json.JSONObject(readAll(c.getInputStream()));
             boolean isPlaying = o.optBoolean("is_playing", false);
             org.json.JSONObject item = o.optJSONObject("item");
@@ -231,7 +231,19 @@ public final class SpotifyClient {
                 album == null ? null : album.optString("name", null),
                 item.optLong("duration_ms", 0), o.optLong("progress_ms", 0), receivedAt);
             MusicState.set(isPlaying, title, artist, art);
-        } catch (Throwable t) { Log.w(TAG, "spotify poll: " + t); }
+        } catch (Throwable t) { Log.w(TAG, "spotify poll: " + t); hideIfStale(); }
+    }
+
+    // A failed poll (offline, Spotify down) keeps the last song on the card,
+    // but only until that song would have ended, plus this much. Short
+    // drop-outs (a tunnel) do not blink the card off.
+    static final long STALE_GRACE_MS = 30_000;
+
+    private static void hideIfStale() {
+        if (MusicState.staleAt(android.os.SystemClock.elapsedRealtime(), STALE_GRACE_MS)) {
+            Log.i(TAG, "spotify poll: no answer past the song's end, hiding the card");
+            MusicState.set(false, null, null, null);
+        }
     }
 
     // ---- UI -> Spotify: skip / play-pause ----
