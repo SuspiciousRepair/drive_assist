@@ -116,7 +116,7 @@ Sign in once and the home screen shows what is playing, with controls.
 
 Turn on **Config → Integrations → Spotify → Lyrics** to get a **Lyrics** button on the
 music card, next to Play and Skip. It grows the card to two columns and the full
-height of the screen. At the top, on the main colour of the album art, are the
+height of the screen. At the top, in a soft shade of the album art's main colour, are the
 art, the song, the artist and the album. Under them are the words of the song,
 in time with it: the line sung now in large type, the line before it, and the
 next two. The bar at the bottom has Play, Skip and **✕**, which

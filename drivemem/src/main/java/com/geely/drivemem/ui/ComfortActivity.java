@@ -159,7 +159,7 @@ public class ComfortActivity extends Activity {
     private TextView jumboTitleView, jumboArtistView, jumboAlbumView;
     private final java.util.List<View> lyricsOpenButtons = new java.util.ArrayList<>();   // on the condensed card
     private boolean lyricsOpen;               // the open/close buttons; Prefs.spotify_lyrics_open
-    private int jumboFill = 0, jumboText = 0xFFFFFFFF;   // from the cover, see loadMusicArt()
+    private int jumboFill = 0;   // the cover's main colour, see loadMusicArt()
     // Four lines only: the one just sung, the one sung now, the next two.
     private final TextView[] lyricSlots = new TextView[4];
     private static final int LYRIC_NOW_SLOT = 1;
@@ -1290,11 +1290,19 @@ public class ComfortActivity extends Activity {
         LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         infoLp.leftMargin = Style.dp(this, 26);
         jumboHeader.addView(info, infoLp);
-        outer.addView(jumboHeader);
-        // A soft step from the cover's colour to the card's, not a hard edge.
+        // Inset by the card's stroke on three sides, so the border runs
+        // unbroken past the header and the fade.
+        int stroke = Style.dp(this, Style.STROKE_DP);
+        LinearLayout.LayoutParams headLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        headLp.setMargins(stroke, stroke, stroke, 0);
+        outer.addView(jumboHeader, headLp);
+        // A soft step from the header's colour to the card's, not a hard edge.
         jumboFade = new View(this);
-        outer.addView(jumboFade, new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 72)));
+        LinearLayout.LayoutParams fadeLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 72));
+        fadeLp.setMargins(stroke, 0, stroke, 0);
+        outer.addView(jumboFade, fadeLp);
 
         // Fixed slots, centred between the header and the bar. Each keeps two
         // lines of room, so a long lyric line never moves the others.
@@ -1343,16 +1351,19 @@ public class ComfortActivity extends Activity {
         return t;
     }
 
-    // The cover's colour on the header, with text that reads on it. Before
-    // any cover arrives: the theme's own colours.
+    // The header: the cover's colour taken half way to the card's, with
+    // text that reads on it. Half way, not the cover itself: from a dark
+    // cover straight to a light card, any fade passes through a dirty grey
+    // (seen on the car with a black cover); half the distance fades clean.
+    // Before any cover arrives: the theme's own colours.
     private void paintJumbo() {
         if (jumboHeader == null) return;
-        int fill = jumboFill != 0 ? jumboFill : Style.cardFillColor();
-        int text = jumboFill != 0 ? jumboText : Style.TEXT;
+        int card = Style.cardPaint(Style.cardFillColor());
+        int fill = jumboFill != 0 ? Style.blend(jumboFill, card, 0.5f) : card;
+        int text = jumboFill != 0 ? ArtColor.textOn(fill) : Style.TEXT;
         jumboHeader.setBackgroundColor(fill);
         // Eased, not linear: a straight two-stop ramp shows a visible band
         // where it ends. Four stops curve into the card colour.
-        int card = Style.cardFillColor();
         jumboFade.setBackground(new android.graphics.drawable.GradientDrawable(
             android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
             new int[]{fill, Style.blend(fill, card, 0.45f), Style.blend(fill, card, 0.85f), card}));
@@ -1984,7 +1995,6 @@ public class ComfortActivity extends Activity {
                 if (musicArtBgView != null) musicArtBgView.setImageBitmap(fblur);
                 if (jumboArtView != null) jumboArtView.setImageBitmap(fbmp);
                 jumboFill = fill;
-                jumboText = ArtColor.textOn(fill);
                 paintJumbo();
             });
         }, "music-art").start();

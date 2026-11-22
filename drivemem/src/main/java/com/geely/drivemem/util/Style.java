@@ -342,13 +342,21 @@ public class Style {
         if (Color.alpha(fill) == 0) { g.setColor(fill); return g; }  // invisible touch area
         if (OUTLINE) {
             boolean neutral = (fill == CARD);
-            g.setColor(blend(fill, BG_BOTTOM, neutral ? 0.55f : 0.72f));
+            g.setColor(cardPaint(fill));
             g.setStroke(dp(c, STROKE_DP), neutral ? STROKE_COLOR : fill);
         } else {
             g.setColor(fill);
             g.setStroke(dp(c, STROKE_DP), STROKE_COLOR);
         }
         return g;
+    }
+
+    /** The colour card(fill) actually paints inside its stroke: the fill
+     * itself, except in outline themes, where it is pushed toward the
+     * background. For a view that has to meet a card's colour exactly. */
+    public static int cardPaint(int fill) {
+        if (!OUTLINE) return fill;
+        return blend(fill, BG_BOTTOM, fill == CARD ? 0.55f : 0.72f);
     }
 
     /** Returns the fill color for cards sitting over the art. */
