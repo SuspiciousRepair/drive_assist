@@ -114,14 +114,16 @@ battery data. See the [ABRP guide](ABRP.md).
 
 Sign in once and the home screen shows what is playing, with controls.
 
-Turn on **Config → Integrations → Spotify → Lyrics** to see the words of the song, in time
-with it. In Park, the music card grows to two columns and the full height of the
-screen, with the lyrics beside the album art. It goes back to its normal size
-when the car leaves Park, when the Home Assistant panel is up, or when the other
-cards need more than one column. The lyrics come from
+Turn on **Config → Integrations → Spotify → Lyrics** to get a **Lyrics** button on the
+music card, next to Play and Skip. It grows the card to two columns and the full
+height of the screen, with the words of the song in time with it, on the main
+colour of the album art. The bar at the bottom has Play, Skip and **✕**, which
+closes the lyrics. They stay open or closed from song to song. The card stays at
+its normal size when the Home Assistant panel is up, or when the other cards
+need more than one column. The lyrics come from
 [LRCLIB](https://lrclib.net), a free lyrics site. To find them, the car sends
 the song, artist and album names there. Some songs have no timed lyrics on
-LRCLIB, and then the music card keeps its normal size.
+LRCLIB; for those the Lyrics button is dim.
 
 ### Dashcam
 

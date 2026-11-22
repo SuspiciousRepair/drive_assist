@@ -211,6 +211,10 @@ public final class Prefs {
     // Synced lyrics on the music card (LyricsClient). Off by default: it sends the track name to lrclib.net.
     public static boolean getSpotifyLyrics(Context ctx) { return file(ctx).getBoolean("spotify_lyrics", false); }
     public static void setSpotifyLyrics(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_lyrics", v).apply(); }
+    // The lyrics buttons on the music card: open (jumbo card) or closed. Open by default, so turning
+    // the setting on shows them. Kept across tracks and restarts.
+    public static boolean getSpotifyLyricsOpen(Context ctx) { return file(ctx).getBoolean("spotify_lyrics_open", true); }
+    public static void setSpotifyLyricsOpen(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_lyrics_open", v).apply(); }
     public static String getSpotifyClientId(Context ctx) { return file(ctx).getString("spotify_client_id", ""); }
     public static void setSpotifyClientId(Context ctx, String v) { file(ctx).edit().putString("spotify_client_id", v).apply(); }
     public static String getSpotifyAccessToken(Context ctx) { return file(ctx).getString("spotify_access_token", null); }

@@ -4,16 +4,18 @@
 
 ### Added
 - **Song lyrics on the Spotify card.** Turn on **Config → Integrations →
-  Spotify → Lyrics**. In Park, the music card grows to two columns and the full height
-  of the screen: the album art, title and buttons on the left, and the
-  song's lines on the right, in time with it, the line sung now bright. It
-  goes back to its normal size when the car leaves Park, when the Home
-  Assistant panel is up, or when the other cards need more than one column. The lyrics come from LRCLIB
-  (lrclib.net), a free lyrics site: the car sends it the song, artist and
-  album names, once per song, and keeps the answer. Off by default. Some
-  songs have no timed lyrics there; then the music card keeps its normal size. After a
-  jump inside a song, the lines can be up to 6 seconds behind, until the
-  next Spotify check.
+  Spotify → Lyrics** and the music card gets a **Lyrics** button next to
+  Play and Skip. It grows the card to two columns and the full height of
+  the screen: the song's lines, in time with it, the line sung now bright,
+  on the main colour of the album art, with Play, Skip and a close button
+  at the bottom. Open or closed stays from song to song. The card keeps its
+  normal size when the Home Assistant panel is up, or when the other cards
+  need more than one column. The lyrics come from LRCLIB (lrclib.net), a
+  free lyrics site: the car sends it the song, artist and album names, once
+  per song, and keeps the answer. Off by default. Some songs have no timed
+  lyrics there; for those the Lyrics button is dim. After a jump inside a
+  song, the lines can be up to 6 seconds behind, until the next Spotify
+  check.
 
 ### Changed
 - **The dashcam asks the car for its 360 cameras.** The dashcam needs the

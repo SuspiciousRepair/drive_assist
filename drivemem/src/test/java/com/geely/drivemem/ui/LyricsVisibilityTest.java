@@ -12,7 +12,7 @@ public class LyricsVisibilityTest {
 
     @Test public void eachConditionHidesIt() {
         assertFalse("setting off", ComfortCardVisibility.showLyrics(false, true, true, true, false));
-        assertFalse("driving", ComfortCardVisibility.showLyrics(true, false, true, true, false));
+        assertFalse("closed with the button", ComfortCardVisibility.showLyrics(true, false, true, true, false));
         assertFalse("no music card", ComfortCardVisibility.showLyrics(true, true, false, true, false));
         assertFalse("no lines", ComfortCardVisibility.showLyrics(true, true, true, false, false));
         assertFalse("HA panel up", ComfortCardVisibility.showLyrics(true, true, true, true, true));
