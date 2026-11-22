@@ -49,11 +49,17 @@ public final class LyricsClient {
         return trackId != null && trackId.equals(loadedId) ? loaded : null;
     }
 
+    /** True while the lyrics for trackId are being fetched. */
+    public static boolean pending(String trackId) {
+        return trackId != null && trackId.equals(inFlightId);
+    }
+
     /** Gets the lyrics for this track in the background, from the cache or
-     * from LRCLIB, then runs onReady (on the lyrics thread) if lines came.
-     * Cheap to call again for the same track: it does nothing then. */
+     * from LRCLIB, then runs onDone (on the lyrics thread) -- with lines or
+     * without, unless a newer track took over meanwhile. Cheap to call again
+     * for the same track: it does nothing then. */
     public static void request(Context ctx, String trackId, String title, String artist,
-                               String album, long durationMs, Runnable onReady) {
+                               String album, long durationMs, Runnable onDone) {
         if (trackId == null || title == null || title.isEmpty() || artist == null) return;
         if (trackId.equals(loadedId) || trackId.equals(inFlightId)) return;
         if (trackId.equals(failedId) && System.currentTimeMillis() - failedAtMs < RETRY_MS) return;
@@ -63,16 +69,14 @@ public final class LyricsClient {
             try {
                 String lrc = load(app, trackId, title, artist, album, durationMs);
                 if (!trackId.equals(inFlightId)) return;   // a newer track took over
-                if (lrc == null) { failedId = trackId; failedAtMs = System.currentTimeMillis(); return; }
-                Lrc lines = Lrc.parse(lrc);
-                loaded = lines;
-                loadedId = trackId;
-                if (lines != null && onReady != null) onReady.run();
+                if (lrc == null) { failedId = trackId; failedAtMs = System.currentTimeMillis(); }
+                else { loaded = Lrc.parse(lrc); loadedId = trackId; }
             } catch (Throwable t) {
                 Log.w(TAG, "lyrics: " + t);
-            } finally {
-                if (trackId.equals(inFlightId)) inFlightId = null;
             }
+            if (!trackId.equals(inFlightId)) return;
+            inFlightId = null;
+            if (onDone != null) onDone.run();
         });
     }
 

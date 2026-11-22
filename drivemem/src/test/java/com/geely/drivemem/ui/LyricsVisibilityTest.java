@@ -18,11 +18,9 @@ public class LyricsVisibilityTest {
         assertFalse("HA panel up", ComfortCardVisibility.showLyrics(true, true, true, true, true));
     }
 
-    @Test public void spansTheColumnsTheOtherCardsLeaveFree() {
-        assertEquals(2, ComfortCardVisibility.lyricsSpan(true, 1));
-        assertEquals(1, ComfortCardVisibility.lyricsSpan(true, 2));
-        assertEquals("no free column", 0, ComfortCardVisibility.lyricsSpan(true, 3));
-        assertEquals("cards already scroll", 0, ComfortCardVisibility.lyricsSpan(true, 4));
-        assertEquals("not wanted", 0, ComfortCardVisibility.lyricsSpan(false, 1));
+    @Test public void jumboFitsOnlyWhenTheOthersTakeOneColumn() {
+        assertTrue(ComfortCardVisibility.jumboFits(1));
+        assertFalse(ComfortCardVisibility.jumboFits(2));
+        assertFalse(ComfortCardVisibility.jumboFits(3));
     }
 }

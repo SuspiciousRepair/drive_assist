@@ -119,13 +119,13 @@ Bluetooth opcional dá dados de bateria mais finos. Veja o [guia do ABRP](ABRP.m
 Entre uma vez e a tela inicial mostra o que está tocando, com controles.
 
 Ligue **Config → Integrações → Spotify → Letra** para ver a letra da música, no tempo
-dela. Ela ocupa a altura toda da tela, nas colunas que os outros cartões deixam
-livres: duas colunas quando os outros cartões cabem em uma. A letra aparece só
-em Park. Ela não aparece com o painel do Home Assistant aberto, ou quando os
-cartões enchem as três colunas. A letra vem do
+dela. Em Park, o cartão de música cresce para duas colunas e a altura toda da
+tela, com a letra ao lado da capa do álbum. Ele volta ao tamanho normal quando o
+carro sai de Park, quando o painel do Home Assistant aparece, ou quando os
+outros cartões precisam de mais de uma coluna. A letra vem do
 [LRCLIB](https://lrclib.net), um site gratuito de letras. Para achá-la, o carro
 envia para lá os nomes da música, do artista e do álbum. Algumas músicas não têm
-letra com tempo no LRCLIB, e então o cartão de letra não aparece.
+letra com tempo no LRCLIB, e então o cartão de música fica no tamanho normal.
 
 ### Dashcam
 

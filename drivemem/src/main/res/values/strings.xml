@@ -174,7 +174,7 @@
     <string name="cfg_spotify_large_card">Large card</string>
     <string name="cfg_spotify_large_card_hint">Album art fills the card, with a big Play/Skip band underneath. Off shows the smaller card with the art beside the title.</string>
     <string name="cfg_spotify_lyrics">Lyrics</string>
-    <string name="cfg_spotify_lyrics_hint">The words of the song, in time with it, on a card the full height of the screen, in the columns the other cards leave free. In Park only. Not shown when the Home Assistant panel is up or the cards fill the screen. The song, artist and album names go to lrclib.net, a free lyrics site.</string>
+    <string name="cfg_spotify_lyrics_hint">In Park, the music card grows to two columns and the full height, with the words of the song beside the art, in time with it. It goes back to its normal size when the Home Assistant panel is up, or when the other cards need more than one column. The song, artist and album names go to lrclib.net, a free lyrics site.</string>
     <string name="spotify_play_label">Play</string>
     <string name="spotify_skip_label">Skip</string>
     <string name="cfg_commands_label">Accept commands from Home Assistant</string>

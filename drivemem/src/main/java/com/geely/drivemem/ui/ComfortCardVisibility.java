@@ -60,9 +60,10 @@ public final class ComfortCardVisibility {
     }
 
     /**
-     * The lyrics card, before the room check. Only in Park: text that moves
-     * every few seconds pulls the driver's eyes. Never with the Home
-     * Assistant panel up: the panel needs the room the lyrics would take.
+     * The jumbo music card (two columns, full height, with lyrics), before
+     * the room check. Only in Park: text that moves every few seconds pulls
+     * the driver's eyes. Never with the Home Assistant panel up: the panel
+     * needs the room.
      */
     public static boolean showLyrics(boolean enabled, boolean parked, boolean musicShown,
                                      boolean haveLines, boolean panelShown) {
@@ -71,12 +72,13 @@ public final class ComfortCardVisibility {
 
     /** The screen shows three columns; a fourth means scrolling sideways. */
     public static final int SCREEN_COLUMNS = 3;
+    /** The jumbo music card's width, in columns. */
+    public static final int JUMBO_COLUMNS = 2;
 
-    /** How many columns the lyrics card spans: all the ones the other cards
-     * leave free (two when they fit in one column), 0 when none is free. */
-    public static int lyricsSpan(boolean wanted, int columnsUsedByCards) {
-        if (!wanted) return 0;
-        return Math.max(0, SCREEN_COLUMNS - columnsUsedByCards);
+    /** The jumbo card fits only when the other cards fit in the columns it
+     * leaves; else the music card keeps its own size. */
+    public static boolean jumboFits(int columnsUsedByOthers) {
+        return columnsUsedByOthers + JUMBO_COLUMNS <= SCREEN_COLUMNS;
     }
 
     /**
