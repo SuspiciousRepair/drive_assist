@@ -3,6 +3,16 @@
 ## [Unreleased]
 
 ### Changed
+- **The Orbit view in the clip player lines up.** Orbit turns the four
+  cameras into one view you drag with a finger. Where two cameras met, the
+  picture jumped: there was a hard line, and the road on one side did not
+  continue on the other. Now the player knows where each camera is on the
+  car, so the ground continues from one camera to the next, and the two
+  pictures are mixed where they meet. The ground under the car, which no
+  camera sees, is a dark patch. A thing that stands up near a corner of the
+  car (a person, another car) can still show two times there: two cameras
+  see it from two places. You can now tilt the view down to the ground next
+  to the car; before, it tilted far up, where there is no picture.
 - **The dashcam asks the car for its 360 cameras.** The dashcam needs the
   four 360 cameras, and it was on by default on every car. On a car without
   them it tried to start again and again. Now ModeHelper reads the car's

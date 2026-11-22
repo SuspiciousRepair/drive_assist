@@ -124,9 +124,11 @@ public class ClipPlayerActivity extends Activity {
     static final float MOUNT_REAR  = 46f;   // the pitch the rear actually frames at
     static final float MOUNT_SIDES = 46f;   // ditto, and equally provisional
     static final float[] ALL   = null;          // the raw 2x2, no correction
-    // The orbit. Not a camera — a viewpoint that picks whichever camera is
-    // looking the way you are.
+    // The orbit. Not a camera — a viewpoint in the middle of the car that
+    // mixes the cameras that see the way you are looking (OrbitRig).
     static final float[] ORBIT = { -2f };
+    // How far the orbit tilts, degrees. Up is negative.
+    static final float PITCH_UP = -25f, PITCH_DOWN = 35f;
 
     // Unsharp mask to restore detail lost in upscaling. Narrower views
     // need higher sharpening due to greater magnification.
@@ -352,8 +354,10 @@ public class ClipPlayerActivity extends Activity {
             yaw += dYaw;
             // Clamped so you cannot roll past the poles into nonsense. Down more
             // than up, because everything interesting near a car is below the
-            // horizon.
-            pitchDeg = Math.max(-60f, Math.min(25f, pitchDeg + dPitch));
+            // horizon. A NEGATIVE pitch looks up: the limits were the wrong
+            // way round, 60 up into black and only 25 down. Past 35 down the
+            // screen is mostly the dark patch under the car.
+            pitchDeg = Math.max(PITCH_UP, Math.min(PITCH_DOWN, pitchDeg + dPitch));
         }
         private int vw, vh;
 
@@ -464,20 +468,27 @@ public class ClipPlayerActivity extends Activity {
                     (float) y, (float) pt);
                 GLES20.glUniform1f(GLES20.glGetUniformLocation(prog, "uTanO"),
                     (float) Math.tan(Math.toRadians(110.0) / 2.0));
-                // Indexed the way cellOf() picks, which is yaw order and NOT the
-                // order the table is written in: 0 front, 1 right, 2 rear, 3 left.
-                GLES20.glUniform4f(GLES20.glGetUniformLocation(prog, "uMount"),
-                    (float) Math.toRadians(MOUNT_FRONT),
-                    (float) Math.toRadians(MOUNT_SIDES),
-                    (float) Math.toRadians(MOUNT_REAR),
-                    (float) Math.toRadians(MOUNT_SIDES));
-                // Same yaw order, because the mirrors are a different lens from
-                // the front and rear and the orbit crosses between them mid-frame.
-                GLES20.glUniform4f(GLES20.glGetUniformLocation(prog, "uLensHalf4"),
-                    (float) Math.toRadians(FRONT[6]), (float) Math.toRadians(RIGHT[6]),
-                    (float) Math.toRadians(REAR[6]),  (float) Math.toRadians(LEFT[6]));
-                GLES20.glUniform4f(GLES20.glGetUniformLocation(prog, "uSquash4"),
-                    FRONT[7], RIGHT[7], REAR[7], LEFT[7]);
+                // All in yaw order, NOT the order the table is written in:
+                // 0 front, 1 right, 2 rear, 3 left.
+                GLES20.glUniformMatrix3fv(GLES20.glGetUniformLocation(prog, "uRot"), 4, false,
+                    OrbitRig.rotations(new float[] {
+                        MOUNT_FRONT, MOUNT_SIDES, MOUNT_REAR, MOUNT_SIDES }), 0);
+                GLES20.glUniform3fv(GLES20.glGetUniformLocation(prog, "uPos"), 4,
+                    OrbitRig.positions(), 0);
+                GLES20.glUniform2fv(GLES20.glGetUniformLocation(prog, "uAxis"), 4,
+                    OrbitRig.axes(), 0);
+                // Lens half angle and squash per camera: the mirrors are a
+                // different lens from the front and rear.
+                GLES20.glUniform2fv(GLES20.glGetUniformLocation(prog, "uLens"), 4, new float[] {
+                    (float) Math.toRadians(FRONT[6]), FRONT[7],
+                    (float) Math.toRadians(RIGHT[6]), RIGHT[7],
+                    (float) Math.toRadians(REAR[6]),  REAR[7],
+                    (float) Math.toRadians(LEFT[6]),  LEFT[7] }, 0);
+                // Cell of each camera in the 2x2: front=BL, right=TR, rear=BR, left=TL.
+                GLES20.glUniform2fv(GLES20.glGetUniformLocation(prog, "uCell"), 4, new float[] {
+                    FRONT[0], FRONT[1], RIGHT[0], RIGHT[1], REAR[0], REAR[1], LEFT[0], LEFT[1] }, 0);
+                GLES20.glUniform4f(GLES20.glGetUniformLocation(prog, "uBowl"),
+                    OrbitRig.EYE, OrbitRig.WALL, OrbitRig.HALF_W, OrbitRig.HALF_L);
                 GLES20.glUniform1f(GLES20.glGetUniformLocation(prog, "uSharp"), SHARPEN);
                 GLES20.glUniform2f(GLES20.glGetUniformLocation(prog, "uTexel"),
                     1f / FULL_W, 1f / FULL_H);
@@ -548,9 +559,12 @@ public class ClipPlayerActivity extends Activity {
 
 
     // Orbit mode: one viewpoint, four cameras. Each output pixel becomes a
-    // ray, turned by yaw/pitch and compared against camera axes to pick the
-    // closest camera. This is a geometric simplification (treats four corner
-    // cameras as one sphere), but provides effective look-around.
+    // ray, turned by yaw/pitch. The ray lands on a point in the world: the
+    // ground, or a wall around the car (OrbitRig). Each camera then looks at
+    // that point from its own place on the car, so the ground lines up where
+    // two cameras meet. Cameras that both see the point are mixed by weight,
+    // so there is no line between them. OrbitRig.cell() and weight() are the
+    // same steps in Java; keep the two in step.
     private static final String FRAG_ORBIT =
         "#extension GL_OES_EGL_image_external : require\n" +
         "precision highp float;\n" +
@@ -558,19 +572,15 @@ public class ClipPlayerActivity extends Activity {
         "uniform mat4 uTexMatrix;\n" +
         "uniform samplerExternalOES sTexture;\n" +
         "uniform vec2  uView;\n" +
-        "uniform vec4  uMount;\n" +      // how far each camera looks down, radians
         "uniform float uTanO;\n" +
-        "uniform vec4  uLensHalf4;\n" +
-        "uniform vec4  uSquash4;\n" +
+        "uniform mat3  uRot[4];\n" +     // world direction to lens direction
+        "uniform vec3  uPos[4];\n" +     // where each camera is, metres
+        "uniform vec2  uAxis[4];\n" +    // the side each camera looks to (x, z)
+        "uniform vec2  uLens[4];\n" +    // lens half angle, squash
+        "uniform vec2  uCell[4];\n" +    // its cell in the 2x2
+        "uniform vec4  uBowl;\n" +       // eye height, wall distance, car half width, half length
         "uniform float uSharp;\n" +
         "uniform vec2  uTexel;\n" +
-        "vec2 cellOf(int i) {\n" +
-        // Cell positions: front=BL, rear=BR, left=TL, right=TR
-        "  if (i == 0) return vec2(0.0, 0.0);\n" +
-        "  if (i == 1) return vec2(1.0, 1.0);\n" +
-        "  if (i == 2) return vec2(1.0, 0.0);\n" +
-        "  return vec2(0.0, 1.0);\n" +
-        "}\n" +
         "void main() {\n" +
         "  vec2 p = vRawTextureCoord * 2.0 - 1.0;\n" +
         "  vec3 r = normalize(vec3(p.x * uTanO, p.y * uTanO * 0.5625, 1.0));\n" +
@@ -578,45 +588,53 @@ public class ClipPlayerActivity extends Activity {
         "  r = vec3(r.x, r.y * cp - r.z * sp, r.y * sp + r.z * cp);\n" +
         "  float cy = cos(uView.x), sy = sin(uView.x);\n" +
         "  r = vec3(r.x * cy + r.z * sy, r.y, -r.x * sy + r.z * cy);\n" +
-        // Find which camera is looking most nearly this way
-        "  float best = -2.0; int pick = 0; float bw = 0.0;\n" +
+        // The point in the world this ray lands on: ground first, else wall.
+        "  float t = uBowl.y / max(length(r.xz), 1e-4);\n" +
+        "  bool ground = false;\n" +
+        "  if (r.y < -1e-4) {\n" +
+        "    float tg = uBowl.x / -r.y;\n" +
+        "    if (tg < t) { t = tg; ground = true; }\n" +
+        "  }\n" +
+        "  vec3 X = vec3(0.0, uBowl.x, 0.0) + r * t;\n" +
+        // Under the car no camera sees the ground: a dark patch, not a smear.
+        "  if (ground && abs(X.x) < uBowl.z && abs(X.z) < uBowl.w) {\n" +
+        "    gl_FragColor = vec4(0.06, 0.06, 0.07, 1.0); return;\n" +
+        "  }\n" +
+        "  vec3 acc = vec3(0.0); float ws = 0.0; float cover = 0.0;\n" +
         "  for (int i = 0; i < 4; i++) {\n" +
-        "    float w = float(i) * 1.5707963;\n" +
-        "    float d = r.x * sin(w) + r.z * cos(w);\n" +
-        "    if (d > best) { best = d; pick = i; bw = w; }\n" +
-        "  }\n" +
-        // Rotate into that camera's frame
-        "  float cw = cos(bw), sw = sin(bw);\n" +
-        "  vec3 rc = vec3(r.x * cw - r.z * sw, r.y, r.x * sw + r.z * cw);\n" +
-        // Tip into lens frame by mounting angle (explicit indexing for GLSL ES 1.00)
-        "  float m = pick == 0 ? uMount.x\n" +
-        "          : pick == 1 ? uMount.y\n" +
-        "          : pick == 2 ? uMount.z : uMount.w;\n" +
-        "  float cm = cos(m), sm = sin(m);\n" +
-        "  rc = vec3(rc.x, rc.y * cm + rc.z * sm, -rc.y * sm + rc.z * cm);\n" +
-        "  float lh = pick == 0 ? uLensHalf4.x\n" +
-        "           : pick == 1 ? uLensHalf4.y\n" +
-        "           : pick == 2 ? uLensHalf4.z : uLensHalf4.w;\n" +
-        "  float sq = pick == 0 ? uSquash4.x\n" +
-        "           : pick == 1 ? uSquash4.y\n" +
-        "           : pick == 2 ? uSquash4.z : uSquash4.w;\n" +
-        "  float theta = acos(clamp(rc.z, -1.0, 1.0));\n" +
-        "  float rad = theta / lh;\n" +
-        "  float dl = length(rc.xy);\n" +
+        "    vec3 d = normalize(X - uPos[i]);\n" +
+        // Only its own side: behind that a camera sees the car's body.
+        "    float side = smoothstep(0.02, 0.22, dot(d.xz, uAxis[i]));\n" +
+        "    if (side <= 0.0) continue;\n" +
+        "    vec3 rc = uRot[i] * d;\n" +
+        "    float rad = acos(clamp(rc.z, -1.0, 1.0)) / uLens[i].x;\n" +
+        "    if (rad >= 0.97) continue;\n" +
+        "    float dl = length(rc.xy);\n" +
         // Negated: account for 180-degree rotation
-        "  vec2 dir = dl > 1e-6 ? -rc.xy / dl : vec2(0.0);\n" +
-        "  vec2 cell = vec2(0.5) + dir * rad * vec2(0.5, 0.5 * sq);\n" +
-        "  if (rad > 1.0 || cell.x < 0.0 || cell.x > 1.0 || cell.y < 0.0 || cell.y > 1.0) {\n" +
-        "    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); return;\n" +
+        "    vec2 dir = dl > 1e-6 ? -rc.xy / dl : vec2(0.0);\n" +
+        "    vec2 cell = vec2(0.5) + dir * rad * vec2(0.5, 0.5 * uLens[i].y);\n" +
+        "    vec2 e = min(cell, 1.0 - cell);\n" +
+        "    float border = clamp(min(e.x, e.y) / 0.06, 0.0, 1.0);\n" +
+        "    if (border <= 0.0) continue;\n" +
+        // Most weight in the middle of the lens, none at its edge.
+        "    float k = 1.0 - rad / 0.97;\n" +
+        "    k = k * k; k = k * k; k = k * k;\n" +
+        "    float w = k * border * side;\n" +
+        "    cover = max(cover, border * side * clamp((0.97 - rad) / 0.04, 0.0, 1.0));\n" +
+        "    if (w < 1e-5) continue;\n" +
+        "    vec2 g = (uCell[i] + cell) * 0.5;\n" +
+        "    vec2 sc = (uTexMatrix * vec4(g, 0.0, 1.0)).xy;\n" +
+        "    vec3 col = texture2D(sTexture, sc).rgb;\n" +
+        "    vec3 b = (texture2D(sTexture, sc + vec2(uTexel.x, 0.0)).rgb\n" +
+        "            + texture2D(sTexture, sc - vec2(uTexel.x, 0.0)).rgb\n" +
+        "            + texture2D(sTexture, sc + vec2(0.0, uTexel.y)).rgb\n" +
+        "            + texture2D(sTexture, sc - vec2(0.0, uTexel.y)).rgb) * 0.25;\n" +
+        "    acc += clamp(col + uSharp * (col - b), 0.0, 1.0) * w;\n" +
+        "    ws += w;\n" +
         "  }\n" +
-        "  vec2 g = (cellOf(pick) + cell) * 0.5;\n" +
-        "  vec2 sc = (uTexMatrix * vec4(g, 0.0, 1.0)).xy;\n" +
-        "  vec3 col = texture2D(sTexture, sc).rgb;\n" +
-        "  vec3 b = (texture2D(sTexture, sc + vec2(uTexel.x, 0.0)).rgb\n" +
-        "          + texture2D(sTexture, sc - vec2(uTexel.x, 0.0)).rgb\n" +
-        "          + texture2D(sTexture, sc + vec2(0.0, uTexel.y)).rgb\n" +
-        "          + texture2D(sTexture, sc - vec2(0.0, uTexel.y)).rgb) * 0.25;\n" +
-        "  gl_FragColor = vec4(clamp(col + uSharp * (col - b), 0.0, 1.0), 1.0);\n" +
+        // Fades to black where no camera sees, in place of a hard edge.
+        "  vec3 outc = ws > 1e-5 ? acc / ws * cover : vec3(0.0);\n" +
+        "  gl_FragColor = vec4(outc, 1.0);\n" +
         "}\n";
 
     // Fisheye-to-rectilinear conversion via 3D geometry: each output pixel
