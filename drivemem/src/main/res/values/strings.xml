@@ -175,6 +175,8 @@
     <string name="cfg_spotify_large_card_hint">Album art fills the card, with a big Play/Skip band underneath. Off shows the smaller card with the art beside the title.</string>
     <string name="cfg_spotify_lyrics">Lyrics search</string>
     <string name="cfg_spotify_lyrics_hint">Looks up the words of each song, and the Lyrics button on the music card opens them in time with the song, on a card two columns wide and the full height. ✕ closes them. The card remembers your last choice, open or closed, from song to song. It stays normal when the Home Assistant panel is up, or when the other cards need more than one column. To find lyrics, the song, artist and album names go to lrclib.net, a free lyrics site. Off: nothing is sent.</string>
+    <string name="cfg_bt_music">Bluetooth music</string>
+    <string name="cfg_bt_music_hint">The music card also shows what your phone plays over Bluetooth, from any app, with Play and Skip, and its lyrics when Lyrics search is on. When Spotify is playing, the card follows Spotify. Nothing leaves the car.</string>
     <string name="spotify_play_label">Play</string>
     <string name="spotify_skip_label">Skip</string>
     <string name="spotify_lyrics_label">Lyrics</string>

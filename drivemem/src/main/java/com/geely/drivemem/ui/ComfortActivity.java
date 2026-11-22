@@ -36,6 +36,7 @@ import com.geely.drivemem.state.TempTrail;
 import com.geely.drivemem.state.ValetSession;
 import com.geely.drivemem.util.ArtColor;
 import com.geely.drivemem.util.BootReceiver;
+import com.geely.drivemem.util.CarMediaSessions;
 import com.geely.drivemem.util.LayoutWait;
 import com.geely.drivemem.util.Lrc;
 import com.geely.drivemem.util.LyricsClient;
@@ -2037,35 +2038,63 @@ public class ComfortActivity extends Activity {
     // one occasional small image) and swaps it in on the UI thread. Skipped
     // entirely when the URL has not actually changed, so a state ping that
     // only moves `playing` does not re-fetch the same picture.
+    // The picture for what MusicState shows: a Bitmap the car's media
+    // session handed over (Bluetooth music), else its URL.
+    private void showMusicArt() {
+        Object img = MusicState.artImage();
+        if (img instanceof android.graphics.Bitmap) {
+            android.graphics.Bitmap b = (android.graphics.Bitmap) img;
+            String key = "bitmap:" + System.identityHashCode(b);
+            if (key.equals(lastMusicArtUrl)) return;
+            lastMusicArtUrl = key;
+            new Thread(() -> applyMusicArt(key, b), "music-art").start();
+            return;
+        }
+        loadMusicArt(MusicState.artUrl());
+    }
+
     private void loadMusicArt(String url) {
         if (url == null || url.equals(lastMusicArtUrl)) return;
         lastMusicArtUrl = url;
         new Thread(() -> {
             android.graphics.Bitmap bmp = null;
             try {
-                java.net.HttpURLConnection conn =
-                    (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
-                conn.setConnectTimeout(6000); conn.setReadTimeout(6000);
-                bmp = android.graphics.BitmapFactory.decodeStream(conn.getInputStream());
+                if (url.startsWith("content:") || url.startsWith("file:") || url.startsWith("android.resource:")) {
+                    // A session's art URI (Bluetooth cover art) is local.
+                    try (java.io.InputStream in = getContentResolver().openInputStream(android.net.Uri.parse(url))) {
+                        bmp = android.graphics.BitmapFactory.decodeStream(in);
+                    }
+                } else {
+                    java.net.HttpURLConnection conn =
+                        (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+                    conn.setConnectTimeout(6000); conn.setReadTimeout(6000);
+                    bmp = android.graphics.BitmapFactory.decodeStream(conn.getInputStream());
+                }
             } catch (Throwable t) { android.util.Log.w(CarAccess.TAG, "music art: " + t); }
-            final android.graphics.Bitmap fbmp = bmp;
-            // Same fetched bitmap, not a second network request -- blurred
-            // here on the background thread since it's a few extra bitmap
-            // ops, cheap next to the network fetch that already happened.
-            final android.graphics.Bitmap fblur = fbmp != null ? blurredCopy(fbmp) : null;
-            final int fill = fbmp != null ? coverColor(fbmp) : 0;
-            // url.equals(lastMusicArtUrl): a newer fetch may have started (and
-            // maybe even finished) while this one was in flight — do not let a
-            // slow, stale request stomp a fresher picture that already landed.
-            if (fbmp != null) ui.post(() -> {
-                if (!url.equals(lastMusicArtUrl)) return;
-                if (musicArtView != null) musicArtView.setImageBitmap(fbmp);
-                if (musicArtBgView != null) musicArtBgView.setImageBitmap(fblur);
-                if (jumboArtView != null) jumboArtView.setImageBitmap(fbmp);
-                jumboFill = fill;
-                paintJumbo();
-            });
+            if (bmp != null) applyMusicArt(url, bmp);
         }, "music-art").start();
+    }
+
+    // Off the UI thread: blur and colour, then swap in -- unless a newer
+    // picture was asked for meanwhile.
+    private void applyMusicArt(String url, android.graphics.Bitmap bmp) {
+        final android.graphics.Bitmap fbmp = bmp;
+        // Same bitmap, not a second network request -- blurred
+        // here on the background thread since it's a few extra bitmap
+        // ops, cheap next to the network fetch that already happened.
+        final android.graphics.Bitmap fblur = fbmp != null ? blurredCopy(fbmp) : null;
+        final int fill = fbmp != null ? coverColor(fbmp) : 0;
+        // url.equals(lastMusicArtUrl): a newer fetch may have started (and
+        // maybe even finished) while this one was in flight — do not let a
+        // slow, stale request stomp a fresher picture that already landed.
+        if (fbmp != null) ui.post(() -> {
+            if (!url.equals(lastMusicArtUrl)) return;
+            if (musicArtView != null) musicArtView.setImageBitmap(fbmp);
+            if (musicArtBgView != null) musicArtBgView.setImageBitmap(fblur);
+            if (jumboArtView != null) jumboArtView.setImageBitmap(fbmp);
+            jumboFill = fill;
+            paintJumbo();
+        });
     }
 
     // The cover's main colour (ArtColor), from a 24x24 copy: plenty to find
@@ -2307,7 +2336,7 @@ public class ComfortActivity extends Activity {
             if (musicCard != null) musicCard.setVisibility(available ? View.VISIBLE : View.GONE);
             if (available) {
                 showMusicText(title, artist);
-                loadMusicArt(artUrl);
+                showMusicArt();
                 requestLyrics();
             }
             if (available != lastMusicAvailable) {
@@ -2877,7 +2906,7 @@ public class ComfortActivity extends Activity {
         refreshLyricsButtons();
         if (nowMusicAvailable) {
             showMusicText(MusicState.title(), MusicState.artist());
-            loadMusicArt(MusicState.artUrl());
+            showMusicArt();
             requestLyrics();
         }
         if (nowMusicAvailable != lastMusicAvailable) {
@@ -2922,6 +2951,7 @@ public class ComfortActivity extends Activity {
         // happens if this stops polling while the screen is off, unlike
         // abandoning a countdown mid-boost.
         SpotifyClient.startPolling(this);
+        CarMediaSessions.start(this);   // Bluetooth music, when Config allows
         try {
             registerReceiver(updateReceiver, new IntentFilter(Updater.ACTION_UPDATE_AVAILABLE));
         } catch (Throwable ignored) {}
@@ -2978,6 +3008,7 @@ public class ComfortActivity extends Activity {
         }
         if (gateCard != null) gateCard.onPause();
         SpotifyClient.stopPolling();
+        CarMediaSessions.stop();
         ui.removeCallbacks(lyricsTick);
         TurboMode.get(this).setListener(null);
         CarState.removeListener(carStateListener);

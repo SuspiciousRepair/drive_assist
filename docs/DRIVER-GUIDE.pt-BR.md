@@ -120,6 +120,12 @@ Entre uma vez e a tela inicial mostra o que está tocando, com controles. A
 pequena engrenagem no canto de cima, à direita, do cartão abre os ajustes de som
 do próprio carro, com o equalizador.
 
+Ligue **Config → Integrações → Spotify → Música por Bluetooth** e o cartão
+também mostra o que o celular toca por Bluetooth, de qualquer app, com Tocar e
+Avançar (e a letra, abaixo). Quando o Spotify está tocando, o cartão segue o
+Spotify. Nada sai do carro para isso. O ModeHelper precisa estar instalado: ele
+dá ao Drive Assist a permissão do Android para ler o player de música do carro.
+
 Ligue **Config → Integrações → Spotify → Busca de letras** para ver a letra da
 música. O botão **Letra** do cartão aumenta o cartão para duas colunas e a
 altura toda da tela. No

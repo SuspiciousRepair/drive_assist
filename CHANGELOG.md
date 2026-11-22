@@ -20,6 +20,15 @@
   queue permission). Some songs have no timed lyrics there; for those the
   Lyrics button is dim. After a jump inside a song, the lines can be up to
   6 seconds behind, until the next Spotify check.
+- **Bluetooth music on the music card.** Turn on **Config → Integrations
+  → Spotify → Bluetooth music** and the card also shows what the phone
+  plays over Bluetooth, from any app: title, artist, album, cover when the
+  phone sends one, Play and Skip, and the lyrics when Lyrics search is on
+  (they follow the player's own position, so they are exactly in time).
+  When Spotify is playing, the card follows Spotify. Nothing leaves the car
+  for this. It needs ModeHelper, which gives Drive Assist Android's
+  notification-listener access: that is the only way an app may read the
+  car's music player. Drive Assist's listener reads no notifications.
 - **A gear on the Spotify card for the car's sound settings.** The small
   gear in the card's top-right corner opens the car's own sound settings,
   with the equalizer presets (Standard, Pop, Rock, ...). On a car whose

@@ -116,10 +116,16 @@ Sign in once and the home screen shows what is playing, with controls. The
 small gear in the card's top-right corner opens the car's own sound settings,
 with the equalizer.
 
+Turn on **Config → Integrations → Spotify → Bluetooth music** and the card also
+shows what your phone plays over Bluetooth, from any app, with Play and Skip
+(and its lyrics, below). When Spotify is playing, the card follows Spotify.
+Nothing leaves the car for this. ModeHelper must be installed: it gives Drive
+Assist the Android permission to read the car's music player.
+
 Turn on **Config → Integrations → Spotify → Lyrics search** to see the words of
 the song. The **Lyrics** button on the card grows it to two columns and the
-full height of the screen. At the top, in a soft shade of the album art's main colour, are the
-art, the song, the artist and the album. Under them are the words of the song,
+full height of the screen. At the top, in a soft shade of the album art's main
+colour, are the art, the song, the artist and the album. Under them are the words of the song,
 in time with it: the line sung now in large type, the line before it, and the
 next two. The bar at the bottom has Play, Skip and **✕**, which closes the
 lyrics. The card remembers your last choice, open or closed, from song to song

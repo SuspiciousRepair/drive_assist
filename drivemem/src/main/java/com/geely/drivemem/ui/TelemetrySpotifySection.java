@@ -84,6 +84,13 @@ public final class TelemetrySpotifySection extends LinearLayout {
             on -> Prefs.setSpotifyLargeCard(activity, on)));
         home.addView(ConfigCards.hint(activity, activity.getString(R.string.cfg_spotify_large_card_hint)));
 
+        // Bluetooth music: the card also follows the car's media session.
+        // Turning it on or off asks ModeHelper to grant or remove the access.
+        home.addView(Style.toggleRow(activity, activity.getString(R.string.cfg_bt_music),
+            Prefs.getBtMusic(activity),
+            on -> { Prefs.setBtMusic(activity, on); com.geely.drivemem.util.CarMediaSessions.setAccess(activity, on); }));
+        home.addView(ConfigCards.hint(activity, activity.getString(R.string.cfg_bt_music_hint)));
+
         // Read by ComfortActivity on every onResume -- no recreate needed.
         home.addView(Style.toggleRow(activity, activity.getString(R.string.cfg_spotify_lyrics),
             Prefs.getSpotifyLyrics(activity),

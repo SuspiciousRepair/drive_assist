@@ -86,6 +86,8 @@
     <string name="cfg_spotify_large_card_hint">La portada del álbum llena la tarjeta, con una banda grande de Reproducir/Siguiente debajo. Desactivado muestra la tarjeta más pequeña, con la portada junto al título.</string>
     <string name="cfg_spotify_lyrics">Búsqueda de letras</string>
     <string name="cfg_spotify_lyrics_hint">Busca la letra de cada canción, y el botón Letra de la tarjeta de música la abre al ritmo de la canción, en una tarjeta de dos columnas y toda la altura. ✕ la cierra. La tarjeta recuerda tu última elección, abierta o cerrada, de una canción a otra. Queda normal cuando aparece el panel de Home Assistant, o cuando las otras tarjetas necesitan más de una columna. Para encontrar la letra, los nombres de la canción, del artista y del álbum van a lrclib.net, un sitio gratuito de letras. Desactivado: no se envía nada.</string>
+    <string name="cfg_bt_music">Música por Bluetooth</string>
+    <string name="cfg_bt_music_hint">La tarjeta de música también muestra lo que el teléfono reproduce por Bluetooth, desde cualquier app, con Reproducir y Siguiente, y la letra cuando la Búsqueda de letras está activada. Cuando Spotify está sonando, la tarjeta sigue a Spotify. Nada sale del coche.</string>
     <string name="spotify_play_label">Reproducir</string>
     <string name="spotify_skip_label">Siguiente</string>
     <string name="spotify_lyrics_label">Letra</string>
