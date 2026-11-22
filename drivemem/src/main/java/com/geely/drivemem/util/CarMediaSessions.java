@@ -70,6 +70,7 @@ public final class CarMediaSessions {
     public static void stop() {
         if (!running) return;
         running = false;
+        main.removeCallbacks(staleCheck);
         try { msm.removeOnActiveSessionsChangedListener(changed); } catch (Throwable ignored) { }
         attach(null);
         MusicState.setSession(null, null);
@@ -141,11 +142,18 @@ public final class CarMediaSessions {
         return t == null || t.trim().isEmpty() ? null : t;
     }
 
+    // Re-checks the followed session when its song should have ended: a
+    // session that says "playing" but stopped sending (the phone left, the
+    // CarPlay link dropped) sends no callback, so a timer has to look.
+    private static final Runnable staleCheck = CarMediaSessions::publish;
+    private static String loggedState;
+
     private static void publish() {
+        main.removeCallbacks(staleCheck);
         final MediaController c = current;
         MediaMetadata m = c == null ? null : c.getMetadata();
         String title = title(m);
-        if (c == null || title == null) { MusicState.setSession(null, null); return; }
+        if (c == null || title == null || !running) { MusicState.setSession(null, null); return; }
         PlaybackState st = c.getPlaybackState();
         MusicState.Track t = new MusicState.Track();
         t.title = title;
@@ -160,6 +168,21 @@ public final class CarMediaSessions {
             if (t.progressAtMs <= 0) t.progressAtMs = android.os.SystemClock.elapsedRealtime();
         }
         t.id = trackKey(t.artist, t.title);
+        long now = android.os.SystemClock.elapsedRealtime();
+        String state = c.getPackageName() + " '" + t.title + "' playing=" + t.playing + " dur=" + t.durationMs;
+        if (!state.equals(loggedState)) { loggedState = state; Log.i(TAG, "bt music: " + state); }
+        // Android moves a playing session's position on by itself when it is
+        // read, and stops it at the song's end. So "playing" at the end for
+        // longer than the grace means nothing plays any more.
+        long ends = endsAt(t.playing, t.progressMs, t.progressAtMs, t.durationMs);
+        long hideAt = staleAt(t.id, ends, now);
+        if (hideAt > 0 && now >= hideAt) {
+            Log.i(TAG, "bt music: " + c.getPackageName() + " says playing past the song's end, hiding the card");
+            MusicState.setSession(null, null);
+            return;
+        }
+        long wake = hideAt > 0 ? hideAt : ends;
+        if (wake > 0) main.postDelayed(staleCheck, Math.max(0, wake - now) + 1000);
         android.graphics.Bitmap art = m.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
         if (art == null) art = m.getBitmap(MediaMetadata.METADATA_KEY_ART);
         if (art == null) art = m.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON);
@@ -177,6 +200,26 @@ public final class CarMediaSessions {
             }
             @Override public void next() { c.getTransportControls().skipToNext(); }
         });
+    }
+
+    /** When a playing track reaches its end (elapsedRealtime); 0 when paused
+     * or no length is given. */
+    static long endsAt(boolean playing, long progressMs, long progressAtMs, long durationMs) {
+        if (!playing || durationMs <= 0) return 0;
+        return progressAtMs + Math.max(0, durationMs - progressMs);
+    }
+
+    private static String endId;      // the track first seen past its end ...
+    private static long endSeenMs;    // ... at this time
+
+    /** When a session still "playing" past its song's end stops being
+     * believed: SpotifyClient.STALE_GRACE_MS after it was first seen there,
+     * the same rule as Spotify's when it cannot be reached. 0 while the song
+     * has not ended (or it is paused, or has no length). */
+    static long staleAt(String id, long endsAt, long nowMs) {
+        if (endsAt <= 0 || nowMs < endsAt) { endId = null; return 0; }
+        if (endId == null || !endId.equals(id)) { endId = id; endSeenMs = nowMs; }
+        return endSeenMs + SpotifyClient.STALE_GRACE_MS;
     }
 
     /** A stable id for a session track (sessions give no Spotify id): the

@@ -2342,6 +2342,7 @@ public class ComfortActivity extends Activity {
             if (available != lastMusicAvailable) {
                 lastMusicAvailable = available;
                 if (columns != null) repackColumns();
+                refreshLyricsButtons();   // the card is back: its lines may be here already
             } else {
                 refreshLyrics();   // a new track: its lyrics may not be here yet
             }
