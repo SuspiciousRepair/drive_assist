@@ -146,6 +146,9 @@ public final class DashRecorder {
     private boolean motionBroken;                 // encoder thread only
     private final PreRoll preRoll = new PreRoll(PRE_ROLL_MS);   // encoder thread only
 
+    /** A parked motion clip is being recorded now. */
+    public boolean inMotionEvent() { return motionEvent; }
+
     /** Parked motion watch on or off; ModeHelperService calls this on every
      * park-state update. The encoder thread acts on it at the next key frame. */
     public void setMotionWatch(boolean on) { motionWanted = on; }

@@ -333,7 +333,7 @@ public class ModeHelperService extends Service {
                 // "Wi-Fi never came back".)
                 if (parked) ensureWifiOn();
                 nudgeWifiScan();
-                maybeDexopt();
+                maybeDexopt(parked);
                 CanReader.tick(getApplicationContext());
             } catch (Throwable t) { Log.w(TAG, "poll: " + t); }
             // Liveness heartbeat — a timestamp in SharedPreferences (survives process
@@ -410,10 +410,20 @@ public class ModeHelperService extends Service {
     private long lastDexoptCheck;
     private volatile boolean dexoptRunning;
 
-    private void maybeDexopt() {
+    private void maybeDexopt(boolean parked) {
         long now = SystemClock.elapsedRealtime();
         if (dexoptRunning || now - lastDexoptCheck < 60_000) return;
         lastDexoptCheck = now;
+        // The compile is done but this process still runs the interpreter:
+        // start again, once per version, when nothing is lost. See CompiledCode.
+        if (CompiledCode.safe(parked, dash != null && dash.inMotionEvent(), shuttingDown)
+                && Dexopt.restartWanted(getApplicationContext())
+                && Dexopt.markRestarted(getApplicationContext())) {
+            Log.i(TAG, "dexopt: restarting the helper to run its compiled code");
+            stopForShutdown("helper restart");
+            android.os.Process.killProcess(android.os.Process.myPid());
+            return;
+        }
         dexoptRunning = true;
         new Thread(() -> {
             try { Dexopt.ensure(getApplicationContext()); }

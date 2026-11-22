@@ -50,6 +50,41 @@ final class Dexopt {
         }
     }
 
+    /** True if the helper must start again to run what {@link #ensure}
+     * compiled: see CompiledCode. Cheap: one getPackageInfo, and
+     * /proc/self/maps is read only until the one restart of this version. */
+    static boolean restartWanted(Context ctx) {
+        try {
+            String pkg = ctx.getPackageName();
+            int vc = ctx.getPackageManager().getPackageInfo(pkg, 0).versionCode;
+            SharedPreferences p = ctx.getSharedPreferences("modehelper", Context.MODE_PRIVATE);
+            int compiled = p.getInt("dexopt_vc_" + pkg, -1), restarted = p.getInt(RESTART_KEY, -1);
+            if (!CompiledCode.wanted(vc, compiled, restarted, false)) return false;
+            java.util.List<String> maps = java.nio.file.Files.readAllLines(
+                java.nio.file.Paths.get("/proc/self/maps"), java.nio.charset.StandardCharsets.UTF_8);
+            return CompiledCode.wanted(vc, compiled, restarted, CompiledCode.loaded(maps, pkg));
+        } catch (Throwable t) {
+            Log.w(TAG, "dexopt: restart check: " + t);
+            return false;
+        }
+    }
+
+    /** Records the restart before it happens (commit, not apply: the
+     * process ends next), so it is done once per version. False if the
+     * record could not be written: then do not restart. */
+    static boolean markRestarted(Context ctx) {
+        try {
+            int vc = ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0).versionCode;
+            return ctx.getSharedPreferences("modehelper", Context.MODE_PRIVATE)
+                .edit().putInt(RESTART_KEY, vc).commit();
+        } catch (Throwable t) {
+            Log.w(TAG, "dexopt: restart record: " + t);
+            return false;
+        }
+    }
+
+    private static final String RESTART_KEY = "dexopt_restart_vc";
+
     // IPackageManager.performDexOptMode(packageName, checkProfiles,
     // targetCompilerFilter, force, bootComplete, splitName) — hidden API,
     // reachable because this app is platform-signed.
