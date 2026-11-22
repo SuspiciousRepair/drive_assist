@@ -878,10 +878,11 @@ public class Style {
      * screen (found live on the Home screen, 2026-09-13: "sometimes 3 cards
      * pack in column 1 and the third card is clipped"). One verify pass
      * runs after the layout settles; if a column's real height overflowed
-     * the budget after all, this repacks once more automatically. */
-    public static void packIntoColumns(Context c, LinearLayout columns, List<LinearLayout> cards,
+     * the budget after all, this repacks once more automatically.
+     * Returns how many columns the first pass took. */
+    public static int packIntoColumns(Context c, LinearLayout columns, List<LinearLayout> cards,
             int columnWidthPx, int availableHeightPx) {
-        packIntoColumnsOnce(c, columns, cards, columnWidthPx, availableHeightPx);
+        int n = packIntoColumnsOnce(c, columns, cards, columnWidthPx, availableHeightPx);
         columns.post(() -> {
             for (int i = 0; i < columns.getChildCount(); i++) {
                 if (columns.getChildAt(i).getHeight() > availableHeightPx) {
@@ -890,9 +891,11 @@ public class Style {
                 }
             }
         });
+        return n;
     }
 
-    private static void packIntoColumnsOnce(Context c, LinearLayout columns, List<LinearLayout> cards,
+    /** Returns how many columns the cards took. */
+    private static int packIntoColumnsOnce(Context c, LinearLayout columns, List<LinearLayout> cards,
             int columnWidthPx, int availableHeightPx) {
         columns.removeAllViews();
         int gapV = dp(c, CARD_GAP_DP), gapH = dp(c, COLUMN_GAP_DP);
@@ -936,6 +939,7 @@ public class Style {
             col.addView(card);
             used += cardH;
         }
+        return columns.getChildCount();
     }
 
     /** Applies margin values to an already-added view. */

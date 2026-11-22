@@ -84,6 +84,8 @@
     <string name="spotify_connect_failed">Spotify: no se pudo conectar</string>
     <string name="cfg_spotify_large_card">Tarjeta grande</string>
     <string name="cfg_spotify_large_card_hint">La portada del álbum llena la tarjeta, con una banda grande de Reproducir/Siguiente debajo. Desactivado muestra la tarjeta más pequeña, con la portada junto al título.</string>
+    <string name="cfg_spotify_lyrics">Letra</string>
+    <string name="cfg_spotify_lyrics_hint">La letra de la canción en la tarjeta de música, línea por línea, solo en Park. Se oculta cuando aparece el panel de Home Assistant o cuando las tarjetas llenan la pantalla. Los nombres de la canción, del artista y del álbum van a lrclib.net, un sitio gratuito de letras.</string>
     <string name="spotify_play_label">Reproducir</string>
     <string name="spotify_skip_label">Siguiente</string>
     <string name="cfg_commands_label">Aceptar comandos de Home Assistant</string>

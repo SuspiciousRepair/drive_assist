@@ -33,6 +33,32 @@ public final class MusicState {
     public static String artUrl() { return artUrl; }
     public static void setListener(Listener l) { listener = l; }
 
+    // ---- where in the track, for the lyrics card ----
+    // Not part of set() and fires no listener: the position changes on every
+    // poll, and the card reads it on its own clock (positionNowMs()).
+    private static volatile String trackId, album;
+    private static volatile long durationMs, progressMs, progressAtMs;
+
+    /** From each poll: the track, and its position when the answer came
+     * (atMs is SystemClock.elapsedRealtime(), or any clock that only goes up). */
+    public static void setPosition(String id, String albumName, long duration, long progress, long atMs) {
+        trackId = id; album = albumName; durationMs = duration;
+        progressMs = progress; progressAtMs = atMs;
+    }
+
+    public static String trackId() { return trackId; }
+    public static String album() { return album; }
+    public static long durationMs() { return durationMs; }
+
+    /** The position now: the last poll's, moved on by the time since, while
+     * playing. Never past the end of the track. */
+    public static long positionNowMs(long nowMs) {
+        long p = progressMs;
+        if (playing) p += Math.max(0, nowMs - progressAtMs);
+        long d = durationMs;
+        return d > 0 ? Math.min(p, d) : p;
+    }
+
     // Delegates to SpotifyClient; actual state updates come from next poll.
     /** Requests next track. */
     public static void next() { SpotifyClient.next(); }

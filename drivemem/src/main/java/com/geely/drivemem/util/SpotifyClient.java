@@ -198,6 +198,7 @@ public final class SpotifyClient {
             boolean isPlaying = o.optBoolean("is_playing", false);
             org.json.JSONObject item = o.optJSONObject("item");
             if (item == null) { MusicState.set(false, null, null, null); return; }
+            long receivedAt = android.os.SystemClock.elapsedRealtime();
             String title = item.optString("name", null);
             String artist = null;
             org.json.JSONArray artists = item.optJSONArray("artists");
@@ -225,6 +226,10 @@ public final class SpotifyClient {
                     if (first != null) art = first.optString("url", null);
                 }
             }
+            // Before set(): its listener may ask for lyrics, which needs the id.
+            MusicState.setPosition(item.optString("id", null),
+                album == null ? null : album.optString("name", null),
+                item.optLong("duration_ms", 0), o.optLong("progress_ms", 0), receivedAt);
             MusicState.set(isPlaying, title, artist, art);
         } catch (Throwable t) { Log.w(TAG, "spotify poll: " + t); }
     }

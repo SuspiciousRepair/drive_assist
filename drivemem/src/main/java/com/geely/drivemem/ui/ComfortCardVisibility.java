@@ -60,6 +60,25 @@ public final class ComfortCardVisibility {
     }
 
     /**
+     * The lyrics part of the music card, before the room check. Only in Park:
+     * text that changes every few seconds pulls the driver's eyes. Never with
+     * the Home Assistant panel up: the panel is the last card packed, and the
+     * taller music card would push it off the screen.
+     */
+    public static boolean showLyrics(boolean enabled, boolean parked, boolean musicShown,
+                                     boolean haveLines, boolean panelShown) {
+        return enabled && parked && musicShown && haveLines && !panelShown;
+    }
+
+    /** The screen shows three columns; a fourth means scrolling sideways.
+     * With more cards than that, the music card goes back to its own size. */
+    public static final int SCREEN_COLUMNS = 3;
+
+    public static boolean lyricsFit(int columnsWithLyrics) {
+        return columnsWithLyrics <= SCREEN_COLUMNS;
+    }
+
+    /**
      * Charge card shows active charging progress when parked and actively charging.
      * Charging only makes sense while parked — see CarState's header for why this
      * is a real check, not just tidiness.

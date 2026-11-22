@@ -107,4 +107,23 @@ public class MusicStateTest {
             MusicState.set(false, null, null, null);
         }
     }
+
+    @Test public void positionMovesOnWhilePlayingAndStopsAtTheEnd() {
+        MusicState.setListener(null);
+        MusicState.set(true, "Pos", "A", null);
+        MusicState.setPosition("id1", "Album", 200_000, 10_000, 1_000);
+        assertEquals("id1", MusicState.trackId());
+        assertEquals("Album", MusicState.album());
+        assertEquals(10_000, MusicState.positionNowMs(1_000));
+        assertEquals(15_000, MusicState.positionNowMs(6_000));
+        assertEquals(200_000, MusicState.positionNowMs(10_000_000));
+        assertEquals("a clock that went back adds nothing", 10_000, MusicState.positionNowMs(0));
+    }
+
+    @Test public void positionStaysPutWhilePaused() {
+        MusicState.setListener(null);
+        MusicState.set(false, "Paused", "A", null);
+        MusicState.setPosition("id2", null, 200_000, 42_000, 1_000);
+        assertEquals(42_000, MusicState.positionNowMs(60_000));
+    }
 }

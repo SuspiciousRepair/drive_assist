@@ -159,6 +159,8 @@
     <string name="spotify_connect_failed">Spotify: เชื่อมต่อไม่ได้</string>
     <string name="cfg_spotify_large_card">การ์ดขนาดใหญ่</string>
     <string name="cfg_spotify_large_card_hint">ปกอัลบั้มเต็มการ์ด พร้อมแถบเล่น/ข้ามขนาดใหญ่ด้านล่าง ปิดไว้จะแสดงการ์ดขนาดเล็กที่ปกอยู่ข้างชื่อเพลง</string>
+    <string name="cfg_spotify_lyrics">เนื้อเพลง</string>
+    <string name="cfg_spotify_lyrics_hint">เนื้อเพลงบนการ์ดเพลง ทีละบรรทัด เฉพาะตอนจอด (P) เท่านั้น จะซ่อนเมื่อแผง Home Assistant แสดงอยู่ หรือเมื่อการ์ดเต็มหน้าจอ ชื่อเพลง ศิลปิน และอัลบั้มจะถูกส่งไปที่ lrclib.net ซึ่งเป็นเว็บเนื้อเพลงฟรี</string>
     <string name="spotify_play_label">เล่น</string>
     <string name="spotify_skip_label">ข้าม</string>
     <string name="cfg_commands_label">ยอมรับคำสั่งจาก HA</string>

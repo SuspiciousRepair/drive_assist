@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+- **Song lyrics on the Spotify card.** Turn on **Config → Integrations →
+  Spotify → Lyrics**. In Park, the music card grows to show the line sung now and the
+  next one, in time with the song. It goes back to its normal size when the
+  car leaves Park, when the Home Assistant panel is up, or when the cards
+  would no longer fit on the screen. The lyrics come from LRCLIB
+  (lrclib.net), a free lyrics site: the car sends it the song, artist and
+  album names, once per song, and keeps the answer. Off by default. Some
+  songs have no timed lyrics there; then the card does not change. After a
+  jump inside a song, the lines can be up to 6 seconds behind, until the
+  next Spotify check.
+
 ### Changed
 - **The dashcam asks the car for its 360 cameras.** The dashcam needs the
   four 360 cameras, and it was on by default on every car. On a car without

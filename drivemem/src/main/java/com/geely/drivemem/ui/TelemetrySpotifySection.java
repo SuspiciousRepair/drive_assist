@@ -13,7 +13,7 @@ import com.geely.drivemem.util.SpotifyClient;
 import com.geely.drivemem.util.Style;
 
 /** Spotify panel of the Config screen -- client ID, connect/disconnect, and
- * the home-screen large-card toggle. Separate from the MQTT/HA link by
+ * the home-screen large-card and lyrics toggles. Separate from the MQTT/HA link by
  * nature, not just by screen: this one talks to Spotify's own Web API
  * straight from the car, no broker, no Home Assistant involved (see
  * SpotifyClient's header for why: the App Remote SDK needs a Spotify app on
@@ -83,6 +83,12 @@ public final class TelemetrySpotifySection extends LinearLayout {
             Prefs.getSpotifyLargeCard(activity),
             on -> Prefs.setSpotifyLargeCard(activity, on)));
         home.addView(ConfigCards.hint(activity, activity.getString(R.string.cfg_spotify_large_card_hint)));
+
+        // Read by ComfortActivity on every onResume -- no recreate needed.
+        home.addView(Style.toggleRow(activity, activity.getString(R.string.cfg_spotify_lyrics),
+            Prefs.getSpotifyLyrics(activity),
+            on -> Prefs.setSpotifyLyrics(activity, on)));
+        home.addView(ConfigCards.hint(activity, activity.getString(R.string.cfg_spotify_lyrics_hint)));
     }
 
     /** Refreshes the connection status text -- called after returning from

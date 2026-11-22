@@ -36,6 +36,8 @@ import com.geely.drivemem.state.TempTrail;
 import com.geely.drivemem.state.ValetSession;
 import com.geely.drivemem.util.BootReceiver;
 import com.geely.drivemem.util.LayoutWait;
+import com.geely.drivemem.util.Lrc;
+import com.geely.drivemem.util.LyricsClient;
 import com.geely.drivemem.util.Modes;
 import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.SpotifyClient;
@@ -143,6 +145,19 @@ public class ComfortActivity extends Activity {
     private boolean lastMusicAvailable = false;
     private String lastMusicArtUrl = null;   // avoids re-fetching the same art on every state ping
     private boolean musicLargeCardAtBuild;   // Config > Spotify: "Large card" -- read once like turboEnabledAtBuild
+    // Lyrics: an extra part of the music card (either layout), GONE unless
+    // lyricsWanted() and the cards still fit in three columns with it -- see
+    // repackColumns(). The setting is read on every onResume, no recreate().
+    private LinearLayout lyricsBlock;
+    private TextView lyricNowView, lyricNextView;
+    private boolean lyricsEnabled;
+    private boolean lyricsWantedAtPack;     // what the last repack decided from, so refreshLyrics() repacks only on a change
+    private Lrc lyricsTickLines;            // the lines the two views show now
+    private int lyricIndex = Integer.MIN_VALUE;
+    // Show a line this much before Spotify's position reaches it: the poll's
+    // answer is already a little old when it lands, and the eye needs a beat.
+    private static final long LYRICS_LEAD_MS = 400;
+    private static final long LYRICS_TICK_MS = 250;
 
     // Charge card: active session progress or retained completed charge with cost input.
     private LinearLayout chargeCard;
@@ -194,6 +209,7 @@ public class ComfortActivity extends Activity {
         turboEnabledAtBuild = Prefs.getTurboEnabled(this);
         turboSlotsAtBuild = turboSlotsFromPrefs();
         musicLargeCardAtBuild = Prefs.getSpotifyLargeCard(this);
+        lyricsEnabled = Prefs.getSpotifyLyrics(this);
         skylineEnabledAtBuild = Prefs.getSkylineEnabled(this);
         skylineSeedAtBuild = Prefs.getSkylineSeed(this, com.geely.drivemem.art.Skyline.DEFAULT_SEED);
         dismissedHash = Prefs.getPanelDismissed(this);   // the dismissal survives a restart
@@ -440,7 +456,16 @@ public class ComfortActivity extends Activity {
             LayoutWait.onNextLayout(colW <= 0 ? band : columns, this::repackColumns);
             return;
         }
-        Style.packIntoColumns(this, columns, cards, colW, availH);
+        // Lyrics first try the taller music card; when that pushes the cards
+        // past the three columns on screen, the card goes back to its own size.
+        boolean lyrics = lyricsWanted();
+        lyricsWantedAtPack = lyrics;
+        setLyricsVisible(lyrics);
+        int n = Style.packIntoColumns(this, columns, cards, colW, availH);
+        if (lyrics && !ComfortCardVisibility.lyricsFit(n)) {
+            setLyricsVisible(false);
+            Style.packIntoColumns(this, columns, cards, colW, availH);
+        }
     }
 
     // The Clima card: title, outside temp, the effort scale, the two ask tiles
@@ -961,6 +986,8 @@ public class ComfortActivity extends Activity {
         textLp.leftMargin = Style.dp(this, 18);
         row.addView(textCol, textLp);
         m.addView(row);
+        LinearLayout lyrics = lyricsBlock(0, 18);
+        m.addView(lyrics);
         Style.gap(m, this, 18);
 
         LinearLayout btnRow = new LinearLayout(this);
@@ -1129,6 +1156,7 @@ public class ComfortActivity extends Activity {
         artFrame.addView(caption, capLp);
 
         m.addView(artFrame);
+        m.addView(lyricsBlock(22, 18));
 
         LinearLayout btnBand = new LinearLayout(this);
         btnBand.setOrientation(LinearLayout.HORIZONTAL);
@@ -1146,6 +1174,91 @@ public class ComfortActivity extends Activity {
 
         musicCard = m;
         return m;
+    }
+
+    // The lyrics part of the music card: the line sung now (bold, up to two
+    // lines) and the next one (dim). Both keep a FIXED number of lines, so
+    // the card's height does not change from one lyric line to the next --
+    // a card that grew and shrank would re-flow the columns every few seconds.
+    // padH is the side inset (the small card's own padding already gives
+    // one); padTop the space above. Built GONE; repackColumns() decides.
+    private LinearLayout lyricsBlock(int padH, int padTop) {
+        LinearLayout b = new LinearLayout(this);
+        b.setOrientation(LinearLayout.VERTICAL);
+        b.setPadding(Style.dp(this, padH), Style.dp(this, padTop), Style.dp(this, padH), 0);
+        b.setVisibility(View.GONE);
+        lyricNowView = new TextView(this);
+        lyricNowView.setTextColor(Style.TEXT); lyricNowView.setTextSize(30);
+        lyricNowView.setTypeface(null, android.graphics.Typeface.BOLD);
+        lyricNowView.setLines(2);
+        lyricNowView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        b.addView(lyricNowView);
+        lyricNextView = new TextView(this);
+        lyricNextView.setTextColor(Style.TEXT_DIM); lyricNextView.setTextSize(24);
+        lyricNextView.setLines(2);
+        lyricNextView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        lyricNextView.setPadding(0, Style.dp(this, 8), 0, 0);
+        b.addView(lyricNextView);
+        lyricsBlock = b;
+        return b;
+    }
+
+    private boolean lyricsWanted() {
+        return lyricsBlock != null && ComfortCardVisibility.showLyrics(lyricsEnabled, CarState.isParked(),
+            musicCard != null && musicCard.getVisibility() == View.VISIBLE,
+            LyricsClient.linesFor(MusicState.trackId()) != null,
+            panelCard != null && panelCard.getVisibility() == View.VISIBLE);
+    }
+
+    private void setLyricsVisible(boolean on) {
+        if (lyricsBlock == null) return;
+        lyricsBlock.setVisibility(on ? View.VISIBLE : View.GONE);
+        ui.removeCallbacks(lyricsTick);
+        if (on) {
+            lyricsTickLines = null;   // the next tick fills both views at once
+            ui.post(lyricsTick);
+        }
+    }
+
+    // Repacks only when the answer changed: park/drive, a track with or
+    // without lyrics, the setting. The panel's own show/close repacks anyway.
+    private void refreshLyrics() {
+        if (columns == null) return;
+        if (lyricsWanted() != lyricsWantedAtPack) repackColumns();
+    }
+
+    private void requestLyrics() {
+        if (!lyricsEnabled) return;
+        LyricsClient.request(this, MusicState.trackId(), MusicState.title(), MusicState.artist(),
+            MusicState.album(), MusicState.durationMs(), () -> ui.post(this::refreshLyrics));
+    }
+
+    // Spotify is polled every 6 s; between polls the position is moved on
+    // here (MusicState.positionNowMs), so the line changes on time. A seek
+    // shows up at the next poll. Views are only touched when the line changes.
+    private final Runnable lyricsTick = new Runnable() {
+        @Override public void run() {
+            if (lyricsBlock == null || lyricsBlock.getVisibility() != View.VISIBLE) return;
+            Lrc lines = LyricsClient.linesFor(MusicState.trackId());
+            if (lines != null) {
+                long pos = MusicState.positionNowMs(android.os.SystemClock.elapsedRealtime()) + LYRICS_LEAD_MS;
+                int i = lines.indexAt(pos);
+                if (lines != lyricsTickLines || i != lyricIndex) {
+                    lyricsTickLines = lines;
+                    lyricIndex = i;
+                    lyricNowView.setText(i >= 0 ? lyricText(lines, i) : "♪");
+                    lyricNextView.setText(i + 1 < lines.size() ? lyricText(lines, i + 1) : "");
+                }
+            }
+            ui.postDelayed(this, LYRICS_TICK_MS);
+        }
+    };
+
+    // An empty LRC line is a gap in the singing. "♪" is a sign, not prose --
+    // same convention as the ⏯/⏭ tiles.
+    private static String lyricText(Lrc lines, int i) {
+        String t = lines.textAt(i);
+        return t.isEmpty() ? "♪" : t;
     }
 
     // One half of musicCardLarge()'s button band -- same visual signature as
@@ -1895,10 +2008,13 @@ public class ComfortActivity extends Activity {
                 musicTitleView.setText(title);
                 musicArtistView.setText(artist == null ? "" : artist);
                 loadMusicArt(artUrl);
+                requestLyrics();
             }
             if (available != lastMusicAvailable) {
                 lastMusicAvailable = available;
                 if (columns != null) repackColumns();
+            } else {
+                refreshLyrics();   // a new track: its lyrics may not be here yet
             }
         });
 
@@ -1975,6 +2091,7 @@ public class ComfortActivity extends Activity {
             checkRetainedCharge();
         }
         refreshJourneyCard();
+        refreshLyrics();   // lyrics show only in Park
 
         if (!parked) {
             // "Random every drive": a fresh seed on every P->D edge, applied
@@ -2456,15 +2573,21 @@ public class ComfortActivity extends Activity {
         // reason: a track can start or end while the screen is off.
         boolean nowMusicAvailable = ComfortCardVisibility.showMusicCard(MusicState.title());
         if (musicCard != null) musicCard.setVisibility(nowMusicAvailable ? View.VISIBLE : View.GONE);
+        lyricsEnabled = Prefs.getSpotifyLyrics(this);   // may have changed in Config
         if (nowMusicAvailable) {
             musicTitleView.setText(MusicState.title());
             musicArtistView.setText(MusicState.artist() == null ? "" : MusicState.artist());
             loadMusicArt(MusicState.artUrl());
+            requestLyrics();
         }
         if (nowMusicAvailable != lastMusicAvailable) {
             lastMusicAvailable = nowMusicAvailable;
             if (columns != null) repackColumns();
+        } else {
+            refreshLyrics();
         }
+        // The tick stopped in onPause; start it again if lyrics are up.
+        if (lyricsBlock != null && lyricsBlock.getVisibility() == View.VISIBLE) setLyricsVisible(true);
         ChargeSession.setProgressListener(chargeListener);
         CarState.addListener(carStateListener);
         chargeBarW = -1;   // force one redraw even if the numbers match
@@ -2555,6 +2678,7 @@ public class ComfortActivity extends Activity {
         }
         if (gateCard != null) gateCard.onPause();
         SpotifyClient.stopPolling();
+        ui.removeCallbacks(lyricsTick);
         TurboMode.get(this).setListener(null);
         CarState.removeListener(carStateListener);
         stopCarActorPolls();
