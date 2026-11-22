@@ -22,8 +22,10 @@ final class OrbitRig {
     /** Height of the viewpoint above the ground, metres. */
     static final float EYE = 1.0f;
     /** Radius of the ball the picture is painted on, metres. A far thing and
-     * a near thing cannot both line up; 6 m looked best on parked clips. */
-    static final float BALL = 6f;
+     * a near thing cannot both line up. 6 m doubled the houses and walls down
+     * the street (a wall 15 m back showed two times behind the car); 10 m
+     * lines those up and looked as good at home, where walls are near. */
+    static final float BALL = 10f;
     /** Width of the band where two cameras are mixed, as a part of the ray
      * (0.12 is about 7 degrees). Narrow on purpose: a wide one shows a thing
      * near a corner two times. */

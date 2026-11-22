@@ -121,4 +121,31 @@ public class OrbitRigTest {
         // Column order: the right camera's lens x is world -z.
         assertEquals(-1f, ROT[9 + 6], 1e-6f);
     }
+
+    // Where on the screen camera cam shows world point w: the viewpoint's
+    // direction to the spot where cam's line of sight to w crosses the ball.
+    private static double[] seenAt(int cam, double[] w) {
+        float[] pos = OrbitRig.positions();
+        double[] p = { pos[cam * 3], pos[cam * 3 + 1], pos[cam * 3 + 2] };
+        double[] d = { w[0] - p[0], w[1] - p[1], w[2] - p[2] };
+        double n = Math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+        for (int k = 0; k < 3; k++) d[k] /= n;
+        double[] o = { p[0], p[1] - OrbitRig.EYE, p[2] };
+        double b = o[0] * d[0] + o[1] * d[1] + o[2] * d[2];
+        double c = o[0] * o[0] + o[1] * o[1] + o[2] * o[2] - OrbitRig.BALL * OrbitRig.BALL;
+        double t = -b + Math.sqrt(b * b - c);
+        double[] x = { o[0] + t * d[0], o[1] + t * d[1], o[2] + t * d[2] };
+        double m = Math.sqrt(x[0] * x[0] + x[1] * x[1] + x[2] * x[2]);
+        return new double[] { x[0] / m, x[1] / m, x[2] / m };
+    }
+
+    @Test public void aWallDownTheStreetShowsOnceWhereRearAndRightMeet() {
+        // A wall 15 m back, right of the car, near the rear/right seam. On a
+        // 6 m ball the two cameras put it 15 degrees apart: it showed two times.
+        double a = Math.toRadians(140);
+        double[] w = { 15 * Math.sin(a), OrbitRig.EYE, 15 * Math.cos(a) };
+        double[] r = seenAt(OrbitRig.RIGHT, w), q = seenAt(OrbitRig.REAR, w);
+        double deg = Math.toDegrees(Math.acos(r[0] * q[0] + r[1] * q[1] + r[2] * q[2]));
+        assertTrue("apart " + deg, deg < 6);
+    }
 }
