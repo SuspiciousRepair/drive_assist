@@ -159,8 +159,9 @@ public class ComfortActivity extends Activity {
     private android.widget.ImageView jumboArtView;
     private TextView jumboTitleView, jumboArtistView, jumboAlbumView;
     private final java.util.List<View> lyricsOpenButtons = new java.util.ArrayList<>();   // on the condensed card
-    // Open or closed for the track playing now: each new track starts as
-    // Config's "Always open lyrics" says, then the Lyrics/✕ buttons decide.
+    // Open or closed for the track playing now. With Config's Lyrics on,
+    // every new track starts open; ✕ closes it for that track and the
+    // card's Lyrics button opens it again. With it off nothing is open.
     private boolean lyricsOpen;
     private String lyricsOpenFor;             // the track lyricsOpen belongs to
     private boolean eqAvailable;              // the car's sound settings can be opened (OemSound); read once, at build
@@ -169,7 +170,10 @@ public class ComfortActivity extends Activity {
     // Four lines only: the one just sung, the one sung now, the next two.
     private final TextView[] lyricSlots = new TextView[4];
     private static final int LYRIC_NOW_SLOT = 1;
-    private boolean lyricsAutoOpen;           // Config: "Always open lyrics"
+    // Config: Lyrics. Off (the default): no lyrics at all -- nothing is sent
+    // to lrclib.net and the card has no Lyrics button. It is both the
+    // consent and the behaviour; see Prefs.getSpotifyLyrics.
+    private boolean lyricsEnabled;
     private boolean lyricsWantedAtPack;     // what the last repack decided from, so refreshLyrics() repacks only on a change
     private Lrc lyricsTickLines;            // the lines the slots show now
     private int lyricIndex = Integer.MIN_VALUE;
@@ -228,7 +232,7 @@ public class ComfortActivity extends Activity {
         turboEnabledAtBuild = Prefs.getTurboEnabled(this);
         turboSlotsAtBuild = turboSlotsFromPrefs();
         musicLargeCardAtBuild = Prefs.getSpotifyLargeCard(this);
-        lyricsAutoOpen = Prefs.getSpotifyLyricsAuto(this);
+        lyricsEnabled = Prefs.getSpotifyLyrics(this);
         eqAvailable = OemSound.intent(this) != null;
         skylineEnabledAtBuild = Prefs.getSkylineEnabled(this);
         skylineSeedAtBuild = Prefs.getSkylineSeed(this, com.geely.drivemem.art.Skyline.DEFAULT_SEED);
@@ -1459,12 +1463,13 @@ public class ComfortActivity extends Activity {
         if (columns != null) repackColumns();
     }
 
-    // A new track starts open or closed as Config says.
+    // A new track starts open (the lyrics open by themselves whenever a
+    // track has them); a ✕ on the last track does not carry over.
     private void followTrack() {
         String id = MusicState.trackId();
         if (id == null || id.equals(lyricsOpenFor)) return;
         lyricsOpenFor = id;
-        lyricsOpen = lyricsAutoOpen;
+        lyricsOpen = true;
     }
 
     // The open-lyrics button on the condensed card: there only with the
@@ -1472,6 +1477,7 @@ public class ComfortActivity extends Activity {
     private void refreshLyricsButtons() {
         boolean have = LyricsClient.linesFor(MusicState.trackId()) != null;
         for (View v : lyricsOpenButtons) {
+            v.setVisibility(lyricsEnabled ? View.VISIBLE : View.GONE);
             if (v.isClickable()) v.setAlpha(have ? 1f : 0.35f);   // not the divider
         }
     }
@@ -1488,7 +1494,7 @@ public class ComfortActivity extends Activity {
     }
 
     private boolean lyricsWanted() {
-        return musicJumbo != null && ComfortCardVisibility.showLyrics(lyricsOpen,
+        return musicJumbo != null && ComfortCardVisibility.showLyrics(lyricsEnabled, lyricsOpen,
             musicCard != null && musicCard.getVisibility() == View.VISIBLE,
             // Still loading counts when the card is already big: it stays big
             // across a track change instead of shrinking for the fetch. Not
@@ -1520,6 +1526,7 @@ public class ComfortActivity extends Activity {
     }
 
     private void requestLyrics() {
+        if (!lyricsEnabled) return;   // the consent: nothing goes to lrclib.net
         LyricsClient.request(this, MusicState.trackId(), MusicState.title(), MusicState.artist(),
             MusicState.album(), MusicState.durationMs(), () -> ui.post(this::refreshLyrics));
     }
@@ -2876,8 +2883,7 @@ public class ComfortActivity extends Activity {
         // reason: a track can start or end while the screen is off.
         boolean nowMusicAvailable = ComfortCardVisibility.showMusicCard(MusicState.title());
         if (musicCard != null) musicCard.setVisibility(nowMusicAvailable ? View.VISIBLE : View.GONE);
-        boolean auto = Prefs.getSpotifyLyricsAuto(this);   // may have changed in Config
-        if (auto != lyricsAutoOpen) { lyricsAutoOpen = auto; lyricsOpen = auto; }
+        lyricsEnabled = Prefs.getSpotifyLyrics(this);   // may have changed in Config
         followTrack();
         refreshLyricsButtons();
         if (nowMusicAvailable) {

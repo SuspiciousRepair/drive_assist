@@ -120,13 +120,15 @@ Entre uma vez e a tela inicial mostra o que está tocando, com controles. A
 pequena engrenagem no canto de cima, à direita, do cartão abre os ajustes de som
 do próprio carro, com o equalizador.
 
-O botão **Letra** aumenta o cartão para duas colunas e a altura toda da tela. No
+Ligue **Config → Integrações → Spotify → Letra** para ver a letra da música.
+Sempre que a música tiver letra, o cartão cresce para duas colunas e a altura
+toda da tela. No
 alto, num tom suave da cor principal da capa do álbum, ficam a capa, a música, o
 artista e o álbum. Embaixo vem a letra da música, no tempo dela: a linha cantada
 agora em letra grande, a linha anterior e as duas próximas. A barra embaixo tem
-Tocar, Avançar e **✕**, que fecha a letra daquela música. Ligue **Config →
-Integrações → Spotify → Sempre abrir a letra** para ela abrir sozinha sempre que
-a música tiver letra. O cartão fica no tamanho normal quando o painel do Home
+Tocar, Avançar e **✕**, que fecha a letra daquela música; o botão **Letra** do
+cartão pequeno abre de novo. A próxima música abre a letra sozinha de novo. O
+cartão fica no tamanho normal quando o painel do Home
 Assistant aparece, ou quando os outros cartões precisam de mais de uma coluna.
 
 A letra vem do [LRCLIB](https://lrclib.net), um site gratuito de letras. Para
@@ -134,7 +136,8 @@ achá-la, o carro envia para lá os nomes da música, do artista e do álbum, um
 vez por música, e também da próxima música da sua fila no Spotify, para a letra
 estar pronta quando ela começar. Se você entrou no Spotify antes desta versão,
 toque em **Conectar** mais uma vez para permitir isso. Algumas músicas não têm
-letra com tempo no LRCLIB; para essas, o botão Letra fica apagado.
+letra com tempo no LRCLIB; para essas, o botão Letra fica apagado. Com a chave
+desligada, o carro não envia nada para lá.
 
 ### Dashcam
 

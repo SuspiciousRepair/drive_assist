@@ -116,13 +116,14 @@ Sign in once and the home screen shows what is playing, with controls. The
 small gear in the card's top-right corner opens the car's own sound settings,
 with the equalizer.
 
-The **Lyrics** button grows the card to two columns and the full height of the
-screen. At the top, in a soft shade of the album art's main colour, are the
+Turn on **Config → Integrations → Spotify → Lyrics** to see the words of the
+song. Whenever a song has lyrics, the card grows to two columns and the full
+height of the screen. At the top, in a soft shade of the album art's main colour, are the
 art, the song, the artist and the album. Under them are the words of the song,
 in time with it: the line sung now in large type, the line before it, and the
 next two. The bar at the bottom has Play, Skip and **✕**, which closes the
-lyrics for that song. Turn on **Config → Integrations → Spotify → Always open
-lyrics** to open them by itself whenever a song has them. The card stays at
+lyrics for that song; the **Lyrics** button on the small card opens them again.
+The next song opens its lyrics by itself again. The card stays at
 its normal size when the Home Assistant panel is up, or when the other cards
 need more than one column.
 
@@ -131,7 +132,7 @@ them, the car sends the song, artist and album names there, once for each song,
 and also for the next song in your Spotify queue so its lyrics are ready when
 it starts. If you signed in to Spotify before this version, tap **Connect**
 once more to allow that. Some songs have no timed lyrics on LRCLIB; for those
-the Lyrics button is dim.
+the Lyrics button is dim. With the switch off, the car sends nothing there.
 
 ### Dashcam
 

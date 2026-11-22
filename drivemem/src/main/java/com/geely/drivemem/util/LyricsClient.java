@@ -12,9 +12,9 @@ import java.nio.charset.StandardCharsets;
  *
  * Spotify's Web API has no lyrics. LRCLIB is a free, open lyrics database
  * with time-stamped (LRC) lines and no API key. What it gets from the car:
- * the track name, the artist, the album and the length. Nothing else. It
- * asks for every Spotify track the card shows, so the card's Lyrics button
- * knows whether there is anything to open.
+ * the track name, the artist, the album and the length. Nothing else, and
+ * only while Config's Lyrics switch is on (the callers check it: that
+ * switch is the driver's consent to this lookup).
  *
  * One request per track, made ahead for the next track in Spotify's queue
  * (prefetch) and else when the track starts. The answer is kept in the cache folder, one file

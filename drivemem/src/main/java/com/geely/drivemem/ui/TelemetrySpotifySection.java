@@ -86,8 +86,8 @@ public final class TelemetrySpotifySection extends LinearLayout {
 
         // Read by ComfortActivity on every onResume -- no recreate needed.
         home.addView(Style.toggleRow(activity, activity.getString(R.string.cfg_spotify_lyrics),
-            Prefs.getSpotifyLyricsAuto(activity),
-            on -> Prefs.setSpotifyLyricsAuto(activity, on)));
+            Prefs.getSpotifyLyrics(activity),
+            on -> Prefs.setSpotifyLyrics(activity, on)));
         home.addView(ConfigCards.hint(activity, activity.getString(R.string.cfg_spotify_lyrics_hint)));
     }
 
