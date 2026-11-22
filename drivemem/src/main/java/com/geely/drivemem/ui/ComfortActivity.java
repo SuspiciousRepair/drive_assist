@@ -145,14 +145,16 @@ public class ComfortActivity extends Activity {
     private boolean lastMusicAvailable = false;
     private String lastMusicArtUrl = null;   // avoids re-fetching the same art on every state ping
     private boolean musicLargeCardAtBuild;   // Config > Spotify: "Large card" -- read once like turboEnabledAtBuild
-    // Lyrics: an extra part of the music card (either layout), GONE unless
-    // lyricsWanted() and the cards still fit in three columns with it -- see
-    // repackColumns(). The setting is read on every onResume, no recreate().
-    private LinearLayout lyricsBlock;
-    private TextView lyricNowView, lyricNextView;
+    // Lyrics: a card of their own, the full height of the screen, in the
+    // columns the other cards leave free (one or two). Not in `cards`: it is
+    // placed after the pack, by placeLyrics(). With no free column, or the HA
+    // panel up, it is not shown. The setting is read on every onResume.
+    private LinearLayout lyricsCard;
+    private android.widget.ScrollView lyricsScroll;
+    private LinearLayout lyricsList;        // one TextView per LRC line
     private boolean lyricsEnabled;
     private boolean lyricsWantedAtPack;     // what the last repack decided from, so refreshLyrics() repacks only on a change
-    private Lrc lyricsTickLines;            // the lines the two views show now
+    private Lrc lyricsTickLines;            // the lines lyricsList holds now
     private int lyricIndex = Integer.MIN_VALUE;
     // Show a line this much before Spotify's position reaches it: the poll's
     // answer is already a little old when it lands, and the eye needs a beat.
@@ -298,6 +300,7 @@ public class ComfortActivity extends Activity {
         journeyCard = journeyCard();
         cards.add(journeyCard);
         cards.add(musicCard());
+        lyricsCard = lyricsCard();
         chargeCard = chargeCard();
         cards.add(chargeCard);
         // Last, on purpose: the HA context panel used to be a fixed rightmost
@@ -456,16 +459,26 @@ public class ComfortActivity extends Activity {
             LayoutWait.onNextLayout(colW <= 0 ? band : columns, this::repackColumns);
             return;
         }
-        // Lyrics first try the taller music card; when that pushes the cards
-        // past the three columns on screen, the card goes back to its own size.
-        boolean lyrics = lyricsWanted();
-        lyricsWantedAtPack = lyrics;
-        setLyricsVisible(lyrics);
-        int n = Style.packIntoColumns(this, columns, cards, colW, availH);
-        if (lyrics && !ComfortCardVisibility.lyricsFit(n)) {
-            setLyricsVisible(false);
-            Style.packIntoColumns(this, columns, cards, colW, availH);
-        }
+        // The lyrics card goes in after the others, into the columns they
+        // leave free -- again after the pack's own verify pass, if that one
+        // repacks (it clears `columns`).
+        int n = Style.packIntoColumns(this, columns, cards, colW, availH,
+            cols -> placeLyrics(cols, colW, availH));
+        placeLyrics(n, colW, availH);
+    }
+
+    private void placeLyrics(int usedColumns, int colW, int availH) {
+        boolean want = lyricsWanted();
+        lyricsWantedAtPack = want;
+        ViewGroup old = (ViewGroup) lyricsCard.getParent();
+        if (old != null) old.removeView(lyricsCard);
+        int span = ComfortCardVisibility.lyricsSpan(want, usedColumns);
+        if (span == 0) { setLyricsVisible(false); return; }
+        int gapH = Style.dp(this, Style.COLUMN_GAP_DP);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(span * colW + (span - 1) * gapH, availH);
+        lp.leftMargin = gapH;
+        columns.addView(lyricsCard, lp);
+        setLyricsVisible(true);
     }
 
     // The Clima card: title, outside temp, the effort scale, the two ask tiles
@@ -986,8 +999,6 @@ public class ComfortActivity extends Activity {
         textLp.leftMargin = Style.dp(this, 18);
         row.addView(textCol, textLp);
         m.addView(row);
-        LinearLayout lyrics = lyricsBlock(0, 18);
-        m.addView(lyrics);
         Style.gap(m, this, 18);
 
         LinearLayout btnRow = new LinearLayout(this);
@@ -1156,7 +1167,6 @@ public class ComfortActivity extends Activity {
         artFrame.addView(caption, capLp);
 
         m.addView(artFrame);
-        m.addView(lyricsBlock(22, 18));
 
         LinearLayout btnBand = new LinearLayout(this);
         btnBand.setOrientation(LinearLayout.HORIZONTAL);
@@ -1176,48 +1186,95 @@ public class ComfortActivity extends Activity {
         return m;
     }
 
-    // The lyrics part of the music card: the line sung now (bold, up to two
-    // lines) and the next one (dim). Both keep a FIXED number of lines, so
-    // the card's height does not change from one lyric line to the next --
-    // a card that grew and shrank would re-flow the columns every few seconds.
-    // padH is the side inset (the small card's own padding already gives
-    // one); padTop the space above. Built GONE; repackColumns() decides.
-    private LinearLayout lyricsBlock(int padH, int padTop) {
-        LinearLayout b = new LinearLayout(this);
-        b.setOrientation(LinearLayout.VERTICAL);
-        b.setPadding(Style.dp(this, padH), Style.dp(this, padTop), Style.dp(this, padH), 0);
-        b.setVisibility(View.GONE);
-        lyricNowView = new TextView(this);
-        lyricNowView.setTextColor(Style.TEXT); lyricNowView.setTextSize(30);
-        lyricNowView.setTypeface(null, android.graphics.Typeface.BOLD);
-        lyricNowView.setLines(2);
-        lyricNowView.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        b.addView(lyricNowView);
-        lyricNextView = new TextView(this);
-        lyricNextView.setTextColor(Style.TEXT_DIM); lyricNextView.setTextSize(24);
-        lyricNextView.setLines(2);
-        lyricNextView.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        lyricNextView.setPadding(0, Style.dp(this, 8), 0, 0);
-        b.addView(lyricNextView);
-        lyricsBlock = b;
-        return b;
+    // The lyrics card: every line of the song, one under the other, and the
+    // list moves so the line sung now sits a third of the way down, in full
+    // TEXT colour; lines already sung are fainter than the ones to come. All
+    // lines have the same size and weight, so a new line never re-wraps the
+    // list. The list does not take touches: it follows the song only.
+    private LinearLayout lyricsCard() {
+        LinearLayout c = new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        int pad = Style.dp(this, 26);
+        c.setPadding(pad, 0, pad, 0);
+        c.setBackground(Style.card(Style.cardFillColor(), this));
+        c.setClipToOutline(true);
+        lyricsScroll = new android.widget.ScrollView(this);
+        lyricsScroll.setVerticalScrollBarEnabled(false);
+        lyricsScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        lyricsScroll.setOnTouchListener((v, e) -> true);
+        lyricsList = new LinearLayout(this);
+        lyricsList.setOrientation(LinearLayout.VERTICAL);
+        lyricsScroll.addView(lyricsList, new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        // Room above the first line and below the last, so both can reach
+        // the reading position too.
+        lyricsScroll.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or_, ob) -> {
+            int h = b - t;
+            if (h <= 0 || h == ob - ot) return;
+            lyricsList.setPadding(0, h / 3, 0, h - h / 3);
+            lyricIndex = Integer.MIN_VALUE;   // scroll again on the new height
+        });
+        c.addView(lyricsScroll, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        return c;
+    }
+
+    private void fillLyrics(Lrc lines) {
+        lyricsList.removeAllViews();
+        int gap = Style.dp(this, 18);
+        for (int i = 0; i < lines.size(); i++) {
+            TextView t = new TextView(this);
+            t.setText(lyricText(lines, i));
+            t.setTextSize(34);
+            t.setTypeface(null, android.graphics.Typeface.BOLD);
+            t.setPadding(0, 0, 0, gap);
+            lyricsList.addView(t);
+        }
+        lyricsScroll.scrollTo(0, 0);
+    }
+
+    // Colours every line for the one sung now (-1: none yet) and moves the
+    // list to it.
+    private void showLyricLine(int now) {
+        for (int i = 0; i < lyricsList.getChildCount(); i++) {
+            TextView t = (TextView) lyricsList.getChildAt(i);
+            t.setTextColor(i == now ? Style.TEXT : Style.TEXT_DIM);
+            t.setAlpha(i < now ? 0.45f : 1f);
+        }
+        View target = lyricsList.getChildAt(Math.max(0, now));
+        if (target == null) return;
+        if (target.getHeight() == 0) {   // just filled: not laid out yet
+            lyricsScroll.post(() -> scrollToLyric(target));
+        } else {
+            scrollToLyric(target);
+        }
+    }
+
+    private void scrollToLyric(View target) {
+        int y = target.getTop() - lyricsList.getPaddingTop();
+        lyricsScroll.smoothScrollTo(0, Math.max(0, y));
     }
 
     private boolean lyricsWanted() {
-        return lyricsBlock != null && ComfortCardVisibility.showLyrics(lyricsEnabled, CarState.isParked(),
+        return lyricsCard != null && ComfortCardVisibility.showLyrics(lyricsEnabled, CarState.isParked(),
             musicCard != null && musicCard.getVisibility() == View.VISIBLE,
             LyricsClient.linesFor(MusicState.trackId()) != null,
             panelCard != null && panelCard.getVisibility() == View.VISIBLE);
     }
 
     private void setLyricsVisible(boolean on) {
-        if (lyricsBlock == null) return;
-        lyricsBlock.setVisibility(on ? View.VISIBLE : View.GONE);
+        if (lyricsCard == null) return;
+        lyricsCard.setVisibility(on ? View.VISIBLE : View.GONE);
         ui.removeCallbacks(lyricsTick);
         if (on) {
-            lyricsTickLines = null;   // the next tick fills both views at once
+            lyricIndex = Integer.MIN_VALUE;   // the next tick colours and scrolls again
             ui.post(lyricsTick);
         }
+    }
+
+    private boolean lyricsShown() {
+        return lyricsCard != null && lyricsCard.getParent() != null
+            && lyricsCard.getVisibility() == View.VISIBLE;
     }
 
     // Repacks only when the answer changed: park/drive, a track with or
@@ -1238,16 +1295,19 @@ public class ComfortActivity extends Activity {
     // shows up at the next poll. Views are only touched when the line changes.
     private final Runnable lyricsTick = new Runnable() {
         @Override public void run() {
-            if (lyricsBlock == null || lyricsBlock.getVisibility() != View.VISIBLE) return;
+            if (!lyricsShown()) return;
             Lrc lines = LyricsClient.linesFor(MusicState.trackId());
             if (lines != null) {
+                if (lines != lyricsTickLines) {
+                    lyricsTickLines = lines;
+                    fillLyrics(lines);
+                    lyricIndex = Integer.MIN_VALUE;
+                }
                 long pos = MusicState.positionNowMs(android.os.SystemClock.elapsedRealtime()) + LYRICS_LEAD_MS;
                 int i = lines.indexAt(pos);
-                if (lines != lyricsTickLines || i != lyricIndex) {
-                    lyricsTickLines = lines;
+                if (i != lyricIndex) {
                     lyricIndex = i;
-                    lyricNowView.setText(i >= 0 ? lyricText(lines, i) : "♪");
-                    lyricNextView.setText(i + 1 < lines.size() ? lyricText(lines, i + 1) : "");
+                    showLyricLine(i);
                 }
             }
             ui.postDelayed(this, LYRICS_TICK_MS);
@@ -2587,7 +2647,7 @@ public class ComfortActivity extends Activity {
             refreshLyrics();
         }
         // The tick stopped in onPause; start it again if lyrics are up.
-        if (lyricsBlock != null && lyricsBlock.getVisibility() == View.VISIBLE) setLyricsVisible(true);
+        if (lyricsShown()) setLyricsVisible(true);
         ChargeSession.setProgressListener(chargeListener);
         CarState.addListener(carStateListener);
         chargeBarW = -1;   // force one redraw even if the numbers match

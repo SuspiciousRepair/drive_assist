@@ -882,11 +882,20 @@ public class Style {
      * Returns how many columns the first pass took. */
     public static int packIntoColumns(Context c, LinearLayout columns, List<LinearLayout> cards,
             int columnWidthPx, int availableHeightPx) {
+        return packIntoColumns(c, columns, cards, columnWidthPx, availableHeightPx, null);
+    }
+
+    /** Same, and afterRepack gets the new column count when the verify pass
+     * repacks -- for a caller that adds its own view after the columns (that
+     * repack removes it). */
+    public static int packIntoColumns(Context c, LinearLayout columns, List<LinearLayout> cards,
+            int columnWidthPx, int availableHeightPx, java.util.function.IntConsumer afterRepack) {
         int n = packIntoColumnsOnce(c, columns, cards, columnWidthPx, availableHeightPx);
         columns.post(() -> {
             for (int i = 0; i < columns.getChildCount(); i++) {
                 if (columns.getChildAt(i).getHeight() > availableHeightPx) {
-                    packIntoColumnsOnce(c, columns, cards, columnWidthPx, availableHeightPx);
+                    int again = packIntoColumnsOnce(c, columns, cards, columnWidthPx, availableHeightPx);
+                    if (afterRepack != null) afterRepack.accept(again);
                     return;
                 }
             }

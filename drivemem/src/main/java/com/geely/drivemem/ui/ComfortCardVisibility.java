@@ -60,22 +60,23 @@ public final class ComfortCardVisibility {
     }
 
     /**
-     * The lyrics part of the music card, before the room check. Only in Park:
-     * text that changes every few seconds pulls the driver's eyes. Never with
-     * the Home Assistant panel up: the panel is the last card packed, and the
-     * taller music card would push it off the screen.
+     * The lyrics card, before the room check. Only in Park: text that moves
+     * every few seconds pulls the driver's eyes. Never with the Home
+     * Assistant panel up: the panel needs the room the lyrics would take.
      */
     public static boolean showLyrics(boolean enabled, boolean parked, boolean musicShown,
                                      boolean haveLines, boolean panelShown) {
         return enabled && parked && musicShown && haveLines && !panelShown;
     }
 
-    /** The screen shows three columns; a fourth means scrolling sideways.
-     * With more cards than that, the music card goes back to its own size. */
+    /** The screen shows three columns; a fourth means scrolling sideways. */
     public static final int SCREEN_COLUMNS = 3;
 
-    public static boolean lyricsFit(int columnsWithLyrics) {
-        return columnsWithLyrics <= SCREEN_COLUMNS;
+    /** How many columns the lyrics card spans: all the ones the other cards
+     * leave free (two when they fit in one column), 0 when none is free. */
+    public static int lyricsSpan(boolean wanted, int columnsUsedByCards) {
+        if (!wanted) return 0;
+        return Math.max(0, SCREEN_COLUMNS - columnsUsedByCards);
     }
 
     /**

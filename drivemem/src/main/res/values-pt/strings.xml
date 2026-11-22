@@ -162,7 +162,7 @@
     <string name="cfg_spotify_large_card">Cartão grande</string>
     <string name="cfg_spotify_large_card_hint">A capa do álbum preenche o cartão, com uma faixa grande de Play/Avançar embaixo. Desligado mostra o cartão menor, com a capa ao lado do título.</string>
     <string name="cfg_spotify_lyrics">Letra</string>
-    <string name="cfg_spotify_lyrics_hint">A letra da música no cartão de música, linha por linha, só em Park. Ela some quando o painel do Home Assistant aparece ou quando os cartões enchem a tela. Os nomes da música, do artista e do álbum vão para lrclib.net, um site gratuito de letras.</string>
+    <string name="cfg_spotify_lyrics_hint">A letra da música, no tempo dela, num cartão da altura toda da tela, nas colunas que os outros cartões deixam livres. Só em Park. Não aparece com o painel do Home Assistant aberto ou com os cartões enchendo a tela. Os nomes da música, do artista e do álbum vão para lrclib.net, um site gratuito de letras.</string>
     <string name="spotify_play_label">Tocar</string>
     <string name="spotify_skip_label">Avançar</string>
     <string name="cfg_commands_label">Aceitar comandos do HA</string>

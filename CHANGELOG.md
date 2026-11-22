@@ -4,13 +4,14 @@
 
 ### Added
 - **Song lyrics on the Spotify card.** Turn on **Config → Integrations →
-  Spotify → Lyrics**. In Park, the music card grows to show the line sung now and the
-  next one, in time with the song. It goes back to its normal size when the
-  car leaves Park, when the Home Assistant panel is up, or when the cards
-  would no longer fit on the screen. The lyrics come from LRCLIB
+  Spotify → Lyrics**. In Park, a lyrics card the full height of the screen shows the
+  song's lines, in time with it; the line sung now is bright. It takes the
+  columns the other cards leave free: two when they fit in one. It goes away
+  when the car leaves Park, when the Home Assistant panel is up, or when the
+  other cards fill all three columns. The lyrics come from LRCLIB
   (lrclib.net), a free lyrics site: the car sends it the song, artist and
   album names, once per song, and keeps the answer. Off by default. Some
-  songs have no timed lyrics there; then the card does not change. After a
+  songs have no timed lyrics there; then no lyrics card shows. After a
   jump inside a song, the lines can be up to 6 seconds behind, until the
   next Spotify check.
 
