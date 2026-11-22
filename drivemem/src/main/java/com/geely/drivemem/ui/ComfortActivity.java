@@ -159,11 +159,9 @@ public class ComfortActivity extends Activity {
     private android.widget.ImageView jumboArtView;
     private TextView jumboTitleView, jumboArtistView, jumboAlbumView;
     private final java.util.List<View> lyricsOpenButtons = new java.util.ArrayList<>();   // on the condensed card
-    // Open or closed for the track playing now. With Config's Lyrics on,
-    // every new track starts open; ✕ closes it for that track and the
-    // card's Lyrics button opens it again. With it off nothing is open.
+    // Open or closed: the driver's last choice (✕ or the Lyrics button),
+    // kept across tracks and restarts in Prefs.spotify_lyrics_open.
     private boolean lyricsOpen;
-    private String lyricsOpenFor;             // the track lyricsOpen belongs to
     private boolean eqAvailable;              // the car's sound settings can be opened (OemSound); read once, at build
     private final java.util.List<android.widget.ImageView> soundGears = new java.util.ArrayList<>();
     private int jumboFill = 0;   // the cover's main colour, see loadMusicArt()
@@ -233,6 +231,7 @@ public class ComfortActivity extends Activity {
         turboSlotsAtBuild = turboSlotsFromPrefs();
         musicLargeCardAtBuild = Prefs.getSpotifyLargeCard(this);
         lyricsEnabled = Prefs.getSpotifyLyrics(this);
+        lyricsOpen = Prefs.getSpotifyLyricsOpen(this);
         eqAvailable = OemSound.intent(this) != null;
         skylineEnabledAtBuild = Prefs.getSkylineEnabled(this);
         skylineSeedAtBuild = Prefs.getSkylineSeed(this, com.geely.drivemem.art.Skyline.DEFAULT_SEED);
@@ -1457,19 +1456,10 @@ public class ComfortActivity extends Activity {
     }
 
     private void setLyricsOpen(boolean open) {
-        followTrack();
         if (open == lyricsOpen) return;
         lyricsOpen = open;
+        Prefs.setSpotifyLyricsOpen(this, open);
         if (columns != null) repackColumns();
-    }
-
-    // A new track starts open (the lyrics open by themselves whenever a
-    // track has them); a ✕ on the last track does not carry over.
-    private void followTrack() {
-        String id = MusicState.trackId();
-        if (id == null || id.equals(lyricsOpenFor)) return;
-        lyricsOpenFor = id;
-        lyricsOpen = true;
     }
 
     // The open-lyrics button on the condensed card: there only with the
@@ -2318,7 +2308,6 @@ public class ComfortActivity extends Activity {
             if (available) {
                 showMusicText(title, artist);
                 loadMusicArt(artUrl);
-                followTrack();
                 requestLyrics();
             }
             if (available != lastMusicAvailable) {
@@ -2884,7 +2873,7 @@ public class ComfortActivity extends Activity {
         boolean nowMusicAvailable = ComfortCardVisibility.showMusicCard(MusicState.title());
         if (musicCard != null) musicCard.setVisibility(nowMusicAvailable ? View.VISIBLE : View.GONE);
         lyricsEnabled = Prefs.getSpotifyLyrics(this);   // may have changed in Config
-        followTrack();
+        lyricsOpen = Prefs.getSpotifyLyricsOpen(this);
         refreshLyricsButtons();
         if (nowMusicAvailable) {
             showMusicText(MusicState.title(), MusicState.artist());

@@ -4,14 +4,13 @@
 
 ### Added
 - **Song lyrics on the Spotify card.** Turn on **Config → Integrations →
-  Spotify → Lyrics** (off by default). Whenever a song has lyrics, the
-  music card grows to two columns and the full height of the screen: at
+  Spotify → Lyrics search** (off by default). The **Lyrics** button on the
+  music card grows it to two columns and the full height of the screen: at
   the top the art, song, artist and album, in a soft shade of the album
   art's main colour; under them the line sung now in large type, the line
   before it and the next two, in time with the song; and Play, Skip and a
-  close button at the bottom. The close button closes them for that song;
-  the **Lyrics** button on the small card opens them again, and the next
-  song opens by itself again. The card keeps its normal size when the Home
+  close button at the bottom. The card remembers the last choice, open
+  or closed, from song to song. The card keeps its normal size when the Home
   Assistant panel is up, or when the other cards need more than one
   column. The lyrics come from LRCLIB (lrclib.net), a free lyrics site:
   the car sends it the song, artist and album names, once per song, and

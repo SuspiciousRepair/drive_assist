@@ -116,14 +116,14 @@ Sign in once and the home screen shows what is playing, with controls. The
 small gear in the card's top-right corner opens the car's own sound settings,
 with the equalizer.
 
-Turn on **Config → Integrations → Spotify → Lyrics** to see the words of the
-song. Whenever a song has lyrics, the card grows to two columns and the full
-height of the screen. At the top, in a soft shade of the album art's main colour, are the
+Turn on **Config → Integrations → Spotify → Lyrics search** to see the words of
+the song. The **Lyrics** button on the card grows it to two columns and the
+full height of the screen. At the top, in a soft shade of the album art's main colour, are the
 art, the song, the artist and the album. Under them are the words of the song,
 in time with it: the line sung now in large type, the line before it, and the
 next two. The bar at the bottom has Play, Skip and **✕**, which closes the
-lyrics for that song; the **Lyrics** button on the small card opens them again.
-The next song opens its lyrics by itself again. The card stays at
+lyrics. The card remembers your last choice, open or closed, from song to song
+and after the car sleeps. The card stays at
 its normal size when the Home Assistant panel is up, or when the other cards
 need more than one column.
 

@@ -61,7 +61,7 @@ public final class ComfortCardVisibility {
 
     /**
      * The jumbo music card (two columns, full height, lyrics), before the
-     * room check: Config's Lyrics on, not closed with ✕ for this track,
+     * room check: Config's Lyrics on, left open (the driver's last choice),
      * music playing, lines for the track. Never with the Home Assistant panel
      * up: the panel needs the room. Parked or driving alike (owner's call,
      * 2026-11-22).

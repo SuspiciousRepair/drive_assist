@@ -208,11 +208,14 @@ public final class Prefs {
     public static void setExtraDarkGlobal(Context ctx, boolean v) { file(ctx).edit().putBoolean("extra_dark_global", v).apply(); }
     public static boolean getSpotifyLargeCard(Context ctx) { return file(ctx).getBoolean("spotify_large_card", false); }
     public static void setSpotifyLargeCard(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_large_card", v).apply(); }
-    // Lyrics on the music card. ONE switch for both the consent and the behaviour: off (the
-    // default) sends nothing to lrclib.net and shows no Lyrics button; on looks lyrics up and
-    // opens them by itself whenever a track has them (✕ closes them for that track).
+    // Lyrics search on the music card: the driver's consent. Off (the default) sends nothing to
+    // lrclib.net and shows no Lyrics button.
     public static boolean getSpotifyLyrics(Context ctx) { return file(ctx).getBoolean("spotify_lyrics", false); }
     public static void setSpotifyLyrics(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_lyrics", v).apply(); }
+    // The lyrics open (jumbo card) or closed: the last ✕ / Lyrics tap, kept across tracks and
+    // restarts. Open by default, so turning the search on shows them.
+    public static boolean getSpotifyLyricsOpen(Context ctx) { return file(ctx).getBoolean("spotify_lyrics_open", true); }
+    public static void setSpotifyLyricsOpen(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_lyrics_open", v).apply(); }
     public static String getSpotifyClientId(Context ctx) { return file(ctx).getString("spotify_client_id", ""); }
     public static void setSpotifyClientId(Context ctx, String v) { file(ctx).edit().putString("spotify_client_id", v).apply(); }
     public static String getSpotifyAccessToken(Context ctx) { return file(ctx).getString("spotify_access_token", null); }

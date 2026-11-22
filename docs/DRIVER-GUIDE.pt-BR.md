@@ -120,14 +120,14 @@ Entre uma vez e a tela inicial mostra o que está tocando, com controles. A
 pequena engrenagem no canto de cima, à direita, do cartão abre os ajustes de som
 do próprio carro, com o equalizador.
 
-Ligue **Config → Integrações → Spotify → Letra** para ver a letra da música.
-Sempre que a música tiver letra, o cartão cresce para duas colunas e a altura
-toda da tela. No
+Ligue **Config → Integrações → Spotify → Busca de letras** para ver a letra da
+música. O botão **Letra** do cartão aumenta o cartão para duas colunas e a
+altura toda da tela. No
 alto, num tom suave da cor principal da capa do álbum, ficam a capa, a música, o
 artista e o álbum. Embaixo vem a letra da música, no tempo dela: a linha cantada
 agora em letra grande, a linha anterior e as duas próximas. A barra embaixo tem
-Tocar, Avançar e **✕**, que fecha a letra daquela música; o botão **Letra** do
-cartão pequeno abre de novo. A próxima música abre a letra sozinha de novo. O
+Tocar, Avançar e **✕**, que fecha a letra. O cartão lembra a sua última escolha,
+aberta ou fechada, de uma música para a outra e depois que o carro dorme. O
 cartão fica no tamanho normal quando o painel do Home
 Assistant aparece, ou quando os outros cartões precisam de mais de uma coluna.
 
