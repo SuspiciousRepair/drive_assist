@@ -31,22 +31,27 @@ final class Dexopt {
      * for the compile itself (tens of seconds), so call it off the main
      * thread. */
     static void ensure(Context ctx) {
+        for (String pkg : PACKAGES) ensureOne(ctx, pkg);
+    }
+
+    /** The helper alone, at its start: see ModeHelperService.compileAtStart. */
+    static void ensureSelf(Context ctx) { ensureOne(ctx, ctx.getPackageName()); }
+
+    private static void ensureOne(Context ctx, String pkg) {
         SharedPreferences p = ctx.getSharedPreferences("modehelper", Context.MODE_PRIVATE);
-        for (String pkg : PACKAGES) {
-            try {
-                PackageInfo info = ctx.getPackageManager().getPackageInfo(pkg, 0);
-                String key = "dexopt_vc_" + pkg;
-                if (p.getInt(key, -1) == info.versionCode) continue;
-                long t0 = System.currentTimeMillis();
-                boolean ok = compile(pkg);
-                Log.i(TAG, "dexopt: " + pkg + " vc=" + info.versionCode + " speed="
-                    + ok + " in " + (System.currentTimeMillis() - t0) + " ms");
-                // Recorded either way: a refusal is not going to change for
-                // this version, and retrying every minute would only burn CPU.
-                p.edit().putInt(key, info.versionCode).apply();
-            } catch (Throwable t) {
-                Log.w(TAG, "dexopt: " + pkg + ": " + t);
-            }
+        try {
+            PackageInfo info = ctx.getPackageManager().getPackageInfo(pkg, 0);
+            String key = "dexopt_vc_" + pkg;
+            if (p.getInt(key, -1) == info.versionCode) return;
+            long t0 = System.currentTimeMillis();
+            boolean ok = compile(pkg);
+            Log.i(TAG, "dexopt: " + pkg + " vc=" + info.versionCode + " speed="
+                + ok + " in " + (System.currentTimeMillis() - t0) + " ms");
+            // Recorded either way: a refusal is not going to change for
+            // this version, and retrying every minute would only burn CPU.
+            p.edit().putInt(key, info.versionCode).apply();
+        } catch (Throwable t) {
+            Log.w(TAG, "dexopt: " + pkg + ": " + t);
         }
     }
 

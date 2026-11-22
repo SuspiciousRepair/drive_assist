@@ -56,8 +56,7 @@
   update ModeHelper prepares a faster copy of itself, but it kept running
   the slow copy until the head unit restarted, which can be days. With park
   monitoring on, it used about half of one processor core. It now starts
-  itself again one time after the update, in Park and when no parked clip
-  is being recorded.
+  itself again one time as part of the update, before the dashcam starts.
 
 ## [v0.10.0] — 2026-11-20
 

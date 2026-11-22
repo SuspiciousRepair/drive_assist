@@ -9,8 +9,11 @@ package com.geely.modehelper;
  * on the car 2026-11-22: the parked motion check alone took about 40 % of a
  * core, and the process had no executable mapping of its own .odex.
  *
- * So the helper ends its own process once per installed version, after the
- * compile, at a moment that loses nothing. The service is START_STICKY.
+ * So the helper ends its own process once per installed version, as part of
+ * the install: its first start compiles it and starts it again at once,
+ * before the dashcam or anything else runs. If that could not happen (an
+ * install was in progress), it happens later at a moment that loses
+ * nothing ({@link #safe}). The service is START_STICKY.
  *
  * Pure Java (no Android), so the rules are unit-tested. */
 final class CompiledCode {
@@ -36,7 +39,7 @@ final class CompiledCode {
         return compiledVc == installedVc && restartedVc != installedVc && !loaded;
     }
 
-    /** The moment loses nothing: the car is in Park, no parked motion clip
+    /** For the later restart. The moment loses nothing: the car is in Park, no parked motion clip
      * is being recorded, and the car is not shutting down. */
     static boolean safe(boolean parked, boolean motionEvent, boolean shuttingDown) {
         return parked && !motionEvent && !shuttingDown;
