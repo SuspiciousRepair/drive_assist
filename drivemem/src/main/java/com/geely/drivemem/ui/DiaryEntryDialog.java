@@ -888,7 +888,7 @@ public final class DiaryEntryDialog {
             } else if (selectedCat == CarDiary.Category.NOISE) {
                 adaptiveBox.setVisibility(View.VISIBLE);
                 buildNoiseTags();
-            } else if (selectedCat == CarDiary.Category.INCIDENT) {
+            } else if (selectedCat == CarDiary.Category.INCIDENT && jolt != null) {
                 adaptiveBox.setVisibility(View.VISIBLE);
                 buildIncidentControls();
             } else if (selectedCat == CarDiary.Category.SERVICE) {
@@ -1227,8 +1227,9 @@ public final class DiaryEntryDialog {
                 Double lat = jolt != null ? jolt.lat : null;
                 Double lon = jolt != null ? jolt.lon : null;
                 String meta = jolt != null ? CarDiary.buildJoltMeta(jolt.maxG(), jolt.speedKmh) : null;
+                boolean captureClip = (jolt != null && saveClip);
                 CarDiary.insertIncidentWithOptionalClip(
-                    app, tsMs, saveClip, true, odo, outC, lat, lon, cost,
+                    app, tsMs, captureClip, true, odo, outC, lat, lon, cost,
                     null, note, tags, meta, jolt != null ? jolt.id : null, onSaved);
             } else {
                 String meta = (cat == CarDiary.Category.SERVICE && !bundled.isEmpty())
