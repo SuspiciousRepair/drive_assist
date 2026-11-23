@@ -12,6 +12,21 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.11.0 — 2026-11-23
+
+- New: a page for each charge. Tap the charging card to see the power, temperature and battery charts, the numbers and the map.
+- New: the music card shows what your phone plays through the car (Bluetooth, CarPlay or Android Auto), with no sign-in. Turn it on in Config, Integrations, Music.
+- New: song lyrics on the music card, in time with the song. Turn on Lyrics search in the same place.
+- New: choose the currency for charge costs (Config, Elements, Localization).
+- New: the dashcam subtitle shows when the brake pedal is pressed.
+- Changed: a smaller charging card with more information. Charging stats uses the same card.
+- Changed: Later on the update window waits for a newer version, or for a check you start in Config.
+- Changed: the car keeps the lyrics of 1000 songs and the covers of 200 albums.
+- Removed: the Spotify sign-in. The music card works with any music app.
+- Fixed: the Stats page scrolls again, and a trip's map shows only its own charges.
+- Fixed: the music card follows the player that really plays, and finds the phone again by itself.
+- Fixed: park monitoring records the first seconds of a drive and no old video.
+
 ## v0.10.0 — 2026-11-20
 
 - New: Darkest mode. At night, after a minute of driving with no touch, the screen goes to its lowest light. Darkness makes it darker, up to the screen off. It has its own hours, can cover every screen, and Try it shows it at once. A touch or a gear change brings the light back.

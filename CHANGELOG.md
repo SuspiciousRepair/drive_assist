@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.11.0] — 2026-11-23
+
 ### Added
 - **A page for each charge.** Tap the charging card on the home screen to
   open it, during the charge (it updates every 15 seconds) or after it. On
@@ -140,10 +142,14 @@
   while the pedal is pressed. It needs the car's CAN reader, which is on
   by default (Config > System); with it off, the line shows no brake mark
   at all.
-
-### Fixed
 - **The cost window opens in any gear.** It no longer needs Park, and
   it stays open when the car leaves Park.
+- **The car keeps more songs.** Lyrics of the last 1000 songs (was 300;
+  about 3 MB) and, new, one cover for each of the last 200 albums (about 10 MB). A
+  song heard again counts as new, so favourites stay. A Bluetooth song with
+  no cover shows its album's cover, if seen before.
+
+### Fixed
 - **The charge page says "Charging now" only while current flows.** In
   the 3 minutes after a charge stops, it showed "Charging now". A page
   opened just after a charge ended could also show an older charge.
@@ -153,10 +159,6 @@
 - **The music card finds the phone again by itself.** When a car music
   app lost its link, the card stayed empty until Drive Assist restarted.
   Now it tries again after 15 s, then less often.
-- **The car keeps more songs.** Lyrics of the last 1000 songs (was 300;
-  about 3 MB) and, new, one cover for each of the last 200 albums (about 10 MB). A
-  song heard again counts as new, so favourites stay. A Bluetooth song with
-  no cover shows its album's cover, if seen before.
 - **The cover is not loaded again on every update.** CarPlay sends an
   update every 5 s, and each one loaded and blurred the same cover again.
 - **Only Drive Assist can put BRAKE in a dashcam clip.** Another app could
