@@ -109,9 +109,9 @@ public class AltitudeGateTest {
     }
 
     @Test
-    public void theFirstTwoMinutesAreNotTrusted() {
+    public void theFirst90SecondsAreNotTrusted() {
         double[] alt = {816, 797, 760, 742, 741};
-        long[] ts = {0, 30_000, 90_000, 120_000, 150_000};
+        long[] ts = {0, 30_000, 60_000, 90_000, 120_000};
         double[] acc = {2, 2, 2, 2, 2};
         double[] out = AltitudeGate.dropUnsure(alt, ts, acc);
         for (int i = 0; i <= 2; i++) assertTrue("point " + i, Double.isNaN(out[i]));
@@ -123,7 +123,7 @@ public class AltitudeGateTest {
     public void aVagueFixIsNotTrusted() {
         // After a tunnel: 10 m position error, and a height 146 m low.
         double[] alt = {700, 701, 384, 530, 531};
-        long[] ts = {0, 130_000, 136_000, 142_000, 148_000};   // past the warm-up
+        long[] ts = {0, 100_000, 106_000, 112_000, 118_000};   // past the warm-up
         double[] acc = {2, 2, 10, 2, Double.NaN};
         double[] out = AltitudeGate.dropUnsure(alt, ts, acc);
         assertTrue(Double.isNaN(out[2]));

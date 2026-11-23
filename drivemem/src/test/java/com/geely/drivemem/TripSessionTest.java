@@ -376,13 +376,13 @@ public class TripSessionTest {
 
     @Test
     public void testReplayAscentDescentSkipsTheWarmUp() {
-        // The first 2 minutes: GPS height still settling, 75 m too high.
+        // The first 90 s: GPS height still settling, 75 m too high.
         long start = 1_000_000L;
         Object[][] rows = {
             new Object[]{Modes.DRIVE_COMFORT, 816.0, 100.0, start + 5_000L},
             new Object[]{Modes.DRIVE_COMFORT, 760.0, 100.4, start + 60_000L},
-            new Object[]{Modes.DRIVE_COMFORT, 742.0, 100.8, start + 125_000L},
-            new Object[]{Modes.DRIVE_COMFORT, 750.0, 101.2, start + 155_000L},
+            new Object[]{Modes.DRIVE_COMFORT, 742.0, 100.8, start + 95_000L},
+            new Object[]{Modes.DRIVE_COMFORT, 750.0, 101.2, start + 125_000L},
         };
         double[] ad = TripSession.replayAscentDescent(rows, start);
         assertEquals(8.0, ad[0], 1e-9);

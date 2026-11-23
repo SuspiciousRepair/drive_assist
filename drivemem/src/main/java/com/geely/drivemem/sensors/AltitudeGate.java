@@ -66,10 +66,10 @@ public final class AltitudeGate {
     /** GPS height is not trusted for this long after a trip starts. The
      * GPS reports a good position (2 m) at once, but its height can be
      * 75-145 m off and take one to two minutes to settle (owner car,
-     * 2026-11-23). Replayed on trips that start and end at home, a
-     * 2-minute wait made the climb and the descent match; 1 minute did
-     * not. */
-    public static final long WARM_UP_MS = 120_000L;
+     * 2026-11-23). Replayed on trips that start and end at home, 90 s
+     * made the climb and the descent nearly match (2 min only a little
+     * better); 1 minute did not. */
+    public static final long WARM_UP_MS = 90_000L;
 
     /** A route point whose position error is larger than this has a height
      * that is not trusted. 99 % of points are at 1-3 m; the bad heights
