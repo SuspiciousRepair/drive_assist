@@ -49,4 +49,29 @@ public class LyricsClientTest {
         assertEquals("4uLU6hMCjMI75M1A2tKUQC", LyricsClient.safeName("4uLU6hMCjMI75M1A2tKUQC"));
         assertEquals("a_b_c", LyricsClient.safeName("a/b.c"));
     }
+
+    private static JSONObject plainHit(Object plain, double duration) throws Exception {
+        JSONObject o = new JSONObject();
+        o.put("syncedLyrics", JSONObject.NULL);
+        o.put("plainLyrics", plain == null ? JSONObject.NULL : plain);
+        o.put("duration", duration);
+        o.put("instrumental", false);
+        return o;
+    }
+
+    @Test public void plainOfTakesTheUntimedText() throws Exception {
+        assertEquals("one\ntwo", LyricsClient.plainOf(plainHit("one\ntwo", 232)));
+        assertNull(LyricsClient.plainOf(plainHit(null, 232)));
+        assertNull(LyricsClient.plainOf(plainHit("  ", 232)));
+    }
+
+    @Test public void pickPlainMatchesTheLength() throws Exception {
+        // Long Road To Glory: LRCLIB has 17 versions, none timed.
+        JSONArray hits = new JSONArray()
+            .put(plainHit("short take", 191.6))
+            .put(plainHit("album take", 232.0));
+        assertEquals("album take", LyricsClient.pickPlain(hits, 232));
+        assertEquals("short take", LyricsClient.pickPlain(hits, 0));   // length unknown: the first
+        assertNull(LyricsClient.pickPlain(hits, 300));
+    }
 }

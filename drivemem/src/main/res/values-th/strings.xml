@@ -161,6 +161,7 @@
     <string name="music_skip_label">ข้าม</string>
     <string name="music_lyrics_label">เนื้อเพลง</string>
     <string name="music_lyrics_no_room">ไม่มีที่แสดงเนื้อเพลง: การ์ดอื่นใช้พื้นที่หน้าจออยู่</string>
+    <string name="music_lyrics_not_found">ไม่พบเนื้อเพลงของเพลงนี้</string>
     <string name="cfg_commands_label">ยอมรับคำสั่งจาก HA</string>
     <string name="cfg_commands_on">กำลังยอมรับคำสั่งจาก HA</string>
     <string name="cfg_commands_off">คำสั่งถูกบล็อก — เฉพาะการวัดระยะไกลเท่านั้น</string>

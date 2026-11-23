@@ -134,7 +134,10 @@ Assistant panel is up, or when the other cards need more than one column.
 
 The lyrics come from [LRCLIB](https://lrclib.net), a free lyrics site. To find
 them, the car sends the song, artist and album names there, once for each song.
-Some songs have no timed lyrics on LRCLIB; for those the Lyrics button is dim.
+Some songs have only untimed lyrics on LRCLIB. The card shows them too, but they
+do not move by themselves: tap the lower half of the lyrics to go down one line,
+the upper half to go back one. For a song with no lyrics at all, the Lyrics
+button is dim, and tapping it says "No lyrics found for this song".
 With the switch off, the car sends nothing there.
 
 ### Dashcam

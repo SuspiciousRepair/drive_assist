@@ -28,7 +28,10 @@
   column; the Lyrics button then says there is no room. The lyrics come from LRCLIB (lrclib.net), a free lyrics site:
   the car sends it the song, artist and album names, once per song, and
   keeps the answer; with the switch off it sends nothing. Some songs have
-  no timed lyrics there; for those the Lyrics button is dim.
+  only untimed lyrics there: the card shows them, and a tap on the lower
+  half of the lyrics goes down one line, on the upper half back one. For a
+  song with no lyrics at all the Lyrics button is dim, and a tap on it says
+  so.
 - **A gear on the music card for the car's sound settings.** The small
   gear in the card's top-right corner opens the car's own sound settings,
   with the equalizer presets (Standard, Pop, Rock, ...). On a car whose
