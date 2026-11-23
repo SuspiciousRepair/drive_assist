@@ -32,7 +32,7 @@ public final class CarDb extends SQLiteOpenHelper {
     // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
     // every write failed until this was bumped past 14. See the v15 entry in
     // onUpgrade below for what v15 itself actually does.
-    private static final int VERSION = 34;
+    private static final int VERSION = 35;
 
     /** SQL predicate for telemetry rows representing driving: gear is not Park (4),
      * or if gear is missing, car is not charging. */
@@ -228,7 +228,8 @@ public final class CarDb extends SQLiteOpenHelper {
             + "regen_kwh REAL NOT NULL DEFAULT 0,"
             + "net_kwh REAL NOT NULL DEFAULT 0,"
             + "energy_source TEXT, "
-            + HEAT_COLUMNS_V32 + ", " + LOW_COLUMNS_V33 + ", " + OUT_COLUMNS_V34 + ")");
+            + HEAT_COLUMNS_V32 + ", " + LOW_COLUMNS_V33 + ", " + OUT_COLUMNS_V34 + ", "
+            + MOVING_COLUMN_V35 + ")");
     }
 
     /** Immutable source-specific portions of a trip; never merge estimated and measured energy. */
@@ -557,7 +558,14 @@ public final class CarDb extends SQLiteOpenHelper {
             for (String col : OUT_COLUMNS_V34.split(",")) db.execSQL("ALTER TABLE daily_stat ADD COLUMN " + col.trim());
             db.execSQL("UPDATE daily_stat SET heat_done = NULL WHERE date >= date('now', 'localtime', '-88 days')");
         }
+        // v35: each day's moving time (sensors.MovingTime), for the stats
+        // page's moving speed. NULL = not stored: the next rollup fills the
+        // days the samples still cover, and a read works it out until then.
+        if (oldVersion < 35) db.execSQL("ALTER TABLE daily_stat ADD COLUMN " + MOVING_COLUMN_V35);
     }
+
+    /** sensors.MovingTime's time with a speed above zero, ms per day. */
+    static final String MOVING_COLUMN_V35 = "moving_ms INTEGER";
 
     /** sensors.BatteryHeat's outside air per day: min, max and when, sum and
      * count, and the readings while at 100 % (max, sum, count). */

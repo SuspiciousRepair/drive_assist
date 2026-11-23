@@ -133,7 +133,8 @@ public final class SqliteTestDb {
                 "discharge_kwh REAL NOT NULL DEFAULT 0," +
                 "regen_kwh REAL NOT NULL DEFAULT 0," +
                 "net_kwh REAL NOT NULL DEFAULT 0," +
-                "energy_source TEXT)"
+                "energy_source TEXT," +
+                "moving_ms INTEGER)"
         };
 
         for (String sql : createStatements) {

@@ -58,7 +58,10 @@ separados, por segurança e confiabilidade.
 As **Estatísticas de condução** transformam os dados brutos do carro em um
 diário:
 
-- distância, tempo dirigindo, velocidade média e variação da bateria;
+- distância, tempo dirigindo, velocidade em movimento e número de viagens;
+- a bateria em porcentagem: quanto você usou, o nível mínimo e máximo, o que
+  as recargas colocaram e a temperatura externa (a da bateria também, com um
+  dongle OBD2);
 - **Energia por uso**: para onde foi a energia de uma viagem — condução,
   climatização e outros — e quanto a regeneração devolveu (medido pelo CAN);
 - eficiência por faixa de velocidade, em Wh/km;
