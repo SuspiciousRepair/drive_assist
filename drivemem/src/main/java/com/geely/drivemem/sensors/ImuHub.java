@@ -11,6 +11,7 @@ import android.os.HandlerThread;
 import android.util.Log;
 
 import com.geely.drivemem.car.CarActor;
+import com.geely.drivemem.state.CarDiary;
 import com.geely.drivemem.state.CarState;
 
 /** Low-cost head-unit accelerometer hub (IHU629G).
@@ -33,6 +34,14 @@ public final class ImuHub {
     // Batching latency when no live UI listener needs frame-by-frame motion.
     private static final int BG_BATCH_US = 500_000;
     private static final long SUMMARY_INTERVAL_MS = 1_000L;
+
+    /** Jolt detection thresholds for Car Diary post-park incident review.
+     * Calibrated above EX2 normal bumps (~0.39 g) and hard brakes (~0.36 g) on
+     * the 16 Hz head-unit accelerometer, gated to moving speed >= 10 km/h so
+     * door slams while parked never trigger false positives. */
+    public static final float JOLT_MIN_SPEED_KMH = 10.0f;
+    public static final float JOLT_PEAK_Z_G = 0.85f;
+    public static final float JOLT_PEAK_HORIZ_G = 0.75f;
 
     /** Instantaneous calibrated car-frame acceleration in g (+fwd, +right, +up). */
     public interface Listener { void onImu(float axG, float ayG, float azG); }
@@ -163,6 +172,29 @@ public final class ImuHub {
         Integer brake = readCachedBrake();
         LocationHub.Fix fix = LocationHub.get(c);
         LOG.write(c, nowMs, s, speedKmh, driveKw, brake, fix);
+        if (shouldTriggerJolt(s, speedKmh)) {
+            float zG = s.peakZ / ImuFilter.G;
+            float xG = s.peakX / ImuFilter.G;
+            float yG = s.peakY / ImuFilter.G;
+            Log.i(TAG, String.format(java.util.Locale.US,
+                "imu: jolt detected z=%.2fg x=%.2fg y=%.2fg speed=%.0fkm/h",
+                zG, xG, yG, speedKmh));
+            CarDiary.recordPendingJolt(
+                nowMs, zG, xG, yG, speedKmh,
+                CarDiary.latestOdometerKm(c),
+                fix != null ? fix.lat : null,
+                fix != null ? fix.lon : null);
+        }
+    }
+
+    /** Pure jolt detector for Car Diary pending incident queue. */
+    public static boolean shouldTriggerJolt(ImuFilter.Summary s, Float speedKmh) {
+        if (s == null || !s.calZ || speedKmh == null || !Float.isFinite(speedKmh)) return false;
+        if (speedKmh < JOLT_MIN_SPEED_KMH) return false;
+        float absZG = Math.abs(s.peakZ) / ImuFilter.G;
+        float absXG = Math.abs(s.peakX) / ImuFilter.G;
+        float absYG = Math.abs(s.peakY) / ImuFilter.G;
+        return absZG >= JOLT_PEAK_Z_G || absXG >= JOLT_PEAK_HORIZ_G || absYG >= JOLT_PEAK_HORIZ_G;
     }
 
     private static void maybePersistBasis(Context c, boolean calZ, boolean calXy) {

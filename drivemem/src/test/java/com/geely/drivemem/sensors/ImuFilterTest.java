@@ -150,4 +150,25 @@ public class ImuFilterTest {
         assertFalse(f2.isCalibratedXy());
         assertEquals(saved, f2.serializeBasis());
     }
+
+    @Test public void joltDetectorGatesBySpeedCalibrationAndThresholds() {
+        // Normal 0.4 g bump -> does not trigger jolt
+        ImuFilter.Summary mild = new ImuFilter.Summary(16, true, true, 1.0f, 4.0f, 0f, 2.0f, 0f, 1.5f, 3f, 0f, -9.8f, 0f);
+        assertFalse(ImuHub.shouldTriggerJolt(mild, 40f));
+
+        // Sharp 0.95 g vertical pothole at 40 km/h -> triggers jolt
+        ImuFilter.Summary pothole = new ImuFilter.Summary(16, true, true, 2.5f, 9.3f, 0f, 1.0f, 0f, 0.5f, 8f, 0f, -9.8f, 0f);
+        assertTrue(ImuHub.shouldTriggerJolt(pothole, 40f));
+        // Same spike while parked / crawling (< 10 km/h) -> ignored (door slam protection)
+        assertFalse(ImuHub.shouldTriggerJolt(pothole, 0f));
+        assertFalse(ImuHub.shouldTriggerJolt(pothole, 5f));
+
+        // Uncalibrated Z -> ignored
+        ImuFilter.Summary uncal = new ImuFilter.Summary(16, false, false, 2.5f, 12.0f, 0f, 0f, 0f, 0f, 8f, 0f, -9.8f, 0f);
+        assertFalse(ImuHub.shouldTriggerJolt(uncal, 40f));
+
+        // Sharp 0.85 g horizontal shock (hard curb / panic brake) -> triggers jolt
+        ImuFilter.Summary curb = new ImuFilter.Summary(16, true, true, 1.0f, 2.0f, -2f, -8.3f, 0f, 1.0f, 9f, 0f, -9.8f, 0f);
+        assertTrue(ImuHub.shouldTriggerJolt(curb, 30f));
+    }
 }
