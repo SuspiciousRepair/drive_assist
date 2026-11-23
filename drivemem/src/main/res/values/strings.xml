@@ -903,4 +903,7 @@
     <string name="diary_odo_from_car">from car history</string>
     <string name="diary_odo_estimated">estimated from history</string>
     <string name="diary_odo_not_recorded">no car data for date</string>
+    <string name="diary_due_badge">Due</string>
+    <string name="diary_hint_cost_short">Cost</string>
+    <string name="diary_hint_note_short">Note</string>
 </resources>

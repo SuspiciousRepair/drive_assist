@@ -875,4 +875,7 @@
     <string name="diary_odo_from_car">del historial del coche</string>
     <string name="diary_odo_estimated">estimado del historial</string>
     <string name="diary_odo_not_recorded">sin datos en esa fecha</string>
+    <string name="diary_due_badge">Pendiente</string>
+    <string name="diary_hint_cost_short">Costo</string>
+    <string name="diary_hint_note_short">Nota</string>
 </resources>

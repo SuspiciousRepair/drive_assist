@@ -56,6 +56,7 @@ public final class CarDiaryView extends LinearLayout {
     private Aux12vTrendView trendView;
 
     private List<CarDiary.Entry> cachedEntries = Collections.emptyList();
+    private List<CarDiary.DueStatus> cachedDue = Collections.emptyList();
 
     private final EntityBus.Listener diaryListener = (key, r) -> post(this::refresh);
     private final CarState.Listener parkListener = parked -> post(this::refresh);
@@ -105,7 +106,7 @@ public final class CarDiaryView extends LinearLayout {
         addBtn.setPadding(bh, bv, bh, bv);
         addBtn.setLayoutParams(new LinearLayout.LayoutParams(
             Style.dp(c, 230), ViewGroup.LayoutParams.MATCH_PARENT));
-        addBtn.setOnClickListener(v -> DiaryEntryDialog.show(c, null, null, () -> post(this::refresh)));
+        addBtn.setOnClickListener(v -> DiaryEntryDialog.show(c, null, null, cachedDue, () -> post(this::refresh)));
 
         topSummaryCard = new LinearLayout(c);
         topSummaryCard.setOrientation(LinearLayout.HORIZONTAL);
@@ -252,6 +253,7 @@ public final class CarDiaryView extends LinearLayout {
             post(() -> {
                 if (gen != loadGen) return;
                 cachedEntries = entries;
+                cachedDue = due;
                 renderSummary(entries, due, s12);
                 renderPendingJolts(jolts, now);
                 renderEntries();
@@ -391,7 +393,7 @@ public final class CarDiaryView extends LinearLayout {
         card.addView(msg, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView logBtn = Style.cardButton(c, c.getString(R.string.diary_jolt_log_btn), true,
-            () -> DiaryEntryDialog.show(c, CarDiary.Category.INCIDENT, j, () -> post(this::refresh)));
+            () -> DiaryEntryDialog.show(c, CarDiary.Category.INCIDENT, j, cachedDue, () -> post(this::refresh)));
         card.addView(logBtn);
 
         View g = new View(c);
@@ -716,7 +718,7 @@ public final class CarDiaryView extends LinearLayout {
         status.setTypeface(null, Typeface.BOLD);
         row.addView(status);
 
-        row.setOnClickListener(v -> DiaryEntryDialog.show(c, d.category, null, () -> post(this::refresh)));
+        row.setOnClickListener(v -> DiaryEntryDialog.show(c, d.category, null, cachedDue, () -> post(this::refresh)));
         return row;
     }
 

@@ -888,4 +888,7 @@
     <string name="diary_odo_from_car">do histórico do carro</string>
     <string name="diary_odo_estimated">estimado pelo histórico</string>
     <string name="diary_odo_not_recorded">sem dado nesta data</string>
+    <string name="diary_due_badge">Pendente</string>
+    <string name="diary_hint_cost_short">Valor</string>
+    <string name="diary_hint_note_short">Nota</string>
 </resources>

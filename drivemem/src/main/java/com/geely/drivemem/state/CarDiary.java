@@ -54,34 +54,38 @@ public final class CarDiary {
     /** Filter modes for the Diary list view. */
     public enum Filter { ALL, CARE, NOTES }
 
-    /** Top-level category groups shown in Row 1 of the Add Entry dialog. */
+    /** Top-level category groups shown in the Add Entry dialog. */
     public enum Group {
-        TIRES(R.string.diary_grp_tires),
-        SERVICE(R.string.diary_grp_service),
-        ELECTRICAL(R.string.diary_grp_electrical),
-        COSMETIC(R.string.diary_grp_cosmetic),
-        NOTES(R.string.diary_grp_notes);
+        TIRES(R.string.diary_grp_tires, R.drawable.ic_diary_tires),
+        SERVICE(R.string.diary_grp_service, R.drawable.ic_diary_service),
+        ELECTRICAL(R.string.diary_grp_electrical, R.drawable.ic_diary_electrical),
+        COSMETIC(R.string.diary_grp_cosmetic, R.drawable.ic_diary_cosmetic),
+        NOTES(R.string.diary_grp_notes, R.drawable.ic_diary_notes);
 
         public final int labelRes;
-        Group(int labelRes) { this.labelRes = labelRes; }
+        public final int iconRes;
+        Group(int labelRes, int iconRes) {
+            this.labelRes = labelRes;
+            this.iconRes = iconRes;
+        }
     }
 
-    /** Second-level subcategories shown in Row 2 (plus auto-logged types). */
+    /** Second-level subcategories (intervals aligned with Geely Brasil official EX2 schedule). */
     public enum Category {
-        // Tires
+        // Tires (owner-care intervals)
         TIRE_PRESSURE(Group.TIRES, KIND_CARE, R.string.diary_cat_tire_pressure, 1_500.0, 1, true),
         TIRE_ROTATION(Group.TIRES, KIND_CARE, R.string.diary_cat_tire_rotation, 10_000.0, null, true),
         TIRE_BALANCING(Group.TIRES, KIND_CARE, R.string.diary_cat_tire_balancing, 10_000.0, null, true),
         TIRE_ALIGNMENT(Group.TIRES, KIND_CARE, R.string.diary_cat_tire_alignment, 10_000.0, 12, true),
         TIRES(Group.TIRES, KIND_CARE, R.string.diary_cat_tires, 40_000.0, 60, true),
 
-        // Service & Fluids
-        SERVICE(Group.SERVICE, KIND_CARE, R.string.diary_cat_service, 10_000.0, 12, true),
+        // Service & Fluids — official Geely Brasil EX2 schedule (20k/12m base, 40k/24m brake fluid, 80k/48m coolant + reducer oil)
+        SERVICE(Group.SERVICE, KIND_CARE, R.string.diary_cat_service, 20_000.0, 12, true),
         CABIN_FILTER(Group.SERVICE, KIND_CARE, R.string.diary_cat_cabin_filter, 20_000.0, 12, true),
-        BRAKE_FLUID(Group.SERVICE, KIND_CARE, R.string.diary_cat_brake_fluid, null, 24, true),
-        BRAKE_PADS(Group.SERVICE, KIND_CARE, R.string.diary_cat_brake_pads, 30_000.0, null, true),
-        COOLANT(Group.SERVICE, KIND_CARE, R.string.diary_cat_coolant, null, 60, true),
-        GEAR_OIL(Group.SERVICE, KIND_CARE, R.string.diary_cat_gear_oil, 50_000.0, 48, true),
+        BRAKE_FLUID(Group.SERVICE, KIND_CARE, R.string.diary_cat_brake_fluid, 40_000.0, 24, true),
+        BRAKE_PADS(Group.SERVICE, KIND_CARE, R.string.diary_cat_brake_pads, null, null, true),
+        COOLANT(Group.SERVICE, KIND_CARE, R.string.diary_cat_coolant, 80_000.0, 48, true),
+        GEAR_OIL(Group.SERVICE, KIND_CARE, R.string.diary_cat_gear_oil, 80_000.0, 48, true),
 
         // Electrical & Body
         BATTERY_12V(Group.ELECTRICAL, KIND_CARE, R.string.diary_cat_battery_12v, null, 48, true),
@@ -140,15 +144,17 @@ public final class CarDiary {
 
     /** Core items displayed in the right-hand Care Schedule card (plus any overdue item). */
     public static final Category[] SCHEDULE_CORE = {
-        Category.TIRE_PRESSURE, Category.TIRE_ROTATION, Category.WIPERS, Category.COOLANT
+        Category.TIRE_PRESSURE, Category.SERVICE, Category.TIRE_ROTATION, Category.BRAKE_FLUID
     };
 
-    /** Categories that can be bundled inside a scheduled Service Visit. */
+    /** Categories that can be bundled inside a scheduled Service Visit (Geely EX2 20k/40k/80k). */
     public static final Category[] SERVICE_BUNDLABLE = {
-        Category.CABIN_FILTER, Category.TIRE_ROTATION, Category.BRAKE_PADS, Category.COOLANT
+        Category.CABIN_FILTER, Category.BRAKE_FLUID, Category.COOLANT,
+        Category.GEAR_OIL, Category.TIRE_ROTATION, Category.BRAKE_PADS
     };
 
     public static final double COLD_SNAP_DROP_C = 10.0;
+    public static final long COLD_TIRE_PARK_MS = 3L * 3600_000L;
     private static final double MS_PER_DAY = 86_400_000.0;
     private static final double DAYS_PER_MONTH = 30.4375;
 
@@ -846,9 +852,54 @@ public final class CarDiary {
 
     // ---- Lightweight Pure meta_json Helpers (no org.json dependency in JVM unit tests) ----
 
-    public static String buildTirePressureMeta(int fl, int fr, int rl, int rr, boolean cold) {
+    public static String buildTirePressureMeta(int fl, int fr, int rl, int rr, Boolean cold) {
+        if (cold == null) {
+            return String.format(Locale.US, "{\"psi\":[%d,%d,%d,%d]}", fl, fr, rl, rr);
+        }
         return String.format(Locale.US,
             "{\"psi\":[%d,%d,%d,%d],\"cold\":%s}", fl, fr, rl, rr, cold ? "true" : "false");
+    }
+
+    /** Pure inference for whether tires are cold (parked >= 3 h) or warm (recent trip < 3 h).
+     * Returns null when there is no trip/park evidence — never guesses. */
+    public static Boolean inferColdTires(long nowMs, Long lastTripEndMs, Long activeParkStartMs) {
+        if (activeParkStartMs != null && activeParkStartMs > 0 && nowMs >= activeParkStartMs) {
+            if (nowMs - activeParkStartMs >= COLD_TIRE_PARK_MS) return Boolean.TRUE;
+            if (lastTripEndMs != null && lastTripEndMs > 0 && nowMs >= lastTripEndMs
+                    && nowMs - lastTripEndMs < COLD_TIRE_PARK_MS) {
+                return Boolean.FALSE;
+            }
+            return null;
+        }
+        if (lastTripEndMs != null && lastTripEndMs > 0 && nowMs >= lastTripEndMs) {
+            return (nowMs - lastTripEndMs >= COLD_TIRE_PARK_MS) ? Boolean.TRUE : Boolean.FALSE;
+        }
+        return null;
+    }
+
+    /** Infers cold/warm tire state for an entry logged right now from CarDb trip & park history.
+     * Call off the UI thread. Returns null if no reliable history is available. */
+    public static Boolean inferColdTires(Context ctx, long nowMs) {
+        if (ctx == null) return null;
+        Long lastTripEnd = null;
+        Long activeParkStart = null;
+        try {
+            SQLiteDatabase db = CarDb.get(ctx).db();
+            try (Cursor c = db.rawQuery(
+                    "SELECT MAX(COALESCE(end_ms, start_ms)) FROM trip WHERE start_ms <= ?",
+                    new String[]{String.valueOf(nowMs)})) {
+                if (c.moveToFirst() && !c.isNull(0)) lastTripEnd = c.getLong(0);
+            }
+            try (Cursor c = db.rawQuery(
+                    "SELECT start_ms FROM park_session WHERE end_ms IS NULL AND start_ms <= ? "
+                    + "ORDER BY start_ms DESC LIMIT 1",
+                    new String[]{String.valueOf(nowMs)})) {
+                if (c.moveToFirst() && !c.isNull(0)) activeParkStart = c.getLong(0);
+            }
+        } catch (Throwable t) {
+            Log.w(CarAccess.TAG, "diary cold-tire infer failed: " + t);
+        }
+        return inferColdTires(nowMs, lastTripEnd, activeParkStart);
     }
 
     public static String buildServiceBundledMeta(List<Category> bundled) {

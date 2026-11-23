@@ -153,14 +153,38 @@ public class CarDiaryTest {
 
     @Test
     public void metaHelpersRoundTripPsiColdAndBundled() {
-        String psiMeta = CarDiary.buildTirePressureMeta(36, 36, 35, 35, true);
+        String psiMeta = CarDiary.buildTirePressureMeta(36, 36, 35, 35, Boolean.TRUE);
         assertArrayEquals(new int[]{36, 36, 35, 35}, CarDiary.parsePsi(psiMeta));
         assertEquals(Boolean.TRUE, CarDiary.parseCold(psiMeta));
 
+        String psiNoCold = CarDiary.buildTirePressureMeta(36, 36, 36, 36, null);
+        assertArrayEquals(new int[]{36, 36, 36, 36}, CarDiary.parsePsi(psiNoCold));
+        assertEquals(null, CarDiary.parseCold(psiNoCold));
+
         String svcMeta = CarDiary.buildServiceBundledMeta(
-            Arrays.asList(CarDiary.Category.COOLANT, CarDiary.Category.BRAKE_PADS));
-        assertEquals(Arrays.asList(CarDiary.Category.COOLANT, CarDiary.Category.BRAKE_PADS),
+            Arrays.asList(CarDiary.Category.COOLANT, CarDiary.Category.BRAKE_FLUID));
+        assertEquals(Arrays.asList(CarDiary.Category.COOLANT, CarDiary.Category.BRAKE_FLUID),
             CarDiary.parseBundled(svcMeta));
+    }
+
+    @Test
+    public void officialEx2IntervalsAndColdTireInference() {
+        assertEquals(20_000.0, CarDiary.Category.SERVICE.kmInterval, 0.01);
+        assertEquals(Integer.valueOf(12), CarDiary.Category.SERVICE.monthInterval);
+        assertEquals(40_000.0, CarDiary.Category.BRAKE_FLUID.kmInterval, 0.01);
+        assertEquals(Integer.valueOf(24), CarDiary.Category.BRAKE_FLUID.monthInterval);
+        assertEquals(80_000.0, CarDiary.Category.COOLANT.kmInterval, 0.01);
+        assertEquals(Integer.valueOf(48), CarDiary.Category.COOLANT.monthInterval);
+        assertEquals(80_000.0, CarDiary.Category.GEAR_OIL.kmInterval, 0.01);
+        assertEquals(Integer.valueOf(48), CarDiary.Category.GEAR_OIL.monthInterval);
+        assertFalse(CarDiary.Category.BRAKE_PADS.hasInterval());
+
+        long now = 1_800_000_000_000L;
+        long h = 3600_000L;
+        assertEquals(Boolean.TRUE, CarDiary.inferColdTires(now, now - 4 * h, now - 4 * h));
+        assertEquals(Boolean.FALSE, CarDiary.inferColdTires(now, now - 1 * h, now - 1 * h));
+        assertEquals(null, CarDiary.inferColdTires(now, null, now - 1 * h));
+        assertEquals(null, CarDiary.inferColdTires(now, null, null));
     }
 
     @Test

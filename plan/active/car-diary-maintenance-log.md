@@ -68,22 +68,22 @@ of limit; **Overdue** = past limit; untracked types never warn.
 
 | Group | Subcategory (`category`) | km interval | time interval | Optional structured metadata (`meta_json`) |
 |---|---|---|---|---|
-| **Tires** | `TIRE_PRESSURE` | 1,500 km | 1 mo | `psi: [fl, fr, rl, rr]` or uniform, `cold: true/false` (+ nudge on ≥ 10°C cold snap) |
+| **Tires** | `TIRE_PRESSURE` | 1,500 km | 1 mo | `psi: [fl, fr, rl, rr]` or uniform, optional `cold: true/false` inferred from park/trip history (+ nudge on ≥ 10°C cold snap) |
 | **Tires** | `TIRE_ROTATION` | 10,000 km | — | `pattern` (`front_rear` / `cross`), `tread_mm` |
 | **Tires** | `TIRE_BALANCING` | 10,000 km | — | — |
 | **Tires** | `TIRE_ALIGNMENT` | 10,000 km | 12 mo | — |
 | **Tires** | `TIRES` (replaced) | 40,000 km | 60 mo | `brand`, `axle` (`all` / `front` / `rear`) |
-| **Service** | `SERVICE` (scheduled revision) | 10,000 km | 12 mo | `workshop`, `bundled: [...]` (resets due clocks for every bundled item at once) |
-| **Service** | `CABIN_FILTER` | 20,000 km | 12 mo | `part_no` |
-| **Service** | `BRAKE_FLUID` | — | 24 mo | — |
-| **Service** | `BRAKE_PADS` | 30,000 km | — | `axle` |
-| **Service** | `COOLANT` | — | 60 mo | `spec` |
-| **Service** | `GEAR_OIL` | 50,000 km | 48 mo | Reduction gear fluid |
+| **Service** | `SERVICE` (scheduled revision) | 20,000 km | 12 mo | Official Geely Brasil EX2 cycle (20k/40k/60k/80k); `bundled: [...]` resets clocks for bundled items |
+| **Service** | `CABIN_FILTER` | 20,000 km | 12 mo | `part_no` (Geely EX2 20k/12m) |
+| **Service** | `BRAKE_FLUID` | 40,000 km | 24 mo | DOT 4 (Geely EX2 40k/24m) |
+| **Service** | `BRAKE_PADS` | — | — | Inspected at every service; wear-based replacement |
+| **Service** | `COOLANT` | 80,000 km | 48 mo | HV battery & motor thermal loop (Geely EX2 80k/48m) |
+| **Service** | `GEAR_OIL` | 80,000 km | 48 mo | Reduction gearbox oil (Geely EX2 80k/48m) |
 | **Electrical & Body** | `BATTERY_12V` | — | 48 mo | `brand`, `ah` — **resets 12V health baseline & marks chart divider** |
 | **Electrical & Body** | `WIPERS` | — | 12 mo | `which` (`front` / `rear` / `both`), `size_or_brand` |
-| **Electrical & Body** | `WASHER_FLUID` | — | — | — |
 | **Electrical & Body** | `LIGHTS_FUSES` | — | — | — |
 | **Cosmetic** | `WASH_DETAIL` | — | — | Wash / detailing |
+| **Cosmetic** | `WASHER_FLUID` | — | — | Windshield wiper fluid |
 | **Cosmetic** | `POLISHING` | — | — | Paint correction / polishing |
 | **Cosmetic** | `WAX_CERAMIC` | — | — | Wax / ceramic coating |
 | **Cosmetic** | `PAINT_DENT` | — | — | Scratch / dent / glass repair |
