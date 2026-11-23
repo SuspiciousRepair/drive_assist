@@ -10,11 +10,54 @@ import java.util.List;
  *   charge shows the DC icon.
  * - One trip: only the charges right before the trip at its start, or right
  *   after it at its end ({@link #NEAR_TRIP_M}, {@link #NEAR_TRIP_MS}), so the
- *   home charger is not on every trip that passes home. */
+ *   home charger is not on every trip that passes home. Between the trip and
+ *   the charge there may be short moves only ({@link #MANEUVER_KM} each, to
+ *   find the charger), and each move adds its length to the distance
+ *   allowed. A real trip in between takes the charge for itself. */
 final class ChargeSpots {
     static final double SAME_PLACE_M = 100;
     static final double NEAR_TRIP_M = 300;
     static final long NEAR_TRIP_MS = 60 * 60_000L;
+    /** A trip shorter than this is a move to find the charger, not a trip. */
+    static final double MANEUVER_KM = 1.0;
+
+    /** Another trip near this one in time: when, and how far it went
+     * (NaN when the odometer did not say). */
+    static final class Hop {
+        final long startMs;
+        final double km;
+        Hop(long startMs, double km) { this.startMs = startMs; this.km = km; }
+    }
+
+    /** The trips that started within NEAR_TRIP_MS of [fromMs, toMs], with their
+     * odometer distance. */
+    static List<Hop> readHops(android.content.Context ctx, long fromMs, long toMs) {
+        List<Hop> out = new ArrayList<>();
+        android.database.Cursor c = com.geely.drivemem.car.CarDb.get(ctx).db().rawQuery(
+            "SELECT t.start_ms, e.odo_km - s.odo_km FROM trip t "
+          + "LEFT JOIN telemetry_sample s ON s.id = t.start_sample_id "
+          + "LEFT JOIN telemetry_sample e ON e.id = t.end_sample_id "
+          + "WHERE t.start_ms BETWEEN ? AND ? ORDER BY t.start_ms",
+            new String[]{String.valueOf(fromMs - NEAR_TRIP_MS), String.valueOf(toMs + NEAR_TRIP_MS)});
+        try {
+            while (c.moveToNext()) out.add(new Hop(c.getLong(0), c.isNull(1) ? Double.NaN : c.getDouble(1)));
+        } finally { c.close(); }
+        return out;
+    }
+
+    /** The metres a charge may be from the trip's end (or start) when the
+     * trips that started in [fromMs, toMs) are all short moves: NEAR_TRIP_M
+     * plus their length. -1 when one of them is a real trip (or has no
+     * distance), so the charge belongs to that trip, not this one. */
+    static double reachM(List<Hop> hops, long fromMs, long toMs) {
+        double m = NEAR_TRIP_M;
+        for (Hop h : hops) {
+            if (h.startMs < fromMs || h.startMs >= toMs) continue;
+            if (Double.isNaN(h.km) || h.km < 0 || h.km >= MANEUVER_KM) return -1;
+            m += h.km * 1000;
+        }
+        return m;
+    }
 
     /** One spot: where, and whether any charge there was DC. */
     static final class Spot {
@@ -141,17 +184,32 @@ final class ChargeSpots {
         return out;
     }
 
-    /** The charges that belong on one trip's map: ended at most NEAR_TRIP_MS
-     * before the trip started, within NEAR_TRIP_M of its first point; or
-     * started at most NEAR_TRIP_MS after it ended, near its last point. */
+    /** The charges that belong on one trip's map, with no other trip around. */
     static List<Spot> forTrip(List<Charge> charges, long tripStartMs, long tripEndMs,
                               double startLat, double startLon, double endLat, double endLon) {
+        return forTrip(charges, tripStartMs, tripEndMs, startLat, startLon, endLat, endLon,
+            new ArrayList<Hop>());
+    }
+
+    /** The charges that belong on one trip's map: ended at most NEAR_TRIP_MS
+     * before the trip started, near its first point; or started at most
+     * NEAR_TRIP_MS after it ended, near its last point. "Near" is
+     * {@link #reachM}: only short moves may come between, and they widen it.
+     * hops are the other trips around this one ({@link #readHops}). */
+    static List<Spot> forTrip(List<Charge> charges, long tripStartMs, long tripEndMs,
+                              double startLat, double startLon, double endLat, double endLon,
+                              List<Hop> hops) {
         List<Charge> near = new ArrayList<>();
         for (Charge c : charges) {
-            boolean before = c.endMs <= tripStartMs && tripStartMs - c.endMs <= NEAR_TRIP_MS
-                && distanceM(c.lat, c.lon, startLat, startLon) <= NEAR_TRIP_M;
-            boolean after = tripEndMs > 0 && c.startMs >= tripEndMs && c.startMs - tripEndMs <= NEAR_TRIP_MS
-                && distanceM(c.lat, c.lon, endLat, endLon) <= NEAR_TRIP_M;
+            boolean before = false, after = false;
+            if (c.endMs <= tripStartMs && tripStartMs - c.endMs <= NEAR_TRIP_MS) {
+                double reach = reachM(hops, c.endMs, tripStartMs);
+                before = reach >= 0 && distanceM(c.lat, c.lon, startLat, startLon) <= reach;
+            }
+            if (tripEndMs > 0 && c.startMs >= tripEndMs && c.startMs - tripEndMs <= NEAR_TRIP_MS) {
+                double reach = reachM(hops, tripEndMs, c.startMs);
+                after = reach >= 0 && distanceM(c.lat, c.lon, endLat, endLon) <= reach;
+            }
             if (before || after) near.add(c);
         }
         return cluster(near);

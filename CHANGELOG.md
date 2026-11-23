@@ -125,6 +125,12 @@
 - **The Stats page scrolls again.** A change in this version took away the
   page's scrolling, so the cards below the first screen could not be
   reached.
+- **A trip's map shows only its own charges.** Before, a charge at the
+  trip's start or end place, up to one hour before or after, was on the
+  trip's map even when another drive came between them. Now a charge shows
+  only when no other drive came between it and the trip. Short moves to
+  find the charger (each under 1 km) do not count as drives. Each move also
+  lets the charger be that much further from where the trip ended.
 - **"Later" on the update window now means later.** Before, the window
   came back on the next app start, the next daily check, or the next
   update message, for the same version. Now, after **Later** (or a tap

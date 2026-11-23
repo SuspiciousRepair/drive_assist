@@ -195,7 +195,8 @@ public class TripRouteActivity extends Activity {
             if (np >= 2) {
                 try {
                     d.spots = ChargeSpots.forTrip(ChargeSpots.read(this), startMs, endMs,
-                        d.lat[0], d.lon[0], d.lat[np - 1], d.lon[np - 1]);
+                        d.lat[0], d.lon[0], d.lat[np - 1], d.lon[np - 1],
+                        ChargeSpots.readHops(this, startMs, endMs > 0 ? endMs : startMs));
                 } catch (Throwable e) { android.util.Log.w("DriveMem", "trip charges: " + e); }
             }
             Cursor sc = CarDb.get(this).db().rawQuery(
