@@ -21,7 +21,6 @@ work look pending.
 - [Private web statistics sharing](active/PRIVATE-WEB-STATS-SHARE-ROADMAP.md)
 - [Car diary and maintenance log](active/car-diary-maintenance-log.md)
 - ["Hey Geely" voice assistant](active/VOICE-ASSISTANT-ROADMAP.md)
-- [Right-hand-drive layout](active/RIGHT-HAND-DRIVE-ROADMAP.md)
 - [Settings PIN](active/SETTINGS-PIN-ROADMAP.md)
 
 ## Archive
@@ -35,6 +34,7 @@ work look pending.
 - [Charge statistics overview](archive/implemented/CHARGE-STATS-OVERVIEW-ROADMAP.md)
 - [Home drive and parked cards](archive/implemented/HOME-DRIVE-CARDS-ROADMAP.md)
 - [ModeHelper watchdog](archive/implemented/MODEHELPER-WATCHDOG-ROADMAP.md)
+- [Right-hand-drive layout](archive/implemented/RIGHT-HAND-DRIVE-ROADMAP.md)
 - [Weekly and monthly statistics](archive/implemented/STATS-PERIOD-VIEWS-ROADMAP.md)
 - [Trip routes](archive/implemented/TRIP-ROUTES-ROADMAP.md)
 

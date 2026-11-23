@@ -86,17 +86,9 @@ public class ChargeDetailActivity extends Activity {
         int pad = Style.dp(this, 22);
         root.setPadding(pad, pad + Style.statusBarHeight(this), pad, pad);
 
-        LinearLayout head = new LinearLayout(this);
-        head.setOrientation(LinearLayout.HORIZONTAL);
-        head.setGravity(Gravity.CENTER_VERTICAL);
-        head.addView(Style.backButton(this, this::finish));
         title = Style.title(this, getString(R.string.charge_detail_title));
         title.setTextSize(22);
-        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        tlp.leftMargin = Style.dp(this, 14);
-        head.addView(title, tlp);
-        root.addView(head);
+        root.addView(Style.headerRow(this, Style.backButton(this, this::finish), title));
 
         LinearLayout body = new LinearLayout(this);
         body.setOrientation(LinearLayout.HORIZONTAL);
@@ -109,7 +101,7 @@ public class ChargeDetailActivity extends Activity {
         int lp = Style.dp(this, 20);
         left.setPadding(lp, lp, lp, lp);
         left.setBackground(Style.tile(this));
-        body.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        left.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
         chart = new ChargeDetailChartView(this);
         left.addView(chart, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         empty = new TextView(this);
@@ -122,10 +114,9 @@ public class ChargeDetailActivity extends Activity {
 
         LinearLayout right = new LinearLayout(this);
         right.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(Style.dp(this, 460),
-            ViewGroup.LayoutParams.MATCH_PARENT);
-        rlp.leftMargin = Style.dp(this, 20);
-        body.addView(right, rlp);
+        right.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(this, 460),
+            ViewGroup.LayoutParams.MATCH_PARENT));
+        Style.addMirrored(body, 20, left, right);
 
         ScrollView scroll = new ScrollView(this);
         scroll.setBackground(Style.tile(this));
