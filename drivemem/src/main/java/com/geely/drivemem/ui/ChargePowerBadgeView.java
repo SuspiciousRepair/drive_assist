@@ -17,10 +17,9 @@ import java.util.Locale;
  * charging card, paired with a mini power-curve sparkline along the bottom:
  *
  *     ┌───────────┐
- *     │    6,4    │   live kW in AC blue (Style.ACCENT) or DC green (Style.GOOD)
- *     │    kW     │
- *     │ ╭───────╮ │   session power curve so far
- *     └───────────┘
+ *     │  6,4 kW   │   live kW in AC blue (Style.ACCENT) or DC green (Style.GOOD),
+ *     │ ╭───────╮ │   number and unit on one baseline; the session power curve
+ *     └───────────┘   so far under them
  */
 final class ChargePowerBadgeView extends View {
     private static final float AXIS_MAX_KW_AC = 8f;
@@ -50,9 +49,9 @@ final class ChargePowerBadgeView extends View {
         border.setStrokeWidth(Style.dp(c, 2));
         number.setTextSize(Style.dp(c, 34));
         number.setFakeBoldText(true);
-        number.setTextAlign(Paint.Align.CENTER);
-        unit.setTextSize(Style.dp(c, 14));
-        unit.setTextAlign(Paint.Align.CENTER);
+        number.setTextAlign(Paint.Align.LEFT);
+        unit.setTextSize(Style.dp(c, 18));
+        unit.setTextAlign(Paint.Align.LEFT);
         linePaint.setStyle(Paint.Style.STROKE);
         linePaint.setStrokeWidth(Style.dp(c, 2));
         linePaint.setStrokeCap(Paint.Cap.ROUND);
@@ -103,25 +102,43 @@ final class ChargePowerBadgeView extends View {
         canvas.drawRoundRect(rect, rad, rad, border);
 
         boolean hasCurve = curve.length > 0 || hasPower;
-        float sparkH = Style.dp(c, 18);
-        float unitGap = Style.dp(c, 2);
-        float sparkGap = Style.dp(c, 6);
+        float padX = Style.dp(c, 16);
+        float sparkH = Style.dp(c, 22);
+        float sparkGap = Style.dp(c, 8);
+        float unitGap = Style.dp(c, 6);
+
+        // "6,4 kW" on one baseline, centred as one group. A wide DC value
+        // shrinks the number so the group never touches the border.
+        float baseNum = Style.dp(c, 34);
+        number.setTextSize(baseNum);
+        String unitText = hasPower ? "kW" : "";
+        float unitW = unitText.isEmpty() ? 0 : unit.measureText(unitText);
+        float gap = unitText.isEmpty() ? 0 : unitGap;
+        float numW = number.measureText(numberText);
+        float room = w - 2 * padX;
+        if (numW + gap + unitW > room && numW > 0) {
+            number.setTextSize(baseNum * Math.max(0.6f, (room - gap - unitW) / numW));
+            numW = number.measureText(numberText);
+        }
         float numH = -number.ascent();
-        float unitH = -unit.ascent() + unit.descent();
-        float total = numH + unitGap + unitH + (hasCurve ? sparkGap + sparkH : 0);
+        float descHalf = number.descent() * 0.5f;   // room for the comma's tail
+        float total = numH + (hasCurve ? descHalf + sparkGap + sparkH : 0);
         float top = (h - total) / 2f;
+        float baseline = top + numH;
+        float x = (w - (numW + gap + unitW)) / 2f;
 
         number.setColor(hasPower ? (grayscale ? Style.TEXT : accent) : Style.TEXT_DIM);
-        canvas.drawText(numberText, w / 2f, top + numH, number);
-        unit.setColor(Style.TEXT_DIM);
-        canvas.drawText("kW", w / 2f, top + numH + unitGap - unit.ascent(), unit);
+        canvas.drawText(numberText, x, baseline, number);
+        if (!unitText.isEmpty()) {
+            unit.setColor(Style.TEXT_DIM);
+            canvas.drawText(unitText, x + numW + gap, baseline, unit);
+        }
 
         if (!hasCurve) return;
 
-        float padX = Style.dp(c, 16);
         float left = padX, right = w - padX;
         if (right <= left) return;
-        float sparkTop = top + numH + unitGap + unitH + sparkGap;
+        float sparkTop = baseline + descHalf + sparkGap;
         float sparkBottom = sparkTop + sparkH;
 
         float ceiling = isDcfc ? AXIS_MAX_KW_DC : AXIS_MAX_KW_AC;
