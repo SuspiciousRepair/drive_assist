@@ -147,6 +147,14 @@
 - **The charge page says "Charging now" only while current flows.** In
   the 3 minutes after a charge stops, it showed "Charging now". A page
   opened just after a charge ended could also show an older charge.
+- **The music card follows the player that really plays.** A CarPlay
+  song left on "playing" after the cable came out could hide Bluetooth
+  music. Now a player that went quiet is skipped.
+- **The music card finds the phone again by itself.** When a car music
+  app lost its link, the card stayed empty until Drive Assist restarted.
+  Now it tries again after 15 s, then less often.
+- **The cover is not loaded again on every update.** CarPlay sends an
+  update every 5 s, and each one loaded and blurred the same cover again.
 - **Only Drive Assist can put BRAKE in a dashcam clip.** Another app could
   send the same message to the helper.
 - **The charge page no longer shows "-1%".** A charge that started with

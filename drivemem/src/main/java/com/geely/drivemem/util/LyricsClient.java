@@ -207,9 +207,9 @@ public final class LyricsClient {
     }
 
     private static Http get(Context app, String path) {
+        java.net.HttpURLConnection c = null;
         try {
-            java.net.HttpURLConnection c =
-                (java.net.HttpURLConnection) new java.net.URL(BASE + path).openConnection();
+            c = (java.net.HttpURLConnection) new java.net.URL(BASE + path).openConnection();
             c.setRequestProperty("User-Agent", userAgent(app));
             c.setConnectTimeout(8000); c.setReadTimeout(8000);
             int code = c.getResponseCode();
@@ -220,6 +220,10 @@ public final class LyricsClient {
         } catch (Throwable t) {
             Log.w(TAG, "lyrics fetch: " + t);
             return null;
+        } finally {
+            // Frees the socket, also after a 404 (no lyrics), whose body
+            // is never read.
+            if (c != null) c.disconnect();
         }
     }
 

@@ -2053,8 +2053,12 @@ public class ComfortActivity extends Activity {
                 } else {
                     java.net.HttpURLConnection conn =
                         (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
-                    conn.setConnectTimeout(6000); conn.setReadTimeout(6000);
-                    bmp = android.graphics.BitmapFactory.decodeStream(conn.getInputStream());
+                    try {
+                        conn.setConnectTimeout(6000); conn.setReadTimeout(6000);
+                        try (java.io.InputStream in = conn.getInputStream()) {
+                            bmp = android.graphics.BitmapFactory.decodeStream(in);
+                        }
+                    } finally { conn.disconnect(); }
                 }
             } catch (Throwable t) { android.util.Log.w(CarAccess.TAG, "music art: " + t); }
             if (bmp != null) applyMusicArt(url, bmp);

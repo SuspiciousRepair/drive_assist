@@ -76,4 +76,35 @@ public class CarMediaSessionsTest {
         assertEquals(0, CarMediaSessions.silentAt(true, 2, last));    // not ticking yet (Bluetooth)
         assertEquals(0, CarMediaSessions.silentAt(true, 5, 0));
     }
+
+    @Test public void aFrozenPlayingSessionIsNotFollowed() {
+        long last = 100_000;
+        // CarPlay ticked, then the cable came out: gone after SILENT_MS.
+        assertFalse(CarMediaSessions.gone(true, 3, last, 0, last, last + 5_000));
+        assertTrue(CarMediaSessions.gone(true, 3, last, 0, last, last + CarMediaSessions.SILENT_MS));
+        // Bluetooth sends on change only: never gone just for being quiet.
+        assertFalse(CarMediaSessions.gone(true, 1, last, 0, last, last + 600_000));
+        // "Playing" past the song's end, longer than the grace: gone.
+        long ends = 200_000;
+        assertFalse(CarMediaSessions.gone(true, 1, last, ends, last, ends + 1_000));
+        assertTrue(CarMediaSessions.gone(true, 1, last, ends, last, ends + CarMediaSessions.STALE_GRACE_MS));
+        // Paused for long: gone.
+        assertTrue(CarMediaSessions.gone(false, 0, 0, 0, 1_000, 1_000 + CarMediaSessions.PAUSED_SHOW_MS));
+        assertFalse(CarMediaSessions.gone(false, 0, 0, 0, 1_000, 2_000));
+    }
+
+    @Test public void aLostLinkIsTriedAgainLaterAndLater() {
+        assertEquals(15_000, CarMediaSessions.relinkDelayMs(0));
+        assertEquals(30_000, CarMediaSessions.relinkDelayMs(1));
+        assertEquals(60_000, CarMediaSessions.relinkDelayMs(2));
+        assertEquals(CarMediaSessions.RELINK_MAX_MS, CarMediaSessions.relinkDelayMs(10));
+        assertEquals(CarMediaSessions.RELINK_MAX_MS, CarMediaSessions.relinkDelayMs(1000));
+    }
+
+    @Test public void theCoverIsTheSameForTheSameTrackAndSize() {
+        assertEquals(CarMediaSessions.artKey("p", "t", 300, 300), CarMediaSessions.artKey("p", "t", 300, 300));
+        assertNotEquals(CarMediaSessions.artKey("p", "t", 300, 300), CarMediaSessions.artKey("p", "u", 300, 300));
+        assertNotEquals(CarMediaSessions.artKey("p", "t", 300, 300), CarMediaSessions.artKey("p", "t", 600, 600));
+        assertNotEquals(CarMediaSessions.artKey("p", "t", 300, 300), CarMediaSessions.artKey("q", "t", 300, 300));
+    }
 }
