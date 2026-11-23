@@ -31,7 +31,7 @@ public class PhoneRestoreKeysTest {
         "bt_music", "spotify_lyrics", "spotify_lyrics_open", "spotify_large_card",
         // the owner's choice: the phone settings page edits it too
         "update_url",
-        "theme", "appearance", "drive", "regen", Prefs.KEY_DASHCAM_ON, Prefs.KEY_WIFI_KEEP_ON,
+        "theme", "appearance", Prefs.KEY_DRIVE_SIDE, "drive", "regen", Prefs.KEY_DASHCAM_ON, Prefs.KEY_WIFI_KEEP_ON,
         "a_setting_added_next_year",
     };
 

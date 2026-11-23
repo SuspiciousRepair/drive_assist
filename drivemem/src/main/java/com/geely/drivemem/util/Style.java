@@ -179,6 +179,116 @@ public class Style {
     public static final String APPEARANCE_DARK  = "dark";
     public static final String APPEARANCE_AUTO  = "auto";
 
+    // Right-hand drive layout: resolved once per load(Context) from the
+    // drive_side setting (Auto / Left / Right) and CarCaps.rhd.
+    public static boolean RHD = false;
+    public static final String DRIVE_SIDE_AUTO  = "auto";
+    public static final String DRIVE_SIDE_LEFT  = "left";
+    public static final String DRIVE_SIDE_RIGHT = "right";
+
+    /** Returns the saved driving position setting (Auto/Left/Right). */
+    public static String driveSide(Context c) {
+        return Prefs.getDriveSide(c, DRIVE_SIDE_AUTO);
+    }
+
+    /** Saves the driving position setting and updates {@link #RHD}. */
+    public static void setDriveSide(Context c, String mode) {
+        Prefs.setDriveSide(c, mode);
+        RHD = resolveRhd(mode, CarCaps.read(c));
+    }
+
+    /** Pure resolver for RHD: LEFT -> false, RIGHT -> true, AUTO (or unknown) -> CarCaps.rhd == "1". */
+    public static boolean resolveRhd(String mode, CarCaps caps) {
+        if (DRIVE_SIDE_RIGHT.equals(mode)) return true;
+        if (DRIVE_SIDE_LEFT.equals(mode)) return false;
+        return caps != null && "1".equals(caps.rhd);
+    }
+
+    /** Physical horizontal gravity for the driver's edge: LEFT on LHD, RIGHT on RHD. */
+    public static int driverGravity() { return RHD ? Gravity.RIGHT : Gravity.LEFT; }
+
+    /** Physical horizontal gravity for the passenger's edge: RIGHT on LHD, LEFT on RHD. */
+    public static int passengerGravity() { return RHD ? Gravity.LEFT : Gravity.RIGHT; }
+
+    /** Sets padding with horizontal driver/passenger edges mirrored in RHD. */
+    public static void setDriverPadding(View v, int driverPx, int topPx, int passengerPx, int bottomPx) {
+        if (RHD) v.setPadding(passengerPx, topPx, driverPx, bottomPx);
+        else v.setPadding(driverPx, topPx, passengerPx, bottomPx);
+    }
+
+    /** Sets horizontal margins with driver/passenger sides mirrored in RHD. */
+    public static void setDriverMargin(ViewGroup.MarginLayoutParams lp, int driverPx, int passengerPx) {
+        if (RHD) { lp.leftMargin = passengerPx; lp.rightMargin = driverPx; }
+        else { lp.leftMargin = driverPx; lp.rightMargin = passengerPx; }
+    }
+
+    /** Adds items horizontally in LHD order (0..n-1) or mirrored RHD order (n-1..0),
+     * skipping null entries. When gapDp > 0, applies a uniform gap between adjacent
+     * visual items (preserving each item's width, height, weight, gravity, and
+     * vertical margins). When gapDp <= 0, swaps each item's left/right margins in RHD. */
+    public static void addMirrored(LinearLayout row, int gapDp, View... items) {
+        if (items == null) return;
+        int gapPx = gapDp > 0 ? dp(row.getContext(), gapDp) : 0;
+        int added = 0;
+        int n = items.length;
+        for (int i = 0; i < n; i++) {
+            View v = items[RHD ? n - 1 - i : i];
+            if (v == null) continue;
+            ViewGroup.LayoutParams raw = v.getLayoutParams();
+            if (gapPx > 0) {
+                LinearLayout.LayoutParams lp = (raw instanceof LinearLayout.LayoutParams)
+                    ? (LinearLayout.LayoutParams) raw
+                    : (raw != null ? new LinearLayout.LayoutParams(raw)
+                        : new LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                lp.leftMargin = added > 0 ? gapPx : 0;
+                lp.rightMargin = 0;
+                row.addView(v, lp);
+            } else {
+                if (RHD && raw instanceof ViewGroup.MarginLayoutParams) {
+                    ViewGroup.MarginLayoutParams mlp = (ViewGroup.MarginLayoutParams) raw;
+                    int tmp = mlp.leftMargin;
+                    mlp.leftMargin = mlp.rightMargin;
+                    mlp.rightMargin = tmp;
+                }
+                if (raw != null) row.addView(v, raw);
+                else row.addView(v);
+            }
+            added++;
+        }
+    }
+
+    /** Builds a horizontal screen header row mirrored for RHD:
+     * LHD: [back, title, (spacer), trailing...], RHD: [trailing..., (spacer), title, back]. */
+    public static LinearLayout headerRow(Context c, View backBtn, View title, View... trailing) {
+        LinearLayout row = new LinearLayout(c);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL | driverGravity());
+        row.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        java.util.List<View> items = new java.util.ArrayList<>();
+        if (backBtn != null) items.add(backBtn);
+        if (title != null) items.add(title);
+        java.util.List<View> trail = new java.util.ArrayList<>();
+        if (trailing != null) {
+            for (View t : trailing) if (t != null) trail.add(t);
+        }
+        boolean titleWeighted = title != null
+            && title.getLayoutParams() instanceof LinearLayout.LayoutParams
+            && ((LinearLayout.LayoutParams) title.getLayoutParams()).weight > 0f;
+        if (!trail.isEmpty() && !titleWeighted) {
+            View spacer = new View(c);
+            spacer.setLayoutParams(new LinearLayout.LayoutParams(0, 1, 1f));
+            items.add(spacer);
+        }
+        items.addAll(trail);
+        addMirrored(row, 14, items.toArray(new View[0]));
+        return row;
+    }
+
+    /** Mirrors a normalized [0..1] horizontal coordinate in RHD. */
+    public static float mirrorX(float frac) { return RHD ? 1f - frac : frac; }
+
     /** Returns the saved appearance setting (Light/Dark/Auto). */
     public static String appearance(Context c) {
         return Prefs.getAppearance(c, APPEARANCE_DARK);
@@ -212,6 +322,7 @@ public class Style {
     /** Loads the saved theme (or transient override) and applies it. Called at onCreate start. */
     public static void load(Context c) {
         Prefs.getCurrency(c);
+        RHD = resolveRhd(driveSide(c), CarCaps.read(c));
         String savedTheme = Prefs.getTheme(c, THEMES[0].id);
         if ("claro".equals(savedTheme)) {
             // Legacy: Claro theme merged into Default's light Palette; migrate to APPEARANCE_LIGHT.
@@ -308,7 +419,21 @@ public class Style {
     public static android.graphics.drawable.Drawable configScreenBg(Context c) {
         if (!"geely".equals(current.id)) return screenBg();
         int res = resolvedLight(c, current) ? R.drawable.config_bg_day : R.drawable.config_bg_night;
-        return c.getResources().getDrawable(res, c.getTheme());
+        android.graphics.drawable.Drawable d = c.getResources().getDrawable(res, c.getTheme());
+        return RHD && d != null ? new FlippedDrawable(d) : d;
+    }
+
+    /** Horizontally mirrors a drawable at draw time (zero extra bitmap allocation). */
+    private static final class FlippedDrawable extends android.graphics.drawable.DrawableWrapper {
+        FlippedDrawable(android.graphics.drawable.Drawable dr) { super(dr); }
+
+        @Override public void draw(android.graphics.Canvas canvas) {
+            android.graphics.Rect b = getBounds();
+            canvas.save();
+            canvas.scale(-1f, 1f, b.exactCenterX(), b.exactCenterY());
+            super.draw(canvas);
+            canvas.restore();
+        }
     }
 
     /** Config screen's background for every OTHER section: a flat fill of
@@ -697,6 +822,14 @@ public class Style {
         return Color.argb(a, r, g, b);
     }
 
+    /** Maps pill index {@code 0..2*max} to its signed HVAC effort level:
+     * LHD goes cold-to-warm ({@code +max..-max}), RHD mirrors warm-to-cold
+     * ({@code -max..+max}) so cold stays on the driver's side matching the
+     * mirrored cooler/warmer tiles. */
+    static int effortPillLevel(int index, int max, boolean rhd) {
+        return rhd ? (index - max) : (max - index);
+    }
+
     /** Creates the effort scale with optional defrosting (dimmed) state. */
     public static android.graphics.Bitmap effortScale(Context c, int w, int h,
             int level, boolean approx, boolean defrosting) {
@@ -722,7 +855,7 @@ public class Style {
 
         float x = 0;
         for (int i = 0; i < 11; i++) {
-            int n = max - i;                              // C5..C1, 0, W1..W5
+            int n = effortPillLevel(i, max, RHD);         // LHD: C5..C1, 0, W1..W5; RHD: W5..W1, 0, C1..C5
             float pw = (n == 0) ? zeroW : sideW;
             android.graphics.RectF r = new android.graphics.RectF(x, 0, x + pw, h);
 
@@ -944,11 +1077,23 @@ public class Style {
                 if (columns.getChildAt(i).getHeight() > availableHeightPx) {
                     int again = packIntoColumnsOnce(c, columns, cards, columnWidthPx, availableHeightPx);
                     if (afterRepack != null) afterRepack.accept(again);
+                    if (RHD) columns.post(() -> scrollColumnsToDriverEdge(columns));
                     return;
                 }
             }
+            if (RHD) scrollColumnsToDriverEdge(columns);
         });
         return n;
+    }
+
+    /** Scrolls an overflowing HorizontalScrollView to the right (driver) edge in RHD.
+     * Avoids FrameLayout Gravity.END on an overflowing HorizontalScrollView child,
+     * which can yield a negative childLeft and break scrolling. */
+    private static void scrollColumnsToDriverEdge(LinearLayout columns) {
+        if (!(columns.getParent() instanceof android.widget.HorizontalScrollView)) return;
+        android.widget.HorizontalScrollView hsv = (android.widget.HorizontalScrollView) columns.getParent();
+        int maxScroll = Math.max(0, columns.getWidth() - hsv.getWidth());
+        hsv.scrollTo(maxScroll, 0);
     }
 
     /** Returns how many columns the cards took. */
@@ -957,6 +1102,7 @@ public class Style {
         columns.removeAllViews();
         int gapV = dp(c, CARD_GAP_DP), gapH = dp(c, COLUMN_GAP_DP);
 
+        java.util.List<LinearLayout> built = new java.util.ArrayList<>();
         LinearLayout col = null;
         int used = 0;
         for (LinearLayout card : cards) {
@@ -977,10 +1123,7 @@ public class Style {
             if (startNew) {
                 col = new LinearLayout(c);
                 col.setOrientation(LinearLayout.VERTICAL);
-                LinearLayout.LayoutParams clp =
-                    new LinearLayout.LayoutParams(columnWidthPx, ViewGroup.LayoutParams.WRAP_CONTENT);
-                if (columns.getChildCount() > 0) clp.leftMargin = gapH;
-                columns.addView(col, clp);
+                built.add(col);
                 used = 0;
             } else if (visible) {
                 // A GONE card contributes no height, so it must not contribute
@@ -996,7 +1139,19 @@ public class Style {
             col.addView(card);
             used += cardH;
         }
-        return columns.getChildCount();
+        if (columns.getParent() instanceof android.widget.HorizontalScrollView) {
+            ((android.widget.HorizontalScrollView) columns.getParent()).setFillViewport(true);
+        }
+        columns.setGravity(driverGravity());
+        int count = built.size();
+        for (int i = 0; i < count; i++) {
+            LinearLayout next = built.get(RHD ? (count - 1 - i) : i);
+            LinearLayout.LayoutParams clp =
+                new LinearLayout.LayoutParams(columnWidthPx, ViewGroup.LayoutParams.WRAP_CONTENT);
+            if (i > 0) clp.leftMargin = gapH;
+            columns.addView(next, clp);
+        }
+        return count;
     }
 
     /** Applies margin values to an already-added view. */
