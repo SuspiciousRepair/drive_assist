@@ -140,11 +140,22 @@ public class ElevationView extends View {
      * a mountain road still uses all of it. */
     static final double MIN_SPAN_M = 200;
 
+    /** The two labels are multiples of this: "600 m", not "639 m". */
+    static final double STEP_M = 50;
+
     /** The heights at the bottom and the top of the chart: the trip's
-     * lowest and highest, widened around their middle to MIN_SPAN_M. */
+     * lowest and highest, widened around their middle to MIN_SPAN_M, then
+     * moved out to round numbers (STEP_M), so nothing is cut off.
+     *
+     * The widening never takes the bottom under sea level: a trip by the
+     * coast (5..40 m) had a chart that started at "-78 m", a height nobody
+     * measured. The bottom goes under 0 only when the trip's own lowest
+     * point does, to the round number just under that point. */
     static double[] range(double lo, double hi) {
         double span = Math.max(hi - lo, MIN_SPAN_M), mid = (lo + hi) / 2;
-        return new double[]{mid - span / 2, mid + span / 2};
+        double bottom = Math.floor(Math.max(mid - span / 2, Math.min(0, lo)) / STEP_M) * STEP_M;
+        double top = Math.ceil(Math.max(bottom + span, hi) / STEP_M) * STEP_M;
+        return new double[]{bottom, top};
     }
 
     @Override protected void onDraw(Canvas c) {

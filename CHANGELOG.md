@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+## [v0.11.1] — 2026-11-23
+
+### Changed
+- **Stats page: a new "Battery" card.** The big number is now the battery
+  you used in the day, week or month, in percent, with every drop added up.
+  Before, it showed the level at the start and at the end, which says little
+  for a week. What the car lost while parked counts too. The card also shows
+  the lowest and highest level, the energy the charges put in with their
+  count, and the lowest and highest outside temperature. With an OBD2
+  dongle it adds the battery's own temperature.
+- **Stats page: the "Trip" card is now "Driving".** Average speed is now the
+  speed while moving. The old number counted every stop, so a day in town
+  read under 10 km/h. A new block shows the number of trips and the km per
+  trip. A day from before this version that is more than about 90 days old
+  shows no moving speed: the readings it needs are no longer kept.
+- **Stats page: the top row stays in place.** The date, its two arrows
+  and the day / week / month menu no longer scroll away with the cards, so
+  you can change the day from the bottom of a long list.
+- **Stats page: no distance next to the date.** The Driving card's big
+  number is the distance.
+
+### Fixed
+- **Trip page: the height chart no longer starts below 0 m.** On a trip
+  near sea level the chart's bottom label could read a negative height,
+  such as "-78 m", that the car never measured. The chart now starts at
+  0 m. It goes below 0 only when the trip really measured a height under
+  sea level. The two height labels are now round numbers, such as "600 m"
+  and "800 m", not "639 m" and "839 m".
+
 ## [v0.11.0] — 2026-11-23
 
 ### Added

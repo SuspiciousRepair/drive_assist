@@ -12,6 +12,13 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.11.1 — 2026-11-23
+
+- Changed: the Stats page has a new Battery card showing the battery used in percent, lowest and highest level, charged energy and count, outside temperature, and battery temperature with an OBD2 dongle.
+- Changed: on the Stats page, the Trip card is now Driving, with moving speed (excluding stops) and the number of trips with km per trip.
+- Changed: on the Stats page, the top date and period row stays in place while the cards scroll under it.
+- Fixed: on the trip page, the height chart no longer starts below 0 m near sea level, and its height labels use round 50 m steps.
+
 ## v0.11.0 — 2026-11-23
 
 - New: a page for each charge. Tap the charging card to see the power, temperature and battery charts, the numbers and the map.

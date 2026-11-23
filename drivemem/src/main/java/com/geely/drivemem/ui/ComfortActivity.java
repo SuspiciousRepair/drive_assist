@@ -341,14 +341,11 @@ public class ComfortActivity extends Activity {
         // Daily Statistics view on home screen (swappable with band cards)
         statsContainer = new FrameLayout(this);
         statsContainer.setPadding(sidebarClearance, padTop + Style.statusBarHeight(this), padH, padV);
-        android.widget.ScrollView statsScroll = new android.widget.ScrollView(this);
-        statsScroll.setLayoutParams(new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        statsScroll.setVerticalScrollBarEnabled(false);
-        statsScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        // No ScrollView here: the view scrolls by itself, under its own
+        // header row, which stays in place.
         dailyStatsView = new DailyStatsView(this, null);
-        statsScroll.addView(dailyStatsView);
-        statsContainer.addView(statsScroll);
+        statsContainer.addView(dailyStatsView, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         statsContainer.setVisibility(View.GONE);
         screen.addView(statsContainer, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));

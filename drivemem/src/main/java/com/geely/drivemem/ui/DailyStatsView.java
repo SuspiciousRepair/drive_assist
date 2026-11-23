@@ -1,6 +1,7 @@
 package com.geely.drivemem.ui;
 
 import com.geely.drivemem.car.EntityBus;
+import com.geely.drivemem.sensors.BatteryHeat;
 import com.geely.drivemem.sensors.DailyStatsProvider;
 import com.geely.drivemem.sensors.EnergySource;
 import com.geely.drivemem.util.Style;
@@ -107,8 +108,10 @@ public class DailyStatsView extends LinearLayout {
         super(context);
         this.onBack = onBack;
         setOrientation(LinearLayout.VERTICAL);
+        // No bottom padding here: it is inside the scrolling part, so the
+        // last card can be pulled clear of the screen's edge.
         int pad = Style.dp(context, 16);
-        setPadding(pad, pad, pad, Style.dp(context, 32));
+        setPadding(pad, pad, pad, 0);
 
         buildSkeleton();
         refresh();
@@ -191,6 +194,20 @@ public class DailyStatsView extends LinearLayout {
         addView(navRow);
         Style.gap(this, c, 14);
 
+        // The header row stays in place: the date arrows and the period menu
+        // are in reach from anywhere in a month's long list. Everything
+        // under it scrolls, and is cut off at the row's lower edge (the row
+        // has no fill of its own, so cards must not show through it).
+        android.widget.ScrollView scroll = new android.widget.ScrollView(c);
+        scroll.setVerticalScrollBarEnabled(false);
+        scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        LinearLayout content = new LinearLayout(c);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(0, 0, 0, Style.dp(c, 32));
+        scroll.addView(content, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
         // 2. The navigator (replaces the 14-bar chart): a year of days, on a
         // card like the others so the art (the skyline, Noturno's buildings)
         // does not show between the squares.
@@ -202,9 +219,9 @@ public class DailyStatsView extends LinearLayout {
         navCard.setPadding(navPad, navPad, navPad + Style.dp(c, 4), Style.dp(c, 4));
         navCard.addView(navigator, new android.widget.FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        addView(navCard, new LinearLayout.LayoutParams(
+        content.addView(navCard, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        Style.gap(this, c, 16);
+        Style.gap(content, c, 16);
 
 
         // 4. Aggregated Daily Metric Cards (4-Column Grid)
@@ -234,9 +251,9 @@ public class DailyStatsView extends LinearLayout {
         tripCard = newDashboardCard(c, cardPad, 0);
         dashboardRow.addView(tripCard);
 
-        addView(dashboardRow);
+        content.addView(dashboardRow);
         dashboardRowView = dashboardRow;
-        Style.gap(this, c, 20);
+        Style.gap(content, c, 20);
 
         // 5. Bottom section: sessions and hourly speed distribution.
         LinearLayout bottomRow = new LinearLayout(c);
@@ -364,7 +381,7 @@ public class DailyStatsView extends LinearLayout {
         hourCaption.setGravity(Gravity.END);
         chartCard.addView(hourCaption);
         bottomRow.addView(chartCard);
-        addView(bottomRow);
+        content.addView(bottomRow);
         bottomRowView = bottomRow;
     }
 
@@ -416,6 +433,7 @@ public class DailyStatsView extends LinearLayout {
         DailyStatsProvider.PeriodOverview po;       // Week / Month view
         DailyStatsProvider.SpeedBucket[] buckets;
         DailyStatsProvider.HourlySpeedData hourly;
+        BatteryHeat.Stats heat;                     // the period's temperatures
     }
 
     /** Past periods do not change (a charge event clears it), so a week or
@@ -474,6 +492,12 @@ public class DailyStatsView extends LinearLayout {
             l.buckets = DailyStatsProvider.getSpeedBucketEfficiency(c, dates);
             l.hourly = DailyStatsProvider.getHourlySpeedData(c, dates);
         }
+        java.time.LocalDate[] span = com.geely.drivemem.sensors.StatsCalendar.period(
+            java.time.LocalDate.parse(date),
+            p == Period.WEEK ? com.geely.drivemem.sensors.StatsCalendar.Grain.WEEK
+                : p == Period.MONTH ? com.geely.drivemem.sensors.StatsCalendar.Grain.MONTH
+                : com.geely.drivemem.sensors.StatsCalendar.Grain.DAY);
+        l.heat = BatteryHeat.read(c, span[0], span[1].plusDays(1));
         return l;
     }
 
@@ -496,9 +520,9 @@ public class DailyStatsView extends LinearLayout {
                 long u0 = android.os.SystemClock.uptimeMillis();
                 if (l.po == null) {
                     if (l.date.equals(DailyStatsProvider.todayDateStr())) navigator.updateToday(l.ov.distanceKm);
-                    renderOverview(l.ov, l.buckets, l.hourly);
+                    renderOverview(l.ov, l.buckets, l.hourly, l.heat);
                 } else {
-                    renderPeriodCards(l.po, l.buckets, l.hourly);
+                    renderPeriodCards(l.po, l.buckets, l.hourly, l.heat);
                 }
                 android.util.Log.d(TAG, p + " " + date + ": load " + ms + " ms, draw "
                     + (android.os.SystemClock.uptimeMillis() - u0) + " ms");
@@ -636,10 +660,12 @@ public class DailyStatsView extends LinearLayout {
      * week or month. */
     private void renderPeriodCards(DailyStatsProvider.PeriodOverview po,
                                    DailyStatsProvider.SpeedBucket[] buckets,
-                                   DailyStatsProvider.HourlySpeedData hourly) {
-        navDateLabel.setText(withKm(po.periodLabel, po.totals.distanceKm));
+                                   DailyStatsProvider.HourlySpeedData hourly,
+                                   BatteryHeat.Stats heat) {
+        // No distance next to the name: the Driving card's big number is it.
+        navDateLabel.setText(po.periodLabel);
         renderConsumptionCard(po.totals, buckets);
-        renderBatteryCard(po.totals); // pii: allow (17-char identifier, not a VIN)
+        renderBatteryCard(po.totals, heat);
         renderEnergyCard(po.totals);
         renderTripCard(po.totals);
         renderPeriodSessions(po);
@@ -799,12 +825,6 @@ public class DailyStatsView extends LinearLayout {
         } catch (Exception e) { return -1; }
     }
 
-    /** "Setembro de 2026 · 1.577 km": the period's total distance next to
-     * its name, the one number the old bar chart gave at a glance. */
-    private static String withKm(String label, double km) {
-        return label + "  ·  " + kmNumber(km) + " km";
-    }
-
     /** 1.591 from 100 km up, 3,5 below (the default locale's separators). */
     private static String kmNumber(double km) {
         return km >= 100 ? String.format(Locale.getDefault(), "%,.0f", km)
@@ -813,17 +833,18 @@ public class DailyStatsView extends LinearLayout {
 
     private void renderOverview(DailyStatsProvider.DayOverview ov,
                                 DailyStatsProvider.SpeedBucket[] buckets,
-                                DailyStatsProvider.HourlySpeedData hourly) {
+                                DailyStatsProvider.HourlySpeedData hourly,
+                                BatteryHeat.Stats heat) {
         if (ov.displayDate != null && !ov.displayDate.isEmpty()) {
-            navDateLabel.setText(withKm(
-                Character.toUpperCase(ov.displayDate.charAt(0)) + ov.displayDate.substring(1), ov.distanceKm));
+            navDateLabel.setText(
+                Character.toUpperCase(ov.displayDate.charAt(0)) + ov.displayDate.substring(1));
         } else {
             navDateLabel.setText("");
         }
 
         // 4-Column Middle Section
         renderConsumptionCard(ov, buckets);
-        renderBatteryCard(ov);
+        renderBatteryCard(ov, heat);
         renderEnergyCard(ov);
         renderTripCard(ov);
 
@@ -975,44 +996,45 @@ public class DailyStatsView extends LinearLayout {
         // card's Sankey shows them, with where the energy went.
     }
 
-    private void renderBatteryCard(DailyStatsProvider.DayOverview ov) {
+    /** The battery over the period, all in percent so it needs no pack
+     * size: how much was used (every drop added up, the big number), how low
+     * and how high it went, what the charges put in, and the temperatures.
+     * Outside air always; the battery's own only when the dongle read it,
+     * since the two are different things and the dongle is an extra. */
+    private void renderBatteryCard(DailyStatsProvider.DayOverview ov, BatteryHeat.Stats heat) {
         Context c = getContext();
         batteryCard.removeAllViews();
+        cardTitle(batteryCard, c.getString(R.string.stats_card_battery));
 
-        // Header: "Bateria & Recargas"
-        TextView title = new TextView(c);
-        title.setText("Bateria & Recargas");
-        title.setTextColor(Style.TEXT_DIM);
-        title.setTextSize(15.5f);
-        title.setTypeface(null, Typeface.BOLD);
-        batteryCard.addView(title);
-        Style.gap(batteryCard, c, 8);
-
-        // Hero Metric: 59% → 96% (or —)
-        CharSequence socSwing = (ov.firstBatteryPct >= 0 && ov.lastBatteryPct >= 0)
-                ? percentRange(ov.firstBatteryPct, ov.lastBatteryPct, HERO_UNIT_SCALE)
+        CharSequence used = ov.usedPct >= 0
+                ? valueWithUnit(String.format(Locale.US, "%.0f", ov.usedPct), null, "%", HERO_UNIT_SCALE)
                 : "—";
-        batteryCard.addView(createHeroView(c, socSwing, "Variação de SoC"));
+        batteryCard.addView(createHeroView(c, used, c.getString(R.string.stats_battery_used)));
         Style.gap(batteryCard, c, 14);
 
-        // Energia Carregada used to fold the recharge count into the same
-        // value ("+14.2 kWh (1 recarga)"); Temp. Exterior folded in the
-        // minimum SoC the same way. Each number now gets its own chip.
-        CharSequence chargeVal = ov.chargeKwh > 0
-                ? valueWithUnit(String.format(Locale.US, "+%.1f", ov.chargeKwh), null, "kWh", ROW_UNIT_SCALE)
-                : valueWithUnit("0.0", null, "kWh", ROW_UNIT_SCALE);
-        CharSequence countVal = String.valueOf(ov.chargeCount);
-        CharSequence tempVal = valueWithUnit(String.format(Locale.US, "%.1f", ov.avgTempC), null, "°C", ROW_UNIT_SCALE);
-        CharSequence minSocVal = ov.minBatteryPct >= 0
-                ? valueWithUnit(String.valueOf(ov.minBatteryPct), null, "%", ROW_UNIT_SCALE)
+        CharSequence range = (ov.minBatteryPct >= 0 && ov.maxBatteryPct >= 0)
+                ? valueWithUnit(ov.minBatteryPct + " – " + ov.maxBatteryPct, null, "%", ROW_UNIT_SCALE)
                 : "—";
+        CharSequence chargeVal = valueWithUnit(
+                String.format(Locale.US, ov.chargeKwh > 0 ? "+%.1f" : "%.1f", ov.chargeKwh), null, "kWh", ROW_UNIT_SCALE);
+        String chargeCount = ov.chargeCount == 1 ? c.getString(R.string.stats_charge_one)
+                : c.getString(R.string.stats_charge_many, ov.chargeCount);
 
         List<View> chips = new ArrayList<>();
-        chips.add(metricChip(c, "Energia Carregada", chargeVal));
-        chips.add(metricChip(c, "Recargas", countVal));
-        chips.add(metricChip(c, "Temp. Exterior", tempVal));
-        chips.add(metricChip(c, "SoC Mínimo", minSocVal));
+        chips.add(metricChip(c, c.getString(R.string.stats_soc_range), range));
+        chips.add(metricChip(c, c.getString(R.string.stats_outside_temp), tempRange(heat == null ? null : heat.out)));
+        chips.add(metricChip(c, c.getString(R.string.stats_charged), chargeVal, chargeCount));
+        if (heat != null && heat.batt.n > 0) {
+            chips.add(metricChip(c, c.getString(R.string.stats_battery_temp), tempRange(heat.batt)));
+        }
         distributeInPairs(c, batteryCard, chips, 10);
+    }
+
+    /** "22 – 31 °C", one number when both round the same, "—" with no reading. */
+    private static CharSequence tempRange(BatteryHeat.Temps t) {
+        if (t == null || t.n == 0) return "—";
+        long lo = Math.round(t.min), hi = Math.round(t.max);
+        return valueWithUnit(lo == hi ? String.valueOf(lo) : lo + " – " + hi, null, "°C", ROW_UNIT_SCALE);
     }
 
     /** One of the four equal dashboard cards; {@code rightGap} 0 for the last. */
@@ -1060,22 +1082,31 @@ public class DailyStatsView extends LinearLayout {
         energyCard.addView(sankey, slp);
     }
 
-    /** Time & Speed and Relief in one card. No distance: the chart above
-     * already shows it. Relief is one block: the net change, with the climb
-     * and descent that make it under it. */
+    /** How the period was driven: the distance (the big number, the only
+     * place the page shows it), the time, the speed while moving, the trips
+     * and the climb. Moving speed, not distance over driving time: that one
+     * counts every stop and read 8 km/h on a day in town. */
     private void renderTripCard(DailyStatsProvider.DayOverview ov) {
         Context c = getContext();
         tripCard.removeAllViews();
         cardTitle(tripCard, c.getString(R.string.stats_card_trip));
 
-        // Distance is the hero: the 14-bar chart used to give it, and the
-        // owner missed it here once the chart became the navigator.
         long dMin = Math.round(ov.drivingMinutes);
         tripCard.addView(createHeroView(c, valueWithUnit(kmNumber(ov.distanceKm), null, "km", HERO_UNIT_SCALE),
             c.getString(R.string.stats_distance)));
         Style.gap(tripCard, c, 14);
 
-        CharSequence velVal = valueWithUnit(String.format(Locale.US, "%.0f", ov.avgSpeedKmh), null, "km/h", ROW_UNIT_SCALE);
+        double moving = ov.movingSpeedKmh();
+        CharSequence velVal = moving > 0
+            ? valueWithUnit(String.format(Locale.US, "%.0f", moving), null, "km/h", ROW_UNIT_SCALE)
+            : "—";
+
+        // The same count as the session list's "N viagens" below.
+        int trips = 0;
+        for (DailyStatsProvider.DaySession s : ov.sessions) if (s.isTrip() && !s.isValet()) trips++;
+        CharSequence tripsVal = trips > 0 ? String.valueOf(trips) : "—";
+        CharSequence perTrip = trips > 0
+            ? c.getString(R.string.stats_km_per_trip, kmNumber(ov.distanceKm / trips)) : null;
 
         double net = ov.netElevationM;
         int netColor = net > 0.5 ? Style.HEAT : net < -0.5 ? Style.COOL : Style.TEXT;
@@ -1094,7 +1125,8 @@ public class DailyStatsView extends LinearLayout {
         List<View> chips = new ArrayList<>();
         chips.add(metricChip(c, c.getString(R.string.stats_driving_time),
             String.format(Locale.US, "%dh %02dm", dMin / 60, dMin % 60)));
-        chips.add(metricChip(c, c.getString(R.string.stats_avg_speed), velVal));
+        chips.add(metricChip(c, c.getString(R.string.stats_moving_speed), velVal));
+        chips.add(metricChip(c, c.getString(R.string.stats_trips), tripsVal, perTrip));
         chips.add(metricChip(c, c.getString(R.string.stats_relief), netVal, upDown));
         distributeInPairs(c, tripCard, chips, 10);
     }
@@ -1335,6 +1367,9 @@ public class DailyStatsView extends LinearLayout {
             if (i % 2 == 0) {
                 row = new LinearLayout(c);
                 row.setOrientation(LinearLayout.HORIZONTAL);
+                // The two chips of a row are as tall as the taller one (one
+                // of them may carry a line under its value).
+                row.setBaselineAligned(false);
                 LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
                 if (i > 0) rlp.topMargin = Style.dp(c, gapDp);
@@ -1342,7 +1377,7 @@ public class DailyStatsView extends LinearLayout {
                 container.addView(row);
             }
             View v = items.get(i);
-            LinearLayout.LayoutParams vlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            LinearLayout.LayoutParams vlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
             if (i % 2 == 0) vlp.rightMargin = Style.dp(c, gapDp);
             v.setLayoutParams(vlp);
             row.addView(v);

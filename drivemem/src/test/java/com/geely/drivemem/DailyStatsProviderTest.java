@@ -112,6 +112,34 @@ public class DailyStatsProviderTest {
         assertEquals(450, total.maxAltitudeM, 1e-9);
     }
 
+    @Test public void batteryUsedSumsTheDaysThatHaveAReading() {
+        DailyStatsProvider.DayOverview a = day("2026-09-01", 10, 0, 0, 0, 0, 1, 0, 0, -1, -1, -1, -1, 0);
+        a.usedPct = 30;
+        DailyStatsProvider.DayOverview b = day("2026-09-02", 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0);
+        DailyStatsProvider.DayOverview c = day("2026-09-03", 10, 0, 0, 0, 0, 1, 0, 0, -1, -1, -1, -1, 0);
+        c.usedPct = 74;
+
+        assertEquals(104, DailyStatsProvider.aggregate(asList(a, b, c), "label").usedPct, 1e-9);
+        // No day with a reading: not known, which is not "0 % used".
+        assertEquals(-1, DailyStatsProvider.aggregate(asList(b), "label").usedPct, 1e-9);
+    }
+
+    @Test public void movingSpeedUsesOnlyTheKmOfTheDaysThatHaveAMovingTime() {
+        DailyStatsProvider.DayOverview a = day("2026-09-01", 30, 0, 0, 0, 0, 90, 0, 0, -1, -1, -1, -1, 0);
+        a.movingMinutes = 60; a.movingKm = 30;
+        // Samples pruned before this day's moving time was stored.
+        DailyStatsProvider.DayOverview b = day("2026-09-02", 500, 0, 0, 0, 0, 300, 0, 0, -1, -1, -1, -1, 0);
+        DailyStatsProvider.DayOverview c = day("2026-09-03", 60, 0, 0, 0, 0, 120, 0, 0, -1, -1, -1, -1, 0);
+        c.movingMinutes = 60; c.movingKm = 60;
+
+        DailyStatsProvider.DayOverview total = DailyStatsProvider.aggregate(asList(a, b, c), "label");
+
+        assertEquals(120, total.movingMinutes, 1e-9);
+        assertEquals(90, total.movingKm, 1e-9);
+        assertEquals(45, total.movingSpeedKmh(), 1e-9);
+        assertEquals(0, DailyStatsProvider.aggregate(asList(b), "label").movingSpeedKmh(), 1e-9);
+    }
+
     @Test public void weekDatesReturnsSevenConsecutiveDaysStartingMonday() {
         // 2026-09-14 is a Monday; 2026-09-16 (a Wednesday) falls in that week.
         // Monday-start (not Sunday-start) keeps a weekend whole instead of
