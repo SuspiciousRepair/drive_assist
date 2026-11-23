@@ -20,13 +20,46 @@ import java.util.regex.Pattern;
  * Any other tag ("[ar:...]", "[length:...]") and any line with no time tag
  * is skipped. */
 public final class Lrc {
+    /** The first line of a cached plain (untimed) text, see plain(). */
+    public static final String PLAIN_MARK = "#plain";
+
     private static final Pattern TIME = Pattern.compile("\\[(\\d{1,3}):(\\d{1,2})(?:[.:](\\d{1,3}))?\\]");
     private static final Pattern OFFSET = Pattern.compile("^\\[offset:\\s*([+-]?\\d+)\\s*\\]", Pattern.CASE_INSENSITIVE);
 
-    private final long[] times;
+    private final long[] times;   // empty for plain lyrics
     private final String[] texts;
 
     private Lrc(long[] times, String[] texts) { this.times = times; this.texts = texts; }
+
+    /** Plain lyrics: the lines of the text, with no times. Blank lines (the
+     * gaps between verses) are dropped: the driver steps line by line. Null
+     * when there is no line. */
+    public static Lrc plain(String text) {
+        if (text == null) return null;
+        List<String> lines = new ArrayList<>();
+        for (String line : text.split("\\r?\\n")) {
+            String t = line.trim();
+            if (!t.isEmpty()) lines.add(t);
+        }
+        return lines.isEmpty() ? null : new Lrc(new long[0], lines.toArray(new String[0]));
+    }
+
+    /** What LyricsClient keeps: LRC text, or PLAIN_MARK and plain text. */
+    public static Lrc parseAny(String text) {
+        if (text == null) return null;
+        if (text.startsWith(PLAIN_MARK + "\n")) return plain(text.substring(PLAIN_MARK.length() + 1));
+        return parse(text);
+    }
+
+    /** One line down (or back) from index, kept inside the text: how the
+     * driver moves through plain lyrics. */
+    public int step(int index, boolean down) {
+        if (texts.length == 0) return 0;
+        return Math.max(0, Math.min(texts.length - 1, index + (down ? 1 : -1)));
+    }
+
+    /** False for plain lyrics: no times, the driver moves through them. */
+    public boolean timed() { return times.length > 0; }
 
     /** Null when the text has no timed line at all (plain lyrics, or junk). */
     public static Lrc parse(String lrc) {
@@ -74,7 +107,8 @@ public final class Lrc {
         return new Lrc(times, texts);
     }
 
-    public int size() { return times.length; }
+    public int size() { return texts.length; }
+    /** Only for timed lyrics. */
     public long timeAt(int i) { return times[i]; }
     public String textAt(int i) { return texts[i]; }
 
@@ -87,7 +121,7 @@ public final class Lrc {
     }
 
     /** The line sung at positionMs: the last one that started at or before
-     * it. -1 before the first line. */
+     * it. -1 before the first line, and always for plain lyrics. */
     public int indexAt(long positionMs) {
         int lo = 0, hi = times.length - 1, found = -1;
         while (lo <= hi) {

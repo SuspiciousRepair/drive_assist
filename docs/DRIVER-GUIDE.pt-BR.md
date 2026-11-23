@@ -142,8 +142,11 @@ aparece, ou quando os outros cartões precisam de mais de uma coluna.
 
 A letra vem do [LRCLIB](https://lrclib.net), um site gratuito de letras. Para
 achá-la, o carro envia para lá os nomes da música, do artista e do álbum, uma
-vez por música. Algumas músicas não têm letra com tempo no LRCLIB; para essas,
-o botão Letra fica apagado. Com a chave desligada, o carro não envia nada para
+vez por música. Algumas músicas só têm letra sem tempo no LRCLIB. O cartão
+mostra essa letra também, mas ela não anda sozinha: toque na metade de baixo da
+letra para descer uma linha, na metade de cima para voltar uma. Para uma música
+sem letra nenhuma, o botão Letra fica apagado, e tocar nele diz "Letra não
+encontrada para esta música". Com a chave desligada, o carro não envia nada para
 lá.
 
 ### Dashcam

@@ -72,4 +72,30 @@ public class LrcTest {
         assertEquals("b", l.display(2));
         assertEquals("", l.display(3));
     }
+
+    @Test public void plainLyricsKeepTheLinesAndDropTheGaps() {
+        Lrc l = Lrc.plain("First line\n\nSecond line\r\n  Third  \n");
+        assertFalse(l.timed());
+        assertEquals(3, l.size());
+        assertEquals("Second line", l.display(1));
+        assertEquals("Third", l.display(2));
+        assertEquals(-1, l.indexAt(60_000));   // no times to follow
+        assertNull(Lrc.plain("\n \n"));
+    }
+
+    @Test public void parseAnyKnowsTheCachedPlainText() {
+        Lrc plain = Lrc.parseAny(Lrc.PLAIN_MARK + "\nOne\nTwo");
+        assertFalse(plain.timed());
+        assertEquals(2, plain.size());
+        assertTrue(Lrc.parseAny("[00:01.00]One").timed());
+        assertNull(Lrc.parseAny(""));
+    }
+
+    @Test public void stepMovesOneLineAndStaysInside() {
+        Lrc l = Lrc.plain("a\nb\nc");
+        assertEquals(1, l.step(0, true));
+        assertEquals(2, l.step(2, true));    // last line: stays
+        assertEquals(0, l.step(0, false));   // first line: stays
+        assertEquals(1, l.step(2, false));
+    }
 }

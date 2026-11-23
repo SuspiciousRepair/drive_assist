@@ -23,8 +23,9 @@ import java.nio.charset.StandardCharsets;
  * after NONE_RETRY_MS (LRCLIB grows). A network failure is not kept: the
  * next request for that track tries again, at most once per RETRY_MS.
  *
- * Plain (untimed) lyrics are ignored: the card follows the song line by
- * line, and plain text has no times to follow. */
+ * Synced lines come first: the card follows the song line by line. When a
+ * song has only plain (untimed) text, that is kept instead (marked with
+ * Lrc.PLAIN_MARK), and the driver steps through it with a tap. */
 public final class LyricsClient {
     private static final String TAG = CarAccess.TAG;
     private static final String BASE = "https://lrclib.net/api";
@@ -72,7 +73,7 @@ public final class LyricsClient {
                 String lrc = load(app, trackId, title, artist, album, durationMs);
                 if (!trackId.equals(inFlightId)) return;   // a newer track took over
                 if (lrc == null) { failedId = trackId; failedAtMs = System.currentTimeMillis(); }
-                else { loaded = Lrc.parse(lrc); loadedId = trackId; }
+                else { loaded = Lrc.parseAny(lrc); loadedId = trackId; }
             } catch (Throwable t) {
                 Log.w(TAG, "lyrics: " + t);
             }
@@ -82,10 +83,19 @@ public final class LyricsClient {
         });
     }
 
-    /** The LRC text, "" when LRCLIB has no synced lines, null on a failure. */
+    /** The LRC text (or PLAIN_MARK and plain text), "" when LRCLIB has no
+     * lyrics, null on a failure. */
     private static String load(Context app, String trackId, String title, String artist,
                                String album, long durationMs) {
-        File dir = new File(app.getCacheDir(), "lyrics");
+        // "lyrics2": the first cache kept "none" for songs with plain text
+        // only. Its files go once, so those songs are asked again.
+        File old = new File(app.getCacheDir(), "lyrics");
+        if (old.isDirectory()) {
+            File[] fs = old.listFiles();
+            if (fs != null) for (File x : fs) x.delete();
+            old.delete();
+        }
+        File dir = new File(app.getCacheDir(), "lyrics2");
         File f = new File(dir, safeName(trackId) + ".lrc");
         if (f.isFile()) {
             boolean none = f.length() == 0;
@@ -114,24 +124,56 @@ public final class LyricsClient {
         if (durS > 0) q.append("&duration=").append(durS);
         Http got = get(app, q.toString());
         if (got == null) return null;
+        String plain = null;
         if (got.code == 200) {
             try {
-                String s = syncedOf(new org.json.JSONObject(got.body));
+                org.json.JSONObject o = new org.json.JSONObject(got.body);
+                String s = syncedOf(o);
                 if (s != null) return s;
+                plain = plainOf(o);
             } catch (Throwable t) { Log.w(TAG, "lyrics get: " + t); }
         } else if (got.code != 404) {
             return null;
         }
         // 2. A search, for an album name or length that differs a little.
         Http found = get(app, "/search?track_name=" + enc(title) + "&artist_name=" + enc(artist));
-        if (found == null || found.code != 200) return found == null ? null : "";
+        if (found == null) return plain != null ? Lrc.PLAIN_MARK + "\n" + plain : null;
         try {
-            String s = pickSynced(new org.json.JSONArray(found.body), durS);
-            return s == null ? "" : s;
+            if (found.code == 200) {
+                org.json.JSONArray hits = new org.json.JSONArray(found.body);
+                String s = pickSynced(hits, durS);
+                if (s != null) return s;
+                if (plain == null) plain = pickPlain(hits, durS);
+            }
         } catch (Throwable t) {
             Log.w(TAG, "lyrics search: " + t);
-            return "";
         }
+        // 3. No synced lines anywhere: the plain text, if there is one.
+        return plain != null ? Lrc.PLAIN_MARK + "\n" + plain : "";
+    }
+
+    /** The plain text of one LRCLIB record, or null (instrumental, none). */
+    static String plainOf(org.json.JSONObject o) {
+        if (o == null || o.optBoolean("instrumental", false)) return null;
+        if (o.isNull("plainLyrics")) return null;
+        String s = o.optString("plainLyrics", "");
+        return s.trim().isEmpty() ? null : s;
+    }
+
+    /** Like pickSynced, for plain text. */
+    static String pickPlain(org.json.JSONArray hits, int durationS) {
+        if (hits == null) return null;
+        for (int i = 0; i < hits.length(); i++) {
+            org.json.JSONObject o = hits.optJSONObject(i);
+            String s = plainOf(o);
+            if (s == null) continue;
+            if (durationS > 0) {
+                double d = o.optDouble("duration", -1);
+                if (d < 0 || Math.abs(d - durationS) > DURATION_TOLERANCE_S) continue;
+            }
+            return s;
+        }
+        return null;
     }
 
     /** The synced text of one LRCLIB record, or null (instrumental, plain only). */

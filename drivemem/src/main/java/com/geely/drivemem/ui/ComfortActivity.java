@@ -173,6 +173,7 @@ public class ComfortActivity extends Activity {
     private boolean lyricsWantedAtPack;     // what the last repack decided from, so refreshLyrics() repacks only on a change
     private Lrc lyricsTickLines;            // the lines the slots show now
     private int lyricIndex = Integer.MIN_VALUE;
+    private int plainIndex;   // the line shown now, for plain (untimed) lyrics
     // Show a line this much before the session's position reaches it: the
     // eye needs a beat.
     private static final long LYRICS_LEAD_MS = 400;
@@ -1350,6 +1351,17 @@ public class ComfortActivity extends Activity {
             lyricSlots[i] = t;
             slots.addView(t);
         }
+        // Plain (untimed) lyrics: a tap on the lower half goes down one
+        // line, on the upper half back one. Timed lyrics move by themselves.
+        slots.setOnTouchListener((v, e) -> {
+            if (e.getAction() != android.view.MotionEvent.ACTION_UP) return true;
+            Lrc lines = LyricsClient.linesFor(MusicState.trackId());
+            if (lines == null || lines.timed()) return true;
+            plainIndex = lines.step(plainIndex, e.getY() >= v.getHeight() / 2f);
+            ui.removeCallbacks(lyricsTick);
+            ui.post(lyricsTick);
+            return true;
+        });
         outer.addView(slots, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
@@ -1445,9 +1457,15 @@ public class ComfortActivity extends Activity {
     private void openLyrics() {
         setLyricsOpen(true);
         ui.postDelayed(() -> {
-            if (!lyricsShown() && LyricsClient.linesFor(MusicState.trackId()) != null)
-                android.widget.Toast.makeText(this, R.string.music_lyrics_no_room,
-                    android.widget.Toast.LENGTH_LONG).show();
+            String id = MusicState.trackId();
+            int msg = 0;
+            if (LyricsClient.linesFor(id) == null) {
+                // Nothing timed or plain for this song (the button is dim).
+                if (!LyricsClient.pending(id)) msg = R.string.music_lyrics_not_found;
+            } else if (!lyricsShown()) {
+                msg = R.string.music_lyrics_no_room;
+            }
+            if (msg != 0) android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_LONG).show();
         }, 400);
     }
 
@@ -1529,8 +1547,14 @@ public class ComfortActivity extends Activity {
                 showLyricLines(null, 0);   // blank slots
             }
             if (lines != null) {
-                long pos = MusicState.positionNowMs(android.os.SystemClock.elapsedRealtime()) + LYRICS_LEAD_MS;
-                int i = lines.indexAt(pos);
+                if (lines != lyricsTickLines) plainIndex = 0;   // a new song starts at its first line
+                int i;
+                if (lines.timed()) {
+                    long pos = MusicState.positionNowMs(android.os.SystemClock.elapsedRealtime()) + LYRICS_LEAD_MS;
+                    i = lines.indexAt(pos);
+                } else {
+                    i = plainIndex;   // plain lyrics: where the driver's taps left them
+                }
                 if (lines != lyricsTickLines || i != lyricIndex) {
                     lyricsTickLines = lines;
                     lyricIndex = i;
