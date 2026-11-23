@@ -208,6 +208,11 @@
     <string name="cfg_appearance_dark">Oscuro</string>
     <string name="cfg_appearance_auto">Automático</string>
     <string name="cfg_appearance_note">Automático sigue el propio ajuste de día/noche de esta unidad. Neon y Noturno siempre usan su único esquema de color fijo, sea cual sea este ajuste.</string>
+    <string name="cfg_drive_side_header">Lado del conductor</string>
+    <string name="cfg_drive_side_auto">Automático</string>
+    <string name="cfg_drive_side_left">Izquierdo</string>
+    <string name="cfg_drive_side_right">Derecho</string>
+    <string name="cfg_drive_side_note">Automático sigue el lado del volante del coche.</string>
     <!-- skyline art -->
     <string name="cfg_skyline_label">Mostrar silueta urbana</string>
     <string name="cfg_skyline_header">Skyline</string>

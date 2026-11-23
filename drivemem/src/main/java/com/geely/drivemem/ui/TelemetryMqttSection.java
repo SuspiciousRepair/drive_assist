@@ -115,7 +115,7 @@ public final class TelemetryMqttSection extends LinearLayout {
         LinearLayout rightCol = ConfigCards.column(activity);
         mqttConfigContainer = ConfigCards.columns(activity, leftCol, rightCol);
         LinearLayout.LayoutParams ccLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         ccLp.topMargin = Style.dp(activity, Style.CARD_GAP_DP);
         mqttConfigContainer.setLayoutParams(ccLp);
         mqttConfigContainer.setVisibility(teleOn ? View.VISIBLE : View.GONE);

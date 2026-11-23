@@ -300,6 +300,11 @@
     <string name="cfg_appearance_dark">Escura</string>
     <string name="cfg_appearance_auto">Automática</string>
     <string name="cfg_appearance_note">Automática segue o ajuste de dia/noite do próprio painel do carro. Neon e Noturno sempre usam seu esquema de cor único, seja qual for este ajuste.</string>
+    <string name="cfg_drive_side_header">Lado do motorista</string>
+    <string name="cfg_drive_side_auto">Automático</string>
+    <string name="cfg_drive_side_left">Esquerdo</string>
+    <string name="cfg_drive_side_right">Direito</string>
+    <string name="cfg_drive_side_note">Automático segue o lado do volante do carro.</string>
     <string name="cfg_skyline_label">Mostrar arte do horizonte</string>
     <string name="cfg_skyline_header">Skyline</string>
     <string name="cfg_skyline_seed_header">Semente do Horizonte</string>

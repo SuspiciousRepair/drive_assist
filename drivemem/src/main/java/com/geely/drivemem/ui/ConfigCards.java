@@ -40,16 +40,25 @@ final class ConfigCards {
     }
 
     /** Puts columns side by side, each COL_DP wide, with the standard
-     * column gap between them. */
+     * column gap between them, mirrored and aligned to the driver's edge in RHD. */
     static LinearLayout columns(Context c, LinearLayout... cols) {
+        return columns(c, COL_DP, cols);
+    }
+
+    /** Same, with an explicit column width in dp (used by pages like Drive
+     * whose wider mode-card rows predate COL_DP). */
+    static LinearLayout columns(Context c, int colWidthDp, LinearLayout... cols) {
         LinearLayout row = new LinearLayout(c);
         row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Style.driverGravity());
+        row.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        int widthPx = Style.dp(c, colWidthDp);
         for (int i = 0; i < cols.length; i++) {
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                Style.dp(c, COL_DP), ViewGroup.LayoutParams.WRAP_CONTENT);
-            if (i > 0) lp.leftMargin = Style.dp(c, Style.COLUMN_GAP_DP);
-            row.addView(cols[i], lp);
+            cols[i].setLayoutParams(new LinearLayout.LayoutParams(
+                widthPx, ViewGroup.LayoutParams.WRAP_CONTENT));
         }
+        Style.addMirrored(row, Style.COLUMN_GAP_DP, cols);
         return row;
     }
 

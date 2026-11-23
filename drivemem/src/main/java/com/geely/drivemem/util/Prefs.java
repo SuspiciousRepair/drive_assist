@@ -269,9 +269,12 @@ public final class Prefs {
     public static int getTeleIntervalS(Context ctx) { return file(ctx).getInt("tele_interval_s", 10); }
     public static void setTeleIntervalS(Context ctx, int v) { file(ctx).edit().putInt("tele_interval_s", v).apply(); }
 
-    // --- Theme / appearance / currency ---
+    // --- Theme / appearance / driving position / currency ---
     public static String getAppearance(Context ctx, String def) { return file(ctx).getString("appearance", def); }
     public static void setAppearance(Context ctx, String v) { file(ctx).edit().putString("appearance", v).apply(); }
+    public static final String KEY_DRIVE_SIDE = "drive_side";
+    public static String getDriveSide(Context ctx, String def) { return file(ctx).getString(KEY_DRIVE_SIDE, def); }
+    public static void setDriveSide(Context ctx, String v) { file(ctx).edit().putString(KEY_DRIVE_SIDE, v).apply(); }
     public static String getTheme(Context ctx, String def) { return file(ctx).getString("theme", def); }
     public static void setTheme(Context ctx, String v) { file(ctx).edit().putString("theme", v).apply(); }
 
