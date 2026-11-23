@@ -56,7 +56,10 @@ separate, for safety and reliability.
 
 **Driving stats** turns the car's raw readings into a diary:
 
-- distance, driving time, average speed and battery change;
+- distance, driving time, the speed while moving, and the number of trips;
+- the battery in percent: how much you used, the lowest and highest level,
+  what the charges put in, and the outside temperature (the battery's own
+  too, with an OBD2 dongle);
 - **Energy by use**: where a trip's energy went — drive, climate, and other —
   and how much regeneration brought back (measured by CAN);
 - efficiency by speed range, in Wh/km;

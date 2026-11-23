@@ -69,6 +69,9 @@ public final class TelemetryRollup {
                 // Its own try: a failure here must not hold up the prune.
                 try { BatteryHeat.storeDays(db, java.time.LocalDate.parse(today)); }
                 catch (Throwable t) { Log.w(TAG, "rollup: battery heat: " + t); }
+                // The same for each day's moving time.
+                try { MovingTime.storeDays(db, java.time.LocalDate.parse(today)); }
+                catch (Throwable t) { Log.w(TAG, "rollup: moving time: " + t); }
                 pruneOldRawRows(db);
                 Prefs.setRollupLastDay(app, today);
                 Log.i(TAG, "rollup: done for " + today);
@@ -194,6 +197,8 @@ public final class TelemetryRollup {
             v.put("regen_kwh", es != null ? es.regenKwh : 0.0);
             v.put("net_kwh", es != null ? es.netKwh : 0.0);
             v.put("energy_source", (es != null ? es.energySource : EnergySource.NO_DATA).name());
+            long movingMs = MovingTime.ofDay(db, java.time.LocalDate.parse(day));
+            if (movingMs >= 0) v.put("moving_ms", movingMs);
 
             db.insertWithOnConflict("daily_stat", null, v, SQLiteDatabase.CONFLICT_IGNORE);
         }

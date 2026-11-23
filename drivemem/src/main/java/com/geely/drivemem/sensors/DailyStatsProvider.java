@@ -201,6 +201,17 @@ public final class DailyStatsProvider {
         // that tells the card to show it instead of efficiencyKwh100km.
         public boolean efficiencyFromCharges;
         public double chargeBasedKwh100km;
+        // Battery used, percent of the pack, every drop added up
+        // (BatteryUse); -1 = no SoC reading. A period sums its days.
+        public double usedPct = -1;
+        // Time with a speed above zero (MovingTime), and the km of the days
+        // that have it, so the moving speed never divides a whole period's
+        // km by part of its time. -1 = not known (samples pruned before the
+        // day's number was stored).
+        public double movingMinutes = -1;
+        public double movingKm;
+        /** km/h while moving; 0 when not known. */
+        public double movingSpeedKmh() { return MovingTime.kmh(movingKm, movingMinutes); }
 
         public DayOverview(String date, String displayDate, double distanceKm, double dischargeKwh,
                            double regenKwh, double netKwh,
@@ -279,6 +290,7 @@ public final class DailyStatsProvider {
         int minBatt = -1, maxBatt = -1, firstBatt = -1, lastBatt = -1;
         double tempSum = 0; int tempDays = 0;
         double maxAlt = 0;
+        double usedPct = -1, movingMin = -1, movingKm = 0;
         List<DaySession> allSessions = new ArrayList<>();
         List<EnergySource> sources = new ArrayList<>(days.size());
 
@@ -299,6 +311,11 @@ public final class DailyStatsProvider {
             if (d.lastBatteryPct >= 0) lastBatt = d.lastBatteryPct;
             if (d.avgTempC != 0) { tempSum += d.avgTempC; tempDays++; }
             if (d.maxAltitudeM > maxAlt) maxAlt = d.maxAltitudeM;
+            if (d.usedPct >= 0) usedPct = Math.max(0, usedPct) + d.usedPct;
+            if (d.movingMinutes >= 0) {
+                movingMin = Math.max(0, movingMin) + d.movingMinutes;
+                movingKm += d.movingKm;
+            }
             allSessions.addAll(d.sessions);
         }
 
@@ -313,6 +330,9 @@ public final class DailyStatsProvider {
             minBatt, maxBatt, drivingMin, avgSpeed, avgTemp, chargeCount, chargeKwh, allSessions);
         total.chargeCost = chargeCost;
         total.maxAltitudeM = maxAlt;
+        total.usedPct = usedPct;
+        total.movingMinutes = movingMin;
+        total.movingKm = movingKm;
         total.energySource = EnergySource.combine(sources);
         return total;
     }
@@ -948,6 +968,7 @@ public final class DailyStatsProvider {
         double drivingMin = 0, avgSpeed = 0, avgTemp = 0;
         int chargeCount = 0; double chargeKwh = 0; double chargeCost = 0;
         EnergySource daySource = EnergySource.NO_DATA;
+        long movingMs = -1;
 
         String today = todayDateStr();
         boolean isToday = dateStr.equals(today);
@@ -968,7 +989,7 @@ public final class DailyStatsProvider {
                 "SELECT first_odo_km, last_odo_km, first_battery_pct, last_battery_pct, "
               + "       min_battery_pct, max_battery_pct, avg_speed_kmh, avg_temp_c, "
               + "       ascent_m, descent_m, driving_minutes, charge_count, charge_kwh, "
-              + "       discharge_kwh, regen_kwh, net_kwh, charge_cost, energy_source "
+              + "       discharge_kwh, regen_kwh, net_kwh, charge_cost, energy_source, moving_ms "
               + "FROM daily_stat WHERE date = ?", new String[]{dateStr});
             try {
                 if (c.moveToFirst()) {
@@ -990,6 +1011,7 @@ public final class DailyStatsProvider {
                     netKwh = c.isNull(15) ? (dischargeKwh - regenKwh) : c.getDouble(15);
                     chargeCost = c.getDouble(16);
                     daySource = parseEnergySource(c.isNull(17) ? null : c.getString(17));
+                    if (!c.isNull(18)) movingMs = c.getLong(18);
                 }
             } finally { c.close(); }
         }
@@ -1160,6 +1182,15 @@ public final class DailyStatsProvider {
         try {
             if (altC.moveToFirst() && !altC.isNull(0)) ov.maxAltitudeM = altC.getDouble(0);
         } finally { altC.close(); }
+
+        // Not stored yet (today, a day frozen before v35): from the samples,
+        // which are indexed on ts_ms. -1 when they are gone too.
+        if (movingMs < 0) movingMs = MovingTime.ofRange(db, altBounds[0], altBounds[1]);
+        if (movingMs >= 0) {
+            ov.movingMinutes = movingMs / 60000.0;
+            ov.movingKm = distKm;
+        }
+        ov.usedPct = BatteryUse.ofDay(db, dateStr, altBounds[0], altBounds[1], firstBatt, lastBatt);
 
         if (frozen) DAY_CACHE.put(dateStr, ov);
         return ov;
