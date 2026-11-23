@@ -1,128 +1,172 @@
-# Right-hand drive layout toggle roadmap
+# Right-hand drive layout roadmap
 
-**Scope, decided:** card position on the Comfort screen, **and** the status
-sidebar's edge. Not KonamiView, not text direction/icon orientation — those
-stay out on purpose (see below for why Konami specifically is excluded on
-its own merits, not just narrowing for narrowing's sake).
+**Status:** Design finalized; ready for phased implementation on `next`.
 
-## Idea
+**Scope (updated from earlier draft):** Full driver-side mirroring across the
+app controlled by a single resolved boolean (`Style.RHD`) and a small set of
+shared layout primitives — including the home screen, internal card controls
+and `effortScale()`, Konami gesture zone, full-bleed art gradients, floating
+overlay, settings shell, stats card rows, and two-pane detail screens. The
+setting is **Auto / Left / Right** (default **Auto**, reading `CarCaps.rhd`
+written by ModeHelper). Text direction, charts/maps/calendars/date arrows,
+and the physical 2×2 window grid stay unmirrored on purpose.
 
-The app's interface was designed for left-hand drive (LHD) vehicles where the
-driver sits on the left side of the cabin. Geely sells vehicles in multiple
-markets, including right-hand drive (RHD) territories where the driver sits on
-the right. Add a toggle in **TelemetryActivity** (alongside the existing theme
-selector) that lets the owner mark their vehicle as RHD, so:
+## Why full mirroring instead of reversing only home columns
 
-- **ComfortActivity's card order** places the climate controls closer to the
-  driver's actual side, and
-- **The status sidebar** (`statusSidebar()` — not a footer; it's a vertical
-  rail pinned to the physical left edge) moves to the driver's side too,
-  since it holds the settings cog and view-mode dock (cards/stats/charge) —
-  reachability matters for these the same way it does for the climate card.
+The app's interface is anchored to the driver's side on left-hand drive (LHD)
+cars: the status rail, climate card, primary action buttons inside cards,
+floating overlay anchor, settings navigation rail, and detail screen back
+buttons all sit near the left edge, while the open art third (and Konami
+gesture zone) sits on the passenger's right third.
 
-## What exists today (grounding)
+In a right-hand drive (RHD) car, simply reversing the home columns leaves
+internal controls, the settings rail, the floating overlay, and the art veil
+fighting the layout. Organizing the UI around **one resolved flag (`Style.RHD`)
+and six tiny primitives** makes flipping LHD ↔ RHD a single-variable change
+and keeps future screens automatically RHD-safe.
 
-- `ComfortActivity.statusSidebar()` builds a vertical rail: HA/ABRP/OBD2
-  status icons on top, a "flexible space" spacer, a CarPlay-style dock
-  (cards/stats/charge view buttons), another spacer, and the settings cog
-  at the bottom.
-- It's placed via `FrameLayout.LayoutParams` pinned `Gravity.START` with a
-  `leftMargin` (`SIDEBAR_EDGE_MARGIN_DP`), width `SIDEBAR_WIDTH_DP` (84dp) —
-  see the block right before it in `onCreate`. The comment there notes the
-  main scrolling card row's own left padding "already clears this width" —
-  so flipping the sidebar to the right edge likely also means flipping
-  that padding, not just the sidebar's own `Gravity`/margin.
-- **KonamiView stays fixed on the physical right third regardless of RHD**
-  — this isn't just deferred scope, the code's own comment says why: it's
-  "pinned to the physical right third of the SCREEN... muscle memory," and
-  explicitly not tied to wherever any card or the sidebar happens to be.
-  Moving it would break the existing muscle-memory guarantee for LHD
-  owners. Leave it alone in both states.
+## Single-variable architecture
 
-## Intended presentation
+### 1. State, auto-detection, and settings
+- Store a 3-way preference in `drivemem` SharedPreferences (alongside theme
+  and appearance): `DRIVE_SIDE_AUTO` (default), `DRIVE_SIDE_LEFT`,
+  `DRIVE_SIDE_RIGHT`.
+- Resolve `public static boolean RHD = false;` once in `Style.load(Context)`:
+  - `LEFT` → `false`
+  - `RIGHT` → `true`
+  - `AUTO` → reads `CarCaps.read(c).rhd` (`"1"` → `true`; missing, empty, or
+    `"0"` → `false`). ModeHelper already reads the car's equipment row and
+    writes `rhd=0|1` to `car.caps`.
+- Include the driving-side preference in `SettingsFile` / `AppBackup` backup
+  and restore (with `PhoneRestoreKeysTest` coverage).
+- Add a 3-tile **Auto / Left / Right** selector in `TelemetryLookSection`
+  alongside the Light / Dark / Auto theme picker (strings in all active
+  locales: `values`, `values-pt`, `values-es`, `values-th`), calling
+  `activity.recreate()` on change.
+- Track `rhdAtBuild` in `ComfortActivity.onResume()` so returning from
+  Settings recreates the home screen cleanly.
 
-A new **RHD toggle** in the Appearance section of TelemetryActivity (the
-settings screen), positioned near the existing theme picker. When enabled:
+### 2. Shared mirroring primitives (in `Style` or `ui/LayoutMirror`)
+Every screen builds through these helpers instead of scattering `if (Style.RHD)`:
 
-- **ComfortActivity's three-column layout** (Clima/HVAC controls, Gate/quick
-  commands, Art panel) reorders so the climate controls appear on the right
-  side of the screen instead of the left.
-- **The status sidebar** moves from the left edge to the right edge —
-  `Gravity.START`+`leftMargin` becomes `Gravity.END`+`rightMargin`, and the
-  scrolling card row's compensating padding moves from its left side to its
-  right side to match.
+| Primitive | LHD (`Style.RHD == false`) | RHD (`Style.RHD == true`) |
+|---|---|---|
+| `driverGravity()` / `passengerGravity()` | `START` / `END` | `END` / `START` |
+| `setDriverPadding(v, driver, t, pass, b)` | `(driver, t, pass, b)` | `(pass, t, driver, b)` |
+| `setDriverMargin(lp, driver, pass)` | `left=driver, right=pass` | `left=pass, right=driver` |
+| `addMirrored(LinearLayout row, int gapDp, View... items)` | adds `0..n-1` with gap between | adds `n-1..0` with gap between |
+| `headerRow(ctx, backBtn, title, trailing...)` | `[Back, Title, ...]` | `[..., Title, Back]` |
+| `mirrorX(float frac)` | `frac` | `1f - frac` |
 
-KonamiView, text direction, and icon orientation stay exactly where they
-are, regardless of this toggle — decided, not just out of scope for a
-first pass.
+## Complete surface map
 
-## Discovery work
+### Core layout builders (`Style`, `ConfigCards`)
+- `Style.packIntoColumns(...)` (both overloads, including the 2-column
+  expanded Music Lyrics callback): pack cards into columns in priority order
+  (`col[0]` = Clima), then in RHD insert columns right-to-left, right-align
+  the column row inside its `HorizontalScrollView`, and start scrolled to the
+  right edge if columns overflow.
+- `Style.effortScale(...)`: flip pill order (`W5..W1 | 0 | C1..C5`) when
+  `Style.RHD` so cooler/warmer stays aligned with the mirrored `[❄️ | ☀️]`
+  buttons on both the home card and floating overlay.
+- `Style.configScreenBg(Context)`: horizontally flip `config_bg_day.webp` /
+  `config_bg_night.webp` in code when `Style.RHD`.
+- `ConfigCards.columns(...)`: reverse column order and right-align
+  single-column rows in RHD; migrate `TelemetryDriveSection` onto
+  `ConfigCards.columns()` so every settings page shares one path.
 
-1. Confirm the current ComfortActivity layout order and how `repackColumns()`
-   fills columns left-to-right: the method in `ComfortActivity.java` (~line
-   385) maintains a `cards` list (currently Clima, Gate, Turbo, Music, Charge,
-   HA panel) and packs them into equal-width columns in order.
-2. Confirm `cards` is the only thing that needs reversing for the card side
-   — no other hardcoded left/right assumption inside `repackColumns()`
-   itself that would fight a reversed list.
-3. Find exactly where the scrolling card row's left padding is set to
-   "clear" the sidebar's width (referenced in the sidebar placement
-   comment) — this has to become right padding when the sidebar flips, or
-   the cards will collide with (or leave an ugly gap where) the sidebar
-   used to be.
-4. Locate where the theme setting is persisted in SharedPreferences
-   (`drivemem` preferences file, key `"theme"`); confirm the same mechanism
-   can store an RHD boolean (e.g., key `"rhd"`).
+### Home screen (`ComfortActivity`, `GateCard`, `ChargeSessionCard`)
+- Move `statusSidebar()` to `driverGravity()` + `setDriverMargin(...)`; apply
+  `setDriverPadding(..., sidebarClearance, ...)` to `band`, `statsContainer`,
+  and `chargeStatsContainer`.
+- Move `konamiZone` to `passengerGravity()` (physical left third in RHD,
+  matching the open art third).
+- Mirror internal card controls via `addMirrored(...)`:
+  - **Clima:** `[❄️ | ☀️]`, `[Recirc | Purge]`, footer icons (`windDirIcon`,
+    `rearDefrostIcon`).
+  - **Turbo:** slot order (`T | R | A` → `A | R | T`).
+  - **Music (small, large, and expanded 2-column Lyrics card):** `[⏯ | ⏭]`,
+    expanded lyrics bottom bar (`[Play, Skip, Collapse]`), OEM sound gear
+    corner.
+  - **Charging & Journey/Parked:** active charging `[Info | Badge]` →
+    `[Badge | Info]`; `ChargeSessionCard` `[body | costTile]` →
+    `[costTile | body]` (covers both the home card and Charging stats).
+  - **PanelCard & GateCard:** `PanelCard` close button (`✕`) on
+    `Gravity.TOP | passengerGravity()`; `GateCard` `[Icon, Title, Status]` →
+    `[Status, Title, Icon]`.
 
-## Candidate mechanism
+### Full-bleed art (`SkylineArtView`, `VaporArtView`)
+- `SkylineArtView.buildVeil()`: flip gradient endpoints (`0 → w` vs `w → 0`).
+- `VaporArtView`: `cx = w * mirrorX(VP_X)` and flip scrim gradient endpoints.
 
-Store a persistent boolean setting, `rhd`, in the same SharedPreferences store
-where the theme is kept (`drivemem` preferences, alongside `"theme"` and
-`"appearance"`). Add helper methods to `Style.java`:
+### Floating overlay (`OverlayService`)
+- Anchor window to `Gravity.BOTTOM | driverGravity()`.
+- Negate drag `dx` in RHD so horizontal dragging follows the finger.
+- Mirror `askRow` and `turboSection` via `addMirrored(...)`.
+- Sync window anchor in `rebuildContent()` if `Style.RHD` changed at runtime.
 
-- `isRhd(Context c)`: reads the `"rhd"` key, defaults to `false`.
-- `setRhd(Context c, boolean rhd)`: persists the choice.
+### Settings, stats, and secondary/detail screens
+- `TelemetryActivity`: mirror `[side, scroll]` rail to the right, flip
+  `selectedNavBg()` accent bar to `driverGravity()`, mirror `head` and
+  `integrationHeader()`.
+- `DailyStatsView` & `ChargeStatsView`: mirror card rows (`dashboardRow`,
+  `bottomRow`, `overview`) while keeping charts, maps, calendars, and date
+  navigation arrows strictly LTR.
+- Two-pane detail screens (`TripRouteActivity`, `AllRoutesActivity`,
+  `ValetDetailActivity`, `ChargeDetailActivity`): mirror header (`headerRow`)
+  and `[left, right]` body panes.
+- Utility screens: `ClipPlayerActivity` (camera picker + back button to
+  `driverGravity()`), `CleanupActivity` (mirror `[root, spacer]` and header).
 
-In `ComfortActivity`:
-- When RHD is enabled at `onCreate`, reverse the order of items in the
-  `cards` list before `repackColumns()` processes it.
-- Also at `onCreate`, build the sidebar's `FrameLayout.LayoutParams` with
-  `Gravity.END`/`rightMargin` instead of `Gravity.START`/`leftMargin` when
-  RHD is enabled, and swap the card row's compensating padding to the
-  opposite side to match.
+### Deliberately left unmirrored
+- **2×2 window grid** in `TelemetryDoorsSection`: physical vehicle plan view
+  (FL/FR/RL/RR stays left/right of the car).
+- **Charts, maps, calendars, and date arrows** (time flows left-to-right;
+  maps stay north-up).
+- **Text direction** (LTR languages stay LTR; no `forceRtl`).
 
-Both changes are the same shape: read one boolean once at `onCreate`,
-branch two already-existing layout computations on it. No new views, no
-new state beyond the one preference.
+## Phased implementation plan
 
-## Decisions needed later
+Deliver as **3 focused PRs against `next`**, with an independent review pass
+after each PR before merge:
 
-- **Toggle wording**: English and Portuguese names for the setting (e.g.,
-  "Right-hand drive", "Right-side driver", "Right-hand drive layout" vs.
-  "Driving position" or similar — must be distinguishable from theme and
-  Appearance settings, and clear to a non-technical owner). Translatable
-  strings live in `res/values/strings.xml` (English) and
-  `res/values-pt/strings.xml` (Portuguese).
+1. **PR 1 — Foundation, primitives, Settings toggle & backup**
+   - `Style.RHD`, `DRIVE_SIDE_{AUTO,LEFT,RIGHT}`, `CarCaps.rhd` auto-resolution,
+     backup/restore integration.
+   - Mirroring primitives (`driverGravity`, `passengerGravity`,
+     `setDriverPadding`, `setDriverMargin`, `addMirrored`, `headerRow`,
+     `mirrorX`).
+   - `Style.packIntoColumns()`, `Style.effortScale()`, `Style.configScreenBg()`,
+     `ConfigCards.columns()` (+ `TelemetryDriveSection` migration).
+   - `TelemetryLookSection` **Auto / Left / Right** selector + 4-locale
+     strings + unit tests.
+2. **PR 2 — Home screen, cards, full-bleed art & floating overlay**
+   - `ComfortActivity` (`rhdAtBuild`, sidebar, clearance padding, `konamiZone`,
+     internal card controls including Music Lyrics & `ChargeSessionCard`),
+     `GateCard`.
+   - `SkylineArtView`, `VaporArtView`.
+   - `OverlayService` anchoring, drag math, internal rows, and live rebuild.
+3. **PR 3 — Settings shell, Stats, detail/utility screens & docs**
+   - `TelemetryActivity`, `DailyStatsView`, `ChargeStatsView`.
+   - `TripRouteActivity`, `AllRoutesActivity`, `ValetDetailActivity`,
+     `ChargeDetailActivity`, `ClipPlayerActivity`, `CleanupActivity`.
+   - Update `docs/DRIVER-GUIDE.md`, `docs/DRIVER-GUIDE.pt-BR.md`,
+     `CHANGELOG.md`, and archive this plan to `plan/archive/implemented/`.
 
-## Implementation direction
+## Review & verification checklist
 
-Build the feature as a stateless, layout-only transformation applied at
-`ComfortActivity.onCreate`:
+For each PR:
+- `./tools/check-pii.sh` and `./tools/verify.sh` pass cleanly.
+- Zero layout regressions when `Style.RHD == false` (LHD output identical).
+- Audit every touched screen for leftover hardcoded `Gravity.START`/`LEFT`,
+  `leftMargin`/`rightMargin`, padding, or `LinearGradient` directions.
+- Verify `HorizontalScrollView` right-alignment and initial scroll in RHD
+  when the 2-column Music Lyrics card is expanded or >3 columns overflow.
+- Verify `OverlayService` drag clamping and live LHD ↔ RHD toggle behavior.
 
-1. Add `isRhd(Context)` and `setRhd(Context, boolean)` to `Style.java`,
-   following the same pattern as `appearance()` and `setAppearance()`.
-2. In `ComfortActivity.onCreate`, read the RHD state before `repackColumns()`
-   is called. If RHD is enabled, reverse the order of the `cards` list
-   before packing.
-3. In the same `onCreate`, branch the sidebar's `LayoutParams` (edge +
-   margin) and the card row's compensating padding on the RHD state.
-4. Add the toggle to TelemetryActivity's Appearance panel, in the same
-   section as the theme selector, wired to `Style.setRhd()` and a
-   `recreate()` call to re-layout.
-5. Test with both LHD and RHD states, confirming the column order **and**
-   the sidebar both swap, and nothing collides or leaves a gap where the
-   sidebar used to sit.
+## Hardware follow-up (requires a real RHD vehicle)
 
-Do NOT touch KonamiView, text direction, or icon orientation — out of
-scope, decided, not deferred. If feedback later asks for any of that, it's
-a separate follow-up feature, not an extension of this one.
+- Confirm on an actual RHD car whether `CarAccess.readSetpoint()` still reads
+  the active HVAC setpoint from `area = 1` or from `area = 4`, and confirm
+  that `car.caps` reports `rhd=1`. Do not claim vehicle validation until
+  checked on hardware.
