@@ -619,7 +619,7 @@
     <string name="int_status_working">กำลังทำงาน…</string>
     <string name="cfg_oem_install">ติดตั้ง</string>
     <string name="cfg_oem_remove">ลบออก</string>
-    <string name="cfg_oem_hint">แก้คำภาษาจีนและคำผิดในแอปพลังงาน Wi-Fi และการตั้งค่าของรถ เปลี่ยนเฉพาะข้อความ ไฟล์ของรถไม่ถูกแก้ไข กดลบออกเพื่อกลับไปใช้ข้อความเดิมจากโรงงาน ใช้ได้เฉพาะแอปเวอร์ชันที่ทำข้อความไว้ให้เท่านั้น</string>
+    <string name="cfg_oem_hint">ข้อความที่ดีขึ้นในแอปพลังงาน Wi-Fi การตั้งค่า และสิทธิ์ของรถ กดลบออกเพื่อกลับไปใช้ข้อความเดิม</string>
     <string name="cfg_oem_st_off">ปิดอยู่ แอปของรถแสดงข้อความเดิมจากโรงงาน</string>
     <string name="cfg_oem_st_download">กำลังดาวน์โหลด…</string>
     <string name="cfg_oem_st_patch">กำลังเตรียมแอป…</string>

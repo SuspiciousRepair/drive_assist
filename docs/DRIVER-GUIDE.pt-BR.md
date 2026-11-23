@@ -163,8 +163,8 @@ gravação variam por região.
   padrão). Ligue **Em todas as telas** para escurecer todos os apps, não só o
   Painel. O botão Experimentar mostra na hora.
 - **Tradução dos apps do carro** (Config → Integrações): texto melhor nos apps
-  Energia, Wi-Fi e Configurações do próprio carro. Os arquivos do carro não
-  mudam; Remover ou a Limpeza tira. Instalar e Remover esperam o carro em P.
+  Energia, Wi-Fi, Configurações e Permissões do próprio carro. Os arquivos do
+  carro não mudam; Remover ou a Limpeza tira. Instalar e Remover esperam o carro em P.
 - **Som de travamento**: troca o som que o carro faz ao travar, ou importa o seu.
 - **Limpeza**: uma tela que remove o Drive Assist, o auxiliar e o leitor CAN, e
   devolve o som de travamento do próprio carro — útil antes de uma visita à

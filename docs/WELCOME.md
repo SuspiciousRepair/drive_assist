@@ -46,7 +46,7 @@ ModeHelper stops starting it.
   5 A to 32 A.
 - **Parking mode**: keeps the car's accessories on, with a timer.
 - **Lock sound**: the sound the car plays when it locks.
-- **The text of the car's own apps** (Energy, Wi-Fi, Settings), only after
+- **The text of the car's own apps** (Energy, Wi-Fi, Settings, Permissions), only after
   you tap Install in **Car app translations**. A patched copy is put in
   front of each app; the car's own files are not changed. Remove (or a
   reboot with the integration off) gives the factory text back.

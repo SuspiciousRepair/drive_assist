@@ -91,6 +91,14 @@
   at all.
 
 ### Fixed
+- **Car app translations: the car's permission screens too.** The car's
+  permission app now gets better Portuguese and Spanish text: the location
+  permission said "Localizando permissões" ("locating permissions") and now
+  says "Localização", the uninstall screens were in English, and the
+  Spanish "uninstall failed" message said it had worked. Tap Install again
+  in **Config → Integrations → Car app translations**, or wait for the next
+  car start. The page's hint is now one short sentence and names the four
+  apps.
 - **Home: the trip card keeps its driving time after an app restart.** When
   the app started again in the middle of a trip (an update, for example),
   the card's driving time started again from 0. The distance and the start
