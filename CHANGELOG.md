@@ -109,6 +109,9 @@
   at all.
 
 ### Fixed
+- **The Stats page scrolls again.** A change in this version took away the
+  page's scrolling, so the cards below the first screen could not be
+  reached.
 - **"Later" on the update window now means later.** Before, the window
   came back on the next app start, the next daily check, or the next
   update message, for the same version. Now, after **Later** (or a tap
