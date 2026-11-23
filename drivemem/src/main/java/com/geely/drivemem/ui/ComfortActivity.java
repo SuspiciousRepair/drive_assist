@@ -3062,10 +3062,11 @@ public class ComfortActivity extends Activity {
             }
         }
         refreshJourneyCard();
-        // Screen-scoped, not process-wide like Turbo/the gate: nothing bad
-        // happens if this stops while the screen is off, unlike abandoning a
-        // countdown mid-boost.
-        CarMediaSessions.start(this);   // phone music, when Config allows
+        // Phone music: the links to the car's players stay up while the app
+        // runs, not only on this screen. A new link knows nothing of a player
+        // that already went quiet (CarPlay after the cable is pulled), so
+        // re-linking on every return brought that song's card back.
+        if (Prefs.getBtMusic(this)) CarMediaSessions.start(this); else CarMediaSessions.stop();
         try {
             registerReceiver(updateReceiver, new IntentFilter(Updater.ACTION_UPDATE_AVAILABLE));
         } catch (Throwable ignored) {}
@@ -3121,7 +3122,6 @@ public class ComfortActivity extends Activity {
             activeCostDialog = null;
         }
         if (gateCard != null) gateCard.onPause();
-        CarMediaSessions.stop();
         ui.removeCallbacks(lyricsTick);
         TurboMode.get(this).setListener(null);
         CarState.removeListener(carStateListener);
