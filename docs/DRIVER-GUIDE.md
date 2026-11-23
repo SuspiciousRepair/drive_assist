@@ -149,6 +149,8 @@ The lyrics come from [LRCLIB](https://lrclib.net), a free lyrics site. To find
 them, the car sends the song, artist and album names there, once for each song.
 The car keeps the lyrics of the last 1000 songs and the covers of the last 200 albums,
 so a song heard again needs no internet.
+A wrong cover? Press and hold it. The car forgets that album's cover and takes
+the cover from the phone again.
 Some songs have only untimed lyrics on LRCLIB. The card shows them too, but they
 do not move by themselves, and a small struck-through clock shows at the top:
 tap the lower half of the lyrics to go down one line, the upper half to go back one. For a song with no lyrics at all, the Lyrics
