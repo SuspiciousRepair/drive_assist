@@ -50,7 +50,6 @@ public class ChargeStatsView extends LinearLayout {
     private int loadGen;
     private LinearLayout listContainer;
     private ScrollView sessionListScroll;
-    private ChargeSocChart chargeSocChart;
     // Where the period's charges took place: one pin per place, with its count.
     private RouteView chargeMap;
     private TextView chargeMapNone;
@@ -139,14 +138,10 @@ public class ChargeStatsView extends LinearLayout {
         kpiContainer.setLayoutParams(kpiLp);
         addView(kpiContainer);
 
-        // 3. Compact session navigator and chronological SoC chart.
-        // These are two independent cards, not a matched pair -- neither's
-        // height should derive from the other's. Previously both were forced
-        // into one shared fixed-height row (390dp), so a short chart reserved
-        // the same box as a long session list and vice versa; whichever had
-        // more content than that box could hold got clipped instead of
-        // scrolling on its own. Each card now sizes to (or caps) its own
-        // content independently.
+        // 3. The charges (the home screen's charging card, one per charge) and
+        // the map of where they happened. The battery-bar chart that sat
+        // between them went (2026-11-23): each card already says its battery
+        // levels, and the list needed the room.
         LinearLayout overview = new LinearLayout(c);
         overview.setOrientation(LinearLayout.HORIZONTAL);
         overview.setBaselineAligned(false);
@@ -171,47 +166,14 @@ public class ChargeStatsView extends LinearLayout {
         listContainer = new LinearLayout(c);
         listContainer.setOrientation(LinearLayout.VERTICAL);
         sessionListScroll.addView(listContainer);
-        // Own fixed cap (not tied to the chart card): enough room for a
-        // couple of session cards before this list scrolls internally,
-        // regardless of how tall the chart beside it ends up being.
+        // A fixed height: the list scrolls inside its card, and the map
+        // beside it takes the same height.
         listCard.addView(sessionListScroll, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 340)));
         LinearLayout.LayoutParams listLp = new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.WRAP_CONTENT, 34f);
+            ViewGroup.LayoutParams.WRAP_CONTENT, 64f);
         listLp.rightMargin = Style.dp(c, 12);
         overview.addView(listCard, listLp);
-
-        LinearLayout chartCard = new LinearLayout(c);
-        chartCard.setOrientation(LinearLayout.VERTICAL);
-        chartCard.setPadding(cardPad, cardPad, cardPad, Style.dp(c, 8));
-        chartCard.setBackground(Style.card(Style.cardFillColor(), c));
-        LinearLayout chartHeading = new LinearLayout(c);
-        chartHeading.setGravity(Gravity.CENTER_VERTICAL);
-        TextView chartTitle = Style.label(c, c.getString(R.string.charge_soc_chart_title));
-        chartTitle.setTextSize(14);
-        chartTitle.setTypeface(null, Typeface.BOLD);
-        chartHeading.addView(chartTitle, new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        chartHeading.addView(legend(c, "AC", Style.ACCENT));
-        chartHeading.addView(legend(c, "DC", Style.GOOD));
-        chartCard.addView(chartHeading);
-        chargeSocChart = new ChargeSocChart(c);
-        chargeSocChart.setListener(id -> selectSession(id, true));
-        // A fixed height, the same as the list beside it: the bars scroll
-        // inside the card. Sized to its bars, a year (18 charges) made the
-        // card grow off the screen (2026-11-18).
-        chartCard.addView(chargeSocChart, new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 340)));
-
-        LinearLayout rightColumn = new LinearLayout(c);
-        rightColumn.setOrientation(LinearLayout.VERTICAL);
-        rightColumn.addView(chartCard, new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        LinearLayout.LayoutParams chartLp = new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.WRAP_CONTENT, 30f);
-        chartLp.rightMargin = Style.dp(c, 12);
-        overview.addView(rightColumn, chartLp);
 
         // Where we charged: the period's charge places on the map, the
         // number of charges in each pin. Touch a pin: its newest charge is
@@ -226,7 +188,6 @@ public class ChargeStatsView extends LinearLayout {
             List<Long> ids = places.get(i).ids;
             long id = ids.get(ids.size() - 1);   // the newest at that place
             selectSession(id, true);
-            chargeSocChart.select(id, true);
         });
         mapFrame.addView(chargeMap, new android.widget.FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -462,7 +423,6 @@ public class ChargeStatsView extends LinearLayout {
 
         if (l.period.isEmpty()) {
             listContainer.addView(Style.label(c, c.getString(R.string.charge_none)));
-            chargeSocChart.setSessions(l.period, -1);
             return;
         }
         if (!visibleSessions.containsKey(selectedSessionId)) {
@@ -475,8 +435,6 @@ public class ChargeStatsView extends LinearLayout {
             sessionRows.put(s.id, row);
             listContainer.addView(row);
         }
-        chargeSocChart.setSessions(rev, selectedSessionId);
-        chargeSocChart.select(selectedSessionId, true);
         chargeMap.setSelectedSpot(ChargeSpots.placeOf(places, selectedSessionId));
     }
 
@@ -848,7 +806,7 @@ public class ChargeStatsView extends LinearLayout {
         return card;
     }
 
-    private void selectSession(long id, boolean fromChart) {
+    private void selectSession(long id, boolean fromMap) {
         selectedSessionId = id;
         for (Map.Entry<Long, View> entry : sessionRows.entrySet()) {
             ChargeSession.Summary s = visibleSessions.get(entry.getKey());
@@ -857,18 +815,8 @@ public class ChargeStatsView extends LinearLayout {
                 ? Style.outlinedCard(color, getContext())
                 : Style.card(Style.CARD, getContext()));
         }
-        chargeSocChart.select(id, !fromChart);
         chargeMap.setSelectedSpot(ChargeSpots.placeOf(places, id));
         View row = sessionRows.get(id);
-        if (fromChart && row != null) sessionListScroll.smoothScrollTo(0, row.getTop());
-    }
-
-    private View legend(Context c, String text, int color) {
-        TextView v = new TextView(c);
-        v.setText("● " + text);
-        v.setTextColor(color);
-        v.setTextSize(13);
-        v.setPadding(Style.dp(c, 12), 0, 0, 0);
-        return v;
+        if (fromMap && row != null) sessionListScroll.smoothScrollTo(0, row.getTop());
     }
 }

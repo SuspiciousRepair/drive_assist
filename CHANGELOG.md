@@ -68,7 +68,9 @@
   date: energy added, time, battery levels and average power, and the cost
   on the right (tap it to set the price). Tap the card to open the charge's
   page with the charts and the map. The small chart and map buttons are
-  gone; the charge page has both.
+  gone; the charge page has both. The battery-bar chart between the list
+  and the map is gone too: each card shows its battery levels, and the
+  list takes its room.
 - **Home: a smaller charging card with more information.** The card now has
   two lines, like the trip card. While the car charges, the first line shows
   the time charging and the time left to 100%. The second line shows the

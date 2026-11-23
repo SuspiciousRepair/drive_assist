@@ -116,8 +116,7 @@ this is that same rule applied specifically to icon buttons.
 
 When a bar chart's bar represents a *span* (a time range, a SoC range),
 consider drawing the span's own duration inside the bar rather than only
-as a separate label. Two existing implementations of this exact idea:
+as a separate label. The existing implementation of this idea is
 `Style.chargeRangeBar()` (draws into a Bitmap, used by the older
-TelemetryActivity charge history) and `ChargeSocChart.Plot.onDraw()`
-(draws directly to a Canvas). If a third one is ever needed, extract a
-shared helper instead of writing a fourth version of the same math.
+TelemetryActivity charge history). If another one is ever needed, extract
+a shared helper instead of writing a second version of the same math.

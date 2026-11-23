@@ -397,7 +397,6 @@
     <string name="cam_orbit">หมุนรอบคัน</string>
     <!-- charging history -->
     <string name="charge_sessions_title">ประวัติการชาร์จ · ล่าสุดก่อน</string>
-    <string name="charge_soc_chart_title">ช่วงแบตเตอรี่ · ล่าสุดก่อน</string>
     <string name="charge_map_none">ไม่มีการชาร์จในช่วงนี้ที่บันทึกตำแหน่งไว้</string>
     <string name="charge_ltm_title">12 เดือนล่าสุด</string>
     <string name="charge_period_30d">30 วันล่าสุด</string>
