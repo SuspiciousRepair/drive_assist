@@ -169,12 +169,15 @@ public final class DiaryEntryDialog {
                 this.selectedGroup = CarDiary.Group.NOTES;
                 this.selectedDate = Instant.ofEpochMilli(jolt.tsMs)
                     .atZone(ZoneId.systemDefault()).toLocalDate();
+                this.showingClasses = false;
             } else if (initialCat != null && initialCat.userPickable) {
                 this.selectedCat = initialCat;
                 this.selectedGroup = initialCat.group;
                 this.selectedDate = LocalDate.now();
+                this.showingClasses = false;
             } else {
-                // Open directly on the most urgent due/overdue item so logging it is 1 tap (Save).
+                // Start on the 5-class list when tapping "+ Add entry" so the driver
+                // picks a class first (which then collapses into that class's items).
                 CarDiary.DueStatus urgent = CarDiary.mostUrgent(dueList);
                 if (urgent != null && (urgent.overdue || urgent.dueSoon) && urgent.category.userPickable) {
                     this.selectedCat = urgent.category;
@@ -184,6 +187,7 @@ public final class DiaryEntryDialog {
                     this.selectedCat = CarDiary.Category.TIRE_PRESSURE;
                 }
                 this.selectedDate = LocalDate.now();
+                this.showingClasses = true;
             }
             pickedByGroup.put(selectedGroup, selectedCat);
         }
