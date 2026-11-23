@@ -774,7 +774,7 @@
     <string name="diary_open_none">Sin pendientes</string>
     <string name="diary_open_breakdown">%1$d ruido · %2$d incidente</string>
     <string name="diary_filter_all">Todos</string>
-    <string name="diary_filter_care">Cuidados</string>
+    <string name="diary_filter_care">Mantenimiento</string>
     <string name="diary_filter_notes">Notas</string>
     <string name="diary_empty">Sin registros aún. Pulsa + Añadir registro para anotar mantenimientos, ruidos o incidentes.</string>
     <string name="diary_park_required">Pon el coche en Park (P) para añadir un registro.</string>
