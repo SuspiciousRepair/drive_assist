@@ -22,7 +22,7 @@ public class SettingsFileTest {
         prefs.put("tele_enabled", true);
         prefs.put("tele_interval_s", 10);
         prefs.put("skyline_seed", 12L);                    // small long: must come back a Long
-        prefs.put("spotify_token_expiry", 1794000000000L);
+        prefs.put("big_long", 1794000000000L);
         prefs.put("abrp_user_token", "tok");
         prefs.put("outtemp_on", true);
         prefs.put("some_float", 1.5f);
@@ -77,7 +77,7 @@ public class SettingsFileTest {
         "backup_auto_fails", "backup_offer_done", "backup_restore_note",
         "update_last_url", "auto_update_last_check_ms", "skip_update_vc", "skip_update_vc_modehelper",
         "db_migrated_v1", "rollup_last_day_v10",
-        "spotify_pkce_verifier", "panel_dismissed", "drive_card_dismissed_trip", "can_explore_until",
+        "panel_dismissed", "drive_card_dismissed_trip", "can_explore_until",
         "phone_access_token",
     };
 

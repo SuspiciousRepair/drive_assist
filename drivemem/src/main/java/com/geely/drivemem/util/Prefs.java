@@ -190,7 +190,6 @@ public final class Prefs {
     public static long getSkylineSeed(Context ctx, long def) { return file(ctx).getLong("skyline_seed", def); }
     public static void setSkylineSeed(Context ctx, long v) { file(ctx).edit().putLong("skyline_seed", v).apply(); }
 
-    // --- Spotify ---
     // Config > Look > Extra dark (#89, ui/ExtraDark). Off until chosen.
     public static boolean getExtraDark(Context ctx) { return file(ctx).getBoolean("extra_dark", false); }
     public static void setExtraDark(Context ctx, boolean v) { file(ctx).edit().putBoolean("extra_dark", v).apply(); }
@@ -206,18 +205,48 @@ public final class Prefs {
     // Darkest mode over every app (services/DarkestOverlayService), not only the Dashboard.
     public static boolean getExtraDarkGlobal(Context ctx) { return file(ctx).getBoolean("extra_dark_global", false); }
     public static void setExtraDarkGlobal(Context ctx, boolean v) { file(ctx).edit().putBoolean("extra_dark_global", v).apply(); }
-    public static boolean getSpotifyLargeCard(Context ctx) { return file(ctx).getBoolean("spotify_large_card", false); }
-    public static void setSpotifyLargeCard(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_large_card", v).apply(); }
-    public static String getSpotifyClientId(Context ctx) { return file(ctx).getString("spotify_client_id", ""); }
-    public static void setSpotifyClientId(Context ctx, String v) { file(ctx).edit().putString("spotify_client_id", v).apply(); }
-    public static String getSpotifyAccessToken(Context ctx) { return file(ctx).getString("spotify_access_token", null); }
-    public static void setSpotifyAccessToken(Context ctx, String v) { file(ctx).edit().putString("spotify_access_token", v).apply(); }
-    public static String getSpotifyRefreshToken(Context ctx) { return file(ctx).getString("spotify_refresh_token", null); }
-    public static void setSpotifyRefreshToken(Context ctx, String v) { file(ctx).edit().putString("spotify_refresh_token", v).apply(); }
-    public static String getSpotifyPkceVerifier(Context ctx) { return file(ctx).getString("spotify_pkce_verifier", null); }
-    public static void setSpotifyPkceVerifier(Context ctx, String v) { file(ctx).edit().putString("spotify_pkce_verifier", v).apply(); }
-    public static long getSpotifyTokenExpiry(Context ctx) { return file(ctx).getLong("spotify_token_expiry", 0); }
-    public static void setSpotifyTokenExpiry(Context ctx, long v) { file(ctx).edit().putLong("spotify_token_expiry", v).apply(); }
+    // --- Music card (phone music) and lyrics ---
+    // The "spotify_" key names are historical: the card was first fed by a
+    // Spotify sign-in (removed). The names stay so each driver keeps the
+    // choices made then.
+    // "Large card" (Config > Elements > Home screen): the big music card.
+    public static boolean getMusicLargeCard(Context ctx) { return file(ctx).getBoolean("spotify_large_card", false); }
+    public static void setMusicLargeCard(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_large_card", v).apply(); }
+    // "Phone music" (Config > Elements > Home screen): the music card shows what the phone
+    // plays through the car (Bluetooth, CarPlay, Android Auto), from the car apps' media
+    // browsers (CarMediaSessions). Off by default. The key keeps its first name.
+    public static boolean getBtMusic(Context ctx) { return file(ctx).getBoolean("bt_music", false); }
+    public static void setBtMusic(Context ctx, boolean v) { file(ctx).edit().putBoolean("bt_music", v).apply(); }
+    // "Lyrics search" (Config > Integrations > Lyrics): the driver's consent. Off (the default)
+    // sends nothing to lrclib.net and shows no Lyrics button.
+    public static boolean getLyricsSearch(Context ctx) { return file(ctx).getBoolean("spotify_lyrics", false); }
+    public static void setLyricsSearch(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_lyrics", v).apply(); }
+    // The lyrics open (jumbo card) or closed: the last ✕ / Lyrics tap, kept across tracks and
+    // restarts. Open by default, so turning the search on shows them.
+    public static boolean getLyricsOpen(Context ctx) { return file(ctx).getBoolean("spotify_lyrics_open", true); }
+    public static void setLyricsOpen(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_lyrics_open", v).apply(); }
+
+    /** Keys of removed features: the Spotify sign-in (client id, tokens,
+     * PKCE verifier, token expiry). dropRemoved() deletes them at start, and
+     * no backup or restore carries them (isBackedUp). */
+    static final java.util.List<String> REMOVED_KEYS = java.util.Arrays.asList(
+        "spotify_client_id", "spotify_access_token", "spotify_refresh_token",
+        "spotify_pkce_verifier", "spotify_token_expiry");
+
+    /** Deletes the keys of removed features (REMOVED_KEYS). Called at every
+     * start; it writes only when one is still there, so after the first
+     * start it looks up five keys in memory and does nothing. */
+    public static void dropRemoved(Context ctx) { dropRemoved(file(ctx)); }
+
+    static void dropRemoved(SharedPreferences p) {
+        SharedPreferences.Editor e = null;
+        for (String k : REMOVED_KEYS) {
+            if (!p.contains(k)) continue;
+            if (e == null) e = p.edit();
+            e.remove(k);
+        }
+        if (e != null) e.apply();
+    }
 
     // --- Telemetry ---
     public static boolean getTeleEnabled(Context ctx) { return file(ctx).getBoolean("tele_enabled", false); }
@@ -269,7 +298,6 @@ public final class Prefs {
     private static final java.util.Set<String> NOT_BACKED_UP = new java.util.HashSet<>(java.util.Arrays.asList(
         "update_last_url", "auto_update_last_check_ms",
         "db_migrated_v1",
-        "spotify_pkce_verifier",                 // only lives during one sign-in
         "panel_dismissed", "drive_card_dismissed_trip",
         KEY_PHONE_TOKEN,                         // a credential: phones scan again after a restore
         "can_explore_until"));                   // CAN explorer timer (tools)
@@ -283,7 +311,7 @@ public final class Prefs {
 
     /** True when a backup keeps this key. See {@link #NOT_BACKED_UP}. */
     public static boolean isBackedUp(String key) {
-        if (key == null || key.isEmpty() || NOT_BACKED_UP.contains(key)) return false;
+        if (key == null || key.isEmpty() || NOT_BACKED_UP.contains(key) || REMOVED_KEYS.contains(key)) return false;
         for (String p : NOT_BACKED_UP_PREFIXES) if (key.startsWith(p)) return false;
         return true;
     }

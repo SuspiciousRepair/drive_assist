@@ -52,11 +52,34 @@ public final class ComfortCardVisibility {
     }
 
     /**
-     * Music card visible when Spotify has an actual track loaded.
+     * Music card visible when the phone's music session has a track.
      * Starts GONE — nothing to show until a real title arrives.
      */
     public static boolean showMusicCard(String title) {
         return title != null && !title.isEmpty();
+    }
+
+    /**
+     * The jumbo music card (two columns, full height, lyrics), before the
+     * room check: Config's Lyrics search on, left open (the driver's last choice),
+     * music playing, lines for the track. Never with the Home Assistant panel
+     * up: the panel needs the room. Parked or driving alike (owner's call,
+     * 2026-11-22).
+     */
+    public static boolean showLyrics(boolean enabled, boolean open, boolean musicShown,
+                                     boolean haveLines, boolean panelShown) {
+        return enabled && open && musicShown && haveLines && !panelShown;
+    }
+
+    /** The screen shows three columns; a fourth means scrolling sideways. */
+    public static final int SCREEN_COLUMNS = 3;
+    /** The jumbo music card's width, in columns. */
+    public static final int JUMBO_COLUMNS = 2;
+
+    /** The jumbo card fits only when the other cards fit in the columns it
+     * leaves; else the music card keeps its own size. */
+    public static boolean jumboFits(int columnsUsedByOthers) {
+        return columnsUsedByOthers + JUMBO_COLUMNS <= SCREEN_COLUMNS;
     }
 
     /**

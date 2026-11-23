@@ -2,7 +2,60 @@
 
 ## [Unreleased]
 
+### Added
+- **The music card shows what your phone plays, with no sign-in.** Turn on
+  **Config → Integrations → Music → Phone music** (off by default). The
+  card then shows what the phone plays through the car (Bluetooth, Apple
+  CarPlay or Android Auto), from any app: title, artist, album, cover when
+  the phone sends one, Play and Skip. Drive Assist reads this from the
+  car's own music apps, which share it with any app; no permission is
+  asked. Nothing leaves the car for this. The card hides when the phone
+  disconnects, and a song paused for more than 10 minutes leaves it. Play
+  on the card starts Bluetooth music through the car's own Bluetooth music
+  app, so the car's sound switches to Bluetooth too.
+- **Song lyrics on the music card.** Turn on **Config → Integrations →
+  Music → Lyrics search** (off by default). The **Lyrics** button on the
+  music card grows it to two columns and the full height of the screen: at
+  the top the art, song, artist and album, in a soft shade of the album
+  art's main colour; under them the line sung now in large type, the line
+  before it and the next two, in time with the song; and Play, Skip and a
+  close button at the bottom. The card remembers the last choice, open
+  or closed, from song to song. The card keeps its normal size when the Home
+  Assistant panel is up, or when the other cards need more than one
+  column; the Lyrics button then says there is no room. The lyrics come from LRCLIB (lrclib.net), a free lyrics site:
+  the car sends it the song, artist and album names, once per song, and
+  keeps the answer; with the switch off it sends nothing. Some songs have
+  no timed lyrics there; for those the Lyrics button is dim.
+- **A gear on the music card for the car's sound settings.** The small
+  gear in the card's top-right corner opens the car's own sound settings,
+  with the equalizer presets (Standard, Pop, Rock, ...). On a car whose
+  settings app has no such screen it opens the Volume page, and with
+  neither there is no gear.
+
+### Removed
+- **The Spotify sign-in.** The music card no longer signs in to Spotify. It
+  shows what the phone plays through the car (see "Phone music" above),
+  from Spotify or any other app. The **Spotify** tile in Config →
+  Integrations is now the **Music** tile. It has the three switches: **Phone
+  music**, **Large card** and **Lyrics search**. Your choices for these
+  switches are kept. The first start after the update deletes the stored
+  Spotify sign-in from the car. A backup no longer keeps it, and a restore
+  does not put it back. The phone settings page no longer has the Spotify
+  client ID field.
+
 ### Changed
+- **The Orbit view in the clip player lines up.** Orbit turns the four
+  cameras into one view you drag with a finger. Where two cameras met, the
+  picture jumped: there was a hard line, and the road on one side did not
+  continue on the other. Now the player knows where each camera is on the
+  car, so the two pictures meet better, and they are mixed in a narrow band
+  where they meet. A thing near a corner of the car (a person, another car)
+  can still show a double edge there: two cameras see it from two places.
+  The view is now a wide stripe that shows about 220 degrees: the middle is
+  sharp, and the sides are squeezed, so you see what is coming from a side
+  before it turns to the middle. Above the picture, where no camera sees
+  (the mirror cameras see only up to the horizon to the side), the view
+  fades to black instead of showing a jagged edge.
 - **The dashcam asks the car for its 360 cameras.** The dashcam needs the
   four 360 cameras, and it was on by default on every car. On a car without
   them it tried to start again and again. Now ModeHelper reads the car's
@@ -58,6 +111,11 @@
 - **Park monitoring cannot stop the dashcam.** If the motion detector
   stops working, the dashcam records all the time until the car leaves
   Park, as with the switch off. Before, it would have recorded nothing.
+- **ModeHelper uses much less processor after an update.** After each
+  update ModeHelper prepares a faster copy of itself, but it kept running
+  the slow copy until the head unit restarted, which can be days. With park
+  monitoring on, it used about half of one processor core. It now starts
+  itself again one time as part of the update, before the dashcam starts.
 
 ## [v0.10.0] — 2026-11-20
 

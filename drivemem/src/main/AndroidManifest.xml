@@ -122,23 +122,6 @@
                  android:process=":cliprecovery" />
         <activity android:name=".ui.GpsProbe" android:exported="false" />
         <activity android:name=".ui.ChargeProbe" android:exported="false" />
-        <!-- exported: Spotify login now happens in the car's own browser
-             (Firefox), not an in-app WebView — that engine was too old to
-             render the login page (garbled icon fonts) and kept losing the
-             email step. The system hands the drivemem:// redirect back to
-             THIS activity, which is why it must be exported and carry the
-             intent-filter below; a browser in another app/process is what
-             invokes it. -->
-        <activity android:name=".ui.SpotifyAuthActivity" android:exported="true"
-                  android:launchMode="singleInstance"
-                  android:taskAffinity="">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="drivemem" android:host="spotify-callback" />
-            </intent-filter>
-        </activity>
         <activity android:name=".ui.TelemetryActivity" android:exported="false"
                   android:label="Drive Assist — Telemetria" />
     </application>

@@ -30,7 +30,7 @@ import java.util.List;
  * held here would be a guess about another app's directory.
  *
  * Extracted from TelemetryActivity.buildClips() and clipRow(), same pattern as
- * TelemetrySpotifySection and TelemetryDoorsSection. */
+ * TelemetryDoorsSection. */
 public final class TelemetryClipsSection extends LinearLayout {
     private final Activity activity;
     private final Runnable onRefresh;

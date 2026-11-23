@@ -35,7 +35,6 @@ final class PhonePages {
         new Field("mqtt_user", R.string.phone_f_mqtt_user, false),
         new Field("mqtt_pass", R.string.phone_f_mqtt_pass, true),
         new Field("abrp_user_token", R.string.phone_f_abrp_token, true),
-        new Field("spotify_client_id", R.string.phone_f_spotify_id, false),
         new Field("update_url", R.string.phone_f_update_url, false),
     };
 

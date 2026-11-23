@@ -435,7 +435,6 @@ Typing long passwords, MQTT URLs, and private tokens on a vehicle touchscreen is
 * **Mutual TLS (mTLS)**: Uploads client certificates and private keys securely to internal storage.
 * **Home Assistant Telemetry**: Configures publish intervals (10s driving, 60s parked), auto-discovery prefix, and command acceptance switch.
 * **ABRP Integration**: Prompts for generic user telemetry token and sets GPS position upload frequency.
-* **Spotify Connect**: Configures OAuth client credentials for media card synchronization.
 * **Inspect Live Settings**: Inspect current head unit configuration anytime without making changes:
   ```bash
   ./tools/configure-car.sh --show <CAR_IP>
@@ -479,7 +478,7 @@ is locked with your backup password (AES-256). Inside the lock:
 
 | File | What it holds |
 | --- | --- |
-| `settings.json` | Your settings: MQTT, ABRP, Spotify, top bar icons, theme, drive modes, dashcam, OBD2 |
+| `settings.json` | Your settings: MQTT, ABRP, music card, top bar icons, theme, drive modes, dashcam, OBD2 |
 | `car.db` | Trips, charges and telemetry (SQLite) |
 | `mqtt_client.p12`, `mqtt_ca.crt` | MQTT certificates, if you use them |
 
@@ -550,8 +549,8 @@ computer (needs a JDK):
 ```
 
 > [!WARNING]
-> An unlocked backup (`./opened`) holds your MQTT password and your ABRP and
-> Spotify keys in plain text. Delete it when you are done.
+> An unlocked backup (`./opened`) holds your MQTT password and your ABRP
+> key in plain text. Delete it when you are done.
 
 ---
 
@@ -601,7 +600,7 @@ Open a page on your phone to:
 - download the newest backup, or restore a backup file from the phone,
 - download dashcam clips,
 - type long settings with the phone keyboard: MQTT address, user and
-  password, the ABRP token, the Spotify client ID, the update address.
+  password, the ABRP token, the update address.
 
 **Where:** Settings (gear) → **System** → **Phone access**.
 
