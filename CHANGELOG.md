@@ -13,8 +13,9 @@
   %. Power is blue for AC and green for DC. The battery temperature line
   takes the colour of its value, as on the home screen's temperature bar:
   green is fine, amber is warm, red is hot. The outside temperature is a
-  thin grey line, and the battery % is grey. **Parked at 100%** is now **Time at 100%**. The cost has a
-  pencil icon, to show that you can tap it to change it.
+  thin grey line, and the battery % is grey. **Parked at 100%** is now
+  **Time at 100%**. The energy shows the plug icon and "AC" or "DC". The
+  cost has a pencil icon, to show that you can tap it to change it.
 
 ## [v0.11.1] — 2026-11-23
 

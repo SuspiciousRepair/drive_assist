@@ -309,6 +309,7 @@ public class ChargeDetailActivity extends Activity {
         stat(R.string.session_stat_battery, battery, null, Style.TEXT, null);
         stat(R.string.session_stat_charged_energy, Style.valueWithUnit(
             String.format(Locale.getDefault(), "+%.1f", d.kwh), typeColor, "kWh", Style.UNIT_SCALE_ROW), null, Style.TEXT, null);
+        typeIcon((LinearLayout) blocks.get(blocks.size() - 1), d.dc, typeColor);
         stat(R.string.charge_detail_charging, Style.durationWithUnits(d.endMs - d.startMs, Style.UNIT_SCALE_ROW), null, Style.TEXT, null);
 
         long idle = ChargeDetail.idleAtFullMs(d.socEnd, d.endMs, d.nextTripMs, System.currentTimeMillis(), d.active);
@@ -355,6 +356,21 @@ public class ChargeDetailActivity extends Activity {
             }
             stats.addView(row);
         }
+    }
+
+    // AC or DC on the energy block: the plug icon the home card uses, in the
+    // charge type's colour, and "AC"/"DC" after the label.
+    private void typeIcon(LinearLayout block, boolean dc, int color) {
+        TextView l = (TextView) block.getChildAt(0);
+        l.setText(l.getText() + "  ·  " + (dc ? "DC" : "AC"));
+        TextView v = (TextView) block.getChildAt(1);
+        android.graphics.drawable.Drawable icon = getDrawable(
+            dc ? R.drawable.ic_ev_plug_ccs2 : R.drawable.ic_power_plug).mutate();
+        icon.setTint(color);
+        int size = Style.dp(this, 28);
+        icon.setBounds(0, 0, size, size);
+        v.setCompoundDrawablesRelative(icon, null, null, null);
+        v.setCompoundDrawablePadding(Style.dp(this, 8));
     }
 
     // One number: a small dim label, the value, and an optional dim line
