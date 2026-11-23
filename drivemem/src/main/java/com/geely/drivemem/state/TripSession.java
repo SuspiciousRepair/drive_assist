@@ -407,14 +407,11 @@ public final class TripSession {
     // Runs once per process start (from ensureSubscribed, before any gear/tick
     // arrives). A leftover marker means the LAST process died with a trip open
     // — normal finalization always clears it first. Restores the trip's
-    // identity and replays its ascent/descent and energy from telemetry_sample,
-    // which kept recording the whole time regardless of what TripSession's own
-    // in-memory accumulators were doing. drivingDurationMs is deliberately left
-    // at 0 rather than reconstructed: the distance check (startOdoKm is exact,
-    // recovered below) already qualifies the overwhelming majority of real
-    // trips, and the remaining sliver — a very short, very slow drive that
-    // ALSO happens to restart mid-trip — is an acceptable gap for how rare it
-    // is, versus the complexity of replaying per-sample gear timings too.
+    // identity and replays its ascent/descent, energy and driving time from
+    // telemetry_sample, which kept recording the whole time regardless of
+    // what TripSession's own in-memory accumulators were doing. The driving
+    // time used to restart at 0, so the home card read "2 min" on a trip
+    // that began an hour before (replayDrivingMs).
     private static void recoverOpenTrip(Context ctx) {
         // Rule: trip recovery must be wrapped in try/catch and never throw.
         // Invariant: recovery is best-effort and must never crash service or app startup.
@@ -449,8 +446,9 @@ public final class TripSession {
         startSampleId = persistedStartSampleId;
         startOdoKm = persistedStartOdoKm;
         startSoc = persistedStartSoc;
-        currentDriveSegmentStartMs = System.currentTimeMillis();
-        drivingDurationMs = 0;
+        long nowMs = System.currentTimeMillis();
+        currentDriveSegmentStartMs = nowMs;
+        drivingDurationMs = replayDrivingMs(persistedStartMs, nowMs, readTsAndGear(ctx, persistedStartMs, nowMs));
         lastAltitude = null;
         ascentM = 0;
         descentM = 0;
@@ -463,7 +461,6 @@ public final class TripSession {
         }
 
         EnergyIntegrator.startTrip();
-        long nowMs = System.currentTimeMillis();
         double[] energy = sumEnergySince(ctx, persistedStartMs, nowMs);
         EnergyIntegrator.seedTrip(energy[0], energy[1], energy[2], Math.max(0, nowMs - persistedStartMs));
         // One replay of the rows already written, so trip.live does not
@@ -473,8 +470,54 @@ public final class TripSession {
             new String[]{String.valueOf(persistedStartMs), String.valueOf(System.currentTimeMillis())});
 
         Log.i(TAG, String.format(Locale.US,
-            "trip recovery: restored open trip from %d (ascent=%.1fm descent=%.1fm)",
-            persistedStartMs, ascentM, descentM));
+            "trip recovery: restored open trip from %d (ascent=%.1fm descent=%.1fm driving=%ds)",
+            persistedStartMs, ascentM, descentM, drivingDurationMs / 1000));
+    }
+
+    /** A longer hole between two samples is the app off for long (the car
+     * slept with the trip left open), not a restart in the middle of a
+     * drive: that time is not driving time. Samples are ~30 s apart. */
+    static final long REPLAY_MAX_GAP_MS = 5 * 60_000L;
+
+    private static long[][] readTsAndGear(Context ctx, long startMs, long nowMs) {
+        Cursor c = CarDb.get(ctx).db().rawQuery(
+            "SELECT ts_ms, gear FROM telemetry_sample WHERE ts_ms >= ? AND ts_ms <= ? ORDER BY ts_ms",
+            new String[]{String.valueOf(startMs), String.valueOf(nowMs)});
+        try {
+            long[][] rows = new long[c.getCount()][2];
+            int i = 0;
+            while (c.moveToNext()) {
+                rows[i][0] = c.getLong(0);
+                rows[i][1] = c.isNull(1) ? GEAR_UNKNOWN : c.getInt(1);
+                i++;
+            }
+            return rows;
+        } finally { c.close(); }
+    }
+
+    /** A row of replayDrivingMs with no gear reading. */
+    public static final long GEAR_UNKNOWN = -1;
+
+    /** The open trip's time out of Park from startMs to nowMs, as onGear()
+     * would have added it up, rebuilt from {ts_ms, gear} rows in time order.
+     * Pure/testable — the DB read is kept separate in readTsAndGear().
+     *
+     * The time between two rows counts when the car was out of Park at the
+     * first of them; the trip opens on the shift out of Park, so it starts
+     * as driving. A row with no gear keeps the gear before it. The time from
+     * the last row to now is the restart itself, and counts the same way. */
+    public static long replayDrivingMs(long startMs, long nowMs, long[][] tsGearRows) {
+        long sum = 0, prev = startMs;
+        boolean parked = false;
+        for (long[] row : tsGearRows) {
+            long ts = row[0];
+            if (ts < prev || ts > nowMs) continue;
+            if (!parked && ts - prev <= REPLAY_MAX_GAP_MS) sum += ts - prev;
+            if (row[1] != GEAR_UNKNOWN) parked = row[1] == Modes.GEAR_PARK_ADAPTED;
+            prev = ts;
+        }
+        if (!parked && nowMs > prev && nowMs - prev <= REPLAY_MAX_GAP_MS) sum += nowMs - prev;
+        return sum;
     }
 
     private static Object[][] readGearAndAltitude(Context ctx, long startSampleId, long endSampleId) {
