@@ -210,7 +210,7 @@ public final class CarMediaSessions {
             @Override public void playPause() {
                 PlaybackState s = c.getPlaybackState();
                 if (s != null && s.getState() == PlaybackState.STATE_PLAYING) c.getTransportControls().pause();
-                else c.getTransportControls().play();
+                else if (!startBluetooth(c.getPackageName())) c.getTransportControls().play();
             }
             @Override public void next() { c.getTransportControls().skipToNext(); }
         });
@@ -243,6 +243,39 @@ public final class CarMediaSessions {
         if (endsAt <= 0 || nowMs < endsAt) { endId = null; return 0; }
         if (endId == null || !endId.equals(id)) { endId = id; endSeenMs = nowMs; }
         return endSeenMs + SpotifyClient.STALE_GRACE_MS;
+    }
+
+    // The car's own Bluetooth music app owns the audio source. A play sent
+    // straight to the Bluetooth session reaches the phone, but the car does
+    // not switch its sound to Bluetooth: the first play had to come from that
+    // app. The app takes this broadcast from other apps (exported, no
+    // permission): it switches the car to Bluetooth and, with needPlay,
+    // plays. Found in GeelyXCBtMusic's MediaCenterReceiver.
+    static final String BT_PACKAGE = "com.android.bluetooth";
+    static final String BT_APP = "com.flyme.auto.localmusic.bluetooth";
+    static final String BT_RECEIVER = "com.flyme.auto.local.carcontroller.mediacenter.MediaCenterReceiver";
+    static final String BT_SOURCE = "com.flyme.auto.localmusic.bluetooth.CHANGE_BT_SOURCE";
+
+    static Intent bluetoothSourceIntent(String from) {
+        return new Intent(BT_SOURCE).setComponent(new ComponentName(BT_APP, BT_RECEIVER))
+            .putExtra("from", from).putExtra("needPlay", true);
+    }
+
+    /** Only the Bluetooth session needs the car's app to start; CarPlay and
+     * Android Auto start from their own session. */
+    static boolean viaCarBluetoothApp(String sessionPackage) { return BT_PACKAGE.equals(sessionPackage); }
+
+    /** Play on Bluetooth through the car's own Bluetooth music app. False
+     * when the session is not Bluetooth or this car has no such app. */
+    private static boolean startBluetooth(String sessionPackage) {
+        if (!viaCarBluetoothApp(sessionPackage) || app == null) return false;
+        try {
+            Intent i = bluetoothSourceIntent(app.getPackageName());
+            if (app.getPackageManager().queryBroadcastReceivers(i, 0).isEmpty()) return false;
+            app.sendBroadcast(i);
+            Log.i(TAG, "music: asked the car's Bluetooth app to play");
+            return true;
+        } catch (Throwable t) { Log.w(TAG, "music bt play: " + t); return false; }
     }
 
     /** A stable id for a session track (sessions give no Spotify id): the

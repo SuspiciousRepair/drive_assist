@@ -52,4 +52,10 @@ public class CarMediaSessionsTest {
         assertEquals(0, CarMediaSessions.pausedHideAt(true, 5_000));    // playing: never by this rule
         assertEquals(0, CarMediaSessions.pausedHideAt(false, 0));       // pause time unknown
     }
+
+    @Test public void onlyBluetoothStartsThroughTheCarsBluetoothApp() {
+        assertTrue(CarMediaSessions.viaCarBluetoothApp("com.android.bluetooth"));
+        assertFalse(CarMediaSessions.viaCarBluetoothApp("com.njda.carplay"));
+        assertFalse(CarMediaSessions.viaCarBluetoothApp(null));
+    }
 }
