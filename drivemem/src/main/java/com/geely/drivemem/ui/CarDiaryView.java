@@ -3,11 +3,13 @@ package com.geely.drivemem.ui;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.PorterDuff;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -23,7 +25,9 @@ import com.geely.drivemem.util.Style;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -247,6 +251,7 @@ public final class CarDiaryView extends LinearLayout {
             Double odo = CarDiary.latestOdometerKm(c);
             Double outC = CarDiary.latestOutsideTempC();
             List<CarDiary.DueStatus> due = CarDiary.computeDueStatuses(entries, odo, now, outC);
+            double avgDailyKm = CarDiary.avgDailyKm(c, now);
             CarDiary.LastFullCharge full = CarDiary.last100PctCharge(c, odo, now);
             Aux12vMonitor.Summary s12 = Aux12vMonitor.readSummary(c, now);
             List<CarDiary.PendingJolt> jolts = CarDiary.pendingJolts(now);
@@ -254,10 +259,10 @@ public final class CarDiaryView extends LinearLayout {
                 if (gen != loadGen) return;
                 cachedEntries = entries;
                 cachedDue = due;
-                renderSummary(entries, due, s12);
+                renderSummary(entries, due, avgDailyKm, s12);
                 renderPendingJolts(jolts, now);
                 renderEntries();
-                renderSchedule(due, full);
+                renderSchedule(due, full, avgDailyKm);
                 trendView.setData(s12.morningTrend, s12.replacedAtMs);
                 if (onAttentionChanged != null) onAttentionChanged.run();
             });
@@ -267,7 +272,7 @@ public final class CarDiaryView extends LinearLayout {
     }
 
     private void renderSummary(List<CarDiary.Entry> entries, List<CarDiary.DueStatus> due,
-                               Aux12vMonitor.Summary s12) {
+                               double avgDailyKm, Aux12vMonitor.Summary s12) {
         Context c = getContext();
         topSummaryCard.removeAllViews();
 
@@ -281,20 +286,21 @@ public final class CarDiaryView extends LinearLayout {
         int v12SubColor = (s12.health == Aux12vMonitor.Health.WATCH
             || s12.health == Aux12vMonitor.Health.WEAK
             || s12.health == Aux12vMonitor.Health.FAULT) ? healthColor(s12.health) : Style.TEXT_DIM;
-        topSummaryCard.addView(summaryFigure(v12Text, c.getString(R.string.diary_sum_12v),
+        topSummaryCard.addView(summaryFigure(v12Text, 0, c.getString(R.string.diary_sum_12v),
             v12Sub, v12SubColor, false),
             new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         topSummaryCard.addView(verticalDivider(c));
 
-        // Figure 2: Next due
-        CarDiary.DueStatus next = CarDiary.mostUrgent(due);
+        // Figure 2: Next due (Magic Sort: closest upcoming by time or distance)
+        CarDiary.DueStatus next = CarDiary.mostUrgent(due, avgDailyKm);
         CharSequence dueVal = next != null
             ? c.getString(next.category.labelRes)
             : c.getString(R.string.diary_all_clear);
+        int dueIconRes = next != null ? next.category.group.iconRes : 0;
         CharSequence dueSub = next != null ? formatDueStatus(c, next) : c.getString(R.string.diary_nothing_due);
         int dueSubColor = (next != null && (next.overdue || next.dueSoon)) ? Style.WARN : Style.TEXT_DIM;
-        topSummaryCard.addView(summaryFigure(dueVal, c.getString(R.string.diary_sum_next_due),
+        topSummaryCard.addView(summaryFigure(dueVal, dueIconRes, c.getString(R.string.diary_sum_next_due),
             dueSub, dueSubColor, true),
             new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
@@ -311,18 +317,31 @@ public final class CarDiaryView extends LinearLayout {
         String openSub = totalOpen == 0
             ? c.getString(R.string.diary_open_none)
             : c.getString(R.string.diary_open_breakdown, openNoises, openIncidents);
-        topSummaryCard.addView(summaryFigure(String.valueOf(totalOpen),
+        topSummaryCard.addView(summaryFigure(String.valueOf(totalOpen), 0,
             c.getString(R.string.diary_sum_open_notes), openSub, Style.TEXT_DIM, false),
             new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
     }
 
-    private LinearLayout summaryFigure(CharSequence hero, String label, CharSequence sub,
+    private LinearLayout summaryFigure(CharSequence hero, int heroIconRes, String label, CharSequence sub,
                                        int subColor, boolean wordHero) {
         Context c = getContext();
         LinearLayout col = new LinearLayout(c);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setGravity(Gravity.CENTER_HORIZONTAL);
         col.setPadding(Style.dp(c, 8), 0, Style.dp(c, 8), 0);
+
+        LinearLayout heroRow = new LinearLayout(c);
+        heroRow.setOrientation(LinearLayout.HORIZONTAL);
+        heroRow.setGravity(Gravity.CENTER);
+        if (heroIconRes != 0) {
+            ImageView iv = new ImageView(c);
+            iv.setImageResource(heroIconRes);
+            iv.setColorFilter(Style.ACCENT, PorterDuff.Mode.SRC_IN);
+            int sz = Style.dp(c, 26);
+            LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(sz, sz);
+            ilp.rightMargin = Style.dp(c, 10);
+            heroRow.addView(iv, ilp);
+        }
 
         TextView v = new TextView(c);
         v.setText(hero);
@@ -331,7 +350,8 @@ public final class CarDiaryView extends LinearLayout {
         v.setTypeface(null, Typeface.BOLD);
         v.setGravity(Gravity.CENTER);
         v.setMaxLines(1);
-        col.addView(v);
+        heroRow.addView(v);
+        col.addView(heroRow);
 
         TextView l = new TextView(c);
         l.setText(label);
@@ -642,88 +662,141 @@ public final class CarDiaryView extends LinearLayout {
         return sb.toString();
     }
 
-    private void renderSchedule(List<CarDiary.DueStatus> allDue, CarDiary.LastFullCharge full) {
-        Context c = getContext();
-        scheduleList.removeAllViews();
-        SimpleDateFormat fmt = new SimpleDateFormat("d MMM", Locale.getDefault());
-        List<CarDiary.DueStatus> rows = CarDiary.scheduleRows(allDue);
-        for (int i = 0; i < rows.size(); i++) {
-            CarDiary.DueStatus d = rows.get(i);
-            if (i > 0) scheduleList.addView(hairline(c));
-            scheduleList.addView(scheduleRow(c, d, fmt));
-        }
-        if (full != null) {
-            scheduleList.addView(hairline(c));
-            LinearLayout row = new LinearLayout(c);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(0, Style.dp(c, 12), 0, Style.dp(c, 2));
+    private static final class ScheduleItem {
+        final double sortDays;
+        final int iconRes;
+        final int iconTint;
+        final String title;
+        final String subtitle;
+        final CharSequence statusText;
+        final int statusColor;
+        final Runnable onTap;
 
-            View dot = statusDot(c, Style.TEXT_DIM);
-            LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(Style.dp(c, 8), Style.dp(c, 8));
-            dlp.rightMargin = Style.dp(c, 12);
-            row.addView(dot, dlp);
-
-            TextView left = new TextView(c);
-            left.setText(c.getString(R.string.diary_balance_last, fmt.format(new Date(full.tsMs))));
-            left.setTextColor(Style.TEXT_DIM);
-            left.setTextSize(17f);
-            row.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-            TextView right = new TextView(c);
-            right.setText(c.getString(R.string.diary_days_ago, full.daysAgo));
-            right.setTextColor(Style.TEXT_DIM);
-            right.setTextSize(17f);
-            row.addView(right);
-            scheduleList.addView(row);
+        ScheduleItem(double sortDays, int iconRes, int iconTint, String title,
+                     String subtitle, CharSequence statusText, int statusColor, Runnable onTap) {
+            this.sortDays = sortDays;
+            this.iconRes = iconRes;
+            this.iconTint = iconTint;
+            this.title = title;
+            this.subtitle = subtitle;
+            this.statusText = statusText;
+            this.statusColor = statusColor;
+            this.onTap = onTap;
         }
     }
 
-    private LinearLayout scheduleRow(Context c, CarDiary.DueStatus d, SimpleDateFormat fmt) {
+    private void renderSchedule(List<CarDiary.DueStatus> allDue, CarDiary.LastFullCharge full,
+                                double avgDailyKm) {
+        Context c = getContext();
+        scheduleList.removeAllViews();
+        SimpleDateFormat fmt = new SimpleDateFormat("d MMM", Locale.getDefault());
+
+        List<ScheduleItem> items = new ArrayList<>();
+        for (CarDiary.DueStatus d : CarDiary.scheduleRows(allDue, avgDailyKm, 5)) {
+            boolean hasCountdown = d.lastEntry != null || d.kmRemaining != null || d.daysRemaining != null;
+            int iconTint = !hasCountdown ? Style.TEXT_DIM
+                : ((d.overdue || d.dueSoon) ? Style.WARN : Style.ACCENT);
+            String sub;
+            if (d.lastEntry != null) {
+                sub = c.getString(R.string.diary_last_prefix, fmt.format(new Date(d.lastEntry.tsMs)));
+            } else if (d.kmRemaining != null && d.category.kmInterval != null) {
+                sub = c.getString(R.string.diary_at_km_prefix,
+                    String.format(Locale.getDefault(), "%,.0f", d.category.kmInterval));
+            } else {
+                sub = c.getString(R.string.diary_not_logged);
+            }
+            int stCol = !hasCountdown ? Style.TEXT_DIM
+                : ((d.overdue || d.dueSoon) ? Style.WARN : Style.TEXT);
+            items.add(new ScheduleItem(
+                CarDiary.estimatedDaysUntilDue(d, avgDailyKm),
+                d.category.group.iconRes,
+                iconTint,
+                c.getString(d.category.labelRes),
+                sub,
+                formatDueStatus(c, d),
+                stCol,
+                () -> DiaryEntryDialog.show(c, d.category, null, cachedDue, () -> post(this::refresh))));
+        }
+
+        // Auto-tracked 100% LFP balancing (30-day cycle) in the same Magic Sort & row style
+        if (full != null) {
+            int rem = CarDiary.BALANCE_INTERVAL_DAYS - full.daysAgo;
+            boolean overdue = rem <= 0;
+            boolean dueSoon = !overdue && rem <= 3;
+            CharSequence stText = overdue
+                ? c.getString(R.string.diary_overdue_days, Math.max(1, -rem))
+                : c.getString(R.string.diary_in_days, Math.max(1, rem));
+            int tint = (overdue || dueSoon) ? Style.WARN : Style.ACCENT;
+            int stCol = (overdue || dueSoon) ? Style.WARN : Style.TEXT;
+            items.add(new ScheduleItem(
+                rem,
+                R.drawable.ic_battery,
+                tint,
+                c.getString(R.string.diary_cat_balance_100),
+                c.getString(R.string.diary_last_prefix, fmt.format(new Date(full.tsMs))),
+                stText,
+                stCol,
+                null));
+        }
+
+        items.sort(Comparator.comparingDouble(it -> it.sortDays));
+        int count = Math.min(5, items.size());
+        for (int i = 0; i < count; i++) {
+            if (i > 0) scheduleList.addView(hairline(c));
+            scheduleList.addView(buildScheduleRow(c, items.get(i)));
+        }
+    }
+
+    private LinearLayout buildScheduleRow(Context c, ScheduleItem item) {
         LinearLayout row = new LinearLayout(c);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(0, Style.dp(c, 12), 0, Style.dp(c, 12));
 
-        int dotCol = d.lastEntry == null ? Style.TEXT_DIM
-            : ((d.overdue || d.dueSoon) ? Style.WARN : Style.GOOD);
-        View dot = statusDot(c, dotCol);
-        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(Style.dp(c, 10), Style.dp(c, 10));
-        dlp.rightMargin = Style.dp(c, 12);
-        row.addView(dot, dlp);
+        ImageView ico = new ImageView(c);
+        ico.setImageResource(item.iconRes);
+        ico.setColorFilter(item.iconTint, PorterDuff.Mode.SRC_IN);
+        int sz = Style.dp(c, 22);
+        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(sz, sz);
+        ilp.rightMargin = Style.dp(c, 12);
+        row.addView(ico, ilp);
 
         LinearLayout nameCol = new LinearLayout(c);
         nameCol.setOrientation(LinearLayout.HORIZONTAL);
         nameCol.setGravity(Gravity.CENTER_VERTICAL);
         TextView name = new TextView(c);
-        name.setText(c.getString(d.category.labelRes));
+        name.setText(item.title);
         name.setTextColor(Style.TEXT);
         name.setTextSize(19f);
         name.setTypeface(null, Typeface.BOLD);
         nameCol.addView(name);
 
-        TextView last = new TextView(c);
-        last.setText(d.lastEntry != null
-            ? "  " + c.getString(R.string.diary_last_prefix, fmt.format(new Date(d.lastEntry.tsMs)))
-            : "  " + c.getString(R.string.diary_not_logged));
-        last.setTextColor(Style.TEXT_DIM);
-        last.setTextSize(16f);
-        nameCol.addView(last);
+        if (item.subtitle != null && !item.subtitle.isEmpty()) {
+            TextView sub = new TextView(c);
+            sub.setText("  " + item.subtitle);
+            sub.setTextColor(Style.TEXT_DIM);
+            sub.setTextSize(15.5f);
+            nameCol.addView(sub);
+        }
         row.addView(nameCol, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView status = new TextView(c);
-        status.setText(formatDueStatus(c, d));
-        status.setTextColor((d.overdue || d.dueSoon) ? Style.WARN : Style.TEXT);
+        status.setText(item.statusText);
+        status.setTextColor(item.statusColor);
         status.setTextSize(18f);
         status.setTypeface(null, Typeface.BOLD);
         row.addView(status);
 
-        row.setOnClickListener(v -> DiaryEntryDialog.show(c, d.category, null, cachedDue, () -> post(this::refresh)));
+        if (item.onTap != null) {
+            row.setOnClickListener(v -> item.onTap.run());
+        }
         return row;
     }
 
     private CharSequence formatDueStatus(Context c, CarDiary.DueStatus d) {
-        if (d.lastEntry == null) return c.getString(R.string.diary_tap_to_log);
+        if (d.lastEntry == null && d.kmRemaining == null && d.daysRemaining == null) {
+            return c.getString(R.string.diary_tap_to_log);
+        }
         if (d.coldSnapNudge) return c.getString(R.string.diary_cold_snap);
         if (d.overdue) {
             if (d.daysRemaining != null && d.daysRemaining <= 0) {

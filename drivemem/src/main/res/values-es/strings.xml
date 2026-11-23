@@ -878,4 +878,6 @@
     <string name="diary_due_badge">Pendiente</string>
     <string name="diary_hint_cost_short">Costo</string>
     <string name="diary_hint_note_short">Nota</string>
+    <string name="diary_cat_balance_100">Balanceo 100%</string>
+    <string name="diary_at_km_prefix">a los %1$s km</string>
 </resources>

@@ -210,4 +210,43 @@ public class CarDiaryTest {
         // Expire after 24 h
         assertTrue(CarDiary.pendingJolts(t0 + 25 * 3600_000L).isEmpty());
     }
+
+    @Test
+    public void newCarFactoryMilestonesAndMagicSortByTimeOrDistance() {
+        long now = 1_800_000_000_000L;
+        // Brand-new EX2 at 7,077 km with only Tire pressure logged 12 days ago (18 days left)
+        List<CarDiary.Entry> entries = Collections.singletonList(
+            entry(1, CarDiary.Category.TIRE_PRESSURE, now - 12 * DAY, 6_600.0, 22.0, null)
+        );
+        List<CarDiary.DueStatus> statuses = CarDiary.computeDueStatuses(entries, 7_077.0, now, 22.0);
+
+        // Factory milestones count down automatically from 0 km on a new car
+        CarDiary.DueStatus rot = find(statuses, CarDiary.Category.TIRE_ROTATION);
+        assertEquals(2_923.0, rot.kmRemaining, 0.01);
+        assertFalse(rot.overdue);
+
+        CarDiary.DueStatus svc = find(statuses, CarDiary.Category.SERVICE);
+        assertEquals(12_923.0, svc.kmRemaining, 0.01);
+        assertFalse(svc.overdue);
+
+        CarDiary.DueStatus bf = find(statuses, CarDiary.Category.BRAKE_FLUID);
+        assertEquals(32_923.0, bf.kmRemaining, 0.01);
+
+        // Magic Sort at 40 km/day: Tire pressure (~18 d) -> Rotation (~73 d) -> Service (~323 d) -> Brake fluid (~823 d)
+        List<CarDiary.DueStatus> sorted = CarDiary.scheduleRows(statuses, 40.0, 4);
+        assertEquals(4, sorted.size());
+        assertEquals(CarDiary.Category.TIRE_PRESSURE, sorted.get(0).category);
+        assertEquals(CarDiary.Category.TIRE_ROTATION, sorted.get(1).category);
+        assertEquals(CarDiary.Category.SERVICE, sorted.get(2).category);
+        assertEquals(CarDiary.Category.BRAKE_FLUID, sorted.get(3).category);
+
+        // With no Tire pressure logged on a 7,077 km car: Rotation -> Service -> Brake fluid -> Tire pressure (untracked)
+        List<CarDiary.DueStatus> emptyStatuses = CarDiary.computeDueStatuses(Collections.emptyList(), 7_077.0, now, 22.0);
+        List<CarDiary.DueStatus> sortedNew = CarDiary.scheduleRows(emptyStatuses, 40.0, 4);
+        assertEquals(CarDiary.Category.TIRE_ROTATION, sortedNew.get(0).category);
+        assertEquals(CarDiary.Category.SERVICE, sortedNew.get(1).category);
+        assertEquals(CarDiary.Category.BRAKE_FLUID, sortedNew.get(2).category);
+        assertEquals(CarDiary.Category.TIRE_PRESSURE, sortedNew.get(3).category);
+        assertEquals(CarDiary.Category.TIRE_ROTATION, CarDiary.mostUrgent(emptyStatuses, 40.0).category);
+    }
 }

@@ -155,6 +155,8 @@ public final class CarDiary {
 
     public static final double COLD_SNAP_DROP_C = 10.0;
     public static final long COLD_TIRE_PARK_MS = 3L * 3600_000L;
+    public static final double DEFAULT_AVG_DAILY_KM = 40.0;
+    public static final int BALANCE_INTERVAL_DAYS = 30;
     private static final double MS_PER_DAY = 86_400_000.0;
     private static final double DAYS_PER_MONTH = 30.4375;
 
@@ -762,7 +764,18 @@ public final class CarDiary {
             if (!cat.userPickable || !cat.hasInterval()) continue;
             Entry last = latestByCat.get(cat);
             if (last == null) {
-                out.add(new DueStatus(cat, null, null, null, null, null, false, false, false));
+                // On a new car that has not yet reached its first factory km milestone
+                // (e.g. 7,077 km < 20,000 km Scheduled Service or 10,000 km Tire Rotation),
+                // count down cleanly from 0 km without ever firing a false overdue alert.
+                if (currentOdoKm != null && currentOdoKm > 0 && cat.kmInterval != null
+                        && currentOdoKm < cat.kmInterval) {
+                    double kmRem = cat.kmInterval - currentOdoKm;
+                    boolean soonKm = kmRem <= cat.kmInterval * 0.10;
+                    out.add(new DueStatus(cat, null, currentOdoKm, kmRem, null, null,
+                        false, soonKm, false));
+                } else {
+                    out.add(new DueStatus(cat, null, null, null, null, null, false, false, false));
+                }
                 continue;
             }
             Double kmSince = (currentOdoKm != null && last.odoKm != null && currentOdoKm >= last.odoKm)
@@ -796,52 +809,76 @@ public final class CarDiary {
         return out;
     }
 
-    /** Picks the single most urgent DueStatus (overdue first, then dueSoon, then soonest tracked). Pure. */
+    /** Magic-sort key: estimated days until due, combining both time and distance
+     * (using the car's driving pace avgDailyKm). Negative = overdue; +Inf = untracked. Pure. */
+    public static double estimatedDaysUntilDue(DueStatus d, double avgDailyKm) {
+        if (d == null) return Double.POSITIVE_INFINITY;
+        double pace = Math.max(1.0, avgDailyKm);
+        double est = Double.POSITIVE_INFINITY;
+        if (d.daysRemaining != null) {
+            est = Math.min(est, d.daysRemaining.doubleValue());
+        }
+        if (d.kmRemaining != null) {
+            est = Math.min(est, d.kmRemaining / pace);
+        }
+        if (d.coldSnapNudge && est > 2.0) est = 2.0;
+        return est;
+    }
+
+    /** Picks the single most urgent DueStatus using Magic Sort (overdue first, then closest
+     * upcoming by time or distance across tracked & core factory milestones). Pure. */
     public static DueStatus mostUrgent(List<DueStatus> list) {
+        return mostUrgent(list, DEFAULT_AVG_DAILY_KM);
+    }
+
+    public static DueStatus mostUrgent(List<DueStatus> list, double avgDailyKm) {
         if (list == null || list.isEmpty()) return null;
         DueStatus best = null;
+        double bestDays = Double.POSITIVE_INFINITY;
         for (DueStatus d : list) {
-            if (d.lastEntry == null) continue;
-            if (best == null || urgencyScore(d) < urgencyScore(best)) best = d;
+            if (!isScheduleCandidate(d)) continue;
+            double est = estimatedDaysUntilDue(d, avgDailyKm);
+            if (Double.isInfinite(est)) continue;
+            if (best == null || est < bestDays) {
+                best = d;
+                bestDays = est;
+            }
         }
         return best;
     }
 
-    /** Lower score = more urgent. Negative = overdue fraction. */
-    private static double urgencyScore(DueStatus d) {
-        double score = Double.POSITIVE_INFINITY;
-        if (d.category.kmInterval != null && d.kmRemaining != null) {
-            score = Math.min(score, d.kmRemaining / d.category.kmInterval);
-        }
-        if (d.category.monthInterval != null && d.daysRemaining != null) {
-            score = Math.min(score, d.daysRemaining / (d.category.monthInterval * DAYS_PER_MONTH));
-        }
-        if (d.coldSnapNudge && score > 0.05) score = 0.05;
-        return score;
+    /** Selects up to {@code limit} rows for the Care Schedule card in Magic Sort order
+     * (closest upcoming by time or distance first; untracked core items last). Pure. */
+    public static List<DueStatus> scheduleRows(List<DueStatus> all) {
+        return scheduleRows(all, DEFAULT_AVG_DAILY_KM, 4);
     }
 
-    /** Selects up to 4 rows for the Care Schedule card: any overdue items first, then SCHEDULE_CORE. */
-    public static List<DueStatus> scheduleRows(List<DueStatus> all) {
-        Map<Category, DueStatus> byCat = new LinkedHashMap<>();
-        for (DueStatus d : all) byCat.put(d.category, d);
-        List<DueStatus> out = new ArrayList<>();
-        Set<Category> picked = new HashSet<>();
-        List<DueStatus> overdue = new ArrayList<>();
-        for (DueStatus d : all) if (d.overdue) overdue.add(d);
-        overdue.sort(Comparator.comparingDouble(CarDiary::urgencyScore));
-        for (DueStatus d : overdue) {
-            if (out.size() >= 4) break;
-            out.add(d);
-            picked.add(d.category);
+    public static List<DueStatus> scheduleRows(List<DueStatus> all, double avgDailyKm, int limit) {
+        if (all == null || all.isEmpty()) return Collections.emptyList();
+        List<DueStatus> candidates = new ArrayList<>();
+        for (DueStatus d : all) {
+            if (isScheduleCandidate(d)) candidates.add(d);
         }
-        for (Category c : SCHEDULE_CORE) {
-            if (out.size() >= 4) break;
-            if (!picked.contains(c) && byCat.containsKey(c)) {
-                out.add(byCat.get(c));
-                picked.add(c);
-            }
+        candidates.sort((a, b) -> {
+            double da = estimatedDaysUntilDue(a, avgDailyKm);
+            double db = estimatedDaysUntilDue(b, avgDailyKm);
+            int cmp = Double.compare(da, db);
+            if (cmp != 0) return cmp;
+            return Integer.compare(coreRank(a.category), coreRank(b.category));
+        });
+        if (candidates.size() <= limit) return candidates;
+        return new ArrayList<>(candidates.subList(0, limit));
+    }
+
+    private static boolean isScheduleCandidate(DueStatus d) {
+        return d.lastEntry != null || d.overdue || d.dueSoon || coreRank(d.category) < SCHEDULE_CORE.length;
+    }
+
+    private static int coreRank(Category c) {
+        for (int i = 0; i < SCHEDULE_CORE.length; i++) {
+            if (SCHEDULE_CORE[i] == c) return i;
         }
-        return out;
+        return SCHEDULE_CORE.length;
     }
 
     private static void considerLatest(Map<Category, Entry> map, Category cat, Entry e) {
@@ -965,6 +1002,32 @@ public final class CarDiary {
     }
 
     // ---- Hub / DB Helpers ----
+
+    /** Estimates the car's recent driving pace (km/day over the last 60 days from daily_stat)
+     * for Magic Sort comparison between distance-based and time-based care items.
+     * Falls back to {@link #DEFAULT_AVG_DAILY_KM} (40 km/day) when history is short. */
+    public static double avgDailyKm(Context ctx, long nowMs) {
+        if (ctx == null) return DEFAULT_AVG_DAILY_KM;
+        try {
+            java.time.LocalDate today = java.time.Instant.ofEpochMilli(nowMs)
+                .atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+            String sinceIso = today.minusDays(60).toString();
+            try (Cursor c = CarDb.get(ctx).db().rawQuery(
+                    "SELECT MIN(date), SUM(CASE WHEN last_odo_km > first_odo_km "
+                    + "THEN last_odo_km - first_odo_km ELSE 0 END), COUNT(*) "
+                    + "FROM daily_stat WHERE date >= ?", new String[]{sinceIso})) {
+                if (c.moveToFirst() && !c.isNull(0) && c.getInt(2) >= 5) {
+                    java.time.LocalDate first = java.time.LocalDate.parse(c.getString(0));
+                    long spanDays = Math.max(7L, java.time.temporal.ChronoUnit.DAYS.between(first, today) + 1L);
+                    double totalKm = c.getDouble(1);
+                    if (totalKm > 0) {
+                        return Math.max(15.0, Math.min(200.0, totalKm / (double) spanDays));
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+        return DEFAULT_AVG_DAILY_KM;
+    }
 
     public static Double latestOdometerKm(Context ctx) {
         CarActor a = CarActor.get();

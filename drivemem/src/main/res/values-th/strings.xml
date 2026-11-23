@@ -895,4 +895,6 @@
     <string name="diary_due_badge">ครบกำหนด</string>
     <string name="diary_hint_cost_short">ค่าใช้จ่าย</string>
     <string name="diary_hint_note_short">บันทึก</string>
+    <string name="diary_cat_balance_100">ปรับสมดุล 100%</string>
+    <string name="diary_at_km_prefix">ที่ %1$s km</string>
 </resources>
