@@ -1705,7 +1705,7 @@ public class DailyStatsView extends LinearLayout {
             third = stat(R.string.session_stat_eta, chargeEta(ch), null);
         } else if (ch.cost != null && ch.cost >= 0) {
             SpannableStringBuilder cost = new SpannableStringBuilder();
-            cost.append(String.format(Locale.getDefault(), "R$ %.2f", ch.cost));
+            cost.append(com.geely.drivemem.util.Prefs.formatMoney(ch.cost));
             cost.setSpan(new ForegroundColorSpan(Style.ACCENT), 0, cost.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             third = stat(R.string.session_stat_cost, cost, null);
         } else if (ch.chargeId > 0) {

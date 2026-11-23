@@ -211,6 +211,7 @@ public class Style {
 
     /** Loads the saved theme (or transient override) and applies it. Called at onCreate start. */
     public static void load(Context c) {
+        Prefs.getCurrency(c);
         String savedTheme = Prefs.getTheme(c, THEMES[0].id);
         if ("claro".equals(savedTheme)) {
             // Legacy: Claro theme merged into Default's light Palette; migrate to APPEARANCE_LIGHT.
@@ -242,7 +243,10 @@ public class Style {
         TEXT = pal.text; TEXT_DIM = pal.textDim; TEXT_ON = pal.textOn;
         ACCENT = pal.accent; COOL = pal.cool; HEAT = pal.heat;
         RADIUS_DP = pal.radiusDp; STROKE_DP = pal.strokeDp; STROKE_COLOR = pal.strokeColor;
-        OUTLINE = pal.outline; LIGHT = pal.light; FOLLOW_AMBIENT = pal.followAmbient;
+        OUTLINE = pal.outline; LIGHT = pal.light;
+        // A car without the cabin ambient light (CarCaps) has no colour to
+        // follow: the controls keep the theme's own accent.
+        FOLLOW_AMBIENT = pal.followAmbient && !(c != null && CarCaps.lacksAmbient(CarCaps.read(c)));
         ART = pal.art;
     }
 
@@ -339,13 +343,21 @@ public class Style {
         if (Color.alpha(fill) == 0) { g.setColor(fill); return g; }  // invisible touch area
         if (OUTLINE) {
             boolean neutral = (fill == CARD);
-            g.setColor(blend(fill, BG_BOTTOM, neutral ? 0.55f : 0.72f));
+            g.setColor(cardPaint(fill));
             g.setStroke(dp(c, STROKE_DP), neutral ? STROKE_COLOR : fill);
         } else {
             g.setColor(fill);
             g.setStroke(dp(c, STROKE_DP), STROKE_COLOR);
         }
         return g;
+    }
+
+    /** The colour card(fill) actually paints inside its stroke: the fill
+     * itself, except in outline themes, where it is pushed toward the
+     * background. For a view that has to meet a card's colour exactly. */
+    public static int cardPaint(int fill) {
+        if (!OUTLINE) return fill;
+        return blend(fill, BG_BOTTOM, fill == CARD ? 0.55f : 0.72f);
     }
 
     /** Returns the fill color for cards sitting over the art. */
@@ -464,6 +476,45 @@ public class Style {
         appendUnit(sb, "%", unitScale);
         sb.append(" → ").append(String.valueOf(to));
         appendUnit(sb, "%", unitScale);
+        return sb;
+    }
+
+    /** "3h 12m" / "44m" (SessionText.duration's format) with h and m as units. */
+    public static CharSequence durationWithUnits(long ms, float unitScale) {
+        long totalMin = Math.max(0, ms) / 60_000L;
+        long h = totalMin / 60, m = totalMin % 60;
+        SpannableStringBuilder sb = new SpannableStringBuilder();
+        if (h > 0) {
+            sb.append(String.valueOf(h));
+            appendUnit(sb, "h", unitScale);
+            sb.append(" ").append(String.format(java.util.Locale.US, "%02d", m));
+        } else {
+            sb.append(String.valueOf(m));
+        }
+        appendUnit(sb, "m", unitScale);
+        return sb;
+    }
+
+    /** "27° → 31°" (or any from → to with one unit), each unit de-emphasized. */
+    public static CharSequence rangeWithUnit(String from, String to, String unit, float unitScale) {
+        SpannableStringBuilder sb = new SpannableStringBuilder();
+        sb.append(from);
+        appendUnit(sb, unit, unitScale);
+        sb.append(" → ").append(to);
+        appendUnit(sb, unit, unitScale);
+        return sb;
+    }
+
+    /** Money with the driver's currency symbol (Config → Elements →
+     * Localization) as a smaller, dimmer prefix: "R$ 35,40". */
+    public static CharSequence moneyWithUnit(double amount, Integer numberColor, float unitScale) {
+        SpannableStringBuilder sb = new SpannableStringBuilder();
+        appendUnit(sb, Prefs.currencySymbol() + " ", unitScale);
+        int start = sb.length();
+        sb.append(String.format(java.util.Locale.getDefault(), "%,.2f", amount));
+        if (numberColor != null) {
+            sb.setSpan(new ForegroundColorSpan(numberColor), start, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
         return sb;
     }
 
@@ -875,21 +926,33 @@ public class Style {
      * screen (found live on the Home screen, 2026-09-13: "sometimes 3 cards
      * pack in column 1 and the third card is clipped"). One verify pass
      * runs after the layout settles; if a column's real height overflowed
-     * the budget after all, this repacks once more automatically. */
-    public static void packIntoColumns(Context c, LinearLayout columns, List<LinearLayout> cards,
+     * the budget after all, this repacks once more automatically.
+     * Returns how many columns the first pass took. */
+    public static int packIntoColumns(Context c, LinearLayout columns, List<LinearLayout> cards,
             int columnWidthPx, int availableHeightPx) {
-        packIntoColumnsOnce(c, columns, cards, columnWidthPx, availableHeightPx);
+        return packIntoColumns(c, columns, cards, columnWidthPx, availableHeightPx, null);
+    }
+
+    /** Same, and afterRepack gets the new column count when the verify pass
+     * repacks -- for a caller that adds its own view after the columns (that
+     * repack removes it). */
+    public static int packIntoColumns(Context c, LinearLayout columns, List<LinearLayout> cards,
+            int columnWidthPx, int availableHeightPx, java.util.function.IntConsumer afterRepack) {
+        int n = packIntoColumnsOnce(c, columns, cards, columnWidthPx, availableHeightPx);
         columns.post(() -> {
             for (int i = 0; i < columns.getChildCount(); i++) {
                 if (columns.getChildAt(i).getHeight() > availableHeightPx) {
-                    packIntoColumnsOnce(c, columns, cards, columnWidthPx, availableHeightPx);
+                    int again = packIntoColumnsOnce(c, columns, cards, columnWidthPx, availableHeightPx);
+                    if (afterRepack != null) afterRepack.accept(again);
                     return;
                 }
             }
         });
+        return n;
     }
 
-    private static void packIntoColumnsOnce(Context c, LinearLayout columns, List<LinearLayout> cards,
+    /** Returns how many columns the cards took. */
+    private static int packIntoColumnsOnce(Context c, LinearLayout columns, List<LinearLayout> cards,
             int columnWidthPx, int availableHeightPx) {
         columns.removeAllViews();
         int gapV = dp(c, CARD_GAP_DP), gapH = dp(c, COLUMN_GAP_DP);
@@ -933,6 +996,7 @@ public class Style {
             col.addView(card);
             used += cardH;
         }
+        return columns.getChildCount();
     }
 
     /** Applies margin values to an already-added view. */

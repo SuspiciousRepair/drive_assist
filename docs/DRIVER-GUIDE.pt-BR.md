@@ -21,10 +21,15 @@ A tela inicial foi feita para uso rápido enquanto você dirige:
 - a escala de conforto pede ar mais frio ou mais quente em um toque, em vez de
   ajustar ventilador, temperatura e A/C um a um;
 - botões grandes fazem resfriar, aquecer, recirculação e abrir um vão nos vidros;
-- durante a recarga, um cartão de bateria mostra a porcentagem e o tempo estimado
-  até 100%;
+- durante a recarga, um cartão de recarga fica no lugar do cartão Estacionado.
+  Ele mostra o tempo carregando, o tempo até 100%, o nível da bateria, a energia
+  colocada e a potência. Toque no cartão, durante ou depois da recarga, para abrir
+  a página da recarga: potência, temperaturas e bateria % na mesma linha do
+  tempo (passe o dedo nos gráficos para ler cada valor), os números, o local no
+  mapa e quanto tempo o carro ficou parado em 100%. Toque no quadro de custo
+  para informar o preço;
 - cartões opcionais mostram o portão da garagem, um painel enviado pelo Home
-  Assistant, ou o que está tocando no Spotify.
+  Assistant, ou o que o celular toca pelo carro.
 
 Os botões são grandes e a maior parte da tela fica calma, para a informação útil
 ser lida de longe.
@@ -85,7 +90,8 @@ velocidade e potência máximas, bateria e temperatura).
 As **Estatísticas de recarga** guardam cada recarga — energia, tempo, variação da
 bateria e potência média. Toque em uma recarga (em P) para adicionar ou corrigir
 o preço; uma recarga gratuita pode ser salva como zero, e isso continua diferente
-de uma recarga sem preço informado. Há visão de mês e ano, um cartão de
+de uma recarga sem preço informado. Para trocar o símbolo da moeda (R$ por
+padrão), vá em Config → Elementos → Localização. Há visão de mês e ano, um cartão de
 temperatura da bateria e um mapa dos lugares onde você recarrega.
 
 Um cartão de **saúde da bateria** mostra os kWh por recarga, as horas que a
@@ -114,9 +120,35 @@ O Drive Assist pode enviar bateria e posição ao vivo para o ABRP, para o
 planejamento de viagens longas acompanhar o que o carro faz agora. Um dongle OBD2
 Bluetooth opcional dá dados de bateria mais finos. Veja o [guia do ABRP](ABRP.md).
 
-### Spotify
+### Música
 
-Entre uma vez e a tela inicial mostra o que está tocando, com controles.
+Ligue **Config → Integrações → Música → Música do celular** e a tela inicial
+mostra o que o celular toca pelo carro (Bluetooth, Apple CarPlay ou Android
+Auto), de qualquer app, com Tocar e Avançar. Não é preciso entrar em nenhuma
+conta. O Drive Assist lê isso dos próprios apps de música do carro; nenhuma
+permissão é pedida, e nada sai do carro. A pequena engrenagem no canto de cima,
+à direita, do cartão abre os ajustes de som do próprio carro, com o equalizador.
+**Cartão grande**, na mesma página, mostra a capa do álbum inteira e botões
+grandes de Tocar e Avançar.
+
+Ligue **Busca de letras**, na mesma página, para ver a letra da música. O botão
+**Letra** do cartão aumenta o cartão para duas colunas e a altura toda da tela.
+No alto ficam a capa, a música, o artista e o álbum. Embaixo vem a letra da música, no tempo dela: a
+linha cantada agora em letra grande, a linha anterior e as duas próximas. A
+barra embaixo tem Tocar, Avançar e **✕**, que fecha a letra. O cartão lembra a
+sua última escolha, aberta ou fechada, de uma música para a outra e depois que
+o carro dorme. O cartão fica no tamanho normal quando o painel do Home Assistant
+aparece, ou quando os outros cartões precisam de mais de uma coluna.
+
+A letra vem do [LRCLIB](https://lrclib.net), um site gratuito de letras. Para
+achá-la, o carro envia para lá os nomes da música, do artista e do álbum, uma
+vez por música. O carro guarda a letra das últimas 1000 músicas e a capa dos
+últimos 200 álbuns, então uma música ouvida de novo não precisa de internet. Algumas músicas só têm letra sem tempo no LRCLIB. O cartão
+mostra essa letra também, mas ela não anda sozinha: toque na metade de baixo da
+letra para descer uma linha, na metade de cima para voltar uma. Para uma música
+sem letra nenhuma, o botão Letra fica apagado, e tocar nele diz "Letra não
+encontrada para esta música". Com a chave desligada, o carro não envia nada para
+lá.
 
 ### Dashcam
 
@@ -140,8 +172,8 @@ gravação variam por região.
   padrão). Ligue **Em todas as telas** para escurecer todos os apps, não só o
   Painel. O botão Experimentar mostra na hora.
 - **Tradução dos apps do carro** (Config → Integrações): texto melhor nos apps
-  Energia, Wi-Fi e Configurações do próprio carro. Os arquivos do carro não
-  mudam; Remover ou a Limpeza tira. Instalar e Remover esperam o carro em P.
+  Energia, Wi-Fi, Configurações e Permissões do próprio carro. Os arquivos do
+  carro não mudam; Remover ou a Limpeza tira. Instalar e Remover esperam o carro em P.
 - **Som de travamento**: troca o som que o carro faz ao travar, ou importa o seu.
 - **Limpeza**: uma tela que remove o Drive Assist, o auxiliar e o leitor CAN, e
   devolve o som de travamento do próprio carro — útil antes de uma visita à

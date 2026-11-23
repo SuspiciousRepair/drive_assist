@@ -100,13 +100,14 @@ cd drivemem && ./build.sh             # compile, verify guard, publish, and inst
 
 ### 1. Vehicle Safety & Park (`P`) Enforcement
 * **Never show update modals while driving**: Update prompts and changelog modals must only appear when the vehicle is in Park (`CarState.isParked() == true`).
-* If the vehicle shifts out of Park while a dialog is displayed, the dialog is immediately dismissed.
+* If the vehicle shifts out of Park while an update or changelog dialog is displayed, that dialog is immediately dismissed. Other windows (for example the charge cost window) do not follow this rule.
 * OTA installations are blocked while the vehicle is in motion.
 
 ### 2. Display Sizing (1920 x 1080 @ 1.0 Density)
 * **1 dp = 1 px = 1 sp**: The dashboard display is **1920 x 1080 dp** (density 1.0).
 * A phone is ~390 dp wide; this panel is nearly five phones wide and viewed from ~75 cm away.
 * Type and interactive touch targets must be sized for vehicle viewing distances (e.g., 13sp is only ~1.8 mm tall on this panel and is illegible from the driver's seat).
+* **A unit is always smaller and dimmer than its number** (kWh, kW, km, %, °, h/m, the currency symbol), on every screen and chart. Use the `Style` helpers listed in `docs/STYLE-GUIDE.md` ("Numbers and units"); never hand a view a plain `"4.2 kW"` string.
 
 ### 3. Application Lifecycle & Suspend
 * **The head unit suspends rather than fully shutting down**: `BOOT_COMPLETED` does not fire on brief wakeups.

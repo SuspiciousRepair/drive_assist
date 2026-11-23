@@ -56,6 +56,9 @@ public final class DriveMemApplication extends Application {
         // (Config -> Drive's switch, the Home AVAS button) needs it.
         HelperSync.queryAvas(this);
         DbMigration.runOnce(this);
+        // The Spotify sign-in was removed: its stored tokens go. Writes only
+        // the first time; after that it finds nothing.
+        com.geely.drivemem.util.Prefs.dropRemoved(this);
         TelemetryRollup.runIfDue(this);
         CarState.ensureSubscribed();
         ChargeSession.ensureSubscribed(this);
@@ -74,6 +77,8 @@ public final class DriveMemApplication extends Application {
         Obd2Reader.ensureStarted(this);   // no-ops unless obd2_enabled is set
         com.geely.drivemem.sensors.BatteryHealth.ensureSubscribed(this);   // keeps obd.soh
         CanEnergyReader.ensureStarted(this);   // no-ops unless can_energy is set
+        // The brake pedal (can.brake) for the dashcam's subtitle line.
+        com.geely.drivemem.sensors.DashBrake.ensureSubscribed(this);
         AbrpUploader.ensureSubscribed(this);
         CarplayState.ensureSubscribed(this);
     }

@@ -24,7 +24,6 @@ import com.geely.drivemem.services.TelemetryService;
 import com.geely.drivemem.services.WifiIconService;
 import com.geely.drivemem.util.Modes;
 import com.geely.drivemem.util.Prefs;
-import com.geely.drivemem.util.SpotifyClient;
 import com.geely.drivemem.util.Style;
 
 import android.app.Activity;
@@ -87,12 +86,10 @@ public class TelemetryActivity extends Activity {
     // OBD2 dongle — same rule again. Was "OBD2 + ABRP" until ABRP got its
     // own page (SEC_ABRP); the number stayed with the dongle.
     static final int SEC_OBD = 8;
-    // Pulled out of buildMqtt(), where it used to just be appended at the
-    // bottom with no section of its own — same rule again.
-    static final int SEC_SPOTIFY = 9;
+    // 9 was Spotify (removed with the Spotify sign-in): retired, never reused.
     private static final int SEC_SYSTEM = 10;
     // The Integrations page: one sidebar item, one tile per integration
-    // (Integrations.ALL). MQTT, OBD and SPOTIFY above are no longer sidebar
+    // (Integrations.ALL). MQTT and OBD above are no longer sidebar
     // items; they are the pages those tiles open.
     private static final int SEC_INTEGRATIONS = 11;
     static final int SEC_ABRP = 12;
@@ -100,6 +97,8 @@ public class TelemetryActivity extends Activity {
     private static final int SEC_CLIMATE = 13;
     // Car app translations (OemTranslations). Appended, same reason as SEC_DOORS.
     static final int SEC_OEM_TEXT = 14;
+    // The music card and its lyrics (TelemetryMusicSection). Appended, same reason as SEC_DOORS.
+    static final int SEC_MUSIC = 15;
 
     private final List<TextView> navItems = new ArrayList<>();
     private TextView status;                  // recreated by each panel that needs it
@@ -107,7 +106,6 @@ public class TelemetryActivity extends Activity {
     // Section instances kept for post-construction updates (refreshStatus, refreshCertUi)
     private TelemetryMqttSection mqttSection;
     private static final int REQ_CODE_PICK_CERT = 4201;  // used by mqttSection file picker
-    private TelemetrySpotifySection spotifySection;
     private TelemetryClipsSection clipsSection;
     private TelemetryDriveSection driveSection;
     private TelemetryObdSection obdSection;
@@ -192,9 +190,7 @@ public class TelemetryActivity extends Activity {
         // added — CAR (controls/reads the car itself), DISPLAY (the app's
         // own look, no external dependency), INTEGRATIONS (talks to an
         // outside device/service/account: a broker, a Bluetooth dongle, a
-        // web API). Spotify used to just be appended at the bottom of the
-        // MQTT screen with no section of its own, which is what prompted
-        // sorting the rest of this out too.
+        // web API).
         nav.addView(sideGroupLabel(getString(R.string.cfg_group_car)));
         nav.addView(navItem(getString(R.string.cfg_nav_drive), SEC_DRIVE));
         nav.addView(navItem(getString(R.string.cfg_nav_climate), SEC_CLIMATE));
@@ -367,10 +363,7 @@ public class TelemetryActivity extends Activity {
                 abrpSection = new TelemetryAbrpSection(this);
                 content.addView(abrpSection);
                 break;
-            case SEC_SPOTIFY:
-                spotifySection = new TelemetrySpotifySection(this);
-                content.addView(spotifySection);
-                break;
+            case SEC_MUSIC: content.addView(new TelemetryMusicSection(this)); break;
             case SEC_OEM_TEXT: content.addView(new TelemetryOemTextSection(this)); break;
             case SEC_SYSTEM: systemSection = new TelemetrySystemSection(this); content.addView(systemSection); break;
             default:       // SEC_DRIVE, and the landing page
@@ -550,9 +543,6 @@ public class TelemetryActivity extends Activity {
     // Refreshes status lines after returning from external activities
     @Override protected void onResume() {
         super.onResume();
-        if (spotifySection != null) {
-            spotifySection.refreshStatus(this);
-        }
         if (mqttSection != null) {
             mqttSection.refreshCertUi();
         }

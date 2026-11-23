@@ -21,10 +21,14 @@ The home screen is made for quick use while you drive:
 - The comfort scale asks for cooler or warmer air in one move, instead of
   setting fan, temperature and A/C one by one.
 - Large buttons do cooling, heating, recirculation and a window clear.
-- While the car charges, a battery card shows the percent and an estimated time
-  to full.
+- While the car charges, a charging card takes the place of the Parked card. It
+  shows the time charging, the time left to 100%, the battery level, the energy
+  added and the charging power. Tap the card, during or after the charge, to
+  open the charge's page: power, temperatures and battery % on one time line
+  (move a finger on the charts to read every value), the numbers, the place on
+  a map, and how long the car stood at 100%. Tap its cost tile to add the price.
 - Optional cards can show your garage gate, a panel sent by Home Assistant, or
-  what is playing on Spotify.
+  what your phone plays through the car.
 
 The buttons are large, and most of the screen stays calm, so the useful part is
 easy to read at arm's length.
@@ -83,7 +87,8 @@ temperature low to high).
 **Charging stats** keeps every past charge — energy, time, battery change and
 average power. Tap a charge (in Park) to add or fix its price; a free charge can
 be saved as zero, and that stays different from a charge whose price you never
-entered. There is a month and year view, a battery-temperature card, and a map
+entered. To change the currency symbol (R$ by default), go to Config → Elements
+→ Localization. There is a month and year view, a battery-temperature card, and a map
 of the places where you charge.
 
 A **battery health** card shows kWh per charge, the hours the battery spent below
@@ -110,9 +115,34 @@ Drive Assist can send live battery and position to ABRP, so long-trip planning
 matches what the car is doing now. An optional Bluetooth OBD2 dongle gives finer
 battery data. See the [ABRP guide](ABRP.md).
 
-### Spotify
+### Music
 
-Sign in once and the home screen shows what is playing, with controls.
+Turn on **Config → Integrations → Music → Phone music** and the home screen
+shows what your phone plays through the car (Bluetooth, Apple CarPlay or
+Android Auto), from any app, with Play and Skip. There is no sign-in. Drive
+Assist reads this from the car's own music apps; no permission is asked, and
+nothing leaves the car. The small gear in the card's top-right corner opens the
+car's own sound settings, with the equalizer. **Large card** on the same page
+gives the card full album art and big Play and Skip buttons.
+
+Turn on **Lyrics search** on the same page to see the words of the song. The
+**Lyrics** button on the card grows it to two columns and the full height of
+the screen. At the top are the art, the song, the artist and the album. Under them are the words of the song,
+in time with it: the line sung now in large type, the line before it, and the
+next two. The bar at the bottom has Play, Skip and **✕**, which closes the
+lyrics. The card remembers your last choice, open or closed, from song to song
+and after the car sleeps. The card stays at its normal size when the Home
+Assistant panel is up, or when the other cards need more than one column.
+
+The lyrics come from [LRCLIB](https://lrclib.net), a free lyrics site. To find
+them, the car sends the song, artist and album names there, once for each song.
+The car keeps the lyrics of the last 1000 songs and the covers of the last 200 albums,
+so a song heard again needs no internet.
+Some songs have only untimed lyrics on LRCLIB. The card shows them too, but they
+do not move by themselves: tap the lower half of the lyrics to go down one line,
+the upper half to go back one. For a song with no lyrics at all, the Lyrics
+button is dim, and tapping it says "No lyrics found for this song".
+With the switch off, the car sends nothing there.
 
 ### Dashcam
 
@@ -120,6 +150,11 @@ The optional dashcam uses the car's own cameras and can burn in time, position
 and speed. Clips copy to a USB stick, or download to your phone. Read the
 [dashcam guide](DASHCAM.md) first: storage and local recording rules vary by
 region.
+
+The dashcam works only on cars with the 360 cameras. Drive Assist asks the car.
+If the car does not report them, the dashcam stays off and the Dashcam page
+shows what the car reported. **Settings → System → Car equipment** shows the
+same values on every car.
 
 ## More you can do
 
@@ -135,7 +170,7 @@ region.
   turns the screen off (70 % by default). Turn on **On every screen** to
   darken every app, not only the Dashboard. Its Try button shows it at once.
 - **Car app translations** (Config → Integrations): better text for the car's
-  own Energy, Wi-Fi and Settings apps. The car's files are not changed; Remove
+  own Energy, Wi-Fi, Settings and Permissions apps. The car's files are not changed; Remove
   or Cleanup takes it away. Install and Remove wait for Park.
 - **Lock sound**: change the sound the car plays when it locks, or import your
   own.
@@ -154,7 +189,8 @@ body signals it shows are read-only.
 Two switches affect safety systems, and both are your choice: one can turn off
 AEB (automatic emergency braking), and one can mute AVAS (the pedestrian warning
 sound). The [safety and privacy guide](WELCOME.md) lists everything the app can
-read, change and send.
+read, change and send. On a car that reports no AEB, the AEB switch is not
+shown.
 
 ## Getting it onto the car
 

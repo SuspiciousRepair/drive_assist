@@ -150,19 +150,17 @@
     <string name="cfg_ca_reset_confirm">Restaurar o certificado CA padrão (embutido no app)?</string>
     <string name="cfg_ca_reset_ok">Certificado CA redefinido para o padrão.</string>
 
-    <string name="cfg_spotify_header">Spotify</string>
-    <string name="cfg_spotify_client_id">Client ID</string>
-    <string name="cfg_spotify_connect">Conectar</string>
-    <string name="cfg_spotify_disconnect">Desconectar</string>
-    <string name="cfg_spotify_status_on">Conectado</string>
-    <string name="cfg_spotify_status_off">Não conectado</string>
-    <string name="cfg_spotify_need_id">Preencha o Client ID primeiro</string>
-    <string name="spotify_connected">Spotify conectado</string>
-    <string name="spotify_connect_failed">Spotify: não foi possível conectar</string>
-    <string name="cfg_spotify_large_card">Cartão grande</string>
-    <string name="cfg_spotify_large_card_hint">A capa do álbum preenche o cartão, com uma faixa grande de Play/Avançar embaixo. Desligado mostra o cartão menor, com a capa ao lado do título.</string>
-    <string name="spotify_play_label">Tocar</string>
-    <string name="spotify_skip_label">Avançar</string>
+    <string name="cfg_music_large_card">Cartão grande</string>
+    <string name="cfg_music_large_card_hint">A capa ocupa o cartão, com botões grandes de Tocar e Avançar.</string>
+    <string name="cfg_lyrics_search">Busca de letras</string>
+    <string name="cfg_lyrics_search_hint">Envia música, artista e álbum ao lrclib.net para achar a letra. Desligado: nada é enviado.</string>
+    <string name="cfg_bt_music">Música do celular</string>
+    <string name="cfg_bt_music_hint">Mostra o que o celular toca no carro, de qualquer app.</string>
+    <string name="music_play_label">Tocar</string>
+    <string name="music_skip_label">Avançar</string>
+    <string name="music_lyrics_label">Letra</string>
+    <string name="music_lyrics_no_room">Sem espaço para a letra: outros cartões estão usando a tela.</string>
+    <string name="music_lyrics_not_found">Letra não encontrada para esta música.</string>
     <string name="cfg_commands_label">Aceitar comandos do HA</string>
     <string name="cfg_commands_on">Aceitando comandos do HA</string>
     <string name="cfg_commands_off">Comandos BLOQUEADOS — só envia telemetria</string>
@@ -290,6 +288,9 @@
     <string name="cfg_bar_home_header">Tela inicial</string>
     <string name="cfg_card_grayscale">Cartões em tons de cinza</string>
     <string name="cfg_overlay_label">Botão flutuante de acesso rápido</string>
+    <string name="cfg_localization_header">Localização</string>
+    <string name="cfg_currency_label">Moeda</string>
+    <string name="cfg_currency_hint">Exibida nos custos e estatísticas de recarga.</string>
     <string name="overlay_climate_label">Clima</string>
     <string name="overlay_open_app">Abrir app</string>
     <string name="notif_overlay_channel">Botão flutuante</string>
@@ -439,16 +440,26 @@
     <string name="charge_card_soc">%1$d%%</string>
     <string name="charge_card_elapsed">%1$d min carregando</string>
     <string name="charge_card_remaining">~%1$d min até 100%%</string>
+    <string name="charge_card_remaining_short">~%1$s até 100%%</string>
     <string name="charge_card_calculating">Calculando…</string>
     <string name="charge_card_ready">Pronto</string>
     <string name="charge_card_unknown">Desconhecido</string>
+    <string name="charge_avg_short">méd.</string>
 
     <!-- charge stats & cost tracking -->
     <string name="charge_stats_title">Estatísticas de recarga</string>
-    <string name="charge_sessions_title">Recargas · mais recentes primeiro</string>
-    <string name="charge_soc_chart_title">Faixa da bateria · mais recentes primeiro</string>
     <string name="charge_map_none">Nenhuma recarga deste período salvou o local.</string>
     <string name="charge_curve_title">Potência de recarga ao longo do tempo</string>
+    <string name="charge_detail_title">Recarga</string>
+    <string name="charge_detail_live">Carregando agora</string>
+    <string name="charge_detail_charging">Tempo carregando</string>
+    <string name="charge_detail_idle" formatted="false">Parado em 100%</string>
+    <string name="charge_detail_idle_next">até a próxima viagem</string>
+    <string name="charge_detail_idle_now">até agora</string>
+    <string name="charge_detail_bat_temp_label">Temperatura da bateria</string>
+    <string name="charge_detail_bat_temp">bateria</string>
+    <string name="charge_detail_out_temp">fora</string>
+    <string name="charge_detail_soc" formatted="false">Bateria %</string>
     <string name="charge_curve_unavailable">As amostras desta recarga não estão mais disponíveis.</string>
     <string name="charge_curve_power_label">Potência (kW)</string>
     <string name="charge_curve_temp_label">Temp. externa (°C)</string>
@@ -459,7 +470,7 @@
     <string name="charge_cost_label">Custo</string>
     <string name="charge_cost_change">Alterar</string>
     <string name="charge_cost_input_title">Custo da Recarga</string>
-    <string name="charge_cost_input_hint">Valor total (ex: 45,00)</string>
+    <string name="charge_cost_input_hint">Valor total em %1$s (ex: 45,00)</string>
     <string name="charge_cost_btn_input">Informar Custo</string>
     <string name="charge_cost_btn_edit">Editar</string>
     <string name="charge_cost_btn_save">Salvar</string>
@@ -467,7 +478,6 @@
     <string name="charge_cost_btn_dismiss">Dispensar</string>
     <string name="charge_cost_not_set">Custo não informado</string>
     <string name="charge_cost_invalid">Valor de custo inválido</string>
-    <string name="charge_cost_parked_only">O custo só pode ser inserido com o veículo estacionado.</string>
     <string name="charge_stat_total_cost">Custo total</string>
     <string name="charge_stat_avg_cost_kwh">Custo / kWh</string>
     <string name="charge_stat_cost_100km">Custo / 100km</string>
@@ -483,7 +493,6 @@
     <string name="update_dialog_changelog_header">O que há de novo:</string>
     <string name="update_dialog_accept">Aceitar e Atualizar</string>
     <string name="update_dialog_decline">Mais Tarde</string>
-    <string name="update_dialog_skip">Ignorar esta versão</string>
     <string name="update_checking">Verificando atualizações…</string>
     <string name="update_up_to_date">O Drive Assist já está atualizado (%1$s)</string>
     <string name="update_check_failed">Não foi possível verificar atualizações: %1$s</string>
@@ -606,8 +615,8 @@
     <string name="int_obd_desc">Potência e temperatura da bateria por um dongle Bluetooth.</string>
     <string name="int_abrp_name">ABRP</string>
     <string name="int_abrp_desc">Dados ao vivo para o A Better Route Planner.</string>
-    <string name="int_spotify_name">Spotify</string>
-    <string name="int_spotify_desc">O que está tocando, na tela inicial.</string>
+    <string name="int_music_name">Música</string>
+    <string name="int_music_desc">A música do celular e a letra, na tela inicial.</string>
     <string name="int_status_connected">Conectado</string>
     <string name="int_status_searching">Procurando…</string>
     <string name="int_status_needs_setup">Falta configurar</string>
@@ -618,7 +627,7 @@
     <string name="int_status_working">Trabalhando…</string>
     <string name="cfg_oem_install">Instalar</string>
     <string name="cfg_oem_remove">Remover</string>
-    <string name="cfg_oem_hint">Corrige palavras em chinês e erradas nos apps Energia, Wi-Fi e Configurações do carro. Só o texto: os arquivos do carro não mudam. Remover traz o texto de fábrica de volta. Só nas versões exatas dos apps para as quais o texto foi feito.</string>
+    <string name="cfg_oem_hint">Textos melhores nos apps Energia, Wi-Fi, Configurações e Permissões do carro. Remover traz o texto de fábrica.</string>
     <string name="cfg_oem_st_off">Desligado. Os apps do carro mostram o texto de fábrica.</string>
     <string name="cfg_oem_st_download">Baixando…</string>
     <string name="cfg_oem_st_patch">Preparando os apps…</string>
@@ -688,7 +697,6 @@
     <string name="phone_f_mqtt_user">Usuário MQTT</string>
     <string name="phone_f_mqtt_pass">Senha MQTT</string>
     <string name="phone_f_abrp_token">Token de usuário do ABRP</string>
-    <string name="phone_f_spotify_id">Client ID do Spotify</string>
     <string name="phone_f_update_url">Endereço de atualização</string>
     <string name="phone_secret_set">(definida, oculta)</string>
     <string name="phone_secret_unset">(não definida)</string>
@@ -711,36 +719,23 @@
     <string name="soc_history_empty">Sem dados de bateria neste período</string>
     <string name="charge_card_charges">Recargas</string>
     <string name="charge_card_energy_cap">%1$s kWh carregados</string>
+    <string name="charge_card_full_last">Último 100%%: %1$s</string>
+    <string name="charge_card_per_100km">%1$s / 100 km</string>
+    <string name="charge_card_temp_highest">máxima · %1$s</string>
+    <string name="charge_max_short">máx.</string>
     <string name="charge_card_cost">Custo</string>
-    <string name="charge_card_cost_cap">%1$s / 100 km · %2$s / kWh</string>
     <string name="charge_card_per_kwh">%1$s por kWh</string>
-    <string name="charge_card_cost_total">%1$s no total</string>
-    <string name="charge_card_cost_share">%1$s · %2$d%% do custo</string>
-    <string name="charge_card_no_dc">sem recargas DC</string>
     <string name="charge_card_no_cost">nenhum custo informado</string>
     <string name="charge_card_low">Saúde da bateria</string>
     <string name="charge_card_low_cap">menor carga · %1$s</string>
-    <string name="charge_card_soh_cap">estado de saúde (SoH) · menor carga %1$d%% em %2$s</string>
-    <string name="charge_card_soh_cap_only">estado de saúde (SoH)</string>
-    <string name="charge_card_below">Horas abaixo de %1$d%%</string>
-    <string name="charge_card_plug_note">Em média você pluga com %1$d%%</string>
+    <string name="charge_card_below">Abaixo de %1$d%%</string>
     <string name="charge_card_today">hoje</string>
     <string name="charge_card_yesterday">ontem</string>
     <string name="charge_card_days_ago">há %1$d dias</string>
     <string name="charge_card_never">nunca</string>
-    <string name="charge_card_gap_days">%1$d dias</string>
-    <string name="charge_card_gap_open">%1$s → hoje</string>
-    <string name="charge_card_avg_kwh">%1$s kWh méd.</string>
-    <string name="charge_card_full_band">Até 100%%: %1$d de %2$d · última %3$s</string>
-    <string name="charge_card_gap_line">maior intervalo sem 100%%: %1$s (%2$s)</string>
     <string name="charge_card_temp">Temperatura da bateria</string>
-    <string name="charge_card_temp_cap">máxima · %1$s · média %2$s · mín %3$s</string>
-    <string name="charge_card_full_time" formatted="false">Tempo em 100%</string>
-    <string name="charge_card_full_time_val">%1$s média</string>
-    <string name="charge_card_full_time_sub">%1$s no total · máx %2$s</string>
-    <string name="charge_card_full_temp" formatted="false">Temp. em 100%</string>
-    <string name="charge_card_full_temp_val">máx %1$s</string>
-    <string name="charge_card_full_temp_sub">média %1$s</string>
+    <string name="charge_card_full_time" formatted="false">Horas em 100%</string>
+    <string name="charge_card_full_temp" formatted="false">°C em 100%</string>
     <string name="charge_card_temp_note">LFP fica bem entre 15 e 35 °C</string>
     <string name="charge_card_temp_since">As leituras começam em %1$s.</string>
     <string name="charge_card_no_temp">sem leitura (precisa do OBD2)</string>
@@ -749,4 +744,11 @@
     <string name="charge_temp_info_out">Sem dongle OBD2 neste período, então estas são as temperaturas do ar externo que o carro lê, e não as da bateria. Carregando ou rodando, a bateria fica mais quente que o ar. Conecte um dongle OBD2 para ler a própria bateria.</string>
     <string name="charge_period_month">Mês</string>
     <string name="charge_period_year">Ano</string>
+    <!-- car equipment (CarCaps): what the car reports, shown for issues -->
+    <string name="caps_header">Equipamento do carro</string>
+    <string name="caps_cameras_yes">Câmeras 360: instaladas.</string>
+    <string name="caps_cameras_no">Câmeras 360: não instaladas. A dashcam precisa delas, por isso está desligada.</string>
+    <string name="caps_cameras_unknown">Câmeras 360: ainda não lidas. A dashcam fica desligada até o carro responder.</string>
+    <string name="caps_readings">Tipo %1$s · Variante %2$s · AVM %3$s · RVC %4$s · DVR %5$s · AEB %6$s · AMB %7$s · RHD %8$s</string>
+    <string name="caps_report">Se isto estiver errado, envie estas linhas em uma issue no GitHub.</string>
 </resources>

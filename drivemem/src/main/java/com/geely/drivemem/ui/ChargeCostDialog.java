@@ -32,14 +32,13 @@ public final class ChargeCostDialog {
 
     private ChargeCostDialog() {}
 
-    /** Null, with a short note, when the car is not in Park. */
     public static AlertDialog show(Context context, long sessionId, double kwh, int socStart, int socEnd,
                                    Double currentCost, Runnable onUpdated) {
-        if (!com.geely.drivemem.state.CarState.isParked()) {
-            android.widget.Toast.makeText(context, com.geely.drivemem.R.string.charge_cost_parked_only,
-                android.widget.Toast.LENGTH_SHORT).show();
-            return null;
-        }
+        return show(context, sessionId, kwh, socStart, socEnd, currentCost, onUpdated, null);
+    }
+
+    public static AlertDialog show(Context context, long sessionId, double kwh, int socStart, int socEnd,
+                                   Double currentCost, Runnable onUpdated, Runnable onDismiss) {
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
 
         LinearLayout card = new LinearLayout(context);
@@ -66,7 +65,8 @@ public final class ChargeCostDialog {
         card.addView(subtitle);
 
         EditText input = new EditText(context);
-        input.setHint(context.getString(R.string.charge_cost_input_hint));
+        input.setHint(context.getString(R.string.charge_cost_input_hint,
+            com.geely.drivemem.util.Prefs.getCurrency(context)));
         input.setTextColor(Style.TEXT);
         input.setHintTextColor(Style.TEXT_DIM);
         input.setTextSize(22f);
@@ -110,6 +110,15 @@ public final class ChargeCostDialog {
         AlertDialog dialog = builder.setView(card).create();
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        if (onDismiss != null) {
+            TextView btnDismiss = Style.cardButton(context, context.getString(R.string.charge_cost_btn_dismiss), false, () -> {
+                dialog.dismiss();
+                onDismiss.run();
+            });
+            btnRow.addView(btnDismiss);
+            btnRow.addView(new android.view.View(context), new LinearLayout.LayoutParams(0, 1, 1f));
         }
 
         TextView btnCancel = Style.cardButton(context, context.getString(android.R.string.cancel), false, dialog::dismiss);

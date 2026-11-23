@@ -149,7 +149,8 @@ public final class SettingsFile {
     }
 
     /** The fixed list format 1 backups were written from, with each type.
-     * Only for reading those old files: do not add new keys here. */
+     * Only for reading those old files: do not add new keys here. The
+     * Spotify sign-in keys in it are never restored (Prefs.REMOVED_KEYS). */
     static final Map<String, String> V1_TYPES;
     static {
         Map<String, String> m = new LinkedHashMap<>();

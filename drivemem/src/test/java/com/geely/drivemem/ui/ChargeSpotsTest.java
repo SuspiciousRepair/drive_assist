@@ -46,6 +46,42 @@ public class ChargeSpotsTest {
         assertTrue(s.get(1).dc);
     }
 
+    @Test public void shortMovesToFindTheChargerStillCount() {
+        long tripStart = 10 * H, tripEnd = 11 * H;
+        double far = 20_000;
+        // The trip ends 20 km away; two short moves (0.6 + 0.7 km), then a
+        // charge 1.1 km from the trip's end: the moves widen the reach.
+        List<ChargeSpots.Charge> all = Arrays.asList(
+            ch(far + 1_100, tripEnd + 20 * 60_000L, tripEnd + 2 * H, true));
+        List<ChargeSpots.Hop> hops = Arrays.asList(
+            new ChargeSpots.Hop(tripEnd + 5 * 60_000L, 0.6),
+            new ChargeSpots.Hop(tripEnd + 12 * 60_000L, 0.7));
+        assertEquals(1, ChargeSpots.forTrip(all, tripStart, tripEnd,
+            LAT, LON, LAT + far / 111_195.0, LON, hops).size());
+        // Without the moves, 1.1 km is too far.
+        assertTrue(ChargeSpots.forTrip(all, tripStart, tripEnd,
+            LAT, LON, LAT + far / 111_195.0, LON).isEmpty());
+    }
+
+    @Test public void aRealTripInBetweenTakesTheCharge() {
+        long tripStart = 10 * H, tripEnd = 11 * H;
+        // Home, a round trip of 12 km that ends at home, then a charge at
+        // home: the charge is the round trip's, not this trip's.
+        List<ChargeSpots.Charge> all = Arrays.asList(ch(0, tripEnd + 50 * 60_000L, tripEnd + 3 * H, false));
+        List<ChargeSpots.Hop> hops = Arrays.asList(new ChargeSpots.Hop(tripEnd + 10 * 60_000L, 12));
+        assertTrue(ChargeSpots.forTrip(all, tripStart, tripEnd, LAT, LON, LAT, LON, hops).isEmpty());
+        // Same before the trip: a real trip between the charge and this one.
+        List<ChargeSpots.Charge> before = Arrays.asList(ch(0, 6 * H, tripStart - 50 * 60_000L, false));
+        List<ChargeSpots.Hop> hops2 = Arrays.asList(new ChargeSpots.Hop(tripStart - 40 * 60_000L, 8));
+        assertTrue(ChargeSpots.forTrip(before, tripStart, tripEnd, LAT, LON, LAT, LON, hops2).isEmpty());
+    }
+
+    @Test public void aMoveWithNoDistanceCountsAsATrip() {
+        List<ChargeSpots.Hop> hops = Arrays.asList(new ChargeSpots.Hop(5, Double.NaN));
+        assertEquals(-1, ChargeSpots.reachM(hops, 0, 10), 0);
+        assertEquals(ChargeSpots.NEAR_TRIP_M, ChargeSpots.reachM(hops, 6, 10), 0);   // outside the window
+    }
+
     @Test public void aTripStillDrivingHasNoAfterCharge() {
         List<ChargeSpots.Spot> s = ChargeSpots.forTrip(
             Arrays.asList(ch(0, 11 * H, 12 * H, false)), 10 * H, 0, LAT, LON, LAT, LON);

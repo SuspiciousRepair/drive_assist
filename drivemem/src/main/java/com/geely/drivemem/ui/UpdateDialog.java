@@ -172,28 +172,12 @@ public class UpdateDialog {
                 dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
             }
 
-            // Skip-this-version button: left-aligned via weight, separate
-            // from Decline -- Decline just asks again next time (retained
-            // MQTT redelivery, the daily auto-check, or another manual
-            // check), Skip persists so THIS versionCode stops prompting at
-            // all until something newer ships. Checked back in
-            // Updater.check() -- one place enforcing it, not one per
-            // caller that might show this dialog.
-            Button btnSkip = new Button(activity);
-            btnSkip.setText(activity.getString(R.string.update_dialog_skip));
-            btnSkip.setTextColor(Style.TEXT_DIM);
-            btnSkip.setTextSize(13f);
-            btnSkip.setBackgroundColor(Color.TRANSPARENT);
-            LinearLayout.LayoutParams skipLp = new LinearLayout.LayoutParams(
-                0, Style.dp(activity, 48), 1.0f);
-            btnSkip.setLayoutParams(skipLp);
-            btnSkip.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
-            btnSkip.setOnClickListener(v -> {
-                dialog.dismiss();
-                Prefs.setSkipUpdateVc(activity, info.targetLabel != null, info.versionCode);
-                if (onDecline != null) onDecline.run();
-            });
-            btnRow.addView(btnSkip);
+            // One "not now" button: Later. It stops the home screen opening
+            // this window by itself for this versionCode (Updater.autoPrompts);
+            // a newer version, or the driver's own check in Config, shows it
+            // again. (A separate "Skip this version" did the same and went.)
+            // The spacer keeps Later and Update on the right.
+            btnRow.addView(new android.view.View(activity), new LinearLayout.LayoutParams(0, 1, 1f));
 
             // Decline button
             Button btnDecline = new Button(activity);
@@ -209,8 +193,11 @@ public class UpdateDialog {
             decBg.setCornerRadius(Style.dp(activity, 8));
             decBg.setStroke(1, Style.STROKE_COLOR);
             btnDecline.setBackground(decBg);
+            // Later: no more windows for this version until a newer one
+            // comes, or the driver checks in Config (Updater.autoPrompts).
             btnDecline.setOnClickListener(v -> {
                 dialog.dismiss();
+                Prefs.setUpdateLaterVc(activity, info.targetLabel != null, info.versionCode);
                 if (onDecline != null) onDecline.run();
             });
             btnRow.addView(btnDecline);
@@ -236,6 +223,7 @@ public class UpdateDialog {
             card.addView(btnRow);
 
             dialog.setOnCancelListener(d -> {
+                Prefs.setUpdateLaterVc(activity, info.targetLabel != null, info.versionCode);
                 if (onDecline != null) onDecline.run();
             });
 

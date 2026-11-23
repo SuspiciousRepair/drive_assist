@@ -340,4 +340,52 @@ public class TripSessionTest {
         assertEquals(0.0, ad[0], 1e-9);
         assertEquals(0.0, ad[1], 1e-9);
     }
+
+    // ---- replayDrivingMs: the driving time of a trip recovered after a restart ----
+
+    private static final long D = Modes.DRIVE_COMFORT, P = Modes.GEAR_PARK_ADAPTED;
+
+    private static long[] at(long sec, long gear) {
+        return new long[]{sec * 1000, gear};
+    }
+
+    @Test
+    public void testReplayDrivingCountsTheWholeDriveAndTheRestart() {
+        long[][] rows = {at(30, D), at(60, D), at(90, D)};
+        // 90 s of samples, then 10 s with the app down.
+        assertEquals(100_000L, TripSession.replayDrivingMs(0, 100_000L, rows));
+    }
+
+    @Test
+    public void testReplayDrivingLeavesOutTheTimeInPark() {
+        long[][] rows = {at(30, D), at(60, P), at(90, P), at(120, D), at(150, D)};
+        // 0-60 driving, 60-120 in Park, 120-160 driving.
+        assertEquals(100_000L, TripSession.replayDrivingMs(0, 160_000L, rows));
+    }
+
+    @Test
+    public void testReplayDrivingLeavesOutALongHole() {
+        long[][] rows = {at(30, D), at(30 + 2 * 3600, D)};
+        // The car slept for two hours with the trip open: not driving time.
+        assertEquals(40_000L, TripSession.replayDrivingMs(0, (40 + 2 * 3600) * 1000L, rows));
+    }
+
+    @Test
+    public void testReplayDrivingRowWithNoGearKeepsTheGearBefore() {
+        long[][] rows = {at(30, P), at(60, TripSession.GEAR_UNKNOWN), at(90, D), at(120, TripSession.GEAR_UNKNOWN)};
+        // 0-30 driving, 30-90 in Park (the unknown row stays parked), 90-150 driving.
+        assertEquals(90_000L, TripSession.replayDrivingMs(0, 150_000L, rows));
+    }
+
+    @Test
+    public void testReplayDrivingWithNoSamples() {
+        assertEquals(60_000L, TripSession.replayDrivingMs(0, 60_000L, new long[0][]));
+        assertEquals(0L, TripSession.replayDrivingMs(0, 3_600_000L, new long[0][]));
+    }
+
+    @Test
+    public void testReplayDrivingStoppedInParkWhenTheAppDied() {
+        long[][] rows = {at(30, D), at(60, P)};
+        assertEquals(60_000L, TripSession.replayDrivingMs(0, 90_000L, rows));
+    }
 }

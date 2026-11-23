@@ -52,7 +52,7 @@ public final class ComfortCardVisibility {
     }
 
     /**
-     * Music card visible when Spotify has an actual track loaded.
+     * Music card visible when the phone's music session has a track.
      * Starts GONE — nothing to show until a real title arrives.
      */
     public static boolean showMusicCard(String title) {
@@ -60,42 +60,73 @@ public final class ComfortCardVisibility {
     }
 
     /**
-     * Charge card shows active charging progress when parked and actively charging.
+     * The jumbo music card (two columns, full height, lyrics), before the
+     * room check: Config's Lyrics search on, left open (the driver's last choice),
+     * music playing, lines for the track. Never with the Home Assistant panel
+     * up: the panel needs the room. Parked or driving alike (owner's call,
+     * 2026-11-22).
+     */
+    public static boolean showLyrics(boolean enabled, boolean open, boolean musicShown,
+                                     boolean haveLines, boolean panelShown) {
+        return enabled && open && musicShown && haveLines && !panelShown;
+    }
+
+    /** The screen shows three columns; a fourth means scrolling sideways. */
+    public static final int SCREEN_COLUMNS = 3;
+    /** The jumbo music card's width, in columns. */
+    public static final int JUMBO_COLUMNS = 2;
+
+    /** The jumbo card fits only when the other cards fit in the columns it
+     * leaves; else the music card keeps its own size. */
+    public static boolean jumboFits(int columnsUsedByOthers) {
+        return columnsUsedByOthers + JUMBO_COLUMNS <= SCREEN_COLUMNS;
+    }
+
+    /**
+     * Charge card shows active charging progress when parked and actively charging,
+     * unless Valet is active (where the purple "End Valet" card stands alone).
      * Charging only makes sense while parked — see CarState's header for why this
      * is a real check, not just tidiness.
      */
     public static boolean showActiveCharging(boolean parked, boolean charging) {
-        return parked && charging;
+        return showActiveCharging(parked, charging, false);
+    }
+
+    public static boolean showActiveCharging(boolean parked, boolean charging, boolean valetActive) {
+        return parked && charging && !valetActive;
     }
 
     /**
-     * Charge card shows completed charge session when one exists and hasn't been dismissed.
+     * Charge card shows completed charge session when one exists and hasn't been dismissed,
+     * unless Valet is active.
      * The dismissal is local (stored in SharedPreferences), doesn't depend on broker.
      */
     public static boolean showCompletedCharging(boolean hasRetainedSession) {
-        return hasRetainedSession;
+        return showCompletedCharging(hasRetainedSession, false);
+    }
+
+    public static boolean showCompletedCharging(boolean hasRetainedSession, boolean valetActive) {
+        return hasRetainedSession && !valetActive;
     }
 
     /**
      * Journey/Drive card visibility. The card shows:
      * - When Valet is active (any time, moving or not)
-     * - When parked (always available as entry point, even if drive card is disabled)
-     * - When driving and drive card is enabled, UNLESS dismissed for this specific trip
+     * - When parked and not actively charging (always available as entry point, even if drive card is disabled;
+     *   while actively charging, the Charging card replaces the Parked card)
+     * - When driving and drive card is enabled
      *
      * The parked entry point remains available even when the optional live drive card
      * is disabled; otherwise Valet could become unreachable.
      */
     public static boolean showJourneyCard(boolean valetActive, boolean parked, boolean driveCardEnabled,
-                                         boolean driving, boolean dismissed) {
-        return valetActive || parked || (driveCardEnabled && driving && !dismissed);
+                                         boolean driving) {
+        return showJourneyCard(valetActive, parked, driveCardEnabled, driving, false);
     }
 
-    /**
-     * Journey card dismiss button (×) visible only while driving, and not when Valet is active.
-     * Can't dismiss while parked or in Valet mode.
-     */
-    public static boolean showJourneyDismissButton(boolean driving, boolean valetActive) {
-        return driving && !valetActive;
+    public static boolean showJourneyCard(boolean valetActive, boolean parked, boolean driveCardEnabled,
+                                         boolean driving, boolean activeCharging) {
+        return valetActive || (parked && !activeCharging) || (driveCardEnabled && driving);
     }
 
     /**

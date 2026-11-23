@@ -26,7 +26,7 @@ import javax.crypto.spec.SecretKeySpec;
  * unit tests and tools/backup-open.sh use this same file.
  *
  * Other apps on the car can read the USB stick and the car storage, and a
- * backup holds the MQTT password, the ABRP and Spotify keys and every trip
+ * backup holds the MQTT password, the ABRP key and every trip
  * with its GPS points. So the whole backup is one encrypted file:
  *
  *   "DABK" | format 1 | PBKDF2 rounds (int) | salt (16) | nonce prefix (8)

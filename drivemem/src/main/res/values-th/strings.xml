@@ -66,6 +66,9 @@
     <!-- overlay: floating quick-access button -->
     <string name="cfg_card_grayscale">การ์ดสีเทา</string>
     <string name="cfg_overlay_label">ปุ่มลอยเข้าถึงด่วน</string>
+    <string name="cfg_localization_header">ภาษาและภูมิภาค</string>
+    <string name="cfg_currency_label">สกุลเงิน</string>
+    <string name="cfg_currency_hint">แสดงในค่าชาร์จและสถิติการชาร์จ</string>
     <string name="notif_overlay_channel">ปุ่มลอย</string>
     <string name="notif_overlay_fg_text">ปุ่มเข้าถึงด่วน</string>
     <string name="overlay_climate_label">ระบบปรับอากาศ</string>
@@ -148,19 +151,17 @@
     <string name="cfg_ca_reset_confirm">คืนค่าใบรับรอง CA เริ่มต้น (ที่มากับแอป) หรือไม่?</string>
     <string name="cfg_ca_reset_ok">รีเซ็ตใบรับรอง CA เป็นค่าเริ่มต้นแล้ว</string>
 
-    <string name="cfg_spotify_header">Spotify</string>
-    <string name="cfg_spotify_client_id">Client ID</string>
-    <string name="cfg_spotify_connect">เชื่อมต่อ</string>
-    <string name="cfg_spotify_disconnect">ตัดการเชื่อมต่อ</string>
-    <string name="cfg_spotify_status_on">เชื่อมต่อแล้ว</string>
-    <string name="cfg_spotify_status_off">ไม่ได้เชื่อมต่อ</string>
-    <string name="cfg_spotify_need_id">กรอก Client ID ก่อน</string>
-    <string name="spotify_connected">Spotify เชื่อมต่อแล้ว</string>
-    <string name="spotify_connect_failed">Spotify: เชื่อมต่อไม่ได้</string>
-    <string name="cfg_spotify_large_card">การ์ดขนาดใหญ่</string>
-    <string name="cfg_spotify_large_card_hint">ปกอัลบั้มเต็มการ์ด พร้อมแถบเล่น/ข้ามขนาดใหญ่ด้านล่าง ปิดไว้จะแสดงการ์ดขนาดเล็กที่ปกอยู่ข้างชื่อเพลง</string>
-    <string name="spotify_play_label">เล่น</string>
-    <string name="spotify_skip_label">ข้าม</string>
+    <string name="cfg_music_large_card">การ์ดขนาดใหญ่</string>
+    <string name="cfg_music_large_card_hint">ปกอัลบั้มเต็มการ์ด พร้อมปุ่มเล่นและข้ามขนาดใหญ่</string>
+    <string name="cfg_lyrics_search">ค้นหาเนื้อเพลง</string>
+    <string name="cfg_lyrics_search_hint">ส่งชื่อเพลง ศิลปิน และอัลบั้มไปที่ lrclib.net เพื่อค้นหาเนื้อเพลง ปิดไว้: ไม่มีการส่งข้อมูลใดๆ</string>
+    <string name="cfg_bt_music">เพลงจากโทรศัพท์</string>
+    <string name="cfg_bt_music_hint">แสดงเพลงที่โทรศัพท์เล่นในรถ จากแอปใดก็ได้</string>
+    <string name="music_play_label">เล่น</string>
+    <string name="music_skip_label">ข้าม</string>
+    <string name="music_lyrics_label">เนื้อเพลง</string>
+    <string name="music_lyrics_no_room">ไม่มีที่แสดงเนื้อเพลง: การ์ดอื่นใช้พื้นที่หน้าจออยู่</string>
+    <string name="music_lyrics_not_found">ไม่พบเนื้อเพลงของเพลงนี้</string>
     <string name="cfg_commands_label">ยอมรับคำสั่งจาก HA</string>
     <string name="cfg_commands_on">กำลังยอมรับคำสั่งจาก HA</string>
     <string name="cfg_commands_off">คำสั่งถูกบล็อก — เฉพาะการวัดระยะไกลเท่านั้น</string>
@@ -395,8 +396,6 @@
     <string name="cam_right">ขวา</string>
     <string name="cam_orbit">หมุนรอบคัน</string>
     <!-- charging history -->
-    <string name="charge_sessions_title">ประวัติการชาร์จ · ล่าสุดก่อน</string>
-    <string name="charge_soc_chart_title">ช่วงแบตเตอรี่ · ล่าสุดก่อน</string>
     <string name="charge_map_none">ไม่มีการชาร์จในช่วงนี้ที่บันทึกตำแหน่งไว้</string>
     <string name="charge_ltm_title">12 เดือนล่าสุด</string>
     <string name="charge_period_30d">30 วันล่าสุด</string>
@@ -450,9 +449,11 @@
     <string name="charge_card_soc">%1$d%%</string>
     <string name="charge_card_elapsed">ชาร์จมาแล้ว %1$d นาที</string>
     <string name="charge_card_remaining">อีก ~%1$d นาทีถึง 100%%</string>
+    <string name="charge_card_remaining_short">อีก ~%1$s ถึง 100%%</string>
     <string name="charge_card_calculating">กำลังประมาณการ…</string>
     <string name="charge_card_ready">พร้อม</string>
     <string name="charge_card_unknown">ไม่ทราบ</string>
+    <string name="charge_avg_short">เฉลี่ย</string>
 
     <!-- home screen cards (current drive / parked) -->
     <string name="parked_card_title">จอดอยู่</string>
@@ -465,7 +466,7 @@
     <string name="charge_cost_label">ค่าใช้จ่าย</string>
     <string name="charge_cost_change">แก้ไข</string>
     <string name="charge_cost_input_title">ค่าใช้จ่ายในการชาร์จ</string>
-    <string name="charge_cost_input_hint">ค่าใช้จ่ายทั้งหมด (เช่น 45.00)</string>
+    <string name="charge_cost_input_hint">ค่าใช้จ่ายทั้งหมดเป็น %1$s (เช่น 45.00)</string>
     <string name="charge_cost_btn_input">ป้อนค่าใช้จ่าย</string>
     <string name="charge_cost_btn_edit">แก้ไข</string>
     <string name="charge_cost_btn_per_kwh">× kWh</string>
@@ -473,13 +474,22 @@
     <string name="charge_cost_btn_dismiss">ปิด</string>
     <string name="charge_cost_not_set">ยังไม่ได้ตั้งค่าใช้จ่าย</string>
     <string name="charge_cost_invalid">ค่าใช้จ่ายไม่ถูกต้อง</string>
-    <string name="charge_cost_parked_only">สามารถป้อนค่าใช้จ่ายได้เฉพาะขณะจอดรถเท่านั้น</string>
     <string name="charge_stat_total_cost">ค่าใช้จ่ายทั้งหมด</string>
     <string name="charge_stat_avg_cost_kwh">ค่าใช้จ่าย / kWh</string>
     <string name="charge_stat_cost_100km">ค่าใช้จ่าย / 100 กม.</string>
 
     <!-- charging power curve dialog -->
     <string name="charge_curve_title">กำลังการชาร์จตามเวลา</string>
+    <string name="charge_detail_title">การชาร์จ</string>
+    <string name="charge_detail_live">กำลังชาร์จ</string>
+    <string name="charge_detail_charging">เวลาชาร์จ</string>
+    <string name="charge_detail_idle" formatted="false">จอดที่ 100%</string>
+    <string name="charge_detail_idle_next">จนถึงการขับครั้งถัดไป</string>
+    <string name="charge_detail_idle_now">จนถึงตอนนี้</string>
+    <string name="charge_detail_bat_temp_label">อุณหภูมิแบตเตอรี่</string>
+    <string name="charge_detail_bat_temp">แบตเตอรี่</string>
+    <string name="charge_detail_out_temp">ภายนอก</string>
+    <string name="charge_detail_soc" formatted="false">แบตเตอรี่ %</string>
     <string name="charge_curve_power_label">กำลังไฟฟ้า (kW)</string>
     <string name="charge_curve_temp_label">อุณหภูมิภายนอก (°C)</string>
     <string name="charge_curve_batt_temp_label">อุณหภูมิแบตเตอรี่ (°C)</string>
@@ -498,7 +508,6 @@
     <string name="update_dialog_changelog_header">มีอะไรใหม่:</string>
     <string name="update_dialog_accept">ยอมรับและอัปเดต</string>
     <string name="update_dialog_decline">ไว้ภายหลัง</string>
-    <string name="update_dialog_skip">ข้ามเวอร์ชันนี้</string>
     <string name="update_checking">กำลังตรวจสอบการอัปเดต…</string>
     <string name="update_up_to_date">Drive Assist เป็นเวอร์ชันล่าสุดแล้ว (%1$s)</string>
     <string name="update_check_failed">ไม่สามารถตรวจสอบการอัปเดตได้: %1$s</string>
@@ -610,8 +619,8 @@
     <string name="int_obd_desc">กำลังและอุณหภูมิแบตเตอรี่จากดองเกิลบลูทูธ</string>
     <string name="int_abrp_name">ABRP</string>
     <string name="int_abrp_desc">ข้อมูลสดสำหรับ A Better Route Planner</string>
-    <string name="int_spotify_name">Spotify</string>
-    <string name="int_spotify_desc">เพลงที่กำลังเล่น บนหน้าจอหลัก</string>
+    <string name="int_music_name">เพลง</string>
+    <string name="int_music_desc">เพลงจากโทรศัพท์และเนื้อเพลง บนหน้าจอหลัก</string>
     <string name="int_status_connected">เชื่อมต่อแล้ว</string>
     <string name="int_status_searching">กำลังค้นหา…</string>
     <string name="int_status_needs_setup">ต้องตั้งค่า</string>
@@ -622,7 +631,7 @@
     <string name="int_status_working">กำลังทำงาน…</string>
     <string name="cfg_oem_install">ติดตั้ง</string>
     <string name="cfg_oem_remove">ลบออก</string>
-    <string name="cfg_oem_hint">แก้คำภาษาจีนและคำผิดในแอปพลังงาน Wi-Fi และการตั้งค่าของรถ เปลี่ยนเฉพาะข้อความ ไฟล์ของรถไม่ถูกแก้ไข กดลบออกเพื่อกลับไปใช้ข้อความเดิมจากโรงงาน ใช้ได้เฉพาะแอปเวอร์ชันที่ทำข้อความไว้ให้เท่านั้น</string>
+    <string name="cfg_oem_hint">ข้อความที่ดีขึ้นในแอปพลังงาน Wi-Fi การตั้งค่า และสิทธิ์ของรถ กดลบออกเพื่อกลับไปใช้ข้อความเดิม</string>
     <string name="cfg_oem_st_off">ปิดอยู่ แอปของรถแสดงข้อความเดิมจากโรงงาน</string>
     <string name="cfg_oem_st_download">กำลังดาวน์โหลด…</string>
     <string name="cfg_oem_st_patch">กำลังเตรียมแอป…</string>
@@ -692,7 +701,6 @@
     <string name="phone_f_mqtt_user">ชื่อผู้ใช้ MQTT</string>
     <string name="phone_f_mqtt_pass">รหัสผ่าน MQTT</string>
     <string name="phone_f_abrp_token">โทเคนผู้ใช้ ABRP</string>
-    <string name="phone_f_spotify_id">Spotify client ID</string>
     <string name="phone_f_update_url">ที่อยู่สำหรับอัปเดต</string>
     <string name="phone_secret_set">(ตั้งค่าแล้ว ซ่อนไว้)</string>
     <string name="phone_secret_unset">(ยังไม่ได้ตั้งค่า)</string>
@@ -715,36 +723,23 @@
     <string name="soc_history_empty">ไม่มีข้อมูลแบตเตอรี่ในช่วงนี้</string>
     <string name="charge_card_charges">การชาร์จ</string>
     <string name="charge_card_energy_cap">ชาร์จแล้ว %1$s kWh</string>
+    <string name="charge_card_full_last">100%% ครั้งล่าสุด: %1$s</string>
+    <string name="charge_card_per_100km">%1$s / 100 กม.</string>
+    <string name="charge_card_temp_highest">สูงสุด · %1$s</string>
+    <string name="charge_max_short">สูงสุด</string>
     <string name="charge_card_cost">ค่าใช้จ่าย</string>
-    <string name="charge_card_cost_cap">%1$s / 100 กม. · %2$s / kWh</string>
     <string name="charge_card_per_kwh">%1$s ต่อ kWh</string>
-    <string name="charge_card_cost_total">รวม %1$s</string>
-    <string name="charge_card_cost_share">%1$s · %2$d%% ของค่าใช้จ่าย</string>
-    <string name="charge_card_no_dc">ไม่มีการชาร์จ DC</string>
     <string name="charge_card_no_cost">ยังไม่ได้ใส่ค่าใช้จ่าย</string>
     <string name="charge_card_low">สุขภาพแบตเตอรี่</string>
     <string name="charge_card_low_cap">ต่ำสุด · %1$s</string>
-    <string name="charge_card_soh_cap">สุขภาพแบตเตอรี่ (SoH) · ประจุต่ำสุด %1$d%% วันที่ %2$s</string>
-    <string name="charge_card_soh_cap_only">สุขภาพแบตเตอรี่ (SoH)</string>
-    <string name="charge_card_below">ชั่วโมงที่ต่ำกว่า %1$d%%</string>
-    <string name="charge_card_plug_note">โดยเฉลี่ยคุณเสียบชาร์จที่ %1$d%%</string>
+    <string name="charge_card_below">ต่ำกว่า %1$d%%</string>
     <string name="charge_card_today">วันนี้</string>
     <string name="charge_card_yesterday">เมื่อวาน</string>
     <string name="charge_card_days_ago">%1$d วันที่แล้ว</string>
     <string name="charge_card_never">ไม่เคย</string>
-    <string name="charge_card_gap_days">%1$d วัน</string>
-    <string name="charge_card_gap_open">%1$s → วันนี้</string>
-    <string name="charge_card_avg_kwh">เฉลี่ย %1$s kWh</string>
-    <string name="charge_card_full_band">ถึง 100%%: %1$d จาก %2$d · ล่าสุด %3$s</string>
-    <string name="charge_card_gap_line">ช่วงที่ไม่ถึง 100%% นานที่สุด: %1$s (%2$s)</string>
     <string name="charge_card_temp">อุณหภูมิแบตเตอรี่</string>
-    <string name="charge_card_temp_cap">สูงสุด · %1$s · เฉลี่ย %2$s · ต่ำสุด %3$s</string>
-    <string name="charge_card_full_time" formatted="false">เวลาที่ 100%</string>
-    <string name="charge_card_full_time_val">เฉลี่ย %1$s</string>
-    <string name="charge_card_full_time_sub">รวม %1$s · นานสุด %2$s</string>
-    <string name="charge_card_full_temp" formatted="false">อุณหภูมิที่ 100%</string>
-    <string name="charge_card_full_temp_val">สูงสุด %1$s</string>
-    <string name="charge_card_full_temp_sub">เฉลี่ย %1$s</string>
+    <string name="charge_card_full_time" formatted="false">ชั่วโมงที่ 100%</string>
+    <string name="charge_card_full_temp" formatted="false">°C ที่ 100%</string>
     <string name="charge_card_temp_note">LFP ทำงานได้ดีที่ 15–35 °C</string>
     <string name="charge_card_temp_since">เริ่มมีข้อมูลวันที่ %1$s</string>
     <string name="charge_card_no_temp">ไม่มีค่า (ต้องใช้ OBD2)</string>
@@ -753,4 +748,11 @@
     <string name="charge_temp_info_out">ช่วงนี้ไม่มี OBD2 dongle จึงเป็นอุณหภูมิอากาศภายนอกที่รถวัดได้ ไม่ใช่อุณหภูมิแบตเตอรี่ ขณะชาร์จและขับ แบตเตอรี่จะอุ่นกว่าอากาศ เชื่อมต่อ OBD2 dongle เพื่ออ่านค่าจากแบตเตอรี่โดยตรง</string>
     <string name="charge_period_month">เดือน</string>
     <string name="charge_period_year">ปี</string>
+    <!-- car equipment (CarCaps): what the car reports, shown for issues -->
+    <string name="caps_header">อุปกรณ์ของรถ</string>
+    <string name="caps_cameras_yes">กล้อง 360: มี</string>
+    <string name="caps_cameras_no">กล้อง 360: ไม่มี Dashcam ต้องใช้กล้องนี้ จึงปิดอยู่</string>
+    <string name="caps_cameras_unknown">กล้อง 360: ยังอ่านค่าไม่ได้ Dashcam จะปิดอยู่จนกว่ารถจะตอบ</string>
+    <string name="caps_readings">ประเภท %1$s · รุ่นย่อย %2$s · AVM %3$s · RVC %4$s · DVR %5$s · AEB %6$s · AMB %7$s · RHD %8$s</string>
+    <string name="caps_report">หากข้อมูลนี้ไม่ถูกต้อง ส่งบรรทัดเหล่านี้ใน issue บน GitHub</string>
 </resources>

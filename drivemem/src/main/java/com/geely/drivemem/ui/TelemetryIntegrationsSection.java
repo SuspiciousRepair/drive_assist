@@ -31,8 +31,8 @@ final class TelemetryIntegrationsSection extends LinearLayout {
     interface OnOpen { void open(int section); }
 
     // How often the tiles look again while the page is on screen. The states
-    // come from four places (MQTT service, OBD2 hub key, ABRP uploader,
-    // Spotify), most with no listener to hook, so one light tick asks them
+    // come from several places (MQTT service, OBD2 hub key, ABRP uploader,
+    // modehelper, a switch), most with no listener to hook, so one light tick asks them
     // all. It runs only between attach and detach.
     static final long REFRESH_MS = 2000;
 

@@ -1,0 +1,15 @@
+<!-- Close the lyrics: two arrows pointing in, the "make it small again"
+     sign (the opposite of a full-screen button). Drawn for this app. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M20,4L14,10 M14,5L14,10L19,10 M4,20L10,14 M5,14L10,14L10,19"/>
+</vector>

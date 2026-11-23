@@ -162,19 +162,17 @@
     <string name="cfg_ca_reset_confirm">Restore the default (bundled) CA certificate?</string>
     <string name="cfg_ca_reset_ok">CA certificate reset to default.</string>
 
-    <string name="cfg_spotify_header">Spotify</string>
-    <string name="cfg_spotify_client_id">Client ID</string>
-    <string name="cfg_spotify_connect">Connect</string>
-    <string name="cfg_spotify_disconnect">Disconnect</string>
-    <string name="cfg_spotify_status_on">Connected</string>
-    <string name="cfg_spotify_status_off">Not connected</string>
-    <string name="cfg_spotify_need_id">Enter the Client ID first</string>
-    <string name="spotify_connected">Spotify connected</string>
-    <string name="spotify_connect_failed">Spotify: could not connect</string>
-    <string name="cfg_spotify_large_card">Large card</string>
-    <string name="cfg_spotify_large_card_hint">Album art fills the card, with a big Play/Skip band underneath. Off shows the smaller card with the art beside the title.</string>
-    <string name="spotify_play_label">Play</string>
-    <string name="spotify_skip_label">Skip</string>
+    <string name="cfg_music_large_card">Large card</string>
+    <string name="cfg_music_large_card_hint">The cover fills the card, with big Play and Skip buttons.</string>
+    <string name="cfg_lyrics_search">Lyrics search</string>
+    <string name="cfg_lyrics_search_hint">Sends the song, artist and album to lrclib.net to find the lyrics. Off: nothing is sent.</string>
+    <string name="cfg_bt_music">Phone music</string>
+    <string name="cfg_bt_music_hint">Shows what your phone plays in the car, from any app.</string>
+    <string name="music_play_label">Play</string>
+    <string name="music_skip_label">Skip</string>
+    <string name="music_lyrics_label">Lyrics</string>
+    <string name="music_lyrics_no_room">No room for the lyrics: other cards are using the screen.</string>
+    <string name="music_lyrics_not_found">No lyrics found for this song.</string>
     <string name="cfg_commands_label">Accept commands from Home Assistant</string>
     <string name="cfg_commands_on">Accepting commands from Home Assistant</string>
     <string name="cfg_commands_off">Commands blocked — telemetry only</string>
@@ -302,6 +300,9 @@
     <string name="cfg_bar_home_header">Home screen</string>
     <string name="cfg_card_grayscale">Grayscale cards</string>
     <string name="cfg_overlay_label">Floating quick-access button</string>
+    <string name="cfg_localization_header">Localization</string>
+    <string name="cfg_currency_label">Currency symbol</string>
+    <string name="cfg_currency_hint">Shown on charging costs and statistics.</string>
     <string name="overlay_climate_label">Climate</string>
     <string name="overlay_open_app">Open app</string>
     <string name="notif_overlay_channel">Floating quick-access button</string>
@@ -454,16 +455,26 @@
     <string name="charge_card_soc">%1$d%%</string>
     <string name="charge_card_elapsed">%1$d min charging</string>
     <string name="charge_card_remaining">~%1$d min to 100%%</string>
+    <string name="charge_card_remaining_short">~%1$s to 100%%</string>
     <string name="charge_card_calculating">Estimating…</string>
     <string name="charge_card_ready">Ready</string>
     <string name="charge_card_unknown">Unknown</string>
+    <string name="charge_avg_short">avg</string>
 
     <!-- charge stats & cost tracking -->
     <string name="charge_stats_title">Charging stats</string>
-    <string name="charge_sessions_title">Charging sessions · newest first</string>
-    <string name="charge_soc_chart_title">Battery range · newest first</string>
     <string name="charge_map_none">No charge in this period saved its place.</string>
     <string name="charge_curve_title">Charging power over time</string>
+    <string name="charge_detail_title">Charge</string>
+    <string name="charge_detail_live">Charging now</string>
+    <string name="charge_detail_charging">Charging time</string>
+    <string name="charge_detail_idle" formatted="false">Parked at 100%</string>
+    <string name="charge_detail_idle_next">until the next drive</string>
+    <string name="charge_detail_idle_now">so far</string>
+    <string name="charge_detail_bat_temp_label">Battery temperature</string>
+    <string name="charge_detail_bat_temp">battery</string>
+    <string name="charge_detail_out_temp">outside</string>
+    <string name="charge_detail_soc" formatted="false">Battery %</string>
     <string name="charge_curve_unavailable">Samples are no longer available for this session.</string>
     <string name="charge_curve_power_label">Power (kW)</string>
     <string name="charge_curve_temp_label">Outside temp. (°C)</string>
@@ -474,7 +485,7 @@
     <string name="charge_cost_label">Cost</string>
     <string name="charge_cost_change">Change</string>
     <string name="charge_cost_input_title">Charge Cost</string>
-    <string name="charge_cost_input_hint">Total cost (e.g. 45.00)</string>
+    <string name="charge_cost_input_hint">Total cost in %1$s (e.g. 45.00)</string>
     <string name="charge_cost_btn_input">Enter Cost</string>
     <string name="charge_cost_btn_edit">Edit</string>
     <string name="charge_cost_btn_save">Save</string>
@@ -482,7 +493,6 @@
     <string name="charge_cost_btn_dismiss">Dismiss</string>
     <string name="charge_cost_not_set">Cost not set</string>
     <string name="charge_cost_invalid">Invalid cost value</string>
-    <string name="charge_cost_parked_only">Cost can only be entered while parked.</string>
     <string name="charge_stat_total_cost">Total cost</string>
     <string name="charge_stat_avg_cost_kwh">Cost / kWh</string>
     <string name="charge_stat_cost_100km">Cost / 100 km</string>
@@ -498,7 +508,6 @@
     <string name="update_dialog_changelog_header">What\'s new:</string>
     <string name="update_dialog_accept">Accept &amp; Update</string>
     <string name="update_dialog_decline">Later</string>
-    <string name="update_dialog_skip">Skip this version</string>
     <string name="update_checking">Checking for updates…</string>
     <string name="update_up_to_date">Drive Assist is up to date (%1$s)</string>
     <string name="update_check_failed">Could not check for updates: %1$s</string>
@@ -621,8 +630,8 @@
     <string name="int_obd_desc">Battery power and temperature from a Bluetooth dongle.</string>
     <string name="int_abrp_name">ABRP</string>
     <string name="int_abrp_desc">Live data for A Better Route Planner.</string>
-    <string name="int_spotify_name">Spotify</string>
-    <string name="int_spotify_desc">What is playing, on the home screen.</string>
+    <string name="int_music_name">Music</string>
+    <string name="int_music_desc">Your phone\'s music and lyrics, on the home screen.</string>
     <string name="int_status_connected">Connected</string>
     <string name="int_status_searching">Searching…</string>
     <string name="int_status_needs_setup">Needs setup</string>
@@ -633,7 +642,7 @@
     <string name="int_status_working">Working…</string>
     <string name="cfg_oem_install">Install</string>
     <string name="cfg_oem_remove">Remove</string>
-    <string name="cfg_oem_hint">Fixes Chinese and wrong words in the car\'s Energy, Wi-Fi and Settings apps. Text only: the car\'s own files do not change. Remove gives the factory text back. Only on the exact app versions the text was made for.</string>
+    <string name="cfg_oem_hint">Better text in the car\'s Energy, Wi-Fi, Settings and Permissions apps. Remove brings the factory text back.</string>
     <string name="cfg_oem_st_off">Off. The car\'s apps show their factory text.</string>
     <string name="cfg_oem_st_download">Downloading…</string>
     <string name="cfg_oem_st_patch">Preparing the apps…</string>
@@ -703,7 +712,6 @@
     <string name="phone_f_mqtt_user">MQTT user</string>
     <string name="phone_f_mqtt_pass">MQTT password</string>
     <string name="phone_f_abrp_token">ABRP user token</string>
-    <string name="phone_f_spotify_id">Spotify client ID</string>
     <string name="phone_f_update_url">Update address</string>
     <string name="phone_secret_set">(set, hidden)</string>
     <string name="phone_secret_unset">(not set)</string>
@@ -726,36 +734,23 @@
     <string name="soc_history_empty">No battery data in this period</string>
     <string name="charge_card_charges">Charges</string>
     <string name="charge_card_energy_cap">%1$s kWh charged</string>
+    <string name="charge_card_full_last">Last 100%%: %1$s</string>
+    <string name="charge_card_per_100km">%1$s / 100 km</string>
+    <string name="charge_card_temp_highest">highest · %1$s</string>
+    <string name="charge_max_short">max</string>
     <string name="charge_card_cost">Cost</string>
-    <string name="charge_card_cost_cap">%1$s / 100 km · %2$s / kWh</string>
     <string name="charge_card_per_kwh">%1$s per kWh</string>
-    <string name="charge_card_cost_total">%1$s in total</string>
-    <string name="charge_card_cost_share">%1$s · %2$d%% of the cost</string>
-    <string name="charge_card_no_dc">no DC charges</string>
     <string name="charge_card_no_cost">no cost entered</string>
     <string name="charge_card_low">Battery health</string>
     <string name="charge_card_low_cap">lowest charge · %1$s</string>
-    <string name="charge_card_soh_cap">state of health (SoH) · lowest charge %1$d%% on %2$s</string>
-    <string name="charge_card_soh_cap_only">state of health (SoH)</string>
-    <string name="charge_card_below">Hours below %1$d%%</string>
-    <string name="charge_card_plug_note">On average you plug in at %1$d%%</string>
+    <string name="charge_card_below">Below %1$d%%</string>
     <string name="charge_card_today">today</string>
     <string name="charge_card_yesterday">yesterday</string>
     <string name="charge_card_days_ago">%1$d days ago</string>
     <string name="charge_card_never">never</string>
-    <string name="charge_card_gap_days">%1$d days</string>
-    <string name="charge_card_gap_open">%1$s → today</string>
-    <string name="charge_card_avg_kwh">%1$s kWh avg</string>
-    <string name="charge_card_full_band">To 100%%: %1$d of %2$d · last %3$s</string>
-    <string name="charge_card_gap_line">longest without 100%%: %1$s (%2$s)</string>
     <string name="charge_card_temp">Battery temperature</string>
-    <string name="charge_card_temp_cap">highest · %1$s · average %2$s · lowest %3$s</string>
-    <string name="charge_card_full_time" formatted="false">Time at 100%</string>
-    <string name="charge_card_full_time_val">%1$s average</string>
-    <string name="charge_card_full_time_sub">%1$s in total · longest %2$s</string>
-    <string name="charge_card_full_temp" formatted="false">Temp. at 100%</string>
-    <string name="charge_card_full_temp_val">max %1$s</string>
-    <string name="charge_card_full_temp_sub">average %1$s</string>
+    <string name="charge_card_full_time" formatted="false">Hours at 100%</string>
+    <string name="charge_card_full_temp" formatted="false">°C at 100%</string>
     <string name="charge_card_temp_note">LFP is comfortable between 15 and 35 °C</string>
     <string name="charge_card_temp_since">Readings start on %1$s.</string>
     <string name="charge_card_no_temp">no reading (needs the OBD2 dongle)</string>
@@ -764,4 +759,11 @@
     <string name="charge_temp_info_out">No OBD2 dongle in this period, so these are the outside air temperatures the car reads, not the battery\'s. While charging and driving, the battery runs warmer than the air. Connect an OBD2 dongle to read the battery itself.</string>
     <string name="charge_period_month">Month</string>
     <string name="charge_period_year">Year</string>
+    <!-- car equipment (CarCaps): what the car reports, shown for issues -->
+    <string name="caps_header">Car equipment</string>
+    <string name="caps_cameras_yes">360 cameras: fitted.</string>
+    <string name="caps_cameras_no">360 cameras: not fitted. The dashcam needs them, so it is off.</string>
+    <string name="caps_cameras_unknown">360 cameras: not read yet. The dashcam stays off until the car answers.</string>
+    <string name="caps_readings">Type %1$s · Variant %2$s · AVM %3$s · RVC %4$s · DVR %5$s · AEB %6$s · AMB %7$s · RHD %8$s</string>
+    <string name="caps_report">If this is wrong, send these lines in a GitHub issue.</string>
 </resources>

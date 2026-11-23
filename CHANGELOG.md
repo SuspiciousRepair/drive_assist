@@ -2,6 +2,219 @@
 
 ## [Unreleased]
 
+## [v0.11.0] — 2026-11-23
+
+### Added
+- **A page for each charge.** Tap the charging card on the home screen to
+  open it, during the charge (it updates every 15 seconds) or after it. On
+  the left, two charts share one time line. The top chart shows the
+  charging power in kW, the battery temperature (with an OBD2 dongle) and
+  the outside temperature. The bottom chart shows the battery %. Touch a
+  chart and move your finger: a line crosses both charts and shows every
+  value at that time. The line goes away 4 seconds after you lift your
+  finger. On the right: the battery levels, the energy added,
+  the charging time, the average and peak power, the temperatures, the cost
+  (tap it to set it) and a map of the place. After a charge that reached
+  100%, **Parked at 100%** shows how long the car stood full before the
+  next drive, or until now if it has not moved. The detailed readings are
+  kept for 90 days; an older charge shows only the numbers.
+- **Choose the currency for charge costs.** Go to **Config → Elements →
+  Localization**. Tap R$, $, €, £ or ¥, or type your own symbol and tap
+  Save. The default is R$. All charge costs use it: the home card, the cost
+  window, Charging stats and the Stats page. A backup keeps the choice.
+- **The music card shows what your phone plays, with no sign-in.** Turn on
+  **Config → Integrations → Music → Phone music** (off by default). The
+  card then shows what the phone plays through the car (Bluetooth, Apple
+  CarPlay or Android Auto), from any app: title, artist, album, cover when
+  the phone sends one, Play and Skip. Drive Assist reads this from the
+  car's own music apps, which share it with any app; no permission is
+  asked. Nothing leaves the car for this. The card hides when the phone
+  disconnects (for CarPlay, 20 seconds after the cable is pulled), and a song paused for more than 10 minutes leaves it. Play
+  on the card starts Bluetooth music through the car's own Bluetooth music
+  app, so the car's sound switches to Bluetooth too.
+- **Song lyrics on the music card.** Turn on **Config → Integrations →
+  Music → Lyrics search** (off by default). The **Lyrics** button on the
+  music card grows it to two columns and the full height of the screen: at
+  the top the art, song, artist and album; under them the line sung now in large type, the line
+  before it and the next two, in time with the song; and Play, Skip and a
+  shrink button (two arrows pointing in) at the bottom. The card remembers the last choice, open
+  or closed, from song to song. The card keeps its normal size when the Home
+  Assistant panel is up, or when the other cards need more than one
+  column; the Lyrics button then says there is no room. The lyrics come from LRCLIB (lrclib.net), a free lyrics site:
+  the car sends it the song, artist and album names, once per song, and
+  keeps the answer; with the switch off it sends nothing. Some songs have
+  only untimed lyrics there: the card shows them, and a tap on the lower
+  half of the lyrics goes down one line, on the upper half back one. For a
+  song with no lyrics at all the Lyrics button is dim, and a tap on it says
+  so.
+- **A gear on the music card for the car's sound settings.** The small
+  gear in the card's top-right corner opens the car's own sound settings,
+  with the equalizer presets (Standard, Pop, Rock, ...). On a car whose
+  settings app has no such screen it opens the Volume page, and with
+  neither there is no gear.
+
+### Removed
+- **The Spotify sign-in.** The music card no longer signs in to Spotify. It
+  shows what the phone plays through the car (see "Phone music" above),
+  from Spotify or any other app. The **Spotify** tile in Config →
+  Integrations is now the **Music** tile. It has the three switches: **Phone
+  music**, **Large card** and **Lyrics search**. Your choices for these
+  switches are kept. The first start after the update deletes the stored
+  Spotify sign-in from the car. A backup no longer keeps it, and a restore
+  does not put it back. The phone settings page no longer has the Spotify
+  client ID field.
+
+### Changed
+- **Charging stats: each charge is the home screen's charging card.** The
+  list shows every charge as the same card as the home screen, with its
+  date: energy added, time, battery levels and average power, and the cost
+  on the right (tap it to set the price). Tap the card to open the charge's
+  page with the charts and the map. The small chart and map buttons are
+  gone; the charge page has both. The battery-bar chart between the list
+  and the map is gone too: each card shows its battery levels, and the
+  list takes its room and reaches the bottom of the screen.
+- **Charging stats: fewer small texts.** Each card at the top keeps one
+  line under its big number and its two boxes, in larger type. **Charges:**
+  the energy, AC and DC. **Cost:** the cost per 100 km and the price per
+  kWh for AC and DC. **Battery health:** the last charge to 100% (moved
+  here from Charges) and the hours below 10% and 20%. **Battery temperature:** the highest and the
+  day, and the time and temperature at 100%. The LFP comfort range moved
+  behind the card's (i). Units are smaller than their numbers.
+- **The cost window says the currency.** The price field now reads "Total
+  cost in R$" (or the symbol chosen in Config → Elements → Localization).
+- **Home: a smaller charging card with more information.** The card now has
+  two lines, like the trip card. While the car charges, the first line shows
+  the time charging and the time left to 100%. The second line shows the
+  battery level at the start and now, and the energy added. On the right, a
+  tile shows the charging power in kW, with a small power curve. When the
+  charge is done, the card shows the energy added, the time, the battery
+  levels and the average power. Tap the card to open the charge's power
+  curve. Tap the cost tile on the right to add the price. The "Dismiss"
+  button is now inside these two windows, not on the card.
+- **Home: the charging card and the Parked card work together.** While the
+  car charges, the charging card takes the place of the Parked card. When
+  Valet mode is on, the Valet card shows alone, with no charging card.
+- **Home: the trip card has no close button.** The "×" at the end of the
+  first line took room from the text, and the minutes could be cut off. To
+  hide the card, use its switch in Settings.
+- **The Orbit view in the clip player lines up.** Orbit turns the four
+  cameras into one view you drag with a finger. Where two cameras met, the
+  picture jumped: there was a hard line, and the road on one side did not
+  continue on the other. Now the player knows where each camera is on the
+  car, so the two pictures meet better, and they are mixed in a narrow band
+  where they meet. A thing near a corner of the car (a person, another car)
+  can still show a double edge there: two cameras see it from two places.
+  The view is now a wide stripe that shows about 220 degrees: the middle is
+  sharp, and the sides are squeezed, so you see what is coming from a side
+  before it turns to the middle. Above the picture, where no camera sees
+  (the mirror cameras see only up to the horizon to the side), the view
+  fades to black instead of showing a jagged edge.
+- **The dashcam asks the car for its 360 cameras.** The dashcam needs the
+  four 360 cameras, and it was on by default on every car. On a car without
+  them it tried to start again and again. Now ModeHelper reads the car's
+  equipment row (the bytes the factory wrote to say which options the car
+  has) and records only when the row reports the cameras. If it does not,
+  or the row cannot be read, the dashcam stays off and the Dashcam page says
+  why. **Settings → System** has a new **Car equipment** card with the values
+  the car reported, and the phone page has them as text. If the answer is
+  wrong for your car, send those lines in a GitHub issue: one car has
+  confirmed the values so far.
+- **No AEB switch on a car without AEB.** The same equipment row says if
+  the car has automatic emergency braking. In the car's own list of trims,
+  AEB is fitted exactly where the 360 cameras are. On a car without it,
+  **Settings → Drive** no longer shows the AEB switch or its "Restore at
+  start" row, and ModeHelper writes no AEB setting. The **Car equipment**
+  card also shows the AEB value, the cabin ambient light value and the
+  steering side, for reports.
+- **No ambient light controls on a car without the ambient light.** On
+  such a car, Home Assistant no longer gets an "ambient light" it cannot
+  switch (one announced by an older version is removed), and the buttons
+  use the theme's own colour, not a cabin light colour that is not there.
+- **No Clips card on the phone page of a car without the 360 cameras.**
+  There is no dashcam on that car, so there are no clips to list.
+- **Shorter dashcam subtitle.** The line under a clip now shows only the
+  time, the speed, the gear, and the speed limit when the car knows one.
+  An arrow after the speed shows it rising (↑) or falling (↓), doubled for
+  a hard stop or a hard start (↓↓, ↑↑). The date, the outside temperature
+  and the compass heading are gone; the date is in the clip's name. The
+  recorder no longer runs the GPS.
+- **The dashcam subtitle shows the brake pedal.** `BRAKE` is on the line
+  while the pedal is pressed. It needs the car's CAN reader, which is on
+  by default (Config > System); with it off, the line shows no brake mark
+  at all.
+- **The cost window opens in any gear.** It no longer needs Park, and
+  it stays open when the car leaves Park.
+- **The car keeps more songs.** Lyrics of the last 1000 songs (was 300;
+  about 3 MB) and, new, one cover for each of the last 200 albums (about 10 MB). A
+  song heard again counts as new, so favourites stay. A Bluetooth song with
+  no cover shows its album's cover, if seen before.
+
+### Fixed
+- **The charge page says "Charging now" only while current flows.** In
+  the 3 minutes after a charge stops, it showed "Charging now". A page
+  opened just after a charge ended could also show an older charge.
+- **The music card follows the player that really plays.** A CarPlay
+  song left on "playing" after the cable came out could hide Bluetooth
+  music. Now a player that went quiet is skipped.
+- **The music card finds the phone again by itself.** When a car music
+  app lost its link, the card stayed empty until Drive Assist restarted.
+  Now it tries again after 15 s, then less often.
+- **The cover is not loaded again on every update.** CarPlay sends an
+  update every 5 s, and each one loaded and blurred the same cover again.
+- **Only Drive Assist can put BRAKE in a dashcam clip.** Another app could
+  send the same message to the helper.
+- **The charge page no longer shows "-1%".** A charge that started with
+  the battery level unknown shows only the level at the end.
+- **The Stats page scrolls again.** A change in this version took away the
+  page's scrolling, so the cards below the first screen could not be
+  reached.
+- **A trip's map shows only its own charges.** Before, a charge at the
+  trip's start or end place, up to one hour before or after, was on the
+  trip's map even when another drive came between them. Now a charge shows
+  only when no other drive came between it and the trip. Short moves to
+  find the charger (each under 1 km) do not count as drives. Each move also
+  lets the charger be that much further from where the trip ended.
+- **"Later" on the update window now means later.** Before, the window
+  came back on the next app start, the next daily check, or the next
+  update message, for the same version. Now, after **Later** (or a tap
+  outside the window), the home screen does not show it again for that
+  version. It comes back when a newer version comes out, or when you tap
+  the update check in Config yourself. The **Skip this version** button is gone: Later
+  now does that job. A version you skipped before stays quiet.
+- **Car app translations: the car's permission screens too.** The car's
+  permission app now gets better Portuguese and Spanish text: the location
+  permission said "Localizando permissões" ("locating permissions") and now
+  says "Localização", the uninstall screens were in English, and the
+  Spanish "uninstall failed" message said it had worked. Tap Install again
+  in **Config → Integrations → Car app translations**, or wait for the next
+  car start. The page's hint is now one short sentence and names the four
+  apps.
+- **Home: the trip card keeps its driving time after an app restart.** When
+  the app started again in the middle of a trip (an update, for example),
+  the card's driving time started again from 0. The distance and the start
+  time were correct, so the card could read "2 min · since 10:02" one hour
+  into the trip. The app now reads the trip's driving time back from its
+  own records.
+- **Park monitoring: the first seconds of a drive are recorded.** When the
+  car left Park, the dashcam started the drive's clip up to 5 s late. That
+  clip now starts with the last 6 s kept in memory, so it begins before the
+  shift.
+- **Park monitoring: a drive is no longer labelled "parked: movement".** If
+  something was moving when the car left Park, the parked clip went on into
+  the drive for up to 5 minutes. It now closes there, and the drive gets
+  its own clip.
+- **Park monitoring: no old video at the start of a clip.** The first clip
+  after the car woke could start with a second of video from before it
+  slept, and carry that old time as its name.
+- **Park monitoring cannot stop the dashcam.** If the motion detector
+  stops working, the dashcam records all the time until the car leaves
+  Park, as with the switch off. Before, it would have recorded nothing.
+- **ModeHelper uses much less processor after an update.** After each
+  update ModeHelper prepares a faster copy of itself, but it kept running
+  the slow copy until the head unit restarted, which can be days. With park
+  monitoring on, it used about half of one processor core. It now starts
+  itself again one time as part of the update, before the dashcam starts.
+
 ## [v0.10.0] — 2026-11-20
 
 ### Added

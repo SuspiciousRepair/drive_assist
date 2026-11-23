@@ -4,6 +4,7 @@ import android.content.Context;
 
 import com.geely.drivemem.R;
 import com.geely.drivemem.util.AppBackup;
+import com.geely.drivemem.util.CarCaps;
 import com.geely.drivemem.util.Clips;
 import com.geely.drivemem.util.Prefs;
 
@@ -34,7 +35,6 @@ final class PhonePages {
         new Field("mqtt_user", R.string.phone_f_mqtt_user, false),
         new Field("mqtt_pass", R.string.phone_f_mqtt_pass, true),
         new Field("abrp_user_token", R.string.phone_f_abrp_token, true),
-        new Field("spotify_client_id", R.string.phone_f_spotify_id, false),
         new Field("update_url", R.string.phone_f_update_url, false),
     };
 
@@ -119,13 +119,38 @@ final class PhonePages {
         b.append("<a class=\"btn\" href=\"/restore\">").append(Http.esc(c.getString(R.string.phone_restore_open))).append("</a>");
         b.append("</div>");
 
-        b.append("<div class=\"card\"><h2>").append(Http.esc(c.getString(R.string.phone_clips))).append("</h2>")
-         .append("<a class=\"btn\" href=\"/clips\">").append(Http.esc(c.getString(R.string.phone_clips_open))).append("</a></div>");
+        // No 360 cameras, no dashcam, no clips: the card is left out.
+        CarCaps caps = CarCaps.read(c);
+        if (!CarCaps.lacksCameras(caps)) {
+            b.append("<div class=\"card\"><h2>").append(Http.esc(c.getString(R.string.phone_clips))).append("</h2>")
+             .append("<a class=\"btn\" href=\"/clips\">").append(Http.esc(c.getString(R.string.phone_clips_open))).append("</a></div>");
+        }
 
         b.append("<div class=\"card\"><h2>").append(Http.esc(c.getString(R.string.phone_settings))).append("</h2>")
          .append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.phone_settings_hint))).append("</p>")
          .append("<a class=\"btn\" href=\"/settings\">").append(Http.esc(c.getString(R.string.phone_settings_open))).append("</a></div>");
+
+        b.append(carCaps(c, caps));
         return page(c, title, b.toString());
+    }
+
+    /** The System page's "Car equipment" card, as text the owner can copy
+     * into an issue. */
+    static String carCaps(Context c, CarCaps caps) {
+        StringBuilder b = new StringBuilder("<div class=\"card\"><h2>")
+            .append(Http.esc(c.getString(R.string.caps_header))).append("</h2><p>")
+            .append(Http.esc(c.getString(caps == null || caps.cameras == CarCaps.Cameras.UNKNOWN
+                ? R.string.caps_cameras_unknown
+                : caps.cameras == CarCaps.Cameras.YES ? R.string.caps_cameras_yes : R.string.caps_cameras_no)))
+            .append("</p>");
+        if (caps != null && !caps.config.isEmpty()) {
+            b.append("<p style=\"word-break:break-all\"><code>").append(Http.esc(c.getString(R.string.caps_readings,
+                    caps.type, caps.variant, caps.avm, caps.rvc, caps.dvr,
+                CarCaps.shown(caps.aeb), CarCaps.shown(caps.ambient), CarCaps.shown(caps.rhd))))
+             .append("<br>").append(Http.esc(caps.config)).append("</code></p>");
+        }
+        return b.append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.caps_report)))
+            .append("</p></div>").toString();
     }
 
     static String clips(Context c, List<Clips.Clip> all) {

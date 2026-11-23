@@ -9,10 +9,30 @@ the same thing differently, that's the signal to stop and reuse instead.
 ## Numbers and units
 
 **A unit is always smaller and dimmer than the value it's attached to.**
-Never build it as one plain concatenated string (`"20.3 kWh"` as a single
-`TextView.setText`) — that renders the unit at the same size and weight as
-the number, which reads as "these two things matter equally" when they
-don't.
+This is a rule for every screen, card, dialog and chart label that shows a
+number with a unit — no exceptions for "small" places. Never build it as
+one plain concatenated string (`"20.3 kWh"` as a single
+`TextView.setText`, or `String.format("%.1f kW", v)` handed to a view) —
+that renders the unit at the same size and weight as the number, which
+reads as "these two things matter equally" when they don't.
+
+A unit here is anything after (or before) the number that names what it
+counts: kWh, kW, km, km/h, %, °, h and m in a duration, the currency
+symbol. The helper for each:
+
+| Shows | Helper |
+|---|---|
+| `20.3 kWh`, `4.2 kW`, `12 km` | `Style.valueWithUnit` |
+| `24% → 100%` | `Style.percentRange` |
+| `27° → 31°` (any from → to) | `Style.rangeWithUnit` |
+| `3h 12m`, `44m` | `Style.durationWithUnits` |
+| `R$ 35,40` (symbol first) | `Style.moneyWithUnit` |
+| anything else after a number | `Style.appendUnit` |
+
+On a `Canvas` (chart labels, value boxes) draw the unit with its own
+`Paint`: the number's text size × the unit scale, in `Style.TEXT_DIM`.
+`ChargeDetailChartView`'s value box is the example. Axis tick labels are
+the one exception: they are already small and dim as a whole.
 
 Use `Style.valueWithUnit(number, numberColor, unit, unitScale)`:
 - `numberColor`: the color the value itself should render in (`null` to
@@ -21,9 +41,10 @@ Use `Style.valueWithUnit(number, numberColor, unit, unitScale)`:
   figure (a card's headline number), `Style.UNIT_SCALE_ROW` (0.68) for a
   smaller inline one (a session-list row, a live status line).
 
-A currency symbol as a *prefix* ("R$ 12,15") is not yet covered by this
-helper (it's suffix-only today) and hasn't been touched — worth the same
-treatment if this comes up again, but out of scope for this pass.
+Money always uses the driver's chosen symbol (Config → Elements →
+Localization): `Style.moneyWithUnit` on screen, `Prefs.formatMoney` /
+`Prefs.formatMoneyPerKwh` where only plain text works (a CSV, a dim
+sub-line that is already all small). Never write "R$" as a literal.
 
 ## Charging: AC vs DC
 
@@ -86,8 +107,7 @@ A small glyph still needs a real touch target. Size the tappable
 `LayoutParams` for a hand (≥40dp, 44dp where there's room), and let padding
 inside that box control how large the glyph itself looks — the box and the
 icon are two different numbers. See `ChargeStatsView.chargeRow`'s curve
-icon (44dp box, 24dp glyph) or `ComfortActivity`'s journey-card dismiss ×
-(48dp box) for the pattern. This isn't new — CLAUDE.md's own section on
+icon (44dp box, 24dp glyph) for the pattern. This isn't new — CLAUDE.md's own section on
 this panel's display already makes the general case (a 44dp distance is
 ~6mm of glass, ordinary at phone density but easy to under-size at 1:1);
 this is that same rule applied specifically to icon buttons.
@@ -96,8 +116,7 @@ this is that same rule applied specifically to icon buttons.
 
 When a bar chart's bar represents a *span* (a time range, a SoC range),
 consider drawing the span's own duration inside the bar rather than only
-as a separate label. Two existing implementations of this exact idea:
+as a separate label. The existing implementation of this idea is
 `Style.chargeRangeBar()` (draws into a Bitmap, used by the older
-TelemetryActivity charge history) and `ChargeSocChart.Plot.onDraw()`
-(draws directly to a Canvas). If a third one is ever needed, extract a
-shared helper instead of writing a fourth version of the same math.
+TelemetryActivity charge history). If another one is ever needed, extract
+a shared helper instead of writing a second version of the same math.

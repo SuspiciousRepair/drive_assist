@@ -292,7 +292,7 @@ adb install -r drive_assist.apk
 
 ### Vehicle Configuration CLI Wizard (`configure-car.sh`)
 
-Instead of typing MQTT credentials, mTLS certificates, ABRP tokens, and Spotify keys on the car touchscreen, use the interactive terminal wizard:
+Instead of typing MQTT credentials, mTLS certificates and ABRP tokens on the car touchscreen, use the interactive terminal wizard:
 
 ```bash
 ./tools/configure-car.sh

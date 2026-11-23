@@ -15,7 +15,7 @@ import com.geely.drivemem.state.GateState;
 import com.geely.drivemem.state.PanelState;
 import com.geely.drivemem.ui.ComfortActivity;
 import com.geely.drivemem.util.Beat;
-import com.geely.drivemem.util.SpotifyClient;
+import com.geely.drivemem.util.CarCaps;
 
 import android.content.Context;
 import android.content.Intent;
@@ -211,8 +211,8 @@ public class MqttReporter {
     private static final int MSG_CMD_ACTION     = 15;  // no
     private static final int MSG_CMD_ADB        = 16;  // no
     private static final int MSG_GATE_STATE     = 17;  // coalesce
-    // 18/19/20 (MSG_MEDIA_*) freed — the Music card talks to Spotify's Web
-    // API directly now, not through HA/MQTT. See SpotifyClient.
+    // 18/19/20 (MSG_MEDIA_*) freed — the music card does not go through
+    // HA/MQTT: it reads the phone's music from the car (CarMediaSessions).
     private static final int MSG_CMD_UPDATE_HELPER = 21;  // no — modehelper's own OTA, see UPDATE_HELPER_CMD_TOPIC
 
     private final String uri, user, pass;
@@ -1106,6 +1106,7 @@ public class MqttReporter {
 
     private void doCmdLight(String body) {
         if (cmdBlocked("light")) return;
+        if (noAmbientLight()) return;
         Log.i(TAG, "CMD light from HA: " + body);
         if (ctx == null) return;
         try {
@@ -1670,7 +1671,18 @@ public class MqttReporter {
         pub("homeassistant/binary_sensor/" + DEV_ID + "/plug_connected/config", j, true);
     }
 
+    // A car without the cabin ambient light (CarCaps) gets no light in Home
+    // Assistant. The empty retained message also removes one that an older
+    // version announced.
+    private boolean noAmbientLight() {
+        return ctx != null && CarCaps.lacksAmbient(CarCaps.read(ctx));
+    }
+
     private void sendLightDiscovery() {
+        if (noAmbientLight()) {
+            pub("homeassistant/light/" + DEV_ID + "/ambient/config", "", true);
+            return;
+        }
         String cfg = "{"
             + "\"name\":\"Luz ambiente\",\"uniq_id\":\"" + DEV_ID + "_light\","
             + "\"schema\":\"json\",\"supported_color_modes\":[\"rgb\"],\"brightness\":true,"
