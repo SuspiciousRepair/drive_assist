@@ -58,4 +58,13 @@ public class CarMediaSessionsTest {
         assertFalse(CarMediaSessions.viaCarBluetoothApp("com.njda.carplay"));
         assertFalse(CarMediaSessions.viaCarBluetoothApp(null));
     }
+
+    @Test public void aDisconnectedPhoneLeavesNoSongOnTheCard() {
+        // PlaybackState values: 7 error (Bluetooth after the phone leaves), 0 none.
+        assertTrue(CarMediaSessions.ended(7));
+        assertTrue(CarMediaSessions.ended(0));
+        assertFalse(CarMediaSessions.ended(1));   // stopped: Play can still start it
+        assertFalse(CarMediaSessions.ended(2));   // paused: still on the card for a while
+        assertFalse(CarMediaSessions.ended(3));   // playing
+    }
 }

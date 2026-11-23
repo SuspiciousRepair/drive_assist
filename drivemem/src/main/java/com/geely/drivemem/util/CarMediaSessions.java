@@ -133,6 +133,7 @@ public final class CarMediaSessions {
             MediaController c = l.controller;
             if (c == null) continue;
             PlaybackState st = c.getPlaybackState();
+            if (st != null && ended(st.getState())) continue;
             if (st != null && st.getState() == PlaybackState.STATE_PLAYING) { pick = c; break; }
             if (pick == null && title(c.getMetadata()) != null) pick = c;
         }
@@ -160,6 +161,7 @@ public final class CarMediaSessions {
         String title = title(m);
         if (c == null || title == null || !running) { MusicState.setSession(null, null); return; }
         PlaybackState st = c.getPlaybackState();
+        if (st != null && ended(st.getState())) { MusicState.setSession(null, null); return; }
         MusicState.Track t = new MusicState.Track();
         t.title = title;
         t.artist = m.getString(MediaMetadata.METADATA_KEY_ARTIST);
@@ -221,6 +223,15 @@ public final class CarMediaSessions {
     static long endsAt(boolean playing, long progressMs, long progressAtMs, long durationMs) {
         if (!playing || durationMs <= 0) return 0;
         return progressAtMs + Math.max(0, durationMs - progressMs);
+    }
+
+    /** A session with nothing to resume: none, or in error. When the phone
+     * disconnects, the car's Bluetooth session goes to error ("Bluetooth audio
+     * disconnected") but keeps the last song; the card must not show it.
+     * Stopped is kept: a phone that just connected can report its song as
+     * stopped, and the card's Play is how it starts (startBluetooth). */
+    static boolean ended(int state) {
+        return state == PlaybackState.STATE_ERROR || state == PlaybackState.STATE_NONE;
     }
 
     /** How long a paused session stays on the card. */
