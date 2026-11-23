@@ -160,7 +160,12 @@ mostra essa letra também, mas ela não anda sozinha, e um pequeno relógio risc
 aparece no alto: toque na metade de baixo da
 letra para descer uma linha, na metade de cima para voltar uma. Para uma música
 sem letra nenhuma, o botão Letra fica apagado, e tocar nele diz "Letra não
-encontrada para esta música". Com a chave desligada, o carro não envia nada para
+encontrada para esta música". Letra com tempo um pouco adiantada ou atrasada?
+Toque no cadeado no alto. O cartão mostra então todas as linhas. Toque em cada
+linha quando ela é cantada: as outras linhas acompanham os seus toques, e o
+carro guarda o ajuste dessa música. Um toque move todas as linhas igualmente;
+mais toques também corrigem uma letra que vai se atrasando. A seta que volta
+desfaz o ajuste, e segurar a capa também. O cadeado fecha sozinho na próxima música. Faça isso parado. Com a chave desligada, o carro não envia nada para
 lá.
 
 ### Dashcam

@@ -54,6 +54,26 @@ public final class LyricsClient {
         return trackId != null && trackId.equals(loadedId) ? loaded : null;
     }
 
+    // The owner's timing fixes (LyricSync), one entry per song, in a prefs
+    // file of their own: the song list can grow, the main prefs must not.
+    private static final String SYNC_PREFS = "lyric_sync";
+
+    /** The owner's timing fix for this song; NONE when there is none. */
+    public static LyricSync sync(Context ctx, String trackId) {
+        if (trackId == null) return LyricSync.NONE;
+        return LyricSync.decode(ctx.getSharedPreferences(SYNC_PREFS, Context.MODE_PRIVATE)
+            .getString(trackId, null));
+    }
+
+    /** Keeps the fix for this song; an empty one removes it. */
+    public static void saveSync(Context ctx, String trackId, LyricSync s) {
+        if (trackId == null) return;
+        android.content.SharedPreferences.Editor e =
+            ctx.getSharedPreferences(SYNC_PREFS, Context.MODE_PRIVATE).edit();
+        if (s == null || s.isEmpty()) e.remove(trackId); else e.putString(trackId, s.encode());
+        e.apply();
+    }
+
     /** True while the lyrics for trackId are being fetched. */
     public static boolean pending(String trackId) {
         return trackId != null && trackId.equals(inFlightId);
