@@ -44,6 +44,18 @@
   client ID field.
 
 ### Changed
+- **The Orbit view in the clip player lines up.** Orbit turns the four
+  cameras into one view you drag with a finger. Where two cameras met, the
+  picture jumped: there was a hard line, and the road on one side did not
+  continue on the other. Now the player knows where each camera is on the
+  car, so the two pictures meet better, and they are mixed in a narrow band
+  where they meet. A thing near a corner of the car (a person, another car)
+  can still show a double edge there: two cameras see it from two places.
+  The view is now a wide stripe that shows about 220 degrees: the middle is
+  sharp, and the sides are squeezed, so you see what is coming from a side
+  before it turns to the middle. Above the picture, where no camera sees
+  (the mirror cameras see only up to the horizon to the side), the view
+  fades to black instead of showing a jagged edge.
 - **The dashcam asks the car for its 360 cameras.** The dashcam needs the
   four 360 cameras, and it was on by default on every car. On a car without
   them it tried to start again and again. Now ModeHelper reads the car's
@@ -93,6 +105,11 @@
 - **Park monitoring cannot stop the dashcam.** If the motion detector
   stops working, the dashcam records all the time until the car leaves
   Park, as with the switch off. Before, it would have recorded nothing.
+- **ModeHelper uses much less processor after an update.** After each
+  update ModeHelper prepares a faster copy of itself, but it kept running
+  the slow copy until the head unit restarted, which can be days. With park
+  monitoring on, it used about half of one processor core. It now starts
+  itself again one time as part of the update, before the dashcam starts.
 
 ## [v0.10.0] — 2026-11-20
 
