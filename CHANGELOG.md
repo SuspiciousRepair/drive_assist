@@ -3,8 +3,18 @@
 ## [Unreleased]
 
 ### Added
-- **Song lyrics on the Spotify card.** Turn on **Config → Integrations →
-  Spotify → Lyrics search** (off by default). The **Lyrics** button on the
+- **The music card shows what your phone plays, with no sign-in.** Turn on
+  **Config → Integrations → Music → Phone music** (off by default). The
+  card then shows what the phone plays through the car (Bluetooth, Apple
+  CarPlay or Android Auto), from any app: title, artist, album, cover when
+  the phone sends one, Play and Skip. Drive Assist reads this from the
+  car's own music apps, which share it with any app; no permission is
+  asked. Nothing leaves the car for this. The card hides when the phone
+  disconnects, and a song paused for more than 10 minutes leaves it. Play
+  on the card starts Bluetooth music through the car's own Bluetooth music
+  app, so the car's sound switches to Bluetooth too.
+- **Song lyrics on the music card.** Turn on **Config → Integrations →
+  Music → Lyrics search** (off by default). The **Lyrics** button on the
   music card grows it to two columns and the full height of the screen: at
   the top the art, song, artist and album, in a soft shade of the album
   art's main colour; under them the line sung now in large type, the line
@@ -14,29 +24,24 @@
   Assistant panel is up, or when the other cards need more than one
   column. The lyrics come from LRCLIB (lrclib.net), a free lyrics site:
   the car sends it the song, artist and album names, once per song, and
-  keeps the answer; with the switch off it sends nothing. The next song in
-  the Spotify queue is looked up ahead, so its lyrics are ready when it
-  starts (this needs **Connect** in Config → Spotify once more, for the
-  queue permission). Some songs have no timed lyrics there; for those the
-  Lyrics button is dim. After a jump inside a song, the lines can be up to
-  6 seconds behind, until the next Spotify check.
-- **Phone music on the music card.** Turn on **Config → Integrations →
-  Spotify → Phone music** and the card also shows what the phone plays
-  through the car (Bluetooth, Apple CarPlay or Android Auto), from any app:
-  title, artist, album, cover when the phone sends one, Play and Skip, and
-  the lyrics when Lyrics search is on (they follow the player's own
-  position, so they are exactly in time). When Spotify is playing, the card
-  follows Spotify. Drive Assist reads this from the car's own music apps,
-  which share it with any app; no permission is asked. Nothing leaves the
-  car for this. The card hides when the phone disconnects, and a song
-  paused for more than 10 minutes leaves it.
-  Play on the card starts Bluetooth music through the car's own Bluetooth
-  music app, so the car's sound switches to Bluetooth too.
-- **A gear on the Spotify card for the car's sound settings.** The small
+  keeps the answer; with the switch off it sends nothing. Some songs have
+  no timed lyrics there; for those the Lyrics button is dim.
+- **A gear on the music card for the car's sound settings.** The small
   gear in the card's top-right corner opens the car's own sound settings,
   with the equalizer presets (Standard, Pop, Rock, ...). On a car whose
   settings app has no such screen it opens the Volume page, and with
   neither there is no gear.
+
+### Removed
+- **The Spotify sign-in.** The music card no longer signs in to Spotify. It
+  shows what the phone plays through the car (see "Phone music" above),
+  from Spotify or any other app. The **Spotify** tile in Config →
+  Integrations is now the **Music** tile. It has the three switches: **Phone
+  music**, **Large card** and **Lyrics search**. Your choices for these
+  switches are kept. The first start after the update deletes the stored
+  Spotify sign-in from the car. A backup no longer keeps it, and a restore
+  does not put it back. The phone settings page no longer has the Spotify
+  client ID field.
 
 ### Changed
 - **The dashcam asks the car for its 360 cameras.** The dashcam needs the
@@ -74,11 +79,6 @@
   at all.
 
 ### Fixed
-- **The Spotify card no longer stays up when the car is offline.** When
-  the car could not reach Spotify, the card kept the last song forever.
-  Now it stays only until that song would have ended, plus 30 seconds
-  (30 seconds after the last answer when the song was paused), then hides.
-  It comes back with the next answer from Spotify.
 - **Park monitoring: the first seconds of a drive are recorded.** When the
   car left Park, the dashcam started the drive's clip up to 5 s late. That
   clip now starts with the last 6 s kept in memory, so it begins before the

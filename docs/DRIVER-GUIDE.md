@@ -24,7 +24,7 @@ The home screen is made for quick use while you drive:
 - While the car charges, a battery card shows the percent and an estimated time
   to full.
 - Optional cards can show your garage gate, a panel sent by Home Assistant, or
-  what is playing on Spotify.
+  what your phone plays through the car.
 
 The buttons are large, and most of the screen stays calm, so the useful part is
 easy to read at arm's length.
@@ -110,35 +110,30 @@ Drive Assist can send live battery and position to ABRP, so long-trip planning
 matches what the car is doing now. An optional Bluetooth OBD2 dongle gives finer
 battery data. See the [ABRP guide](ABRP.md).
 
-### Spotify
+### Music
 
-Sign in once and the home screen shows what is playing, with controls. The
-small gear in the card's top-right corner opens the car's own sound settings,
-with the equalizer.
-
-Turn on **Config → Integrations → Spotify → Phone music** and the card also
+Turn on **Config → Integrations → Music → Phone music** and the home screen
 shows what your phone plays through the car (Bluetooth, Apple CarPlay or
-Android Auto), from any app, with Play and Skip (and its lyrics, below). When
-Spotify is playing, the card follows Spotify. Drive Assist reads this from the
-car's own music apps; no permission is asked, and nothing leaves the car.
+Android Auto), from any app, with Play and Skip. There is no sign-in. Drive
+Assist reads this from the car's own music apps; no permission is asked, and
+nothing leaves the car. The small gear in the card's top-right corner opens the
+car's own sound settings, with the equalizer. **Large card** on the same page
+gives the card full album art and big Play and Skip buttons.
 
-Turn on **Config → Integrations → Spotify → Lyrics search** to see the words of
-the song. The **Lyrics** button on the card grows it to two columns and the
-full height of the screen. At the top, in a soft shade of the album art's main
-colour, are the art, the song, the artist and the album. Under them are the words of the song,
+Turn on **Lyrics search** on the same page to see the words of the song. The
+**Lyrics** button on the card grows it to two columns and the full height of
+the screen. At the top, in a soft shade of the album art's main colour, are the
+art, the song, the artist and the album. Under them are the words of the song,
 in time with it: the line sung now in large type, the line before it, and the
 next two. The bar at the bottom has Play, Skip and **✕**, which closes the
 lyrics. The card remembers your last choice, open or closed, from song to song
-and after the car sleeps. The card stays at
-its normal size when the Home Assistant panel is up, or when the other cards
-need more than one column.
+and after the car sleeps. The card stays at its normal size when the Home
+Assistant panel is up, or when the other cards need more than one column.
 
 The lyrics come from [LRCLIB](https://lrclib.net), a free lyrics site. To find
-them, the car sends the song, artist and album names there, once for each song,
-and also for the next song in your Spotify queue so its lyrics are ready when
-it starts. If you signed in to Spotify before this version, tap **Connect**
-once more to allow that. Some songs have no timed lyrics on LRCLIB; for those
-the Lyrics button is dim. With the switch off, the car sends nothing there.
+them, the car sends the song, artist and album names there, once for each song.
+Some songs have no timed lyrics on LRCLIB; for those the Lyrics button is dim.
+With the switch off, the car sends nothing there.
 
 ### Dashcam
 

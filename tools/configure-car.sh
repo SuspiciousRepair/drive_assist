@@ -8,7 +8,6 @@
 #   - MQTT credentials (user / password)
 #   - TLS Certificates (Client .p12 and CA .crt)
 #   - ABRP (tokens, API keys, GPS toggle)
-#   - Spotify (Client ID, Refresh Token, PKCE)
 #   - HVAC & Comfort Setpoints
 #
 # Usage:
@@ -331,20 +330,9 @@ else
     ABRP_API_KEY=$(prompt_input "  ABRP API Key" "$DEF_ABRP_KEY")
     ABRP_SEND_LOCATION=$(prompt_bool "  Send GPS Location to ABRP" "$DEF_ABRP_GPS")
 
-    # 5. Spotify
+    # 5. Climate & Comfort
     echo ""
-    echo -e "${BOLD}${GREEN}--- 5. Spotify Integration ---${NC}"
-    DEF_SPOTIFY_ID=$(get_pref "spotify_client_id" "")
-    DEF_SPOTIFY_REFRESH=$(get_pref "spotify_refresh_token" "")
-    DEF_SPOTIFY_VERIFIER=$(get_pref "spotify_pkce_verifier" "")
-
-    SPOTIFY_CLIENT_ID=$(prompt_input "  Spotify Client ID" "$DEF_SPOTIFY_ID")
-    SPOTIFY_REFRESH_TOKEN=$(prompt_input "  Spotify Refresh Token" "$DEF_SPOTIFY_REFRESH" 1)
-    SPOTIFY_VERIFIER=$(prompt_input "  Spotify PKCE Verifier" "$DEF_SPOTIFY_VERIFIER" 1)
-
-    # 6. Climate & Comfort
-    echo ""
-    echo -e "${BOLD}${GREEN}--- 6. Climate & Vehicle Features ---${NC}"
+    echo -e "${BOLD}${GREEN}--- 5. Climate & Vehicle Features ---${NC}"
     DEF_COMFORT_TEMP=$(get_pref "comfort_sp_2" "24.0")
     DEF_WINDOW_DOOR=$(get_pref "window_on_door" "true")
 
@@ -365,9 +353,6 @@ else
     echo -e "  ${BOLD}MQTT Auth:${NC} User: ${CYAN}$MQTT_USER${NC}, Pass: ${DIM}••••••••${NC}, Interval: ${CYAN}${TELE_INTERVAL}s${NC}, Telemetry: ${CYAN}${TELE_ENABLED}${NC}"
     echo -e "  ${BOLD}mTLS Certs:${NC} Client: ${CYAN}${CLIENT_P12_PATH:-None}${NC}, CA: ${CYAN}${CA_CRT_PATH:-None}${NC}"
     echo -e "  ${BOLD}ABRP:${NC} Enabled: ${CYAN}$ABRP_ENABLED${NC}, Token: ${CYAN}${ABRP_USER_TOKEN:0:8}...${NC}, Send GPS: ${CYAN}$ABRP_SEND_LOCATION${NC}"
-    SPOTIFY_STATUS="None"
-    [ -n "$SPOTIFY_REFRESH_TOKEN" ] && SPOTIFY_STATUS="•••••••• (Configured)"
-    echo -e "  ${BOLD}Spotify:${NC} Client ID: ${CYAN}${SPOTIFY_CLIENT_ID:-None}${NC}, Token: ${DIM}${SPOTIFY_STATUS}${NC}"
     echo -e "  ${BOLD}Comfort:${NC} Target Temp: ${CYAN}${COMFORT_TEMP}°C${NC}, Window on Lock: ${CYAN}$WINDOW_ON_DOOR${NC}"
     echo -e "${BOLD}${CYAN}============================================================${NC}"
     echo ""
@@ -392,9 +377,6 @@ else
     export PY_ABRP_TOKEN="$ABRP_USER_TOKEN"
     export PY_ABRP_KEY="$ABRP_API_KEY"
     export PY_ABRP_GPS="$ABRP_SEND_LOCATION"
-    export PY_SPOTIFY_ID="$SPOTIFY_CLIENT_ID"
-    export PY_SPOTIFY_REFRESH="$SPOTIFY_REFRESH_TOKEN"
-    export PY_SPOTIFY_VERIFIER="$SPOTIFY_VERIFIER"
     export PY_COMFORT_TEMP="$COMFORT_TEMP"
     export PY_WINDOW_DOOR="$WINDOW_ON_DOOR"
 
@@ -434,10 +416,6 @@ set_key(root, "abrp_enabled", os.environ['PY_ABRP_ENABLED'], "boolean")
 set_key(root, "abrp_user_token", os.environ['PY_ABRP_TOKEN'], "string")
 set_key(root, "abrp_api_key", os.environ['PY_ABRP_KEY'], "string")
 set_key(root, "abrp_send_location", os.environ['PY_ABRP_GPS'], "boolean")
-
-set_key(root, "spotify_client_id", os.environ['PY_SPOTIFY_ID'], "string")
-set_key(root, "spotify_refresh_token", os.environ['PY_SPOTIFY_REFRESH'], "string")
-set_key(root, "spotify_pkce_verifier", os.environ['PY_SPOTIFY_VERIFIER'], "string")
 
 set_key(root, "comfort_sp_2", os.environ['PY_COMFORT_TEMP'], "float")
 set_key(root, "window_on_door", os.environ['PY_WINDOW_DOOR'], "boolean")

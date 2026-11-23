@@ -24,7 +24,7 @@ A tela inicial foi feita para uso rápido enquanto você dirige:
 - durante a recarga, um cartão de bateria mostra a porcentagem e o tempo estimado
   até 100%;
 - cartões opcionais mostram o portão da garagem, um painel enviado pelo Home
-  Assistant, ou o que está tocando no Spotify.
+  Assistant, ou o que o celular toca pelo carro.
 
 Os botões são grandes e a maior parte da tela fica calma, para a informação útil
 ser lida de longe.
@@ -114,37 +114,32 @@ O Drive Assist pode enviar bateria e posição ao vivo para o ABRP, para o
 planejamento de viagens longas acompanhar o que o carro faz agora. Um dongle OBD2
 Bluetooth opcional dá dados de bateria mais finos. Veja o [guia do ABRP](ABRP.md).
 
-### Spotify
+### Música
 
-Entre uma vez e a tela inicial mostra o que está tocando, com controles. A
-pequena engrenagem no canto de cima, à direita, do cartão abre os ajustes de som
-do próprio carro, com o equalizador.
+Ligue **Config → Integrações → Música → Música do celular** e a tela inicial
+mostra o que o celular toca pelo carro (Bluetooth, Apple CarPlay ou Android
+Auto), de qualquer app, com Tocar e Avançar. Não é preciso entrar em nenhuma
+conta. O Drive Assist lê isso dos próprios apps de música do carro; nenhuma
+permissão é pedida, e nada sai do carro. A pequena engrenagem no canto de cima,
+à direita, do cartão abre os ajustes de som do próprio carro, com o equalizador.
+**Cartão grande**, na mesma página, mostra a capa do álbum inteira e botões
+grandes de Tocar e Avançar.
 
-Ligue **Config → Integrações → Spotify → Música do celular** e o cartão
-também mostra o que o celular toca pelo carro (Bluetooth, Apple CarPlay ou
-Android Auto), de qualquer app, com Tocar e Avançar (e a letra, abaixo). Quando
-o Spotify está tocando, o cartão segue o Spotify. O Drive Assist lê isso dos
-próprios apps de música do carro; nenhuma permissão é pedida, e nada sai do
-carro.
-
-Ligue **Config → Integrações → Spotify → Busca de letras** para ver a letra da
-música. O botão **Letra** do cartão aumenta o cartão para duas colunas e a
-altura toda da tela. No
-alto, num tom suave da cor principal da capa do álbum, ficam a capa, a música, o
-artista e o álbum. Embaixo vem a letra da música, no tempo dela: a linha cantada
-agora em letra grande, a linha anterior e as duas próximas. A barra embaixo tem
-Tocar, Avançar e **✕**, que fecha a letra. O cartão lembra a sua última escolha,
-aberta ou fechada, de uma música para a outra e depois que o carro dorme. O
-cartão fica no tamanho normal quando o painel do Home
-Assistant aparece, ou quando os outros cartões precisam de mais de uma coluna.
+Ligue **Busca de letras**, na mesma página, para ver a letra da música. O botão
+**Letra** do cartão aumenta o cartão para duas colunas e a altura toda da tela.
+No alto, num tom suave da cor principal da capa do álbum, ficam a capa, a
+música, o artista e o álbum. Embaixo vem a letra da música, no tempo dela: a
+linha cantada agora em letra grande, a linha anterior e as duas próximas. A
+barra embaixo tem Tocar, Avançar e **✕**, que fecha a letra. O cartão lembra a
+sua última escolha, aberta ou fechada, de uma música para a outra e depois que
+o carro dorme. O cartão fica no tamanho normal quando o painel do Home Assistant
+aparece, ou quando os outros cartões precisam de mais de uma coluna.
 
 A letra vem do [LRCLIB](https://lrclib.net), um site gratuito de letras. Para
 achá-la, o carro envia para lá os nomes da música, do artista e do álbum, uma
-vez por música, e também da próxima música da sua fila no Spotify, para a letra
-estar pronta quando ela começar. Se você entrou no Spotify antes desta versão,
-toque em **Conectar** mais uma vez para permitir isso. Algumas músicas não têm
-letra com tempo no LRCLIB; para essas, o botão Letra fica apagado. Com a chave
-desligada, o carro não envia nada para lá.
+vez por música. Algumas músicas não têm letra com tempo no LRCLIB; para essas,
+o botão Letra fica apagado. Com a chave desligada, o carro não envia nada para
+lá.
 
 ### Dashcam
 
