@@ -824,7 +824,7 @@
     <string name="diary_cat_gear_oil">Gear oil</string>
     <string name="diary_cat_battery_12v">12V battery</string>
     <string name="diary_cat_wipers">Wipers</string>
-    <string name="diary_cat_washer_fluid">Washer fluid</string>
+    <string name="diary_cat_washer_fluid">Wiper fluid</string>
     <string name="diary_cat_lights_fuses">Lights &amp; fuses</string>
     <string name="diary_cat_wash_detail">Wash &amp; detail</string>
     <string name="diary_cat_polishing">Polishing</string>
@@ -894,4 +894,13 @@
     <string name="diary_jolt_banner_detail">Detected shock: %1$.1f g at %2$.0f km/h</string>
     <string name="diary_jolt_prefill_note">Hard jolt (%1$.1f g at %2$.0f km/h)</string>
     <string name="diary_jolt_prefill_note_nospeed">Hard jolt (%1$.1f g)</string>
+    <string name="diary_pick_class">Class</string>
+    <string name="diary_pick_item">Event</string>
+    <string name="diary_field_date">Date</string>
+    <string name="diary_date_today">Today</string>
+    <string name="diary_date_yesterday">Yesterday</string>
+    <string name="diary_date_pick">Pick date</string>
+    <string name="diary_odo_from_car">from car history</string>
+    <string name="diary_odo_estimated">estimated from history</string>
+    <string name="diary_odo_not_recorded">no car data for date</string>
 </resources>

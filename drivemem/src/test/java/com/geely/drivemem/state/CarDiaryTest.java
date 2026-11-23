@@ -42,9 +42,39 @@ public class CarDiaryTest {
         assertTrue(CarDiary.Category.forGroup(CarDiary.Group.TIRES).contains(CarDiary.Category.TIRE_PRESSURE));
         assertTrue(CarDiary.Category.forGroup(CarDiary.Group.TIRES).contains(CarDiary.Category.TIRE_BALANCING));
         assertTrue(CarDiary.Category.forGroup(CarDiary.Group.COSMETIC).contains(CarDiary.Category.POLISHING));
+        assertTrue(CarDiary.Category.forGroup(CarDiary.Group.COSMETIC).contains(CarDiary.Category.WASHER_FLUID));
+        assertFalse(CarDiary.Category.forGroup(CarDiary.Group.ELECTRICAL).contains(CarDiary.Category.WASHER_FLUID));
         assertTrue(CarDiary.Category.forGroup(CarDiary.Group.NOTES).contains(CarDiary.Category.NOISE));
         assertTrue(CarDiary.Category.forGroup(CarDiary.Group.NOTES).contains(CarDiary.Category.INCIDENT));
         assertFalse(CarDiary.Category.forGroup(CarDiary.Group.NOTES).contains(CarDiary.Category.TPMS_AUTO));
+    }
+
+    @Test
+    public void filterByGroupAndOdometerForDateResolution() {
+        long now = 1_800_000_000_000L;
+        List<CarDiary.Entry> all = Arrays.asList(
+            entry(1, CarDiary.Category.TIRE_PRESSURE, now, 14_000.0, 20.0, null),
+            entry(2, CarDiary.Category.WASHER_FLUID, now, 14_000.0, 20.0, null),
+            entry(3, CarDiary.Category.NOISE, now, 14_000.0, 20.0, null)
+        );
+        assertEquals(3, CarDiary.filterByGroup(all, null).size());
+        assertEquals(1, CarDiary.filterByGroup(all, CarDiary.Group.COSMETIC).size());
+        assertEquals(CarDiary.Category.WASHER_FLUID,
+            CarDiary.filterByGroup(all, CarDiary.Group.COSMETIC).get(0).category);
+
+        // Exact sample wins over stat
+        CarDiary.OdoLookup exact = CarDiary.resolveOdometerForDate(14_250.0, 14_200.0, 14_000.0, 14_300.0);
+        assertTrue(exact.exact);
+        assertEquals(14_250.0, exact.odoKm, 0.01);
+
+        // Parked day between two known days interpolates / matches parked reading
+        CarDiary.OdoLookup parked = CarDiary.resolveOdometerForDate(null, null, 14_200.0, 14_200.0);
+        assertFalse(parked.exact);
+        assertEquals(14_200.0, parked.odoKm, 0.01);
+
+        // Date before any car history returns null
+        CarDiary.OdoLookup before = CarDiary.resolveOdometerForDate(null, null, null, 14_200.0);
+        assertEquals(null, before.odoKm);
     }
 
     @Test

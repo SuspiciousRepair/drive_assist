@@ -86,11 +86,11 @@ public final class CarDiary {
         // Electrical & Body
         BATTERY_12V(Group.ELECTRICAL, KIND_CARE, R.string.diary_cat_battery_12v, null, 48, true),
         WIPERS(Group.ELECTRICAL, KIND_CARE, R.string.diary_cat_wipers, null, 12, true),
-        WASHER_FLUID(Group.ELECTRICAL, KIND_CARE, R.string.diary_cat_washer_fluid, null, null, true),
         LIGHTS_FUSES(Group.ELECTRICAL, KIND_CARE, R.string.diary_cat_lights_fuses, null, null, true),
 
-        // Cosmetic
+        // Cosmetic / Aesthetics
         WASH_DETAIL(Group.COSMETIC, KIND_CARE, R.string.diary_cat_wash_detail, null, null, true),
+        WASHER_FLUID(Group.COSMETIC, KIND_CARE, R.string.diary_cat_washer_fluid, null, null, true),
         POLISHING(Group.COSMETIC, KIND_CARE, R.string.diary_cat_polishing, null, null, true),
         WAX_CERAMIC(Group.COSMETIC, KIND_CARE, R.string.diary_cat_wax_ceramic, null, null, true),
         PAINT_DENT(Group.COSMETIC, KIND_CARE, R.string.diary_cat_paint_dent, null, null, true),
@@ -563,6 +563,106 @@ public final class CarDiary {
             Log.w(CarAccess.TAG, "diary read failed: " + t);
         }
         return out;
+    }
+
+    /** Filters entries by top-level class/group (null = All). Pure. */
+    public static List<Entry> filterByGroup(List<Entry> all, Group group) {
+        if (all == null) return Collections.emptyList();
+        if (group == null) return all;
+        List<Entry> out = new ArrayList<>();
+        for (Entry e : all) {
+            if (e.category != null && e.category.group == group) out.add(e);
+        }
+        return out;
+    }
+
+    /** Result of looking up the car's historical odometer for a chosen calendar date. */
+    public static final class OdoLookup {
+        public final Double odoKm;
+        public final boolean exact;
+        public OdoLookup(Double odoKm, boolean exact) {
+            this.odoKm = odoKm;
+            this.exact = exact;
+        }
+    }
+
+    /** Pure resolver for historical odometer lookup on a date.
+     * Prefers same-day telemetry_sample, then same-day daily_stat, then brackets
+     * between the closest prior day's end and closest later day's start (if the car
+     * sat parked, both match; if no later day exists, uses the prior day's end).
+     * Returns null for dates strictly before any recorded car history. */
+    public static OdoLookup resolveOdometerForDate(Double sameDaySample, Double sameDayStat,
+                                                   Double prevLastOdo, Double nextFirstOdo) {
+        if (sameDaySample != null && sameDaySample > 0) return new OdoLookup(sameDaySample, true);
+        if (sameDayStat != null && sameDayStat > 0) return new OdoLookup(sameDayStat, true);
+        if (prevLastOdo != null && prevLastOdo > 0) {
+            if (nextFirstOdo != null && nextFirstOdo >= prevLastOdo) {
+                return new OdoLookup((prevLastOdo + nextFirstOdo) / 2.0, false);
+            }
+            return new OdoLookup(prevLastOdo, false);
+        }
+        return new OdoLookup(null, false);
+    }
+
+    /** Looks up the car's odometer for the given local calendar date from CarDb
+     * (telemetry_sample + permanent daily_stat). Off the UI thread. */
+    public static OdoLookup odometerForDate(Context ctx, java.time.LocalDate date) {
+        if (ctx == null || date == null) return new OdoLookup(null, false);
+        java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+        long dayStart = date.atStartOfDay(zone).toInstant().toEpochMilli();
+        long dayEnd = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli();
+        String iso = date.toString(); // YYYY-MM-DD
+
+        Double sameSample = null, sameStat = null, prevOdo = null, nextOdo = null;
+        try {
+            SQLiteDatabase db = CarDb.get(ctx).db();
+            try (Cursor c = db.rawQuery(
+                    "SELECT MAX(odo_km) FROM telemetry_sample WHERE ts_ms >= ? AND ts_ms < ? AND odo_km > 0",
+                    new String[]{String.valueOf(dayStart), String.valueOf(dayEnd)})) {
+                if (c.moveToFirst() && !c.isNull(0)) sameSample = c.getDouble(0);
+            }
+            if (sameSample == null) {
+                try (Cursor c = db.rawQuery(
+                        "SELECT CASE WHEN last_odo_km > 0 THEN last_odo_km ELSE first_odo_km END "
+                        + "FROM daily_stat WHERE date = ? AND (last_odo_km > 0 OR first_odo_km > 0)",
+                        new String[]{iso})) {
+                    if (c.moveToFirst() && !c.isNull(0)) sameStat = c.getDouble(0);
+                }
+            }
+            if (sameSample == null && sameStat == null) {
+                // Closest prior day from daily_stat or telemetry_sample
+                try (Cursor c = db.rawQuery(
+                        "SELECT last_odo_km FROM daily_stat WHERE date < ? AND last_odo_km > 0 "
+                        + "ORDER BY date DESC LIMIT 1", new String[]{iso})) {
+                    if (c.moveToFirst() && !c.isNull(0)) prevOdo = c.getDouble(0);
+                }
+                try (Cursor c = db.rawQuery(
+                        "SELECT odo_km FROM telemetry_sample WHERE ts_ms < ? AND odo_km > 0 "
+                        + "ORDER BY ts_ms DESC LIMIT 1", new String[]{String.valueOf(dayStart)})) {
+                    if (c.moveToFirst() && !c.isNull(0)) {
+                        double sOdo = c.getDouble(0);
+                        if (prevOdo == null || sOdo > prevOdo) prevOdo = sOdo;
+                    }
+                }
+                // Closest later day from daily_stat or telemetry_sample
+                try (Cursor c = db.rawQuery(
+                        "SELECT first_odo_km FROM daily_stat WHERE date > ? AND first_odo_km > 0 "
+                        + "ORDER BY date ASC LIMIT 1", new String[]{iso})) {
+                    if (c.moveToFirst() && !c.isNull(0)) nextOdo = c.getDouble(0);
+                }
+                try (Cursor c = db.rawQuery(
+                        "SELECT odo_km FROM telemetry_sample WHERE ts_ms >= ? AND odo_km > 0 "
+                        + "ORDER BY ts_ms ASC LIMIT 1", new String[]{String.valueOf(dayEnd)})) {
+                    if (c.moveToFirst() && !c.isNull(0)) {
+                        double sOdo = c.getDouble(0);
+                        if (nextOdo == null || sOdo < nextOdo) nextOdo = sOdo;
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            Log.w(CarAccess.TAG, "diary odo lookup failed: " + t);
+        }
+        return resolveOdometerForDate(sameSample, sameStat, prevOdo, nextOdo);
     }
 
     /** Filters entries for the UI tabs. Pure. */

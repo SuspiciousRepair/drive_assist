@@ -879,4 +879,13 @@
     <string name="diary_jolt_banner_detail">Impacto detectado: %1$.1f g a %2$.0f km/h</string>
     <string name="diary_jolt_prefill_note">Impacto forte (%1$.1f g a %2$.0f km/h)</string>
     <string name="diary_jolt_prefill_note_nospeed">Impacto forte (%1$.1f g)</string>
+    <string name="diary_pick_class">Classe</string>
+    <string name="diary_pick_item">Item</string>
+    <string name="diary_field_date">Data</string>
+    <string name="diary_date_today">Hoje</string>
+    <string name="diary_date_yesterday">Ontem</string>
+    <string name="diary_date_pick">Escolher data</string>
+    <string name="diary_odo_from_car">do histórico do carro</string>
+    <string name="diary_odo_estimated">estimado pelo histórico</string>
+    <string name="diary_odo_not_recorded">sem dado nesta data</string>
 </resources>

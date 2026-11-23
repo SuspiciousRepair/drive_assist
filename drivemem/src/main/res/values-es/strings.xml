@@ -866,4 +866,13 @@
     <string name="diary_jolt_banner_detail">Golpe detectado: %1$.1f g a %2$.0f km/h</string>
     <string name="diary_jolt_prefill_note">Golpe fuerte (%1$.1f g a %2$.0f km/h)</string>
     <string name="diary_jolt_prefill_note_nospeed">Golpe fuerte (%1$.1f g)</string>
+    <string name="diary_pick_class">Clase</string>
+    <string name="diary_pick_item">Elemento</string>
+    <string name="diary_field_date">Fecha</string>
+    <string name="diary_date_today">Hoy</string>
+    <string name="diary_date_yesterday">Ayer</string>
+    <string name="diary_date_pick">Elegir fecha</string>
+    <string name="diary_odo_from_car">del historial del coche</string>
+    <string name="diary_odo_estimated">estimado del historial</string>
+    <string name="diary_odo_not_recorded">sin datos en esa fecha</string>
 </resources>

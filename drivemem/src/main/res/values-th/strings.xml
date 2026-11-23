@@ -883,4 +883,13 @@
     <string name="diary_jolt_banner_detail">ตรวจพบแรงกระแทก: %1$.1f g ที่ %2$.0f km/h</string>
     <string name="diary_jolt_prefill_note">กระแทกแรง (%1$.1f g ที่ %2$.0f km/h)</string>
     <string name="diary_jolt_prefill_note_nospeed">กระแทกแรง (%1$.1f g)</string>
+    <string name="diary_pick_class">หมวดหมู่</string>
+    <string name="diary_pick_item">รายการ</string>
+    <string name="diary_field_date">วันที่</string>
+    <string name="diary_date_today">วันนี้</string>
+    <string name="diary_date_yesterday">เมื่อวาน</string>
+    <string name="diary_date_pick">เลือกวันที่</string>
+    <string name="diary_odo_from_car">จากประวัติรถ</string>
+    <string name="diary_odo_estimated">ประมาณจากประวัติ</string>
+    <string name="diary_odo_not_recorded">ไม่มีข้อมูลวันนี้</string>
 </resources>

@@ -44,7 +44,7 @@ import java.util.Locale;
 public final class CarDiaryView extends LinearLayout {
 
     private final Runnable onAttentionChanged;
-    private CarDiary.Filter activeFilter = CarDiary.Filter.ALL;
+    private CarDiary.Group activeGroupFilter = null; // null = All
     private long selectedEntryId = -1L;
     private int loadGen;
 
@@ -146,18 +146,23 @@ public final class CarDiaryView extends LinearLayout {
             0, ViewGroup.LayoutParams.WRAP_CONTENT, 52f));
 
         LinearLayout listHead = new LinearLayout(c);
-        listHead.setOrientation(LinearLayout.HORIZONTAL);
-        listHead.setGravity(Gravity.CENTER_VERTICAL);
+        listHead.setOrientation(LinearLayout.VERTICAL);
         TextView listTitle = new TextView(c);
         listTitle.setText(c.getString(R.string.diary_list_title));
         listTitle.setTextColor(Style.TEXT);
         listTitle.setTextSize(21f);
         listTitle.setTypeface(null, Typeface.BOLD);
-        listHead.addView(listTitle, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        listHead.addView(listTitle);
 
         filterBar = new LinearLayout(c);
         filterBar.setOrientation(LinearLayout.HORIZONTAL);
-        listHead.addView(filterBar);
+        android.widget.HorizontalScrollView fScroll = new android.widget.HorizontalScrollView(c);
+        fScroll.setHorizontalScrollBarEnabled(false);
+        fScroll.addView(filterBar);
+        LinearLayout.LayoutParams fLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        fLp.topMargin = Style.dp(c, 12);
+        listHead.addView(fScroll, fLp);
         leftCard.addView(listHead);
 
         entriesList = new LinearLayout(c);
@@ -405,14 +410,15 @@ public final class CarDiaryView extends LinearLayout {
     private void rebuildFilters() {
         Context c = getContext();
         filterBar.removeAllViews();
-        addFilterPill(c.getString(R.string.diary_filter_all), CarDiary.Filter.ALL);
-        addFilterPill(c.getString(R.string.diary_filter_care), CarDiary.Filter.CARE);
-        addFilterPill(c.getString(R.string.diary_filter_notes), CarDiary.Filter.NOTES);
+        addFilterPill(c.getString(R.string.diary_filter_all), null);
+        for (CarDiary.Group g : CarDiary.Group.values()) {
+            addFilterPill(c.getString(g.labelRes), g);
+        }
     }
 
-    private void addFilterPill(String label, CarDiary.Filter f) {
+    private void addFilterPill(String label, CarDiary.Group g) {
         Context c = getContext();
-        boolean active = (f == activeFilter);
+        boolean active = (g == activeGroupFilter);
         TextView b = new TextView(c);
         b.setText(label);
         b.setTextSize(16f);
@@ -423,8 +429,8 @@ public final class CarDiaryView extends LinearLayout {
         int v = Style.dp(c, 8);
         b.setPadding(h, v, h, v);
         b.setOnClickListener(view -> {
-            if (activeFilter == f) return;
-            activeFilter = f;
+            if (activeGroupFilter == g) return;
+            activeGroupFilter = g;
             rebuildFilters();
             renderEntries();
         });
@@ -437,7 +443,7 @@ public final class CarDiaryView extends LinearLayout {
     private void renderEntries() {
         Context c = getContext();
         entriesList.removeAllViews();
-        List<CarDiary.Entry> shown = CarDiary.filter(cachedEntries, activeFilter);
+        List<CarDiary.Entry> shown = CarDiary.filterByGroup(cachedEntries, activeGroupFilter);
         if (shown.isEmpty()) {
             TextView empty = new TextView(c);
             empty.setText(c.getString(R.string.diary_empty));
