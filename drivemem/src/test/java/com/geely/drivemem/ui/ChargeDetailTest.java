@@ -56,7 +56,9 @@ public class ChargeDetailTest {
 
     @Test public void tempAxisStepsAreWholeFives() {
         assertArrayEquals(new float[]{15, 35}, ChargeDetail.tempAxis(new float[]{24, 33}, new float[]{17, 22}), 0f);
-        assertArrayEquals(new float[]{20, 40}, ChargeDetail.tempAxis(new float[]{N}, new float[]{21, 22}), 0f);
+        assertArrayEquals(new float[]{15, 35}, ChargeDetail.tempAxis(new float[]{N}, new float[]{21, 22}), 0f);
+        // 25° outside: the line stays off the bottom edge.
+        assertArrayEquals(new float[]{20, 40}, ChargeDetail.tempAxis(new float[]{27}, new float[]{25, 26}), 0f);
         assertArrayEquals(new float[]{5, 45}, ChargeDetail.tempAxis(new float[]{8, 41}, new float[0]), 0f);
         assertNull(ChargeDetail.tempAxis(new float[]{N}, new float[0]));
     }

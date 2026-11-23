@@ -458,8 +458,6 @@
     <string name="charge_detail_idle" formatted="false">Parado em 100%</string>
     <string name="charge_detail_idle_next">até a próxima viagem</string>
     <string name="charge_detail_idle_now">até agora</string>
-    <string name="charge_detail_power">Potência</string>
-    <string name="charge_detail_power_value">%1$s média · %2$s pico</string>
     <string name="charge_detail_bat_temp_label">Temperatura da bateria</string>
     <string name="charge_detail_bat_temp">bateria</string>
     <string name="charge_detail_out_temp">fora</string>

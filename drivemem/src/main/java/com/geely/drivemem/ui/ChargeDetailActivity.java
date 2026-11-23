@@ -269,8 +269,12 @@ public class ChargeDetailActivity extends Activity {
         showStats(d);
     }
 
+    // The numbers, two per row, so all of them fit above the map.
+    private final java.util.List<View> blocks = new java.util.ArrayList<>();
+
     private void showStats(Loaded d) {
         stats.removeAllViews();
+        blocks.clear();
         int typeColor = d.dc ? Style.GOOD : Style.ACCENT;
         stat(R.string.session_stat_battery, d.socStart + "% → " + d.socEnd + "%", null, Style.TEXT, null);
         stat(R.string.session_stat_charged_energy, String.format(Locale.getDefault(), "+%.1f kWh", d.kwh),
@@ -285,11 +289,12 @@ public class ChargeDetailActivity extends Activity {
         }
 
         float[] kwr = ChargeDetail.range(d.kw);
-        if (!Double.isNaN(d.avgPowerW) || kwr != null) {
-            String avg = Double.isNaN(d.avgPowerW) ? "—"
-                : String.format(Locale.getDefault(), "%.1f kW", d.avgPowerW / 1000.0);
-            String peak = kwr == null ? "—" : String.format(Locale.getDefault(), "%.1f kW", kwr[1]);
-            stat(R.string.charge_detail_power, getString(R.string.charge_detail_power_value, avg, peak),
+        if (!Double.isNaN(d.avgPowerW)) {
+            stat(R.string.session_stat_avg_power,
+                String.format(Locale.getDefault(), "%.1f kW", d.avgPowerW / 1000.0), null, Style.TEXT, null);
+        }
+        if (kwr != null) {
+            stat(R.string.session_stat_max_power, String.format(Locale.getDefault(), "%.1f kW", kwr[1]),
                 null, Style.TEXT, null);
         }
         float[] bt = ChargeDetail.firstLast(d.batT);
@@ -308,6 +313,16 @@ public class ChargeDetailActivity extends Activity {
             String sub = hasCost && d.kwh > 0 ? Prefs.formatMoneyPerKwh(d.cost / d.kwh) : null;
             stat(R.string.session_stat_cost, value, sub, hasCost ? Style.TEXT : Style.ACCENT, () ->
                 ChargeCostDialog.show(this, d.id, d.kwh, d.socStart, d.socEnd, d.cost, this::reload));
+        }
+        for (int i = 0; i < blocks.size(); i += 2) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setBaselineAligned(false);
+            for (int k = i; k < i + 2; k++) {
+                View b = k < blocks.size() ? blocks.get(k) : new View(this);
+                row.addView(b, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            }
+            stats.addView(row);
         }
     }
 
@@ -336,6 +351,6 @@ public class ChargeDetailActivity extends Activity {
             block.addView(s);
         }
         if (onTap != null) block.setOnClickListener(x -> onTap.run());
-        stats.addView(block);
+        blocks.add(block);
     }
 }

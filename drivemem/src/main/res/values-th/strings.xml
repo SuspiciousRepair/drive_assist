@@ -489,8 +489,6 @@
     <string name="charge_detail_idle" formatted="false">จอดที่ 100%</string>
     <string name="charge_detail_idle_next">จนถึงการขับครั้งถัดไป</string>
     <string name="charge_detail_idle_now">จนถึงตอนนี้</string>
-    <string name="charge_detail_power">กำลังไฟ</string>
-    <string name="charge_detail_power_value">เฉลี่ย %1$s · สูงสุด %2$s</string>
     <string name="charge_detail_bat_temp_label">อุณหภูมิแบตเตอรี่</string>
     <string name="charge_detail_bat_temp">แบตเตอรี่</string>
     <string name="charge_detail_out_temp">ภายนอก</string>
