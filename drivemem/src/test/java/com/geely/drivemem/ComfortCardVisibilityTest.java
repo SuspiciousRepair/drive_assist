@@ -145,6 +145,19 @@ public class ComfortCardVisibilityTest {
         assertFalse(ComfortCardVisibility.showCompletedCharging(false));
     }
 
+    @Test
+    public void aFinishedChargeShowsOnlyWhileParked() {
+        assertTrue(ComfortCardVisibility.showCompletedCharging(true, false, true));
+        assertFalse(ComfortCardVisibility.showCompletedCharging(true, false, false));
+    }
+
+    @Test
+    public void leavingParkClosesAFinishedChargeForGood() {
+        assertTrue(ComfortCardVisibility.dismissOnLeavingPark(false, true));
+        assertFalse(ComfortCardVisibility.dismissOnLeavingPark(true, true));
+        assertFalse(ComfortCardVisibility.dismissOnLeavingPark(false, false));
+    }
+
     // === Journey Card Visibility Tests ===
 
     @Test

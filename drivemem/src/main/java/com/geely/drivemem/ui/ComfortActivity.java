@@ -1652,7 +1652,8 @@ public class ComfortActivity extends Activity {
         chargeCompletedLayout = new ChargeSessionCard(this);
         chargeCompletedLayout.setVisibility(View.GONE);
         // The whole card opens the charge's page (ChargeDetailActivity):
-        // charts, numbers and map. Dismiss stays in the cost window (right tile).
+        // charts, numbers and map. The right tile opens the cost window; the
+        // ✕ closes the card (as does leaving Park).
         chargeCompletedLayout.setOnOpen(() -> {
             if (retainedChargeSession != null && retainedChargeSession.id > 0) {
                 startActivity(ChargeDetailActivity.intent(this, retainedChargeSession.id));
@@ -1673,6 +1674,7 @@ public class ComfortActivity extends Activity {
                     });
             }
         });
+        chargeCompletedLayout.setOnClose(this::dismissFinishedCharge);
         m.addView(chargeCompletedLayout);
 
         return m;
@@ -2360,10 +2362,16 @@ public class ComfortActivity extends Activity {
         }
         @Override public void onCompleted(ChargeSession.Summary s) {
             ui.post(() -> {
+                boolean parked = CarState.isParked();
                 if (ComfortCardVisibility.showCompletedCharging(s != null,
-                        ValetSession.isActive(ComfortActivity.this))) {
+                        ValetSession.isActive(ComfortActivity.this), parked)) {
                     showCompletedCharging(s);
                 } else {
+                    // Ended while driving (the grace ran out after the car
+                    // left): it never shows.
+                    if (ComfortCardVisibility.dismissOnLeavingPark(parked, s != null)) {
+                        ChargeSession.dismissSession(ComfortActivity.this, s.id);
+                    }
                     hideCharging();
                 }
                 refreshJourneyCard();
@@ -2436,7 +2444,7 @@ public class ComfortActivity extends Activity {
         if (ComfortCardVisibility.showActiveCharging(parked, ChargeSession.isCharging(), valet)) {
             showCharging(ChargeSession.currentSocStart(), ChargeSession.currentSocEnd(),
                 ChargeSession.currentStartWallMs(), System.currentTimeMillis());
-        } else if (retainedChargeSession != null && ComfortCardVisibility.showCompletedCharging(true, valet)) {
+        } else if (retainedChargeSession != null && ComfortCardVisibility.showCompletedCharging(true, valet, parked)) {
             showCompletedCharging(retainedChargeSession);
         } else {
             checkRetainedCharge();
@@ -2546,12 +2554,28 @@ public class ComfortActivity extends Activity {
                 ChargeSession.currentStartWallMs(), System.currentTimeMillis());
         } else {
             ChargeSession.Summary s = ChargeSession.getLatestUndismissed(this);
-            if (ComfortCardVisibility.showCompletedCharging(s != null, valet)) {
+            boolean parked = CarState.isParked();
+            if (ComfortCardVisibility.showCompletedCharging(s != null, valet, parked)) {
                 showCompletedCharging(s);
             } else {
+                // The car left Park: the finished charge's card goes for good.
+                if (ComfortCardVisibility.dismissOnLeavingPark(parked, s != null)) {
+                    ChargeSession.dismissSession(this, s.id);
+                    retainedChargeSession = null;
+                }
                 hideCharging();
             }
         }
+    }
+
+    /** The ✕ on a finished charge's card: closed for good (the Parked card
+     * takes its place). Its cost can still be entered in Charging stats. */
+    private void dismissFinishedCharge() {
+        ChargeSession.Summary s = retainedChargeSession;
+        if (s != null) ChargeSession.dismissSession(this, s.id);
+        retainedChargeSession = null;
+        hideCharging();
+        refreshJourneyCard();
     }
 
     private void hideCharging() {

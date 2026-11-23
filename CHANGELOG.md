@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Changed
+- **Home: a finished charge's card has a ✕.** It closes the card, and the
+  Parked card comes back. The card also closes, for good, when the car
+  leaves Park, so an old charge is not on the screen at the next stop. A
+  charge that ends after the car left Park never shows. The price can still
+  be added in Charging stats.
+
 ## [v0.11.1] — 2026-11-23
 
 ### Changed

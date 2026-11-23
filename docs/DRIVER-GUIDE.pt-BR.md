@@ -27,7 +27,9 @@ A tela inicial foi feita para uso rápido enquanto você dirige:
   a página da recarga: potência, temperaturas e bateria % na mesma linha do
   tempo (passe o dedo nos gráficos para ler cada valor), os números, o local no
   mapa e quanto tempo o carro ficou parado em 100%. Toque no quadro de custo
-  para informar o preço;
+  para informar o preço. Depois da recarga, o **✕** fecha o cartão. Ele também
+  fecha quando o carro sai do P. O preço ainda pode ser informado em
+  Estatísticas de recarga;
 - cartões opcionais mostram o portão da garagem, um painel enviado pelo Home
   Assistant, ou o que o celular toca pelo carro.
 
