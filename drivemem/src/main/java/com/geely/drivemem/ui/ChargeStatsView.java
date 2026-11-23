@@ -169,7 +169,7 @@ public class ChargeStatsView extends LinearLayout {
         listCard.addView(sessionListScroll, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, MIN_LIST_DP)));
         LinearLayout.LayoutParams listLp = new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.WRAP_CONTENT, 64f);
+            ViewGroup.LayoutParams.WRAP_CONTENT, 40f);   // about the home card's width
         listLp.rightMargin = Style.dp(c, 12);
         overview.addView(listCard, listLp);
 
@@ -199,7 +199,7 @@ public class ChargeStatsView extends LinearLayout {
         mapFrame.addView(chargeMapNone, new android.widget.FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         overview.addView(mapFrame, new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.MATCH_PARENT, 36f));
+            ViewGroup.LayoutParams.MATCH_PARENT, 60f));
         addView(overview);
     }
 
