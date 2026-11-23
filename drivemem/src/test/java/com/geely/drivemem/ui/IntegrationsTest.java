@@ -29,12 +29,20 @@ public class IntegrationsTest {
     }
 
     @Test public void theOldSidebarPagesAreNowTiles() {
-        // MQTT, OBD2 and Spotify were sidebar items; a "section" extra that
+        // MQTT and OBD2 were sidebar items; a "section" extra that
         // still names one must land on that tile's page, under Integrations.
         assertNotNull(Integrations.forSection(TelemetryActivity.SEC_MQTT));
         assertNotNull(Integrations.forSection(TelemetryActivity.SEC_OBD));
-        assertNotNull(Integrations.forSection(TelemetryActivity.SEC_SPOTIFY));
         assertNotNull(Integrations.forSection(TelemetryActivity.SEC_ABRP));
+    }
+
+    @Test public void musicHasOneTileAndSpotifyNone() {
+        assertNotNull(Integrations.forSection(TelemetryActivity.SEC_MUSIC));
+        assertNull("9 was Spotify: retired", Integrations.forSection(9));
+        int music = 0;
+        for (Integrations.Integration i : Integrations.ALL)
+            if (i.section == TelemetryActivity.SEC_MUSIC) music++;
+        assertEquals(1, music);
     }
 
     @Test public void carPagesAreNotIntegrations() {

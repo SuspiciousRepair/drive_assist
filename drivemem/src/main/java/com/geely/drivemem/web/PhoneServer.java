@@ -14,7 +14,6 @@ import com.geely.drivemem.util.Clips;
 import com.geely.drivemem.util.CsvExport;
 import com.geely.drivemem.util.GpxExport;
 import com.geely.drivemem.util.Prefs;
-import com.geely.drivemem.util.SpotifyClient;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -343,7 +342,6 @@ public final class PhoneServer {
                 case "mqtt_user": Prefs.setMqttUser(app, v); mqtt = true; break;
                 case "mqtt_pass": Prefs.setMqttPass(app, v); mqtt = true; break;
                 case "abrp_user_token": Prefs.setAbrpUserToken(app, v); break;
-                case "spotify_client_id": SpotifyClient.setClientId(app, v); break;
                 case "update_url": Prefs.setUpdateUrl(app, v); break;
                 default: break;
             }

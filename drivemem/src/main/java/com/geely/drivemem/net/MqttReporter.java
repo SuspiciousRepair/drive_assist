@@ -16,7 +16,6 @@ import com.geely.drivemem.state.PanelState;
 import com.geely.drivemem.ui.ComfortActivity;
 import com.geely.drivemem.util.Beat;
 import com.geely.drivemem.util.CarCaps;
-import com.geely.drivemem.util.SpotifyClient;
 
 import android.content.Context;
 import android.content.Intent;
@@ -212,8 +211,8 @@ public class MqttReporter {
     private static final int MSG_CMD_ACTION     = 15;  // no
     private static final int MSG_CMD_ADB        = 16;  // no
     private static final int MSG_GATE_STATE     = 17;  // coalesce
-    // 18/19/20 (MSG_MEDIA_*) freed — the Music card talks to Spotify's Web
-    // API directly now, not through HA/MQTT. See SpotifyClient.
+    // 18/19/20 (MSG_MEDIA_*) freed — the music card does not go through
+    // HA/MQTT: it reads the phone's music from the car (CarMediaSessions).
     private static final int MSG_CMD_UPDATE_HELPER = 21;  // no — modehelper's own OTA, see UPDATE_HELPER_CMD_TOPIC
 
     private final String uri, user, pass;

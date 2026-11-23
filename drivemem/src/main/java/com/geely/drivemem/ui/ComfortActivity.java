@@ -34,11 +34,15 @@ import com.geely.drivemem.state.TripSession;
 import com.geely.drivemem.state.LiveTrip;
 import com.geely.drivemem.state.TempTrail;
 import com.geely.drivemem.state.ValetSession;
+import com.geely.drivemem.util.ArtColor;
 import com.geely.drivemem.util.BootReceiver;
+import com.geely.drivemem.util.CarMediaSessions;
 import com.geely.drivemem.util.LayoutWait;
+import com.geely.drivemem.util.Lrc;
+import com.geely.drivemem.util.LyricsClient;
 import com.geely.drivemem.util.Modes;
+import com.geely.drivemem.util.OemSound;
 import com.geely.drivemem.util.Prefs;
-import com.geely.drivemem.util.SpotifyClient;
 import com.geely.drivemem.net.Updater;
 import com.geely.drivemem.util.Style;
 
@@ -142,7 +146,40 @@ public class ComfortActivity extends Activity {
     private TextView musicTitleView, musicArtistView;
     private boolean lastMusicAvailable = false;
     private String lastMusicArtUrl = null;   // avoids re-fetching the same art on every state ping
-    private boolean musicLargeCardAtBuild;   // Config > Spotify: "Large card" -- read once like turboEnabledAtBuild
+    private boolean musicLargeCardAtBuild;   // Config > Integrations > Music: "Large card" -- read once like turboEnabledAtBuild
+    // Jumbo: the music card grown to two columns and the full height, all
+    // lyrics, on the cover's main colour, with Play/Skip/Close at the bottom.
+    // Not in `cards`: when lyricsWanted() and the other cards fit in one
+    // column, repackColumns() packs them without the music card and puts this
+    // one in the two columns left. Otherwise the music card is packed as
+    // always, with an open-lyrics button. The setting is read on every onResume.
+    private LinearLayout musicJumbo;
+    private LinearLayout jumboBar, jumboHeader;
+    private View jumboFade;   // the header's colour fading into the card's
+    private android.widget.ImageView jumboArtView;
+    private TextView jumboTitleView, jumboArtistView, jumboAlbumView;
+    private final java.util.List<View> lyricsOpenButtons = new java.util.ArrayList<>();   // on the condensed card
+    // Open or closed: the driver's last choice (✕ or the Lyrics button),
+    // kept across tracks and restarts (Prefs.getLyricsOpen).
+    private boolean lyricsOpen;
+    private boolean eqAvailable;              // the car's sound settings can be opened (OemSound); read once, at build
+    private final java.util.List<android.widget.ImageView> soundGears = new java.util.ArrayList<>();
+    private int jumboFill = 0;   // the cover's main colour, see loadMusicArt()
+    // Four lines only: the one just sung, the one sung now, the next two.
+    private final TextView[] lyricSlots = new TextView[4];
+    private static final int LYRIC_NOW_SLOT = 1;
+    // Config > Integrations > Music: "Lyrics search". Off (the default): no
+    // lyrics at all -- nothing is sent to lrclib.net and the card has no
+    // Lyrics button. It is both the consent and the behaviour; see
+    // Prefs.getLyricsSearch.
+    private boolean lyricsEnabled;
+    private boolean lyricsWantedAtPack;     // what the last repack decided from, so refreshLyrics() repacks only on a change
+    private Lrc lyricsTickLines;            // the lines the slots show now
+    private int lyricIndex = Integer.MIN_VALUE;
+    // Show a line this much before the session's position reaches it: the
+    // eye needs a beat.
+    private static final long LYRICS_LEAD_MS = 400;
+    private static final long LYRICS_TICK_MS = 250;
 
     // Charge card: active session progress or retained completed charge with cost input.
     private LinearLayout chargeCard;
@@ -193,7 +230,10 @@ public class ComfortActivity extends Activity {
         themeLight = Style.LIGHT;
         turboEnabledAtBuild = Prefs.getTurboEnabled(this);
         turboSlotsAtBuild = turboSlotsFromPrefs();
-        musicLargeCardAtBuild = Prefs.getSpotifyLargeCard(this);
+        musicLargeCardAtBuild = Prefs.getMusicLargeCard(this);
+        lyricsEnabled = Prefs.getLyricsSearch(this);
+        lyricsOpen = Prefs.getLyricsOpen(this);
+        eqAvailable = OemSound.intent(this) != null;
         skylineEnabledAtBuild = Prefs.getSkylineEnabled(this);
         skylineSeedAtBuild = Prefs.getSkylineSeed(this, com.geely.drivemem.art.Skyline.DEFAULT_SEED);
         dismissedHash = Prefs.getPanelDismissed(this);   // the dismissal survives a restart
@@ -282,6 +322,7 @@ public class ComfortActivity extends Activity {
         journeyCard = journeyCard();
         cards.add(journeyCard);
         cards.add(musicCard());
+        musicJumbo = musicJumbo();
         chargeCard = chargeCard();
         cards.add(chargeCard);
         // Last, on purpose: the HA context panel used to be a fixed rightmost
@@ -440,7 +481,45 @@ public class ComfortActivity extends Activity {
             LayoutWait.onNextLayout(colW <= 0 ? band : columns, this::repackColumns);
             return;
         }
+        boolean jumbo = lyricsWanted();
+        lyricsWantedAtPack = jumbo;
+        if (jumbo) {
+            // The others first; the jumbo card takes the two columns they
+            // leave -- again after the pack's own verify pass, if that one
+            // repacks (it clears `columns`).
+            java.util.List<LinearLayout> others = new java.util.ArrayList<>(cards);
+            others.remove(musicCard);
+            int n = Style.packIntoColumns(this, columns, others, colW, availH, cols -> {
+                if (!placeJumbo(cols, colW, availH)) packNormal(colW, availH);
+            });
+            if (placeJumbo(n, colW, availH)) return;
+        }
+        packNormal(colW, availH);
+    }
+
+    private void packNormal(int colW, int availH) {
+        detachJumbo();
         Style.packIntoColumns(this, columns, cards, colW, availH);
+    }
+
+    /** False when the other cards took more than one column: then the music
+     * card goes back to its own size. */
+    private boolean placeJumbo(int usedColumns, int colW, int availH) {
+        if (!ComfortCardVisibility.jumboFits(usedColumns)) return false;
+        detachJumbo();
+        int gapH = Style.dp(this, Style.COLUMN_GAP_DP);
+        int span = ComfortCardVisibility.JUMBO_COLUMNS;
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(span * colW + (span - 1) * gapH, availH);
+        lp.leftMargin = gapH;
+        columns.addView(musicJumbo, lp);
+        setLyricsVisible(true);
+        return true;
+    }
+
+    private void detachJumbo() {
+        ViewGroup old = (ViewGroup) musicJumbo.getParent();
+        if (old != null) old.removeView(musicJumbo);
+        setLyricsVisible(false);
     }
 
     // The Clima card: title, outside temp, the effort scale, the two ask tiles
@@ -901,12 +980,11 @@ public class ComfortActivity extends Activity {
     }
 
     // Music card: album art + title/artist, then skip/play-pause tiles. Starts
-    // GONE — nothing to show until SpotifyClient's own polling of Spotify's
-    // Web API (not MQTT/Home Assistant -- there is no such path, despite
-    // what this comment used to claim) delivers the first real state via
+    // GONE — nothing to show until the phone's music, read from the car's
+    // media sessions (CarMediaSessions), delivers the first real state via
     // MusicState -- same as Portão, and packed the same re-flowing way
     // (see repackColumns()).
-    // Two layouts, chosen once at build time by Config > Spotify's "Large
+    // Two layouts, chosen once at build time by Config > Music's "Large
     // card" toggle (musicLargeCardAtBuild) -- both wire up the same
     // musicArtView/musicTitleView/musicArtistView fields and musicCard
     // reference, so every other call site (loadMusicArt, the listener,
@@ -960,6 +1038,14 @@ public class ComfortActivity extends Activity {
             new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         textLp.leftMargin = Style.dp(this, 18);
         row.addView(textCol, textLp);
+        android.widget.ImageView gear = soundGear(false);
+        if (gear != null) {
+            LinearLayout.LayoutParams gLp = new LinearLayout.LayoutParams(
+                Style.dp(this, 48), Style.dp(this, 48));
+            gLp.gravity = Gravity.TOP;
+            gLp.leftMargin = Style.dp(this, 8);
+            row.addView(gear, gLp);
+        }
         m.addView(row);
         Style.gap(m, this, 18);
 
@@ -968,6 +1054,16 @@ public class ComfortActivity extends Activity {
         // "⏯"/"⏭" are icons, not prose — same convention as ❄/☀/⚡.
         btnRow.addView(mediaTile("⏯", MusicState::playPause), tileLp(76, 0));
         btnRow.addView(mediaTile("⏭", MusicState::next), tileLp(76, 14));
+        android.widget.ImageView lyr = new android.widget.ImageView(this);
+        lyr.setImageResource(R.drawable.ic_lyrics);
+        lyr.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        int lp = Style.dp(this, 20);
+        lyr.setPadding(lp, lp, lp, lp);
+        lyr.setBackground(Style.tile(this));
+        lyr.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
+        lyr.setOnClickListener(v -> openLyrics());
+        lyricsOpenButtons.add(lyr);
+        btnRow.addView(lyr, tileLp(76, 14));
         m.addView(btnRow);
 
         musicCard = m;
@@ -1127,12 +1223,19 @@ public class ComfortActivity extends Activity {
         musicArtistView.setPadding(0, Style.dp(this, 4), 0, 0);
         caption.addView(musicArtistView);
         artFrame.addView(caption, capLp);
+        android.widget.ImageView gear = soundGear(true);
+        if (gear != null) {
+            FrameLayout.LayoutParams gLp = new FrameLayout.LayoutParams(
+                Style.dp(this, 52), Style.dp(this, 52), Gravity.TOP | Gravity.END);
+            gLp.topMargin = Style.dp(this, 12); gLp.rightMargin = Style.dp(this, 12);
+            artFrame.addView(gear, gLp);
+        }
 
         m.addView(artFrame);
 
         LinearLayout btnBand = new LinearLayout(this);
         btnBand.setOrientation(LinearLayout.HORIZONTAL);
-        btnBand.addView(turboStyleHalf(getString(R.string.spotify_play_label), "⏯", MusicState::playPause),
+        btnBand.addView(turboStyleHalf(getString(R.string.music_play_label), "⏯", MusicState::playPause),
             new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         View divider = new View(this);
         LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(Style.dp(this, 1), ViewGroup.LayoutParams.MATCH_PARENT);
@@ -1140,13 +1243,319 @@ public class ComfortActivity extends Activity {
         divider.setBackgroundColor(Style.TEXT_DIM);
         divider.getBackground().setAlpha(60);
         btnBand.addView(divider, divLp);
-        btnBand.addView(turboStyleHalf(getString(R.string.spotify_skip_label), "⏭", MusicState::next),
+        btnBand.addView(turboStyleHalf(getString(R.string.music_skip_label), "⏭", MusicState::next),
             new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        View divider2 = new View(this);
+        divider2.setBackgroundColor(Style.TEXT_DIM);
+        divider2.getBackground().setAlpha(60);
+        btnBand.addView(divider2, new LinearLayout.LayoutParams(divLp));
+        LinearLayout lyrHalf = turboStyleHalf(getString(R.string.music_lyrics_label), "", this::openLyrics);
+        // An icon, not a glyph: there is no lyrics character.
+        TextView glyphSlot = (TextView) lyrHalf.getChildAt(0);
+        lyrHalf.removeView(glyphSlot);
+        android.widget.ImageView lyrIcon = new android.widget.ImageView(this);
+        lyrIcon.setImageResource(R.drawable.ic_lyrics);
+        lyrIcon.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
+        lyrHalf.addView(lyrIcon, 0, new LinearLayout.LayoutParams(Style.dp(this, 40), Style.dp(this, 40)));
+        lyricsOpenButtons.add(lyrHalf);
+        lyricsOpenButtons.add(divider2);
+        btnBand.addView(lyrHalf, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         m.addView(btnBand);
 
         musicCard = m;
         return m;
     }
+
+    // The jumbo music card, across both columns: a header on the cover's
+    // main colour with the art, song, artist and album (text near-black or
+    // white, whichever reads on that colour -- ArtColor.textOn); under it, on
+    // the theme's own card colours, four lines of the song -- the one just
+    // sung (faint), the one sung now (large, full), the next two (half); and
+    // a bar at the bottom with Play, Skip and Close lyrics.
+    private LinearLayout musicJumbo() {
+        LinearLayout outer = new LinearLayout(this);
+        outer.setOrientation(LinearLayout.VERTICAL);
+        outer.setBackground(Style.card(Style.cardFillColor(), this));
+        outer.setClipToOutline(true);
+        final int radius = Style.dp(this, Style.RADIUS_DP);
+        outer.setOutlineProvider(new android.view.ViewOutlineProvider() {
+            @Override public void getOutline(View v, android.graphics.Outline o) {
+                o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), radius);
+            }
+        });
+
+        jumboHeader = new LinearLayout(this);
+        jumboHeader.setOrientation(LinearLayout.HORIZONTAL);
+        jumboHeader.setGravity(Gravity.CENTER_VERTICAL);
+        int hp = Style.dp(this, 22);
+        jumboHeader.setPadding(hp, hp, hp, hp);
+        jumboArtView = new android.widget.ImageView(this);
+        jumboArtView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+        jumboArtView.setBackground(Style.tile(this));   // placeholder until the art loads
+        jumboArtView.setClipToOutline(true);
+        final int artRadius = Style.dp(this, Style.RADIUS_DP - 8);
+        jumboArtView.setOutlineProvider(new android.view.ViewOutlineProvider() {
+            @Override public void getOutline(View v, android.graphics.Outline o) {
+                o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), artRadius);
+            }
+        });
+        int art = Style.dp(this, 140);
+        jumboHeader.addView(jumboArtView, new LinearLayout.LayoutParams(art, art));
+        LinearLayout info = new LinearLayout(this);
+        info.setOrientation(LinearLayout.VERTICAL);
+        jumboTitleView = headerText(32, true);
+        jumboArtistView = headerText(24, false);
+        jumboAlbumView = headerText(20, false);
+        jumboArtistView.setPadding(0, Style.dp(this, 6), 0, 0);
+        jumboAlbumView.setPadding(0, Style.dp(this, 4), 0, 0);
+        info.addView(jumboTitleView);
+        info.addView(jumboArtistView);
+        info.addView(jumboAlbumView);
+        LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        infoLp.leftMargin = Style.dp(this, 26);
+        jumboHeader.addView(info, infoLp);
+        android.widget.ImageView jGear = soundGear(false);
+        if (jGear != null) {
+            LinearLayout.LayoutParams gLp = new LinearLayout.LayoutParams(Style.dp(this, 52), Style.dp(this, 52));
+            gLp.gravity = Gravity.TOP;
+            jumboHeader.addView(jGear, gLp);
+        }
+        // Inset by the card's stroke on three sides, so the border runs
+        // unbroken past the header and the fade.
+        int stroke = Style.dp(this, Style.STROKE_DP);
+        LinearLayout.LayoutParams headLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        headLp.setMargins(stroke, stroke, stroke, 0);
+        outer.addView(jumboHeader, headLp);
+        // A soft step from the header's colour to the card's, not a hard edge.
+        jumboFade = new View(this);
+        LinearLayout.LayoutParams fadeLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 72));
+        fadeLp.setMargins(stroke, 0, stroke, 0);
+        outer.addView(jumboFade, fadeLp);
+
+        // Fixed slots, centred between the header and the bar. Each keeps two
+        // lines of room, so a long lyric line never moves the others.
+        LinearLayout slots = new LinearLayout(this);
+        slots.setOrientation(LinearLayout.VERTICAL);
+        slots.setGravity(Gravity.CENTER_VERTICAL);
+        int padH = Style.dp(this, 48);
+        slots.setPadding(padH, 0, padH, 0);
+        for (int i = 0; i < lyricSlots.length; i++) {
+            TextView t = new TextView(this);
+            boolean now = i == LYRIC_NOW_SLOT;
+            t.setTextSize(now ? 44 : 32);
+            t.setTextColor(Style.TEXT);
+            t.setTypeface(null, android.graphics.Typeface.BOLD);
+            t.setLines(2);
+            t.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            t.setGravity(Gravity.CENTER_VERTICAL);
+            // Sung: faint. Now: full. Coming: half.
+            t.setAlpha(i < LYRIC_NOW_SLOT ? 0.35f : now ? 1f : 0.6f);
+            t.setPadding(0, Style.dp(this, 8), 0, Style.dp(this, 8));
+            lyricSlots[i] = t;
+            slots.addView(t);
+        }
+        outer.addView(slots, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        jumboBar = new LinearLayout(this);
+        jumboBar.setOrientation(LinearLayout.HORIZONTAL);
+        int pad = Style.dp(this, 26);
+        jumboBar.setPadding(pad, Style.dp(this, 8), pad, pad);
+        // "⏯"/"⏭"/"✕" are icons, not prose -- same tiles as the small card.
+        jumboBar.addView(mediaTile("⏯", MusicState::playPause), tileLp(88, 0));
+        jumboBar.addView(mediaTile("⏭", MusicState::next), tileLp(88, 14));
+        jumboBar.addView(mediaTile("✕", () -> setLyricsOpen(false)), tileLp(88, 14));
+        outer.addView(jumboBar);
+        paintJumbo();
+        return outer;
+    }
+
+    private TextView headerText(int sp, boolean bold) {
+        TextView t = new TextView(this);
+        t.setTextSize(sp);
+        if (bold) t.setTypeface(null, android.graphics.Typeface.BOLD);
+        t.setMaxLines(1);
+        t.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        return t;
+    }
+
+    // The header: the cover's colour taken half way to the card's, with
+    // text that reads on it. Half way, not the cover itself: from a dark
+    // cover straight to a light card, any fade passes through a dirty grey
+    // (seen on the car with a black cover); half the distance fades clean.
+    // Before any cover arrives: the theme's own colours.
+    private void paintJumbo() {
+        if (jumboHeader == null) return;
+        int card = Style.cardPaint(Style.cardFillColor());
+        int fill = jumboFill != 0 ? Style.blend(jumboFill, card, 0.5f) : card;
+        int text = jumboFill != 0 ? ArtColor.textOn(fill) : Style.TEXT;
+        jumboHeader.setBackgroundColor(fill);
+        // Eased, not linear: a straight two-stop ramp shows a visible band
+        // where it ends. Four stops curve into the card colour.
+        jumboFade.setBackground(new android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+            new int[]{fill, Style.blend(fill, card, 0.45f), Style.blend(fill, card, 0.85f), card}));
+        jumboTitleView.setTextColor(text);
+        jumboArtistView.setTextColor(text);
+        jumboAlbumView.setTextColor(text);
+        jumboArtistView.setAlpha(0.85f);
+        jumboAlbumView.setAlpha(0.7f);
+        // The jumbo header's gear follows the header's text colour.
+        for (android.widget.ImageView g : soundGears)
+            if (g.getParent() == jumboHeader) g.setColorFilter(text, android.graphics.PorterDuff.Mode.SRC_IN);
+    }
+
+    private void showMusicText(String title, String artist) {
+        String a = artist == null ? "" : artist;
+        musicTitleView.setText(title);
+        musicArtistView.setText(a);
+        if (jumboTitleView != null) {
+            String album = MusicState.album();
+            jumboTitleView.setText(title);
+            jumboArtistView.setText(a);
+            jumboAlbumView.setText(album == null ? "" : album);
+        }
+    }
+
+    // Open or close the lyrics (the buttons). Kept across tracks and restarts.
+    // The small gear in the music card's top-right corner: the car's own
+    // sound settings, with the EQ (OemSound). Null when this car has none.
+    // onArt: it sits on the album art, so it gets a dark disc to read on
+    // any picture.
+    private android.widget.ImageView soundGear(boolean onArt) {
+        if (!eqAvailable) return null;
+        android.widget.ImageView g = Style.cogButton(this, () -> OemSound.open(this));
+        int pad = Style.dp(this, 8);
+        g.setPadding(pad, pad, pad, pad);
+        g.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        if (onArt) {
+            android.graphics.drawable.GradientDrawable disc = new android.graphics.drawable.GradientDrawable();
+            disc.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            disc.setColor(0x66000000);
+            g.setBackground(disc);
+            g.setColorFilter(0xFFFFFFFF, android.graphics.PorterDuff.Mode.SRC_IN);
+        } else {
+            soundGears.add(g);
+        }
+        return g;
+    }
+
+    // An icon tile with the same shell as mediaTile().
+    private android.widget.ImageView iconTile(int drawableRes, Runnable onClick) {
+        android.widget.ImageView v = new android.widget.ImageView(this);
+        v.setImageResource(drawableRes);
+        v.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        int pad = Style.dp(this, 20);
+        v.setPadding(pad, pad, pad, pad);
+        v.setBackground(Style.tile(this));
+        v.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
+        v.setOnClickListener(x -> onClick.run());
+        return v;
+    }
+
+    // The Lyrics button. The big card needs two free columns and no HA
+    // panel; when the other cards (a charging Battery card, say) take them,
+    // the tap did nothing visible. Say so, once the repack has had its turn.
+    private void openLyrics() {
+        setLyricsOpen(true);
+        ui.postDelayed(() -> {
+            if (!lyricsShown() && LyricsClient.linesFor(MusicState.trackId()) != null)
+                android.widget.Toast.makeText(this, R.string.music_lyrics_no_room,
+                    android.widget.Toast.LENGTH_LONG).show();
+        }, 400);
+    }
+
+    private void setLyricsOpen(boolean open) {
+        if (open == lyricsOpen) return;
+        lyricsOpen = open;
+        Prefs.setLyricsOpen(this, open);
+        if (columns != null) repackColumns();
+    }
+
+    // The open-lyrics button on the condensed card: there only with the
+    // setting on, dim while this track has no lyrics (it would open nothing).
+    private void refreshLyricsButtons() {
+        boolean have = LyricsClient.linesFor(MusicState.trackId()) != null;
+        for (View v : lyricsOpenButtons) {
+            v.setVisibility(lyricsEnabled ? View.VISIBLE : View.GONE);
+            if (v.isClickable()) v.setAlpha(have ? 1f : 0.35f);   // not the divider
+        }
+    }
+
+    // The line sung now (-1: none yet) in the second slot, the one before it
+    // above, the next two below. Before the first line the now-slot holds a
+    // note, so the first two lines show as coming.
+    private void showLyricLines(Lrc lines, int now) {
+        for (int s = 0; s < lyricSlots.length; s++) {
+            int i = now - LYRIC_NOW_SLOT + s;
+            String text = (s == LYRIC_NOW_SLOT && now < 0) ? "\u266A" : lines == null ? "" : lines.display(i);
+            lyricSlots[s].setText(text);
+        }
+    }
+
+    private boolean lyricsWanted() {
+        return musicJumbo != null && ComfortCardVisibility.showLyrics(lyricsEnabled, lyricsOpen,
+            musicCard != null && musicCard.getVisibility() == View.VISIBLE,
+            // Still loading counts when the card is already big: it stays big
+            // across a track change instead of shrinking for the fetch. Not
+            // when it is small, so a song with no lyrics does not flash it big.
+            LyricsClient.linesFor(MusicState.trackId()) != null
+                || (lyricsShown() && LyricsClient.pending(MusicState.trackId())),
+            panelCard != null && panelCard.getVisibility() == View.VISIBLE);
+    }
+
+    // Starts or stops the lyrics clock; the jumbo card's place is placeJumbo()'s.
+    private void setLyricsVisible(boolean on) {
+        ui.removeCallbacks(lyricsTick);
+        if (on) {
+            lyricIndex = Integer.MIN_VALUE;   // the next tick colours and scrolls again
+            ui.post(lyricsTick);
+        }
+    }
+
+    private boolean lyricsShown() {
+        return musicJumbo != null && musicJumbo.getParent() != null;
+    }
+
+    // Repacks only when the answer changed: park/drive, a track with or
+    // without lyrics, the setting. The panel's own show/close repacks anyway.
+    private void refreshLyrics() {
+        refreshLyricsButtons();
+        if (columns == null) return;
+        if (lyricsWanted() != lyricsWantedAtPack) repackColumns();
+    }
+
+    private void requestLyrics() {
+        if (!lyricsEnabled) return;   // the consent: nothing goes to lrclib.net
+        LyricsClient.request(this, MusicState.trackId(), MusicState.title(), MusicState.artist(),
+            MusicState.album(), MusicState.durationMs(), () -> ui.post(this::refreshLyrics));
+    }
+
+    // The session reports its position when it changes state; between
+    // reports the position is moved on here (MusicState.positionNowMs), so
+    // the line changes on time. A seek shows up at the session's next report. Views are only touched when the line changes.
+    private final Runnable lyricsTick = new Runnable() {
+        @Override public void run() {
+            if (!lyricsShown()) return;
+            Lrc lines = LyricsClient.linesFor(MusicState.trackId());
+            if (lines == null && lyricsTickLines != null) {   // a new track, lines on the way
+                lyricsTickLines = null;
+                showLyricLines(null, 0);   // blank slots
+            }
+            if (lines != null) {
+                long pos = MusicState.positionNowMs(android.os.SystemClock.elapsedRealtime()) + LYRICS_LEAD_MS;
+                int i = lines.indexAt(pos);
+                if (lines != lyricsTickLines || i != lyricIndex) {
+                    lyricsTickLines = lines;
+                    lyricIndex = i;
+                    showLyricLines(lines, i);
+                }
+            }
+            ui.postDelayed(this, LYRICS_TICK_MS);
+        }
+    };
 
     // One half of musicCardLarge()'s button band -- same visual signature as
     // turboCard()'s two halves (big glyph, full-half tap target), plus a
@@ -1640,31 +2049,76 @@ public class ComfortActivity extends Activity {
     // one occasional small image) and swaps it in on the UI thread. Skipped
     // entirely when the URL has not actually changed, so a state ping that
     // only moves `playing` does not re-fetch the same picture.
+    // The picture for what MusicState shows: a Bitmap the car's media
+    // session handed over (phone music), else its URL.
+    private void showMusicArt() {
+        Object img = MusicState.artImage();
+        if (img instanceof android.graphics.Bitmap) {
+            android.graphics.Bitmap b = (android.graphics.Bitmap) img;
+            String key = "bitmap:" + System.identityHashCode(b);
+            if (key.equals(lastMusicArtUrl)) return;
+            lastMusicArtUrl = key;
+            new Thread(() -> applyMusicArt(key, b), "music-art").start();
+            return;
+        }
+        loadMusicArt(MusicState.artUrl());
+    }
+
     private void loadMusicArt(String url) {
         if (url == null || url.equals(lastMusicArtUrl)) return;
         lastMusicArtUrl = url;
         new Thread(() -> {
             android.graphics.Bitmap bmp = null;
             try {
-                java.net.HttpURLConnection conn =
-                    (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
-                conn.setConnectTimeout(6000); conn.setReadTimeout(6000);
-                bmp = android.graphics.BitmapFactory.decodeStream(conn.getInputStream());
+                if (url.startsWith("content:") || url.startsWith("file:") || url.startsWith("android.resource:")) {
+                    // A session's art URI (Bluetooth cover art) is local.
+                    try (java.io.InputStream in = getContentResolver().openInputStream(android.net.Uri.parse(url))) {
+                        bmp = android.graphics.BitmapFactory.decodeStream(in);
+                    }
+                } else {
+                    java.net.HttpURLConnection conn =
+                        (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+                    conn.setConnectTimeout(6000); conn.setReadTimeout(6000);
+                    bmp = android.graphics.BitmapFactory.decodeStream(conn.getInputStream());
+                }
             } catch (Throwable t) { android.util.Log.w(CarAccess.TAG, "music art: " + t); }
-            final android.graphics.Bitmap fbmp = bmp;
-            // Same fetched bitmap, not a second network request -- blurred
-            // here on the background thread since it's a few extra bitmap
-            // ops, cheap next to the network fetch that already happened.
-            final android.graphics.Bitmap fblur = fbmp != null ? blurredCopy(fbmp) : null;
-            // url.equals(lastMusicArtUrl): a newer fetch may have started (and
-            // maybe even finished) while this one was in flight — do not let a
-            // slow, stale request stomp a fresher picture that already landed.
-            if (fbmp != null) ui.post(() -> {
-                if (!url.equals(lastMusicArtUrl)) return;
-                if (musicArtView != null) musicArtView.setImageBitmap(fbmp);
-                if (musicArtBgView != null) musicArtBgView.setImageBitmap(fblur);
-            });
+            if (bmp != null) applyMusicArt(url, bmp);
         }, "music-art").start();
+    }
+
+    // Off the UI thread: blur and colour, then swap in -- unless a newer
+    // picture was asked for meanwhile.
+    private void applyMusicArt(String url, android.graphics.Bitmap bmp) {
+        final android.graphics.Bitmap fbmp = bmp;
+        // Same bitmap, not a second network request -- blurred
+        // here on the background thread since it's a few extra bitmap
+        // ops, cheap next to the network fetch that already happened.
+        final android.graphics.Bitmap fblur = fbmp != null ? blurredCopy(fbmp) : null;
+        final int fill = fbmp != null ? coverColor(fbmp) : 0;
+        // url.equals(lastMusicArtUrl): a newer fetch may have started (and
+        // maybe even finished) while this one was in flight — do not let a
+        // slow, stale request stomp a fresher picture that already landed.
+        if (fbmp != null) ui.post(() -> {
+            if (!url.equals(lastMusicArtUrl)) return;
+            if (musicArtView != null) musicArtView.setImageBitmap(fbmp);
+            if (musicArtBgView != null) musicArtBgView.setImageBitmap(fblur);
+            if (jumboArtView != null) jumboArtView.setImageBitmap(fbmp);
+            jumboFill = fill;
+            paintJumbo();
+        });
+    }
+
+    // The cover's main colour (ArtColor), from a 24x24 copy: plenty to find
+    // what most of the picture is. 0 when it cannot be read.
+    private static int coverColor(android.graphics.Bitmap src) {
+        try {
+            android.graphics.Bitmap small = android.graphics.Bitmap.createScaledBitmap(src, 24, 24, true);
+            int[] px = new int[24 * 24];
+            small.getPixels(px, 0, 24, 0, 0, 24, 24);
+            return ArtColor.dominant(px, 0);
+        } catch (Throwable t) {
+            return 0;
+        }
     }
 
     // Cheap dependency-free blur: downscale then upscale twice, throwing away
@@ -1892,13 +2346,16 @@ public class ComfortActivity extends Activity {
             boolean available = ComfortCardVisibility.showMusicCard(title);
             if (musicCard != null) musicCard.setVisibility(available ? View.VISIBLE : View.GONE);
             if (available) {
-                musicTitleView.setText(title);
-                musicArtistView.setText(artist == null ? "" : artist);
-                loadMusicArt(artUrl);
+                showMusicText(title, artist);
+                showMusicArt();
+                requestLyrics();
             }
             if (available != lastMusicAvailable) {
                 lastMusicAvailable = available;
                 if (columns != null) repackColumns();
+                refreshLyricsButtons();   // the card is back: its lines may be here already
+            } else {
+                refreshLyrics();   // a new track: its lyrics may not be here yet
             }
         });
 
@@ -2399,9 +2856,9 @@ public class ComfortActivity extends Activity {
         if (Prefs.getDriveCardEnabled(this) != driveCardEnabledAtBuild) { recreate(); return; }
         // Same mistake as the skyline comment above describes, made fresh:
         // musicLargeCardAtBuild was read once at onCreate with no onResume
-        // check, so toggling Config > Spotify > "Large card" and coming
+        // check, so toggling Config > Music > "Large card" and coming
         // back to Home did nothing -- reported live. Same fix, same pattern.
-        if (Prefs.getSpotifyLargeCard(this) != musicLargeCardAtBuild) { recreate(); return; }
+        if (Prefs.getMusicLargeCard(this) != musicLargeCardAtBuild) { recreate(); return; }
         // Same again for the skyline settings. This was previously missing
         // the "skyline_enabled" half entirely -- the toggle saved fine but
         // nothing ever told this already-running screen to rebuild art, so
@@ -2456,15 +2913,22 @@ public class ComfortActivity extends Activity {
         // reason: a track can start or end while the screen is off.
         boolean nowMusicAvailable = ComfortCardVisibility.showMusicCard(MusicState.title());
         if (musicCard != null) musicCard.setVisibility(nowMusicAvailable ? View.VISIBLE : View.GONE);
+        lyricsEnabled = Prefs.getLyricsSearch(this);   // may have changed in Config
+        lyricsOpen = Prefs.getLyricsOpen(this);
+        refreshLyricsButtons();
         if (nowMusicAvailable) {
-            musicTitleView.setText(MusicState.title());
-            musicArtistView.setText(MusicState.artist() == null ? "" : MusicState.artist());
-            loadMusicArt(MusicState.artUrl());
+            showMusicText(MusicState.title(), MusicState.artist());
+            showMusicArt();
+            requestLyrics();
         }
         if (nowMusicAvailable != lastMusicAvailable) {
             lastMusicAvailable = nowMusicAvailable;
             if (columns != null) repackColumns();
+        } else {
+            refreshLyrics();
         }
+        // The tick stopped in onPause; start it again if lyrics are up.
+        if (lyricsShown()) setLyricsVisible(true);
         ChargeSession.setProgressListener(chargeListener);
         CarState.addListener(carStateListener);
         chargeBarW = -1;   // force one redraw even if the numbers match
@@ -2496,9 +2960,9 @@ public class ComfortActivity extends Activity {
         }
         refreshJourneyCard();
         // Screen-scoped, not process-wide like Turbo/the gate: nothing bad
-        // happens if this stops polling while the screen is off, unlike
-        // abandoning a countdown mid-boost.
-        SpotifyClient.startPolling(this);
+        // happens if this stops while the screen is off, unlike abandoning a
+        // countdown mid-boost.
+        CarMediaSessions.start(this);   // phone music, when Config allows
         try {
             registerReceiver(updateReceiver, new IntentFilter(Updater.ACTION_UPDATE_AVAILABLE));
         } catch (Throwable ignored) {}
@@ -2554,7 +3018,8 @@ public class ComfortActivity extends Activity {
             activeCostDialog = null;
         }
         if (gateCard != null) gateCard.onPause();
-        SpotifyClient.stopPolling();
+        CarMediaSessions.stop();
+        ui.removeCallbacks(lyricsTick);
         TurboMode.get(this).setListener(null);
         CarState.removeListener(carStateListener);
         stopCarActorPolls();

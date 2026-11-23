@@ -8,7 +8,6 @@ import com.geely.drivemem.net.AbrpUploader;
 import com.geely.drivemem.sensors.ObdHub;
 import com.geely.drivemem.services.TelemetryService;
 import com.geely.drivemem.util.Prefs;
-import com.geely.drivemem.util.SpotifyClient;
 
 import java.util.Arrays;
 import java.util.List;
@@ -65,8 +64,8 @@ final class Integrations {
             R.drawable.ic_car_connected, 0xFFEF6C00, Integrations::obd),
         new Integration(TelemetryActivity.SEC_ABRP, R.string.int_abrp_name, R.string.int_abrp_desc,
             R.drawable.ic_route, 0xFF00897B, Integrations::abrp),
-        new Integration(TelemetryActivity.SEC_SPOTIFY, R.string.int_spotify_name, R.string.int_spotify_desc,
-            R.drawable.ic_spotify, 0xFF1DB954, Integrations::spotify),
+        new Integration(TelemetryActivity.SEC_MUSIC, R.string.int_music_name, R.string.int_music_desc,
+            R.drawable.ic_lyrics, 0xFFD81B60, Integrations::music),
         new Integration(TelemetryActivity.SEC_OEM_TEXT, R.string.int_oem_name, R.string.int_oem_desc,
             R.drawable.ic_translate, 0xFF5E6AD2, Integrations::oemText)
     );
@@ -126,9 +125,8 @@ final class Integrations {
         }
     }
 
-    private static Status spotify(Context c) {
-        return SpotifyClient.connected(c)
-            ? new Status(State.OK, c.getString(R.string.int_status_connected))
-            : new Status(State.OFF, c.getString(R.string.cfg_spotify_status_off));
+    // Follows the "Phone music" switch: it is what turns the card on.
+    private static Status music(Context c) {
+        return Prefs.getBtMusic(c) ? new Status(State.OK, c.getString(R.string.int_status_on)) : off(c);
     }
 }

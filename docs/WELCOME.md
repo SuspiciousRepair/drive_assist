@@ -19,7 +19,7 @@ no data from your car.
 | Finer battery level, battery temperature, battery health | An OBD2 Bluetooth dongle, if you pair one |
 | Position, altitude, heading | The head unit's GPS |
 | Front and rear camera video | The car's camera service, for the dashcam |
-| The song that is playing | Android media, and Spotify if you sign in to it |
+| The song that your phone plays through the car | The car's own music apps (Bluetooth, CarPlay, Android Auto), if you turn on **Phone music** |
 
 ### The CAN reader
 
@@ -75,7 +75,7 @@ Nothing leaves the car unless one of the rows below applies.
 | A Better Routeplanner (`api.iternio.com`) | Battery level, power, speed, and position if you allow it | Only after you enter your ABRP token | Turn the integration off. Position has its own switch |
 | OpenStreetMap (`tile.openstreetmap.org`) | Requests for map pictures. A request names the map squares, so the map server can see which area your trips cover. It gets no car data | When a trip map is shown, while driving (at most once a minute) and at the end of a trip. Pictures are kept on the car and not asked for again | There is no switch for this yet |
 | GitHub (`github.com`) | A request for the newest version | About once a day, and when you tap update | Set your own update address in Config > System |
-| Spotify | Requests for playback state and commands | Only after you sign in to Spotify in the app | Sign out |
+| LRCLIB (`lrclib.net`) | The song, artist and album names, and the song's length, to find its lyrics. It gets no car data | Once for each new song, only while **Lyrics search** is on (Config > Integrations > Music). Lyrics found are kept on the car | Turn **Lyrics search** off (it is off by default) |
 | A link you paste for a lock sound | One download of that file | Only when you tap Download | Do not use it |
 | GitHub (`api.github.com`, `raw.githubusercontent.com`) | A check for the newest car app translation text, and a download when it changed. It gets no car data | When you tap Install in **Car app translations**, and at each car start while it is on | Remove it in **Car app translations** |
 
