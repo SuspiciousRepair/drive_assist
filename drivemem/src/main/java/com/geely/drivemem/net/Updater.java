@@ -189,15 +189,10 @@ public class Updater {
                     }
                 }
 
-                // A version the user explicitly dismissed with "Skip this
-                // version" (UpdateDialog) acts as a floor on top of curVc for
-                // "is this newer" purposes only -- every comparison below uses
-                // effectiveVc, not curVc, so the dialog itself (built from
-                // curVc/curVn, untouched) still shows what's REALLY installed,
-                // not what was last skipped. A newer release than the skipped
-                // one still prompts normally.
-                int skippedVc = Prefs.getSkipUpdateVc(ctx, targetLabel != null);
-                int effectiveVc = Math.max(curVc, skippedVc);
+                // Every check compares with what is really installed. A
+                // version the driver put off with "Later" stays quiet only on
+                // the home screen (autoPrompts); a check from Config shows it.
+                int effectiveVc = curVc;
 
                 // 1. Check if the URL carries a version query parameter (?v=...)
                 int remoteVc = -1;

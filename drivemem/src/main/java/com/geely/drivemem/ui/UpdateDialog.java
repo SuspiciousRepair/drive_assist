@@ -172,29 +172,12 @@ public class UpdateDialog {
                 dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
             }
 
-            // Skip-this-version button: left-aligned via weight, separate
-            // from Later. Later stops the home screen opening this window
-            // by itself for this versionCode (Updater.autoPrompts), but the
-            // driver's own check in Config still shows it. Skip goes
-            // further: THIS versionCode is treated as installed by every
-            // check, Config's too, until something newer ships. Checked in
-            // Updater.check() -- one place enforcing it, not one per
-            // caller that might show this dialog.
-            Button btnSkip = new Button(activity);
-            btnSkip.setText(activity.getString(R.string.update_dialog_skip));
-            btnSkip.setTextColor(Style.TEXT_DIM);
-            btnSkip.setTextSize(13f);
-            btnSkip.setBackgroundColor(Color.TRANSPARENT);
-            LinearLayout.LayoutParams skipLp = new LinearLayout.LayoutParams(
-                0, Style.dp(activity, 48), 1.0f);
-            btnSkip.setLayoutParams(skipLp);
-            btnSkip.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
-            btnSkip.setOnClickListener(v -> {
-                dialog.dismiss();
-                Prefs.setSkipUpdateVc(activity, info.targetLabel != null, info.versionCode);
-                if (onDecline != null) onDecline.run();
-            });
-            btnRow.addView(btnSkip);
+            // One "not now" button: Later. It stops the home screen opening
+            // this window by itself for this versionCode (Updater.autoPrompts);
+            // a newer version, or the driver's own check in Config, shows it
+            // again. (A separate "Skip this version" did the same and went.)
+            // The spacer keeps Later and Update on the right.
+            btnRow.addView(new android.view.View(activity), new LinearLayout.LayoutParams(0, 1, 1f));
 
             // Decline button
             Button btnDecline = new Button(activity);

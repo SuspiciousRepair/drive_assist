@@ -225,11 +225,20 @@ public final class Prefs {
     public static void setLyricsOpen(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_lyrics_open", v).apply(); }
 
     /** Keys of removed features: the Spotify sign-in (client id, tokens,
-     * PKCE verifier, token expiry). dropRemoved() deletes them at start, and
-     * no backup or restore carries them (isBackedUp). */
+     * PKCE verifier, token expiry), and "Skip this version" on the update
+     * window (Later does its job now). dropRemoved() deletes them at start,
+     * and no backup or restore carries them (isBackedUp). */
     static final java.util.List<String> REMOVED_KEYS = java.util.Arrays.asList(
         "spotify_client_id", "spotify_access_token", "spotify_refresh_token",
-        "spotify_pkce_verifier", "spotify_token_expiry");
+        "spotify_pkce_verifier", "spotify_token_expiry",
+        "skip_update_vc", "skip_update_vc_modehelper");
+
+    /** A removed key whose value moves to another before it goes: a skipped
+     * version becomes a "Later" one, so it stays quiet after the update. */
+    static final String[][] MOVED_TO_LATER = {
+        {"skip_update_vc", "update_later_vc"},
+        {"skip_update_vc_modehelper", "update_later_vc_modehelper"},
+    };
 
     /** Deletes the keys of removed features (REMOVED_KEYS). Called at every
      * start; it writes only when one is still there, so after the first
@@ -238,6 +247,14 @@ public final class Prefs {
 
     static void dropRemoved(SharedPreferences p) {
         SharedPreferences.Editor e = null;
+        for (String[] m : MOVED_TO_LATER) {
+            if (!p.contains(m[0])) continue;
+            int v = p.getInt(m[0], 0);
+            if (v > p.getInt(m[1], 0)) {
+                if (e == null) e = p.edit();
+                e.putInt(m[1], v);
+            }
+        }
         for (String k : REMOVED_KEYS) {
             if (!p.contains(k)) continue;
             if (e == null) e = p.edit();
@@ -301,12 +318,6 @@ public final class Prefs {
     public static void setUpdateUrl(Context ctx, String v) { file(ctx).edit().putString("update_url", v).apply(); }
     public static String getUpdateLastUrl(Context ctx) { return file(ctx).getString("update_last_url", ""); }
     public static void setUpdateLastUrl(Context ctx, String v) { file(ctx).edit().putString("update_last_url", v).apply(); }
-    public static int getSkipUpdateVc(Context ctx, boolean modehelper) {
-        return file(ctx).getInt(modehelper ? "skip_update_vc_modehelper" : "skip_update_vc", 0);
-    }
-    public static void setSkipUpdateVc(Context ctx, boolean modehelper, int versionCode) {
-        file(ctx).edit().putInt(modehelper ? "skip_update_vc_modehelper" : "skip_update_vc", versionCode).apply();
-    }
     // "Later" on the update window: the versionCode it was shown for. The home
     // screen does not open the window again by itself for that version or an
     // older one (Updater.autoPrompts); a newer version, or the driver's own
@@ -349,7 +360,6 @@ public final class Prefs {
         "trip_open_", "charge_open_", "valet_", "parking_",
         "beat_", "restart_",
         "backup_",
-        "skip_update_vc",
         "rollup_last_day",
     };
 
