@@ -54,6 +54,7 @@
 
         <activity android:name=".ui.TripRouteActivity" android:exported="false" />
         <activity android:name=".ui.ValetDetailActivity" android:exported="false" />
+        <activity android:name=".ui.ChargeDetailActivity" android:exported="false" />
         <activity android:name=".ui.AllRoutesActivity" android:exported="false" />
         <activity android:name=".ui.CleanupActivity" android:exported="false" android:label="Drive Assist — Limpeza" />
         <activity android:name=".ui.ClipPlayerActivity" android:exported="false"

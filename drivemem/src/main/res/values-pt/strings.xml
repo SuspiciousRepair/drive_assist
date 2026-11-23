@@ -451,6 +451,18 @@
     <string name="charge_soc_chart_title">Faixa da bateria · mais recentes primeiro</string>
     <string name="charge_map_none">Nenhuma recarga deste período salvou o local.</string>
     <string name="charge_curve_title">Potência de recarga ao longo do tempo</string>
+    <string name="charge_detail_title">Recarga</string>
+    <string name="charge_detail_live">Carregando agora</string>
+    <string name="charge_detail_charging">Tempo carregando</string>
+    <string name="charge_detail_idle" formatted="false">Parado em 100%</string>
+    <string name="charge_detail_idle_next">até a próxima viagem</string>
+    <string name="charge_detail_idle_now">até agora</string>
+    <string name="charge_detail_power">Potência</string>
+    <string name="charge_detail_power_value">%1$s média · %2$s pico</string>
+    <string name="charge_detail_bat_temp_label">Temperatura da bateria</string>
+    <string name="charge_detail_bat_temp">bateria</string>
+    <string name="charge_detail_out_temp">fora</string>
+    <string name="charge_detail_soc" formatted="false">Bateria %</string>
     <string name="charge_curve_unavailable">As amostras desta recarga não estão mais disponíveis.</string>
     <string name="charge_curve_power_label">Potência (kW)</string>
     <string name="charge_curve_temp_label">Temp. externa (°C)</string>
