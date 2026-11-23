@@ -27,8 +27,9 @@ The home screen is made for quick use while you drive:
   open the charge's page: power, temperatures and battery % on one time line
   (move a finger on the charts to read every value), the numbers, the place on
   a map, and how long the car stood at 100%. Tap its cost tile to add the price.
-  After the charge, **✕** closes the card. It also closes when the car leaves
-  Park. You can still add the price in Charging stats.
+  After the charge, the card stays until you add the price (zero too). Then it
+  closes. **✕** closes it at once, and it also closes when the car leaves Park.
+  You can still add the price in Charging stats.
 - Optional cards can show your garage gate, a panel sent by Home Assistant, or
   what your phone plays through the car.
 
