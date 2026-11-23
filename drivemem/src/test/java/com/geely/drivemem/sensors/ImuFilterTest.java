@@ -37,13 +37,13 @@ public class ImuFilterTest {
         ImuFilter f = new ImuFilter();
         long t = 1_000_000_000L;
 
-        // Invent a rotated head unit:
-        // car up    = (0, 0, 1)
-        // car fwd   = (cos 35, sin 35, 0)
-        // car right = fwd x up = (sin 35, -cos 35, 0)
+        // Invent a rotated head unit in the MTK HAL (g - a) frame:
+        // rest grav (up)  = (0, 0, -1)
+        // launch (fwd)    = (cos 35, sin 35, 0)
+        // right turn (+y) = up x fwd = (sin 35, -cos 35, 0)
         float cos = (float) Math.cos(Math.toRadians(35.0));
         float sin = (float) Math.sin(Math.toRadians(35.0));
-        float gx = 0f, gy = 0f, gz = ImuFilter.G;
+        float gx = 0f, gy = 0f, gz = -ImuFilter.G;
 
         // 1. Stationary calibration for Z_up.
         for (int i = 0; i < 25; i++) {
@@ -52,10 +52,27 @@ public class ImuFilterTest {
         }
         assertTrue(f.isCalibratedZ());
 
-        // 2. Straight-line acceleration at +2.5 m/s^2 for 4 seconds.
+        // 2. A turning launch (strong lateral G mixed in) must NOT skew calibration.
         float speedKmh = 15f;
-        float aFwd = 2.5f;
-        for (int i = 0; i < 64; i++) {
+        float aFwd = 1.5f;
+        float aTurn = 3.0f;
+        for (int i = 0; i < 32; i++) {
+            speedKmh += aFwd * (STEP_NS * 1e-9f) * 3.6f;
+            f.onSpeedKmh(speedKmh, t);
+            f.onAccel(gx + aFwd * cos + aTurn * sin, gy + aFwd * sin - aTurn * cos, gz, t, speedKmh);
+            t += STEP_NS;
+        }
+        assertFalse("Turning launch should be rejected by straight-line gate", f.isCalibratedXy());
+
+        // Let the moving gravity IIR recover after the sustained turn before testing straight launch.
+        for (int i = 0; i < 320; i++) {
+            f.onAccel(gx, gy, gz, t, speedKmh);
+            t += STEP_NS;
+        }
+
+        // 3. Straight-line acceleration at +2.5 m/s^2 for 6 seconds locks fwd cleanly.
+        aFwd = 2.5f;
+        for (int i = 0; i < 96; i++) {
             speedKmh += aFwd * (STEP_NS * 1e-9f) * 3.6f;
             f.onSpeedKmh(speedKmh, t);
             f.onAccel(gx + aFwd * cos, gy + aFwd * sin, gz, t, speedKmh);
@@ -63,7 +80,7 @@ public class ImuFilterTest {
         }
         assertTrue("Forward/lateral axes should calibrate from straight-line accel", f.isCalibratedXy());
 
-        // 3. Let gravity IIR settle at constant speed (~25 s), then test pure cornering to the right.
+        // 4. Let gravity IIR settle at constant speed (~25 s), then test pure right turn.
         for (int i = 0; i < 400; i++) {
             f.onAccel(gx, gy, gz, t, 50f);
             t += STEP_NS;
@@ -73,6 +90,22 @@ public class ImuFilterTest {
         assertEquals("Right turn should project onto +ay", aRight, f.ay(), 0.25f);
         assertEquals("Right turn should not bleed into ax", 0f, f.ax(), 0.25f);
         assertEquals("Right turn should not bleed into az", 0f, f.az(), 0.15f);
+    }
+
+    @Test public void ihu629gDefaultPriorMatchesRealDriveTurnSigns() {
+        ImuFilter f = new ImuFilter();
+        long t = 1_000_000_000L;
+        float gx = -0.08f, gy = -9.60f, gz = -1.60f;
+        for (int i = 0; i < 25; i++) {
+            f.onAccel(gx, gy, gz, t, 0f);
+            t += STEP_NS;
+        }
+        // Observed on real drive: left turn pushes rawX positive (+2.2), right turn negative (-2.2).
+        f.onAccel(gx - 2.2f, gy, gz, t, 25f);
+        assertTrue("Right turn (-rawX) must produce positive ay", f.ay() > 1.8f);
+        t += STEP_NS;
+        f.onAccel(gx + 2.2f, gy, gz, t, 25f);
+        assertTrue("Left turn (+rawX) must produce negative ay", f.ay() < -1.8f);
     }
 
     @Test public void windowSummaryTracksRmsPeaksAndJerk() {

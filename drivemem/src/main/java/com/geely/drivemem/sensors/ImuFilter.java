@@ -24,16 +24,20 @@ public final class ImuFilter {
     private static final float REST_MAX_G = 11.2f;
     private static final float REST_MAX_STEP = 0.25f;
     private static final int CAL_Z_SAMPLES = 15;
-    private static final float CAL_FWD_WEIGHT_TARGET = 4.0f; // ~14 km/h of confirmed dv
+    private static final float CAL_FWD_WEIGHT_TARGET = 10.0f; // ~36 km/h of confirmed straight dv
     private static final float MIN_CAL_DVDT = 1.1f;      // m/s^2 straight accel/brake
     private static final float MIN_CAL_HORIZ = 0.55f;    // m/s^2 horizontal linear accel
     private static final float MAX_CAL_HORIZ = 12.0f;    // reject impact spikes
 
-    // Orthonormal basis in sensor coordinates: up (+Z_car), fwd (+X_car), right (+Y_car).
-    // Default matches a portrait/landscape dash panel until rest gravity arrives.
-    private float upX = 0f, upY = -0.971f, upZ = -0.238f;
-    private float fwdX = 0f, fwdY = -0.238f, fwdZ = 0.971f;
-    private float rightX = 1f, rightY = 0f, rightZ = 0f;
+    // Orthonormal basis in sensor coordinates for the MTK IHU629G HAL (g - a
+    // passenger-feel convention: stationary raw points along gravity DOWN,
+    // forward launch pushes +Z, left turn pushes +X).
+    // - up:    aligned with stationary raw (+az = upward bump)
+    // - fwd:   aligned with +sign(dv/dt) * horiz (+ax = forward accel, -ax = brake)
+    // - right: up x fwd (+ay = right turn, -ay = left turn)
+    private float upX = 0f, upY = -0.986f, upZ = -0.164f;
+    private float fwdX = 0f, fwdY = -0.164f, fwdZ = 0.986f;
+    private float rightX = -1f, rightY = 0f, rightZ = 0f;
 
     // Rest-gravity calibration accumulator.
     private double restX, restY, restZ;
@@ -220,6 +224,8 @@ public final class ImuFilter {
         float lz = rz - gravZ;
 
         // 4. Straight-line forward-axis calibration when CAN/VHAL speed shows clear accel/brake.
+        // Reject accelerating/braking turns by requiring |h| to stay close to |dv/dt|
+        // (a turn adds lateral G, inflating |h| well above |dv/dt|).
         if (calZ && speedKmh > 7.2f && (timestampNs - lastDvDtNs) < 1_000_000_000L
                 && Math.abs(lastDvDt) >= MIN_CAL_DVDT) {
             float lDotUp = lx * upX + ly * upY + lz * upZ;
@@ -227,9 +233,12 @@ public final class ImuFilter {
             float hy = ly - lDotUp * upY;
             float hz = lz - lDotUp * upZ;
             float hMagSq = hx * hx + hy * hy + hz * hz;
-            if (hMagSq >= MIN_CAL_HORIZ * MIN_CAL_HORIZ && hMagSq <= MAX_CAL_HORIZ * MAX_CAL_HORIZ) {
+            float absDv = Math.abs(lastDvDt);
+            float maxStraight = Math.min(MAX_CAL_HORIZ, absDv * 1.25f + 0.25f);
+            float minStraight = Math.max(MIN_CAL_HORIZ, absDv * 0.55f);
+            if (hMagSq >= minStraight * minStraight && hMagSq <= maxStraight * maxStraight) {
                 float sgn = lastDvDt > 0f ? 1f : -1f;
-                float w = Math.min(3f, Math.abs(lastDvDt)) * (dt > 0f ? dt : 0.0625f);
+                float w = Math.min(3f, absDv) * (dt > 0f ? dt : 0.0625f);
                 if (fwdWeight < 60f) {
                     fwdAccX += sgn * hx * w;
                     fwdAccY += sgn * hy * w;
@@ -334,20 +343,20 @@ public final class ImuFilter {
 
     /** Builds a deterministic default horizontal basis orthogonal to {@code up}. */
     private void rebuildHorizontalFromUp() {
-        // Project sensor +X onto the plane perpendicular to up (on the IHU629G,
-        // sensor +X is nearly horizontal left-right). Fallback to +Y if up is near X.
-        float refX = 1f, refY = 0f, refZ = 0f;
-        if (Math.abs(upX) > 0.9f) { refX = 0f; refY = 1f; }
+        // On the IHU629G (g - a HAL convention), right turn pushes sensor -X, so
+        // project -X onto the horizontal plane as rightVec and fwd = right x up.
+        float refX = -1f, refY = 0f, refZ = 0f;
+        if (Math.abs(upX) > 0.9f) { refX = 0f; refY = -1f; }
         float dot = refX * upX + refY * upY + refZ * upZ;
         float rx = refX - dot * upX;
         float ry = refY - dot * upY;
         float rz = refZ - dot * upZ;
         float rn = len(rx, ry, rz);
         rightX = rx / rn; rightY = ry / rn; rightZ = rz / rn;
-        // fwd = up x right so that fwd x up == right (right-handed).
-        fwdX = upY * rightZ - upZ * rightY;
-        fwdY = upZ * rightX - upX * rightZ;
-        fwdZ = upX * rightY - upY * rightX;
+        // fwd = right x up so that up x fwd == right.
+        fwdX = rightY * upZ - rightZ * upY;
+        fwdY = rightZ * upX - rightX * upZ;
+        fwdZ = rightX * upY - rightY * upX;
     }
 
     /** Orthogonalizes {@code (fx, fy, fz)} against {@code up} and updates fwd & right. */
@@ -359,10 +368,10 @@ public final class ImuFilter {
         float n = len(px, py, pz);
         if (n < 1e-3f) return false;
         fwdX = px / n; fwdY = py / n; fwdZ = pz / n;
-        // right = fwd x up
-        rightX = fwdY * upZ - fwdZ * upY;
-        rightY = fwdZ * upX - fwdX * upZ;
-        rightZ = fwdX * upY - fwdY * upX;
+        // right = up x fwd (verified on real IHU629G left/right GPS turns: +ay = right turn).
+        rightX = upY * fwdZ - upZ * fwdY;
+        rightY = upZ * fwdX - upX * fwdZ;
+        rightZ = upX * fwdY - upY * fwdX;
         return true;
     }
 

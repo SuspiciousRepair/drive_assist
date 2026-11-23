@@ -26,7 +26,7 @@ import com.geely.drivemem.state.CarState;
 public final class ImuHub {
     private static final String TAG = "DriveMem";
     private static final String PREFS = "drivemem";
-    private static final String PREF_BASIS = "imu_basis_v1";
+    private static final String PREF_BASIS = "imu_basis_v2";
 
     // Matches SX11SensorManager's existing 80 ms (16 Hz) rate — zero extra HAL wakeups.
     private static final int SAMPLING_PERIOD_US = 80_000;
