@@ -128,7 +128,10 @@ public class ClipPlayerActivity extends Activity {
     // mixes the cameras that see the way you are looking (OrbitRig).
     static final float[] ORBIT = { -2f };
     // How far the orbit tilts, degrees. Up is negative.
-    static final float PITCH_UP = -25f, PITCH_DOWN = 35f;
+    // The Orbit view moves up and down like a shift lens (OrbitRig.screenRay);
+    // past 8 up there is little but black, past 25 down the ground next to
+    // the car, which two cameras see from two places.
+    static final float PITCH_UP = -8f, PITCH_DOWN = 25f, PITCH_START = 4f;
 
     // Unsharp mask to restore detail lost in upscaling. Narrower views
     // need higher sharpening due to greater magnification.
@@ -348,7 +351,8 @@ public class ClipPlayerActivity extends Activity {
         private final float[] texM = new float[16];
         private FloatBuffer verts, coords;
         private volatile float[] cam = ALL;
-        private volatile float yaw = 0f, pitchDeg = 0f;
+        private volatile float yaw = 0f, pitchDeg = PITCH_START;
+        private int topTex;
 
         void turn(float dYaw, float dPitch) {
             yaw += dYaw;
@@ -385,6 +389,8 @@ public class ClipPlayerActivity extends Activity {
             GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES,
                 GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
 
+            topTex = coverageTexture();
+
             verts  = buf(new float[]{-1,-1,  1,-1,  -1,1,  1,1});
             // No flip: uTexMatrix from SurfaceTexture already carries the
             // decoder's orientation. The rotation below is the physical
@@ -394,6 +400,33 @@ public class ClipPlayerActivity extends Activity {
             surfaceTex = new SurfaceTexture(texId);
             surfaceTex.setOnFrameAvailableListener(this);
             startPlayer(new Surface(surfaceTex));
+        }
+
+        // OrbitRig.coverageTop() as a 128 x 1 texture: linear between entries,
+        // and round the circle (REPEAT; 128 is a power of two, as GLES 2 needs).
+        private int coverageTexture() {
+            float[] top = OrbitRig.coverageTop(
+                OrbitRig.rotations(new float[] { MOUNT_FRONT, MOUNT_SIDES, MOUNT_REAR, MOUNT_SIDES }),
+                new double[] { Math.toRadians(FRONT[6]), Math.toRadians(RIGHT[6]),
+                               Math.toRadians(REAR[6]),  Math.toRadians(LEFT[6]) },
+                new double[] { FRONT[7], RIGHT[7], REAR[7], LEFT[7] });
+            ByteBuffer b = ByteBuffer.allocateDirect(top.length);
+            for (float e : top) {
+                int v = Math.round((e - OrbitRig.COVER_LO) / (OrbitRig.COVER_HI - OrbitRig.COVER_LO) * 255f);
+                b.put((byte) Math.max(0, Math.min(255, v)));
+            }
+            b.position(0);
+            int[] t = new int[1];
+            GLES20.glGenTextures(1, t, 0);
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, t[0]);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_REPEAT);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+            GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
+            GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_LUMINANCE, top.length, 1, 0,
+                GLES20.GL_LUMINANCE, GLES20.GL_UNSIGNED_BYTE, b);
+            return t[0];
         }
 
         private void startPlayer(Surface s) {
@@ -440,7 +473,7 @@ public class ClipPlayerActivity extends Activity {
             // stretching in either.
             float[] c = cam;
             boolean orbit = (c != null && c.length == 1);
-            float want = orbit ? (16f / 9f) : (c == null) ? (FULL_W / FULL_H)
+            float want = orbit ? OrbitRig.ASPECT : (c == null) ? (FULL_W / FULL_H)
                 : (float) (Math.tan(Math.toRadians(c[4]) / 2.0)
                          / Math.tan(Math.toRadians(c[5]) / 2.0));
             int dw = vw, dh = (int) (vw / want);
@@ -466,8 +499,15 @@ public class ClipPlayerActivity extends Activity {
                 double y = Math.toRadians(yaw), pt = Math.toRadians(pitchDeg);
                 GLES20.glUniform2f(GLES20.glGetUniformLocation(prog, "uView"),
                     (float) y, (float) pt);
-                GLES20.glUniform1f(GLES20.glGetUniformLocation(prog, "uTanO"),
-                    (float) Math.tan(Math.toRadians(110.0) / 2.0));
+                GLES20.glUniform3f(GLES20.glGetUniformLocation(prog, "uFov"),
+                    (float) Math.toRadians(OrbitRig.MID),
+                    (float) Math.toRadians(OrbitRig.EDGE - OrbitRig.MID),
+                    (float) Math.toRadians(OrbitRig.MID) / OrbitRig.ASPECT);
+                GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
+                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, topTex);
+                GLES20.glUniform1i(GLES20.glGetUniformLocation(prog, "sTop"), 1);
+                GLES20.glUniform2f(GLES20.glGetUniformLocation(prog, "uTop"),
+                    OrbitRig.COVER_LO, OrbitRig.COVER_HI - OrbitRig.COVER_LO);
                 // All in yaw order, NOT the order the table is written in:
                 // 0 front, 1 right, 2 rear, 3 left.
                 GLES20.glUniformMatrix3fv(GLES20.glGetUniformLocation(prog, "uRot"), 4, false,
@@ -573,7 +613,9 @@ public class ClipPlayerActivity extends Activity {
         "uniform mat4 uTexMatrix;\n" +
         "uniform samplerExternalOES sTexture;\n" +
         "uniform vec2  uView;\n" +
-        "uniform float uTanO;\n" +
+        "uniform vec3  uFov;\n" +       // middle rad/half screen, extra at the edge, vertical scale
+        "uniform sampler2D sTop;\n" +   // the top of the picture per yaw (OrbitRig.coverageTop)
+        "uniform vec2  uTop;\n" +       // its range: lowest, span (degrees)
         "uniform mat3  uRot[4];\n" +     // world direction to lens direction
         "uniform vec3  uPos[4];\n" +     // where each camera is, metres
         "uniform vec2  uAxis[4];\n" +    // the side each camera looks to (x, z)
@@ -584,11 +626,10 @@ public class ClipPlayerActivity extends Activity {
         "uniform vec2  uTexel;\n" +
         "void main() {\n" +
         "  vec2 p = vRawTextureCoord * 2.0 - 1.0;\n" +
-        "  vec3 r = normalize(vec3(p.x * uTanO, p.y * uTanO * 0.5625, 1.0));\n" +
-        "  float cp = cos(uView.y), sp = sin(uView.y);\n" +
-        "  r = vec3(r.x, r.y * cp - r.z * sp, r.y * sp + r.z * cp);\n" +
-        "  float cy = cos(uView.x), sy = sin(uView.x);\n" +
-        "  r = vec3(r.x * cy + r.z * sy, r.y, -r.x * sy + r.z * cy);\n" +
+        // The middle sharp, the sides squeezed (OrbitRig.screenRay).
+        "  float ax = abs(p.x);\n" +
+        "  float yw = uView.x + sign(p.x) * (uFov.x * ax + uFov.y * ax * ax * ax);\n" +
+        "  vec3 r = normalize(vec3(sin(yw), p.y * uFov.z - tan(uView.y), cos(yw)));\n" +
         // The point in the world this ray lands on: the ball.
         "  vec3 X = vec3(0.0, uBall.x, 0.0) + r * uBall.y;\n" +
         "  float best = max(abs(r.x), abs(r.z));\n" +
@@ -615,7 +656,13 @@ public class ClipPlayerActivity extends Activity {
         "    acc += clamp(col + uSharp * (col - b), 0.0, 1.0) * w;\n" +
         "    ws += w;\n" +
         "  }\n" +
-        "  gl_FragColor = vec4(ws > 1e-5 ? acc / ws : vec3(0.0), 1.0);\n" +
+        // Fade to black over 4 degrees under the top of the picture, so the
+        // edge where no camera sees is soft, not a jagged step.
+        "  float el = degrees(asin(clamp(r.y, -1.0, 1.0)));\n" +
+        "  float u = atan(r.x, r.z) / 6.2831853 + 0.5 / 128.0;\n" +
+        "  float top = uTop.x + texture2D(sTop, vec2(u, 0.5)).r * uTop.y;\n" +
+        "  float fade = smoothstep(0.0, 1.0, (top - el) / 4.0);\n" +
+        "  gl_FragColor = vec4((ws > 1e-5 ? acc / ws : vec3(0.0)) * fade, 1.0);\n" +
         "}\n";
 
     // Fisheye-to-rectilinear conversion via 3D geometry: each output pixel

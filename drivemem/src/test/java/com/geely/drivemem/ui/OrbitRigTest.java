@@ -148,4 +148,49 @@ public class OrbitRigTest {
         double deg = Math.toDegrees(Math.acos(r[0] * q[0] + r[1] * q[1] + r[2] * q[2]));
         assertTrue("apart " + deg, deg < 6);
     }
+
+    // ---- the screen: middle sharp, sides squeezed ----
+
+    private static double yawDeg(double[] r) { return Math.toDegrees(Math.atan2(r[0], r[2])); }
+
+    @Test public void theMiddleOfTheScreenLooksWhereTheViewPoints() {
+        double[] r = OrbitRig.screenRay(0, 0, Math.toRadians(30), 0);
+        assertEquals(30, yawDeg(r), 1e-9);
+        assertEquals(0, r[1], 1e-9);
+    }
+
+    @Test public void theSideEdgesReachFarAround() {
+        assertEquals(OrbitRig.EDGE, yawDeg(OrbitRig.screenRay(1, 0, 0, 0)), 1e-6);
+        assertEquals(-OrbitRig.EDGE, yawDeg(OrbitRig.screenRay(-1, 0, 0, 0)), 1e-6);
+    }
+
+    @Test public void theMiddleIsSharpAndTheSidesSqueezed() {
+        // Degrees per step of x: the same as a plain view near the middle,
+        // several times more at the edge.
+        double mid = yawDeg(OrbitRig.screenRay(0.01, 0, 0, 0)) / 0.01;
+        double edge = (yawDeg(OrbitRig.screenRay(1, 0, 0, 0)) - yawDeg(OrbitRig.screenRay(0.99, 0, 0, 0))) / 0.01;
+        assertEquals(OrbitRig.MID, mid, 0.1);
+        assertTrue("edge " + edge + " mid " + mid, edge > 2 * mid);
+    }
+
+    @Test public void verticalLinesStayVertical() {
+        for (double y : new double[] { -1, -0.3, 0.5, 1 })
+            assertEquals(yawDeg(OrbitRig.screenRay(0.7, 0, 0, 0)), yawDeg(OrbitRig.screenRay(0.7, y, 0, 0.1)), 1e-9);
+    }
+
+    @Test public void lookingDownMovesThePictureNotTheVerticals() {
+        double[] r = OrbitRig.screenRay(0, 0, 0, Math.toRadians(10));
+        assertEquals(-10, Math.toDegrees(Math.asin(r[1])), 1e-6);
+    }
+
+    @Test public void theMirrorCamerasSeeOnlyToTheHorizonToTheSide() {
+        double[] lens = new double[4], sq = new double[4];
+        for (int i = 0; i < 4; i++) { lens[i] = Math.toRadians(CAM[i][6]); sq[i] = CAM[i][7]; }
+        float[] top = OrbitRig.coverageTop(ROT, lens, sq);
+        int n = OrbitRig.COVER;
+        assertTrue("front " + top[0], top[0] > 20);                 // the front camera sees sky
+        assertTrue("rear " + top[n / 2], top[n / 2] > 5 && top[n / 2] < 20);
+        assertTrue("right " + top[n / 4], top[n / 4] < 5);          // a mirror camera: the horizon
+        assertTrue("left " + top[3 * n / 4], top[3 * n / 4] < 5);
+    }
 }

@@ -10,8 +10,11 @@
   car, so the two pictures meet better, and they are mixed in a narrow band
   where they meet. A thing near a corner of the car (a person, another car)
   can still show a double edge there: two cameras see it from two places.
-  You can now tilt the view down to the ground next to the car; before, it
-  tilted far up, where there is no picture.
+  The view is now a wide stripe that shows about 220 degrees: the middle is
+  sharp, and the sides are squeezed, so you see what is coming from a side
+  before it turns to the middle. Above the picture, where no camera sees
+  (the mirror cameras see only up to the horizon to the side), the view
+  fades to black instead of showing a jagged edge.
 - **The dashcam asks the car for its 360 cameras.** The dashcam needs the
   four 360 cameras, and it was on by default on every car. On a car without
   them it tried to start again and again. Now ModeHelper reads the car's

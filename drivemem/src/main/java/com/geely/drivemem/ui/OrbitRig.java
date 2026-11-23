@@ -40,7 +40,56 @@ final class OrbitRig {
         { -0.98f, 1.00f,  0.60f },   // left mirror
     };
 
+    /** Shape of the Orbit picture on the screen: a wide stripe. */
+    static final float ASPECT = 3.2f;
+    /** Degrees from the middle to the side edge of the screen is
+     * MID * x + (EDGE - MID) * x^3, x from 0 (middle) to 1 (edge). Near the
+     * middle that is MID degrees per half screen, the same as a plain view;
+     * toward the edges it grows, so the sides are squeezed and the stripe
+     * shows EDGE degrees each way. A thing coming from a side shows early and
+     * takes its true shape as it turns to the middle. */
+    static final float MID = 75f, EDGE = 110f;
+
     private OrbitRig() { }
+
+    /** The world direction (length 1) for a point on the screen, x and y
+     * from -1 to 1 (y up). Vertical lines stay vertical: the yaw depends on
+     * x only, and the pitch moves the picture up and down like a shift lens
+     * instead of turning it. pitch is positive looking down. The same steps
+     * as FRAG_ORBIT. */
+    static double[] screenRay(double x, double y, double yawRad, double pitchRad) {
+        double ax = Math.abs(x), mid = Math.toRadians(MID), edge = Math.toRadians(EDGE);
+        double yw = yawRad + Math.signum(x) * (mid * ax + (edge - mid) * ax * ax * ax);
+        double t = y * mid / ASPECT - Math.tan(pitchRad);
+        double sx = Math.sin(yw), cz = Math.cos(yw), n = Math.sqrt(1 + t * t);
+        return new double[] { sx / n, t / n, cz / n };
+    }
+
+    /** Elevations, degrees, of the top of the picture: COVER entries, one per
+     * 360/COVER degrees of yaw from the front. Above it no camera sees (the
+     * mirror cameras point down and see only up to the horizon to the side),
+     * and the view fades to black there instead of showing a jagged edge. */
+    static final int COVER = 128;
+    /** The range the table is stored in, in an 8-bit texture. */
+    static final float COVER_LO = -20f, COVER_HI = 40f;
+
+    static float[] coverageTop(float[] rot, double[] lensHalfRad, double[] squash) {
+        float[] out = new float[COVER];
+        for (int k = 0; k < COVER; k++) {
+            double yw = k * 2 * Math.PI / COVER;
+            out[k] = COVER_LO;
+            for (double el = COVER_HI; el >= COVER_LO; el -= 0.25) {
+                double e = Math.toRadians(el);
+                double rx = Math.sin(yw) * Math.cos(e), ry = Math.sin(e), rz = Math.cos(yw) * Math.cos(e);
+                double[] p = surface(rx, ry, rz);
+                double ws = 0;
+                for (int cam = 0; cam < 4; cam++)
+                    ws += weight(cam, rx, rz, cell(cam, p, rot, lensHalfRad[cam], squash[cam]));
+                if (ws > 0.5) { out[k] = (float) el; break; }
+            }
+        }
+        return out;
+    }
 
     /** The four positions, x y z each, for a vec3[4] uniform. */
     static float[] positions() {
