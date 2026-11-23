@@ -13,6 +13,7 @@ import android.media.session.PlaybackState;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.view.KeyEvent;
 
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.state.MusicState;
@@ -211,10 +212,10 @@ public final class CarMediaSessions {
         MusicState.setSession(t, new MusicState.Controls() {
             @Override public void playPause() {
                 PlaybackState s = c.getPlaybackState();
-                if (s != null && s.getState() == PlaybackState.STATE_PLAYING) c.getTransportControls().pause();
-                else if (!startBluetooth(c.getPackageName())) c.getTransportControls().play();
+                boolean playing = s != null && s.getState() == PlaybackState.STATE_PLAYING;
+                if (playing || !startBluetooth(c.getPackageName())) press(c, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE);
             }
-            @Override public void next() { c.getTransportControls().skipToNext(); }
+            @Override public void next() { press(c, KeyEvent.KEYCODE_MEDIA_NEXT); }
         });
     }
 
@@ -257,6 +258,19 @@ public final class CarMediaSessions {
         if (endsAt <= 0 || nowMs < endsAt) { endId = null; return 0; }
         if (endId == null || !endId.equals(id)) { endId = id; endSeenMs = nowMs; }
         return endSeenMs + STALE_GRACE_MS;
+    }
+
+    // Play/pause and Skip go as media keys, like the steering-wheel buttons.
+    // CarPlay ignores pause() and skipToNext() sent through its controller
+    // (its session lists only the play/pause toggle), but it takes the keys:
+    // checked on the car, play/pause and next both worked. Bluetooth and
+    // Android Auto take them too (MediaSession's own key handling).
+    private static void press(MediaController c, int keyCode) {
+        try {
+            long t = android.os.SystemClock.uptimeMillis();
+            c.dispatchMediaButtonEvent(new KeyEvent(t, t, KeyEvent.ACTION_DOWN, keyCode, 0));
+            c.dispatchMediaButtonEvent(new KeyEvent(t, t, KeyEvent.ACTION_UP, keyCode, 0));
+        } catch (Throwable e) { Log.w(TAG, "music key " + keyCode + ": " + e); }
     }
 
     // The car's own Bluetooth music app owns the audio source. A play sent
