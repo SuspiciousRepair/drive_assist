@@ -2079,10 +2079,7 @@ public class ComfortActivity extends Activity {
             if (key.equals(lastMusicArtUrl)) return;
             lastMusicArtUrl = key;
             new Thread(() -> applyMusicArt(key, b), "music-art").start();
-            ui.postDelayed(() -> {
-                if (key.equals(lastMusicArtUrl))
-                    new Thread(() -> CoverCache.put(app, track, b), "music-art").start();
-            }, COVER_KEEP_MS);
+            keepCoverIfStillUp(key, track, b);
             return;
         }
         String url = MusicState.artUrl();
@@ -2097,13 +2094,17 @@ public class ComfortActivity extends Activity {
         }, "music-art").start();
     }
 
+    // Keyed by the address AND the album: the same address on another album
+    // is loaded again (the cache may hold that album's own cover).
     private void loadMusicArt(String url, String track) {
-        if (url == null || url.equals(lastMusicArtUrl)) return;
-        lastMusicArtUrl = url;
+        if (url == null) return;
+        final String key = url + "|" + track;
+        if (key.equals(lastMusicArtUrl)) return;
+        lastMusicArtUrl = key;
         final Context app = getApplicationContext();
         new Thread(() -> {
             android.graphics.Bitmap bmp = CoverCache.get(app, track);
-            if (bmp != null) { applyMusicArt(url, bmp); return; }
+            if (bmp != null) { applyMusicArt(key, bmp); return; }
             try {
                 if (url.startsWith("content:") || url.startsWith("file:") || url.startsWith("android.resource:")) {
                     // A session's art URI (Bluetooth cover art) is local.
@@ -2122,8 +2123,8 @@ public class ComfortActivity extends Activity {
                 }
             } catch (Throwable t) { android.util.Log.w(CarAccess.TAG, "music art: " + t); }
             if (bmp != null) {
-                applyMusicArt(url, bmp);
-                CoverCache.put(app, track, bmp);
+                applyMusicArt(key, bmp);
+                keepCoverIfStillUp(key, track, bmp);
             }
         }, "music-art").start();
     }
@@ -2143,6 +2144,16 @@ public class ComfortActivity extends Activity {
             if (!url.equals(lastMusicArtUrl)) return;
             setMusicArt(fbmp, fblur);
         });
+    }
+
+    // Kept on the head unit only if still up after COVER_KEEP_MS: a cover
+    // that a moment later turns out to be the last song's is not kept.
+    private void keepCoverIfStillUp(String key, String track, android.graphics.Bitmap b) {
+        final Context app = getApplicationContext();
+        ui.postDelayed(() -> {
+            if (key.equals(lastMusicArtUrl))
+                new Thread(() -> CoverCache.put(app, track, b), "music-art").start();
+        }, COVER_KEEP_MS);
     }
 
     /** UI thread. Null: no cover, the card's plain tile shows. */
