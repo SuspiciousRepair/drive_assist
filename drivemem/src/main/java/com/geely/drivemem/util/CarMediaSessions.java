@@ -111,6 +111,17 @@ public final class CarMediaSessions {
         MusicState.setSession(null, null);
     }
 
+    /** Forgets the cover shown and reads the player's song again, so the
+     * player's current cover comes in as a new one (a long press on the
+     * cover). UI thread. */
+    public static void refreshArt() {
+        artCover = null;
+        art = null;
+        artUrlCover = null;
+        artUrl = null;
+        if (running) publish();
+    }
+
     /** The media browser services other apps may link to: exported, no
      * permission, not ours. */
     static List<ComponentName> browserServices(Context ctx) {

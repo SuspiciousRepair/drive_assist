@@ -37,8 +37,10 @@ public final class CoverCache {
         return "a-" + java.util.UUID.nameUUIDFromBytes(s.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
-    private static File file(Context ctx, String key) {
-        return new File(new File(ctx.getCacheDir(), "covers"), LyricsClient.safeName(key) + ".jpg");
+    private static File file(Context ctx, String key) { return file(ctx.getCacheDir(), key); }
+
+    static File file(File cacheDir, String key) {
+        return new File(new File(cacheDir, "covers"), LyricsClient.safeName(key) + ".jpg");
     }
 
     /** The kept cover for this key, or null. A hit counts as heard now. */
@@ -74,6 +76,15 @@ public final class CoverCache {
         if (!tmp.renameTo(f)) //noinspection ResultOfMethodCallIgnored
             tmp.delete();
         FileCache.trim(dir, MAX_FILES);
+    }
+
+    /** Forgets the kept cover for this key (a wrong one the owner asked to
+     * reload). True when a file was there. One file delete, so the UI
+     * thread may call it: the reload after it must not find the file. */
+    public static boolean remove(Context ctx, String key) { return remove(ctx.getCacheDir(), key); }
+
+    static boolean remove(File cacheDir, String key) {
+        return key != null && file(cacheDir, key).delete();
     }
 
     /** The size to keep: the longer side at most maxSide, same shape. */

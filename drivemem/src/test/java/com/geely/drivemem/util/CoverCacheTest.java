@@ -18,6 +18,28 @@ public class CoverCacheTest {
         assertArrayEquals(new int[]{256, 512}, CoverCache.scaled(500, 1000, 512));
     }
 
+    @Test public void aRemovedCoverIsGoneAndTheOthersStay() throws Exception {
+        File cache = Files.createTempDirectory("cache").toFile();
+        try {
+            String a = CoverCache.key("Artist", "Album A", "t1");
+            String b = CoverCache.key("Artist", "Album B", "t2");
+            for (String k : new String[]{a, b}) {
+                File f = CoverCache.file(cache, k);
+                assertTrue(f.getParentFile().isDirectory() || f.getParentFile().mkdirs());
+                Files.write(f.toPath(), new byte[]{1});
+            }
+            assertTrue(CoverCache.remove(cache, a));
+            assertFalse(CoverCache.file(cache, a).exists());
+            assertTrue(CoverCache.file(cache, b).exists());
+            assertFalse(CoverCache.remove(cache, a));      // nothing left to forget
+            assertFalse(CoverCache.remove(cache, null));
+        } finally {
+            for (File f : new File(cache, "covers").listFiles()) f.delete();
+            new File(cache, "covers").delete();
+            cache.delete();
+        }
+    }
+
     @Test public void theFolderKeepsTheSongsHeardLast() throws Exception {
         File dir = Files.createTempDirectory("covers").toFile();
         try {
