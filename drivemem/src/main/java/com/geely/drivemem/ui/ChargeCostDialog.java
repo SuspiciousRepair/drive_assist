@@ -32,20 +32,13 @@ public final class ChargeCostDialog {
 
     private ChargeCostDialog() {}
 
-    /** Null, with a short note, when the car is not in Park. */
     public static AlertDialog show(Context context, long sessionId, double kwh, int socStart, int socEnd,
                                    Double currentCost, Runnable onUpdated) {
         return show(context, sessionId, kwh, socStart, socEnd, currentCost, onUpdated, null);
     }
 
-    /** Null, with a short note, when the car is not in Park. */
     public static AlertDialog show(Context context, long sessionId, double kwh, int socStart, int socEnd,
                                    Double currentCost, Runnable onUpdated, Runnable onDismiss) {
-        if (!com.geely.drivemem.state.CarState.isParked()) {
-            android.widget.Toast.makeText(context, com.geely.drivemem.R.string.charge_cost_parked_only,
-                android.widget.Toast.LENGTH_SHORT).show();
-            return null;
-        }
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
 
         LinearLayout card = new LinearLayout(context);

@@ -34,6 +34,7 @@ import com.geely.drivemem.state.TripSession;
 import com.geely.drivemem.state.LiveTrip;
 import com.geely.drivemem.state.TempTrail;
 import com.geely.drivemem.state.ValetSession;
+import com.geely.drivemem.util.CoverCache;
 import com.geely.drivemem.util.BootReceiver;
 import com.geely.drivemem.util.CarMediaSessions;
 import com.geely.drivemem.util.LayoutWait;
@@ -2026,24 +2027,43 @@ public class ComfortActivity extends Activity {
     // only moves `playing` does not re-fetch the same picture.
     // The picture for what MusicState shows: a Bitmap the car's media
     // session handed over (phone music), else its URL.
+    // Every cover shown is kept on the head unit (CoverCache, one per album),
+    // so a song with no cover (Bluetooth often sends none) shows its album's.
     private void showMusicArt() {
         Object img = MusicState.artImage();
+        // One cover per album: every song of an album shares it.
+        final String track = CoverCache.key(MusicState.artist(), MusicState.album(), MusicState.trackId());
+        final Context app = getApplicationContext();
         if (img instanceof android.graphics.Bitmap) {
             android.graphics.Bitmap b = (android.graphics.Bitmap) img;
             String key = "bitmap:" + System.identityHashCode(b);
             if (key.equals(lastMusicArtUrl)) return;
             lastMusicArtUrl = key;
-            new Thread(() -> applyMusicArt(key, b), "music-art").start();
+            new Thread(() -> {
+                applyMusicArt(key, b);
+                CoverCache.put(app, track, b);
+            }, "music-art").start();
             return;
         }
-        loadMusicArt(MusicState.artUrl());
+        String url = MusicState.artUrl();
+        if (url != null) { loadMusicArt(url, track); return; }
+        if (track == null) return;
+        String key = "cache:" + track;
+        if (key.equals(lastMusicArtUrl)) return;
+        lastMusicArtUrl = key;
+        new Thread(() -> {
+            android.graphics.Bitmap b = CoverCache.get(app, track);
+            if (b != null) applyMusicArt(key, b);
+        }, "music-art").start();
     }
 
-    private void loadMusicArt(String url) {
+    private void loadMusicArt(String url, String track) {
         if (url == null || url.equals(lastMusicArtUrl)) return;
         lastMusicArtUrl = url;
+        final Context app = getApplicationContext();
         new Thread(() -> {
-            android.graphics.Bitmap bmp = null;
+            android.graphics.Bitmap bmp = CoverCache.get(app, track);
+            if (bmp != null) { applyMusicArt(url, bmp); return; }
             try {
                 if (url.startsWith("content:") || url.startsWith("file:") || url.startsWith("android.resource:")) {
                     // A session's art URI (Bluetooth cover art) is local.
@@ -2053,11 +2073,18 @@ public class ComfortActivity extends Activity {
                 } else {
                     java.net.HttpURLConnection conn =
                         (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
-                    conn.setConnectTimeout(6000); conn.setReadTimeout(6000);
-                    bmp = android.graphics.BitmapFactory.decodeStream(conn.getInputStream());
+                    try {
+                        conn.setConnectTimeout(6000); conn.setReadTimeout(6000);
+                        try (java.io.InputStream in = conn.getInputStream()) {
+                            bmp = android.graphics.BitmapFactory.decodeStream(in);
+                        }
+                    } finally { conn.disconnect(); }
                 }
             } catch (Throwable t) { android.util.Log.w(CarAccess.TAG, "music art: " + t); }
-            if (bmp != null) applyMusicArt(url, bmp);
+            if (bmp != null) {
+                applyMusicArt(url, bmp);
+                CoverCache.put(app, track, bmp);
+            }
         }, "music-art").start();
     }
 
@@ -2436,10 +2463,6 @@ public class ComfortActivity extends Activity {
                 try { activeUpdateDialog.dismiss(); } catch (Throwable ignored) {}
                 activeUpdateDialog = null;
             }
-            if (activeCostDialog != null && activeCostDialog.isShowing()) {
-                try { activeCostDialog.dismiss(); } catch (Throwable ignored) {}
-                activeCostDialog = null;
-            }
             BackupDialogs.dismissOffer();
         } else {
             // SAFELY PARKED: present pending update if one was deferred while driving
@@ -2468,7 +2491,8 @@ public class ComfortActivity extends Activity {
         chargeActiveIcon.setColorFilter(plugColor, android.graphics.PorterDuff.Mode.SRC_IN);
 
         long elapsedMs = Math.max(0, nowWallMs - startWallMs);
-        SpannableStringBuilder hero = new SpannableStringBuilder(formatElapsed(elapsedMs));
+        SpannableStringBuilder hero = new SpannableStringBuilder(
+            Style.durationWithUnits(elapsedMs, Style.UNIT_SCALE_ROW));   // h and m smaller than the digits
         Long remainingMs = ChargeSession.estimateRemainingMs(socNow, elapsedMs);
         String status;
         if (socNow >= 100) {

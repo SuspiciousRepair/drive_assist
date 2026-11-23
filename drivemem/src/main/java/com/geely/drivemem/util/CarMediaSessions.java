@@ -65,6 +65,8 @@ public final class CarMediaSessions {
         // cable is pulled it keeps saying "playing" and just stops sending.
         long lastPlayingPush;   // elapsedRealtime of the last "playing" update
         int ticks;              // updates in a row, each within TICK_GAP_MS
+        int failures;           // link attempts failed in a row (relinkSoon)
+        Runnable retry;         // the pending new attempt, if any
         final MediaController.Callback cb = new MediaController.Callback() {
             @Override public void onMetadataChanged(MediaMetadata m) { follow(); }
             @Override public void onPlaybackStateChanged(PlaybackState s) {
@@ -78,7 +80,7 @@ public final class CarMediaSessions {
                 }
                 follow();
             }
-            @Override public void onSessionDestroyed() { drop(Link.this); follow(); }
+            @Override public void onSessionDestroyed() { drop(Link.this); follow(); relinkSoon(Link.this); }
         };
         Link(ComponentName name) { this.name = name; }
     }
@@ -97,10 +99,13 @@ public final class CarMediaSessions {
         main.removeCallbacks(hide);
         for (Link l : links) {
             drop(l);
+            if (l.retry != null) main.removeCallbacks(l.retry);
             try { l.browser.disconnect(); } catch (Throwable ignored) { }
         }
         links.clear();
         current = null;
+        artKey = null;
+        art = null;
         MusicState.setSession(null, null);
     }
 
@@ -125,23 +130,64 @@ public final class CarMediaSessions {
 
     private static void link(ComponentName c) {
         final Link l = new Link(c);
+        links.add(l);
+        connect(l);
+    }
+
+    // A fresh MediaBrowser for each attempt: one that failed or was
+    // disconnected is not reused.
+    private static void connect(final Link l) {
+        final ComponentName c = l.name;
         l.browser = new MediaBrowser(app, c, new MediaBrowser.ConnectionCallback() {
             @Override public void onConnected() {
                 if (!running) return;
                 try {
                     l.controller = new MediaController(app, l.browser.getSessionToken());
                     l.controller.registerCallback(l.cb, main);
+                    l.failures = 0;
                     Log.i(TAG, "music: linked to " + c.getPackageName());
-                } catch (Throwable t) { Log.w(TAG, "music " + c.getPackageName() + ": " + t); }
+                } catch (Throwable t) {
+                    Log.w(TAG, "music " + c.getPackageName() + ": " + t);
+                    relinkSoon(l);
+                }
                 follow();
             }
             @Override public void onConnectionFailed() {
                 Log.i(TAG, "music: " + c.getPackageName() + " did not link");
+                relinkSoon(l);
             }
-            @Override public void onConnectionSuspended() { drop(l); follow(); }
+            @Override public void onConnectionSuspended() { drop(l); follow(); relinkSoon(l); }
         }, null);
-        links.add(l);
-        try { l.browser.connect(); } catch (Throwable t) { Log.w(TAG, "music " + c.getPackageName() + ": " + t); }
+        try { l.browser.connect(); } catch (Throwable t) {
+            Log.w(TAG, "music " + c.getPackageName() + ": " + t);
+            relinkSoon(l);
+        }
+    }
+
+    /** The first wait before a new link attempt; it doubles up to RELINK_MAX_MS. */
+    static final long RELINK_FIRST_MS = 15_000;
+    static final long RELINK_MAX_MS = 5 * 60_000L;
+
+    /** How long to wait after this many failed attempts in a row. */
+    static long relinkDelayMs(int failures) {
+        long d = RELINK_FIRST_MS;
+        for (int i = 0; i < failures && d < RELINK_MAX_MS; i++) d *= 2;
+        return Math.min(d, RELINK_MAX_MS);
+    }
+
+    // A car app that failed to link, or lost its session (the car's media
+    // app restarted), is linked again later. Without this it stayed
+    // unlinked until Drive Assist restarted.
+    private static void relinkSoon(final Link l) {
+        if (!running || l.retry != null) return;
+        long wait = relinkDelayMs(l.failures++);
+        l.retry = () -> {
+            l.retry = null;
+            if (!running || l.controller != null) return;
+            try { l.browser.disconnect(); } catch (Throwable ignored) { }
+            connect(l);
+        };
+        main.postDelayed(l.retry, wait);
     }
 
     private static void drop(Link l) {
@@ -180,15 +226,42 @@ public final class CarMediaSessions {
         return c.getPlaybackState();
     }
 
-    // Picks the session to follow: one that plays, else the first with a title.
+    /** A session the card no longer believes: "playing" but silent (a
+     * ticking player that stopped sending), "playing" past its song's end
+     * for longer than STALE_GRACE_MS, or paused for PAUSED_SHOW_MS. */
+    static boolean gone(boolean playing, int ticks, long lastPlayingPush, long endsAt,
+                        long positionAtMs, long nowMs) {
+        long silent = silentAt(playing, ticks, lastPlayingPush);
+        if (silent > 0 && nowMs >= silent) return true;
+        if (endsAt > 0 && nowMs >= endsAt + STALE_GRACE_MS) return true;
+        long paused = pausedHideAt(playing, positionAtMs);
+        return paused > 0 && nowMs >= paused;
+    }
+
+    private static boolean gone(Link l, PlaybackState st, long nowMs) {
+        if (st == null) return false;
+        boolean playing = st.getState() == PlaybackState.STATE_PLAYING;
+        MediaMetadata m = l.controller == null ? null : l.controller.getMetadata();
+        long dur = m == null ? 0 : Math.max(0, m.getLong(MediaMetadata.METADATA_KEY_DURATION));
+        long at = st.getLastPositionUpdateTime();
+        long ends = endsAt(playing, Math.max(0, st.getPosition()), at > 0 ? at : nowMs, dur);
+        return gone(playing, l.ticks, l.lastPlayingPush, ends, at, nowMs);
+    }
+
+    // Picks the session to follow: one that plays, else the first with a
+    // title. A session the card no longer believes (gone) is skipped, so a
+    // CarPlay session frozen on "playing" after the cable came out does not
+    // hide live Bluetooth music.
     private static void follow() {
         if (!running) return;
         MediaController pick = null;
+        long now = android.os.SystemClock.elapsedRealtime();
         for (Link l : links) {
             MediaController c = l.controller;
             if (c == null) continue;
             PlaybackState st = stateOf(c);
             if (st != null && ended(st.getState())) continue;
+            if (gone(l, st, now)) continue;
             if (st != null && st.getState() == PlaybackState.STATE_PLAYING) { pick = c; break; }
             if (pick == null && title(c.getMetadata()) != null) pick = c;
         }
@@ -255,6 +328,7 @@ public final class CarMediaSessions {
         if (silentAt > 0 && now >= silentAt) {
             Log.i(TAG, "music: " + c.getPackageName() + " stopped sending while playing, hiding the card");
             MusicState.setSession(null, null);
+            main.post(CarMediaSessions::follow);   // another player may be live
             return;
         }
         long ends = endsAt(t.playing, t.progressMs, t.progressAtMs, t.durationMs);
@@ -262,6 +336,7 @@ public final class CarMediaSessions {
         if (hideAt > 0 && now >= hideAt) {
             Log.i(TAG, "bt music: " + c.getPackageName() + " says playing past the song's end, hiding the card");
             MusicState.setSession(null, null);
+            main.post(CarMediaSessions::follow);   // another player may be live
             return;
         }
         // Paused for long: the phone left, or nobody will press Play again.
@@ -271,16 +346,17 @@ public final class CarMediaSessions {
         if (pausedHideAt > 0 && now >= pausedHideAt) {
             Log.i(TAG, "music: " + c.getPackageName() + " paused for long, hiding the card");
             MusicState.setSession(null, null);
+            main.post(CarMediaSessions::follow);   // another player may be live
             return;
         }
         long wake = hideAt > 0 ? hideAt : ends > 0 ? ends : pausedHideAt;
         if (silentAt > 0 && (wake <= 0 || silentAt < wake)) wake = silentAt;
         if (wake > 0) main.postDelayed(staleCheck, Math.max(0, wake - now) + 1000);
-        android.graphics.Bitmap art = m.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
-        if (art == null) art = m.getBitmap(MediaMetadata.METADATA_KEY_ART);
-        if (art == null) art = m.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON);
-        t.artImage = art;
-        if (art == null) {
+        android.graphics.Bitmap pic = m.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
+        if (pic == null) pic = m.getBitmap(MediaMetadata.METADATA_KEY_ART);
+        if (pic == null) pic = m.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON);
+        t.artImage = sameArt(c.getPackageName(), t.id, pic);
+        if (pic == null) {
             String u = m.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI);
             if (u == null) u = m.getString(MediaMetadata.METADATA_KEY_ART_URI);
             t.artUrl = u;
@@ -293,6 +369,27 @@ public final class CarMediaSessions {
             }
             @Override public void next() { press(c, KeyEvent.KEYCODE_MEDIA_NEXT); }
         });
+    }
+
+    // Every read of a session's metadata makes a new Bitmap, even for the
+    // same cover. CarPlay sends an update every ~5 s, so the card loaded and
+    // blurred the same cover again each time. The first picture of a track is
+    // kept and handed out again while the track and its size stay the same.
+    private static String artKey;
+    private static android.graphics.Bitmap art;
+
+    private static android.graphics.Bitmap sameArt(String pkg, String trackId, android.graphics.Bitmap pic) {
+        if (pic == null) return null;
+        String key = artKey(pkg, trackId, pic.getWidth(), pic.getHeight());
+        if (key.equals(artKey) && art != null) return art;
+        artKey = key;
+        art = pic;
+        return pic;
+    }
+
+    /** The picture is the same when the player, the track and the size are. */
+    static String artKey(String pkg, String trackId, int w, int h) {
+        return pkg + "|" + trackId + "|" + w + "x" + h;
     }
 
     /** When a playing track reaches its end (elapsedRealtime); 0 when paused

@@ -36,6 +36,9 @@ import java.util.Locale;
 public class ChargeDetailActivity extends Activity {
     static final String EXTRA_CHARGE_ID = "charge_id";
     private static final long LIVE_REFRESH_MS = 15_000L;
+    // A live page opened after its charge ended takes only a charge that
+    // ended this recently (plus the grace period).
+    private static final long RECENT_END_MS = 10 * 60_000L;
 
     /** The charge with this row id. */
     static Intent intent(Context c, long chargeId) {
@@ -55,10 +58,13 @@ public class ChargeDetailActivity extends Activity {
     private long chargeId;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private boolean resumed;
+    private long liveStartMs = -1;   // start of the open charge this page followed
 
     /** What load() found. */
     static final class Loaded {
-        boolean found, active, dc;
+        boolean found, dc;
+        boolean active;      // current flows now: "Charging now"
+        boolean following;   // the open charge (also in its 3 min grace): keep refreshing
         long id = -1, startMs, endMs, nextTripMs = -1;
         int socStart, socEnd;
         double kwh, avgPowerW = Double.NaN;
@@ -156,11 +162,11 @@ public class ChargeDetailActivity extends Activity {
     private void reload() {
         final long id = chargeId;
         new Thread(() -> {
-            Loaded d = load(getApplicationContext(), id);
+            Loaded d = load(getApplicationContext(), id, liveStartMs);
             runOnUiThread(() -> {
                 if (!resumed || isFinishing()) return;
                 show(d);
-                if (d.active) {
+                if (d.following) {
                     ui.removeCallbacksAndMessages(null);
                     ui.postDelayed(this::reload, LIVE_REFRESH_MS);
                 }
@@ -168,7 +174,8 @@ public class ChargeDetailActivity extends Activity {
         }, "charge-detail").start();
     }
 
-    static Loaded load(Context ctx, long id) {
+    /** liveStartMs: start of the open charge this page showed before, or -1. */
+    static Loaded load(Context ctx, long id, long liveStartMs) {
         Loaded d = new Loaded();
         try {
             android.database.sqlite.SQLiteDatabase db = CarDb.get(ctx).db();
@@ -176,23 +183,39 @@ public class ChargeDetailActivity extends Activity {
             if (id < 0 && !ChargeSession.isSessionActive()) {
                 // The live charge ended while the page was open (or before
                 // it opened): show the charge it became.
-                Cursor last = db.rawQuery("SELECT id FROM charge_session ORDER BY end_ms DESC LIMIT 1", null);
+                // Only a charge that ended just now (or the one this page
+                // followed): never an older, unrelated one. A charge too
+                // short to be kept has no row, and the page closes.
+                long since = liveStartMs > 0 ? liveStartMs
+                    : now - ChargeSession.CHARGE_GRACE_PERIOD_MS - RECENT_END_MS;
+                Cursor last = db.rawQuery("SELECT id FROM charge_session WHERE end_ms >= ? "
+                    + "ORDER BY end_ms DESC LIMIT 1", new String[]{String.valueOf(since)});
                 try { if (last.moveToFirst()) id = last.getLong(0); }
                 finally { last.close(); }
                 if (id < 0) return d;
             }
             if (id < 0) {
                 d.found = true;
-                d.active = true;
+                d.following = true;
+                // In the 3 min after the current stops, the charge is still
+                // open (it may go on), but it is not "Charging now".
+                d.active = ChargeSession.isCharging();
+                long paused = ChargeSession.currentPauseWallMs();
                 d.id = ChargeSession.activeRowId();
                 d.startMs = ChargeSession.currentStartWallMs();
-                d.endMs = now;
+                d.endMs = d.active || paused <= 0 ? now : paused;
                 d.socStart = ChargeSession.currentSocStart();
                 d.socEnd = ChargeSession.currentSocEnd();
                 d.kwh = ChargeSession.currentKwh();
                 d.dc = ChargeSession.currentIsDcfc();
                 long ms = d.endMs - d.startMs;
                 if (ms > 0) d.avgPowerW = d.kwh * 1000.0 / (ms / 3_600_000.0);
+                if (!d.active && d.id > 0) {   // the cost button shows in the grace too
+                    Cursor cc = db.rawQuery("SELECT cost FROM charge_session WHERE id = ?",
+                        new String[]{String.valueOf(d.id)});
+                    try { if (cc.moveToFirst() && !cc.isNull(0)) d.cost = cc.getDouble(0); }
+                    finally { cc.close(); }
+                }
                 if (Prefs.getRecordRoutes(ctx)) {
                     Cursor pc = db.rawQuery(CarDb.CHARGE_PLACE_SQL,
                         new String[]{String.valueOf(d.startMs), String.valueOf(d.startMs)});
@@ -247,7 +270,8 @@ public class ChargeDetailActivity extends Activity {
 
     private void show(Loaded d) {
         if (!d.found) { finish(); return; }
-        if (!d.active && d.id > 0) chargeId = d.id;   // a live page whose charge ended
+        if (d.following) liveStartMs = d.startMs;
+        else if (d.id > 0) chargeId = d.id;   // a live page whose charge ended
         String when = android.text.format.DateFormat.getMediumDateFormat(this).format(new java.util.Date(d.startMs))
             + "  " + SessionText.clock(d.startMs) + (d.active ? "" : " – " + SessionText.clock(d.endMs));
         title.setText(getString(d.active ? R.string.charge_detail_live : R.string.charge_detail_title)
@@ -277,7 +301,12 @@ public class ChargeDetailActivity extends Activity {
         blocks.clear();
         int typeColor = d.dc ? Style.GOOD : Style.ACCENT;
         // Every unit smaller and dimmer than its number (docs/STYLE-GUIDE.md).
-        stat(R.string.session_stat_battery, Style.percentRange(d.socStart, d.socEnd, Style.UNIT_SCALE_ROW), null, Style.TEXT, null);
+        // A level unknown at plug-in is saved as -1: never show "-1%".
+        CharSequence battery = d.socStart >= 0 && d.socEnd >= 0
+            ? Style.percentRange(d.socStart, d.socEnd, Style.UNIT_SCALE_ROW)
+            : d.socEnd >= 0 ? Style.valueWithUnit(String.valueOf(d.socEnd), null, "%", Style.UNIT_SCALE_ROW)
+            : getString(R.string.value_unavailable);
+        stat(R.string.session_stat_battery, battery, null, Style.TEXT, null);
         stat(R.string.session_stat_charged_energy, Style.valueWithUnit(
             String.format(Locale.getDefault(), "+%.1f", d.kwh), typeColor, "kWh", Style.UNIT_SCALE_ROW), null, Style.TEXT, null);
         stat(R.string.charge_detail_charging, Style.durationWithUnits(d.endMs - d.startMs, Style.UNIT_SCALE_ROW), null, Style.TEXT, null);

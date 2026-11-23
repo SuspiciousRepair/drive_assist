@@ -7,6 +7,11 @@ public final class BrakeSignalTest {
     }
 
     public static void main(String[] args) {
+        // Only Drive Assist may report (the maker of the message's PendingIntent).
+        check(BrakeSignal.fromDriveAssist("com.geely.drivemem"), "Drive Assist is believed");
+        check(!BrakeSignal.fromDriveAssist(null), "a message without proof is dropped");
+        check(!BrakeSignal.fromDriveAssist("com.other.app"), "another app is dropped");
+
         // Nothing heard: nothing shown.
         check(!new BrakeSignal().take(1_000), "nothing heard must show nothing");
 

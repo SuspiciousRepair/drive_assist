@@ -240,6 +240,16 @@ public class ModeHelperService extends Service {
             // the pedal is down. See BrakeSignal.
             registerReceiver(new BroadcastReceiver() {
                 @Override public void onReceive(Context c, Intent it) {
+                    // Only Drive Assist: see BrakeSignal.
+                    String from = null;
+                    try {
+                        android.app.PendingIntent pi = it.getParcelableExtra(BrakeSignal.EXTRA_FROM);
+                        if (pi != null) from = pi.getCreatorPackage();
+                    } catch (Throwable ignored) {}
+                    if (!BrakeSignal.fromDriveAssist(from)) {
+                        Log.w(TAG, "dash brake ignored: not from Drive Assist (" + from + ")");
+                        return;
+                    }
                     BrakeSignal.SHARED.report(it.getIntExtra(BrakeSignal.EXTRA, -1), SystemClock.elapsedRealtime());
                 }
             }, new IntentFilter(BrakeSignal.ACTION));

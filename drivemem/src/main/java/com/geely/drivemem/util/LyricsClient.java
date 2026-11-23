@@ -18,7 +18,8 @@ import java.nio.charset.StandardCharsets;
  *
  * One request per track, made when the track starts. The answer is kept in
  * the cache folder, one file per track id (CarMediaSessions.trackKey), so a
- * song heard again costs no network. A track
+ * song heard again costs no network. The MAX_FILES songs heard last are
+ * kept (a hit counts as heard now). A track
  * with no synced lyrics is kept too, as an empty file, and asked again
  * after NONE_RETRY_MS (LRCLIB grows). A network failure is not kept: the
  * next request for that track tries again, at most once per RETRY_MS.
@@ -31,7 +32,8 @@ public final class LyricsClient {
     private static final String BASE = "https://lrclib.net/api";
     private static final long NONE_RETRY_MS = 7L * 24 * 3600_000L;
     private static final long RETRY_MS = 60_000L;
-    private static final int MAX_FILES = 300;
+    // About 3 KB a song: 1000 songs are about 3 MB.
+    static final int MAX_FILES = 1000;
     /** A search hit counts only when its length is this close to the track's. */
     static final int DURATION_TOLERANCE_S = 3;
 
@@ -101,7 +103,13 @@ public final class LyricsClient {
             boolean none = f.length() == 0;
             if (!none || System.currentTimeMillis() - f.lastModified() < NONE_RETRY_MS) {
                 String cached = read(f);
-                if (cached != null) return cached;
+                if (cached != null) {
+                    // Heard now: it stays in the cache. Not for "none": its
+                    // time says when to ask LRCLIB again.
+                    if (!none) //noinspection ResultOfMethodCallIgnored
+                        f.setLastModified(System.currentTimeMillis());
+                    return cached;
+                }
             }
         }
         String lrc = fetch(app, title, artist, album, durationMs);
@@ -109,7 +117,7 @@ public final class LyricsClient {
         try {
             if (dir.isDirectory() || dir.mkdirs()) {
                 java.nio.file.Files.write(f.toPath(), lrc.getBytes(StandardCharsets.UTF_8));
-                trim(dir);
+                FileCache.trim(dir, MAX_FILES);
             }
         } catch (Throwable t) { Log.w(TAG, "lyrics cache: " + t); }
         return lrc;
@@ -207,9 +215,9 @@ public final class LyricsClient {
     }
 
     private static Http get(Context app, String path) {
+        java.net.HttpURLConnection c = null;
         try {
-            java.net.HttpURLConnection c =
-                (java.net.HttpURLConnection) new java.net.URL(BASE + path).openConnection();
+            c = (java.net.HttpURLConnection) new java.net.URL(BASE + path).openConnection();
             c.setRequestProperty("User-Agent", userAgent(app));
             c.setConnectTimeout(8000); c.setReadTimeout(8000);
             int code = c.getResponseCode();
@@ -220,6 +228,10 @@ public final class LyricsClient {
         } catch (Throwable t) {
             Log.w(TAG, "lyrics fetch: " + t);
             return null;
+        } finally {
+            // Frees the socket, also after a 404 (no lyrics), whose body
+            // is never read.
+            if (c != null) c.disconnect();
         }
     }
 
@@ -241,15 +253,6 @@ public final class LyricsClient {
     private static String read(File f) {
         try { return new String(java.nio.file.Files.readAllBytes(f.toPath()), StandardCharsets.UTF_8); }
         catch (Throwable t) { return null; }
-    }
-
-    /** Keeps the newest MAX_FILES files. */
-    private static void trim(File dir) {
-        File[] all = dir.listFiles();
-        if (all == null || all.length <= MAX_FILES) return;
-        java.util.Arrays.sort(all, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
-        for (int i = MAX_FILES; i < all.length; i++) //noinspection ResultOfMethodCallIgnored
-            all[i].delete();
     }
 
     private static byte[] readAllBytes(java.io.InputStream in) throws java.io.IOException {

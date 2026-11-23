@@ -100,7 +100,7 @@ cd drivemem && ./build.sh             # compile, verify guard, publish, and inst
 
 ### 1. Vehicle Safety & Park (`P`) Enforcement
 * **Never show update modals while driving**: Update prompts and changelog modals must only appear when the vehicle is in Park (`CarState.isParked() == true`).
-* If the vehicle shifts out of Park while a dialog is displayed, the dialog is immediately dismissed.
+* If the vehicle shifts out of Park while an update or changelog dialog is displayed, that dialog is immediately dismissed. Other windows (for example the charge cost window) do not follow this rule.
 * OTA installations are blocked while the vehicle is in motion.
 
 ### 2. Display Sizing (1920 x 1080 @ 1.0 Density)

@@ -467,7 +467,6 @@
     <string name="charge_cost_btn_dismiss">Descartar</string>
     <string name="charge_cost_not_set">Coste no especificado</string>
     <string name="charge_cost_invalid">Valor de coste no válido</string>
-    <string name="charge_cost_parked_only">El coste solo se puede introducir con el vehículo estacionado.</string>
     <string name="charge_stat_total_cost">Coste total</string>
     <string name="charge_stat_avg_cost_kwh">Coste / kWh</string>
     <string name="charge_stat_cost_100km">Coste / 100 km</string>
