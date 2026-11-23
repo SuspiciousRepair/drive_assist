@@ -154,9 +154,9 @@
   app lost its link, the card stayed empty until Drive Assist restarted.
   Now it tries again after 15 s, then less often.
 - **The car keeps more songs.** Lyrics of the last 1000 songs (was 300;
-  about 3 MB) and, new, the covers of the last 200 (about 10 MB). A song
-  heard again counts as new, so favourites stay. A Bluetooth song with no
-  cover shows the one seen before for it.
+  about 3 MB) and, new, one cover for each of the last 200 albums (about 10 MB). A
+  song heard again counts as new, so favourites stay. A Bluetooth song with
+  no cover shows its album's cover, if seen before.
 - **The cover is not loaded again on every update.** CarPlay sends an
   update every 5 s, and each one loaded and blurred the same cover again.
 - **Only Drive Assist can put BRAKE in a dashcam clip.** Another app could

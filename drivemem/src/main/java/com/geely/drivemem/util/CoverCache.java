@@ -10,12 +10,13 @@ import com.geely.drivemem.car.CarAccess;
 import java.io.File;
 import java.io.FileOutputStream;
 
-/** Album covers kept on the head unit, one file per song
- * (CarMediaSessions.trackKey: artist + title, the same for every player).
+/** Album covers kept on the head unit, one file per album ({@link #key}:
+ * artist + album, the same for every player). A song with no album name
+ * gets a file of its own (its track key).
  *
  * A cover seen once comes back without the phone: a song that Bluetooth
- * plays with no cover shows the one CarPlay sent for it before, and a cover
- * URL is downloaded once. Kept: the MAX_FILES songs heard last, each a JPEG
+ * plays with no cover shows the one CarPlay sent for its album before, and a
+ * cover URL is downloaded once. Kept: the MAX_FILES albums heard last, each a JPEG
  * of at most MAX_SIDE px (about 30-60 KB, about 10 MB in all), in the app's
  * cache folder, which Android may empty when storage runs low.
  *
@@ -27,14 +28,23 @@ public final class CoverCache {
 
     private CoverCache() {}
 
-    private static File file(Context ctx, String trackId) {
-        return new File(new File(ctx.getCacheDir(), "covers"), LyricsClient.safeName(trackId) + ".jpg");
+    /** The file key of a song's cover: its album (artist + album, case and
+     * spaces ignored), or the song's own track key when it has no album. */
+    public static String key(String artist, String album, String trackId) {
+        if (album == null || album.trim().isEmpty()) return trackId;
+        String s = (artist == null ? "" : artist.trim().toLowerCase(java.util.Locale.ROOT)) + "\n"
+            + album.trim().toLowerCase(java.util.Locale.ROOT);
+        return "a-" + java.util.UUID.nameUUIDFromBytes(s.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
-    /** The kept cover of this song, or null. A hit counts as heard now. */
-    public static Bitmap get(Context ctx, String trackId) {
-        if (trackId == null) return null;
-        File f = file(ctx, trackId);
+    private static File file(Context ctx, String key) {
+        return new File(new File(ctx.getCacheDir(), "covers"), LyricsClient.safeName(key) + ".jpg");
+    }
+
+    /** The kept cover for this key, or null. A hit counts as heard now. */
+    public static Bitmap get(Context ctx, String key) {
+        if (key == null) return null;
+        File f = file(ctx, key);
         if (!f.isFile()) return null;
         Bitmap b = BitmapFactory.decodeFile(f.getPath());
         if (b != null) //noinspection ResultOfMethodCallIgnored
@@ -42,10 +52,10 @@ public final class CoverCache {
         return b;
     }
 
-    /** Keeps this cover for the song, if it is not kept yet. */
-    public static void put(Context ctx, String trackId, Bitmap b) {
-        if (trackId == null || b == null || b.getWidth() <= 0 || b.getHeight() <= 0) return;
-        File f = file(ctx, trackId);
+    /** Keeps this cover for the key, if none is kept yet. */
+    public static void put(Context ctx, String key, Bitmap b) {
+        if (key == null || b == null || b.getWidth() <= 0 || b.getHeight() <= 0) return;
+        File f = file(ctx, key);
         if (f.isFile()) return;
         File dir = f.getParentFile();
         if (dir == null || !(dir.isDirectory() || dir.mkdirs())) return;

@@ -2027,11 +2027,12 @@ public class ComfortActivity extends Activity {
     // only moves `playing` does not re-fetch the same picture.
     // The picture for what MusicState shows: a Bitmap the car's media
     // session handed over (phone music), else its URL.
-    // Every cover shown is kept on the head unit (CoverCache), so a song with
-    // no cover (Bluetooth often sends none) shows the one seen before.
+    // Every cover shown is kept on the head unit (CoverCache, one per album),
+    // so a song with no cover (Bluetooth often sends none) shows its album's.
     private void showMusicArt() {
         Object img = MusicState.artImage();
-        final String track = MusicState.trackId();
+        // One cover per album: every song of an album shares it.
+        final String track = CoverCache.key(MusicState.artist(), MusicState.album(), MusicState.trackId());
         final Context app = getApplicationContext();
         if (img instanceof android.graphics.Bitmap) {
             android.graphics.Bitmap b = (android.graphics.Bitmap) img;

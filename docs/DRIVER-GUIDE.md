@@ -136,7 +136,7 @@ Assistant panel is up, or when the other cards need more than one column.
 
 The lyrics come from [LRCLIB](https://lrclib.net), a free lyrics site. To find
 them, the car sends the song, artist and album names there, once for each song.
-The car keeps the lyrics of the last 1000 songs and the covers of the last 200,
+The car keeps the lyrics of the last 1000 songs and the covers of the last 200 albums,
 so a song heard again needs no internet.
 Some songs have only untimed lyrics on LRCLIB. The card shows them too, but they
 do not move by themselves: tap the lower half of the lyrics to go down one line,

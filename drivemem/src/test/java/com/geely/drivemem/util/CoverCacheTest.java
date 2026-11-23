@@ -42,4 +42,14 @@ public class CoverCacheTest {
             dir.delete();
         }
     }
+
+    @Test public void songsOfOneAlbumShareOneCover() {
+        String a = CoverCache.key("Queen", "A Night at the Opera", "s-1");
+        assertEquals(a, CoverCache.key("queen ", "a night at the opera", "s-2"));
+        assertFalse(a.equals(CoverCache.key("Queen", "Jazz", "s-1")));
+        assertFalse(a.equals(CoverCache.key("Other", "A Night at the Opera", "s-1")));
+        // No album name: the song's own key.
+        assertEquals("s-3", CoverCache.key("Queen", "", "s-3"));
+        assertEquals("s-3", CoverCache.key("Queen", null, "s-3"));
+    }
 }
