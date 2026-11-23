@@ -891,7 +891,7 @@
     <string name="diary_due_badge">Pendente</string>
     <string name="diary_hint_cost_short">Valor</string>
     <string name="diary_hint_note_short">Nota</string>
-    <string name="diary_cat_balance_100">Balanceamento 100%</string>
+    <string name="diary_cat_balance_100">Recarga até 100%</string>
     <string name="diary_at_km_prefix">aos %1$s km</string>
     <string name="diary_coolant_topup">Completar</string>
     <string name="diary_coolant_change">Troca completa</string>
