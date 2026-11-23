@@ -70,6 +70,7 @@ public final class CarMediaSessions {
         if (!running) return;
         running = false;
         main.removeCallbacks(staleCheck);
+        main.removeCallbacks(hide);
         for (Link l : links) {
             drop(l);
             try { l.browser.disconnect(); } catch (Throwable ignored) { }
@@ -155,14 +156,26 @@ public final class CarMediaSessions {
     private static final Runnable staleCheck = CarMediaSessions::publish;
     private static String loggedState;
 
+    // A skip on CarPlay drops the song for a moment before the next one
+    // comes, which hid the card and showed it again on every skip. The card
+    // now waits HIDE_WAIT_MS; a song that comes back in that time cancels it.
+    static final long HIDE_WAIT_MS = 3000;
+    private static final Runnable hide = () -> MusicState.setSession(null, null);
+
+    private static void hideSoon() {
+        main.removeCallbacks(hide);
+        main.postDelayed(hide, HIDE_WAIT_MS);
+    }
+
     private static void publish() {
         main.removeCallbacks(staleCheck);
         final MediaController c = current;
         MediaMetadata m = c == null ? null : c.getMetadata();
         String title = title(m);
-        if (c == null || title == null || !running) { MusicState.setSession(null, null); return; }
-        PlaybackState st = c.getPlaybackState();
-        if (st != null && ended(st.getState())) { MusicState.setSession(null, null); return; }
+        if (!running) { main.removeCallbacks(hide); MusicState.setSession(null, null); return; }
+        PlaybackState st = c == null ? null : c.getPlaybackState();
+        if (c == null || title == null || (st != null && ended(st.getState()))) { hideSoon(); return; }
+        main.removeCallbacks(hide);
         MusicState.Track t = new MusicState.Track();
         t.title = title;
         t.artist = m.getString(MediaMetadata.METADATA_KEY_ARTIST);
