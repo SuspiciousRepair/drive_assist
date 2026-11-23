@@ -10,9 +10,10 @@ import java.nio.file.Files;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-/** Unit tests for RHD resolution, mirroring primitives, and effort scale pill ordering. */
+/** Unit tests for RHD detection, resolution, and mirroring primitives. */
 public class StyleRhdTest {
 
     @After public void resetRhd() {
@@ -25,19 +26,19 @@ public class StyleRhdTest {
         return CarCaps.read(f);
     }
 
-    @Test public void autoModeFollowsCarCapsRhd() throws Exception {
+    @Test public void detectDriveSideOnlyCommitsKnownCarCapsValues() throws Exception {
         CarCaps rhdCar = caps("cameras=yes\nconfig=0623\nrhd=1\n");
         CarCaps lhdCar = caps("cameras=yes\nconfig=0623\nrhd=0\n");
         CarCaps unknownCar = caps("cameras=unknown\n");
         CarCaps oldCar = caps("cameras=yes\nconfig=0623\n");
         CarCaps negativeRhd = caps("cameras=yes\nconfig=0623\nrhd=-1\n");
 
-        assertTrue(Style.resolveRhd(Style.DRIVE_SIDE_AUTO, rhdCar));
-        assertFalse(Style.resolveRhd(Style.DRIVE_SIDE_AUTO, lhdCar));
-        assertFalse(Style.resolveRhd(Style.DRIVE_SIDE_AUTO, unknownCar));
-        assertFalse(Style.resolveRhd(Style.DRIVE_SIDE_AUTO, oldCar));
-        assertFalse(Style.resolveRhd(Style.DRIVE_SIDE_AUTO, negativeRhd));
-        assertFalse(Style.resolveRhd(Style.DRIVE_SIDE_AUTO, null));
+        assertEquals(Style.DRIVE_SIDE_RIGHT, Style.detectDriveSide(rhdCar));
+        assertEquals(Style.DRIVE_SIDE_LEFT, Style.detectDriveSide(lhdCar));
+        assertNull(Style.detectDriveSide(unknownCar));
+        assertNull(Style.detectDriveSide(oldCar));
+        assertNull(Style.detectDriveSide(negativeRhd));
+        assertNull(Style.detectDriveSide(null));
     }
 
     @Test public void manualLeftAndRightOverrideCarCaps() throws Exception {
@@ -53,12 +54,18 @@ public class StyleRhdTest {
         assertTrue(Style.resolveRhd(Style.DRIVE_SIDE_RIGHT, null));
     }
 
-    @Test public void nullOrUnknownModeFallsBackToAuto() throws Exception {
+    @Test public void unsetOrLegacyAutoFallsBackToCarCaps() throws Exception {
         CarCaps rhdCar = caps("cameras=yes\nconfig=0623\nrhd=1\n");
         CarCaps lhdCar = caps("cameras=yes\nconfig=0623\nrhd=0\n");
+        CarCaps unknownCar = caps("cameras=unknown\n");
 
         assertTrue(Style.resolveRhd(null, rhdCar));
         assertFalse(Style.resolveRhd(null, lhdCar));
+        assertFalse(Style.resolveRhd(null, unknownCar));
+        assertFalse(Style.resolveRhd(null, null));
+
+        assertTrue(Style.resolveRhd("auto", rhdCar));
+        assertFalse(Style.resolveRhd("auto", lhdCar));
         assertTrue(Style.resolveRhd("unexpected", rhdCar));
         assertFalse(Style.resolveRhd("unexpected", lhdCar));
         assertFalse(Style.resolveRhd("unexpected", null));

@@ -180,28 +180,45 @@ public class Style {
     public static final String APPEARANCE_AUTO  = "auto";
 
     // Right-hand drive layout: resolved once per load(Context) from the
-    // drive_side setting (Auto / Left / Right) and CarCaps.rhd.
+    // drive_side setting (Left / Right), seeded from CarCaps.rhd once known.
     public static boolean RHD = false;
-    public static final String DRIVE_SIDE_AUTO  = "auto";
     public static final String DRIVE_SIDE_LEFT  = "left";
     public static final String DRIVE_SIDE_RIGHT = "right";
 
-    /** Returns the saved driving position setting (Auto/Left/Right). */
+    /** Returns the effective driving position (Left or Right). When unset (or
+     * legacy "auto"), reads CarCaps.rhd and saves it once the car has reported
+     * "0" or "1", falling back to Left without saving until then. */
     public static String driveSide(Context c) {
-        return Prefs.getDriveSide(c, DRIVE_SIDE_AUTO);
+        String saved = Prefs.getDriveSide(c, null);
+        if (DRIVE_SIDE_LEFT.equals(saved) || DRIVE_SIDE_RIGHT.equals(saved)) return saved;
+        String detected = detectDriveSide(CarCaps.read(c));
+        if (detected != null) {
+            Prefs.setDriveSide(c, detected);
+            return detected;
+        }
+        return DRIVE_SIDE_LEFT;
     }
 
-    /** Saves the driving position setting and updates {@link #RHD}. */
+    /** Saves the driving position setting (Left or Right) and updates {@link #RHD}. */
     public static void setDriveSide(Context c, String mode) {
-        Prefs.setDriveSide(c, mode);
-        RHD = resolveRhd(mode, CarCaps.read(c));
+        String normalized = DRIVE_SIDE_RIGHT.equals(mode) ? DRIVE_SIDE_RIGHT : DRIVE_SIDE_LEFT;
+        Prefs.setDriveSide(c, normalized);
+        RHD = DRIVE_SIDE_RIGHT.equals(normalized);
     }
 
-    /** Pure resolver for RHD: LEFT -> false, RIGHT -> true, AUTO (or unknown) -> CarCaps.rhd == "1". */
+    /** Pure detector from car.caps: "1" -> RIGHT, "0" -> LEFT, unknown/missing -> null. */
+    static String detectDriveSide(CarCaps caps) {
+        if (caps == null) return null;
+        if ("1".equals(caps.rhd)) return DRIVE_SIDE_RIGHT;
+        if ("0".equals(caps.rhd)) return DRIVE_SIDE_LEFT;
+        return null;
+    }
+
+    /** Pure resolver for RHD: LEFT -> false, RIGHT -> true, unset/legacy -> CarCaps.rhd == "1". */
     public static boolean resolveRhd(String mode, CarCaps caps) {
         if (DRIVE_SIDE_RIGHT.equals(mode)) return true;
         if (DRIVE_SIDE_LEFT.equals(mode)) return false;
-        return caps != null && "1".equals(caps.rhd);
+        return DRIVE_SIDE_RIGHT.equals(detectDriveSide(caps));
     }
 
     /** Pure index mapping for mirrored horizontal rows and columns. */
@@ -313,7 +330,7 @@ public class Style {
     /** Loads the saved theme (or transient override) and applies it. Called at onCreate start. */
     public static void load(Context c) {
         Prefs.getCurrency(c);
-        RHD = resolveRhd(driveSide(c), CarCaps.read(c));
+        RHD = DRIVE_SIDE_RIGHT.equals(driveSide(c));
         String savedTheme = Prefs.getTheme(c, THEMES[0].id);
         if ("claro".equals(savedTheme)) {
             // Legacy: Claro theme merged into Default's light Palette; migrate to APPEARANCE_LIGHT.
