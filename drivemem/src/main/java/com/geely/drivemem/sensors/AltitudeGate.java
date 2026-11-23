@@ -63,6 +63,38 @@ public final class AltitudeGate {
         return max;
     }
 
+    /** GPS height is not trusted for this long after a trip starts. The
+     * GPS reports a good position (2 m) at once, but its height can be
+     * 75-145 m off and take one to two minutes to settle (owner car,
+     * 2026-11-23). Replayed on trips that start and end at home, a
+     * 2-minute wait made the climb and the descent match; 1 minute did
+     * not. */
+    public static final long WARM_UP_MS = 120_000L;
+
+    /** A route point whose position error is larger than this has a height
+     * that is not trusted. 99 % of points are at 1-3 m; the bad heights
+     * right after a tunnel and under a roof were at 6-10 m. */
+    public static final double MAX_ACCURACY_M = 4.0;
+
+    /** Route points: a copy of alt with NaN in the first
+     * {@link #WARM_UP_MS} after the first point and where the position
+     * error (acc, m) is over {@link #MAX_ACCURACY_M}. An unknown error
+     * (NaN) is kept. When that would leave no height at all (a trip
+     * shorter than the wait), alt comes back unchanged. */
+    public static double[] dropUnsure(double[] alt, long[] ts, double[] acc) {
+        int n = alt.length;
+        double[] out = alt.clone();
+        if (n == 0) return out;
+        boolean any = false;
+        for (int i = 0; i < n; i++) {
+            boolean warming = i < ts.length && ts[i] - ts[0] < WARM_UP_MS;
+            boolean vague = i < acc.length && acc[i] > MAX_ACCURACY_M;
+            if (warming || vague) out[i] = Double.NaN;
+            if (!Double.isNaN(out[i])) any = true;
+        }
+        return any ? out : alt.clone();
+    }
+
     /** Route points closer than this along the road judge each other. */
     static final double NEIGHBOUR_M = 500.0;
     /** And at most this many points on each side. */

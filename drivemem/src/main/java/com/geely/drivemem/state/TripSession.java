@@ -252,6 +252,8 @@ public final class TripSession {
         if (ctx != null) publishLive(ctx, num(data.get("odometer"), -1),
             data.get("battery") instanceof Integer ? (Integer) data.get("battery") : -1, now);
         if (wasParked) return; // stationary in park debounce: don't accumulate altitude jitter
+        // GPS height is not trusted until it settles after the car starts.
+        if (now - startMs < AltitudeGate.WARM_UP_MS) return;
         double[] loc = LocationHub.read(ctx);
         if (loc == null) return;
         double alt = loc[2];
@@ -484,7 +486,8 @@ public final class TripSession {
 
         long endSampleId = CarDb.get(ctx).latestSampleId();
         if (persistedStartSampleId >= 0 && endSampleId >= persistedStartSampleId) {
-            double[] ad = replayAscentDescent(readGearAndAltitude(ctx, persistedStartSampleId, endSampleId));
+            double[] ad = replayAscentDescent(
+                readGearAndAltitude(ctx, persistedStartSampleId, endSampleId), persistedStartMs);
             ascentM = ad[0];
             descentM = ad[1];
         }
@@ -559,15 +562,16 @@ public final class TripSession {
 
     private static Object[][] readGearAndAltitude(Context ctx, long startSampleId, long endSampleId) {
         Cursor c = CarDb.get(ctx).db().rawQuery(
-            "SELECT gear, altitude_m, odo_km FROM telemetry_sample WHERE id BETWEEN ? AND ? ORDER BY id",
+            "SELECT gear, altitude_m, odo_km, ts_ms FROM telemetry_sample WHERE id BETWEEN ? AND ? ORDER BY id",
             new String[]{String.valueOf(startSampleId), String.valueOf(endSampleId)});
         try {
-            Object[][] rows = new Object[c.getCount()][3];
+            Object[][] rows = new Object[c.getCount()][4];
             int i = 0;
             while (c.moveToNext()) {
                 rows[i][0] = c.isNull(0) ? null : c.getInt(0);
                 rows[i][1] = c.isNull(1) ? null : c.getDouble(1);
                 rows[i][2] = c.isNull(2) ? null : c.getDouble(2);
+                rows[i][3] = c.getLong(3);
                 i++;
             }
             return rows;
@@ -579,8 +583,14 @@ public final class TripSession {
      * DB read is kept separate in readGearAndAltitude(). Each row is
      * {Integer gear, Double altitude, Double odometer km}, any of which may
      * be null; the odometer may also be left out (a 2-element row), and a
-     * step without both odometers is never judged a jump. */
+     * step without both odometers is never judged a jump. A 4th element,
+     * Long ts_ms, drops the rows in the first AltitudeGate.WARM_UP_MS after
+     * tripStartMs, as onTelemetryTick does. */
     public static double[] replayAscentDescent(Object[][] gearAltitudeRows) {
+        return replayAscentDescent(gearAltitudeRows, Long.MIN_VALUE);
+    }
+
+    public static double[] replayAscentDescent(Object[][] gearAltitudeRows, long tripStartMs) {
         double ascent = 0, descent = 0;
         Double lastAlt = null;
         double lastOdo = Double.NaN;
@@ -589,8 +599,11 @@ public final class TripSession {
             Double alt = (Double) row[1];
             Double odoKm = row.length > 2 ? (Double) row[2] : null;
             double odo = odoKm != null ? odoKm : Double.NaN;
+            Long ts = row.length > 3 ? (Long) row[3] : null;
             if (gear == null || gear == Modes.GEAR_PARK_ADAPTED) continue; // parked: don't accumulate jitter
             if (alt == null) continue;
+            if (ts != null && tripStartMs != Long.MIN_VALUE
+                    && ts - tripStartMs < AltitudeGate.WARM_UP_MS) continue; // GPS height still settling
             if (lastAlt != null) {
                 double delta = alt - lastAlt;
                 if (Math.abs(delta) <= ALTITUDE_NOISE_M) continue; // within noise band — don't move the reference point either

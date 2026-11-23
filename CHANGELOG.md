@@ -32,9 +32,11 @@
   jump by 100 m or more while the car is stopped or slow, at the start of a
   trip, or right after a tunnel. A change steeper than any road (15 m of
   height per 100 m driven) is now left out of the trip's climb (↑ ↓), the
-  day's highest point and the height chart. On a trip on 2026-11-23 the
-  climb went from ↑318 ↓270 m to ↑168 ↓158 m. Trips already saved keep
-  their old numbers; their height chart is cleaned when it opens.
+  day's highest point and the height chart. GPS height is also not used in
+  the first 2 minutes of a trip, while it settles, and the chart leaves out
+  points with a vague GPS position. On a trip on 2026-11-23 the climb went
+  from ↑318 ↓270 m to ↑158 ↓126 m. Trips already saved keep their old
+  numbers; their height chart is cleaned when it opens.
 - **Music card: the album name and cover keep up with the song.** A phone
   that sends the album a moment after the song's name left the card on the
   last song's album name and cover until something else changed. A new

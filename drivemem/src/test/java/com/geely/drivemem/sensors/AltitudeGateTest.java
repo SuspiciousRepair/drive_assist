@@ -107,4 +107,35 @@ public class AltitudeGateTest {
         assertTrue(Double.isNaN(out[1]));
         assertEquals(701, out[2], 1e-9);
     }
+
+    @Test
+    public void theFirstTwoMinutesAreNotTrusted() {
+        double[] alt = {816, 797, 760, 742, 741};
+        long[] ts = {0, 30_000, 90_000, 120_000, 150_000};
+        double[] acc = {2, 2, 2, 2, 2};
+        double[] out = AltitudeGate.dropUnsure(alt, ts, acc);
+        for (int i = 0; i <= 2; i++) assertTrue("point " + i, Double.isNaN(out[i]));
+        assertEquals(742, out[3], 1e-9);
+        assertEquals(741, out[4], 1e-9);
+    }
+
+    @Test
+    public void aVagueFixIsNotTrusted() {
+        // After a tunnel: 10 m position error, and a height 146 m low.
+        double[] alt = {700, 701, 384, 530, 531};
+        long[] ts = {0, 130_000, 136_000, 142_000, 148_000};   // past the warm-up
+        double[] acc = {2, 2, 10, 2, Double.NaN};
+        double[] out = AltitudeGate.dropUnsure(alt, ts, acc);
+        assertTrue(Double.isNaN(out[2]));
+        assertEquals(530, out[3], 1e-9);
+        assertEquals(531, out[4], 1e-9);   // unknown error: kept
+    }
+
+    @Test
+    public void aTripShorterThanTheWaitKeepsItsHeights() {
+        double[] alt = {740, 741, 742};
+        long[] ts = {0, 30_000, 60_000};
+        double[] out = AltitudeGate.dropUnsure(alt, ts, new double[]{2, 2, 2});
+        assertEquals(741, out[1], 1e-9);
+    }
 }
