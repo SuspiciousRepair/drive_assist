@@ -3,14 +3,14 @@
 ## [Unreleased]
 
 ### Added
-- **Right-hand drive (RHD) layout.** Go to **Config → Appearance → Driver side**
-  and choose **Auto**, **Left** or **Right** (default **Auto**, reading the
-  car's steering-wheel side). In right-hand mode, the home sidebar, card
-  columns, full-bleed art, floating overlay, settings sidebar and two-pane
-  layouts mirror to keep primary panels on the driver's side while card
-  contents, menus, controls, charts, maps, calendars and text stay
-  left-to-right. Backups keep your choice. Not yet checked on a real
-  right-hand-drive car.
+- **Right-hand drive (RHD) layout.** Detected automatically from the car's
+  steering-wheel side on first start, and changeable anytime under
+  **Config → Appearance → Driver side** (**Left** or **Right**). In
+  right-hand mode, the home sidebar, card columns, full-bleed art, floating
+  overlay, settings sidebar and two-pane layouts mirror to keep primary
+  panels on the driver's side while card contents, menus, controls, charts,
+  maps, calendars and text stay left-to-right. Backups keep your choice. Not
+  yet checked on a real right-hand-drive car.
 - **Music card: an icon when the lyrics have no timing.** Some songs have
   only plain lyrics, which do not move with the song (tap the lower half to
   go down a line, the upper half to go back). A small struck-through clock
@@ -18,6 +18,12 @@
 - **Music card: the sound settings button is an equalizer.** The gear in
   the card's corner, which opens the car's sound settings, is now three
   sliders.
+
+### Fixed
+- **Music card: the album name and cover keep up with the song.** A phone
+  that sends the album a moment after the song's name left the card on the
+  last song's album name and cover until something else changed. A new
+  album now redraws the card and loads its own cover.
 
 ## [v0.11.2] — 2026-11-23
 
