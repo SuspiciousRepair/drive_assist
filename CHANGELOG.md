@@ -63,6 +63,12 @@
   client ID field.
 
 ### Changed
+- **Charging stats: each charge is the home screen's charging card.** The
+  list shows every charge as the same card as the home screen, with its
+  date: energy added, time, battery levels and average power, and the cost
+  on the right (tap it to set the price). Tap the card to open the charge's
+  page with the charts and the map. The small chart and map buttons are
+  gone; the charge page has both.
 - **Home: a smaller charging card with more information.** The card now has
   two lines, like the trip card. While the car charges, the first line shows
   the time charging and the time left to 100%. The second line shows the

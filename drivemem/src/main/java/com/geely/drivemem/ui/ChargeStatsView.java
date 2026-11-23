@@ -48,7 +48,6 @@ public class ChargeStatsView extends LinearLayout {
     private TextView rangeLabel;
     private TextView prevBtn, nextBtn, grainLabel;
     private int loadGen;
-    private final java.util.Set<Long> placedIds = new java.util.HashSet<>();
     private LinearLayout listContainer;
     private ScrollView sessionListScroll;
     private ChargeSocChart chargeSocChart;
@@ -364,7 +363,6 @@ public class ChargeStatsView extends LinearLayout {
         BatteryHeat.Stats heat;
         Double soh;                               // state of health at the period's end, or null
         double km;
-        final java.util.Set<Long> placed = new java.util.HashSet<>();
         /** id -> {lat, lon} of every charge that saved its place. */
         final Map<Long, double[]> where = new java.util.HashMap<>();
     }
@@ -409,7 +407,6 @@ public class ChargeStatsView extends LinearLayout {
             try (android.database.Cursor pc = CarDb.get(c).db().rawQuery(
                     "SELECT id, lat, lon FROM charge_session WHERE lat IS NOT NULL AND lon IS NOT NULL", null)) {
                 while (pc.moveToNext()) {
-                    l.placed.add(pc.getLong(0));
                     l.where.put(pc.getLong(0), new double[]{pc.getDouble(1), pc.getDouble(2)});
                 }
             } catch (Exception ignored) { }
@@ -441,8 +438,6 @@ public class ChargeStatsView extends LinearLayout {
         cards.addView(heatCard(l.heat, start), cardLp(true));
         kpiContainer.addView(cards);
 
-        placedIds.clear();
-        placedIds.addAll(l.placed);
 
         // Rebuild session navigator and chart in the same order (newest
         // first) -- they used to disagree (list newest-first, chart
@@ -827,212 +822,28 @@ public class ChargeStatsView extends LinearLayout {
         if (window != null) window.setLayout(Style.dp(c, 760), ViewGroup.LayoutParams.WRAP_CONTENT);
     }
 
+    /** One charge: the home screen's finished-charge card (ChargeSessionCard),
+     * with the date. The card selects the charge (outline + its bar in the
+     * chart above) and opens its page (ChargeDetailActivity); the right tile
+     * sets the cost (ChargeCostDialog; typing waits for Park). */
     private View chargeRow(ChargeSession.Summary s) {
         Context c = getContext();
-        LinearLayout card = new LinearLayout(c);
-        card.setOrientation(LinearLayout.VERTICAL);
-        // More horizontal padding than vertical: the icon and the SoC/Cost
-        // corner text both used to sit flush against the card's left/right
-        // edge. Vertical stays tight (each corner is one line now). Right
-        // gets extra: the right corners are bold, variable-width numbers
-        // (energy, cost) that came closer to the border than the left side
-        // did at the same padding value.
-        int pL = Style.dp(c, 16);
-        int pR = Style.dp(c, 24);
-        int pV = Style.dp(c, 10);
-        card.setPadding(pL, pV, pR, pV);
+        ChargeSessionCard card = new ChargeSessionCard(c);
+        card.bind(s, false, true);
+        int pad = Style.dp(c, 22);
+        card.setPadding(pad, pad, pad, pad);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.topMargin = Style.dp(c, 16);
         card.setLayoutParams(lp);
-
-        boolean isDcfc = s.isDcfc();
-        int typeColor = !s.hasChargeVoltage() ? Style.TEXT_DIM : isDcfc ? Style.GOOD : Style.ACCENT;
-
-        // Four corners, one per dimension (2026-09-13 v2, replacing the
-        // previous four-stacked-row layout -- that version was too tall for
-        // what it showed, with too much vertical gap between rows and hero
-        // numbers sized the same as secondary text). Top-left Time,
-        // top-right SoC/Energy, bottom-left Power (+ chart link),
-        // bottom-right Cost -- each quadrant anchored to its own corner
-        // instead of stacked full-width lines.
-        LinearLayout topRow = new LinearLayout(c);
-        topRow.setOrientation(LinearLayout.HORIZONTAL);
-        topRow.setGravity(Gravity.TOP);
-
-        // Top-left: Time.
-        LinearLayout timeCell = new LinearLayout(c);
-        timeCell.setOrientation(LinearLayout.HORIZONTAL);
-        timeCell.setGravity(Gravity.CENTER_VERTICAL);
-        timeCell.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-        // App-wide charging style guide (2026-09-13): AC = blue + plug icon,
-        // DC = green + ev-plug-ccs2 icon, color/icon alone carry the meaning
-        // -- no "AC"/"DC" text on a session card, that's reserved for the
-        // chart legend (the one place two colors side by side need naming).
-        ImageView typeIcon = new ImageView(c);
-        typeIcon.setImageResource(isDcfc ? R.drawable.ic_ev_plug_ccs2 : R.drawable.ic_power_plug);
-        typeIcon.setColorFilter(typeColor, android.graphics.PorterDuff.Mode.SRC_IN);
-        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(Style.dp(c, 20), Style.dp(c, 20));
-        iconLp.rightMargin = Style.dp(c, 8);
-        typeIcon.setLayoutParams(iconLp);
-        timeCell.addView(typeIcon);
-
-        // Time and duration share one line -- "11 set 13:40 -> 14:39  0:58"
-        // -- rather than duration sitting on its own line below (2026-09-13:
-        // that made the cell taller than it needed to be for one related fact).
-        LinearLayout timeText = new LinearLayout(c);
-        timeText.setOrientation(LinearLayout.HORIZONTAL);
-        timeText.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title = new TextView(c);
-        title.setText(s.title()); // "11 set  13:40 → 14:39"
-        title.setTextColor(Style.TEXT);
-        title.setTextSize(17);
-        title.setTypeface(null, Typeface.BOLD);
-        timeText.addView(title);
-        TextView durationText = new TextView(c);
-        durationText.setText(s.durationLabel());
-        durationText.setTextColor(Style.TEXT_DIM);
-        durationText.setTextSize(13);
-        LinearLayout.LayoutParams durationLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        durationLp.leftMargin = Style.dp(c, 8);
-        durationText.setLayoutParams(durationLp);
-        timeText.addView(durationText);
-        timeCell.addView(timeText);
-        topRow.addView(timeCell);
-
-        // Top-right: SoC and the energy it added share one line -- these are
-        // two views of the same fact (how much the battery gained), not two
-        // separate ones, so they read better side by side than stacked.
-        LinearLayout socCell = new LinearLayout(c);
-        socCell.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
-        socCell.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView socEnergyText = new TextView(c);
-        SpannableStringBuilder socEnergy = new SpannableStringBuilder();
-        socEnergy.append(Style.percentRange(s.socStart, s.socEnd, Style.UNIT_SCALE_ROW));
-        socEnergy.append("  ");
-        // Normal weight, not bold: the SoC range is the primary fact on this
-        // corner, the energy added is secondary -- two bold numbers side by
-        // side on one line fought for attention instead of reading as
-        // primary/secondary (2026-09-13).
-        socEnergy.append(Style.valueWithUnit(String.format(Locale.getDefault(), "+%.1f", s.kwh),
-            null, "kWh", Style.UNIT_SCALE_ROW, false));
-        socEnergyText.setText(socEnergy);
-        socEnergyText.setTextColor(Style.TEXT);
-        socEnergyText.setTextSize(19);
-        socEnergyText.setTypeface(null, Typeface.BOLD);
-        socCell.addView(socEnergyText);
-        topRow.addView(socCell);
-        card.addView(topRow);
-
-        LinearLayout bottomRow = new LinearLayout(c);
-        bottomRow.setOrientation(LinearLayout.HORIZONTAL);
-        bottomRow.setGravity(Gravity.BOTTOM);
-        LinearLayout.LayoutParams bottomLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        bottomLp.topMargin = Style.dp(c, 4);
-        bottomRow.setLayoutParams(bottomLp);
-
-        // Bottom-left: Power, with the link to its detail chart right next to
-        // it (the chart it opens *is* the power curve, so it belongs with
-        // this number rather than floating between two unrelated ones).
-        // A spacer matching the icon's own width (20dp) + its margin (8dp)
-        // comes first, so Power's text starts at the same x as Time's text
-        // above it -- the icon stays where it is (top-left only), but the
-        // two corners' text still lines up into one visual column.
-        LinearLayout powerCell = new LinearLayout(c);
-        powerCell.setOrientation(LinearLayout.HORIZONTAL);
-        powerCell.setGravity(Gravity.CENTER_VERTICAL);
-        powerCell.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        View iconAlignSpacer = new View(c);
-        iconAlignSpacer.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(c, 28), 0));
-        powerCell.addView(iconAlignSpacer);
-
-        TextView powerText = new TextView(c);
-        SpannableStringBuilder power = new SpannableStringBuilder();
-        power.append(Style.valueWithUnit(String.format(Locale.getDefault(), "%.1f", s.avgPowerW / 1000.0),
-            Style.TEXT, "kW", Style.UNIT_SCALE_ROW));
-        Style.appendUnit(power, " méd.", Style.UNIT_SCALE_ROW);
-        powerText.setText(power);
-        powerText.setTextSize(19);
-        powerText.setTypeface(null, Typeface.BOLD);
-        powerCell.addView(powerText);
-
-        // A small icon, not a full button -- a labeled button sitting in the
-        // middle of a data row read as an odd, heavy element.
-        ImageView curveBtn = new ImageView(c);
-        curveBtn.setImageResource(R.drawable.ic_chart_line);
-        curveBtn.setColorFilter(Style.TEXT_DIM, android.graphics.PorterDuff.Mode.SRC_IN);
-        curveBtn.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        int curvePad = Style.dp(c, 6);
-        curveBtn.setPadding(curvePad, curvePad, curvePad, curvePad);
-        // 44dp touch target around a 24dp glyph -- a hand-sized tap area, not
-        // just a visually-sized one (see CLAUDE.md's note on touch targets).
-        curveBtn.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(c, 44), Style.dp(c, 44)));
-        curveBtn.setOnClickListener(v -> ChargeCurrentCurveDialog.show(c, s, this::refresh));
-        powerCell.addView(curveBtn);
-        // Where it charged: only charges that saved their place (from
-        // 2026-11-16 on). Opens the routes map on that day, where the charge
-        // is drawn as its icon (ChargeSpots).
-        if (placedIds.contains(s.id)) {
-            ImageView mapBtn = new ImageView(c);
-            mapBtn.setImageResource(R.drawable.ic_map);
-            mapBtn.setColorFilter(Style.TEXT_DIM, android.graphics.PorterDuff.Mode.SRC_IN);
-            mapBtn.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-            mapBtn.setPadding(curvePad, curvePad, curvePad, curvePad);
-            mapBtn.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(c, 44), Style.dp(c, 44)));
-            mapBtn.setOnClickListener(v -> {
-                android.content.Intent i = new android.content.Intent(c, AllRoutesActivity.class);
-                i.putExtra(AllRoutesActivity.EXTRA_DAY,
-                    new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new java.util.Date(s.startWallMs)));
-                c.startActivity(i);
-            });
-            powerCell.addView(mapBtn);
-        }
-        bottomRow.addView(powerCell);
-
-        // Bottom-right: Cost, anchored to that corner. Total and its per-kWh
-        // rate share one line, same as SoC/Energy above -- the rate is
-        // de-emphasized inline (smaller/dimmer) rather than stacked on its
-        // own line, per the unit style guide's "value then smaller/dimmer
-        // detail" idea applied to a rate instead of a suffix unit.
-        LinearLayout costCell = new LinearLayout(c);
-        costCell.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
-        costCell.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-        if (s.cost != null && s.cost >= 0) {
-            TextView costText = new TextView(c);
-            SpannableStringBuilder costSb = new SpannableStringBuilder();
-            costSb.append(s.costLabel());
-            if (s.costPerKwhLabel() != null) {
-                Style.appendUnit(costSb, "  " + s.costPerKwhLabel(), Style.UNIT_SCALE_ROW);
-            }
-            costText.setText(costSb);
-            costText.setTextColor(Style.ACCENT);
-            costText.setTextSize(19);
-            costText.setTypeface(null, Typeface.BOLD);
-            costText.setOnClickListener(v -> {
-                ChargeCostDialog.show(c, s.id, s.kwh, s.socStart, s.socEnd, s.cost, this::refresh);
-            });
-            costCell.addView(costText);
-        } else {
-            TextView costBtn = Style.cardButton(c, "+ " + c.getString(R.string.charge_cost_label), false, () -> {
-                ChargeCostDialog.show(c, s.id, s.kwh, s.socStart, s.socEnd, null, this::refresh);
-            });
-            costCell.addView(costBtn);
-        }
-        bottomRow.addView(costCell);
-        card.addView(bottomRow);
-        // Tapping the card selects it (outline + its bar in the chart above)
-        // and opens its details, the same dialog as the chart icon. Reading
-        // opens anywhere; only typing a cost waits for Park (ChargeCostDialog).
-        card.setOnClickListener(v -> {
+        card.setOnOpen(() -> {
             selectSession(s.id, false);
-            ChargeCurrentCurveDialog.show(c, s, this::refresh);
+            if (s.id > 0) c.startActivity(ChargeDetailActivity.intent(c, s.id));
         });
+        card.setOnCost(() -> ChargeCostDialog.show(c, s.id, s.kwh, s.socStart, s.socEnd,
+            s.cost != null && s.cost >= 0 ? s.cost : null, this::refresh));
         card.setBackground(s.id == selectedSessionId
-            ? Style.outlinedCard(isDcfc ? Style.GOOD : Style.ACCENT, c)
+            ? Style.outlinedCard(s.isDcfc() ? Style.GOOD : Style.ACCENT, c)
             : Style.card(Style.CARD, c));
         return card;
     }

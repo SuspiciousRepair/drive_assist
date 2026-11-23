@@ -182,14 +182,10 @@ public class ComfortActivity extends Activity {
     // Charge card: active session progress or retained completed charge with cost input.
     private LinearLayout chargeCard;
     private LinearLayout chargeActiveLayout;
-    private LinearLayout chargeCompletedLayout;
+    private ChargeSessionCard chargeCompletedLayout;   // the same card as Charging stats' list
     private android.widget.ImageView chargeActiveIcon;
     private TextView chargeActiveHero, chargeActiveSoc, chargeActiveEnergy;
     private ChargePowerBadgeView chargePowerBadge;
-    private android.widget.ImageView chargeCompletedIcon;
-    private TextView chargeCompletedHero, chargeCompletedSoc, chargeCompletedPower;
-    private LinearLayout chargeCostTile;
-    private TextView chargeCostTop, chargeCostBottom;
     private ChargeSession.Summary retainedChargeSession = null;
     private boolean lastChargeAvailable = false;
     private String currencyAtBuild;
@@ -1655,69 +1651,16 @@ public class ComfortActivity extends Activity {
         m.addView(chargeActiveLayout);
 
         // --- Completed charging layout (retained for cost input; whole card opens the charge page) ---
-        chargeCompletedLayout = new LinearLayout(this);
-        chargeCompletedLayout.setOrientation(LinearLayout.HORIZONTAL);
-        chargeCompletedLayout.setBaselineAligned(false);
+        chargeCompletedLayout = new ChargeSessionCard(this);
         chargeCompletedLayout.setVisibility(View.GONE);
-
         // The whole card opens the charge's page (ChargeDetailActivity):
         // charts, numbers and map. Dismiss stays in the cost window (right tile).
-        chargeCompletedLayout.setOnClickListener(v -> {
+        chargeCompletedLayout.setOnOpen(() -> {
             if (retainedChargeSession != null && retainedChargeSession.id > 0) {
                 startActivity(ChargeDetailActivity.intent(this, retainedChargeSession.id));
             }
         });
-
-        LinearLayout completedLeft = new LinearLayout(this);
-        completedLeft.setOrientation(LinearLayout.VERTICAL);
-        completedLeft.setGravity(Gravity.CENTER_VERTICAL);
-
-        LinearLayout completedLine1 = new LinearLayout(this);
-        completedLine1.setGravity(Gravity.CENTER_VERTICAL);
-        chargeCompletedIcon = rowIcon(R.drawable.ic_power_plug);
-        completedLine1.addView(chargeCompletedIcon);
-        chargeCompletedHero = new TextView(this);
-        chargeCompletedHero.setTextColor(Style.TEXT);
-        chargeCompletedHero.setTextSize(30);
-        chargeCompletedHero.setTypeface(null, android.graphics.Typeface.BOLD);
-        chargeCompletedHero.setSingleLine(true);
-        completedLine1.addView(chargeCompletedHero, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        completedLeft.addView(completedLine1);
-
-        LinearLayout completedLine2 = new LinearLayout(this);
-        completedLine2.setGravity(Gravity.CENTER_VERTICAL);
-        completedLine2.setPadding(0, Style.dp(this, 8), 0, 0);
-        completedLine2.addView(rowIcon(R.drawable.ic_battery));
-        chargeCompletedSoc = rowValue();
-        completedLine2.addView(chargeCompletedSoc);
-        completedLine2.addView(new View(this), new LinearLayout.LayoutParams(Style.dp(this, 20), 1));
-        completedLine2.addView(rowIcon(R.drawable.ic_flash));
-        chargeCompletedPower = rowValue();
-        completedLine2.addView(chargeCompletedPower);
-        completedLeft.addView(completedLine2);
-
-        chargeCompletedLayout.addView(completedLeft, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-        chargeCostTile = new LinearLayout(this);
-        chargeCostTile.setOrientation(LinearLayout.VERTICAL);
-        chargeCostTile.setGravity(Gravity.CENTER);
-        int tilePadH = Style.dp(this, 6), tilePadV = Style.dp(this, 8);
-        chargeCostTile.setPadding(tilePadH, tilePadV, tilePadH, tilePadV);
-
-        chargeCostTop = new TextView(this);
-        chargeCostTop.setTypeface(null, android.graphics.Typeface.BOLD);
-        chargeCostTop.setGravity(Gravity.CENTER);
-        chargeCostTop.setSingleLine(true);
-        chargeCostTile.addView(chargeCostTop);
-
-        chargeCostBottom = new TextView(this);
-        chargeCostBottom.setTypeface(null, android.graphics.Typeface.BOLD);
-        chargeCostBottom.setGravity(Gravity.CENTER);
-        chargeCostBottom.setSingleLine(true);
-        chargeCostBottom.setPadding(0, Style.dp(this, 2), 0, 0);
-        chargeCostTile.addView(chargeCostBottom);
-
-        chargeCostTile.setOnClickListener(v -> {
+        chargeCompletedLayout.setOnCost(() -> {
             if (retainedChargeSession != null) {
                 activeCostDialog = ChargeCostDialog.show(this, retainedChargeSession.id, retainedChargeSession.kwh,
                     retainedChargeSession.socStart, retainedChargeSession.socEnd, retainedChargeSession.cost, () -> {
@@ -1732,12 +1675,6 @@ public class ComfortActivity extends Activity {
                     });
             }
         });
-
-        LinearLayout.LayoutParams completedRightLp = new LinearLayout.LayoutParams(
-            Style.dp(this, 140), ViewGroup.LayoutParams.MATCH_PARENT);
-        completedRightLp.leftMargin = Style.dp(this, 16);
-        chargeCompletedLayout.addView(chargeCostTile, completedRightLp);
-
         m.addView(chargeCompletedLayout);
 
         return m;
@@ -2576,58 +2513,7 @@ public class ComfortActivity extends Activity {
         chargeActiveLayout.setVisibility(View.GONE);
         chargeCompletedLayout.setVisibility(View.VISIBLE);
 
-        boolean gray = Prefs.getCardGrayscale(this);
-        boolean dcfc = s.isDcfc();
-        boolean hasV = s.hasChargeVoltage();
-        int typeColor = (!gray && hasV) ? (dcfc ? Style.GOOD : Style.ACCENT) : Style.TEXT;
-        int iconColor = (!gray && hasV) ? (dcfc ? Style.GOOD : Style.ACCENT) : Style.TEXT_DIM;
-        chargeCompletedIcon.setImageResource(dcfc ? R.drawable.ic_ev_plug_ccs2 : R.drawable.ic_power_plug);
-        chargeCompletedIcon.setColorFilter(iconColor, android.graphics.PorterDuff.Mode.SRC_IN);
-
-        SpannableStringBuilder hero = new SpannableStringBuilder(Style.valueWithUnit(
-            String.format(Locale.getDefault(), "+%.1f", s.kwh),
-            (!gray && hasV) ? typeColor : null, "kWh", Style.UNIT_SCALE_ROW));
-        Style.appendUnit(hero, "   " + formatElapsed(s.endWallMs - s.startWallMs), 0.6f);
-        chargeCompletedHero.setText(hero);
-
-        if (s.socStart >= 0 && s.socEnd >= 0) {
-            chargeCompletedSoc.setText(Style.percentRange(s.socStart, s.socEnd, Style.UNIT_SCALE_ROW));
-        } else if (s.socEnd >= 0) {
-            chargeCompletedSoc.setText(Style.valueWithUnit(String.valueOf(s.socEnd), null, "%", Style.UNIT_SCALE_ROW));
-        } else {
-            chargeCompletedSoc.setText(R.string.value_unavailable);
-        }
-
-        SpannableStringBuilder pwr = new SpannableStringBuilder(Style.valueWithUnit(
-            String.format(Locale.getDefault(), "%.1f", s.avgPowerW / 1000.0), null, "kW", Style.UNIT_SCALE_ROW));
-        Style.appendUnit(pwr, " " + getString(R.string.charge_avg_short), Style.UNIT_SCALE_ROW);
-        chargeCompletedPower.setText(pwr);
-
-        if (s.cost != null && s.cost >= 0) {
-            GradientDrawable g = Style.card(Style.cardFillColor(), this, 18);
-            g.setStroke(Style.dp(this, 2), gray ? Style.TEXT_DIM : Style.ACCENT);
-            chargeCostTile.setBackground(g);
-            chargeCostTop.setText(s.costLabel());
-            chargeCostTop.setTextColor(gray ? Style.TEXT : Style.ACCENT);
-            chargeCostTop.setTextSize(19);
-            String perKwh = s.costPerKwhLabel();
-            chargeCostBottom.setText(perKwh != null ? perKwh : getString(R.string.charge_cost_label));
-            chargeCostBottom.setTextColor(Style.TEXT_DIM);
-            chargeCostBottom.setTextSize(13);
-        } else {
-            GradientDrawable g = new GradientDrawable();
-            g.setCornerRadius(Style.dp(this, 18));
-            int fill = gray ? Style.CARD_HI : Style.ACCENT;
-            g.setColor(fill);
-            chargeCostTile.setBackground(g);
-            int onFill = Style.onFill(fill);
-            chargeCostTop.setText("+ " + Prefs.getCurrency(this));
-            chargeCostTop.setTextColor(onFill);
-            chargeCostTop.setTextSize(22);
-            chargeCostBottom.setText(getString(R.string.charge_cost_label));
-            chargeCostBottom.setTextColor(onFill);
-            chargeCostBottom.setTextSize(15);
-        }
+        chargeCompletedLayout.bind(s, Prefs.getCardGrayscale(this), false);
 
         if (!wasVisible && columns != null) repackColumns();
     }
