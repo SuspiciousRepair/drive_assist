@@ -259,7 +259,7 @@ public class VaporArtView extends ArtView {
         if (w == 0 || h == 0) return;
         horizon = h * HORIZON_Y;
         groundH = h - horizon;
-        cx = w * VP_X;
+        cx = w * Style.mirrorX(VP_X);
         f = groundH * (1f - CELL) / CAM_Y;
         colStep = groundH * CELL;        // gap of the verticals in the first row
         sunR = Math.min(w * 0.17f, horizon * 0.62f);
@@ -291,11 +291,13 @@ public class VaporArtView extends ArtView {
             new int[]{ SKY_HOR & 0x00FFFFFF, SKY_HOR }, null, Shader.TileMode.CLAMP);
         hglow = new LinearGradient(0, horizon - groundH * 0.03f, 0, horizon + groundH * 0.035f,
             new int[]{ 0x0000E5FF, 0x5EFF7BC8, 0x0000E5FF }, null, Shader.TileMode.CLAMP);
-        // scrim that gives the left-hand column back to the theme background: the
+        // scrim that gives the driver-side column back to the theme background: the
         // scene bleeds underneath the controls and fades out, instead of ending
         // in a hard edge
         int bg = Style.BG_BOTTOM;
-        scrim = new LinearGradient(0, 0, w, 0,
+        float sx0 = Style.RHD ? w : 0f;
+        float sx1 = Style.RHD ? 0f : w;
+        scrim = new LinearGradient(sx0, 0, sx1, 0,
             new int[]{ bg, bg, bg & 0x00FFFFFF },
             new float[]{ 0f, 0.34f, 0.72f }, Shader.TileMode.CLAMP);
 

@@ -196,11 +196,11 @@ public final class OverlayService extends Service {
         // to clear CarPlay/Android Auto's own icon dock, expanding just ran
         // the panel off the bottom of the screen. Growing upward from a
         // fixed bottom edge has no such ceiling regardless of panel height.
-        lp.gravity = Gravity.BOTTOM | Gravity.START;
+        lp.gravity = overlayGravity(Style.RHD);
         SharedPreferences p = getSharedPreferences(PREFS, MODE_PRIVATE);
-        // Default: left edge, clear of Android Auto/CarPlay's own icon dock
+        // Default: driver edge, clear of Android Auto/CarPlay's own icon dock
         // above it — see setupDragAndTap() for how a person moves it anywhere
-        // after. PREF_Y is now a distance from the BOTTOM edge.
+        // after. PREF_X is distance from the driver edge; PREF_Y from BOTTOM.
         lp.x = p.getInt(PREF_X, Style.dp(this, 8));
         lp.y = p.getInt(PREF_Y, Style.dp(this, 300));
         windowManager.addView(overlayView, lp);
@@ -232,8 +232,28 @@ public final class OverlayService extends Service {
      * overlay comes back, after any change made on them. */
     static boolean rebuildOnForegroundChange(boolean foreground) { return !foreground; }
 
+    /** Window anchor gravity: bottom-left on LHD, bottom-right on RHD. */
+    static int overlayGravity(boolean rhd) {
+        return Gravity.BOTTOM | (rhd ? Gravity.RIGHT : Gravity.LEFT);
+    }
+
+    /** Horizontal window offset update during a drag: positive dx moves away from
+     * LEFT in LHD and toward RIGHT (smaller offset) in RHD. */
+    static int overlayDragX(int startX, int dx, boolean rhd) {
+        return rhd ? (startX - dx) : (startX + dx);
+    }
+
     private void rebuildContent() {
         Style.load(this);
+        if (lp != null) {
+            int wantGravity = overlayGravity(Style.RHD);
+            if (lp.gravity != wantGravity) {
+                lp.gravity = wantGravity;
+                if (overlayView != null && overlayView.isAttachedToWindow() && windowManager != null) {
+                    windowManager.updateViewLayout(overlayView, lp);
+                }
+            }
+        }
         boolean wasExpanded = isExpanded;
         LinearLayout root = (LinearLayout) overlayView;
         root.removeAllViews();
@@ -288,8 +308,11 @@ public final class OverlayService extends Service {
 
         LinearLayout askRow = new LinearLayout(this);
         askRow.setOrientation(LinearLayout.HORIZONTAL);
-        askRow.addView(climateIcon(R.drawable.ic_snowflake, +1), climateIconLp(0));
-        askRow.addView(climateIcon(R.drawable.ic_weather_sunny, -1), climateIconLp(14));
+        View coolBtn = climateIcon(R.drawable.ic_snowflake, +1);
+        coolBtn.setLayoutParams(climateIconLp(0));
+        View warmBtn = climateIcon(R.drawable.ic_weather_sunny, -1);
+        warmBtn.setLayoutParams(climateIconLp(0));
+        Style.addMirrored(askRow, 14, coolBtn, warmBtn);
         panel.addView(askRow);
         Style.gap(panel, this, 14);
 
@@ -312,15 +335,14 @@ public final class OverlayService extends Service {
             Prefs.getTurboCardShows(this, Prefs.CARD_REGEN),
             Prefs.getTurboCardShows(this, Prefs.CARD_AVAS));
         turboBar = null; quickButtons.bindRegen(null); quickButtons.bindAvas(null);
+        View[] slotViews = new View[slots.length()];
         for (int i = 0; i < slots.length(); i++) {
             char slot = slots.charAt(i);
             View col = slot == 'T' ? turboColumn() : slot == 'R' ? regenColumn() : avasColumn();
-            LinearLayout.LayoutParams colLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            // A margin, not Style.gap(): that adds a 1-px-WIDE view, which
-            // in a horizontal row is no gap at all.
-            if (i > 0) colLp.leftMargin = Style.dp(this, SLOT_GAP_DP);
-            turboSection.addView(col, colLp);
+            col.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            slotViews[i] = col;
         }
+        Style.addMirrored(turboSection, SLOT_GAP_DP, slotViews);
         if (slots.length() > 0) {
             panel.addView(turboSection);
             Style.gap(panel, this, 20);
@@ -503,7 +525,7 @@ public final class OverlayService extends Service {
                     int dy = (int) (event.getRawY() - touchRawStartY);
                     if (Math.abs(dx) > MOVE_SLOP_PX || Math.abs(dy) > MOVE_SLOP_PX) dragging = true;
                     if (dragging) {
-                        lp.x = touchStartX + dx;
+                        lp.x = overlayDragX(touchStartX, dx, Style.RHD);
                         // Minus, not plus: lp.y is a distance from the BOTTOM
                         // edge under Gravity.BOTTOM, so a finger moving down
                         // (positive dy) must SHRINK it, not grow it.
