@@ -27,7 +27,7 @@
   the phone sends one, Play and Skip. Drive Assist reads this from the
   car's own music apps, which share it with any app; no permission is
   asked. Nothing leaves the car for this. The card hides when the phone
-  disconnects, and a song paused for more than 10 minutes leaves it. Play
+  disconnects (for CarPlay, 20 seconds after the cable is pulled), and a song paused for more than 10 minutes leaves it. Play
   on the card starts Bluetooth music through the car's own Bluetooth music
   app, so the car's sound switches to Bluetooth too.
 - **Song lyrics on the music card.** Turn on **Config → Integrations →

@@ -67,4 +67,13 @@ public class CarMediaSessionsTest {
         assertFalse(CarMediaSessions.ended(2));   // paused: still on the card for a while
         assertFalse(CarMediaSessions.ended(3));   // playing
     }
+
+    @Test public void aTickingPlayerThatGoesQuietIsGone() {
+        long last = 100_000;
+        // CarPlay: an update every ~5 s while playing; the cable pulled stops them.
+        assertEquals(last + CarMediaSessions.SILENT_MS, CarMediaSessions.silentAt(true, 3, last));
+        assertEquals(0, CarMediaSessions.silentAt(false, 9, last));   // paused: other rules
+        assertEquals(0, CarMediaSessions.silentAt(true, 2, last));    // not ticking yet (Bluetooth)
+        assertEquals(0, CarMediaSessions.silentAt(true, 5, 0));
+    }
 }
