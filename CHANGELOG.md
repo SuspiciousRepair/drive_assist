@@ -73,9 +73,9 @@
   list takes its room and reaches the bottom of the screen.
 - **Charging stats: fewer small texts.** Each card at the top keeps one
   line under its big number and its two boxes, in larger type. **Charges:**
-  the energy, AC and DC, and the last charge to 100%. **Cost:** the cost
-  per 100 km and the price per kWh for AC and DC. **Battery health:** the
-  hours below 10% and 20%. **Battery temperature:** the highest and the
+  the energy, AC and DC. **Cost:** the cost per 100 km and the price per
+  kWh for AC and DC. **Battery health:** the last charge to 100% (moved
+  here from Charges) and the hours below 10% and 20%. **Battery temperature:** the highest and the
   day, and the time and temperature at 100%. The LFP comfort range moved
   behind the card's (i). Units are smaller than their numbers.
 - **The cost window says the currency.** The price field now reads "Total
