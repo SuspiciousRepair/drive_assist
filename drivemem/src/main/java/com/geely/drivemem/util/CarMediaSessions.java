@@ -51,9 +51,16 @@ public final class CarMediaSessions {
         final ComponentName name;
         MediaBrowser browser;
         MediaController controller;
+        // The state as the session sent it (the callback gets it raw).
+        // getPlaybackState() is not the same: while playing, Android moves the
+        // position on to "now" and caps it at the song's length -- and CarPlay
+        // gives every song a length of 0, so the position read that way was
+        // always 0 and the lyrics stayed at the start. Paused, Android leaves
+        // it alone, which is why pausing showed the right line.
+        PlaybackState state;
         final MediaController.Callback cb = new MediaController.Callback() {
             @Override public void onMetadataChanged(MediaMetadata m) { follow(); }
-            @Override public void onPlaybackStateChanged(PlaybackState s) { follow(); }
+            @Override public void onPlaybackStateChanged(PlaybackState s) { state = s; follow(); }
             @Override public void onSessionDestroyed() { drop(Link.this); follow(); }
         };
         Link(ComponentName name) { this.name = name; }
@@ -125,6 +132,15 @@ public final class CarMediaSessions {
         try { l.controller.unregisterCallback(l.cb); } catch (Throwable ignored) { }
         if (l.controller == current) current = null;
         l.controller = null;
+        l.state = null;
+    }
+
+    /** The session's own last state (see Link.state), or Android's view of
+     * it before the first update arrives. */
+    private static PlaybackState stateOf(MediaController c) {
+        if (c == null) return null;
+        for (Link l : links) if (l.controller == c && l.state != null) return l.state;
+        return c.getPlaybackState();
     }
 
     // Picks the session to follow: one that plays, else the first with a title.
@@ -134,7 +150,7 @@ public final class CarMediaSessions {
         for (Link l : links) {
             MediaController c = l.controller;
             if (c == null) continue;
-            PlaybackState st = c.getPlaybackState();
+            PlaybackState st = stateOf(c);
             if (st != null && ended(st.getState())) continue;
             if (st != null && st.getState() == PlaybackState.STATE_PLAYING) { pick = c; break; }
             if (pick == null && title(c.getMetadata()) != null) pick = c;
@@ -173,7 +189,7 @@ public final class CarMediaSessions {
         MediaMetadata m = c == null ? null : c.getMetadata();
         String title = title(m);
         if (!running) { main.removeCallbacks(hide); MusicState.setSession(null, null); return; }
-        PlaybackState st = c == null ? null : c.getPlaybackState();
+        PlaybackState st = stateOf(c);
         if (c == null || title == null || (st != null && ended(st.getState()))) { hideSoon(); return; }
         main.removeCallbacks(hide);
         MusicState.Track t = new MusicState.Track();
@@ -224,7 +240,7 @@ public final class CarMediaSessions {
         }
         MusicState.setSession(t, new MusicState.Controls() {
             @Override public void playPause() {
-                PlaybackState s = c.getPlaybackState();
+                PlaybackState s = stateOf(c);
                 boolean playing = s != null && s.getState() == PlaybackState.STATE_PLAYING;
                 if (playing || !startBluetooth(c.getPackageName())) press(c, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE);
             }
