@@ -736,8 +736,8 @@
     <string name="charge_card_days_ago">há %1$d dias</string>
     <string name="charge_card_never">nunca</string>
     <string name="charge_card_temp">Temperatura da bateria</string>
-    <string name="charge_card_full_time" formatted="false">Tempo em 100%</string>
-    <string name="charge_card_full_temp" formatted="false">Temp. em 100%</string>
+    <string name="charge_card_full_time" formatted="false">Horas em 100%</string>
+    <string name="charge_card_full_temp" formatted="false">°C em 100%</string>
     <string name="charge_card_temp_note">LFP fica bem entre 15 e 35 °C</string>
     <string name="charge_card_temp_since">As leituras começam em %1$s.</string>
     <string name="charge_card_no_temp">sem leitura (precisa do OBD2)</string>

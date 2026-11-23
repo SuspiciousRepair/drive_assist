@@ -111,7 +111,7 @@ public class ChargeStatsView extends LinearLayout {
         headerContainer.addView(prevBtn);
         rangeLabel = new TextView(c);
         rangeLabel.setTextColor(Style.TEXT);
-        rangeLabel.setTextSize(16);
+        rangeLabel.setTextSize(20);
         rangeLabel.setTypeface(null, Typeface.BOLD);
         rangeLabel.setGravity(Gravity.CENTER);
         headerContainer.addView(rangeLabel, new LinearLayout.LayoutParams(0,
@@ -530,7 +530,7 @@ public class ChargeStatsView extends LinearLayout {
         TextView l = new TextView(c);
         l.setText(label);
         l.setTextColor(Style.TEXT_DIM);
-        l.setTextSize(15);
+        l.setTextSize(17);
         l.setSingleLine(true);
         t.addView(l);
         TextView v = new TextView(c);
@@ -543,10 +543,12 @@ public class ChargeStatsView extends LinearLayout {
         return t;
     }
 
-    /** "5 · 75,7 kWh": the count, then the energy with a small unit. */
+    /** "5× 75,7 kWh": the count small and dim, so it does not read as part
+     * of the energy, then the energy with a small unit. */
     private static CharSequence countKwh(int count, double kwh) {
         if (count == 0) return "0";
-        SpannableStringBuilder sb = new SpannableStringBuilder(count + " · ");
+        SpannableStringBuilder sb = new SpannableStringBuilder();
+        Style.appendUnit(sb, count + "×  ", Style.UNIT_SCALE_ROW);
         sb.append(Style.valueWithUnit(kwh(kwh), null, "kWh", Style.UNIT_SCALE_ROW));
         return sb;
     }

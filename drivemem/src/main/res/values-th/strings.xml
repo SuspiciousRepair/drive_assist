@@ -740,8 +740,8 @@
     <string name="charge_card_days_ago">%1$d วันที่แล้ว</string>
     <string name="charge_card_never">ไม่เคย</string>
     <string name="charge_card_temp">อุณหภูมิแบตเตอรี่</string>
-    <string name="charge_card_full_time" formatted="false">เวลาที่ 100%</string>
-    <string name="charge_card_full_temp" formatted="false">อุณหภูมิที่ 100%</string>
+    <string name="charge_card_full_time" formatted="false">ชั่วโมงที่ 100%</string>
+    <string name="charge_card_full_temp" formatted="false">°C ที่ 100%</string>
     <string name="charge_card_temp_note">LFP ทำงานได้ดีที่ 15–35 °C</string>
     <string name="charge_card_temp_since">เริ่มมีข้อมูลวันที่ %1$s</string>
     <string name="charge_card_no_temp">ไม่มีค่า (ต้องใช้ OBD2)</string>

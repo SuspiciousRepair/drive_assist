@@ -132,7 +132,7 @@ final class ChargeSessionCard extends LinearLayout {
             String perKwh = s.costPerKwhLabel();
             costBottom.setText(perKwh != null ? perKwh : c.getString(R.string.charge_cost_label));
             costBottom.setTextColor(Style.TEXT_DIM);
-            costBottom.setTextSize(13);
+            costBottom.setTextSize(15);
         } else {
             GradientDrawable g = new GradientDrawable();
             g.setCornerRadius(Style.dp(c, 18));
