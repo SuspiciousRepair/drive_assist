@@ -343,11 +343,14 @@ public class ComfortActivity extends Activity {
         // Daily Statistics view on home screen (swappable with band cards)
         statsContainer = new FrameLayout(this);
         statsContainer.setPadding(sidebarClearance, padTop + Style.statusBarHeight(this), padH, padV);
-        // No ScrollView here: the view scrolls by itself, under its own
-        // header row, which stays in place.
-        dailyStatsView = new DailyStatsView(this, null);
-        statsContainer.addView(dailyStatsView, new FrameLayout.LayoutParams(
+        android.widget.ScrollView statsScroll = new android.widget.ScrollView(this);
+        statsScroll.setLayoutParams(new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        statsScroll.setVerticalScrollBarEnabled(false);
+        statsScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        dailyStatsView = new DailyStatsView(this, null);
+        statsScroll.addView(dailyStatsView);
+        statsContainer.addView(statsScroll);
         statsContainer.setVisibility(View.GONE);
         screen.addView(statsContainer, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -1571,7 +1574,7 @@ public class ComfortActivity extends Activity {
      * Active charging:
      *   [plug] 42m   ~35m até 100%                  |    6,4    |
      *   [battery] 44% → 72%   [bolt] +11,4 kWh      | kW +curve |
-     * Completed charging (whole card opens the power curve modal; right tile opens cost dialog):
+     * Completed charging (whole card opens ChargeDetailActivity; right tile opens cost dialog):
      *   [plug] +22,8 kWh   3h 40m                   |   + R$    |
      *   [battery] 44% → 100%   [bolt] 6,2 kW méd.   |   Custo   |
      */
@@ -1585,6 +1588,8 @@ public class ComfortActivity extends Activity {
 
         // --- Active charging layout ---
         chargeActiveLayout = new LinearLayout(this);
+        // While charging, the card opens the same page, live.
+        chargeActiveLayout.setOnClickListener(v -> startActivity(ChargeDetailActivity.live(this)));
         chargeActiveLayout.setOrientation(LinearLayout.HORIZONTAL);
         chargeActiveLayout.setBaselineAligned(false);
 
@@ -1625,21 +1630,19 @@ public class ComfortActivity extends Activity {
         chargeActiveLayout.addView(chargePowerBadge, activeRightLp);
         m.addView(chargeActiveLayout);
 
-        // --- Completed charging layout (retained for cost input; whole card opens curve dialog) ---
+        // --- Completed charging layout (retained for cost input; whole card opens the charge page) ---
         chargeCompletedLayout = new LinearLayout(this);
         chargeCompletedLayout.setOrientation(LinearLayout.HORIZONTAL);
         chargeCompletedLayout.setBaselineAligned(false);
         chargeCompletedLayout.setVisibility(View.GONE);
 
-        Runnable openCurveModal = () -> {
-            if (retainedChargeSession != null) {
-                ChargeCurrentCurveDialog.show(this, retainedChargeSession, () -> {
-                    retainedChargeSession = ChargeSession.getLatestUndismissed(this);
-                    checkRetainedCharge();
-                });
+        // The whole card opens the charge's page (ChargeDetailActivity):
+        // charts, numbers and map. Dismiss stays in the cost window (right tile).
+        chargeCompletedLayout.setOnClickListener(v -> {
+            if (retainedChargeSession != null && retainedChargeSession.id > 0) {
+                startActivity(ChargeDetailActivity.intent(this, retainedChargeSession.id));
             }
-        };
-        chargeCompletedLayout.setOnClickListener(v -> openCurveModal.run());
+        });
 
         LinearLayout completedLeft = new LinearLayout(this);
         completedLeft.setOrientation(LinearLayout.VERTICAL);

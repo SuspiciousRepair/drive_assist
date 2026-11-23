@@ -466,6 +466,18 @@
     <string name="charge_soc_chart_title">Battery range · newest first</string>
     <string name="charge_map_none">No charge in this period saved its place.</string>
     <string name="charge_curve_title">Charging power over time</string>
+    <string name="charge_detail_title">Charge</string>
+    <string name="charge_detail_live">Charging now</string>
+    <string name="charge_detail_charging">Charging time</string>
+    <string name="charge_detail_idle" formatted="false">Parked at 100%</string>
+    <string name="charge_detail_idle_next">until the next drive</string>
+    <string name="charge_detail_idle_now">so far</string>
+    <string name="charge_detail_power">Power</string>
+    <string name="charge_detail_power_value">%1$s average · %2$s peak</string>
+    <string name="charge_detail_bat_temp_label">Battery temperature</string>
+    <string name="charge_detail_bat_temp">battery</string>
+    <string name="charge_detail_out_temp">outside</string>
+    <string name="charge_detail_soc" formatted="false">Battery %</string>
     <string name="charge_curve_unavailable">Samples are no longer available for this session.</string>
     <string name="charge_curve_power_label">Power (kW)</string>
     <string name="charge_curve_temp_label">Outside temp. (°C)</string>
