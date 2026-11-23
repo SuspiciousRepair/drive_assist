@@ -908,4 +908,6 @@
     <string name="diary_hint_note_short">Note</string>
     <string name="diary_cat_balance_100">100% balance</string>
     <string name="diary_at_km_prefix">at %1$s km</string>
+    <string name="diary_coolant_topup">Top-up</string>
+    <string name="diary_coolant_change">Full change</string>
 </resources>

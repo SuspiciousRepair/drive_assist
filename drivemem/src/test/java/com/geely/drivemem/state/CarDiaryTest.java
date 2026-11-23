@@ -249,4 +249,28 @@ public class CarDiaryTest {
         assertEquals(CarDiary.Category.TIRE_PRESSURE, sortedNew.get(3).category);
         assertEquals(CarDiary.Category.TIRE_ROTATION, CarDiary.mostUrgent(emptyStatuses, 40.0).category);
     }
+
+    @Test
+    public void coolantTopUpDoesNotResetFourYearFlushClock() {
+        long now = 1_800_000_000_000L;
+        List<CarDiary.Entry> entries = Collections.singletonList(
+            entry(1, CarDiary.Category.COOLANT, now - 5 * DAY, 7_000.0, 25.0,
+                CarDiary.buildCoolantMeta(true))
+        );
+        List<CarDiary.DueStatus> statuses = CarDiary.computeDueStatuses(entries, 7_077.0, now, 25.0);
+        CarDiary.DueStatus cool = find(statuses, CarDiary.Category.COOLANT);
+        // Still counting down to the factory 80,000 km flush, not reset to 7,000 + 80,000
+        assertEquals(null, cool.lastEntry);
+        assertEquals(72_923.0, cool.kmRemaining, 0.01);
+
+        // Full change DOES reset the 80,000 km / 48 mo clock
+        List<CarDiary.Entry> fullEntries = Collections.singletonList(
+            entry(2, CarDiary.Category.COOLANT, now - 5 * DAY, 80_000.0, 25.0,
+                CarDiary.buildCoolantMeta(false))
+        );
+        List<CarDiary.DueStatus> fullStatuses = CarDiary.computeDueStatuses(fullEntries, 81_000.0, now, 25.0);
+        CarDiary.DueStatus coolFull = find(fullStatuses, CarDiary.Category.COOLANT);
+        assertNotNull(coolFull.lastEntry);
+        assertEquals(79_000.0, coolFull.kmRemaining, 0.01);
+    }
 }

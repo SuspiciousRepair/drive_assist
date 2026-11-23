@@ -880,4 +880,6 @@
     <string name="diary_hint_note_short">Nota</string>
     <string name="diary_cat_balance_100">Balanceo 100%</string>
     <string name="diary_at_km_prefix">a los %1$s km</string>
+    <string name="diary_coolant_topup">Rellenar</string>
+    <string name="diary_coolant_change">Cambio completo</string>
 </resources>

@@ -750,6 +750,8 @@ public final class CarDiary {
         if (entries != null) {
             for (Entry e : entries) {
                 if (e.parentId != null) continue;
+                // A coolant top-up logs fluid added without resetting the 80k / 48 mo flush clock.
+                if (e.category == Category.COOLANT && isTopUp(e.metaJson)) continue;
                 considerLatest(latestByCat, e.category, e);
                 if (e.category == Category.SERVICE) {
                     for (Category bundled : parseBundled(e.metaJson)) {
@@ -954,6 +956,21 @@ public final class CarDiary {
         sb.append(String.format(Locale.US, "{\"joltG\":%.2f", peakG));
         if (speedKmh != null) sb.append(String.format(Locale.US, ",\"speedKmh\":%.0f", speedKmh));
         return sb.append('}').toString();
+    }
+
+    public static String buildCoolantMeta(boolean topUp) {
+        return topUp ? "{\"topUp\":true}" : "{\"topUp\":false}";
+    }
+
+    public static boolean isTopUp(String metaJson) {
+        return Boolean.TRUE.equals(parseTopUp(metaJson));
+    }
+
+    public static Boolean parseTopUp(String metaJson) {
+        if (metaJson == null) return null;
+        if (metaJson.contains("\"topUp\":true")) return Boolean.TRUE;
+        if (metaJson.contains("\"topUp\":false")) return Boolean.FALSE;
+        return null;
     }
 
     /** Extracts bundled categories from meta_json (e.g. {"bundled":["CABIN_FILTER","TIRE_ROTATION"]}). */

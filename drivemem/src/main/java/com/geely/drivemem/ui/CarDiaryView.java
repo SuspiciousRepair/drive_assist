@@ -627,6 +627,12 @@ public final class CarDiaryView extends LinearLayout {
                 }
             }
         }
+        if (e.category == CarDiary.Category.COOLANT) {
+            Boolean topUp = CarDiary.parseTopUp(e.metaJson);
+            if (topUp != null) {
+                sb.append(c.getString(topUp ? R.string.diary_coolant_topup : R.string.diary_coolant_change));
+            }
+        }
         if (e.category == CarDiary.Category.SERVICE) {
             List<CarDiary.Category> b = CarDiary.parseBundled(e.metaJson);
             if (!b.isEmpty()) {

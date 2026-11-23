@@ -137,6 +137,9 @@ public final class DiaryEntryDialog {
         // Service bundled state
         private final Set<CarDiary.Category> bundled = new LinkedHashSet<>();
 
+        // Coolant mode (default Top-up so topping off doesn't reset the 4-year / 80k flush clock)
+        private boolean coolantTopUp = true;
+
         // UI references
         private LinearLayout leftHeaderHost;
         private LinearLayout leftListHost;
@@ -894,6 +897,9 @@ public final class DiaryEntryDialog {
             } else if (selectedCat == CarDiary.Category.SERVICE) {
                 adaptiveBox.setVisibility(View.VISIBLE);
                 buildServiceBundles();
+            } else if (selectedCat == CarDiary.Category.COOLANT) {
+                adaptiveBox.setVisibility(View.VISIBLE);
+                buildCoolantControls();
             } else {
                 adaptiveBox.setVisibility(View.GONE);
             }
@@ -1127,6 +1133,24 @@ public final class DiaryEntryDialog {
             adaptiveBox.addView(clipWell);
         }
 
+        private void buildCoolantControls() {
+            LinearLayout seg = new LinearLayout(c);
+            seg.setOrientation(LinearLayout.HORIZONTAL);
+            seg.setBackground(roundedRect(wellFill(), borderColor(), 1, 99));
+            int sp = Style.dp(c, 4);
+            seg.setPadding(sp, sp, sp, sp);
+            seg.addView(segBtn(c.getString(R.string.diary_coolant_topup), coolantTopUp, () -> {
+                coolantTopUp = true;
+                rebuildAdaptive();
+            }));
+            seg.addView(segBtn(c.getString(R.string.diary_coolant_change), !coolantTopUp, () -> {
+                coolantTopUp = false;
+                rebuildAdaptive();
+            }));
+            adaptiveBox.addView(seg, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
+
         private void buildServiceBundles() {
             adaptiveBox.addView(subtleLabel(c.getString(R.string.diary_service_done_items)));
             List<View> items = new ArrayList<>();
@@ -1232,8 +1256,12 @@ public final class DiaryEntryDialog {
                     app, tsMs, captureClip, true, odo, outC, lat, lon, cost,
                     null, note, tags, meta, jolt != null ? jolt.id : null, onSaved);
             } else {
-                String meta = (cat == CarDiary.Category.SERVICE && !bundled.isEmpty())
-                    ? CarDiary.buildServiceBundledMeta(new ArrayList<>(bundled)) : null;
+                String meta = null;
+                if (cat == CarDiary.Category.SERVICE && !bundled.isEmpty()) {
+                    meta = CarDiary.buildServiceBundledMeta(new ArrayList<>(bundled));
+                } else if (cat == CarDiary.Category.COOLANT) {
+                    meta = CarDiary.buildCoolantMeta(coolantTopUp);
+                }
                 String status = cat == CarDiary.Category.NOISE
                     ? CarDiary.STATUS_OPEN : CarDiary.STATUS_DONE;
                 CarDiary.insert(app, cat, status, tsMs, odo, outC, cost,
