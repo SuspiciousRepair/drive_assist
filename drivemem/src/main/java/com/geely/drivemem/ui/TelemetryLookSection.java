@@ -55,7 +55,6 @@ public final class TelemetryLookSection extends LinearLayout {
 
         LinearLayout driveSideRow = new LinearLayout(activity);
         driveSideRow.setOrientation(LinearLayout.HORIZONTAL);
-        driveSideRow.addView(driveSideTile(activity, Style.DRIVE_SIDE_AUTO,  activity.getString(R.string.cfg_drive_side_auto)));
         driveSideRow.addView(driveSideTile(activity, Style.DRIVE_SIDE_LEFT,  activity.getString(R.string.cfg_drive_side_left)));
         driveSideRow.addView(driveSideTile(activity, Style.DRIVE_SIDE_RIGHT, activity.getString(R.string.cfg_drive_side_right)));
         driveSideCard.addView(driveSideRow);

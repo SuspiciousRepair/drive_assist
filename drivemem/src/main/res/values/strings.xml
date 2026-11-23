@@ -313,10 +313,9 @@
     <string name="cfg_appearance_auto">Auto</string>
     <string name="cfg_appearance_note">Auto follows this head unit\'s own day/night setting. Neon and Noturno always use their one fixed color scheme, whatever this is set to.</string>
     <string name="cfg_drive_side_header">Driver side</string>
-    <string name="cfg_drive_side_auto">Auto</string>
     <string name="cfg_drive_side_left">Left</string>
     <string name="cfg_drive_side_right">Right</string>
-    <string name="cfg_drive_side_note">Auto follows the car\'s steering-wheel side.</string>
+    <string name="cfg_drive_side_note">Detected from the car on first start. Change it here anytime.</string>
     <string name="cfg_skyline_label">Show skyline art</string>
     <string name="cfg_skyline_header">Skyline</string>
     <string name="cfg_skyline_seed_header">Skyline Seed</string>
