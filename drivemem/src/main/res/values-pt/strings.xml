@@ -304,7 +304,7 @@
     <string name="cfg_drive_side_auto">Automático</string>
     <string name="cfg_drive_side_left">Esquerdo</string>
     <string name="cfg_drive_side_right">Direito</string>
-    <string name="cfg_drive_side_note">Automático lê o lado do volante direto do carro. Posiciona a barra lateral e os controles principais no lado do motorista.</string>
+    <string name="cfg_drive_side_note">Automático segue o lado do volante do carro.</string>
     <string name="cfg_skyline_label">Mostrar arte do horizonte</string>
     <string name="cfg_skyline_header">Skyline</string>
     <string name="cfg_skyline_seed_header">Semente do Horizonte</string>

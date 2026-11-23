@@ -97,6 +97,24 @@ public class StyleRhdTest {
         }
     }
 
+    @Test public void mirrorIndexReversesOrderOnlyInRhd() {
+        for (int n = 1; n <= 4; n++) {
+            for (int i = 0; i < n; i++) {
+                assertEquals(i, Style.mirrorIndex(i, n, false));
+                assertEquals(n - 1 - i, Style.mirrorIndex(i, n, true));
+            }
+        }
+    }
+
+    @Test public void shouldScrollToDriverEdgePreservesManualScroll() {
+        assertFalse(Style.shouldScrollToDriverEdge(0, 3, false));
+        assertFalse(Style.shouldScrollToDriverEdge(2, 3, false));
+        assertTrue(Style.shouldScrollToDriverEdge(0, 3, true));
+        assertTrue(Style.shouldScrollToDriverEdge(2, 3, true));
+        assertTrue(Style.shouldScrollToDriverEdge(4, 3, true));
+        assertFalse(Style.shouldScrollToDriverEdge(3, 3, true));
+    }
+
     @Test public void driveSidePrefIsBackedUpAndPhoneRestorable() {
         assertEquals("drive_side", Prefs.KEY_DRIVE_SIDE);
         assertTrue(Prefs.isBackedUp(Prefs.KEY_DRIVE_SIDE));

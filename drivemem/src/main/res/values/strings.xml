@@ -316,7 +316,7 @@
     <string name="cfg_drive_side_auto">Auto</string>
     <string name="cfg_drive_side_left">Left</string>
     <string name="cfg_drive_side_right">Right</string>
-    <string name="cfg_drive_side_note">Auto reads the steering-wheel side from the car. Places the navigation rail and primary controls on the driver\'s side of the screen.</string>
+    <string name="cfg_drive_side_note">Auto follows the car\'s steering-wheel side.</string>
     <string name="cfg_skyline_label">Show skyline art</string>
     <string name="cfg_skyline_header">Skyline</string>
     <string name="cfg_skyline_seed_header">Skyline Seed</string>

@@ -50,20 +50,22 @@ public final class TelemetryLookSection extends LinearLayout {
         ConfigCards.add(left, skyCard);
         LinearLayout themeCard = ConfigCards.card(activity, activity.getString(R.string.cfg_theme_selection_header));
         ConfigCards.add(right, themeCard);
-        LinearLayout driveSideCard = ConfigCards.card(activity, activity.getString(R.string.cfg_drive_side_header));
-        ConfigCards.add(right, driveSideCard);
+        if (Style.RHD_READY) {
+            LinearLayout driveSideCard = ConfigCards.card(activity, activity.getString(R.string.cfg_drive_side_header));
+            ConfigCards.add(right, driveSideCard);
 
-        LinearLayout driveSideRow = new LinearLayout(activity);
-        driveSideRow.setOrientation(LinearLayout.HORIZONTAL);
-        driveSideRow.addView(driveSideTile(activity, Style.DRIVE_SIDE_AUTO,  activity.getString(R.string.cfg_drive_side_auto)));
-        driveSideRow.addView(driveSideTile(activity, Style.DRIVE_SIDE_LEFT,  activity.getString(R.string.cfg_drive_side_left)));
-        driveSideRow.addView(driveSideTile(activity, Style.DRIVE_SIDE_RIGHT, activity.getString(R.string.cfg_drive_side_right)));
-        driveSideCard.addView(driveSideRow);
-        TextView driveSideNote = new TextView(activity);
-        driveSideNote.setTextColor(Style.TEXT_DIM); driveSideNote.setTextSize(14);
-        driveSideNote.setPadding(0, Style.dp(activity, 10), 0, 0);
-        driveSideNote.setText(activity.getString(R.string.cfg_drive_side_note));
-        driveSideCard.addView(driveSideNote);
+            LinearLayout driveSideRow = new LinearLayout(activity);
+            driveSideRow.setOrientation(LinearLayout.HORIZONTAL);
+            driveSideRow.addView(driveSideTile(activity, Style.DRIVE_SIDE_AUTO,  activity.getString(R.string.cfg_drive_side_auto)));
+            driveSideRow.addView(driveSideTile(activity, Style.DRIVE_SIDE_LEFT,  activity.getString(R.string.cfg_drive_side_left)));
+            driveSideRow.addView(driveSideTile(activity, Style.DRIVE_SIDE_RIGHT, activity.getString(R.string.cfg_drive_side_right)));
+            driveSideCard.addView(driveSideRow);
+            TextView driveSideNote = new TextView(activity);
+            driveSideNote.setTextColor(Style.TEXT_DIM); driveSideNote.setTextSize(14);
+            driveSideNote.setPadding(0, Style.dp(activity, 10), 0, 0);
+            driveSideNote.setText(activity.getString(R.string.cfg_drive_side_note));
+            driveSideCard.addView(driveSideNote);
+        }
 
         // Noturno's own scene (VaporArtView) is a different art path entirely
         // from the skyline (SkylineArtView) every other theme uses -- this

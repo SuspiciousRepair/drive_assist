@@ -302,7 +302,7 @@
     <string name="cfg_drive_side_auto">อัตโนมัติ</string>
     <string name="cfg_drive_side_left">ซ้าย</string>
     <string name="cfg_drive_side_right">ขวา</string>
-    <string name="cfg_drive_side_note">อัตโนมัติจะอ่านตำแหน่งพวงมาลัยจากรถโดยตรง เพื่อจัดวางแถบนำทางและปุ่มควบคุมหลักไว้ฝั่งคนขับ</string>
+    <string name="cfg_drive_side_note">อัตโนมัติจะใช้ตำแหน่งพวงมาลัยของรถ</string>
     <string name="cfg_theme_header">ธีม</string>
     <string name="cfg_theme_selection_header">เลือกธีม</string>
     <string name="cfg_theme_sub">มีผลกับทุกหน้าจอของ Drive Assist ภาพขนาดย่อจะแสดงสีและรูปทรงของการ์ด — การเปลี่ยนแปลงจะเกิดขึ้นทันที</string>

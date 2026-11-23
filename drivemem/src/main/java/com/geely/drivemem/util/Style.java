@@ -181,6 +181,9 @@ public class Style {
 
     // Right-hand drive layout: resolved once per load(Context) from the
     // drive_side setting (Auto / Left / Right) and CarCaps.rhd.
+    // Gated off until PR 2 (home/overlay) and PR 3 (settings/stats/details) land
+    // so no RHD car receives a half-mirrored layout from a nightly build.
+    public static final boolean RHD_READY = false;
     public static boolean RHD = false;
     public static final String DRIVE_SIDE_AUTO  = "auto";
     public static final String DRIVE_SIDE_LEFT  = "left";
@@ -194,7 +197,7 @@ public class Style {
     /** Saves the driving position setting and updates {@link #RHD}. */
     public static void setDriveSide(Context c, String mode) {
         Prefs.setDriveSide(c, mode);
-        RHD = resolveRhd(mode, CarCaps.read(c));
+        RHD = RHD_READY && resolveRhd(mode, CarCaps.read(c));
     }
 
     /** Pure resolver for RHD: LEFT -> false, RIGHT -> true, AUTO (or unknown) -> CarCaps.rhd == "1". */
@@ -202,6 +205,11 @@ public class Style {
         if (DRIVE_SIDE_RIGHT.equals(mode)) return true;
         if (DRIVE_SIDE_LEFT.equals(mode)) return false;
         return caps != null && "1".equals(caps.rhd);
+    }
+
+    /** Pure index mapping for mirrored horizontal rows and columns. */
+    static int mirrorIndex(int index, int count, boolean rhd) {
+        return rhd ? (count - 1 - index) : index;
     }
 
     /** Physical horizontal gravity for the driver's edge: LEFT on LHD, RIGHT on RHD. */
@@ -225,31 +233,45 @@ public class Style {
     /** Adds items horizontally in LHD order (0..n-1) or mirrored RHD order (n-1..0),
      * skipping null entries. When gapDp > 0, applies a uniform gap between adjacent
      * visual items (preserving each item's width, height, weight, gravity, and
-     * vertical margins). When gapDp <= 0, swaps each item's left/right margins in RHD. */
+     * vertical margins). When gapDp <= 0, swaps each freshly built item's horizontal
+     * margins in RHD. */
     public static void addMirrored(LinearLayout row, int gapDp, View... items) {
         if (items == null) return;
         int gapPx = gapDp > 0 ? dp(row.getContext(), gapDp) : 0;
         int added = 0;
         int n = items.length;
         for (int i = 0; i < n; i++) {
-            View v = items[RHD ? n - 1 - i : i];
+            View v = items[mirrorIndex(i, n, RHD)];
             if (v == null) continue;
             ViewGroup.LayoutParams raw = v.getLayoutParams();
             if (gapPx > 0) {
-                LinearLayout.LayoutParams lp = (raw instanceof LinearLayout.LayoutParams)
-                    ? (LinearLayout.LayoutParams) raw
-                    : (raw != null ? new LinearLayout.LayoutParams(raw)
-                        : new LinearLayout.LayoutParams(
-                            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                LinearLayout.LayoutParams lp;
+                if (raw instanceof LinearLayout.LayoutParams) {
+                    lp = (LinearLayout.LayoutParams) raw;
+                } else if (raw instanceof ViewGroup.MarginLayoutParams) {
+                    lp = new LinearLayout.LayoutParams((ViewGroup.MarginLayoutParams) raw);
+                } else if (raw != null) {
+                    lp = new LinearLayout.LayoutParams(raw);
+                } else {
+                    lp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                }
                 lp.leftMargin = added > 0 ? gapPx : 0;
                 lp.rightMargin = 0;
                 row.addView(v, lp);
             } else {
                 if (RHD && raw instanceof ViewGroup.MarginLayoutParams) {
                     ViewGroup.MarginLayoutParams mlp = (ViewGroup.MarginLayoutParams) raw;
-                    int tmp = mlp.leftMargin;
-                    mlp.leftMargin = mlp.rightMargin;
-                    mlp.rightMargin = tmp;
+                    if (mlp.isMarginRelative()) {
+                        int s = mlp.getMarginStart();
+                        int e = mlp.getMarginEnd();
+                        mlp.setMarginStart(e);
+                        mlp.setMarginEnd(s);
+                    } else {
+                        int tmp = mlp.leftMargin;
+                        mlp.leftMargin = mlp.rightMargin;
+                        mlp.rightMargin = tmp;
+                    }
                 }
                 if (raw != null) row.addView(v, raw);
                 else row.addView(v);
@@ -276,6 +298,9 @@ public class Style {
         boolean titleWeighted = title != null
             && title.getLayoutParams() instanceof LinearLayout.LayoutParams
             && ((LinearLayout.LayoutParams) title.getLayoutParams()).weight > 0f;
+        if (titleWeighted && title instanceof TextView) {
+            ((TextView) title).setGravity(Gravity.CENTER_VERTICAL | driverGravity());
+        }
         if (!trail.isEmpty() && !titleWeighted) {
             View spacer = new View(c);
             spacer.setLayoutParams(new LinearLayout.LayoutParams(0, 1, 1f));
@@ -322,7 +347,7 @@ public class Style {
     /** Loads the saved theme (or transient override) and applies it. Called at onCreate start. */
     public static void load(Context c) {
         Prefs.getCurrency(c);
-        RHD = resolveRhd(driveSide(c), CarCaps.read(c));
+        RHD = RHD_READY && resolveRhd(driveSide(c), CarCaps.read(c));
         String savedTheme = Prefs.getTheme(c, THEMES[0].id);
         if ("claro".equals(savedTheme)) {
             // Legacy: Claro theme merged into Default's light Palette; migrate to APPEARANCE_LIGHT.
@@ -1071,19 +1096,29 @@ public class Style {
      * repack removes it). */
     public static int packIntoColumns(Context c, LinearLayout columns, List<LinearLayout> cards,
             int columnWidthPx, int availableHeightPx, java.util.function.IntConsumer afterRepack) {
+        int prevCount = columns.getChildCount();
         int n = packIntoColumnsOnce(c, columns, cards, columnWidthPx, availableHeightPx);
         columns.post(() -> {
             for (int i = 0; i < columns.getChildCount(); i++) {
                 if (columns.getChildAt(i).getHeight() > availableHeightPx) {
                     int again = packIntoColumnsOnce(c, columns, cards, columnWidthPx, availableHeightPx);
                     if (afterRepack != null) afterRepack.accept(again);
-                    if (RHD) columns.post(() -> scrollColumnsToDriverEdge(columns));
+                    if (shouldScrollToDriverEdge(prevCount, again, RHD)) {
+                        columns.post(() -> scrollColumnsToDriverEdge(columns));
+                    }
                     return;
                 }
             }
-            if (RHD) scrollColumnsToDriverEdge(columns);
+            if (shouldScrollToDriverEdge(prevCount, n, RHD)) scrollColumnsToDriverEdge(columns);
         });
         return n;
+    }
+
+    /** Auto-scrolls overflowing RHD columns to the driver edge only on the initial
+     * pack or when the column count changes, preserving manual horizontal scroll
+     * when cards resize or toggle within the same number of columns. */
+    static boolean shouldScrollToDriverEdge(int prevCols, int newCols, boolean rhd) {
+        return rhd && (prevCols == 0 || newCols != prevCols);
     }
 
     /** Scrolls an overflowing HorizontalScrollView to the right (driver) edge in RHD.
@@ -1145,7 +1180,7 @@ public class Style {
         columns.setGravity(driverGravity());
         int count = built.size();
         for (int i = 0; i < count; i++) {
-            LinearLayout next = built.get(RHD ? (count - 1 - i) : i);
+            LinearLayout next = built.get(mirrorIndex(i, count, RHD));
             LinearLayout.LayoutParams clp =
                 new LinearLayout.LayoutParams(columnWidthPx, ViewGroup.LayoutParams.WRAP_CONTENT);
             if (i > 0) clp.leftMargin = gapH;
