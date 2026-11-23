@@ -190,6 +190,10 @@ public class TripRouteActivity extends Activity {
                     d.ts[i] = c.getLong(4);
                 }
             } finally { c.close(); }
+            // Heights the car could not have driven to (a GPS jump) are
+            // left out of the chart and the height range.
+            d.alt = com.geely.drivemem.sensors.AltitudeGate.dropJumps(
+                d.alt, TripRouteStats.cumulativeKm(d.lat, d.lon));
             int np = d.lat.length;
             if (np >= 2) {
                 try {

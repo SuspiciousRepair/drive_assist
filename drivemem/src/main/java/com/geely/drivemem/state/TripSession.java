@@ -5,6 +5,7 @@ import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.car.CarDb;
 import com.geely.drivemem.car.EntityBus;
 import com.geely.drivemem.car.Telemetry;
+import com.geely.drivemem.sensors.AltitudeGate;
 import com.geely.drivemem.sensors.DrivingConsumption;
 import com.geely.drivemem.sensors.EnergyIntegrator;
 import com.geely.drivemem.sensors.ObdHub;
@@ -35,7 +36,7 @@ public final class TripSession {
     // real elevation change, so a stationary-ish GPS wobble doesn't
     // inflate both ascent and descent over a long drive. A rough estimate,
     // not a precise one; said plainly rather than pretending otherwise.
-    static final double ALTITUDE_NOISE_M = 3.0;
+    public static final double ALTITUDE_NOISE_M = 3.0;
 
     /** Hub key: the open trip as a {@link LiveTrip} ({@link LiveTrip#NONE}
      * when no trip is open). Updated on the hub thread on every
@@ -105,6 +106,8 @@ public final class TripSession {
     private static volatile double startSocRaw = Double.NaN;
     private static volatile double currentSocRaw = Double.NaN;
     private static volatile Double lastAltitude = null;
+    // The odometer (km) when lastAltitude was taken; NaN when unknown.
+    private static volatile double lastAltitudeOdoKm = Double.NaN;
     private static volatile double ascentM = 0;
     private static volatile double descentM = 0;
 
@@ -176,6 +179,7 @@ public final class TripSession {
         drivingDurationMs = 0;
         startSampleId = (ctx != null) ? CarDb.get(ctx).latestSampleId() : -1;
         lastAltitude = null;
+        lastAltitudeOdoKm = Double.NaN;
         ascentM = 0;
         descentM = 0;
         RoutePoints.reset();
@@ -252,13 +256,19 @@ public final class TripSession {
         if (loc == null) return;
         double alt = loc[2];
         if (!Double.isFinite(alt)) return; // a fix with no altitude is not a height of 0
+        double odo = num(data.get("odometer"), Double.NaN);
         if (lastAltitude != null) {
             double delta = alt - lastAltitude;
-            if (delta > ALTITUDE_NOISE_M) ascentM += delta;
-            else if (delta < -ALTITUDE_NOISE_M) descentM += -delta;
-            else return; // within noise band — don't move the reference point either
+            if (Math.abs(delta) <= ALTITUDE_NOISE_M) return; // within noise band — don't move the reference point either
+            // Steeper than a road: a GPS error. Not counted, but it becomes
+            // the reference, so the way back from it is not counted either.
+            if (!AltitudeGate.isOdoJump(delta, lastAltitudeOdoKm, odo, ALTITUDE_NOISE_M)) {
+                if (delta > 0) ascentM += delta;
+                else descentM += -delta;
+            }
         }
         lastAltitude = alt;
+        lastAltitudeOdoKm = odo;
     }
 
     /** Net energy since the trip began from raw dashboard SoC; NaN until both
@@ -468,6 +478,7 @@ public final class TripSession {
         currentDriveSegmentStartMs = nowMs;
         drivingDurationMs = replayDrivingMs(persistedStartMs, nowMs, readTsAndGear(ctx, persistedStartMs, nowMs));
         lastAltitude = null;
+        lastAltitudeOdoKm = Double.NaN;
         ascentM = 0;
         descentM = 0;
 
@@ -548,39 +559,48 @@ public final class TripSession {
 
     private static Object[][] readGearAndAltitude(Context ctx, long startSampleId, long endSampleId) {
         Cursor c = CarDb.get(ctx).db().rawQuery(
-            "SELECT gear, altitude_m FROM telemetry_sample WHERE id BETWEEN ? AND ? ORDER BY id",
+            "SELECT gear, altitude_m, odo_km FROM telemetry_sample WHERE id BETWEEN ? AND ? ORDER BY id",
             new String[]{String.valueOf(startSampleId), String.valueOf(endSampleId)});
         try {
-            Object[][] rows = new Object[c.getCount()][2];
+            Object[][] rows = new Object[c.getCount()][3];
             int i = 0;
             while (c.moveToNext()) {
                 rows[i][0] = c.isNull(0) ? null : c.getInt(0);
                 rows[i][1] = c.isNull(1) ? null : c.getDouble(1);
+                rows[i][2] = c.isNull(2) ? null : c.getDouble(2);
                 i++;
             }
             return rows;
         } finally { c.close(); }
     }
 
-    /** Replays the same altitude noise filter onTelemetryTick uses, over
-     * {gear, altitude} rows in sample-id order. Pure/testable — the DB read
-     * is kept separate in readGearAndAltitude(). Each row is {Integer gear,
-     * Double altitude}, either of which may be null. */
+    /** Replays the same altitude filter onTelemetryTick uses, over
+     * {gear, altitude, odometer} rows in sample-id order. Pure/testable — the
+     * DB read is kept separate in readGearAndAltitude(). Each row is
+     * {Integer gear, Double altitude, Double odometer km}, any of which may
+     * be null; the odometer may also be left out (a 2-element row), and a
+     * step without both odometers is never judged a jump. */
     public static double[] replayAscentDescent(Object[][] gearAltitudeRows) {
         double ascent = 0, descent = 0;
         Double lastAlt = null;
+        double lastOdo = Double.NaN;
         for (Object[] row : gearAltitudeRows) {
             Integer gear = (Integer) row[0];
             Double alt = (Double) row[1];
+            Double odoKm = row.length > 2 ? (Double) row[2] : null;
+            double odo = odoKm != null ? odoKm : Double.NaN;
             if (gear == null || gear == Modes.GEAR_PARK_ADAPTED) continue; // parked: don't accumulate jitter
             if (alt == null) continue;
             if (lastAlt != null) {
                 double delta = alt - lastAlt;
-                if (delta > ALTITUDE_NOISE_M) ascent += delta;
-                else if (delta < -ALTITUDE_NOISE_M) descent += -delta;
-                else continue; // within noise band — don't move the reference point either
+                if (Math.abs(delta) <= ALTITUDE_NOISE_M) continue; // within noise band — don't move the reference point either
+                if (!AltitudeGate.isOdoJump(delta, lastOdo, odo, ALTITUDE_NOISE_M)) {
+                    if (delta > 0) ascent += delta;
+                    else descent += -delta;
+                }
             }
             lastAlt = alt;
+            lastOdo = odo;
         }
         return new double[]{ascent, descent};
     }
@@ -680,6 +700,7 @@ public final class TripSession {
         currentDriveSegmentStartMs = 0;
         drivingDurationMs = 0;
         lastAltitude = null;
+        lastAltitudeOdoKm = Double.NaN;
         ascentM = 0;
         descentM = 0;
     }

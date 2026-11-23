@@ -334,6 +334,46 @@ public class TripSessionTest {
         assertEquals(0.0, ad[1], 1e-9);
     }
 
+    private static Object[] row(Integer gear, Double altitude, Double odoKm) {
+        return new Object[]{gear, altitude, odoKm};
+    }
+
+    @Test
+    public void testReplayAscentDescentSkipsAGpsJumpAndTheWayBack() {
+        // 2026-11-23: GPS height went up 150 m with the car stopped, then
+        // came back. Neither step is a climb.
+        Object[][] rows = {
+            row(Modes.DRIVE_COMFORT, 783.0, 7069.5),
+            row(Modes.DRIVE_COMFORT, 933.0, 7069.5),
+            row(Modes.DRIVE_COMFORT, 820.0, 7069.6),
+            row(Modes.DRIVE_COMFORT, 812.0, 7069.6),   // -8: a real step from 820
+        };
+        double[] ad = TripSession.replayAscentDescent(rows);
+        assertEquals(0.0, ad[0], 1e-9);
+        assertEquals(8.0, ad[1], 1e-9);
+    }
+
+    @Test
+    public void testReplayAscentDescentKeepsALongClimb() {
+        // +197 m over 3.4 km (a tunnel): 6 %, a road.
+        Object[][] rows = {
+            row(Modes.DRIVE_COMFORT, 50.0, 100.0),
+            row(Modes.DRIVE_COMFORT, 247.0, 103.4),
+        };
+        double[] ad = TripSession.replayAscentDescent(rows);
+        assertEquals(197.0, ad[0], 1e-9);
+    }
+
+    @Test
+    public void testReplayAscentDescentWithoutOdometerCountsAsBefore() {
+        Object[][] rows = {
+            row(Modes.DRIVE_COMFORT, 783.0, null),
+            row(Modes.DRIVE_COMFORT, 933.0, 7069.5),
+        };
+        double[] ad = TripSession.replayAscentDescent(rows);
+        assertEquals(150.0, ad[0], 1e-9);
+    }
+
     @Test
     public void testReplayAscentDescentEmpty() {
         double[] ad = TripSession.replayAscentDescent(new Object[0][]);
