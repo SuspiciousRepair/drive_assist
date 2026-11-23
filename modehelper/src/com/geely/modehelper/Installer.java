@@ -50,6 +50,9 @@ public class Installer {
     private static final java.util.concurrent.atomic.AtomicBoolean BUSY =
         new java.util.concurrent.atomic.AtomicBoolean(false);
 
+    /** A download or install is in progress: do not end the process now. */
+    static boolean busy() { return BUSY.get(); }
+
     public static void install(Context ctx, String url) {
         if (!BUSY.compareAndSet(false, true)) {
             Log.i(TAG, "install: already running, ignoring the repeat");
