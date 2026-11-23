@@ -159,7 +159,7 @@ public class ComfortActivity extends Activity {
     private android.widget.ImageView jumboArtView;
     private TextView jumboTitleView, jumboArtistView, jumboAlbumView;
     private final java.util.List<View> lyricsOpenButtons = new java.util.ArrayList<>();   // on the condensed card
-    // Open or closed: the driver's last choice (✕ or the Lyrics button),
+    // Open or closed: the driver's last choice (shrink or the Lyrics button),
     // kept across tracks and restarts (Prefs.getLyricsOpen).
     private boolean lyricsOpen;
     private boolean eqAvailable;              // the car's sound settings can be opened (OemSound); read once, at build
@@ -1364,10 +1364,12 @@ public class ComfortActivity extends Activity {
         jumboBar.setOrientation(LinearLayout.HORIZONTAL);
         int pad = Style.dp(this, 26);
         jumboBar.setPadding(pad, Style.dp(this, 8), pad, pad);
-        // "⏯"/"⏭"/"✕" are icons, not prose -- same tiles as the small card.
+        // "⏯"/"⏭" are icons, not prose -- same tiles as the small card.
+        // Closing shrinks the card back, so it wears the "make it small"
+        // sign (two arrows pointing in), not a close ✕.
         jumboBar.addView(mediaTile("⏯", MusicState::playPause), tileLp(88, 0));
         jumboBar.addView(mediaTile("⏭", MusicState::next), tileLp(88, 14));
-        jumboBar.addView(mediaTile("✕", () -> setLyricsOpen(false)), tileLp(88, 14));
+        jumboBar.addView(iconTile(R.drawable.ic_lyrics_collapse, () -> setLyricsOpen(false)), tileLp(88, 14));
         outer.addView(jumboBar);
         paintJumbo();
         return outer;

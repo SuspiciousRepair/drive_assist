@@ -23,7 +23,7 @@
   the top the art, song, artist and album, in a soft shade of the album
   art's main colour; under them the line sung now in large type, the line
   before it and the next two, in time with the song; and Play, Skip and a
-  close button at the bottom. The card remembers the last choice, open
+  shrink button (two arrows pointing in) at the bottom. The card remembers the last choice, open
   or closed, from song to song. The card keeps its normal size when the Home
   Assistant panel is up, or when the other cards need more than one
   column; the Lyrics button then says there is no room. The lyrics come from LRCLIB (lrclib.net), a free lyrics site:

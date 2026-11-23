@@ -219,7 +219,7 @@ public final class Prefs {
     // sends nothing to lrclib.net and shows no Lyrics button.
     public static boolean getLyricsSearch(Context ctx) { return file(ctx).getBoolean("spotify_lyrics", false); }
     public static void setLyricsSearch(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_lyrics", v).apply(); }
-    // The lyrics open (jumbo card) or closed: the last ✕ / Lyrics tap, kept across tracks and
+    // The lyrics open (jumbo card) or closed: the last shrink / Lyrics tap, kept across tracks and
     // restarts. Open by default, so turning the search on shows them.
     public static boolean getLyricsOpen(Context ctx) { return file(ctx).getBoolean("spotify_lyrics_open", true); }
     public static void setLyricsOpen(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_lyrics_open", v).apply(); }
