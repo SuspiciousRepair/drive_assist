@@ -75,17 +75,9 @@ public class ValetDetailActivity extends Activity {
         int pad = Style.dp(this, 22);
         root.setPadding(pad, pad + Style.statusBarHeight(this), pad, pad);
 
-        LinearLayout head = new LinearLayout(this);
-        head.setOrientation(LinearLayout.HORIZONTAL);
-        head.setGravity(Gravity.CENTER_VERTICAL);
-        head.addView(Style.backButton(this, this::finish));
         title = Style.title(this, getString(R.string.valet_short));
         title.setTextSize(22);
-        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        tlp.leftMargin = Style.dp(this, 14);
-        head.addView(title, tlp);
-        root.addView(head);
+        root.addView(Style.headerRow(this, Style.backButton(this, this::finish), title));
 
         LinearLayout body = new LinearLayout(this);
         body.setOrientation(LinearLayout.HORIZONTAL);
@@ -93,7 +85,7 @@ public class ValetDetailActivity extends Activity {
 
         LinearLayout left = new LinearLayout(this);
         left.setOrientation(LinearLayout.VERTICAL);
-        body.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        left.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
 
         route = new RouteView(this);
         left.addView(route, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
@@ -132,10 +124,9 @@ public class ValetDetailActivity extends Activity {
         int sp = Style.dp(this, 20);
         stats.setPadding(sp, sp, sp, sp);
         stats.setBackground(Style.tile(this));
-        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(Style.dp(this, 460),
-            ViewGroup.LayoutParams.MATCH_PARENT);
-        slp.leftMargin = Style.dp(this, 20);
-        body.addView(stats, slp);
+        stats.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(this, 460),
+            ViewGroup.LayoutParams.MATCH_PARENT));
+        Style.addMirrored(body, 20, left, stats);
 
         setContentView(root);
 

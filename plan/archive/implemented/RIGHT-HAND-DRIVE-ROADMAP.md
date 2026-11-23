@@ -1,6 +1,6 @@
 # Right-hand drive layout roadmap
 
-**Status:** Design finalized; ready for phased implementation on `next`.
+**Status:** Implemented on `next` across three PRs (foundation & primitives, home screen & floating overlay, settings/stats/detail screens & docs). Hardware follow-up on a real RHD vehicle remains open (see bottom).
 
 **Scope (updated from earlier draft):** Full driver-side mirroring across the
 app controlled by a single resolved boolean (`Style.RHD`) and a small set of

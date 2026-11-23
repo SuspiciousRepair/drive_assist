@@ -181,9 +181,6 @@ public class Style {
 
     // Right-hand drive layout: resolved once per load(Context) from the
     // drive_side setting (Auto / Left / Right) and CarCaps.rhd.
-    // Gated off until PR 2 (home/overlay) and PR 3 (settings/stats/details) land
-    // so no RHD car receives a half-mirrored layout from a nightly build.
-    public static final boolean RHD_READY = false;
     public static boolean RHD = false;
     public static final String DRIVE_SIDE_AUTO  = "auto";
     public static final String DRIVE_SIDE_LEFT  = "left";
@@ -197,7 +194,7 @@ public class Style {
     /** Saves the driving position setting and updates {@link #RHD}. */
     public static void setDriveSide(Context c, String mode) {
         Prefs.setDriveSide(c, mode);
-        RHD = RHD_READY && resolveRhd(mode, CarCaps.read(c));
+        RHD = resolveRhd(mode, CarCaps.read(c));
     }
 
     /** Pure resolver for RHD: LEFT -> false, RIGHT -> true, AUTO (or unknown) -> CarCaps.rhd == "1". */
@@ -347,7 +344,7 @@ public class Style {
     /** Loads the saved theme (or transient override) and applies it. Called at onCreate start. */
     public static void load(Context c) {
         Prefs.getCurrency(c);
-        RHD = RHD_READY && resolveRhd(driveSide(c), CarCaps.read(c));
+        RHD = resolveRhd(driveSide(c), CarCaps.read(c));
         String savedTheme = Prefs.getTheme(c, THEMES[0].id);
         if ("claro".equals(savedTheme)) {
             // Legacy: Claro theme merged into Default's light Palette; migrate to APPEARANCE_LIGHT.

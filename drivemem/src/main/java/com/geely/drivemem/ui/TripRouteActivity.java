@@ -84,29 +84,21 @@ public class TripRouteActivity extends Activity {
         long endMs = getIntent().getLongExtra(EXTRA_END_MS, 0);
         double km = getIntent().getDoubleExtra(EXTRA_KM, 0);
 
-        LinearLayout head = new LinearLayout(this);
-        head.setOrientation(LinearLayout.HORIZONTAL);
-        head.setGravity(Gravity.CENTER_VERTICAL);
-        head.addView(Style.backButton(this, this::finish));
         String when = android.text.format.DateFormat.getMediumDateFormat(this).format(new java.util.Date(startMs))
             + "  " + SessionText.clock(startMs) + (endMs > 0 ? " – " + SessionText.clock(endMs) : "")
             + String.format(Locale.US, "  ·  %.1f km", km);
         TextView t = Style.title(this, getString(R.string.route_title) + "  ·  " + when);
         t.setTextSize(22);
-        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        tlp.leftMargin = Style.dp(this, 14);
-        head.addView(t, tlp);
-        root.addView(head);
+        root.addView(Style.headerRow(this, Style.backButton(this, this::finish), t));
 
         LinearLayout body = new LinearLayout(this);
         body.setOrientation(LinearLayout.HORIZONTAL);
         root.addView(body, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
-        // Left: route, height profile, speed key.
+        // Map, height profile, speed key (left in LHD, right in RHD).
         LinearLayout left = new LinearLayout(this);
         left.setOrientation(LinearLayout.VERTICAL);
-        body.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        left.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
 
         route = new RouteView(this);
         route.setTripScreen(true);
@@ -123,16 +115,15 @@ public class TripRouteActivity extends Activity {
         left.addView(profile, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 230)));
         left.addView(legend());
 
-        // Right: the numbers.
+        // The numbers (right in LHD, left in RHD).
         stats = new LinearLayout(this);
         stats.setOrientation(LinearLayout.VERTICAL);
         int sp = Style.dp(this, 20);
         stats.setPadding(sp, sp, sp, sp);
         stats.setBackground(Style.tile(this));
-        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(Style.dp(this, 460),
-            ViewGroup.LayoutParams.MATCH_PARENT);
-        slp.leftMargin = Style.dp(this, 20);
-        body.addView(stats, slp);
+        stats.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(this, 460),
+            ViewGroup.LayoutParams.MATCH_PARENT));
+        Style.addMirrored(body, 20, left, stats);
         showStats(null);
 
         setContentView(root);

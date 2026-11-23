@@ -127,10 +127,7 @@ public class DailyStatsView extends LinearLayout {
         LinearLayout navRow = new LinearLayout(c);
         navRow.setOrientation(LinearLayout.HORIZONTAL);
         navRow.setGravity(Gravity.CENTER_VERTICAL);
-        if (onBack != null) {
-            navRow.addView(Style.backButton(c, onBack));
-            Style.gap(navRow, c, 16);
-        }
+        View backBtn = onBack != null ? Style.backButton(c, onBack) : null;
 
         LinearLayout dateNav = new LinearLayout(c);
         dateNav.setOrientation(LinearLayout.HORIZONTAL);
@@ -154,9 +151,6 @@ public class DailyStatsView extends LinearLayout {
         dateNav.addView(navPrevBtn);
         dateNav.addView(navDateLabel);
         dateNav.addView(navNextBtn);
-        navRow.addView(dateNav);
-
-        Style.gap(navRow, c, 14);
 
         // Single dropdown trigger instead of three separate pills (2026-09-13):
         // "Dia"/"Semana"/"Mês" as three side-by-side buttons never matched
@@ -188,7 +182,7 @@ public class DailyStatsView extends LinearLayout {
         periodDropdownBtn.addView(periodChevron);
 
         periodDropdownBtn.setOnClickListener(v -> showPeriodMenu(periodDropdownBtn));
-        navRow.addView(periodDropdownBtn);
+        Style.addMirrored(navRow, 14, backBtn, dateNav, periodDropdownBtn);
 
 
         addView(navRow);
@@ -231,25 +225,17 @@ public class DailyStatsView extends LinearLayout {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         int cardPad = Style.dp(c, 16);
-        int cardGap = Style.dp(c, 12);
 
         consumptionCard = new LinearLayout(c);
         consumptionCard.setOrientation(LinearLayout.VERTICAL);
         consumptionCard.setPadding(cardPad, cardPad, cardPad, cardPad);
         consumptionCard.setBackground(Style.card(Style.cardFillColor(), c));
-        LinearLayout.LayoutParams lp1 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-        lp1.rightMargin = cardGap;
-        consumptionCard.setLayoutParams(lp1);
-        dashboardRow.addView(consumptionCard);
+        consumptionCard.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
 
-        energyCard = newDashboardCard(c, cardPad, cardGap);
-        dashboardRow.addView(energyCard);
-
-        batteryCard = newDashboardCard(c, cardPad, cardGap);
-        dashboardRow.addView(batteryCard);
-
+        energyCard = newDashboardCard(c, cardPad, 0);
+        batteryCard = newDashboardCard(c, cardPad, 0);
         tripCard = newDashboardCard(c, cardPad, 0);
-        dashboardRow.addView(tripCard);
+        Style.addMirrored(dashboardRow, 12, consumptionCard, energyCard, batteryCard, tripCard);
 
         content.addView(dashboardRow);
         dashboardRowView = dashboardRow;
@@ -292,9 +278,7 @@ public class DailyStatsView extends LinearLayout {
         sessionsContainer.setOrientation(LinearLayout.VERTICAL);
         sessionsCard.addView(sessionsContainer, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        LinearLayout.LayoutParams sessionsCardLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        sessionsCardLp.rightMargin = Style.dp(c, 12);
-        bottomRow.addView(sessionsCard, sessionsCardLp);
+        sessionsCard.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         LinearLayout chartCard = new LinearLayout(c);
         chartCard.setOrientation(LinearLayout.VERTICAL);
@@ -380,7 +364,7 @@ public class DailyStatsView extends LinearLayout {
         TextView hourCaption = sectionCaption(c, "Hora do dia");
         hourCaption.setGravity(Gravity.END);
         chartCard.addView(hourCaption);
-        bottomRow.addView(chartCard);
+        Style.addMirrored(bottomRow, 12, sessionsCard, chartCard);
         content.addView(bottomRow);
         bottomRowView = bottomRow;
     }

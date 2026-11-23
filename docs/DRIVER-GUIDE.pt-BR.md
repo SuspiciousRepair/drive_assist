@@ -47,7 +47,9 @@ ajuste a cada viagem. Modo de condução e regeneração são reaplicados só em
 desligue para um ajuste que você prefere mudar na tela do próprio carro.
 
 Os ajustes ficam em **Config**: Portas, Climatização, Modo de condução, Elementos
-(o que aparece na tela inicial), Aparência (temas e dia/noite automático) e
+(o que aparece na tela inicial), Aparência (temas, dia/noite automático e **Lado
+do motorista**: Automático, Esquerdo ou Direito, espelhando a barra lateral, os
+cartões, o painel flutuante e a arte para carros com volante à direita) e
 Sistema.
 
 Os ajustes do veículo são aplicados pelo pequeno auxiliar **ModeHelper**,

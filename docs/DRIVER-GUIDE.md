@@ -48,7 +48,9 @@ has a **Restore at start** switch (on by default); turn it off for a setting you
 would rather change in the car's own screen.
 
 Settings are grouped in **Config**: Doors, Climate, Driving mode, Elements (what
-shows on the home screen), Appearance (themes and Auto day/night), and System.
+shows on the home screen), Appearance (themes, Auto day/night, and **Driver
+side**: Auto, Left or Right, mirroring the navigation rail, cards, floating
+controls and art for right-hand-drive cars), and System.
 
 Vehicle settings are applied through the small **ModeHelper** companion that
 installs with Drive Assist. The dashboard and the privileged helper stay
