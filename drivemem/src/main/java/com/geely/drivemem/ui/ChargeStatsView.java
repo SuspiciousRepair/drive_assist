@@ -169,7 +169,7 @@ public class ChargeStatsView extends LinearLayout {
         listCard.addView(sessionListScroll, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, MIN_LIST_DP)));
         LinearLayout.LayoutParams listLp = new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.WRAP_CONTENT, 64f);
+            ViewGroup.LayoutParams.WRAP_CONTENT, 70f);
         listLp.rightMargin = Style.dp(c, 12);
         overview.addView(listCard, listLp);
 
@@ -199,7 +199,7 @@ public class ChargeStatsView extends LinearLayout {
         mapFrame.addView(chargeMapNone, new android.widget.FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         overview.addView(mapFrame, new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.MATCH_PARENT, 36f));
+            ViewGroup.LayoutParams.MATCH_PARENT, 30f));
         addView(overview);
     }
 
@@ -423,12 +423,31 @@ public class ChargeStatsView extends LinearLayout {
         if (!visibleSessions.containsKey(selectedSessionId)) {
             selectedSessionId = l.period.get(l.period.size() - 1).id;
         }
+        // Two cards per row, each about as wide as on the home screen: one
+        // card the full width of the list left a wide empty band in it.
         List<ChargeSession.Summary> rev = new ArrayList<>(l.period);
         Collections.reverse(rev);
-        for (ChargeSession.Summary s : rev) {
-            View row = chargeRow(s);
-            sessionRows.put(s.id, row);
-            listContainer.addView(row);
+        for (int i = 0; i < rev.size(); i += 2) {
+            LinearLayout pair = new LinearLayout(c);
+            pair.setOrientation(LinearLayout.HORIZONTAL);
+            pair.setBaselineAligned(false);
+            LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            if (i > 0) plp.topMargin = Style.dp(c, 14);
+            for (int k = i; k < i + 2; k++) {
+                LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(0,
+                    ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+                if (k == i) clp.rightMargin = Style.dp(c, 14);
+                if (k < rev.size()) {
+                    ChargeSession.Summary s = rev.get(k);
+                    View card = chargeRow(s);
+                    sessionRows.put(s.id, card);
+                    pair.addView(card, clp);
+                } else {
+                    pair.addView(new View(c), clp);
+                }
+            }
+            listContainer.addView(pair, plp);
         }
         chargeMap.setSelectedSpot(ChargeSpots.placeOf(places, selectedSessionId));
     }
@@ -774,10 +793,6 @@ public class ChargeStatsView extends LinearLayout {
         card.bind(s, false, true);
         int pad = Style.dp(c, 22);
         card.setPadding(pad, pad, pad, pad);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        if (listContainer.getChildCount() > 0) lp.topMargin = Style.dp(c, 14);
-        card.setLayoutParams(lp);
         card.setOnOpen(() -> {
             selectSession(s.id, false);
             if (s.id > 0) c.startActivity(ChargeDetailActivity.intent(c, s.id));
@@ -822,6 +837,9 @@ public class ChargeStatsView extends LinearLayout {
         }
         chargeMap.setSelectedSpot(ChargeSpots.placeOf(places, id));
         View row = sessionRows.get(id);
-        if (fromMap && row != null) sessionListScroll.smoothScrollTo(0, row.getTop());
+        // The card sits in a row of two: scroll to that row.
+        if (fromMap && row != null && row.getParent() instanceof View) {
+            sessionListScroll.smoothScrollTo(0, ((View) row.getParent()).getTop());
+        }
     }
 }
