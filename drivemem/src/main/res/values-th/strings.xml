@@ -509,7 +509,6 @@
     <string name="update_dialog_changelog_header">มีอะไรใหม่:</string>
     <string name="update_dialog_accept">ยอมรับและอัปเดต</string>
     <string name="update_dialog_decline">ไว้ภายหลัง</string>
-    <string name="update_dialog_skip">ข้ามเวอร์ชันนี้</string>
     <string name="update_checking">กำลังตรวจสอบการอัปเดต…</string>
     <string name="update_up_to_date">Drive Assist เป็นเวอร์ชันล่าสุดแล้ว (%1$s)</string>
     <string name="update_check_failed">ไม่สามารถตรวจสอบการอัปเดตได้: %1$s</string>

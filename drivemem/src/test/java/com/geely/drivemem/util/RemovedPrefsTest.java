@@ -13,9 +13,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/** The Spotify sign-in was removed: its stored keys go at the first start,
- * and no backup or restore brings them back. The music card's and the
- * lyrics' switches keep their old ("spotify_") names. */
+/** The Spotify sign-in and "Skip this version" were removed: their stored
+ * keys go at the first start, and no backup or restore brings them back. The
+ * music card's and the lyrics' switches keep their old ("spotify_") names. */
 public class RemovedPrefsTest {
 
     /** A SharedPreferences over a map; counts the edits it is asked for. */
@@ -24,6 +24,7 @@ public class RemovedPrefsTest {
         ed[0] = (SharedPreferences.Editor) Proxy.newProxyInstance(SharedPreferences.Editor.class.getClassLoader(),
             new Class<?>[]{SharedPreferences.Editor.class}, (proxy, meth, args) -> {
                 if (meth.getName().equals("remove")) m.remove((String) args[0]);
+                if (meth.getName().equals("putInt")) m.put((String) args[0], args[1]);
                 return meth.getReturnType() == boolean.class ? (Object) Boolean.TRUE
                     : meth.getReturnType() == void.class ? null : ed[0];
             });
@@ -31,6 +32,7 @@ public class RemovedPrefsTest {
             new Class<?>[]{SharedPreferences.class}, (proxy, meth, args) -> {
                 switch (meth.getName()) {
                     case "contains": return m.containsKey((String) args[0]);
+                    case "getInt": return m.containsKey((String) args[0]) ? m.get((String) args[0]) : args[1];
                     case "edit": edits.incrementAndGet(); return ed[0];
                     default: return null;
                 }
@@ -39,7 +41,7 @@ public class RemovedPrefsTest {
 
     @Test public void theSignInKeysAreDeletedAndTheSwitchesKept() {
         Map<String, Object> m = new HashMap<>();
-        for (String k : Prefs.REMOVED_KEYS) m.put(k, "x");
+        for (String k : Prefs.REMOVED_KEYS) m.put(k, k.startsWith("skip_") ? (Object) 0 : "x");
         m.put("bt_music", true);
         m.put("spotify_lyrics", true);
         m.put("spotify_lyrics_open", false);
@@ -69,7 +71,23 @@ public class RemovedPrefsTest {
         assertTrue(Prefs.REMOVED_KEYS.contains("spotify_refresh_token"));
         assertTrue(Prefs.REMOVED_KEYS.contains("spotify_pkce_verifier"));
         assertTrue(Prefs.REMOVED_KEYS.contains("spotify_token_expiry"));
-        assertEquals(5, Prefs.REMOVED_KEYS.size());
+        assertTrue(Prefs.REMOVED_KEYS.contains("skip_update_vc"));
+        assertTrue(Prefs.REMOVED_KEYS.contains("skip_update_vc_modehelper"));
+        assertEquals(7, Prefs.REMOVED_KEYS.size());
+    }
+
+    /** "Skip this version" went; a version skipped before the update stays
+     * quiet, as a "Later" one. A newer Later is not lowered. */
+    @Test public void aSkippedVersionBecomesALaterOne() {
+        Map<String, Object> m = new HashMap<>();
+        m.put("skip_update_vc", 29923000);
+        m.put("skip_update_vc_modehelper", 29922000);
+        m.put("update_later_vc_modehelper", 29923500);
+        Prefs.dropRemoved(prefs(m, new AtomicInteger()));
+        assertEquals(29923000, m.get("update_later_vc"));
+        assertEquals(29923500, m.get("update_later_vc_modehelper"));
+        assertFalse(m.containsKey("skip_update_vc"));
+        assertFalse(m.containsKey("skip_update_vc_modehelper"));
     }
 
     @Test public void noBackupOrRestoreCarriesThem() {

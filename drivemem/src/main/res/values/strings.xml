@@ -509,7 +509,6 @@
     <string name="update_dialog_changelog_header">What\'s new:</string>
     <string name="update_dialog_accept">Accept &amp; Update</string>
     <string name="update_dialog_decline">Later</string>
-    <string name="update_dialog_skip">Skip this version</string>
     <string name="update_checking">Checking for updates…</string>
     <string name="update_up_to_date">Drive Assist is up to date (%1$s)</string>
     <string name="update_check_failed">Could not check for updates: %1$s</string>

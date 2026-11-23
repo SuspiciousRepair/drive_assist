@@ -494,7 +494,6 @@
     <string name="update_dialog_changelog_header">O que há de novo:</string>
     <string name="update_dialog_accept">Aceitar e Atualizar</string>
     <string name="update_dialog_decline">Mais Tarde</string>
-    <string name="update_dialog_skip">Ignorar esta versão</string>
     <string name="update_checking">Verificando atualizações…</string>
     <string name="update_up_to_date">O Drive Assist já está atualizado (%1$s)</string>
     <string name="update_check_failed">Não foi possível verificar atualizações: %1$s</string>
