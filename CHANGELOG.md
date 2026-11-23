@@ -22,7 +22,7 @@
   close button at the bottom. The card remembers the last choice, open
   or closed, from song to song. The card keeps its normal size when the Home
   Assistant panel is up, or when the other cards need more than one
-  column. The lyrics come from LRCLIB (lrclib.net), a free lyrics site:
+  column; the Lyrics button then says there is no room. The lyrics come from LRCLIB (lrclib.net), a free lyrics site:
   the car sends it the song, artist and album names, once per song, and
   keeps the answer; with the switch off it sends nothing. Some songs have
   no timed lyrics there; for those the Lyrics button is dim.

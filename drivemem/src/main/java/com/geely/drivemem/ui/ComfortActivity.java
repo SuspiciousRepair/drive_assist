@@ -1061,7 +1061,7 @@ public class ComfortActivity extends Activity {
         lyr.setPadding(lp, lp, lp, lp);
         lyr.setBackground(Style.tile(this));
         lyr.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
-        lyr.setOnClickListener(v -> setLyricsOpen(true));
+        lyr.setOnClickListener(v -> openLyrics());
         lyricsOpenButtons.add(lyr);
         btnRow.addView(lyr, tileLp(76, 14));
         m.addView(btnRow);
@@ -1249,7 +1249,7 @@ public class ComfortActivity extends Activity {
         divider2.setBackgroundColor(Style.TEXT_DIM);
         divider2.getBackground().setAlpha(60);
         btnBand.addView(divider2, new LinearLayout.LayoutParams(divLp));
-        LinearLayout lyrHalf = turboStyleHalf(getString(R.string.music_lyrics_label), "", () -> setLyricsOpen(true));
+        LinearLayout lyrHalf = turboStyleHalf(getString(R.string.music_lyrics_label), "", this::openLyrics);
         // An icon, not a glyph: there is no lyrics character.
         TextView glyphSlot = (TextView) lyrHalf.getChildAt(0);
         lyrHalf.removeView(glyphSlot);
@@ -1453,6 +1453,18 @@ public class ComfortActivity extends Activity {
         v.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
         v.setOnClickListener(x -> onClick.run());
         return v;
+    }
+
+    // The Lyrics button. The big card needs two free columns and no HA
+    // panel; when the other cards (a charging Battery card, say) take them,
+    // the tap did nothing visible. Say so, once the repack has had its turn.
+    private void openLyrics() {
+        setLyricsOpen(true);
+        ui.postDelayed(() -> {
+            if (!lyricsShown() && LyricsClient.linesFor(MusicState.trackId()) != null)
+                android.widget.Toast.makeText(this, R.string.music_lyrics_no_room,
+                    android.widget.Toast.LENGTH_LONG).show();
+        }, 400);
     }
 
     private void setLyricsOpen(boolean open) {
