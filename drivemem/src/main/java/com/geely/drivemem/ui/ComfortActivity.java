@@ -3090,6 +3090,20 @@ public class ComfortActivity extends Activity {
         if (canDrivePosted.compareAndSet(false, true)) ui.post(applyCanDrive);
     };
 
+    // Head-unit IMU -> art (Noturno suspension bounce & cornering roll), 16 Hz
+    // while driving. Same single-Runnable coalesce pattern as CAN speed/drive.
+    private volatile float imuAxG, imuAyG, imuAzG;
+    private final java.util.concurrent.atomic.AtomicBoolean imuPosted =
+        new java.util.concurrent.atomic.AtomicBoolean();
+    private final Runnable applyImu = () -> {
+        imuPosted.set(false);
+        if (art != null) art.setImu(imuAxG, imuAyG, imuAzG);
+    };
+    private final com.geely.drivemem.sensors.ImuHub.Listener imuListener = (ax, ay, az) -> {
+        imuAxG = ax; imuAyG = ay; imuAzG = az;
+        if (imuPosted.compareAndSet(false, true)) ui.post(applyImu);
+    };
+
     // brake pedal -> art (brake lamps). Injected by the CAN reader the moment
     // it changes, so this is the one art input that is not 1 s late.
     private final EntityBus.Listener brakeListener = (key, reading) -> {
@@ -3117,6 +3131,7 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe(CanHub.BRAKE, brakeListener);
         CanEnergyReader.setSpeedListener(canSpeedListener);
         CanEnergyReader.setDriveListener(canDriveListener);
+        com.geely.drivemem.sensors.ImuHub.setListener(imuListener);
         if (art != null) art.setBraking(isPressed(a.get(CanHub.BRAKE)));   // no replay on the bus
         EntityBus.subscribe("car.window_pos", windowPosListener);
         EntityBus.subscribe("car.hvac_recirc", hvacRecircListener);
@@ -3154,6 +3169,7 @@ public class ComfortActivity extends Activity {
         EntityBus.unsubscribe(CanHub.BRAKE, brakeListener);
         CanEnergyReader.clearSpeedListener(canSpeedListener);
         CanEnergyReader.clearDriveListener(canDriveListener);
+        com.geely.drivemem.sensors.ImuHub.clearListener(imuListener);
         quickButtons.stop();
         EntityBus.unsubscribe("car.window_pos", windowPosListener);
         EntityBus.unsubscribe("car.hvac_recirc", hvacRecircListener);

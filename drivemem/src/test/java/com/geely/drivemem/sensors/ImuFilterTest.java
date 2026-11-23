@@ -1,0 +1,120 @@
+package com.geely.drivemem.sensors;
+
+import org.junit.Test;
+
+import static org.junit.Assert.*;
+
+/** Pure-Java unit tests for ImuFilter calibration, projection, and 1 Hz summaries. */
+public class ImuFilterTest {
+
+    private static final long STEP_NS = 62_500_000L; // 16 Hz (matches SX11SensorManager)
+
+    @Test public void restCalibrationMatchesIhu629gAndIsolatesVerticalBumps() {
+        ImuFilter f = new ImuFilter();
+        long t = 1_000_000_000L;
+        // Real stationary readings from the IHU629G head unit (~13.7 deg tilt).
+        float gx = 0.10f, gy = -9.45f, gz = -2.31f;
+        float gNorm = (float) Math.sqrt(gx * gx + gy * gy + gz * gz);
+        float ux = gx / gNorm, uy = gy / gNorm, uz = gz / gNorm;
+
+        for (int i = 0; i < 30; i++) {
+            f.onAccel(gx, gy, gz, t, 0f);
+            t += STEP_NS;
+        }
+        assertTrue("Z axis should calibrate after quiet rest samples", f.isCalibratedZ());
+        assertFalse("XY axis should not calibrate at rest", f.isCalibratedXy());
+        assertEquals(0f, f.az(), 0.05f);
+
+        // Apply a pure +3.0 m/s^2 upward bump along the calibrated up vector.
+        f.drainWindow();
+        f.onAccel(gx + 3.0f * ux, gy + 3.0f * uy, gz + 3.0f * uz, t, 40f);
+        assertEquals(2.85f, f.az(), 0.25f);
+        assertEquals(0f, f.ax(), 0.15f);
+        assertEquals(0f, f.ay(), 0.15f);
+    }
+
+    @Test public void forwardAxisAutoCalibratesOnArbitraryMountedRotation() {
+        ImuFilter f = new ImuFilter();
+        long t = 1_000_000_000L;
+
+        // Invent a rotated head unit:
+        // car up    = (0, 0, 1)
+        // car fwd   = (cos 35, sin 35, 0)
+        // car right = fwd x up = (sin 35, -cos 35, 0)
+        float cos = (float) Math.cos(Math.toRadians(35.0));
+        float sin = (float) Math.sin(Math.toRadians(35.0));
+        float gx = 0f, gy = 0f, gz = ImuFilter.G;
+
+        // 1. Stationary calibration for Z_up.
+        for (int i = 0; i < 25; i++) {
+            f.onAccel(gx, gy, gz, t, 0f);
+            t += STEP_NS;
+        }
+        assertTrue(f.isCalibratedZ());
+
+        // 2. Straight-line acceleration at +2.5 m/s^2 for 4 seconds.
+        float speedKmh = 15f;
+        float aFwd = 2.5f;
+        for (int i = 0; i < 64; i++) {
+            speedKmh += aFwd * (STEP_NS * 1e-9f) * 3.6f;
+            f.onSpeedKmh(speedKmh, t);
+            f.onAccel(gx + aFwd * cos, gy + aFwd * sin, gz, t, speedKmh);
+            t += STEP_NS;
+        }
+        assertTrue("Forward/lateral axes should calibrate from straight-line accel", f.isCalibratedXy());
+
+        // 3. Let gravity IIR settle at constant speed (~25 s), then test pure cornering to the right.
+        for (int i = 0; i < 400; i++) {
+            f.onAccel(gx, gy, gz, t, 50f);
+            t += STEP_NS;
+        }
+        float aRight = 2.0f;
+        f.onAccel(gx + aRight * sin, gy - aRight * cos, gz, t, 50f);
+        assertEquals("Right turn should project onto +ay", aRight, f.ay(), 0.25f);
+        assertEquals("Right turn should not bleed into ax", 0f, f.ax(), 0.25f);
+        assertEquals("Right turn should not bleed into az", 0f, f.az(), 0.15f);
+    }
+
+    @Test public void windowSummaryTracksRmsPeaksAndJerk() {
+        ImuFilter f = new ImuFilter();
+        long t = 1_000_000_000L;
+        float gx = 0f, gy = 0f, gz = ImuFilter.G;
+        for (int i = 0; i < 20; i++) {
+            f.onAccel(gx, gy, gz, t, 0f);
+            t += STEP_NS;
+        }
+        f.drainWindow();
+
+        // Feed 16 samples (~1 s): one upward bump and one lateral sway.
+        for (int i = 0; i < 16; i++) {
+            float dz = (i == 5) ? 4.0f : 0f;
+            float dx = (i == 10) ? 2.5f : 0f;
+            f.onAccel(gx + dx, gy, gz + dz, t, 45f);
+            t += STEP_NS;
+        }
+        ImuFilter.Summary s = f.drainWindow();
+        assertNotNull(s);
+        assertEquals(16, s.count);
+        assertTrue(s.calZ);
+        assertTrue("Peak Z should capture the 4 m/s^2 bump", s.peakZ > 3.5f);
+        assertTrue("RMS Z should be non-zero", s.rmsZ > 0.8f);
+        assertTrue("Jerk RMS should reflect the lateral impulse", s.jerkRms > 5f);
+        assertNull("Second drain without new samples should return null", f.drainWindow());
+    }
+
+    @Test public void basisRoundTripsThroughSerialization() {
+        ImuFilter f1 = new ImuFilter();
+        long t = 1_000_000_000L;
+        for (int i = 0; i < 25; i++) {
+            f1.onAccel(0.10f, -9.45f, -2.31f, t, 0f);
+            t += STEP_NS;
+        }
+        String saved = f1.serializeBasis();
+
+        ImuFilter f2 = new ImuFilter();
+        assertTrue(f2.restoreBasis(saved));
+        assertTrue(f2.isCalibratedZ());
+        assertFalse(f2.isCalibratedXy());
+        assertEquals(saved, f2.serializeBasis());
+    }
+}

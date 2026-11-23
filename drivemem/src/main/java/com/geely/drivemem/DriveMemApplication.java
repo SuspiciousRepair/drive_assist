@@ -79,6 +79,7 @@ public final class DriveMemApplication extends Application {
         com.geely.drivemem.state.CarDiary.ensureSubscribed(this);          // auto iTPMS diary events
         com.geely.drivemem.sensors.Aux12vMonitor.ensureSubscribed(this);   // keeps car.aux_12v_v history
         CanEnergyReader.ensureStarted(this);   // no-ops unless can_energy is set
+        com.geely.drivemem.sensors.ImuHub.ensureStarted(this);
         // The brake pedal (can.brake) for the dashcam's subtitle line.
         com.geely.drivemem.sensors.DashBrake.ensureSubscribed(this);
         AbrpUploader.ensureSubscribed(this);

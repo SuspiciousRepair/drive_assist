@@ -202,6 +202,23 @@ public class VaporArtView extends ArtView {
     // projected rear wheels (centre and radius on screen), for the effects
     private float rwx1, rwx2, rwy, rwr;
 
+    // Suspension bounce & cornering body roll driven by ImuHub (head-unit IMU).
+    // Normalized to carDst dimensions so the motion scales with the viewport.
+    private static final float BUMP_DEAD_G   = 0.04f;
+    private static final float BUMP_K        = 420f;   // ~3.25 Hz spring
+    private static final float BUMP_C        = 26f;    // ~0.63 damping ratio
+    private static final float BUMP_GAIN     = 18f;
+    private static final float BUMP_MAX      = 0.055f; // max fraction of car height
+    private static final float LAT_DEAD_G    = 0.03f;
+    private static final float LAT_FULL_G    = 0.45f;
+    private static final float ROLL_MAX_DEG  = 4.0f;
+    private static final float SWAY_MAX      = 0.045f; // max fraction of car width
+    private static final float ROLL_RATE     = 7.5f;   // 1/s smoothing
+
+    private float bumpY = 0f, bumpV = 0f;   // vertical body offset & velocity (frac of car height)
+    private float rollDeg = 0f;             // body roll in degrees (- = lean left on right turn)
+    private float sway = 0f;                // lateral lane offset (frac of car width)
+
     public VaporArtView(Context c) {
         super(c);
         line.setStyle(Paint.Style.STROKE);
@@ -376,8 +393,19 @@ public class VaporArtView extends ArtView {
     private void drawCar(Canvas cv) {
         if (carFade <= 0.004f || carBmp == null) return;   // has not come off the camera yet
         bmp.setAlpha(Math.round(255f * Math.min(1f, carFade)));
+        float bumpPx = bumpY * carDst.height();
+        float swayPx = sway * carDst.width();
+        boolean xform = Math.abs(bumpPx) > 0.15f || Math.abs(swayPx) > 0.15f || Math.abs(rollDeg) > 0.04f;
+        if (xform) {
+            cv.save();
+            cv.translate(swayPx, bumpPx);
+            if (Math.abs(rollDeg) > 0.04f) {
+                cv.rotate(rollDeg, carDst.centerX(), py(0f, carZ));
+            }
+        }
         cv.drawBitmap(carBmp, null, carDst, bmp);
         drawBrakeLamps(cv);
+        if (xform) cv.restore();
     }
 
     // ================= brake lamps =================
@@ -544,6 +572,36 @@ public class VaporArtView extends ArtView {
         // so the ridges move with the road instead of sitting still on the glass.
         while (scroll >= 1f) { scroll -= 1f; rowEpoch++; }
         pulse += dt;
+
+        // Suspension bounce & cornering roll: stepped per fixed 1/60 s tick so
+        // the spring stays unconditionally stable even if frame rate drops.
+        boolean moving = speedKmh > MOVING_KMH && introDone;
+        float zDrive = moving ? deadzone(imuVertG, BUMP_DEAD_G) : 0f;
+        float latNorm = moving ? Math.max(-1f, Math.min(1f, deadzone(imuLatG, LAT_DEAD_G) / LAT_FULL_G)) : 0f;
+        float targetRoll = -latNorm * ROLL_MAX_DEG;
+        float targetSway =  latNorm * SWAY_MAX;
+        float rollK = Math.min(1f, STEP_S * ROLL_RATE);
+        for (int i = 0; i < n; i++) {
+            float a = -BUMP_K * bumpY - BUMP_C * bumpV + zDrive * BUMP_GAIN;
+            bumpV += a * STEP_S;
+            bumpY += bumpV * STEP_S;
+            if (bumpY > BUMP_MAX) { bumpY = BUMP_MAX; if (bumpV > 0f) bumpV = 0f; }
+            else if (bumpY < -BUMP_MAX) { bumpY = -BUMP_MAX; if (bumpV < 0f) bumpV = 0f; }
+            rollDeg += (targetRoll - rollDeg) * rollK;
+            sway    += (targetSway - sway) * rollK;
+        }
+        if (!moving && Math.abs(bumpY) < 0.0005f && Math.abs(bumpV) < 0.002f) {
+            bumpY = 0f; bumpV = 0f;
+        }
+        if (!moving && Math.abs(rollDeg) < 0.03f && Math.abs(sway) < 0.0003f) {
+            rollDeg = 0f; sway = 0f;
+        }
+    }
+
+    private static float deadzone(float v, float dz) {
+        if (v > dz) return v - dz;
+        if (v < -dz) return v + dz;
+        return 0f;
     }
 
     @Override protected void onDraw(Canvas cv) {
@@ -590,8 +648,10 @@ public class VaporArtView extends ArtView {
         // waiting for motion. Settling (a bounded fade) and the grace period
         // (bounded by ENTRY_GRACE) are exceptions, but both are finite.
         boolean lampMoving = stepLamp();
+        boolean bodyMoving = Math.abs(bumpY) > 0.0005f || Math.abs(bumpV) > 0.002f
+                || Math.abs(rollDeg) > 0.03f || Math.abs(sway) > 0.0003f;
         if (gridV > 0.01f || speedKmh > 0.5f || Math.abs(accel) > 0.04f
-                || settling || (!introDone && stillFor < ENTRY_GRACE) || lampMoving)
+                || settling || (!introDone && stillFor < ENTRY_GRACE) || lampMoving || bodyMoving)
             postInvalidateOnAnimation();
         else if (sunUp < 1f)
             postInvalidateDelayed(SUNRISE_TICK_MS);   // the dawn, on its own slow clock
@@ -750,8 +810,13 @@ public class VaporArtView extends ArtView {
         // the pull-away of the entry counts as pedal: the wheel lights up as it arrives
         float acc = Math.max(MotorPedal.red(accel), introAccel), rgn = Math.max(0f, -accel);
         if (acc <= 0.04f && rgn <= 0.04f) return;
+        float bumpPx = bumpY * carDst.height();
+        float swayPx = sway * carDst.width();
+        boolean shifted = Math.abs(bumpPx) > 0.15f || Math.abs(swayPx) > 0.15f;
+        if (shifted) { cv.save(); cv.translate(swayPx, bumpPx); }
         wheelFx(cv, rwx1, acc, rgn);
         wheelFx(cv, rwx2, acc, rgn);
+        if (shifted) cv.restore();
     }
 
     private void wheelFx(Canvas cv, float x, float acc, float rgn) {
