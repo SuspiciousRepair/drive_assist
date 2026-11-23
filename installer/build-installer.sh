@@ -90,8 +90,13 @@ echo "Bundling assets (version: $VN, versionCode: $VC):"
 ls -lh assets/
 
 # Step 4: Package and sign installer APK
+# The installer carries the build's versionCode, not the manifest's fixed 1.
+# With a fixed 1, an installer that failed to remove itself stayed on the car
+# as v1, and modehelper then skipped every later installer as "already at
+# versionCode 1": no update arrived over the air (2026-11-23).
 "$BT/aapt2" link -o base.apk -I "$AJ" --manifest AndroidManifest.xml \
-  --min-sdk-version 28 --target-sdk-version 28
+  --min-sdk-version 28 --target-sdk-version 28 \
+  --version-code "$VC" --version-name "$VN" --replace-version
 "$JAVA_HOME/bin/javac" -classpath "$AJ" -d obj $(find src -name '*.java')
 "$BT/d8" --min-api 28 --lib "$AJ" --output . $(find obj -name '*.class')
 

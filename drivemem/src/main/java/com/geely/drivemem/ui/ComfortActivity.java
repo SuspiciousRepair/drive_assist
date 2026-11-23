@@ -2363,13 +2363,14 @@ public class ComfortActivity extends Activity {
         @Override public void onCompleted(ChargeSession.Summary s) {
             ui.post(() -> {
                 boolean parked = CarState.isParked();
+                boolean costed = ComfortCardVisibility.dismissWhenCosted(s != null, s == null ? null : s.cost);
                 if (ComfortCardVisibility.showCompletedCharging(s != null,
-                        ValetSession.isActive(ComfortActivity.this), parked)) {
+                        ValetSession.isActive(ComfortActivity.this), parked, costed)) {
                     showCompletedCharging(s);
                 } else {
                     // Ended while driving (the grace ran out after the car
-                    // left): it never shows.
-                    if (ComfortCardVisibility.dismissOnLeavingPark(parked, s != null)) {
+                    // left), or it already has its cost: it never shows.
+                    if (costed || ComfortCardVisibility.dismissOnLeavingPark(parked, s != null)) {
                         ChargeSession.dismissSession(ComfortActivity.this, s.id);
                     }
                     hideCharging();
@@ -2444,7 +2445,8 @@ public class ComfortActivity extends Activity {
         if (ComfortCardVisibility.showActiveCharging(parked, ChargeSession.isCharging(), valet)) {
             showCharging(ChargeSession.currentSocStart(), ChargeSession.currentSocEnd(),
                 ChargeSession.currentStartWallMs(), System.currentTimeMillis());
-        } else if (retainedChargeSession != null && ComfortCardVisibility.showCompletedCharging(true, valet, parked)) {
+        } else if (retainedChargeSession != null && ComfortCardVisibility.showCompletedCharging(true, valet, parked,
+                ComfortCardVisibility.dismissWhenCosted(true, retainedChargeSession.cost))) {
             showCompletedCharging(retainedChargeSession);
         } else {
             checkRetainedCharge();
@@ -2555,11 +2557,13 @@ public class ComfortActivity extends Activity {
         } else {
             ChargeSession.Summary s = ChargeSession.getLatestUndismissed(this);
             boolean parked = CarState.isParked();
-            if (ComfortCardVisibility.showCompletedCharging(s != null, valet, parked)) {
+            boolean costed = ComfortCardVisibility.dismissWhenCosted(s != null, s == null ? null : s.cost);
+            if (ComfortCardVisibility.showCompletedCharging(s != null, valet, parked, costed)) {
                 showCompletedCharging(s);
             } else {
-                // The car left Park: the finished charge's card goes for good.
-                if (ComfortCardVisibility.dismissOnLeavingPark(parked, s != null)) {
+                // The car left Park, or the charge has its cost: the finished
+                // charge's card goes for good.
+                if (costed || ComfortCardVisibility.dismissOnLeavingPark(parked, s != null)) {
                     ChargeSession.dismissSession(this, s.id);
                     retainedChargeSession = null;
                 }
