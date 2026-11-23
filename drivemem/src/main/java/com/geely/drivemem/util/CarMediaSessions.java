@@ -104,7 +104,7 @@ public final class CarMediaSessions {
         }
         links.clear();
         current = null;
-        artKey = null;
+        artCover = null;
         art = null;
         MusicState.setSession(null, null);
     }
@@ -355,7 +355,7 @@ public final class CarMediaSessions {
         android.graphics.Bitmap pic = m.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
         if (pic == null) pic = m.getBitmap(MediaMetadata.METADATA_KEY_ART);
         if (pic == null) pic = m.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON);
-        t.artImage = sameArt(c.getPackageName(), t.id, pic);
+        t.artImage = songArt(CoverCache.key(t.artist, t.album, t.id), pic);
         if (pic == null) {
             String u = m.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI);
             if (u == null) u = m.getString(MediaMetadata.METADATA_KEY_ART_URI);
@@ -373,23 +373,44 @@ public final class CarMediaSessions {
 
     // Every read of a session's metadata makes a new Bitmap, even for the
     // same cover. CarPlay sends an update every ~5 s, so the card loaded and
-    // blurred the same cover again each time. The first picture of a track is
-    // kept and handed out again while the track and its size stay the same.
-    private static String artKey;
+    // blurred the same cover again each time. A picture with the same pixels
+    // as the one shown is handed out as that same Bitmap.
+    //
+    // The picture can change during a song, and the new one must win: a new
+    // song often comes first with the LAST song's cover, or with the phone's
+    // grey "no cover" picture, and its real cover a moment later. The old
+    // rule kept the first picture of a song (same track, same size), so the
+    // card stayed on the last song's cover for the whole song.
+    private static String artCover;   // the album (CoverCache.key) of `art`
     private static android.graphics.Bitmap art;
 
-    private static android.graphics.Bitmap sameArt(String pkg, String trackId, android.graphics.Bitmap pic) {
-        if (pic == null) return null;
-        String key = artKey(pkg, trackId, pic.getWidth(), pic.getHeight());
-        if (key.equals(artKey) && art != null) return art;
-        artKey = key;
-        art = pic;
-        return pic;
+    /** What the card does with a picture the session handed over. */
+    enum ArtUse {
+        /** The picture shown now: hand out that same Bitmap. */
+        SAME,
+        /** The last album's cover on a new album's song: not this song's. */
+        STALE,
+        /** A new picture: show it. */
+        NEW
     }
 
-    /** The picture is the same when the player, the track and the size are. */
-    static String artKey(String pkg, String trackId, int w, int h) {
-        return pkg + "|" + trackId + "|" + w + "x" + h;
+    /** samePixels: the picture equals the one shown now (album lastCover). */
+    static ArtUse artUse(String lastCover, String cover, boolean samePixels) {
+        if (!samePixels) return ArtUse.NEW;
+        return java.util.Objects.equals(lastCover, cover) ? ArtUse.SAME : ArtUse.STALE;
+    }
+
+    private static android.graphics.Bitmap songArt(String cover, android.graphics.Bitmap pic) {
+        if (pic == null) return null;
+        boolean same = art != null && pic.sameAs(art);
+        switch (artUse(artCover, cover, same)) {
+            case SAME: return art;
+            case STALE: return null;
+            default:
+                artCover = cover;
+                art = pic;
+                return pic;
+        }
     }
 
     /** When a playing track reaches its end (elapsedRealtime); 0 when paused

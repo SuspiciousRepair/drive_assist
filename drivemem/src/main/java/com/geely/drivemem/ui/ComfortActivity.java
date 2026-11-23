@@ -146,6 +146,10 @@ public class ComfortActivity extends Activity {
     private TextView musicTitleView, musicArtistView;
     private boolean lastMusicAvailable = false;
     private String lastMusicArtUrl = null;   // avoids re-fetching the same art on every state ping
+    private String lastMusicCover = null;    // the album (CoverCache.key) whose cover is up
+    /** A cover is kept on the head unit only after it stayed up this long:
+     * a phone's grey "no cover" picture comes and goes in a moment. */
+    private static final long COVER_KEEP_MS = 5000;
     private boolean musicLargeCardAtBuild;   // Config > Integrations > Music: "Large card" -- read once like turboEnabledAtBuild
     // Jumbo: the music card grown to two columns and the full height, all
     // lyrics, on the cover's main colour, with Play/Skip/Close at the bottom.
@@ -1652,7 +1656,8 @@ public class ComfortActivity extends Activity {
         chargeCompletedLayout = new ChargeSessionCard(this);
         chargeCompletedLayout.setVisibility(View.GONE);
         // The whole card opens the charge's page (ChargeDetailActivity):
-        // charts, numbers and map. Dismiss stays in the cost window (right tile).
+        // charts, numbers and map. The right tile opens the cost window; the
+        // ✕ closes the card (as does leaving Park).
         chargeCompletedLayout.setOnOpen(() -> {
             if (retainedChargeSession != null && retainedChargeSession.id > 0) {
                 startActivity(ChargeDetailActivity.intent(this, retainedChargeSession.id));
@@ -1673,6 +1678,7 @@ public class ComfortActivity extends Activity {
                     });
             }
         });
+        chargeCompletedLayout.setOnClose(this::dismissFinishedCharge);
         m.addView(chargeCompletedLayout);
 
         return m;
@@ -2031,15 +2037,23 @@ public class ComfortActivity extends Activity {
         // One cover per album: every song of an album shares it.
         final String track = CoverCache.key(MusicState.artist(), MusicState.album(), MusicState.trackId());
         final Context app = getApplicationContext();
+        // A new album: the last song's cover goes at once, so it never
+        // stays on a song that has no cover (or whose cover is still coming).
+        if (!java.util.Objects.equals(track, lastMusicCover)) {
+            lastMusicCover = track;
+            lastMusicArtUrl = null;
+            setMusicArt(null, null);
+        }
         if (img instanceof android.graphics.Bitmap) {
             android.graphics.Bitmap b = (android.graphics.Bitmap) img;
             String key = "bitmap:" + System.identityHashCode(b);
             if (key.equals(lastMusicArtUrl)) return;
             lastMusicArtUrl = key;
-            new Thread(() -> {
-                applyMusicArt(key, b);
-                CoverCache.put(app, track, b);
-            }, "music-art").start();
+            new Thread(() -> applyMusicArt(key, b), "music-art").start();
+            ui.postDelayed(() -> {
+                if (key.equals(lastMusicArtUrl))
+                    new Thread(() -> CoverCache.put(app, track, b), "music-art").start();
+            }, COVER_KEEP_MS);
             return;
         }
         String url = MusicState.artUrl();
@@ -2098,10 +2112,15 @@ public class ComfortActivity extends Activity {
         // slow, stale request stomp a fresher picture that already landed.
         if (fbmp != null) ui.post(() -> {
             if (!url.equals(lastMusicArtUrl)) return;
-            if (musicArtView != null) musicArtView.setImageBitmap(fbmp);
-            if (musicArtBgView != null) musicArtBgView.setImageBitmap(fblur);
-            if (jumboArtView != null) jumboArtView.setImageBitmap(fbmp);
+            setMusicArt(fbmp, fblur);
         });
+    }
+
+    /** UI thread. Null: no cover, the card's plain tile shows. */
+    private void setMusicArt(android.graphics.Bitmap art, android.graphics.Bitmap blur) {
+        if (musicArtView != null) musicArtView.setImageBitmap(art);
+        if (musicArtBgView != null) musicArtBgView.setImageBitmap(blur);
+        if (jumboArtView != null) jumboArtView.setImageBitmap(art);
     }
 
     // Cheap dependency-free blur: downscale then upscale twice, throwing away
@@ -2360,10 +2379,17 @@ public class ComfortActivity extends Activity {
         }
         @Override public void onCompleted(ChargeSession.Summary s) {
             ui.post(() -> {
+                boolean parked = CarState.isParked();
+                boolean costed = ComfortCardVisibility.dismissWhenCosted(s != null, s == null ? null : s.cost);
                 if (ComfortCardVisibility.showCompletedCharging(s != null,
-                        ValetSession.isActive(ComfortActivity.this))) {
+                        ValetSession.isActive(ComfortActivity.this), parked, costed)) {
                     showCompletedCharging(s);
                 } else {
+                    // Ended while driving (the grace ran out after the car
+                    // left), or it already has its cost: it never shows.
+                    if (costed || ComfortCardVisibility.dismissOnLeavingPark(parked, s != null)) {
+                        ChargeSession.dismissSession(ComfortActivity.this, s.id);
+                    }
                     hideCharging();
                 }
                 refreshJourneyCard();
@@ -2436,7 +2462,8 @@ public class ComfortActivity extends Activity {
         if (ComfortCardVisibility.showActiveCharging(parked, ChargeSession.isCharging(), valet)) {
             showCharging(ChargeSession.currentSocStart(), ChargeSession.currentSocEnd(),
                 ChargeSession.currentStartWallMs(), System.currentTimeMillis());
-        } else if (retainedChargeSession != null && ComfortCardVisibility.showCompletedCharging(true, valet)) {
+        } else if (retainedChargeSession != null && ComfortCardVisibility.showCompletedCharging(true, valet, parked,
+                ComfortCardVisibility.dismissWhenCosted(true, retainedChargeSession.cost))) {
             showCompletedCharging(retainedChargeSession);
         } else {
             checkRetainedCharge();
@@ -2546,12 +2573,30 @@ public class ComfortActivity extends Activity {
                 ChargeSession.currentStartWallMs(), System.currentTimeMillis());
         } else {
             ChargeSession.Summary s = ChargeSession.getLatestUndismissed(this);
-            if (ComfortCardVisibility.showCompletedCharging(s != null, valet)) {
+            boolean parked = CarState.isParked();
+            boolean costed = ComfortCardVisibility.dismissWhenCosted(s != null, s == null ? null : s.cost);
+            if (ComfortCardVisibility.showCompletedCharging(s != null, valet, parked, costed)) {
                 showCompletedCharging(s);
             } else {
+                // The car left Park, or the charge has its cost: the finished
+                // charge's card goes for good.
+                if (costed || ComfortCardVisibility.dismissOnLeavingPark(parked, s != null)) {
+                    ChargeSession.dismissSession(this, s.id);
+                    retainedChargeSession = null;
+                }
                 hideCharging();
             }
         }
+    }
+
+    /** The ✕ on a finished charge's card: closed for good (the Parked card
+     * takes its place). Its cost can still be entered in Charging stats. */
+    private void dismissFinishedCharge() {
+        ChargeSession.Summary s = retainedChargeSession;
+        if (s != null) ChargeSession.dismissSession(this, s.id);
+        retainedChargeSession = null;
+        hideCharging();
+        refreshJourneyCard();
     }
 
     private void hideCharging() {

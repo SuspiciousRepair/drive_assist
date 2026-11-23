@@ -150,7 +150,7 @@ public class Installer {
         // cable install and OTA announcement happen for the same build. Only
         // meaningful when the target is already installed -- a fresh install
         // (the installer, most of the time) has nothing to skip against.
-        if (cur != null && got.versionCode == cur.versionCode) {
+        if (InstallPolicy.skipSameVersion(got.packageName, cur != null, cur == null ? 0 : cur.versionCode, got.versionCode)) {
             Log.i(TAG, "install: skipped, already at versionCode " + cur.versionCode);
             return null;
         }

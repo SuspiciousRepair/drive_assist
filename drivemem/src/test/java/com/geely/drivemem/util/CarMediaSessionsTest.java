@@ -101,10 +101,21 @@ public class CarMediaSessionsTest {
         assertEquals(CarMediaSessions.RELINK_MAX_MS, CarMediaSessions.relinkDelayMs(1000));
     }
 
-    @Test public void theCoverIsTheSameForTheSameTrackAndSize() {
-        assertEquals(CarMediaSessions.artKey("p", "t", 300, 300), CarMediaSessions.artKey("p", "t", 300, 300));
-        assertNotEquals(CarMediaSessions.artKey("p", "t", 300, 300), CarMediaSessions.artKey("p", "u", 300, 300));
-        assertNotEquals(CarMediaSessions.artKey("p", "t", 300, 300), CarMediaSessions.artKey("p", "t", 600, 600));
-        assertNotEquals(CarMediaSessions.artKey("p", "t", 300, 300), CarMediaSessions.artKey("q", "t", 300, 300));
+    @Test public void theSamePictureOnTheSameAlbumIsKept() {
+        assertEquals(CarMediaSessions.ArtUse.SAME, CarMediaSessions.artUse("a", "a", true));
+    }
+
+    @Test public void aNewPictureOnTheSameSongWins() {
+        // The phone's grey "no cover" picture first, the real cover after.
+        assertEquals(CarMediaSessions.ArtUse.NEW, CarMediaSessions.artUse("a", "a", false));
+    }
+
+    @Test public void theLastSongsCoverOnANewAlbumIsNotUsed() {
+        assertEquals(CarMediaSessions.ArtUse.STALE, CarMediaSessions.artUse("a", "b", true));
+        assertEquals(CarMediaSessions.ArtUse.NEW, CarMediaSessions.artUse("a", "b", false));
+    }
+
+    @Test public void theFirstPictureIsNew() {
+        assertEquals(CarMediaSessions.ArtUse.NEW, CarMediaSessions.artUse(null, "a", false));
     }
 }

@@ -2,6 +2,44 @@
 
 ## [Unreleased]
 
+## [v0.11.2] — 2026-11-23
+
+### Changed
+- **Home: a finished charge's card goes once it has a price.** Add the
+  price (zero counts) and the card closes, and the Parked card comes back.
+- **Home: a finished charge's card has a ✕.** It closes the card, and the
+  Parked card comes back. The card also closes, for good, when the car
+  leaves Park, so an old charge is not on the screen at the next stop. A
+  charge that ends after the car left Park never shows. The price can still
+  be added in Charging stats.
+- **Charge page: clearer charts and names.** The charts are now three, one
+  under the other, each with its own scale: power, temperature and battery
+  %. Power is blue for AC and green for DC. The battery temperature line
+  takes the colour of its value, as on the home screen's temperature bar:
+  green is fine, amber is warm, red is hot. The outside temperature is a
+  thin grey line, and the battery % is grey. **Parked at 100%** is now
+  **Time at 100%**. The energy shows the plug icon and "AC" or "DC". The
+  cost has a pencil icon, to show that you can tap it to change it.
+
+### Fixed
+- **Updates over the air reach the car again.** The setup installer always
+  had version 1. When one stayed on the car (it removes itself after it
+  runs, and once it did not), the helper skipped every later installer as
+  "already at version 1", and the car said the update was applied. The
+  installer now has the build's version, and the helper never skips it.
+- **Stats page: "Energy by use" now keeps a trip when the app restarts
+  during it.** An app update or restart in the middle of a drive threw
+  away where that trip's energy went, so the trip was left out and the
+  chart showed less than the day's trips used. The app now saves it every
+  30 seconds and takes it back after a restart. A trip loses it only if
+  the restarts together leave out more than about a tenth of the drive.
+  Trips from before this version stay as they are.
+- **Music card: the cover is the song's own.** A new song often comes
+  first with the last song's cover, or the phone's grey "no cover"
+  picture, and its real cover a moment later. The card kept that first
+  picture for the whole song. It now shows the real cover when it comes,
+  and the head unit no longer keeps a wrong cover for the album.
+
 ## [v0.11.1] — 2026-11-23
 
 ### Changed

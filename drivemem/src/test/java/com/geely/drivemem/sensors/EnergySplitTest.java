@@ -250,6 +250,83 @@ public class EnergySplitTest {
         assertEquals("CAN covered 50 % of it (needs 90 %)", EnergyIntegrator.splitWhy(0, 500, 1000));
     }
 
+    // --- The split survives an app restart mid-trip ---
+    // 2026-11-22: four test installs during one 2 h 47 min drive. Each one
+    // restarted the app, the split lived only in memory, and the trip (18.5
+    // of the day's 33.6 kWh) was left out of the stats Sankey.
+
+    /** {seconds} of CAN driving at 10 kW: drive 8, climate 1, 1 s steps. */
+    private static void drive(long fromMs, int seconds) {
+        for (int i = 0; i <= seconds; i++) can(fromMs + i * 1000L, 10, 8, 1);
+    }
+
+    /** Before the restart: 20 min of CAN. Returns what TripSession saved. */
+    private static EnergyIntegrator.TripSnapshot driveThenDie(String[] saved) {
+        EnergyIntegrator.startTrip();
+        drive(0, 1200);
+        saved[0] = EnergyIntegrator.splitState();
+        EnergyIntegrator.TripSnapshot before = EnergyIntegrator.currentTrip();
+        EnergyIntegrator.resetForTesting();          // the process dies
+        CarState.setParkedForTesting(false);
+        EnergyIntegrator.startTrip();                // recovery, as TripSession does it
+        EnergyIntegrator.seedTrip(before.spentKwh, before.regenKwh, before.netKwh, 1_260_000);
+        return before;
+    }
+
+    @Test public void splitSurvivesARestart() {
+        String[] saved = new String[1];
+        EnergyIntegrator.TripSnapshot before = driveThenDie(saved);
+        assertTrue(EnergyIntegrator.restoreSplit(saved[0], 60_000));   // 1 min with no samples
+        drive(2_000_000, 1200);                       // 20 more min after it
+        EnergyIntegrator.TripSnapshot t = EnergyIntegrator.endTrip();
+        assertTrue(t.splitWhy, t.splitValid);
+        assertEquals(2 * before.canNetKwh, t.canNetKwh, 1e-9);
+        assertEquals(2 * before.driveSpentKwh, t.driveSpentKwh, 1e-9);
+        assertEquals(2 * before.climateRawKwh, t.climateRawKwh, 1e-9);
+        assertEquals(2 * before.climateOnSeconds, t.climateOnSeconds, 1e-6);
+    }
+
+    @Test public void withoutTheSavedSplitTheTripLosesIt() {
+        String[] saved = new String[1];
+        driveThenDie(saved);
+        drive(2_000_000, 1200);
+        assertFalse(EnergyIntegrator.endTrip().splitValid);
+    }
+
+    /** The lost minute counts as time CAN did not see: too many lost
+     * minutes still mean no split. */
+    @Test public void restoredSplitCountsTheLostTime() {
+        String[] saved = new String[1];
+        driveThenDie(saved);
+        EnergyIntegrator.restoreSplit(saved[0], 10 * 60_000);
+        drive(2_000_000, 600);
+        EnergyIntegrator.TripSnapshot t = EnergyIntegrator.endTrip();
+        assertFalse(t.splitValid);
+        assertEquals("app restarted 10 min into the trip; CAN covered 75 % of it (needs 90 %)", t.splitWhy);
+    }
+
+    @Test public void lostTimeAddsUpOverRestarts() {
+        EnergyIntegrator.startTrip();
+        EnergyIntegrator.seedTrip(0, 0, 0, 120_000);
+        EnergyIntegrator.restoreSplit(EnergyIntegrator.splitState(), 30_000);
+        assertTrue(EnergyIntegrator.splitState().endsWith(";150000.0"));
+        // A trip whose first restart time is unknown keeps no split.
+        EnergyIntegrator.seedTrip(0, 0, 0);
+        EnergyIntegrator.restoreSplit(EnergyIntegrator.splitState(), 30_000);
+        assertEquals("app restarted during the trip", EnergyIntegrator.currentTrip().splitWhy);
+    }
+
+    @Test public void aBadSavedSplitChangesNothing() {
+        EnergyIntegrator.startTrip();
+        EnergyIntegrator.seedTrip(0, 0, 0, 60_000);
+        String clean = EnergyIntegrator.splitState();
+        for (String bad : new String[]{null, "", "1", "2;0;0;0;0;0;0;0;0;0",
+                "1;0;0;0;0;0;0;0;0", "1;x;0;0;0;0;0;0;0;0", "1;NaN;0;0;0;0;0;0;0;0"}) {
+            assertFalse(bad, EnergyIntegrator.restoreSplit(bad, 1000));
+        }
+        assertEquals(clean, EnergyIntegrator.splitState());
+    }
+
     // --- Stats page: the split summed over a period ---
 
     @Test public void splitTotalsSkipTripsWithoutASplit() {

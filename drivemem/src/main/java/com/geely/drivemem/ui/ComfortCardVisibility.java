@@ -106,7 +106,32 @@ public final class ComfortCardVisibility {
     }
 
     public static boolean showCompletedCharging(boolean hasRetainedSession, boolean valetActive) {
-        return hasRetainedSession && !valetActive;
+        return showCompletedCharging(hasRetainedSession, valetActive, true);
+    }
+
+    /** Only while parked: leaving Park closes a finished charge's card for
+     * good (see dismissOnLeavingPark). */
+    public static boolean showCompletedCharging(boolean hasRetainedSession, boolean valetActive, boolean parked) {
+        return showCompletedCharging(hasRetainedSession, valetActive, parked, false);
+    }
+
+    /** The finished card is there to ask for the cost: once the charge has
+     * one (zero too), it is done and goes (see dismissWhenCosted). */
+    public static boolean showCompletedCharging(boolean hasRetainedSession, boolean valetActive, boolean parked,
+                                                boolean hasCost) {
+        return hasRetainedSession && !valetActive && parked && !hasCost;
+    }
+
+    /** A finished charge with a cost (zero counts) is closed for good. */
+    public static boolean dismissWhenCosted(boolean hasFinishedCharge, Double cost) {
+        return hasFinishedCharge && cost != null && cost >= 0;
+    }
+
+    /** A finished charge's card is closed for good when the car leaves Park:
+     * the next time the car parks, the Parked card is there, not an old
+     * charge. Its cost can still be entered in Charging stats. */
+    public static boolean dismissOnLeavingPark(boolean parked, boolean hasFinishedCharge) {
+        return !parked && hasFinishedCharge;
     }
 
     /**

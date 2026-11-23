@@ -442,8 +442,8 @@
     <string name="charge_detail_title">Carga</string>
     <string name="charge_detail_live">Cargando ahora</string>
     <string name="charge_detail_charging">Tiempo de carga</string>
-    <string name="charge_detail_idle" formatted="false">Detenido al 100%</string>
-    <string name="charge_detail_idle_next">hasta el próximo viaje</string>
+    <string name="charge_detail_idle" formatted="false">Tiempo al 100%</string>
+    <string name="charge_detail_power">Potencia</string>
     <string name="charge_detail_idle_now">hasta ahora</string>
     <string name="charge_detail_bat_temp_label">Temperatura de la batería</string>
     <string name="charge_detail_bat_temp">batería</string>

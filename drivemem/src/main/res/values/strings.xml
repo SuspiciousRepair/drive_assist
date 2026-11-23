@@ -468,8 +468,8 @@
     <string name="charge_detail_title">Charge</string>
     <string name="charge_detail_live">Charging now</string>
     <string name="charge_detail_charging">Charging time</string>
-    <string name="charge_detail_idle" formatted="false">Parked at 100%</string>
-    <string name="charge_detail_idle_next">until the next drive</string>
+    <string name="charge_detail_idle" formatted="false">Time at 100%</string>
+    <string name="charge_detail_power">Power</string>
     <string name="charge_detail_idle_now">so far</string>
     <string name="charge_detail_bat_temp_label">Battery temperature</string>
     <string name="charge_detail_bat_temp">battery</string>
