@@ -9,7 +9,8 @@
   charging power in kW, the battery temperature (with an OBD2 dongle) and
   the outside temperature. The bottom chart shows the battery %. Touch a
   chart and move your finger: a line crosses both charts and shows every
-  value at that time. On the right: the battery levels, the energy added,
+  value at that time. The line goes away 4 seconds after you lift your
+  finger. On the right: the battery levels, the energy added,
   the charging time, the average and peak power, the temperatures, the cost
   (tap it to set it) and a map of the place. After a charge that reached
   100%, **Parked at 100%** shows how long the car stood full before the

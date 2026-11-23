@@ -23,13 +23,16 @@ import java.util.Locale;
  * A finger on either chart draws one vertical line through both, with a dot
  * where it crosses each line and a box with every value at that time. The
  * line stays where the finger left it. Values are the nearest sample within
- * ChargeDetail.GAP_MS; a line breaks where samples are further apart. */
+ * ChargeDetail.GAP_MS; a line breaks where samples are further apart. The
+ * line goes away CROSS_HIDE_MS after the finger leaves the screen. */
 final class ChargeDetailChartView extends View {
     private long[] ts = new long[0];
     private float[] kw = new float[0], batT = new float[0], outT = new float[0], soc = new float[0];
     private long t0, t1;
     private boolean dc;
     private long crossT = -1;
+    static final long CROSS_HIDE_MS = 4_000L;
+    private final Runnable hideCross = () -> { crossT = -1; invalidate(); };
 
     private final Paint grid = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint axis = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -70,11 +73,17 @@ final class ChargeDetailChartView extends View {
         invalidate();
     }
 
+    @Override protected void onDetachedFromWindow() {
+        removeCallbacks(hideCross);
+        super.onDetachedFromWindow();
+    }
+
     private int kwColor() { return dc ? Style.GOOD : Style.ACCENT; }
 
     @Override public boolean onTouchEvent(MotionEvent e) {
         int a = e.getActionMasked();
         if (a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_MOVE) {
+            removeCallbacks(hideCross);
             if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
             float x = Math.max(top.left, Math.min(top.right, e.getX()));
             if (top.width() > 0) {
@@ -83,7 +92,11 @@ final class ChargeDetailChartView extends View {
             }
             return true;
         }
-        return a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL || super.onTouchEvent(e);
+        if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
+            postDelayed(hideCross, CROSS_HIDE_MS);
+            return true;
+        }
+        return super.onTouchEvent(e);
     }
 
     private float tx(long t) { return top.left + top.width() * (t - t0) / (float) (t1 - t0); }
