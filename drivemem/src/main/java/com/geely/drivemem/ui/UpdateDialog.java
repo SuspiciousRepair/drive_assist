@@ -173,10 +173,11 @@ public class UpdateDialog {
             }
 
             // Skip-this-version button: left-aligned via weight, separate
-            // from Decline -- Decline just asks again next time (retained
-            // MQTT redelivery, the daily auto-check, or another manual
-            // check), Skip persists so THIS versionCode stops prompting at
-            // all until something newer ships. Checked back in
+            // from Later. Later stops the home screen opening this window
+            // by itself for this versionCode (Updater.autoPrompts), but the
+            // driver's own check in Config still shows it. Skip goes
+            // further: THIS versionCode is treated as installed by every
+            // check, Config's too, until something newer ships. Checked in
             // Updater.check() -- one place enforcing it, not one per
             // caller that might show this dialog.
             Button btnSkip = new Button(activity);
@@ -209,8 +210,11 @@ public class UpdateDialog {
             decBg.setCornerRadius(Style.dp(activity, 8));
             decBg.setStroke(1, Style.STROKE_COLOR);
             btnDecline.setBackground(decBg);
+            // Later: no more windows for this version until a newer one
+            // comes, or the driver checks in Config (Updater.autoPrompts).
             btnDecline.setOnClickListener(v -> {
                 dialog.dismiss();
+                Prefs.setUpdateLaterVc(activity, info.targetLabel != null, info.versionCode);
                 if (onDecline != null) onDecline.run();
             });
             btnRow.addView(btnDecline);
@@ -236,6 +240,7 @@ public class UpdateDialog {
             card.addView(btnRow);
 
             dialog.setOnCancelListener(d -> {
+                Prefs.setUpdateLaterVc(activity, info.targetLabel != null, info.versionCode);
                 if (onDecline != null) onDecline.run();
             });
 

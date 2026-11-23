@@ -341,6 +341,14 @@ public class Updater {
 
     public static final long AUTO_CHECK_INTERVAL_MS = 24L * 3600 * 1000;
 
+    /** Whether the home screen may open the update window by itself for
+     * {@code remoteVc}. After "Later" on version N (laterVc = N) it stays
+     * closed for N and older; a newer version opens it again. The driver's
+     * own check in Config does not ask this: it always shows the window. */
+    public static boolean autoPrompts(int remoteVc, int laterVc) {
+        return remoteVc > laterVc;
+    }
+
     /** Unattended update check against whatever URL is configured -- for
      * most installs, nobody: that's what makes it resolve to DEFAULT_URL,
      * the GitHub Releases download, same as a manual "Check Update" tap.

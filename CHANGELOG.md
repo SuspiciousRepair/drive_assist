@@ -91,6 +91,12 @@
   at all.
 
 ### Fixed
+- **"Later" on the update window now means later.** Before, the window
+  came back on the next app start, the next daily check, or the next
+  update message, for the same version. Now, after **Later** (or a tap
+  outside the window), the home screen does not show it again for that
+  version. It comes back when a newer version comes out, or when you tap
+  the update check in Config yourself.
 - **Car app translations: the car's permission screens too.** The car's
   permission app now gets better Portuguese and Spanish text: the location
   permission said "Localizando permissões" ("locating permissions") and now

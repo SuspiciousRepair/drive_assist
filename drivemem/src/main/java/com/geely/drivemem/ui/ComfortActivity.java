@@ -2386,6 +2386,13 @@ public class ComfortActivity extends Activity {
 
     private void promptUpdateIfParked(Updater.UpdateInfo info) {
         if (info == null) return;
+        // The driver said "Later" to this version: wait for a newer one, or
+        // for the driver's own check in Config.
+        if (!Updater.autoPrompts(info.versionCode,
+                Prefs.getUpdateLaterVc(this, info.targetLabel != null))) {
+            pendingUpdate = null;
+            return;
+        }
         pendingUpdate = info;
 
         // VEHICLE SAFETY: strictly forbid popups while car is in motion or not in Park (P)

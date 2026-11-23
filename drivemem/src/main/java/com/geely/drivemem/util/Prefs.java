@@ -275,6 +275,16 @@ public final class Prefs {
     public static void setSkipUpdateVc(Context ctx, boolean modehelper, int versionCode) {
         file(ctx).edit().putInt(modehelper ? "skip_update_vc_modehelper" : "skip_update_vc", versionCode).apply();
     }
+    // "Later" on the update window: the versionCode it was shown for. The home
+    // screen does not open the window again by itself for that version or an
+    // older one (Updater.autoPrompts); a newer version, or the driver's own
+    // check in Config, still shows it.
+    public static int getUpdateLaterVc(Context ctx, boolean modehelper) {
+        return file(ctx).getInt(modehelper ? "update_later_vc_modehelper" : "update_later_vc", 0);
+    }
+    public static void setUpdateLaterVc(Context ctx, boolean modehelper, int versionCode) {
+        file(ctx).edit().putInt(modehelper ? "update_later_vc_modehelper" : "update_later_vc", versionCode).apply();
+    }
 
     // --- One-time migration/rollup guards ---
     public static boolean getDbMigratedV1(Context ctx) { return file(ctx).getBoolean("db_migrated_v1", false); }
@@ -297,6 +307,7 @@ public final class Prefs {
      * or a restore puts an old value back. SettingsFileTest checks the list. */
     private static final java.util.Set<String> NOT_BACKED_UP = new java.util.HashSet<>(java.util.Arrays.asList(
         "update_last_url", "auto_update_last_check_ms",
+        "update_later_vc", "update_later_vc_modehelper",
         "db_migrated_v1",
         "panel_dismissed", "drive_card_dismissed_trip",
         KEY_PHONE_TOKEN,                         // a credential: phones scan again after a restore
