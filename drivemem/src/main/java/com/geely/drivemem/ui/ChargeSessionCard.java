@@ -24,13 +24,11 @@ import java.util.Locale;
  *   [plug] +22,8 kWh   3h 40m                    |  R$ 18,40 |
  *   [battery] 44% → 100%   [bolt] 6,2 kW avg     | 0,81/kWh  |
  *
- * In a list (withDate) the first line also says when it started:
- * "+22,8 kWh  11 set 13:40 · 3h 40m". The body opens the charge's page; the right tile
+ * In a list (withDate) the first line also says when: "+22,8 kWh  11 set
+ * 13:40 → 17:20 · 3h 40m". The body opens the charge's page; the right tile
  * the cost window. No background or padding of its own: the screen that
  * holds it sets them. */
 final class ChargeSessionCard extends LinearLayout {
-    private static final java.text.SimpleDateFormat START_FMT =
-        new java.text.SimpleDateFormat("d MMM HH:mm", Locale.getDefault());
     private final ImageView icon;
     private final TextView hero, soc, power, costTop, costBottom;
     private final LinearLayout body, costTile;
@@ -108,7 +106,7 @@ final class ChargeSessionCard extends LinearLayout {
             String.format(Locale.getDefault(), "+%.1f", s.kwh),
             (!gray && hasV) ? typeColor : null, "kWh", Style.UNIT_SCALE_ROW));
         String dur = SessionText.duration(s.endWallMs - s.startWallMs);
-        Style.appendUnit(h, "   " + (withDate ? START_FMT.format(new java.util.Date(s.startWallMs)) + " · " + dur : dur), 0.6f);
+        Style.appendUnit(h, "   " + (withDate ? s.title() + " · " + dur : dur), 0.6f);
         hero.setText(h);
 
         if (s.socStart >= 0 && s.socEnd >= 0) {
