@@ -1,12 +1,4 @@
-- New: a page for each charge. Tap the charging card to see the power, temperature and battery charts, the numbers and the map.
-- New: the music card shows what your phone plays through the car (Bluetooth, CarPlay or Android Auto), with no sign-in. Turn it on in Config, Integrations, Music.
-- New: song lyrics on the music card, in time with the song. Turn on Lyrics search in the same place.
-- New: choose the currency for charge costs (Config, Elements, Localization).
-- New: the dashcam subtitle shows when the brake pedal is pressed.
-- Changed: a smaller charging card with more information. Charging stats uses the same card.
-- Changed: Later on the update window waits for a newer version, or for a check you start in Config.
-- Changed: the car keeps the lyrics of 1000 songs and the covers of 200 albums.
-- Removed: the Spotify sign-in. The music card works with any music app.
-- Fixed: the Stats page scrolls again, and a trip's map shows only its own charges.
-- Fixed: the music card follows the player that really plays, and finds the phone again by itself.
-- Fixed: park monitoring records the first seconds of a drive and no old video.
+- Changed: the Stats page has a new Battery card showing the battery used in percent, lowest and highest level, charged energy and count, outside temperature, and battery temperature with an OBD2 dongle.
+- Changed: on the Stats page, the Trip card is now Driving, with moving speed (excluding stops) and the number of trips with km per trip.
+- Changed: on the Stats page, the top date and period row stays in place while the cards scroll under it.
+- Fixed: on the trip page, the height chart no longer starts below 0 m near sea level, and its height labels use round 50 m steps.

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.11.1] — 2026-11-23
+
 ### Changed
 - **Stats page: a new "Battery" card.** The big number is now the battery
   you used in the day, week or month, in percent, with every drop added up.
