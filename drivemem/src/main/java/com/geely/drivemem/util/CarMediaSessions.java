@@ -31,7 +31,10 @@ import java.util.List;
  * is asked or granted for this. A notification listener was used first; it
  * needs an Android screen this head unit does not have.
  *
- * Runs only while the home screen is up (start/stop from ComfortActivity).
+ * Starts with the home screen and then stays up while the app runs (it
+ * only stops when Phone music is turned off): a fresh link would not know a
+ * player that already went quiet. The callbacks are cheap (CarPlay: one
+ * update every ~5 s).
  * Follows one session: the one playing, else
  * the first with a title. The position comes straight from the session's
  * PlaybackState (position + the elapsedRealtime it was taken at), so the
