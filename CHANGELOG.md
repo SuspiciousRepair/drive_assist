@@ -3,6 +3,19 @@
 ## [Unreleased]
 
 ### Added
+- **A page for each charge.** Tap the charging card on the home screen to
+  open it, during the charge (it updates every 15 seconds) or after it. On
+  the left, two charts share one time line. The top chart shows the
+  charging power in kW, the battery temperature (with an OBD2 dongle) and
+  the outside temperature. The bottom chart shows the battery %. Touch a
+  chart and move your finger: a line crosses both charts and shows every
+  value at that time. The line goes away 4 seconds after you lift your
+  finger. On the right: the battery levels, the energy added,
+  the charging time, the average and peak power, the temperatures, the cost
+  (tap it to set it) and a map of the place. After a charge that reached
+  100%, **Parked at 100%** shows how long the car stood full before the
+  next drive, or until now if it has not moved. The detailed readings are
+  kept for 90 days; an older charge shows only the numbers.
 - **Choose the currency for charge costs.** Go to **Config → Elements →
   Localization**. Tap R$, $, €, £ or ¥, or type your own symbol and tap
   Save. The default is R$. All charge costs use it: the home card, the cost
@@ -112,6 +125,15 @@
   at all.
 
 ### Fixed
+- **The Stats page scrolls again.** A change in this version took away the
+  page's scrolling, so the cards below the first screen could not be
+  reached.
+- **A trip's map shows only its own charges.** Before, a charge at the
+  trip's start or end place, up to one hour before or after, was on the
+  trip's map even when another drive came between them. Now a charge shows
+  only when no other drive came between it and the trip. Short moves to
+  find the charger (each under 1 km) do not count as drives. Each move also
+  lets the charger be that much further from where the trip ended.
 - **"Later" on the update window now means later.** Before, the window
   came back on the next app start, the next daily check, or the next
   update message, for the same version. Now, after **Later** (or a tap

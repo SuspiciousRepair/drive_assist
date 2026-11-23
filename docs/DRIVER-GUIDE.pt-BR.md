@@ -23,8 +23,11 @@ A tela inicial foi feita para uso rápido enquanto você dirige:
 - botões grandes fazem resfriar, aquecer, recirculação e abrir um vão nos vidros;
 - durante a recarga, um cartão de recarga fica no lugar do cartão Estacionado.
   Ele mostra o tempo carregando, o tempo até 100%, o nível da bateria, a energia
-  colocada e a potência. Depois da recarga, toque no cartão para ver a curva de
-  potência, ou toque no quadro de custo para informar o preço;
+  colocada e a potência. Toque no cartão, durante ou depois da recarga, para abrir
+  a página da recarga: potência, temperaturas e bateria % na mesma linha do
+  tempo (passe o dedo nos gráficos para ler cada valor), os números, o local no
+  mapa e quanto tempo o carro ficou parado em 100%. Toque no quadro de custo
+  para informar o preço;
 - cartões opcionais mostram o portão da garagem, um painel enviado pelo Home
   Assistant, ou o que o celular toca pelo carro.
 

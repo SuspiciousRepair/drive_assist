@@ -23,8 +23,10 @@ The home screen is made for quick use while you drive:
 - Large buttons do cooling, heating, recirculation and a window clear.
 - While the car charges, a charging card takes the place of the Parked card. It
   shows the time charging, the time left to 100%, the battery level, the energy
-  added and the charging power. After the charge, tap the card to see its power
-  curve, or tap its cost tile to add the price.
+  added and the charging power. Tap the card, during or after the charge, to
+  open the charge's page: power, temperatures and battery % on one time line
+  (move a finger on the charts to read every value), the numbers, the place on
+  a map, and how long the car stood at 100%. Tap its cost tile to add the price.
 - Optional cards can show your garage gate, a panel sent by Home Assistant, or
   what your phone plays through the car.
 

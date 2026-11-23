@@ -441,6 +441,18 @@
     <string name="charge_soc_chart_title">Rango de batería · más recientes primero</string>
     <string name="charge_map_none">Ninguna carga de este período guardó su lugar.</string>
     <string name="charge_curve_title">Potencia de carga en el tiempo</string>
+    <string name="charge_detail_title">Carga</string>
+    <string name="charge_detail_live">Cargando ahora</string>
+    <string name="charge_detail_charging">Tiempo de carga</string>
+    <string name="charge_detail_idle" formatted="false">Detenido al 100%</string>
+    <string name="charge_detail_idle_next">hasta el próximo viaje</string>
+    <string name="charge_detail_idle_now">hasta ahora</string>
+    <string name="charge_detail_power">Potencia</string>
+    <string name="charge_detail_power_value">%1$s media · %2$s pico</string>
+    <string name="charge_detail_bat_temp_label">Temperatura de la batería</string>
+    <string name="charge_detail_bat_temp">batería</string>
+    <string name="charge_detail_out_temp">exterior</string>
+    <string name="charge_detail_soc" formatted="false">Batería %</string>
     <string name="charge_curve_unavailable">Muestras no disponibles para esta sesión.</string>
     <string name="charge_curve_power_label">Potencia (kW)</string>
     <string name="charge_curve_temp_label">Temp. exterior (°C)</string>
