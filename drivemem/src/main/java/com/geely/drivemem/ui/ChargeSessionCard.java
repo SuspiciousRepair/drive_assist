@@ -26,8 +26,9 @@ import java.util.Locale;
  *
  * In a list (withDate) the first line also says when: "+22,8 kWh  11 set
  * 13:40 → 17:20 · 3h 40m". The body opens the charge's page; the right tile
- * the cost window. No background or padding of its own: the screen that
- * holds it sets them. */
+ * the cost window. On the home screen a ✕ after the tile closes the card
+ * (setOnClose); the list has none. No background or padding of its own:
+ * the screen that holds it sets them. */
 final class ChargeSessionCard extends LinearLayout {
     private final ImageView icon;
     private final TextView hero, soc, power, costTop, costBottom;
@@ -90,6 +91,22 @@ final class ChargeSessionCard extends LinearLayout {
     }
 
     void setOnCost(Runnable r) { costTile.setOnClickListener(v -> r.run()); }
+
+    /** Adds a ✕ after the cost tile that runs r. Once; the list never calls it. */
+    void setOnClose(Runnable r) {
+        Context c = getContext();
+        TextView x = new TextView(c);
+        // "✕" is an icon (close), not prose: the same glyph in any language.
+        x.setText("\u2715");
+        x.setTextColor(Style.TEXT_DIM);
+        x.setTextSize(24);
+        x.setGravity(Gravity.CENTER);
+        x.setBackground(Style.tile(c));
+        x.setOnClickListener(v -> r.run());
+        LayoutParams lp = new LayoutParams(Style.dp(c, 64), ViewGroup.LayoutParams.MATCH_PARENT);
+        lp.leftMargin = Style.dp(c, 12);
+        addView(x, lp);
+    }
 
     /** Fills the card. gray: Config's grayscale cards. withDate: say when,
      * for a list of charges. */
