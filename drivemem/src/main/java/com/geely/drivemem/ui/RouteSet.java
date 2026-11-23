@@ -47,10 +47,12 @@ final class RouteSet {
             System.arraycopy(tr.lat, 0, lat, k, m);
             System.arraycopy(tr.lon, 0, lon, k, m);
             System.arraycopy(tr.speed, 0, speed, k, m);
-            double[] filled = TripRouteStats.fillGaps(tr.alt);
+            double[] tk = TripRouteStats.cumulativeKm(tr.lat, tr.lon);
+            // GPS height jumps are left out, as on one trip's chart.
+            double[] filled = TripRouteStats.fillGaps(
+                com.geely.drivemem.sensors.AltitudeGate.dropJumps(tr.alt, tk));
             if (filled != null && m > 0) {
                 double[] h = TripRouteStats.medianSmooth(filled, smooth);
-                double[] tk = TripRouteStats.cumulativeKm(tr.lat, tr.lon);
                 for (int i = 0; i < m; i++) {
                     km[p] = kmBase + tk[i]; alt[p] = h[i]; ps[p] = tr.speed[i]; point[p] = k + i;
                     p++;

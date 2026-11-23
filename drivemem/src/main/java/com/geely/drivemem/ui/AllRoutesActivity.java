@@ -203,7 +203,7 @@ public class AllRoutesActivity extends Activity {
             }
             SimpleDateFormat dayFmt = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
             Cursor c = CarDb.get(this).db().rawQuery(
-                "SELECT trip_id, lat, lon, COALESCE(speed_kmh, 0), alt_m FROM trip_point "
+                "SELECT trip_id, lat, lon, COALESCE(speed_kmh, 0), alt_m, ts_ms, accuracy_m FROM trip_point "
               + "WHERE trip_id IS NOT NULL ORDER BY trip_id, ts_ms", null);
             try {
                 long cur = -1;
@@ -217,10 +217,16 @@ public class AllRoutesActivity extends Activity {
                         if (s != null && pts.size() >= 2) {
                             int n = pts.size();
                             double[] lat = new double[n], lon = new double[n], speed = new double[n], alt = new double[n];
+                            double[] acc = new double[n];
+                            long[] ts = new long[n];
                             for (int i = 0; i < n; i++) {
                                 double[] p = pts.get(i);
                                 lat[i] = p[0]; lon[i] = p[1]; speed[i] = p[2]; alt[i] = p[3];
+                                ts[i] = (long) p[4]; acc[i] = p[5];
                             }
+                            // Same as one trip's chart: no height from the
+                            // trip's first minutes or from a vague fix.
+                            alt = com.geely.drivemem.sensors.AltitudeGate.dropUnsure(alt, ts, acc);
                             found.add(new Item(s, new RouteSet.Trip(lat, lon, speed, alt),
                                 dayFmt.format(new Date(s.startMs))));
                         }
@@ -229,7 +235,8 @@ public class AllRoutesActivity extends Activity {
                     }
                     if (!more) break;
                     pts.add(new double[]{c.getDouble(1), c.getDouble(2), c.getDouble(3),
-                        c.isNull(4) ? Double.NaN : c.getDouble(4)});
+                        c.isNull(4) ? Double.NaN : c.getDouble(4), c.getLong(5),
+                        c.isNull(6) ? Double.NaN : c.getDouble(6)});
                 }
             } finally { c.close(); }
             java.util.Collections.sort(found, (x, y) -> Long.compare(x.s.startMs, y.s.startMs));
