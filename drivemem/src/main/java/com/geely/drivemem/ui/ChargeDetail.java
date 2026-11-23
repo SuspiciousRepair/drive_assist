@@ -76,7 +76,9 @@ final class ChargeDetail {
         return top;
     }
 
-    /** The °C axis: the range of both temperatures, from a multiple of 5,
+    /** The °C axis: the range of both temperatures, from a multiple of 5
+     * at least 2° under the lowest (so that line does not sit on the
+     * chart's bottom edge, the 0 kW line),
      * and a multiple of 20 tall, so its four grid steps (the kW grid's) are
      * whole multiples of 5. Null with no temperature. */
     static float[] tempAxis(float[] a, float[] b) {
@@ -84,7 +86,7 @@ final class ChargeDetail {
         if (ra == null && rb == null) return null;
         float lo = ra == null ? rb[0] : rb == null ? ra[0] : Math.min(ra[0], rb[0]);
         float hi = ra == null ? rb[1] : rb == null ? ra[1] : Math.max(ra[1], rb[1]);
-        lo = (float) Math.floor(lo / 5f) * 5f;
+        lo = (float) Math.floor((lo - 2f) / 5f) * 5f;
         float span = Math.max(20f, (float) Math.ceil((hi - lo) / 20f) * 20f);
         return new float[]{lo, lo + span};
     }

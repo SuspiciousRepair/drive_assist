@@ -479,6 +479,45 @@ public class Style {
         return sb;
     }
 
+    /** "3h 12m" / "44m" (SessionText.duration's format) with h and m as units. */
+    public static CharSequence durationWithUnits(long ms, float unitScale) {
+        long totalMin = Math.max(0, ms) / 60_000L;
+        long h = totalMin / 60, m = totalMin % 60;
+        SpannableStringBuilder sb = new SpannableStringBuilder();
+        if (h > 0) {
+            sb.append(String.valueOf(h));
+            appendUnit(sb, "h", unitScale);
+            sb.append(" ").append(String.format(java.util.Locale.US, "%02d", m));
+        } else {
+            sb.append(String.valueOf(m));
+        }
+        appendUnit(sb, "m", unitScale);
+        return sb;
+    }
+
+    /** "27° → 31°" (or any from → to with one unit), each unit de-emphasized. */
+    public static CharSequence rangeWithUnit(String from, String to, String unit, float unitScale) {
+        SpannableStringBuilder sb = new SpannableStringBuilder();
+        sb.append(from);
+        appendUnit(sb, unit, unitScale);
+        sb.append(" → ").append(to);
+        appendUnit(sb, unit, unitScale);
+        return sb;
+    }
+
+    /** Money with the driver's currency symbol (Config → Elements →
+     * Localization) as a smaller, dimmer prefix: "R$ 35,40". */
+    public static CharSequence moneyWithUnit(double amount, Integer numberColor, float unitScale) {
+        SpannableStringBuilder sb = new SpannableStringBuilder();
+        appendUnit(sb, Prefs.currencySymbol() + " ", unitScale);
+        int start = sb.length();
+        sb.append(String.format(java.util.Locale.getDefault(), "%,.2f", amount));
+        if (numberColor != null) {
+            sb.setSpan(new ForegroundColorSpan(numberColor), start, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        return sb;
+    }
+
     /** Appends text as smaller, normal-weight and dim — used for units and parenthetical asides. */
     public static void appendUnit(SpannableStringBuilder sb, String text, float scale) {
         int start = sb.length();

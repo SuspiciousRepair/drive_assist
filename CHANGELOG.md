@@ -63,6 +63,23 @@
   client ID field.
 
 ### Changed
+- **Charging stats: each charge is the home screen's charging card.** The
+  list shows every charge as the same card as the home screen, with its
+  date: energy added, time, battery levels and average power, and the cost
+  on the right (tap it to set the price). Tap the card to open the charge's
+  page with the charts and the map. The small chart and map buttons are
+  gone; the charge page has both. The battery-bar chart between the list
+  and the map is gone too: each card shows its battery levels, and the
+  list takes its room and reaches the bottom of the screen.
+- **Charging stats: fewer small texts.** Each card at the top keeps one
+  line under its big number and its two boxes, in larger type. **Charges:**
+  the energy, AC and DC. **Cost:** the cost per 100 km and the price per
+  kWh for AC and DC. **Battery health:** the last charge to 100% (moved
+  here from Charges) and the hours below 10% and 20%. **Battery temperature:** the highest and the
+  day, and the time and temperature at 100%. The LFP comfort range moved
+  behind the card's (i). Units are smaller than their numbers.
+- **The cost window says the currency.** The price field now reads "Total
+  cost in R$" (or the symbol chosen in Config → Elements → Localization).
 - **Home: a smaller charging card with more information.** The card now has
   two lines, like the trip card. While the car charges, the first line shows
   the time charging and the time left to 100%. The second line shows the

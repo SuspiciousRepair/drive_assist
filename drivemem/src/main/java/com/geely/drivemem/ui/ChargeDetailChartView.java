@@ -41,6 +41,7 @@ final class ChargeDetailChartView extends View {
     private final Paint dot = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint boxText = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint box = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint unitText = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
     private final RectF top = new RectF(), bot = new RectF(), rect = new RectF();
     private final DashPathEffect dash;
@@ -225,35 +226,41 @@ final class ChargeDetailChartView extends View {
         c.drawLine(x, top.top, x, bot.bottom, grid);
         grid.setStrokeWidth(Style.dp(ctx, 1));
 
-        java.util.List<String> lines = new java.util.ArrayList<>();
+        // Each line: label (dim, may be empty), number, unit (smaller and
+        // dimmer than the number, as everywhere: docs/STYLE-GUIDE.md).
+        java.util.List<String[]> lines = new java.util.ArrayList<>();
         java.util.List<Integer> colors = new java.util.ArrayList<>();
-        lines.add(SessionText.clock(crossT)); colors.add(Style.TEXT);
+        lines.add(new String[]{"", SessionText.clock(crossT), ""}); colors.add(Style.TEXT);
         int i = ChargeDetail.nearest(ts, kw, crossT);
         if (i >= 0) {
             dot(c, x, top, kw[i], 0, kwMax, kwColor());
-            lines.add(String.format(Locale.getDefault(), "%.1f kW", kw[i])); colors.add(kwColor());
+            lines.add(new String[]{"", String.format(Locale.getDefault(), "%.1f", kw[i]), " kW"}); colors.add(kwColor());
         }
         if (tAx != null) {
             i = ChargeDetail.nearest(ts, batT, crossT);
             if (i >= 0) {
                 dot(c, x, top, batT[i], tAx[0], tAx[1], Style.DANGER);
-                lines.add(String.format(Locale.getDefault(), "%s %.0f°", lblBat, batT[i])); colors.add(Style.DANGER);
+                lines.add(new String[]{lblBat + " ", String.valueOf(Math.round(batT[i])), "°"}); colors.add(Style.DANGER);
             }
             i = ChargeDetail.nearest(ts, outT, crossT);
             if (i >= 0) {
                 dot(c, x, top, outT[i], tAx[0], tAx[1], Style.HEAT);
-                lines.add(String.format(Locale.getDefault(), "%s %.0f°", lblOut, outT[i])); colors.add(Style.HEAT);
+                lines.add(new String[]{lblOut + " ", String.valueOf(Math.round(outT[i])), "°"}); colors.add(Style.HEAT);
             }
         }
         i = ChargeDetail.nearest(ts, soc, crossT);
         if (i >= 0) {
             dot(c, x, bot, soc[i], 0, 100, kwColor());
-            lines.add(String.format(Locale.getDefault(), "%.0f%%", soc[i])); colors.add(kwColor());
+            lines.add(new String[]{"", String.valueOf(Math.round(soc[i])), "%"}); colors.add(kwColor());
         }
 
+        unitText.setTextSize(boxText.getTextSize() * Style.UNIT_SCALE_ROW);
+        unitText.setColor(Style.TEXT_DIM);
         float lh = Style.dp(ctx, 30), pad = Style.dp(ctx, 16);
         float bw = 0;
-        for (String s : lines) bw = Math.max(bw, boxText.measureText(s));
+        for (String[] l : lines) {
+            bw = Math.max(bw, unitText.measureText(l[0]) + boxText.measureText(l[1]) + unitText.measureText(l[2]));
+        }
         bw += 2 * pad;
         float bh = lines.size() * lh + pad;
         float bx = x + Style.dp(ctx, 18);
@@ -264,8 +271,15 @@ final class ChargeDetailChartView extends View {
         float r = Style.dp(ctx, 12);
         c.drawRoundRect(rect, r, r, box);
         for (int k = 0; k < lines.size(); k++) {
+            String[] l = lines.get(k);
+            float y = by + pad / 2f + lh * (k + 1) - Style.dp(ctx, 8);
+            float tx = bx + pad;
+            c.drawText(l[0], tx, y, unitText);
+            tx += unitText.measureText(l[0]);
             boxText.setColor(colors.get(k));
-            c.drawText(lines.get(k), bx + pad, by + pad / 2f + lh * (k + 1) - Style.dp(ctx, 8), boxText);
+            c.drawText(l[1], tx, y, boxText);
+            tx += boxText.measureText(l[1]);
+            c.drawText(l[2], tx, y, unitText);
         }
     }
 
