@@ -32,27 +32,13 @@ public final class ChargeCostDialog {
 
     private ChargeCostDialog() {}
 
-    /** A CarState listener that runs close (on the given thread) when the
-     * car leaves Park, and does nothing when it parks. */
-    static com.geely.drivemem.state.CarState.Listener closeWhenDriving(Runnable close,
-                                                                     java.util.concurrent.Executor onMain) {
-        return parked -> { if (!parked) onMain.execute(close); };
-    }
-
-    /** Null, with a short note, when the car is not in Park. */
     public static AlertDialog show(Context context, long sessionId, double kwh, int socStart, int socEnd,
                                    Double currentCost, Runnable onUpdated) {
         return show(context, sessionId, kwh, socStart, socEnd, currentCost, onUpdated, null);
     }
 
-    /** Null, with a short note, when the car is not in Park. */
     public static AlertDialog show(Context context, long sessionId, double kwh, int socStart, int socEnd,
                                    Double currentCost, Runnable onUpdated, Runnable onDismiss) {
-        if (!com.geely.drivemem.state.CarState.isParked()) {
-            android.widget.Toast.makeText(context, com.geely.drivemem.R.string.charge_cost_parked_only,
-                android.widget.Toast.LENGTH_SHORT).show();
-            return null;
-        }
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
 
         LinearLayout card = new LinearLayout(context);
@@ -158,18 +144,6 @@ public final class ChargeCostDialog {
         });
         btnRow.addView(btnSave);
         card.addView(btnRow);
-
-        // Driving-safety rule (CLAUDE.md): the window closes the moment the car
-        // leaves Park, from whichever screen opened it (home, Charging stats,
-        // the charge page), not only where the opener kept a reference.
-        Handler main = new Handler(Looper.getMainLooper());
-        com.geely.drivemem.state.CarState.Listener leavePark = closeWhenDriving(() -> {
-            if (dialog.isShowing()) {
-                try { dialog.dismiss(); } catch (Throwable ignored) {}
-            }
-        }, main::post);
-        com.geely.drivemem.state.CarState.addListener(leavePark);
-        dialog.setOnDismissListener(d -> com.geely.drivemem.state.CarState.removeListener(leavePark));
 
         dialog.show();
 

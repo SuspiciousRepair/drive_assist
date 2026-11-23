@@ -478,7 +478,6 @@
     <string name="charge_cost_btn_dismiss">Dispensar</string>
     <string name="charge_cost_not_set">Custo não informado</string>
     <string name="charge_cost_invalid">Valor de custo inválido</string>
-    <string name="charge_cost_parked_only">O custo só pode ser inserido com o veículo estacionado.</string>
     <string name="charge_stat_total_cost">Custo total</string>
     <string name="charge_stat_avg_cost_kwh">Custo / kWh</string>
     <string name="charge_stat_cost_100km">Custo / 100km</string>

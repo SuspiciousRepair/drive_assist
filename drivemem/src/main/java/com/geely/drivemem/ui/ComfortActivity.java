@@ -2436,10 +2436,6 @@ public class ComfortActivity extends Activity {
                 try { activeUpdateDialog.dismiss(); } catch (Throwable ignored) {}
                 activeUpdateDialog = null;
             }
-            if (activeCostDialog != null && activeCostDialog.isShowing()) {
-                try { activeCostDialog.dismiss(); } catch (Throwable ignored) {}
-                activeCostDialog = null;
-            }
             BackupDialogs.dismissOffer();
         } else {
             // SAFELY PARKED: present pending update if one was deferred while driving

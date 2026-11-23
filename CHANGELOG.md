@@ -142,9 +142,13 @@
   at all.
 
 ### Fixed
-- **The cost window closes when the car leaves Park.** Opened from
-  Charging stats or from a charge's page, it stayed on the screen, with its
-  keyboard, after a shift to D. Now it closes at once, from any screen.
+- **The cost window opens in any gear.** It no longer needs Park, and
+  it stays open when the car leaves Park.
+- **The charge page says "Charging now" only while current flows.** In
+  the 3 minutes after a charge stops, it showed "Charging now". A page
+  opened just after a charge ended could also show an older charge.
+- **Only Drive Assist can put BRAKE in a dashcam clip.** Another app could
+  send the same message to the helper.
 - **The charge page no longer shows "-1%".** A charge that started with
   the battery level unknown shows only the level at the end.
 - **The Stats page scrolls again.** A change in this version took away the

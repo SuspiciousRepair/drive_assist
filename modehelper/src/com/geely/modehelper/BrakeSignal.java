@@ -14,11 +14,21 @@ package com.geely.modehelper;
  * between two lines. A press is therefore remembered until one line has
  * shown it.
  *
+ * Only Drive Assist may report. Any app can send this broadcast, and on
+ * this Android (9) a receiver cannot see who sent it. So each message
+ * carries {@link #EXTRA_FROM}, a PendingIntent Drive Assist made: the
+ * system records which package made a PendingIntent, and no other app can
+ * fake that. A message without one from Drive Assist is dropped
+ * ({@link #fromDriveAssist}), so another app cannot put BRAKE in a clip.
+ *
  * Times are elapsedRealtime, which counts a sleep: nothing from before one
  * is believed after it. Plain Java, so it is tested on a desktop JVM. */
 final class BrakeSignal {
     static final String ACTION = "com.geely.modehelper.DASH_BRAKE";
     static final String EXTRA = "pressed";
+    /** A PendingIntent made by the sender: proof of who sent the message. */
+    static final String EXTRA_FROM = "from";
+    static final String DRIVE_ASSIST = "com.geely.drivemem";
     // Drive Assist repeats every 2 s; this allows one repeat to be late.
     static final long HOLD_MS = 5_000L;
 
@@ -27,6 +37,12 @@ final class BrakeSignal {
 
     private long pressedAtMs = -1;    // last "pressed" heard and not released since
     private long tapAtMs = -1;        // a "pressed" no line has shown yet
+
+    /** The package that made the message's PendingIntent (null when there
+     * is none) is Drive Assist. */
+    static boolean fromDriveAssist(String creatorPackage) {
+        return DRIVE_ASSIST.equals(creatorPackage);
+    }
 
     /** `state`: 1 pressed, 0 released, anything else not known. */
     synchronized void report(int state, long nowMs) {

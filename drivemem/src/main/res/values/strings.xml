@@ -493,7 +493,6 @@
     <string name="charge_cost_btn_dismiss">Dismiss</string>
     <string name="charge_cost_not_set">Cost not set</string>
     <string name="charge_cost_invalid">Invalid cost value</string>
-    <string name="charge_cost_parked_only">Cost can only be entered while parked.</string>
     <string name="charge_stat_total_cost">Total cost</string>
     <string name="charge_stat_avg_cost_kwh">Cost / kWh</string>
     <string name="charge_stat_cost_100km">Cost / 100 km</string>

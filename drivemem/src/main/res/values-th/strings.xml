@@ -474,7 +474,6 @@
     <string name="charge_cost_btn_dismiss">ปิด</string>
     <string name="charge_cost_not_set">ยังไม่ได้ตั้งค่าใช้จ่าย</string>
     <string name="charge_cost_invalid">ค่าใช้จ่ายไม่ถูกต้อง</string>
-    <string name="charge_cost_parked_only">สามารถป้อนค่าใช้จ่ายได้เฉพาะขณะจอดรถเท่านั้น</string>
     <string name="charge_stat_total_cost">ค่าใช้จ่ายทั้งหมด</string>
     <string name="charge_stat_avg_cost_kwh">ค่าใช้จ่าย / kWh</string>
     <string name="charge_stat_cost_100km">ค่าใช้จ่าย / 100 กม.</string>

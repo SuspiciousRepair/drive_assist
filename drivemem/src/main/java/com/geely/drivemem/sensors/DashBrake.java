@@ -1,5 +1,6 @@
 package com.geely.drivemem.sensors;
 
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
@@ -24,11 +25,16 @@ import com.geely.drivemem.net.Updater;
  * never go on saying BRAKE because this app died with the pedal down.
  * "Released" and "not known" need no repeat: both show nothing.
  *
+ * Each message carries {@link #EXTRA_FROM}, a PendingIntent this app made.
+ * modehelper reads who made it and drops a message from any other app, so
+ * no other app can put BRAKE in a clip.
+ *
  * Nothing is sent while the CAN reader is off, because the key then never
  * changes. */
 public final class DashBrake {
     static final String ACTION = "com.geely.modehelper.DASH_BRAKE";
     static final String EXTRA = "pressed";
+    static final String EXTRA_FROM = "from";
     static final long REPEAT_MS = 2_000L;
     static final int PRESSED = 1, RELEASED = 0, UNKNOWN = -1;
 
@@ -82,10 +88,18 @@ public final class DashBrake {
         final Handler main = new Handler(Looper.getMainLooper());
         final Core core = new Core();
         final Runnable[] repeat = new Runnable[1];
+        final PendingIntent[] from = new PendingIntent[1];
         final Core.Out out = new Core.Out() {
             @Override public void send(int state) {
                 try {
-                    app.sendBroadcast(new Intent(ACTION).setPackage(Updater.HELPER_PKG).putExtra(EXTRA, state));
+                    if (from[0] == null) {
+                        // Made once. It is never sent, only read for its maker.
+                        from[0] = PendingIntent.getBroadcast(app, 0,
+                            new Intent(ACTION + ".FROM").setPackage(app.getPackageName()),
+                            PendingIntent.FLAG_IMMUTABLE);
+                    }
+                    app.sendBroadcast(new Intent(ACTION).setPackage(Updater.HELPER_PKG)
+                        .putExtra(EXTRA, state).putExtra(EXTRA_FROM, from[0]));
                 } catch (Throwable t) { Log.w(CarAccess.TAG, "dash brake: " + t); }
             }
             @Override public void repeatIn(long ms) { main.postDelayed(repeat[0], ms); }
