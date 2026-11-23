@@ -396,7 +396,6 @@
     <string name="cam_right">ขวา</string>
     <string name="cam_orbit">หมุนรอบคัน</string>
     <!-- charging history -->
-    <string name="charge_sessions_title">ประวัติการชาร์จ · ล่าสุดก่อน</string>
     <string name="charge_map_none">ไม่มีการชาร์จในช่วงนี้ที่บันทึกตำแหน่งไว้</string>
     <string name="charge_ltm_title">12 เดือนล่าสุด</string>
     <string name="charge_period_30d">30 วันล่าสุด</string>
@@ -467,7 +466,7 @@
     <string name="charge_cost_label">ค่าใช้จ่าย</string>
     <string name="charge_cost_change">แก้ไข</string>
     <string name="charge_cost_input_title">ค่าใช้จ่ายในการชาร์จ</string>
-    <string name="charge_cost_input_hint">ค่าใช้จ่ายทั้งหมด (เช่น 45.00)</string>
+    <string name="charge_cost_input_hint">ค่าใช้จ่ายทั้งหมดเป็น %1$s (เช่น 45.00)</string>
     <string name="charge_cost_btn_input">ป้อนค่าใช้จ่าย</string>
     <string name="charge_cost_btn_edit">แก้ไข</string>
     <string name="charge_cost_btn_per_kwh">× kWh</string>
@@ -726,36 +725,23 @@
     <string name="soc_history_empty">ไม่มีข้อมูลแบตเตอรี่ในช่วงนี้</string>
     <string name="charge_card_charges">การชาร์จ</string>
     <string name="charge_card_energy_cap">ชาร์จแล้ว %1$s kWh</string>
+    <string name="charge_card_full_last">100%% ครั้งล่าสุด: %1$s</string>
+    <string name="charge_card_per_100km">%1$s / 100 กม.</string>
+    <string name="charge_card_temp_highest">สูงสุด · %1$s</string>
+    <string name="charge_max_short">สูงสุด</string>
     <string name="charge_card_cost">ค่าใช้จ่าย</string>
-    <string name="charge_card_cost_cap">%1$s / 100 กม. · %2$s / kWh</string>
     <string name="charge_card_per_kwh">%1$s ต่อ kWh</string>
-    <string name="charge_card_cost_total">รวม %1$s</string>
-    <string name="charge_card_cost_share">%1$s · %2$d%% ของค่าใช้จ่าย</string>
-    <string name="charge_card_no_dc">ไม่มีการชาร์จ DC</string>
     <string name="charge_card_no_cost">ยังไม่ได้ใส่ค่าใช้จ่าย</string>
     <string name="charge_card_low">สุขภาพแบตเตอรี่</string>
     <string name="charge_card_low_cap">ต่ำสุด · %1$s</string>
-    <string name="charge_card_soh_cap">สุขภาพแบตเตอรี่ (SoH) · ประจุต่ำสุด %1$d%% วันที่ %2$s</string>
-    <string name="charge_card_soh_cap_only">สุขภาพแบตเตอรี่ (SoH)</string>
     <string name="charge_card_below">ชั่วโมงที่ต่ำกว่า %1$d%%</string>
-    <string name="charge_card_plug_note">โดยเฉลี่ยคุณเสียบชาร์จที่ %1$d%%</string>
     <string name="charge_card_today">วันนี้</string>
     <string name="charge_card_yesterday">เมื่อวาน</string>
     <string name="charge_card_days_ago">%1$d วันที่แล้ว</string>
     <string name="charge_card_never">ไม่เคย</string>
-    <string name="charge_card_gap_days">%1$d วัน</string>
-    <string name="charge_card_gap_open">%1$s → วันนี้</string>
-    <string name="charge_card_avg_kwh">เฉลี่ย %1$s kWh</string>
-    <string name="charge_card_full_band">ถึง 100%%: %1$d จาก %2$d · ล่าสุด %3$s</string>
-    <string name="charge_card_gap_line">ช่วงที่ไม่ถึง 100%% นานที่สุด: %1$s (%2$s)</string>
     <string name="charge_card_temp">อุณหภูมิแบตเตอรี่</string>
-    <string name="charge_card_temp_cap">สูงสุด · %1$s · เฉลี่ย %2$s · ต่ำสุด %3$s</string>
     <string name="charge_card_full_time" formatted="false">เวลาที่ 100%</string>
-    <string name="charge_card_full_time_val">เฉลี่ย %1$s</string>
-    <string name="charge_card_full_time_sub">รวม %1$s · นานสุด %2$s</string>
     <string name="charge_card_full_temp" formatted="false">อุณหภูมิที่ 100%</string>
-    <string name="charge_card_full_temp_val">สูงสุด %1$s</string>
-    <string name="charge_card_full_temp_sub">เฉลี่ย %1$s</string>
     <string name="charge_card_temp_note">LFP ทำงานได้ดีที่ 15–35 °C</string>
     <string name="charge_card_temp_since">เริ่มมีข้อมูลวันที่ %1$s</string>
     <string name="charge_card_no_temp">ไม่มีค่า (ต้องใช้ OBD2)</string>

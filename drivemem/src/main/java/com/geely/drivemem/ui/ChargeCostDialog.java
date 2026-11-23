@@ -72,7 +72,8 @@ public final class ChargeCostDialog {
         card.addView(subtitle);
 
         EditText input = new EditText(context);
-        input.setHint(context.getString(R.string.charge_cost_input_hint));
+        input.setHint(context.getString(R.string.charge_cost_input_hint,
+            com.geely.drivemem.util.Prefs.getCurrency(context)));
         input.setTextColor(Style.TEXT);
         input.setHintTextColor(Style.TEXT_DIM);
         input.setTextSize(22f);

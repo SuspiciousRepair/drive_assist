@@ -437,7 +437,6 @@
     <!-- charge stats & cost -->
     <string name="charge_stats_title">Estadísticas de carga</string>
     <!-- charging power curve dialog -->
-    <string name="charge_sessions_title">Sesiones de carga · más recientes primero</string>
     <string name="charge_map_none">Ninguna carga de este período guardó su lugar.</string>
     <string name="charge_curve_title">Potencia de carga en el tiempo</string>
     <string name="charge_detail_title">Carga</string>
@@ -460,7 +459,7 @@
     <string name="charge_cost_label">Coste</string>
     <string name="charge_cost_change">Cambiar</string>
     <string name="charge_cost_input_title">Coste de la carga</string>
-    <string name="charge_cost_input_hint">Coste total (ej. 45,00)</string>
+    <string name="charge_cost_input_hint">Coste total en %1$s (ej. 45,00)</string>
     <string name="charge_cost_btn_input">Introducir coste</string>
     <string name="charge_cost_btn_edit">Editar</string>
     <string name="charge_cost_btn_save">Guardar</string>
@@ -710,36 +709,23 @@
     <string name="soc_history_empty">Sin datos de batería en este período</string>
     <string name="charge_card_charges">Cargas</string>
     <string name="charge_card_energy_cap">%1$s kWh cargados</string>
+    <string name="charge_card_full_last">Último 100%%: %1$s</string>
+    <string name="charge_card_per_100km">%1$s / 100 km</string>
+    <string name="charge_card_temp_highest">máxima · %1$s</string>
+    <string name="charge_max_short">máx.</string>
     <string name="charge_card_cost">Costo</string>
-    <string name="charge_card_cost_cap">%1$s / 100 km · %2$s / kWh</string>
     <string name="charge_card_per_kwh">%1$s por kWh</string>
-    <string name="charge_card_cost_total">%1$s en total</string>
-    <string name="charge_card_cost_share">%1$s · %2$d%% del costo</string>
-    <string name="charge_card_no_dc">sin cargas DC</string>
     <string name="charge_card_no_cost">ningún costo informado</string>
     <string name="charge_card_low">Salud de la batería</string>
     <string name="charge_card_low_cap">carga mínima · %1$s</string>
-    <string name="charge_card_soh_cap">estado de salud (SoH) · carga mínima %1$d%% el %2$s</string>
-    <string name="charge_card_soh_cap_only">estado de salud (SoH)</string>
     <string name="charge_card_below">Horas bajo %1$d%%</string>
-    <string name="charge_card_plug_note">En promedio enchufas con %1$d%%</string>
     <string name="charge_card_today">hoy</string>
     <string name="charge_card_yesterday">ayer</string>
     <string name="charge_card_days_ago">hace %1$d días</string>
     <string name="charge_card_never">nunca</string>
-    <string name="charge_card_gap_days">%1$d días</string>
-    <string name="charge_card_gap_open">%1$s → hoy</string>
-    <string name="charge_card_avg_kwh">%1$s kWh prom.</string>
-    <string name="charge_card_full_band">Al 100%%: %1$d de %2$d · última %3$s</string>
-    <string name="charge_card_gap_line">mayor intervalo sin 100%%: %1$s (%2$s)</string>
     <string name="charge_card_temp">Temperatura de la batería</string>
-    <string name="charge_card_temp_cap">máxima · %1$s · media %2$s · mín %3$s</string>
     <string name="charge_card_full_time" formatted="false">Tiempo al 100%</string>
-    <string name="charge_card_full_time_val">%1$s media</string>
-    <string name="charge_card_full_time_sub">%1$s en total · máx %2$s</string>
     <string name="charge_card_full_temp" formatted="false">Temp. al 100%</string>
-    <string name="charge_card_full_temp_val">máx %1$s</string>
-    <string name="charge_card_full_temp_sub">media %1$s</string>
     <string name="charge_card_temp_note">LFP está bien entre 15 y 35 °C</string>
     <string name="charge_card_temp_since">Las lecturas empiezan el %1$s.</string>
     <string name="charge_card_no_temp">sin lectura (necesita el OBD2)</string>
