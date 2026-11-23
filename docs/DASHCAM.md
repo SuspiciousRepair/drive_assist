@@ -74,8 +74,10 @@ options this car has) and records only when the row reports the cameras.
   (steering wheel on the right, byte 13, bit 5), each `1` or `0`. `aeb=0`
   removes the AEB switch from **Settings → Drive** and stops ModeHelper
   from writing an AEB setting. `ambient=0` removes the ambient light from
-  Home Assistant and makes the buttons use the theme's own colour. Nothing
-  acts on `rhd`; it is there for reports. In the car's factory table of 52
+  Home Assistant and makes the buttons use the theme's own colour. With
+  **Config → Appearance → Driver side** set to **Auto** (the default), `rhd=1`
+  mirrors the layout for right-hand-drive cars (not yet checked on a real
+  right-hand-drive car). In the car's factory table of 52
   trims, `aeb` and `ambient` are `1` exactly on the trims that have the 360
   cameras. `cameras=no` also removes the **Clips** card from the phone page.
 

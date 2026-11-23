@@ -232,9 +232,9 @@ public class DailyStatsView extends LinearLayout {
         consumptionCard.setBackground(Style.card(Style.cardFillColor(), c));
         consumptionCard.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
 
-        energyCard = newDashboardCard(c, cardPad, 0);
-        batteryCard = newDashboardCard(c, cardPad, 0);
-        tripCard = newDashboardCard(c, cardPad, 0);
+        energyCard = newDashboardCard(c, cardPad);
+        batteryCard = newDashboardCard(c, cardPad);
+        tripCard = newDashboardCard(c, cardPad);
         Style.addMirrored(dashboardRow, 12, consumptionCard, energyCard, batteryCard, tripCard);
 
         content.addView(dashboardRow);
@@ -1022,14 +1022,12 @@ public class DailyStatsView extends LinearLayout {
     }
 
     /** One of the four equal dashboard cards; {@code rightGap} 0 for the last. */
-    private static LinearLayout newDashboardCard(Context c, int pad, int rightGap) {
+    private static LinearLayout newDashboardCard(Context c, int pad) {
         LinearLayout card = new LinearLayout(c);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(pad, pad, pad, pad);
         card.setBackground(Style.card(Style.cardFillColor(), c));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-        lp.rightMargin = rightGap;
-        card.setLayoutParams(lp);
+        card.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
         return card;
     }
 

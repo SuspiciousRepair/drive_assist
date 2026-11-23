@@ -391,10 +391,10 @@ public class ChargeStatsView extends LinearLayout {
         cards.setBaselineAligned(false);
         long now = System.currentTimeMillis();
         boolean current = !periodEnd(start).isBefore(java.time.LocalDate.now().plusDays(1));
-        View c1 = chargesCard(l.sum); c1.setLayoutParams(cardLp(true));
-        View c2 = costCard(l.sum, l.km); c2.setLayoutParams(cardLp(true));
-        View c3 = lowCard(l.sum, l.heat, l.soh, current); c3.setLayoutParams(cardLp(true));
-        View c4 = heatCard(l.heat, start); c4.setLayoutParams(cardLp(true));
+        View c1 = chargesCard(l.sum); c1.setLayoutParams(cardLp());
+        View c2 = costCard(l.sum, l.km); c2.setLayoutParams(cardLp());
+        View c3 = lowCard(l.sum, l.heat, l.soh, current); c3.setLayoutParams(cardLp());
+        View c4 = heatCard(l.heat, start); c4.setLayoutParams(cardLp());
         Style.addMirrored(cards, 13, c1, c2, c3, c4);
         kpiContainer.addView(cards);
 
@@ -436,11 +436,8 @@ public class ChargeStatsView extends LinearLayout {
 
     // ---- the four cards ----
 
-    private LinearLayout.LayoutParams cardLp(boolean last) {
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-        if (!last) lp.rightMargin = Style.dp(getContext(), 13);
-        return lp;
+    private LinearLayout.LayoutParams cardLp() {
+        return new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
     }
 
     private static String money(double v) {
