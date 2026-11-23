@@ -12,6 +12,14 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.11.2 — 2026-11-23
+
+- Changed: a finished charge's card on the home screen has a close button. It also closes when the car leaves Park, or when you add the charge's price.
+- Changed: the charge page has three charts, each with its own scale: power (blue for AC, green for DC), temperature and battery level. The cost has a pencil to show you can change it.
+- Fixed: updates over the air reach the car again.
+- Fixed: on the Stats page, Energy by use keeps a trip when the app restarts during the drive.
+- Fixed: the music card shows the song's own cover, not the cover of the song before.
+
 ## v0.11.1 — 2026-11-23
 
 - Changed: the Stats page has a new Battery card showing the battery used in percent, lowest and highest level, charged energy and count, outside temperature, and battery temperature with an OBD2 dongle.

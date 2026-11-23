@@ -1,4 +1,5 @@
-- Changed: the Stats page has a new Battery card showing the battery used in percent, lowest and highest level, charged energy and count, outside temperature, and battery temperature with an OBD2 dongle.
-- Changed: on the Stats page, the Trip card is now Driving, with moving speed (excluding stops) and the number of trips with km per trip.
-- Changed: on the Stats page, the top date and period row stays in place while the cards scroll under it.
-- Fixed: on the trip page, the height chart no longer starts below 0 m near sea level, and its height labels use round 50 m steps.
+- Changed: a finished charge's card on the home screen has a close button. It also closes when the car leaves Park, or when you add the charge's price.
+- Changed: the charge page has three charts, each with its own scale: power (blue for AC, green for DC), temperature and battery level. The cost has a pencil to show you can change it.
+- Fixed: updates over the air reach the car again.
+- Fixed: on the Stats page, Energy by use keeps a trip when the app restarts during the drive.
+- Fixed: the music card shows the song's own cover, not the cover of the song before.

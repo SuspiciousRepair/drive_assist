@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.11.2] — 2026-11-23
+
 ### Changed
 - **Home: a finished charge's card goes once it has a price.** Add the
   price (zero counts) and the card closes, and the Parked card comes back.
@@ -32,6 +34,11 @@
   30 seconds and takes it back after a restart. A trip loses it only if
   the restarts together leave out more than about a tenth of the drive.
   Trips from before this version stay as they are.
+- **Music card: the cover is the song's own.** A new song often comes
+  first with the last song's cover, or the phone's grey "no cover"
+  picture, and its real cover a moment later. The card kept that first
+  picture for the whole song. It now shows the real cover when it comes,
+  and the head unit no longer keeps a wrong cover for the album.
 
 ## [v0.11.1] — 2026-11-23
 
