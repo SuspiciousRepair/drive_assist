@@ -64,6 +64,11 @@
 - **Park monitoring cannot stop the dashcam.** If the motion detector
   stops working, the dashcam records all the time until the car leaves
   Park, as with the switch off. Before, it would have recorded nothing.
+- **ModeHelper uses much less processor after an update.** After each
+  update ModeHelper prepares a faster copy of itself, but it kept running
+  the slow copy until the head unit restarted, which can be days. With park
+  monitoring on, it used about half of one processor core. It now starts
+  itself again one time as part of the update, before the dashcam starts.
 
 ## [v0.10.0] — 2026-11-20
 

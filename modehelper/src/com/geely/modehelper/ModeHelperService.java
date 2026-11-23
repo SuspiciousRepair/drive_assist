@@ -292,7 +292,28 @@ public class ModeHelperService extends Service {
         }
     }
 
+    // Part of the install: the first start of a new version compiles the
+    // helper and starts it again at once, before the dashcam or anything
+    // else is running, so nothing is cut. See CompiledCode. A few seconds,
+    // on the poll thread, once per version.
+    private void compileAtStart() {
+        try {
+            Dexopt.ensureSelf(getApplicationContext());
+            restartIfCompiled("at start");
+        } catch (Throwable t) { Log.w(TAG, "dexopt at start: " + t); }
+    }
+
+    private void restartIfCompiled(String when) {
+        if (Installer.busy() || shuttingDown) return;
+        if (!Dexopt.restartWanted(getApplicationContext())
+                || !Dexopt.markRestarted(getApplicationContext())) return;
+        Log.i(TAG, "dexopt: restarting the helper to run its compiled code (" + when + ")");
+        stopForShutdown("helper restart");
+        android.os.Process.killProcess(android.os.Process.myPid());
+    }
+
     private void pollLoop() {
+        compileAtStart();
         while (running) {
             try {
                 if (!car.isReady()) car.connect(getApplicationContext());
@@ -414,6 +435,9 @@ public class ModeHelperService extends Service {
         long now = SystemClock.elapsedRealtime();
         if (dexoptRunning || now - lastDexoptCheck < 60_000) return;
         lastDexoptCheck = now;
+        // The start-time restart could not happen (an install was in
+        // progress): do it now. It cuts the open clip, which is closed first.
+        restartIfCompiled("later");
         dexoptRunning = true;
         new Thread(() -> {
             try { Dexopt.ensure(getApplicationContext()); }

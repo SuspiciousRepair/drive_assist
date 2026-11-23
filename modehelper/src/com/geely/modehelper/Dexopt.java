@@ -31,24 +31,64 @@ final class Dexopt {
      * for the compile itself (tens of seconds), so call it off the main
      * thread. */
     static void ensure(Context ctx) {
+        for (String pkg : PACKAGES) ensureOne(ctx, pkg);
+    }
+
+    /** The helper alone, at its start: see ModeHelperService.compileAtStart. */
+    static void ensureSelf(Context ctx) { ensureOne(ctx, ctx.getPackageName()); }
+
+    private static void ensureOne(Context ctx, String pkg) {
         SharedPreferences p = ctx.getSharedPreferences("modehelper", Context.MODE_PRIVATE);
-        for (String pkg : PACKAGES) {
-            try {
-                PackageInfo info = ctx.getPackageManager().getPackageInfo(pkg, 0);
-                String key = "dexopt_vc_" + pkg;
-                if (p.getInt(key, -1) == info.versionCode) continue;
-                long t0 = System.currentTimeMillis();
-                boolean ok = compile(pkg);
-                Log.i(TAG, "dexopt: " + pkg + " vc=" + info.versionCode + " speed="
-                    + ok + " in " + (System.currentTimeMillis() - t0) + " ms");
-                // Recorded either way: a refusal is not going to change for
-                // this version, and retrying every minute would only burn CPU.
-                p.edit().putInt(key, info.versionCode).apply();
-            } catch (Throwable t) {
-                Log.w(TAG, "dexopt: " + pkg + ": " + t);
-            }
+        try {
+            PackageInfo info = ctx.getPackageManager().getPackageInfo(pkg, 0);
+            String key = "dexopt_vc_" + pkg;
+            if (p.getInt(key, -1) == info.versionCode) return;
+            long t0 = System.currentTimeMillis();
+            boolean ok = compile(pkg);
+            Log.i(TAG, "dexopt: " + pkg + " vc=" + info.versionCode + " speed="
+                + ok + " in " + (System.currentTimeMillis() - t0) + " ms");
+            // Recorded either way: a refusal is not going to change for
+            // this version, and retrying every minute would only burn CPU.
+            p.edit().putInt(key, info.versionCode).apply();
+        } catch (Throwable t) {
+            Log.w(TAG, "dexopt: " + pkg + ": " + t);
         }
     }
+
+    /** True if the helper must start again to run what {@link #ensure}
+     * compiled: see CompiledCode. Cheap: one getPackageInfo, and
+     * /proc/self/maps is read only until the one restart of this version. */
+    static boolean restartWanted(Context ctx) {
+        try {
+            String pkg = ctx.getPackageName();
+            int vc = ctx.getPackageManager().getPackageInfo(pkg, 0).versionCode;
+            SharedPreferences p = ctx.getSharedPreferences("modehelper", Context.MODE_PRIVATE);
+            int compiled = p.getInt("dexopt_vc_" + pkg, -1), restarted = p.getInt(RESTART_KEY, -1);
+            if (!CompiledCode.wanted(vc, compiled, restarted, false)) return false;
+            java.util.List<String> maps = java.nio.file.Files.readAllLines(
+                java.nio.file.Paths.get("/proc/self/maps"), java.nio.charset.StandardCharsets.UTF_8);
+            return CompiledCode.wanted(vc, compiled, restarted, CompiledCode.loaded(maps, pkg));
+        } catch (Throwable t) {
+            Log.w(TAG, "dexopt: restart check: " + t);
+            return false;
+        }
+    }
+
+    /** Records the restart before it happens (commit, not apply: the
+     * process ends next), so it is done once per version. False if the
+     * record could not be written: then do not restart. */
+    static boolean markRestarted(Context ctx) {
+        try {
+            int vc = ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0).versionCode;
+            return ctx.getSharedPreferences("modehelper", Context.MODE_PRIVATE)
+                .edit().putInt(RESTART_KEY, vc).commit();
+        } catch (Throwable t) {
+            Log.w(TAG, "dexopt: restart record: " + t);
+            return false;
+        }
+    }
+
+    private static final String RESTART_KEY = "dexopt_restart_vc";
 
     // IPackageManager.performDexOptMode(packageName, checkProfiles,
     // targetCompilerFilter, force, bootComplete, splitName) — hidden API,
