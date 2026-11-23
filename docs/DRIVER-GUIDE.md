@@ -149,8 +149,8 @@ them, the car sends the song, artist and album names there, once for each song.
 The car keeps the lyrics of the last 1000 songs and the covers of the last 200 albums,
 so a song heard again needs no internet.
 Some songs have only untimed lyrics on LRCLIB. The card shows them too, but they
-do not move by themselves: tap the lower half of the lyrics to go down one line,
-the upper half to go back one. For a song with no lyrics at all, the Lyrics
+do not move by themselves, and the card says so when they first show: tap the
+lower half of the lyrics to go down one line, the upper half to go back one. For a song with no lyrics at all, the Lyrics
 button is dim, and tapping it says "No lyrics found for this song".
 With the switch off, the car sends nothing there.
 

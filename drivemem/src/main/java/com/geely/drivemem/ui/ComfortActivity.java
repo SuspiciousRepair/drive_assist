@@ -179,6 +179,7 @@ public class ComfortActivity extends Activity {
     private Lrc lyricsTickLines;            // the lines the slots show now
     private int lyricIndex = Integer.MIN_VALUE;
     private int plainIndex;   // the line shown now, for plain (untimed) lyrics
+    private String untimedToldId;   // the song whose "no timing" message was shown
     // Show a line this much before the session's position reaches it: the
     // eye needs a beat.
     private static final long LYRICS_LEAD_MS = 400;
@@ -1478,6 +1479,15 @@ public class ComfortActivity extends Activity {
         }, 400);
     }
 
+    // Plain lyrics do not move with the song, which looked like the lyrics
+    // were stuck. Say so once per song, when its lyrics first show.
+    private void tellUntimed(Lrc lines) {
+        String id = MusicState.trackId();
+        if (lines.timed() || id == null || id.equals(untimedToldId)) return;
+        untimedToldId = id;
+        android.widget.Toast.makeText(this, R.string.music_lyrics_untimed, android.widget.Toast.LENGTH_LONG).show();
+    }
+
     private void setLyricsOpen(boolean open) {
         if (open == lyricsOpen) return;
         lyricsOpen = open;
@@ -1556,7 +1566,10 @@ public class ComfortActivity extends Activity {
                 showLyricLines(null, 0);   // blank slots
             }
             if (lines != null) {
-                if (lines != lyricsTickLines) plainIndex = 0;   // a new song starts at its first line
+                if (lines != lyricsTickLines) {
+                    plainIndex = 0;   // a new song starts at its first line
+                    tellUntimed(lines);
+                }
                 int i;
                 if (lines.timed()) {
                     long pos = MusicState.positionNowMs(android.os.SystemClock.elapsedRealtime()) + LYRICS_LEAD_MS;

@@ -161,6 +161,7 @@
     <string name="music_lyrics_label">Letra</string>
     <string name="music_lyrics_no_room">Sem espaço para a letra: outros cartões estão usando a tela.</string>
     <string name="music_lyrics_not_found">Letra não encontrada para esta música.</string>
+    <string name="music_lyrics_untimed">Esta letra não tem tempo. Toque na metade de baixo para descer uma linha, na de cima para voltar.</string>
     <string name="cfg_commands_label">Aceitar comandos do HA</string>
     <string name="cfg_commands_on">Aceitando comandos do HA</string>
     <string name="cfg_commands_off">Comandos BLOQUEADOS — só envia telemetria</string>

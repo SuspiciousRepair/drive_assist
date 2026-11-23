@@ -11,6 +11,10 @@
   contents, menus, controls, charts, maps, calendars and text stay
   left-to-right. Backups keep your choice. Not yet checked on a real
   right-hand-drive car.
+- **Music card: a message when the lyrics have no timing.** Some songs
+  have only plain lyrics, which do not move with the song. When they first
+  show, the card now says so, and how to move them: tap the lower half to
+  go down a line, the upper half to go back.
 
 ## [v0.11.2] — 2026-11-23
 
