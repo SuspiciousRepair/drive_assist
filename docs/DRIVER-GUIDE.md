@@ -131,7 +131,7 @@ Turn on **Config → Integrations → Music → Phone music** and the home scree
 shows what your phone plays through the car (Bluetooth, Apple CarPlay or
 Android Auto), from any app, with Play and Skip. There is no sign-in. Drive
 Assist reads this from the car's own music apps; no permission is asked, and
-nothing leaves the car. The small gear in the card's top-right corner opens the
+nothing leaves the car. The small equalizer (three sliders) in the card's top-right corner opens the
 car's own sound settings, with the equalizer. **Large card** on the same page
 gives the card full album art and big Play and Skip buttons.
 
@@ -149,8 +149,8 @@ them, the car sends the song, artist and album names there, once for each song.
 The car keeps the lyrics of the last 1000 songs and the covers of the last 200 albums,
 so a song heard again needs no internet.
 Some songs have only untimed lyrics on LRCLIB. The card shows them too, but they
-do not move by themselves, and the card says so when they first show: tap the
-lower half of the lyrics to go down one line, the upper half to go back one. For a song with no lyrics at all, the Lyrics
+do not move by themselves, and a small struck-through clock shows at the top:
+tap the lower half of the lyrics to go down one line, the upper half to go back one. For a song with no lyrics at all, the Lyrics
 button is dim, and tapping it says "No lyrics found for this song".
 With the switch off, the car sends nothing there.
 

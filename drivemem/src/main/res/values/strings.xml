@@ -173,7 +173,6 @@
     <string name="music_lyrics_label">Lyrics</string>
     <string name="music_lyrics_no_room">No room for the lyrics: other cards are using the screen.</string>
     <string name="music_lyrics_not_found">No lyrics found for this song.</string>
-    <string name="music_lyrics_untimed">These lyrics have no timing. Tap the lower half to go down a line, the upper half to go back.</string>
     <string name="cfg_commands_label">Accept commands from Home Assistant</string>
     <string name="cfg_commands_on">Accepting commands from Home Assistant</string>
     <string name="cfg_commands_off">Commands blocked — telemetry only</string>

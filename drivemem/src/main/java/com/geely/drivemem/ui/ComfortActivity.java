@@ -179,7 +179,7 @@ public class ComfortActivity extends Activity {
     private Lrc lyricsTickLines;            // the lines the slots show now
     private int lyricIndex = Integer.MIN_VALUE;
     private int plainIndex;   // the line shown now, for plain (untimed) lyrics
-    private String untimedToldId;   // the song whose "no timing" message was shown
+    private android.widget.ImageView untimedIcon;   // shown while the lyrics have no timing
     // Show a line this much before the session's position reaches it: the
     // eye needs a beat.
     private static final long LYRICS_LEAD_MS = 400;
@@ -1325,6 +1325,15 @@ public class ComfortActivity extends Activity {
         LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         infoLp.leftMargin = Style.dp(this, 26);
         jumboHeader.addView(info, infoLp);
+        untimedIcon = new android.widget.ImageView(this);
+        untimedIcon.setImageResource(R.drawable.ic_lyrics_untimed);
+        untimedIcon.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        untimedIcon.setColorFilter(Style.TEXT_DIM, android.graphics.PorterDuff.Mode.SRC_IN);
+        untimedIcon.setPadding(Style.dp(this, 10), Style.dp(this, 10), Style.dp(this, 10), Style.dp(this, 10));
+        untimedIcon.setVisibility(View.GONE);
+        LinearLayout.LayoutParams uLp = new LinearLayout.LayoutParams(Style.dp(this, 52), Style.dp(this, 52));
+        uLp.gravity = Gravity.TOP;
+        jumboHeader.addView(untimedIcon, uLp);
         android.widget.ImageView jGear = soundGear(false);
         if (jGear != null) {
             LinearLayout.LayoutParams gLp = new LinearLayout.LayoutParams(Style.dp(this, 52), Style.dp(this, 52));
@@ -1426,14 +1435,18 @@ public class ComfortActivity extends Activity {
     }
 
     // Open or close the lyrics (the buttons). Kept across tracks and restarts.
-    // The small gear in the music card's top-right corner: the car's own
-    // sound settings, with the EQ (OemSound). Null when this car has none.
+    // The small equalizer (three sliders) in the music card's top-right
+    // corner: the car's own sound settings, with the EQ (OemSound). Null
+    // when this car has none.
     // onArt: it sits on the album art, so it gets a dark disc to read on
     // any picture.
     private android.widget.ImageView soundGear(boolean onArt) {
         if (!eqAvailable) return null;
-        android.widget.ImageView g = Style.cogButton(this, () -> OemSound.open(this));
-        int pad = Style.dp(this, 8);
+        android.widget.ImageView g = new android.widget.ImageView(this);
+        g.setImageResource(R.drawable.ic_equalizer);
+        g.setColorFilter(Style.TEXT_DIM, android.graphics.PorterDuff.Mode.SRC_IN);
+        g.setOnClickListener(v -> OemSound.open(this));
+        int pad = Style.dp(this, 10);
         g.setPadding(pad, pad, pad, pad);
         g.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
         if (onArt) {
@@ -1477,15 +1490,6 @@ public class ComfortActivity extends Activity {
             }
             if (msg != 0) android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_LONG).show();
         }, 400);
-    }
-
-    // Plain lyrics do not move with the song, which looked like the lyrics
-    // were stuck. Say so once per song, when its lyrics first show.
-    private void tellUntimed(Lrc lines) {
-        String id = MusicState.trackId();
-        if (lines.timed() || id == null || id.equals(untimedToldId)) return;
-        untimedToldId = id;
-        android.widget.Toast.makeText(this, R.string.music_lyrics_untimed, android.widget.Toast.LENGTH_LONG).show();
     }
 
     private void setLyricsOpen(boolean open) {
@@ -1561,15 +1565,16 @@ public class ComfortActivity extends Activity {
         @Override public void run() {
             if (!lyricsShown()) return;
             Lrc lines = LyricsClient.linesFor(MusicState.trackId());
+            // Plain lyrics do not move with the song, which looked stuck: a
+            // small struck-through clock says they have no timing.
+            if (untimedIcon != null)
+                untimedIcon.setVisibility(lines != null && !lines.timed() ? View.VISIBLE : View.GONE);
             if (lines == null && lyricsTickLines != null) {   // a new track, lines on the way
                 lyricsTickLines = null;
                 showLyricLines(null, 0);   // blank slots
             }
             if (lines != null) {
-                if (lines != lyricsTickLines) {
-                    plainIndex = 0;   // a new song starts at its first line
-                    tellUntimed(lines);
-                }
+                if (lines != lyricsTickLines) plainIndex = 0;   // a new song starts at its first line
                 int i;
                 if (lines.timed()) {
                     long pos = MusicState.positionNowMs(android.os.SystemClock.elapsedRealtime()) + LYRICS_LEAD_MS;

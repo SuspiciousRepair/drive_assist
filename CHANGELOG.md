@@ -11,10 +11,13 @@
   contents, menus, controls, charts, maps, calendars and text stay
   left-to-right. Backups keep your choice. Not yet checked on a real
   right-hand-drive car.
-- **Music card: a message when the lyrics have no timing.** Some songs
-  have only plain lyrics, which do not move with the song. When they first
-  show, the card now says so, and how to move them: tap the lower half to
-  go down a line, the upper half to go back.
+- **Music card: an icon when the lyrics have no timing.** Some songs have
+  only plain lyrics, which do not move with the song (tap the lower half to
+  go down a line, the upper half to go back). A small struck-through clock
+  now shows at the top of the lyrics card while they are up.
+- **Music card: the sound settings button is an equalizer.** The gear in
+  the card's corner, which opens the car's sound settings, is now three
+  sliders.
 
 ## [v0.11.2] — 2026-11-23
 
