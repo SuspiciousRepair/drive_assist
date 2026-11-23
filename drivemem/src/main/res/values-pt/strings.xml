@@ -615,7 +615,7 @@
     <string name="int_status_working">Trabalhando…</string>
     <string name="cfg_oem_install">Instalar</string>
     <string name="cfg_oem_remove">Remover</string>
-    <string name="cfg_oem_hint">Corrige palavras em chinês e erradas nos apps Energia, Wi-Fi e Configurações do carro. Só o texto: os arquivos do carro não mudam. Remover traz o texto de fábrica de volta. Só nas versões exatas dos apps para as quais o texto foi feito.</string>
+    <string name="cfg_oem_hint">Textos melhores nos apps Energia, Wi-Fi, Configurações e Permissões do carro. Remover traz o texto de fábrica.</string>
     <string name="cfg_oem_st_off">Desligado. Os apps do carro mostram o texto de fábrica.</string>
     <string name="cfg_oem_st_download">Baixando…</string>
     <string name="cfg_oem_st_patch">Preparando os apps…</string>

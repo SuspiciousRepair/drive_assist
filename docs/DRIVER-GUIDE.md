@@ -161,7 +161,7 @@ same values on every car.
   turns the screen off (70 % by default). Turn on **On every screen** to
   darken every app, not only the Dashboard. Its Try button shows it at once.
 - **Car app translations** (Config → Integrations): better text for the car's
-  own Energy, Wi-Fi and Settings apps. The car's files are not changed; Remove
+  own Energy, Wi-Fi, Settings and Permissions apps. The car's files are not changed; Remove
   or Cleanup takes it away. Install and Remove wait for Park.
 - **Lock sound**: change the sound the car plays when it locks, or import your
   own.
