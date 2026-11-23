@@ -3,11 +3,20 @@
 ## [Unreleased]
 
 ### Changed
+- **Home: a finished charge's card goes once it has a price.** Add the
+  price (zero counts) and the card closes, and the Parked card comes back.
 - **Home: a finished charge's card has a ✕.** It closes the card, and the
   Parked card comes back. The card also closes, for good, when the car
   leaves Park, so an old charge is not on the screen at the next stop. A
   charge that ends after the car left Park never shows. The price can still
   be added in Charging stats.
+
+### Fixed
+- **Updates over the air reach the car again.** The setup installer always
+  had version 1. When one stayed on the car (it removes itself after it
+  runs, and once it did not), the helper skipped every later installer as
+  "already at version 1", and the car said the update was applied. The
+  installer now has the build's version, and the helper never skips it.
 
 ## [v0.11.1] — 2026-11-23
 
