@@ -39,4 +39,11 @@ public class CarMediaSessionsTest {
         assertEquals(0, CarMediaSessions.staleAt("b", 400_000, 260_000));
         assertEquals(300_000 + g, CarMediaSessions.staleAt("b", 300_000, 300_000));
     }
+
+    @Test public void linksOnlyToOpenBrowsersOfOtherApps() {
+        assertTrue(CarMediaSessions.usable("com.android.bluetooth", true, null, "com.geely.drivemem"));
+        assertFalse(CarMediaSessions.usable("com.geely.drivemem", true, null, "com.geely.drivemem"));
+        assertFalse(CarMediaSessions.usable("com.x", false, null, "com.geely.drivemem"));
+        assertFalse(CarMediaSessions.usable("com.x", true, "com.x.PRIVATE", "com.geely.drivemem"));
+    }
 }

@@ -116,16 +116,6 @@
         <service android:name=".services.SocIconService" android:exported="false" />
         <service android:name=".services.OverlayService" android:exported="false" />
         <service android:name=".services.DarkestOverlayService" android:exported="false" />
-        <!-- Not for notifications: being an enabled notification listener is
-             what lets the app read the car's media sessions (Bluetooth music
-             on the music card). The driver allows it in the head unit's own
-             notification access screen. See util/CarMediaSessions. -->
-        <service android:name=".services.MediaAccessListener" android:exported="true"
-                 android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.notification.NotificationListenerService" />
-            </intent-filter>
-        </service>
         <!-- MediaMuxer can abort native code on a damaged raw stream. Recovery
              therefore has its own disposable process, never the UI process. -->
         <service android:name=".util.ClipRecoveryService" android:exported="false"

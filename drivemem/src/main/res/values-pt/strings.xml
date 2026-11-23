@@ -163,8 +163,8 @@
     <string name="cfg_spotify_large_card_hint">A capa do álbum preenche o cartão, com uma faixa grande de Play/Avançar embaixo. Desligado mostra o cartão menor, com a capa ao lado do título.</string>
     <string name="cfg_spotify_lyrics">Busca de letras</string>
     <string name="cfg_spotify_lyrics_hint">Busca a letra de cada música, e o botão Letra do cartão de música abre a letra no tempo da música, num cartão de duas colunas e da altura toda. ✕ fecha. O cartão lembra a sua última escolha, aberta ou fechada, de uma música para a outra. Fica normal quando o painel do Home Assistant aparece, ou quando os outros cartões precisam de mais de uma coluna. Para achar a letra, os nomes da música, do artista e do álbum vão para lrclib.net, um site gratuito de letras. Desligado: nada é enviado.</string>
-    <string name="cfg_bt_music">Música por Bluetooth</string>
-    <string name="cfg_bt_music_hint">O cartão de música também mostra o que o celular toca por Bluetooth, de qualquer app, com Tocar e Avançar, e a letra quando a Busca de letras está ligada. Quando o Spotify está tocando, o cartão segue o Spotify. Ligar abre a tela de acesso a notificações do Android: permita o Drive Assist lá. O Android pede isso para deixar um app ler o player de música do carro; o Drive Assist não lê notificações. Retire na mesma tela. Nada sai do carro.</string>
+    <string name="cfg_bt_music">Música do celular</string>
+    <string name="cfg_bt_music_hint">O cartão de música também mostra o que o celular toca pelo carro (Bluetooth, Apple CarPlay ou Android Auto), de qualquer app, com Tocar e Avançar, e a letra quando a Busca de letras está ligada. Quando o Spotify está tocando, o cartão segue o Spotify. O Drive Assist lê isso dos próprios apps de música do carro; nenhuma permissão é necessária. Nada sai do carro.</string>
     <string name="spotify_play_label">Tocar</string>
     <string name="spotify_skip_label">Avançar</string>
     <string name="spotify_lyrics_label">Letra</string>

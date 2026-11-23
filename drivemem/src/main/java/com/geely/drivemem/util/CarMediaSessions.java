@@ -3,137 +3,142 @@ package com.geely.drivemem.util;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ResolveInfo;
+import android.content.pm.ServiceInfo;
 import android.media.MediaMetadata;
+import android.media.browse.MediaBrowser;
+import android.service.media.MediaBrowserService;
 import android.media.session.MediaController;
-import android.media.session.MediaSessionManager;
 import android.media.session.PlaybackState;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
 import com.geely.drivemem.car.CarAccess;
-import com.geely.drivemem.services.MediaAccessListener;
 import com.geely.drivemem.state.MusicState;
 
+import java.util.ArrayList;
 import java.util.List;
 
-/** The car's own media sessions -- what the phone plays over Bluetooth, from
- * any app -- for the music card (MusicState's SESSION source).
+/** What the phone plays through the car -- Bluetooth music, Apple CarPlay,
+ * Android Auto -- for the music card (MusicState's SESSION source).
  *
- * Reading other apps' sessions needs MediaAccessListener to be an enabled
- * notification listener. Only the driver grants that, in the head unit's own
- * Android screen (accessScreen()), which Config opens when "Bluetooth music"
- * is turned on -- Drive Assist adds no permission screen of its own and
- * grants nothing silently. Without it getActiveSessions throws
- * SecurityException and the card simply stays on Spotify.
+ * Each of those car apps offers a media browser service (the standard
+ * Android way for a music app to share what it plays), exported and with no
+ * permission. Drive Assist links to each one and reads its session from
+ * there: song, artist, album, cover, position, Play and Skip. No permission
+ * is asked or granted for this. A notification listener was used first; it
+ * needs an Android screen this head unit does not have.
  *
  * Runs only while the home screen is up (start/stop from ComfortActivity,
  * like SpotifyClient's poll). Follows one session: the one playing, else
- * the first with a title; switches when the list changes. The position
- * comes straight from the session's PlaybackState (position + the
- * elapsedRealtime it was taken at), so the lyrics follow it exactly. */
+ * the first with a title. The position comes straight from the session's
+ * PlaybackState (position + the elapsedRealtime it was taken at), so the
+ * lyrics follow it exactly. */
 public final class CarMediaSessions {
     private static final String TAG = CarAccess.TAG;
-
     private static final Handler main = new Handler(Looper.getMainLooper());
-    private static MediaSessionManager msm;
-    private static ComponentName key;
+    private static Context app;
+    private static final List<Link> links = new ArrayList<>();
     private static MediaController current;
     private static boolean running;
 
     private CarMediaSessions() {}
 
-    private static final MediaSessionManager.OnActiveSessionsChangedListener changed = CarMediaSessions::follow;
-
-    private static final MediaController.Callback cb = new MediaController.Callback() {
-        @Override public void onMetadataChanged(MediaMetadata m) { publish(); }
-        @Override public void onPlaybackStateChanged(PlaybackState s) { publish(); }
-        @Override public void onSessionDestroyed() { follow(sessions()); }
-    };
+    /** One car app's media browser, and its session once linked. */
+    private static final class Link {
+        final ComponentName name;
+        MediaBrowser browser;
+        MediaController controller;
+        final MediaController.Callback cb = new MediaController.Callback() {
+            @Override public void onMetadataChanged(MediaMetadata m) { follow(); }
+            @Override public void onPlaybackStateChanged(PlaybackState s) { follow(); }
+            @Override public void onSessionDestroyed() { drop(Link.this); follow(); }
+        };
+        Link(ComponentName name) { this.name = name; }
+    }
 
     public static void start(Context ctx) {
         if (running || !Prefs.getBtMusic(ctx)) return;
-        Context app = ctx.getApplicationContext();
-        msm = (MediaSessionManager) app.getSystemService(Context.MEDIA_SESSION_SERVICE);
-        key = new ComponentName(app, MediaAccessListener.class);
-        if (msm == null) return;
-        try {
-            msm.addOnActiveSessionsChangedListener(changed, key, main);
-        } catch (SecurityException e) {
-            Log.i(TAG, "bt music: notification access not allowed (Config opens Android's screen)");
-            return;   // next start (screen resumed) tries again
-        } catch (Throwable t) { Log.w(TAG, "bt music: " + t); return; }
+        app = ctx.getApplicationContext();
         running = true;
-        follow(sessions());
+        for (ComponentName c : browserServices(app)) link(c);
     }
 
     public static void stop() {
         if (!running) return;
         running = false;
         main.removeCallbacks(staleCheck);
-        try { msm.removeOnActiveSessionsChangedListener(changed); } catch (Throwable ignored) { }
-        attach(null);
+        for (Link l : links) {
+            drop(l);
+            try { l.browser.disconnect(); } catch (Throwable ignored) { }
+        }
+        links.clear();
+        current = null;
         MusicState.setSession(null, null);
     }
 
-    /** Whether the driver has allowed Drive Assist in Android's notification
-     * access screen. */
-    public static boolean hasAccess(Context ctx) {
+    /** The media browser services other apps may link to: exported, no
+     * permission, not ours. */
+    static List<ComponentName> browserServices(Context ctx) {
+        List<ComponentName> out = new ArrayList<>();
         try {
-            android.app.NotificationManager nm =
-                (android.app.NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
-            return nm != null && nm.isNotificationListenerAccessGranted(
-                new ComponentName(ctx, MediaAccessListener.class));
-        } catch (Throwable t) { return false; }
+            for (ResolveInfo ri : ctx.getPackageManager().queryIntentServices(
+                    new Intent(MediaBrowserService.SERVICE_INTERFACE), 0)) {
+                ServiceInfo si = ri.serviceInfo;
+                if (si != null && usable(si.packageName, si.exported, si.permission, ctx.getPackageName()))
+                    out.add(new ComponentName(si.packageName, si.name));
+            }
+        } catch (Throwable t) { Log.w(TAG, "music browsers: " + t); }
+        return out;
     }
 
-    /** The head unit's own screen where the driver allows it: Android's page
-     * for Drive Assist's listener, else Android's notification access list.
-     * Null when this head unit has neither -- then Bluetooth music is not
-     * offered. */
-    public static Intent accessScreen(Context ctx) {
-        android.content.pm.PackageManager pm = ctx.getPackageManager();
-        Intent detail = new Intent("android.settings.NOTIFICATION_LISTENER_DETAIL_SETTINGS")
-            .putExtra("android.provider.extra.NOTIFICATION_LISTENER_COMPONENT_NAME",
-                new ComponentName(ctx, MediaAccessListener.class).flattenToString())
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        Intent list = new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        for (Intent i : new Intent[]{detail, list}) {
-            try { if (pm.resolveActivity(i, 0) != null) return i; } catch (Throwable ignored) { }
-        }
-        return null;
+    static boolean usable(String pkg, boolean exported, String permission, String own) {
+        return pkg != null && !pkg.equals(own) && exported && permission == null;
     }
 
-    private static List<MediaController> sessions() {
-        try { return msm == null ? null : msm.getActiveSessions(key); }
-        catch (Throwable t) { Log.w(TAG, "bt music sessions: " + t); return null; }
+    private static void link(ComponentName c) {
+        final Link l = new Link(c);
+        l.browser = new MediaBrowser(app, c, new MediaBrowser.ConnectionCallback() {
+            @Override public void onConnected() {
+                if (!running) return;
+                try {
+                    l.controller = new MediaController(app, l.browser.getSessionToken());
+                    l.controller.registerCallback(l.cb, main);
+                    Log.i(TAG, "music: linked to " + c.getPackageName());
+                } catch (Throwable t) { Log.w(TAG, "music " + c.getPackageName() + ": " + t); }
+                follow();
+            }
+            @Override public void onConnectionFailed() {
+                Log.i(TAG, "music: " + c.getPackageName() + " did not link");
+            }
+            @Override public void onConnectionSuspended() { drop(l); follow(); }
+        }, null);
+        links.add(l);
+        try { l.browser.connect(); } catch (Throwable t) { Log.w(TAG, "music " + c.getPackageName() + ": " + t); }
+    }
+
+    private static void drop(Link l) {
+        if (l.controller == null) return;
+        try { l.controller.unregisterCallback(l.cb); } catch (Throwable ignored) { }
+        if (l.controller == current) current = null;
+        l.controller = null;
     }
 
     // Picks the session to follow: one that plays, else the first with a title.
-    private static void follow(List<MediaController> list) {
+    private static void follow() {
         if (!running) return;
         MediaController pick = null;
-        if (list != null) {
-            for (MediaController c : list) {
-                if (c == null || "com.geely.drivemem".equals(c.getPackageName())) continue;
-                PlaybackState st = c.getPlaybackState();
-                if (st != null && st.getState() == PlaybackState.STATE_PLAYING) { pick = c; break; }
-                if (pick == null && title(c.getMetadata()) != null) pick = c;
-            }
+        for (Link l : links) {
+            MediaController c = l.controller;
+            if (c == null) continue;
+            PlaybackState st = c.getPlaybackState();
+            if (st != null && st.getState() == PlaybackState.STATE_PLAYING) { pick = c; break; }
+            if (pick == null && title(c.getMetadata()) != null) pick = c;
         }
-        attach(pick);
+        if (pick != current && pick != null) Log.i(TAG, "music: following " + pick.getPackageName());
+        current = pick;
         publish();
-    }
-
-    private static void attach(MediaController c) {
-        if (current != null && c != null && current.getSessionToken().equals(c.getSessionToken())) return;
-        if (current != null) { try { current.unregisterCallback(cb); } catch (Throwable ignored) { } }
-        current = c;
-        if (c != null) {
-            try { c.registerCallback(cb, main); } catch (Throwable t) { Log.w(TAG, "bt music cb: " + t); }
-            Log.i(TAG, "bt music: following " + c.getPackageName());
-        }
     }
 
     private static String title(MediaMetadata m) {

@@ -116,13 +116,11 @@ Sign in once and the home screen shows what is playing, with controls. The
 small gear in the card's top-right corner opens the car's own sound settings,
 with the equalizer.
 
-Turn on **Config → Integrations → Spotify → Bluetooth music** and the card also
-shows what your phone plays over Bluetooth, from any app, with Play and Skip
-(and its lyrics, below). When Spotify is playing, the card follows Spotify.
-Nothing leaves the car for this. Turning it on opens Android's notification
-access screen: allow Drive Assist there (Android asks for this before an app
-may read the car's music player; Drive Assist reads no notifications). If the
-head unit has no such screen, the switch is not shown.
+Turn on **Config → Integrations → Spotify → Phone music** and the card also
+shows what your phone plays through the car (Bluetooth, Apple CarPlay or
+Android Auto), from any app, with Play and Skip (and its lyrics, below). When
+Spotify is playing, the card follows Spotify. Drive Assist reads this from the
+car's own music apps; no permission is asked, and nothing leaves the car.
 
 Turn on **Config → Integrations → Spotify → Lyrics search** to see the words of
 the song. The **Lyrics** button on the card grows it to two columns and the

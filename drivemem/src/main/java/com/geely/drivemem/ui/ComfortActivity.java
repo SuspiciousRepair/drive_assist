@@ -2039,7 +2039,7 @@ public class ComfortActivity extends Activity {
     // entirely when the URL has not actually changed, so a state ping that
     // only moves `playing` does not re-fetch the same picture.
     // The picture for what MusicState shows: a Bitmap the car's media
-    // session handed over (Bluetooth music), else its URL.
+    // session handed over (phone music), else its URL.
     private void showMusicArt() {
         Object img = MusicState.artImage();
         if (img instanceof android.graphics.Bitmap) {
@@ -2952,7 +2952,7 @@ public class ComfortActivity extends Activity {
         // happens if this stops polling while the screen is off, unlike
         // abandoning a countdown mid-boost.
         SpotifyClient.startPolling(this);
-        CarMediaSessions.start(this);   // Bluetooth music, when Config allows
+        CarMediaSessions.start(this);   // phone music, when Config allows
         try {
             registerReceiver(updateReceiver, new IntentFilter(Updater.ACTION_UPDATE_AVAILABLE));
         } catch (Throwable ignored) {}
