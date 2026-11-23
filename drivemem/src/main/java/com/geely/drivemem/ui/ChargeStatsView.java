@@ -102,27 +102,26 @@ public class ChargeStatsView extends LinearLayout {
         headerContainer = new LinearLayout(c);
         headerContainer.setOrientation(LinearLayout.HORIZONTAL);
         headerContainer.setGravity(Gravity.CENTER_VERTICAL);
-        View backBtn = onBack != null ? Style.backButton(c, onBack) : null;
-
-        LinearLayout dateNav = new LinearLayout(c);
-        dateNav.setOrientation(LinearLayout.HORIZONTAL);
-        dateNav.setGravity(Gravity.CENTER_VERTICAL);
-        dateNav.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        if (onBack != null) {
+            headerContainer.addView(Style.backButton(c, onBack));
+            Style.gap(headerContainer, c, 16);
+        }
         prevBtn = Style.cardButton(c, c.getString(R.string.daily_stats_prev_day), false, () -> step(-1));
         setNavIcon(prevBtn, R.drawable.ic_chevron_left, true);
-        dateNav.addView(prevBtn);
+        headerContainer.addView(prevBtn);
         rangeLabel = new TextView(c);
         rangeLabel.setTextColor(Style.TEXT);
         rangeLabel.setTextSize(20);
         rangeLabel.setTypeface(null, Typeface.BOLD);
         rangeLabel.setGravity(Gravity.CENTER);
-        dateNav.addView(rangeLabel, new LinearLayout.LayoutParams(0,
+        headerContainer.addView(rangeLabel, new LinearLayout.LayoutParams(0,
             ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         nextBtn = Style.cardButton(c, c.getString(R.string.daily_stats_next_day), false, () -> step(+1));
         setNavIcon(nextBtn, R.drawable.ic_chevron_right, false);
-        dateNav.addView(nextBtn);
-
-        View grainBtn = grainButton(c);
+        headerContainer.addView(nextBtn);
+        Style.gap(headerContainer, c, 14);
+        headerContainer.addView(grainButton(c));
+        Style.gap(headerContainer, c, 14);
         TextView exportBtn = Style.cardButton(c, c.getString(R.string.charge_export), false, () ->
             CsvExport.exportToUsb(c, (ok, drive, copied) -> post(() -> {
                 String msg = drive == null ? c.getString(R.string.charge_export_no_drive)
@@ -130,7 +129,7 @@ public class ChargeStatsView extends LinearLayout {
                            : c.getString(R.string.charge_export_ok, copied);
                 Toast.makeText(c, msg, Toast.LENGTH_LONG).show();
             })));
-        Style.addMirrored(headerContainer, 14, backBtn, dateNav, grainBtn, exportBtn);
+        headerContainer.addView(exportBtn);
         addView(headerContainer);
 
         // 2. KPI Summary Container
@@ -391,11 +390,10 @@ public class ChargeStatsView extends LinearLayout {
         cards.setBaselineAligned(false);
         long now = System.currentTimeMillis();
         boolean current = !periodEnd(start).isBefore(java.time.LocalDate.now().plusDays(1));
-        View c1 = chargesCard(l.sum); c1.setLayoutParams(cardLp());
-        View c2 = costCard(l.sum, l.km); c2.setLayoutParams(cardLp());
-        View c3 = lowCard(l.sum, l.heat, l.soh, current); c3.setLayoutParams(cardLp());
-        View c4 = heatCard(l.heat, start); c4.setLayoutParams(cardLp());
-        Style.addMirrored(cards, 13, c1, c2, c3, c4);
+        cards.addView(chargesCard(l.sum), cardLp(false));
+        cards.addView(costCard(l.sum, l.km), cardLp(false));
+        cards.addView(lowCard(l.sum, l.heat, l.soh, current), cardLp(false));
+        cards.addView(heatCard(l.heat, start), cardLp(true));
         kpiContainer.addView(cards);
 
 
@@ -436,8 +434,11 @@ public class ChargeStatsView extends LinearLayout {
 
     // ---- the four cards ----
 
-    private LinearLayout.LayoutParams cardLp() {
-        return new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+    private LinearLayout.LayoutParams cardLp(boolean last) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+        if (!last) lp.rightMargin = Style.dp(getContext(), 13);
+        return lp;
     }
 
     private static String money(double v) {

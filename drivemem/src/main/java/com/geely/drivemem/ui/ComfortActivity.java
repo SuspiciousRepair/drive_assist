@@ -583,11 +583,8 @@ public class ComfortActivity extends Activity {
         // contradictory writes, not delaying the tap (see ComfortRuler).
         LinearLayout askRow = new LinearLayout(this);
         askRow.setOrientation(LinearLayout.HORIZONTAL);
-        View coolTile = iconTileVector(R.drawable.ic_snowflake, Style.TEXT, +1);
-        coolTile.setLayoutParams(tileLp(96, 0));
-        View warmTile = iconTileVector(R.drawable.ic_weather_sunny, Style.TEXT, -1);
-        warmTile.setLayoutParams(tileLp(96, 0));
-        Style.addMirrored(askRow, 14, coolTile, warmTile);
+        askRow.addView(iconTileVector(R.drawable.ic_snowflake, Style.TEXT, +1), tileLp(96, 0));
+        askRow.addView(iconTileVector(R.drawable.ic_weather_sunny, Style.TEXT, -1), tileLp(96, 14));
         c.addView(askRow);
         Style.gap(c, this, 18);
 
@@ -608,7 +605,7 @@ public class ComfortActivity extends Activity {
                 });
             });
         });
-        recircBtn.setLayoutParams(tileLp(96, 0));
+        switchRow.addView(recircBtn, tileLp(96, 0));
         purgeBtn = iconSwitchTile(R.drawable.ic_window_lower, 7);
         purgeBtn.setOnClickListener(v -> {
             purgeBtn.setEnabled(false);      // the glass takes seconds; one press is one move
@@ -635,15 +632,14 @@ public class ComfortActivity extends Activity {
                 });
             });
         });
-        purgeBtn.setLayoutParams(tileLp(96, 0));
-        Style.addMirrored(switchRow, 14, recircBtn, purgeBtn);
+        switchRow.addView(purgeBtn, tileLp(96, 14));
         c.addView(switchRow);
         Style.gap(c, this, 18);
 
         // Footer: airflow direction, rear defroster, and status hint text
         LinearLayout footer = new LinearLayout(this);
         footer.setOrientation(LinearLayout.HORIZONTAL);
-        footer.setGravity(Gravity.CENTER_VERTICAL | Style.driverGravity());
+        footer.setGravity(Gravity.CENTER_VERTICAL);
 
         windDirIcon = new android.widget.ImageView(this);
         windDirIcon.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
@@ -651,6 +647,7 @@ public class ComfortActivity extends Activity {
         windLp.rightMargin = Style.dp(this, 8);
         windDirIcon.setLayoutParams(windLp);
         windDirIcon.setVisibility(View.GONE);
+        footer.addView(windDirIcon);
 
         rearDefrostIcon = new android.widget.ImageView(this);
         rearDefrostIcon.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
@@ -666,11 +663,11 @@ public class ComfortActivity extends Activity {
                 if (ok) ui.post(() -> setRearDefrost(want));
             });
         });
+        footer.addView(rearDefrostIcon);
 
         hint = new TextView(this);
         hint.setTextColor(Style.TEXT_DIM); hint.setTextSize(20);
-        hint.setGravity(Style.driverGravity());
-        Style.addMirrored(footer, 0, windDirIcon, rearDefrostIcon, hint);
+        footer.addView(hint);
         c.addView(footer);
 
         setRecirc(false);
@@ -878,7 +875,6 @@ public class ComfortActivity extends Activity {
         t.setBackground(Style.card(Style.cardFillColor(), this));
 
         String slots = turboSlotsAtBuild;
-        java.util.List<View> items = new java.util.ArrayList<>();
         for (int i = 0; i < slots.length(); i++) {
             if (i > 0) {
                 // Thin divider so the buttons read as mini cards, not one
@@ -889,17 +885,13 @@ public class ComfortActivity extends Activity {
                 divLp.rightMargin = Style.dp(this, 22);
                 divider.setBackgroundColor(Style.TEXT_DIM);
                 divider.getBackground().setAlpha(60);
-                divider.setLayoutParams(divLp);
-                items.add(divider);
+                t.addView(divider, divLp);
             }
             char slot = slots.charAt(i);
-            View half = slot == 'T' ? turboHalf() : slot == 'R' ? regenHalf() : slot == 'A' ? avasHalf() : null;
-            if (half != null) {
-                half.setLayoutParams(slotLp());
-                items.add(half);
-            }
+            if (slot == 'T') t.addView(turboHalf(), slotLp());
+            else if (slot == 'R') t.addView(regenHalf(), slotLp());
+            else if (slot == 'A') t.addView(avasHalf(), slotLp());
         }
-        Style.addMirrored(t, 0, items.toArray(new View[0]));
 
         // Only means anything while driving — hidden while parked, per
         // whatever CarState already knows at build time; the listener (see
@@ -1036,47 +1028,43 @@ public class ComfortActivity extends Activity {
                 outline.setRoundRect(0, 0, v.getWidth(), v.getHeight(), artRadius);
             }
         });
+        row.addView(musicArtView);
 
         LinearLayout textCol = new LinearLayout(this);
         textCol.setOrientation(LinearLayout.VERTICAL);
-        textCol.setGravity(Gravity.CENTER_VERTICAL | Style.driverGravity());
+        textCol.setGravity(Gravity.CENTER_VERTICAL);
         musicTitleView = new TextView(this);
         musicTitleView.setTextColor(Style.TEXT); musicTitleView.setTextSize(25);
         musicTitleView.setTypeface(null, android.graphics.Typeface.BOLD);
         musicTitleView.setMaxLines(1);
         musicTitleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        musicTitleView.setGravity(Style.driverGravity());
         textCol.addView(musicTitleView);
         musicArtistView = new TextView(this);
         musicArtistView.setTextColor(Style.TEXT_DIM); musicArtistView.setTextSize(20);
         musicArtistView.setMaxLines(1);
         musicArtistView.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        musicArtistView.setGravity(Style.driverGravity());
         musicArtistView.setPadding(0, Style.dp(this, 4), 0, 0);
         textCol.addView(musicArtistView);
         LinearLayout.LayoutParams textLp =
             new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         textLp.leftMargin = Style.dp(this, 18);
-        textCol.setLayoutParams(textLp);
+        row.addView(textCol, textLp);
         android.widget.ImageView gear = soundGear(false);
         if (gear != null) {
             LinearLayout.LayoutParams gLp = new LinearLayout.LayoutParams(
                 Style.dp(this, 48), Style.dp(this, 48));
             gLp.gravity = Gravity.TOP;
             gLp.leftMargin = Style.dp(this, 8);
-            gear.setLayoutParams(gLp);
+            row.addView(gear, gLp);
         }
-        Style.addMirrored(row, 0, musicArtView, textCol, gear);
         m.addView(row);
         Style.gap(m, this, 18);
 
         LinearLayout btnRow = new LinearLayout(this);
         btnRow.setOrientation(LinearLayout.HORIZONTAL);
         // "⏯"/"⏭" are icons, not prose — same convention as ❄/☀/⚡.
-        View playTile = mediaTile("⏯", MusicState::playPause);
-        playTile.setLayoutParams(tileLp(76, 0));
-        View nextTile = mediaTile("⏭", MusicState::next);
-        nextTile.setLayoutParams(tileLp(76, 14));
+        btnRow.addView(mediaTile("⏯", MusicState::playPause), tileLp(76, 0));
+        btnRow.addView(mediaTile("⏭", MusicState::next), tileLp(76, 14));
         android.widget.ImageView lyr = new android.widget.ImageView(this);
         lyr.setImageResource(R.drawable.ic_lyrics);
         lyr.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
@@ -1086,8 +1074,7 @@ public class ComfortActivity extends Activity {
         lyr.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
         lyr.setOnClickListener(v -> openLyrics());
         lyricsOpenButtons.add(lyr);
-        lyr.setLayoutParams(tileLp(76, 14));
-        Style.addMirrored(btnRow, 0, playTile, nextTile, lyr);
+        btnRow.addView(lyr, tileLp(76, 14));
         m.addView(btnRow);
 
         musicCard = m;
@@ -1250,9 +1237,8 @@ public class ComfortActivity extends Activity {
         android.widget.ImageView gear = soundGear(true);
         if (gear != null) {
             FrameLayout.LayoutParams gLp = new FrameLayout.LayoutParams(
-                Style.dp(this, 52), Style.dp(this, 52), Gravity.TOP | Style.passengerGravity());
-            gLp.topMargin = Style.dp(this, 12);
-            Style.setDriverMargin(gLp, 0, Style.dp(this, 12));
+                Style.dp(this, 52), Style.dp(this, 52), Gravity.TOP | Gravity.END);
+            gLp.topMargin = Style.dp(this, 12); gLp.rightMargin = Style.dp(this, 12);
             artFrame.addView(gear, gLp);
         }
 
@@ -1260,20 +1246,20 @@ public class ComfortActivity extends Activity {
 
         LinearLayout btnBand = new LinearLayout(this);
         btnBand.setOrientation(LinearLayout.HORIZONTAL);
-        View playHalf = turboStyleHalf(getString(R.string.music_play_label), "⏯", MusicState::playPause);
-        playHalf.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        btnBand.addView(turboStyleHalf(getString(R.string.music_play_label), "⏯", MusicState::playPause),
+            new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         View divider = new View(this);
         LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(Style.dp(this, 1), ViewGroup.LayoutParams.MATCH_PARENT);
         divLp.topMargin = Style.dp(this, 14); divLp.bottomMargin = Style.dp(this, 14);
         divider.setBackgroundColor(Style.TEXT_DIM);
         divider.getBackground().setAlpha(60);
-        divider.setLayoutParams(divLp);
-        View skipHalf = turboStyleHalf(getString(R.string.music_skip_label), "⏭", MusicState::next);
-        skipHalf.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        btnBand.addView(divider, divLp);
+        btnBand.addView(turboStyleHalf(getString(R.string.music_skip_label), "⏭", MusicState::next),
+            new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         View divider2 = new View(this);
         divider2.setBackgroundColor(Style.TEXT_DIM);
         divider2.getBackground().setAlpha(60);
-        divider2.setLayoutParams(new LinearLayout.LayoutParams(divLp));
+        btnBand.addView(divider2, new LinearLayout.LayoutParams(divLp));
         LinearLayout lyrHalf = turboStyleHalf(getString(R.string.music_lyrics_label), "", this::openLyrics);
         // An icon, not a glyph: there is no lyrics character.
         TextView glyphSlot = (TextView) lyrHalf.getChildAt(0);
@@ -1284,8 +1270,7 @@ public class ComfortActivity extends Activity {
         lyrHalf.addView(lyrIcon, 0, new LinearLayout.LayoutParams(Style.dp(this, 40), Style.dp(this, 40)));
         lyricsOpenButtons.add(lyrHalf);
         lyricsOpenButtons.add(divider2);
-        lyrHalf.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        Style.addMirrored(btnBand, 0, playHalf, divider, skipHalf, divider2, lyrHalf);
+        btnBand.addView(lyrHalf, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         m.addView(btnBand);
 
         musicCard = m;
@@ -1325,10 +1310,9 @@ public class ComfortActivity extends Activity {
             }
         });
         int art = Style.dp(this, 140);
-        jumboArtView.setLayoutParams(new LinearLayout.LayoutParams(art, art));
+        jumboHeader.addView(jumboArtView, new LinearLayout.LayoutParams(art, art));
         LinearLayout info = new LinearLayout(this);
         info.setOrientation(LinearLayout.VERTICAL);
-        info.setGravity(Style.driverGravity());
         jumboTitleView = headerText(32, true);
         jumboArtistView = headerText(24, false);
         jumboAlbumView = headerText(20, false);
@@ -1339,14 +1323,13 @@ public class ComfortActivity extends Activity {
         info.addView(jumboAlbumView);
         LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         infoLp.leftMargin = Style.dp(this, 26);
-        info.setLayoutParams(infoLp);
+        jumboHeader.addView(info, infoLp);
         android.widget.ImageView jGear = soundGear(false);
         if (jGear != null) {
             LinearLayout.LayoutParams gLp = new LinearLayout.LayoutParams(Style.dp(this, 52), Style.dp(this, 52));
             gLp.gravity = Gravity.TOP;
-            jGear.setLayoutParams(gLp);
+            jumboHeader.addView(jGear, gLp);
         }
-        Style.addMirrored(jumboHeader, 0, jumboArtView, info, jGear);
         // Inset by the card's stroke on three sides, so the border runs
         // unbroken past the header and the fade.
         int stroke = Style.dp(this, Style.STROKE_DP);
@@ -1398,13 +1381,9 @@ public class ComfortActivity extends Activity {
         // "⏯"/"⏭" are icons, not prose -- same tiles as the small card.
         // Closing shrinks the card back, so it wears the "make it small"
         // sign (two arrows pointing in), not a close ✕.
-        View jPlay = mediaTile("⏯", MusicState::playPause);
-        jPlay.setLayoutParams(tileLp(88, 0));
-        View jNext = mediaTile("⏭", MusicState::next);
-        jNext.setLayoutParams(tileLp(88, 0));
-        View jCollapse = iconTile(R.drawable.ic_lyrics_collapse, () -> setLyricsOpen(false));
-        jCollapse.setLayoutParams(tileLp(88, 0));
-        Style.addMirrored(jumboBar, 14, jPlay, jNext, jCollapse);
+        jumboBar.addView(mediaTile("⏯", MusicState::playPause), tileLp(88, 0));
+        jumboBar.addView(mediaTile("⏭", MusicState::next), tileLp(88, 14));
+        jumboBar.addView(iconTile(R.drawable.ic_lyrics_collapse, () -> setLyricsOpen(false)), tileLp(88, 14));
         outer.addView(jumboBar);
         paintJumbo();
         return outer;
@@ -1416,7 +1395,6 @@ public class ComfortActivity extends Activity {
         if (bold) t.setTypeface(null, android.graphics.Typeface.BOLD);
         t.setMaxLines(1);
         t.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        t.setGravity(Style.driverGravity());
         return t;
     }
 
@@ -1676,12 +1654,13 @@ public class ComfortActivity extends Activity {
         activeLine2.addView(chargeActiveEnergy);
         activeLeft.addView(activeLine2);
 
-        activeLeft.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        chargeActiveLayout.addView(activeLeft, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         chargePowerBadge = new ChargePowerBadgeView(this);
-        chargePowerBadge.setLayoutParams(new LinearLayout.LayoutParams(
-            Style.dp(this, 140), ViewGroup.LayoutParams.MATCH_PARENT));
-        Style.addMirrored(chargeActiveLayout, 16, activeLeft, chargePowerBadge);
+        LinearLayout.LayoutParams activeRightLp = new LinearLayout.LayoutParams(
+            Style.dp(this, 140), ViewGroup.LayoutParams.MATCH_PARENT);
+        activeRightLp.leftMargin = Style.dp(this, 16);
+        chargeActiveLayout.addView(chargePowerBadge, activeRightLp);
         m.addView(chargeActiveLayout);
 
         // --- Completed charging layout (retained for cost input; whole card opens the charge page) ---
@@ -1773,7 +1752,7 @@ public class ComfortActivity extends Activity {
         tripRight = rowValue();
         line2.addView(tripRight);
         left.addView(line2);
-        left.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        journeyTrip.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         android.widget.FrameLayout right = new android.widget.FrameLayout(this);
         tripEff = new EfficiencyBadgeView(this);
@@ -1810,9 +1789,10 @@ public class ComfortActivity extends Activity {
         right.addView(tripValetStop, new android.widget.FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        right.setLayoutParams(new LinearLayout.LayoutParams(
-            Style.dp(this, 140), ViewGroup.LayoutParams.MATCH_PARENT));
-        Style.addMirrored(journeyTrip, 16, left, right);
+        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
+            Style.dp(this, 140), ViewGroup.LayoutParams.MATCH_PARENT);
+        rlp.leftMargin = Style.dp(this, 16);
+        journeyTrip.addView(right, rlp);
         return journeyTrip;
     }
 
@@ -1868,7 +1848,7 @@ public class ComfortActivity extends Activity {
         parkedTemp = new TempRangeView(this);
         line2.addView(parkedTemp, new LinearLayout.LayoutParams(0, Style.dp(this, 32), 1f));
         left.addView(line2);
-        left.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        journeyParked.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         LinearLayout valet = new LinearLayout(this);
         valet.setOrientation(LinearLayout.VERTICAL);
@@ -1895,9 +1875,10 @@ public class ComfortActivity extends Activity {
             refreshJourneyCard();
         });
         // Fixed width: wrap_content let the label break mid-word ("Ma-no-").
-        valet.setLayoutParams(new LinearLayout.LayoutParams(
-            Style.dp(this, 140), ViewGroup.LayoutParams.MATCH_PARENT));
-        Style.addMirrored(journeyParked, 16, left, valet);
+        LinearLayout.LayoutParams vlp = new LinearLayout.LayoutParams(
+            Style.dp(this, 140), ViewGroup.LayoutParams.MATCH_PARENT);
+        vlp.leftMargin = Style.dp(this, 16);
+        journeyParked.addView(valet, vlp);
         return journeyParked;
     }
 
@@ -2689,9 +2670,8 @@ public class ComfortActivity extends Activity {
         closeBtn.setGravity(Gravity.CENTER);
         closeBtn.setBackground(Style.card(Style.LIGHT ? 0x66FFFFFF : 0x66000000, this));
         FrameLayout.LayoutParams xlp = new FrameLayout.LayoutParams(
-            Style.dp(this, 50), Style.dp(this, 50), Gravity.TOP | Style.passengerGravity());
-        xlp.topMargin = Style.dp(this, 12);
-        Style.setDriverMargin(xlp, 0, Style.dp(this, 12));
+            Style.dp(this, 50), Style.dp(this, 50), Gravity.TOP | Gravity.END);
+        xlp.topMargin = Style.dp(this, 12); xlp.rightMargin = Style.dp(this, 12);
         closeBtn.setLayoutParams(xlp);
         closeBtn.setOnClickListener(v -> dismissCard());
         inner.addView(closeBtn);

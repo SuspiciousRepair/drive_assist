@@ -85,18 +85,19 @@ public class AllRoutesActivity extends Activity {
         int pad = Style.dp(this, 22);
         root.setPadding(pad, pad + Style.statusBarHeight(this), pad, pad);
 
-        // Head: back, title, then the day switcher on the passenger side.
-        // Keep [prev, dayLabel, next] strictly LTR inside dayNav so time arrows stay intuitive.
-        View backBtn = Style.backButton(this, this::finish);
+        // Head: back, title, then the day switcher on the right.
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        head.addView(Style.backButton(this, this::finish));
         title = Style.title(this, getString(R.string.routes_all_title));
         title.setTextSize(22);
-        title.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        tlp.leftMargin = Style.dp(this, 14);
+        head.addView(title, tlp);
 
-        LinearLayout dayNav = new LinearLayout(this);
-        dayNav.setOrientation(LinearLayout.HORIZONTAL);
-        dayNav.setGravity(Gravity.CENTER_VERTICAL);
         prevBtn = navButton(getString(R.string.daily_stats_prev_day), this::olderDay);
-        dayNav.addView(prevBtn);
+        head.addView(prevBtn);
         dayLabel = new TextView(this);
         dayLabel.setTextColor(Style.TEXT);
         dayLabel.setTextSize(20);
@@ -105,11 +106,15 @@ public class AllRoutesActivity extends Activity {
         dayLabel.setMinWidth(Style.dp(this, 240));
         int lp = Style.dp(this, 16);
         dayLabel.setPadding(lp, 0, lp, 0);
-        dayNav.addView(dayLabel);
+        head.addView(dayLabel);
         nextBtn = navButton(getString(R.string.daily_stats_next_day), this::newerDay);
-        dayNav.addView(nextBtn);
+        head.addView(nextBtn);
         allBtn = navButton(getString(R.string.routes_all_show), () -> setDay(-1));
-        root.addView(Style.headerRow(this, backBtn, title, dayNav, allBtn));
+        LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        alp.leftMargin = Style.dp(this, 14);
+        head.addView(allBtn, alp);
+        root.addView(head);
         Style.gap(root, this, 12);
 
         LinearLayout body = new LinearLayout(this);

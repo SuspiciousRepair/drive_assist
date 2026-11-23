@@ -84,12 +84,20 @@ public class TripRouteActivity extends Activity {
         long endMs = getIntent().getLongExtra(EXTRA_END_MS, 0);
         double km = getIntent().getDoubleExtra(EXTRA_KM, 0);
 
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        head.addView(Style.backButton(this, this::finish));
         String when = android.text.format.DateFormat.getMediumDateFormat(this).format(new java.util.Date(startMs))
             + "  " + SessionText.clock(startMs) + (endMs > 0 ? " – " + SessionText.clock(endMs) : "")
             + String.format(Locale.US, "  ·  %.1f km", km);
         TextView t = Style.title(this, getString(R.string.route_title) + "  ·  " + when);
         t.setTextSize(22);
-        root.addView(Style.headerRow(this, Style.backButton(this, this::finish), t));
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tlp.leftMargin = Style.dp(this, 14);
+        head.addView(t, tlp);
+        root.addView(head);
 
         LinearLayout body = new LinearLayout(this);
         body.setOrientation(LinearLayout.HORIZONTAL);

@@ -308,11 +308,8 @@ public final class OverlayService extends Service {
 
         LinearLayout askRow = new LinearLayout(this);
         askRow.setOrientation(LinearLayout.HORIZONTAL);
-        View coolBtn = climateIcon(R.drawable.ic_snowflake, +1);
-        coolBtn.setLayoutParams(climateIconLp(0));
-        View warmBtn = climateIcon(R.drawable.ic_weather_sunny, -1);
-        warmBtn.setLayoutParams(climateIconLp(0));
-        Style.addMirrored(askRow, 14, coolBtn, warmBtn);
+        askRow.addView(climateIcon(R.drawable.ic_snowflake, +1), climateIconLp(0));
+        askRow.addView(climateIcon(R.drawable.ic_weather_sunny, -1), climateIconLp(14));
         panel.addView(askRow);
         Style.gap(panel, this, 14);
 
@@ -335,14 +332,15 @@ public final class OverlayService extends Service {
             Prefs.getTurboCardShows(this, Prefs.CARD_REGEN),
             Prefs.getTurboCardShows(this, Prefs.CARD_AVAS));
         turboBar = null; quickButtons.bindRegen(null); quickButtons.bindAvas(null);
-        View[] slotViews = new View[slots.length()];
         for (int i = 0; i < slots.length(); i++) {
             char slot = slots.charAt(i);
             View col = slot == 'T' ? turboColumn() : slot == 'R' ? regenColumn() : avasColumn();
-            col.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            slotViews[i] = col;
+            LinearLayout.LayoutParams colLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            // A margin, not Style.gap(): that adds a 1-px-WIDE view, which
+            // in a horizontal row is no gap at all.
+            if (i > 0) colLp.leftMargin = Style.dp(this, SLOT_GAP_DP);
+            turboSection.addView(col, colLp);
         }
-        Style.addMirrored(turboSection, SLOT_GAP_DP, slotViews);
         if (slots.length() > 0) {
             panel.addView(turboSection);
             Style.gap(panel, this, 20);

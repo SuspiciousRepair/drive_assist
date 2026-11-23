@@ -1,6 +1,6 @@
 # Right-hand drive layout roadmap
 
-**Status:** Implemented on `next` across three PRs (foundation & primitives, home screen & floating overlay, settings/stats/detail screens & docs). Hardware follow-up on a real RHD vehicle remains open (see bottom).
+**Status:** Implemented on `next` across three PRs, then refined after live head-unit review to mirror macro layout only (sidebars, card columns, two-pane splits, full-bleed art, Konami zone, and floating overlay anchor/drag) while keeping internal card/menu contents, controls, and headers left-to-right — matching Apple CarPlay and Android Auto Coolwalk conventions. Hardware follow-up on a real RHD vehicle remains open (see bottom).
 
 **Scope (updated from earlier draft):** Full driver-side mirroring across the
 app controlled by a single resolved boolean (`Style.RHD`) and a small set of

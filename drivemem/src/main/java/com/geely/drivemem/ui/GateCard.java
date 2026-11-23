@@ -63,24 +63,21 @@ public class GateCard extends LinearLayout {
         LinearLayout.LayoutParams iconLp =
             new LinearLayout.LayoutParams(Style.dp(context, 32), Style.dp(context, 32));
         iconLp.rightMargin = Style.dp(context, 18);
-        gateIcon.setLayoutParams(iconLp);
+        addView(gateIcon, iconLp);
 
         TextView title = new TextView(context);
         title.setText(context.getString(R.string.gate_title));
         title.setTextColor(Style.TEXT);
         title.setTextSize(28);
         title.setTypeface(null, Typeface.BOLD);
-        title.setGravity(Style.driverGravity() | Gravity.CENTER_VERTICAL);
-        title.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         gateStatusView = new TextView(context);
         gateStatusView.setTextSize(22);
         gateStatusView.setTypeface(null, Typeface.BOLD);
-        gateStatusView.setGravity(Style.passengerGravity() | Gravity.CENTER_VERTICAL);
-        gateStatusView.setLayoutParams(new LinearLayout.LayoutParams(
+        gateStatusView.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+        addView(gateStatusView, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        Style.addMirrored(this, 0, gateIcon, title, gateStatusView);
 
         refreshStatus();
     }
