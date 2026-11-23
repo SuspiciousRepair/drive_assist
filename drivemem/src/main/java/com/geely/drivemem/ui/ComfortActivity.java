@@ -34,6 +34,7 @@ import com.geely.drivemem.state.TripSession;
 import com.geely.drivemem.state.LiveTrip;
 import com.geely.drivemem.state.TempTrail;
 import com.geely.drivemem.state.ValetSession;
+import com.geely.drivemem.util.CoverCache;
 import com.geely.drivemem.util.BootReceiver;
 import com.geely.drivemem.util.CarMediaSessions;
 import com.geely.drivemem.util.LayoutWait;
@@ -2026,24 +2027,42 @@ public class ComfortActivity extends Activity {
     // only moves `playing` does not re-fetch the same picture.
     // The picture for what MusicState shows: a Bitmap the car's media
     // session handed over (phone music), else its URL.
+    // Every cover shown is kept on the head unit (CoverCache), so a song with
+    // no cover (Bluetooth often sends none) shows the one seen before.
     private void showMusicArt() {
         Object img = MusicState.artImage();
+        final String track = MusicState.trackId();
+        final Context app = getApplicationContext();
         if (img instanceof android.graphics.Bitmap) {
             android.graphics.Bitmap b = (android.graphics.Bitmap) img;
             String key = "bitmap:" + System.identityHashCode(b);
             if (key.equals(lastMusicArtUrl)) return;
             lastMusicArtUrl = key;
-            new Thread(() -> applyMusicArt(key, b), "music-art").start();
+            new Thread(() -> {
+                applyMusicArt(key, b);
+                CoverCache.put(app, track, b);
+            }, "music-art").start();
             return;
         }
-        loadMusicArt(MusicState.artUrl());
+        String url = MusicState.artUrl();
+        if (url != null) { loadMusicArt(url, track); return; }
+        if (track == null) return;
+        String key = "cache:" + track;
+        if (key.equals(lastMusicArtUrl)) return;
+        lastMusicArtUrl = key;
+        new Thread(() -> {
+            android.graphics.Bitmap b = CoverCache.get(app, track);
+            if (b != null) applyMusicArt(key, b);
+        }, "music-art").start();
     }
 
-    private void loadMusicArt(String url) {
+    private void loadMusicArt(String url, String track) {
         if (url == null || url.equals(lastMusicArtUrl)) return;
         lastMusicArtUrl = url;
+        final Context app = getApplicationContext();
         new Thread(() -> {
-            android.graphics.Bitmap bmp = null;
+            android.graphics.Bitmap bmp = CoverCache.get(app, track);
+            if (bmp != null) { applyMusicArt(url, bmp); return; }
             try {
                 if (url.startsWith("content:") || url.startsWith("file:") || url.startsWith("android.resource:")) {
                     // A session's art URI (Bluetooth cover art) is local.
@@ -2061,7 +2080,10 @@ public class ComfortActivity extends Activity {
                     } finally { conn.disconnect(); }
                 }
             } catch (Throwable t) { android.util.Log.w(CarAccess.TAG, "music art: " + t); }
-            if (bmp != null) applyMusicArt(url, bmp);
+            if (bmp != null) {
+                applyMusicArt(url, bmp);
+                CoverCache.put(app, track, bmp);
+            }
         }, "music-art").start();
     }
 
