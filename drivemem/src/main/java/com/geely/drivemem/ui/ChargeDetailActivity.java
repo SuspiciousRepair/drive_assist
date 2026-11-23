@@ -30,9 +30,9 @@ import java.util.Locale;
  * finger moves through both. Right: the numbers, the cost (tap to set it)
  * and the map of where the car charged.
  *
- * "Parked at 100 %" is the time from the end of a charge that reached 100 %
- * to the next drive (the next trip row), or until now when the car has not
- * moved since. It needs no plug sensor. */
+ * "Time at 100 %" is the time from the end of a charge that reached 100 %
+ * to the next drive (the next trip row), or until now ("so far") when the
+ * car has not moved since. It needs no plug sensor. */
 public class ChargeDetailActivity extends Activity {
     static final String EXTRA_CHARGE_ID = "charge_id";
     private static final long LIVE_REFRESH_MS = 15_000L;
@@ -309,13 +309,14 @@ public class ChargeDetailActivity extends Activity {
         stat(R.string.session_stat_battery, battery, null, Style.TEXT, null);
         stat(R.string.session_stat_charged_energy, Style.valueWithUnit(
             String.format(Locale.getDefault(), "+%.1f", d.kwh), typeColor, "kWh", Style.UNIT_SCALE_ROW), null, Style.TEXT, null);
+        typeIcon((LinearLayout) blocks.get(blocks.size() - 1), d.dc, typeColor);
         stat(R.string.charge_detail_charging, Style.durationWithUnits(d.endMs - d.startMs, Style.UNIT_SCALE_ROW), null, Style.TEXT, null);
 
         long idle = ChargeDetail.idleAtFullMs(d.socEnd, d.endMs, d.nextTripMs, System.currentTimeMillis(), d.active);
         if (idle >= 0) {
             stat(R.string.charge_detail_idle, Style.durationWithUnits(idle, Style.UNIT_SCALE_ROW),
-                getString(d.nextTripMs > 0 ? R.string.charge_detail_idle_next : R.string.charge_detail_idle_now),
-                Style.WARN, null);
+                d.nextTripMs > 0 ? null : getString(R.string.charge_detail_idle_now),
+                Style.TEXT, null);
         }
 
         float[] kwr = ChargeDetail.range(d.kw);
@@ -357,6 +358,21 @@ public class ChargeDetailActivity extends Activity {
         }
     }
 
+    // AC or DC on the energy block: the plug icon the home card uses, in the
+    // charge type's colour, and "AC"/"DC" after the label.
+    private void typeIcon(LinearLayout block, boolean dc, int color) {
+        TextView l = (TextView) block.getChildAt(0);
+        l.setText(l.getText() + "  ·  " + (dc ? "DC" : "AC"));
+        TextView v = (TextView) block.getChildAt(1);
+        android.graphics.drawable.Drawable icon = getDrawable(
+            dc ? R.drawable.ic_ev_plug_ccs2 : R.drawable.ic_power_plug).mutate();
+        icon.setTint(color);
+        int size = Style.dp(this, 28);
+        icon.setBounds(0, 0, size, size);
+        v.setCompoundDrawablesRelative(icon, null, null, null);
+        v.setCompoundDrawablePadding(Style.dp(this, 8));
+    }
+
     // One number: a small dim label, the value, and an optional dim line
     // under it. With onTap, the whole block is a button.
     private void stat(int label, CharSequence value, String sub, int color, Runnable onTap) {
@@ -373,7 +389,9 @@ public class ChargeDetailActivity extends Activity {
         v.setTextColor(color);
         v.setTextSize(26);
         v.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        block.addView(v);
+        // Only as wide as the text, so an icon after it sits next to it.
+        block.addView(v, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         if (sub != null) {
             TextView s = new TextView(this);
             s.setText(sub);
@@ -381,7 +399,16 @@ public class ChargeDetailActivity extends Activity {
             s.setTextSize(17);
             block.addView(s);
         }
-        if (onTap != null) block.setOnClickListener(x -> onTap.run());
+        if (onTap != null) {
+            // A pencil after the value says it can be tapped to edit.
+            android.graphics.drawable.Drawable icon = getDrawable(R.drawable.ic_edit_outline).mutate();
+            icon.setTint(Style.ACCENT);
+            int size = Style.dp(this, 26);
+            icon.setBounds(0, 0, size, size);
+            v.setCompoundDrawablesRelative(null, null, icon, null);
+            v.setCompoundDrawablePadding(Style.dp(this, 12));
+            block.setOnClickListener(x -> onTap.run());
+        }
         blocks.add(block);
     }
 }

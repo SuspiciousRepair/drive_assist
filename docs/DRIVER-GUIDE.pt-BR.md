@@ -26,8 +26,8 @@ A tela inicial foi feita para uso rápido enquanto você dirige:
   colocada e a potência. Toque no cartão, durante ou depois da recarga, para abrir
   a página da recarga: potência, temperaturas e bateria % na mesma linha do
   tempo (passe o dedo nos gráficos para ler cada valor), os números, o local no
-  mapa e quanto tempo o carro ficou parado em 100%. Toque no quadro de custo
-  para informar o preço. Depois da recarga, o cartão fica até você informar o
+  mapa, AC ou DC e o tempo em 100%. Toque no custo (tem um lápis) para
+  informar o preço. Depois da recarga, o cartão fica até você informar o
   preço (zero também); aí ele fecha. O **✕** fecha na hora, e ele também fecha
   quando o carro sai do P. O preço ainda pode ser informado em
   Estatísticas de recarga;

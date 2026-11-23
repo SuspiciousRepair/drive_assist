@@ -2,10 +2,11 @@ package com.geely.drivemem.ui;
 
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.DashPathEffect;
+import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
+import android.graphics.Shader;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -14,13 +15,19 @@ import com.geely.drivemem.util.Style;
 
 import java.util.Locale;
 
-/** The charge page's two charts on one time axis:
+/** The charge page's charts, stacked on one time axis, each with its own
+ * single scale (never two scales on one chart):
  *
- *   top:    power in kW (left scale), battery and outside temperature in °C
- *           (right scale)
- *   bottom: battery %
+ *   top:    power in kW, in the charge type's colour (AC blue, DC green,
+ *           as in Charging stats)
+ *   middle: battery temperature and the outside temperature, in °C; left
+ *           out when no temperature was read. The battery line takes the
+ *           colour of its own value on the home screen's temperature scale
+ *           (TempRangeView: green fine, amber warm, red hot), so a hot
+ *           battery shows at a glance; outside is a thin grey context line
+ *   bottom: battery %, grey (as in the charge-curve window)
  *
- * A finger on either chart draws one vertical line through both, with a dot
+ * A finger on any chart draws one vertical line through all of them, with a dot
  * where it crosses each line and a box with every value at that time. The
  * line stays where the finger left it. Values are the nearest sample within
  * ChargeDetail.GAP_MS; a line breaks where samples are further apart. The
@@ -43,24 +50,25 @@ final class ChargeDetailChartView extends View {
     private final Paint box = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint unitText = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
-    private final RectF top = new RectF(), bot = new RectF(), rect = new RectF();
-    private final DashPathEffect dash;
+    private final RectF top = new RectF(), mid = new RectF(), bot = new RectF(), rect = new RectF();
+    private final float lineW, thinW;
 
-    private final String lblKw, lblBat, lblOut, lblSoc;
+    private final String lblPower, lblBat, lblOut, lblSoc;
 
     ChargeDetailChartView(Context c) {
         super(c);
         grid.setStrokeWidth(Style.dp(c, 1));
         axis.setTextSize(Style.dp(c, 17));
         line.setStyle(Paint.Style.STROKE);
-        line.setStrokeWidth(Style.dp(c, 3));
+        lineW = Style.dp(c, 3);
+        thinW = Style.dp(c, 2);
+        line.setStrokeWidth(lineW);
         line.setStrokeJoin(Paint.Join.ROUND);
         line.setStrokeCap(Paint.Cap.ROUND);
         fill.setStyle(Paint.Style.FILL);
         boxText.setTextSize(Style.dp(c, 20));
         boxText.setFakeBoldText(true);
-        dash = new DashPathEffect(new float[]{Style.dp(c, 10), Style.dp(c, 8)}, 0);
-        lblKw = "kW";
+        lblPower = c.getString(R.string.charge_detail_power);
         lblBat = c.getString(R.string.charge_detail_bat_temp);
         lblOut = c.getString(R.string.charge_detail_out_temp);
         lblSoc = c.getString(R.string.charge_detail_soc);
@@ -80,6 +88,23 @@ final class ChargeDetailChartView extends View {
     }
 
     private int kwColor() { return dc ? Style.GOOD : Style.ACCENT; }
+    private static int socColor() { return Style.blend(Style.CARD, Style.TEXT, .45f); }
+    private static int outColor() { return Style.TEXT_DIM; }
+    // Set while a series is drawn with a colour per value (battery temperature).
+    private Shader shade;
+
+    /** A vertical gradient over r so a line drawn in r has, at each height,
+     * the colour of the temperature there. */
+    private static Shader tempShader(RectF r, float lo, float hi) {
+        int n = 12;
+        int[] colors = new int[n];
+        float[] pos = new float[n];
+        for (int i = 0; i < n; i++) {
+            pos[i] = i / (float) (n - 1);
+            colors[i] = TempRangeView.colorFor(lo + (hi - lo) * pos[i]);
+        }
+        return new LinearGradient(0, r.bottom, 0, r.top, colors, pos, Shader.TileMode.CLAMP);
+    }
 
     @Override public boolean onTouchEvent(MotionEvent e) {
         int a = e.getActionMasked();
@@ -106,42 +131,54 @@ final class ChargeDetailChartView extends View {
         Context ctx = getContext();
         float w = getWidth(), h = getHeight();
         if (w <= 0 || h <= 0) return;
-        float padL = Style.dp(ctx, 76), padR = Style.dp(ctx, 60);
-        float legendH = Style.dp(ctx, 40), timeH = Style.dp(ctx, 34), gap = Style.dp(ctx, 56);
-        float plotH = h - legendH - timeH - gap;
-        top.set(padL, legendH, w - padR, legendH + plotH * 0.6f);
-        bot.set(padL, top.bottom + gap, w - padR, h - timeH);
+        float[] kwr = ChargeDetail.range(kw);
+        float kwMax = ChargeDetail.kwAxisMax(kwr == null ? Float.NaN : kwr[1], dc);
+        float[] tAx = ChargeDetail.tempAxis(batT, outT);
+
+        // Each chart has a caption row above it; one time row under the last.
+        float padL = Style.dp(ctx, 76), padR = Style.dp(ctx, 24);
+        float capH = Style.dp(ctx, 40), timeH = Style.dp(ctx, 34), gap = Style.dp(ctx, 40);
+        int panels = tAx != null ? 3 : 2;
+        float plotH = h - timeH - panels * capH - (panels - 1) * gap;
+        float powerH = plotH * (tAx != null ? .38f : .5f);
+        float tempH = tAx != null ? plotH * .24f : 0f;
+        float y = capH;
+        top.set(padL, y, w - padR, y + powerH);
+        y = top.bottom;
+        if (tAx != null) {
+            y += gap + capH;
+            mid.set(padL, y, w - padR, y + tempH);
+            y = mid.bottom;
+        } else {
+            mid.setEmpty();
+        }
+        y += gap + capH;
+        bot.set(padL, y, w - padR, h - timeH);
 
         int gridColor = Style.blend(Style.CARD, Style.TEXT_DIM, .25f);
         grid.setColor(gridColor);
         axis.setColor(Style.TEXT_DIM);
 
-        float[] kwr = ChargeDetail.range(kw);
-        float kwMax = ChargeDetail.kwAxisMax(kwr == null ? Float.NaN : kwr[1], dc);
-        float[] tAx = ChargeDetail.tempAxis(batT, outT);
-
-        // Grid and scales.
+        // Grids and scales, all on the left.
         axis.setTextAlign(Paint.Align.RIGHT);
+        float lx = top.left - Style.dp(ctx, 10), ly = Style.dp(ctx, 6);
         for (int i = 0; i <= 4; i++) {
-            float v = kwMax * i / 4f;
-            float y = top.bottom - top.height() * i / 4f;
-            c.drawLine(top.left, y, top.right, y, grid);
-            c.drawText(fmt(v) + " kW", top.left - Style.dp(ctx, 10), y + Style.dp(ctx, 6), axis);
+            float gy = top.bottom - top.height() * i / 4f;
+            c.drawLine(top.left, gy, top.right, gy, grid);
+            c.drawText(fmt(kwMax * i / 4f) + " kW", lx, gy + ly, axis);
         }
         if (tAx != null) {
-            axis.setTextAlign(Paint.Align.LEFT);
-            for (int i = 0; i <= 4; i++) {
-                float v = tAx[0] + (tAx[1] - tAx[0]) * i / 4f;
-                float y = top.bottom - top.height() * i / 4f;
-                c.drawText(String.format(Locale.getDefault(), "%.0f°", v), top.right + Style.dp(ctx, 8),
-                    y + Style.dp(ctx, 6), axis);
+            for (int i = 0; i <= 2; i++) {
+                float gy = mid.bottom - mid.height() * i / 2f;
+                c.drawLine(mid.left, gy, mid.right, gy, grid);
+                c.drawText(String.format(Locale.getDefault(), "%.0f°", tAx[0] + (tAx[1] - tAx[0]) * i / 2f),
+                    lx, gy + ly, axis);
             }
         }
-        axis.setTextAlign(Paint.Align.RIGHT);
         for (int i = 0; i <= 2; i++) {
-            float y = bot.bottom - bot.height() * i / 2f;
-            c.drawLine(bot.left, y, bot.right, y, grid);
-            c.drawText((50 * i) + "%", bot.left - Style.dp(ctx, 10), y + Style.dp(ctx, 6), axis);
+            float gy = bot.bottom - bot.height() * i / 2f;
+            c.drawLine(bot.left, gy, bot.right, gy, grid);
+            c.drawText((50 * i) + "%", lx, gy + ly, axis);
         }
         axis.setTextAlign(Paint.Align.CENTER);
         for (int i = 0; i <= 4; i++) {
@@ -149,40 +186,55 @@ final class ChargeDetailChartView extends View {
             c.drawText(SessionText.clock(t), tx(t), h - Style.dp(ctx, 6), axis);
         }
 
-        // Legend over the top chart; the battery % caption over the bottom one.
-        float lx = top.left;
-        lx = legend(c, lx, kwColor(), lblKw, false);
-        if (ChargeDetail.range(batT) != null) lx = legend(c, lx, Style.DANGER, lblBat, false);
-        if (ChargeDetail.range(outT) != null) legend(c, lx, Style.HEAT, lblOut, true);
+        // Captions: one name per single-line chart, a legend where there are two.
         axis.setTextAlign(Paint.Align.LEFT);
-        c.drawText(lblSoc, bot.left, bot.top - Style.dp(ctx, 12), axis);
-
-        // Battery % with a soft area under it.
-        int socColor = kwColor();
-        series(c, soc, 0, 100, bot, socColor, false, true);
+        float capY = Style.dp(ctx, 14);
+        c.drawText(lblPower, top.left, top.top - capY, axis);
         if (tAx != null) {
-            series(c, outT, tAx[0], tAx[1], top, Style.HEAT, true, false);
-            series(c, batT, tAx[0], tAx[1], top, Style.DANGER, false, false);
+            float cx = mid.left;
+            if (ChargeDetail.range(batT) != null) {
+                // Its legend line runs green to red: the line's colour is its value.
+                float ly0 = mid.top - capY - Style.dp(ctx, 6);
+                shade = new LinearGradient(cx, ly0, cx + Style.dp(ctx, 30), ly0,
+                    new int[]{TempRangeView.colorFor(20f), TempRangeView.colorFor(30f), TempRangeView.colorFor(40f)},
+                    null, Shader.TileMode.CLAMP);
+                cx = legend(c, cx, mid.top - capY, Style.TEXT, lineW, lblBat);
+                shade = null;
+            }
+            if (ChargeDetail.range(outT) != null) legend(c, cx, mid.top - capY, outColor(), thinW, lblOut);
         }
-        series(c, kw, 0, kwMax, top, kwColor(), false, false);
+        c.drawText(lblSoc, bot.left, bot.top - capY, axis);
+
+        series(c, kw, 0, kwMax, top, kwColor(), lineW, false);
+        if (tAx != null) {
+            series(c, outT, tAx[0], tAx[1], mid, outColor(), thinW, false);
+            shade = tempShader(mid, tAx[0], tAx[1]);
+            series(c, batT, tAx[0], tAx[1], mid, Style.TEXT, lineW, false);
+            shade = null;
+        }
+        // Battery % with a soft area under it.
+        series(c, soc, 0, 100, bot, socColor(), lineW, true);
 
         if (crossT >= 0) cross(c, kwMax, tAx);
     }
 
-    private float legend(Canvas c, float x, int color, String label, boolean dashed) {
+    /** A short line in the series' colour and its name; returns the x after it. */
+    private float legend(Canvas c, float x, float baseline, int color, float width, String label) {
         Context ctx = getContext();
-        float y = Style.dp(ctx, 18);
+        float y = baseline - Style.dp(ctx, 6);
         line.setColor(color);
-        line.setPathEffect(dashed ? dash : null);
+        line.setStrokeWidth(width);
+        line.setShader(shade);
         c.drawLine(x, y, x + Style.dp(ctx, 30), y, line);
-        line.setPathEffect(null);
+        line.setShader(null);
+        line.setStrokeWidth(lineW);
         axis.setTextAlign(Paint.Align.LEFT);
-        c.drawText(label, x + Style.dp(ctx, 38), y + Style.dp(ctx, 6), axis);
-        return x + Style.dp(ctx, 38) + axis.measureText(label) + Style.dp(ctx, 32);
+        c.drawText(label, x + Style.dp(ctx, 40), baseline, axis);
+        return x + Style.dp(ctx, 40) + axis.measureText(label) + Style.dp(ctx, 36);
     }
 
     /** One line; it breaks where two samples are more than GAP_MS apart. */
-    private void series(Canvas c, float[] v, float lo, float hi, RectF r, int color, boolean dashed, boolean area) {
+    private void series(Canvas c, float[] v, float lo, float hi, RectF r, int color, float width, boolean area) {
         if (v.length == 0 || hi <= lo) return;
         path.rewind();
         Path areaPath = area ? new Path() : null;
@@ -213,9 +265,11 @@ final class ChargeDetailChartView extends View {
             c.drawPath(areaPath, fill);
         }
         line.setColor(color);
-        line.setPathEffect(dashed ? dash : null);
+        line.setStrokeWidth(width);
+        line.setShader(shade);
         c.drawPath(path, line);
-        line.setPathEffect(null);
+        line.setShader(null);
+        line.setStrokeWidth(lineW);
     }
 
     private void cross(Canvas c, float kwMax, float[] tAx) {
@@ -234,24 +288,24 @@ final class ChargeDetailChartView extends View {
         int i = ChargeDetail.nearest(ts, kw, crossT);
         if (i >= 0) {
             dot(c, x, top, kw[i], 0, kwMax, kwColor());
-            lines.add(new String[]{"", String.format(Locale.getDefault(), "%.1f", kw[i]), " kW"}); colors.add(kwColor());
+            lines.add(new String[]{"", String.format(Locale.getDefault(), "%.1f", kw[i]), " kW"}); colors.add(Style.TEXT);
         }
         if (tAx != null) {
             i = ChargeDetail.nearest(ts, batT, crossT);
             if (i >= 0) {
-                dot(c, x, top, batT[i], tAx[0], tAx[1], Style.DANGER);
-                lines.add(new String[]{lblBat + " ", String.valueOf(Math.round(batT[i])), "°"}); colors.add(Style.DANGER);
+                dot(c, x, mid, batT[i], tAx[0], tAx[1], TempRangeView.colorFor(batT[i]));
+                lines.add(new String[]{lblBat + " ", String.valueOf(Math.round(batT[i])), "°"}); colors.add(Style.TEXT);
             }
             i = ChargeDetail.nearest(ts, outT, crossT);
             if (i >= 0) {
-                dot(c, x, top, outT[i], tAx[0], tAx[1], Style.HEAT);
-                lines.add(new String[]{lblOut + " ", String.valueOf(Math.round(outT[i])), "°"}); colors.add(Style.HEAT);
+                dot(c, x, mid, outT[i], tAx[0], tAx[1], outColor());
+                lines.add(new String[]{lblOut + " ", String.valueOf(Math.round(outT[i])), "°"}); colors.add(Style.TEXT);
             }
         }
         i = ChargeDetail.nearest(ts, soc, crossT);
         if (i >= 0) {
-            dot(c, x, bot, soc[i], 0, 100, kwColor());
-            lines.add(new String[]{"", String.valueOf(Math.round(soc[i])), "%"}); colors.add(kwColor());
+            dot(c, x, bot, soc[i], 0, 100, socColor());
+            lines.add(new String[]{"", String.valueOf(Math.round(soc[i])), "%"}); colors.add(Style.TEXT);
         }
 
         unitText.setTextSize(boxText.getTextSize() * Style.UNIT_SCALE_ROW);

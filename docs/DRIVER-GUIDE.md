@@ -26,7 +26,8 @@ The home screen is made for quick use while you drive:
   added and the charging power. Tap the card, during or after the charge, to
   open the charge's page: power, temperatures and battery % on one time line
   (move a finger on the charts to read every value), the numbers, the place on
-  a map, and how long the car stood at 100%. Tap its cost tile to add the price.
+  a map, AC or DC, and the time at 100%. Tap the cost (it has a pencil) to add
+  the price.
   After the charge, the card stays until you add the price (zero too). Then it
   closes. **✕** closes it at once, and it also closes when the car leaves Park.
   You can still add the price in Charging stats.

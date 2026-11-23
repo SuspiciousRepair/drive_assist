@@ -10,6 +10,14 @@
   leaves Park, so an old charge is not on the screen at the next stop. A
   charge that ends after the car left Park never shows. The price can still
   be added in Charging stats.
+- **Charge page: clearer charts and names.** The charts are now three, one
+  under the other, each with its own scale: power, temperature and battery
+  %. Power is blue for AC and green for DC. The battery temperature line
+  takes the colour of its value, as on the home screen's temperature bar:
+  green is fine, amber is warm, red is hot. The outside temperature is a
+  thin grey line, and the battery % is grey. **Parked at 100%** is now
+  **Time at 100%**. The energy shows the plug icon and "AC" or "DC". The
+  cost has a pencil icon, to show that you can tap it to change it.
 
 ### Fixed
 - **Updates over the air reach the car again.** The setup installer always
