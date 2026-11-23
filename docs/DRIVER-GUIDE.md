@@ -155,6 +155,11 @@ Some songs have only untimed lyrics on LRCLIB. The card shows them too, but they
 do not move by themselves, and a small struck-through clock shows at the top:
 tap the lower half of the lyrics to go down one line, the upper half to go back one. For a song with no lyrics at all, the Lyrics
 button is dim, and tapping it says "No lyrics found for this song".
+Timed lyrics a little early or late? Tap the lock at the top. The card then
+shows every line. Tap each line when it is sung: the other lines move with your
+taps, and the car keeps the fix for that song. One tap moves all lines by the
+same amount; more taps also fix lyrics that drift. The turning arrow undoes the
+fix, and so does holding the cover. The lock closes by itself on the next song. Do this when parked.
 With the switch off, the car sends nothing there.
 
 ### Dashcam

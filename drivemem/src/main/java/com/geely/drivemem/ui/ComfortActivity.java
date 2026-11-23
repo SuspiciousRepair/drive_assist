@@ -180,6 +180,17 @@ public class ComfortActivity extends Activity {
     private int lyricIndex = Integer.MIN_VALUE;
     private int plainIndex;   // the line shown now, for plain (untimed) lyrics
     private android.widget.ImageView untimedIcon;   // shown while the lyrics have no timing
+    // Timing fix (LyricSync): the lock opens it, the owner taps each line as
+    // it is sung. Open, the lyrics show as a list of every line.
+    private android.widget.ImageView lyricsLockIcon, lyricsResetIcon;
+    private View lyricSlotsBox;
+    private android.widget.ScrollView syncScroll;
+    private LinearLayout syncList;
+    private boolean lyricsSyncing;     // the lock is open
+    private String syncTrack;          // the song syncNow belongs to
+    private com.geely.drivemem.util.LyricSync syncNow = com.geely.drivemem.util.LyricSync.NONE;
+    private Lrc syncRaw, syncLines;    // the lyrics as fetched, and moved by syncNow
+    private Lrc syncListRaw;           // the lines syncList was built for
     // Show a line this much before the session's position reaches it: the
     // eye needs a beat.
     private static final long LYRICS_LEAD_MS = 400;
@@ -1337,6 +1348,12 @@ public class ComfortActivity extends Activity {
         LinearLayout.LayoutParams uLp = new LinearLayout.LayoutParams(Style.dp(this, 52), Style.dp(this, 52));
         uLp.gravity = Gravity.TOP;
         jumboHeader.addView(untimedIcon, uLp);
+        lyricsResetIcon = headerIcon(R.drawable.ic_sync_reset);
+        lyricsResetIcon.setOnClickListener(v -> resetLyricSync());
+        jumboHeader.addView(lyricsResetIcon, headerIconLp());
+        lyricsLockIcon = headerIcon(R.drawable.ic_lock);
+        lyricsLockIcon.setOnClickListener(v -> setLyricsSyncing(!lyricsSyncing));
+        jumboHeader.addView(lyricsLockIcon, headerIconLp());
         android.widget.ImageView jGear = soundGear(false);
         if (jGear != null) {
             LinearLayout.LayoutParams gLp = new LinearLayout.LayoutParams(Style.dp(this, 52), Style.dp(this, 52));
@@ -1385,6 +1402,16 @@ public class ComfortActivity extends Activity {
             return true;
         });
         outer.addView(slots, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        lyricSlotsBox = slots;
+        // The lock open: every line, each one a tap target (markLyricLine).
+        syncScroll = new android.widget.ScrollView(this);
+        syncScroll.setVisibility(View.GONE);
+        syncList = new LinearLayout(this);
+        syncList.setOrientation(LinearLayout.VERTICAL);
+        syncList.setPadding(padH, Style.dp(this, 8), padH, Style.dp(this, 8));
+        syncScroll.addView(syncList);
+        outer.addView(syncScroll, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
         jumboBar = new LinearLayout(this);
@@ -1512,6 +1539,118 @@ public class ComfortActivity extends Activity {
         }
     }
 
+    private android.widget.ImageView headerIcon(int res) {
+        android.widget.ImageView v = new android.widget.ImageView(this);
+        v.setImageResource(res);
+        v.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        v.setColorFilter(Style.TEXT_DIM, android.graphics.PorterDuff.Mode.SRC_IN);
+        int p = Style.dp(this, 10);
+        v.setPadding(p, p, p, p);
+        v.setVisibility(View.GONE);
+        return v;
+    }
+
+    private LinearLayout.LayoutParams headerIconLp() {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Style.dp(this, 52), Style.dp(this, 52));
+        lp.gravity = Gravity.TOP;
+        return lp;
+    }
+
+    // The lyrics the card shows: as fetched, moved by the owner's timing
+    // fix for this song. A new song closes the lock.
+    private Lrc shownLyrics() {
+        String id = MusicState.trackId();
+        Lrc raw = LyricsClient.linesFor(id);
+        if (!java.util.Objects.equals(id, syncTrack)) {
+            syncTrack = id;
+            syncNow = LyricsClient.sync(this, id);
+            syncRaw = null;
+            if (lyricsSyncing) applyLyricsSyncing(false);
+        }
+        if (raw == null || !raw.timed()) return raw;
+        if (raw != syncRaw) { syncRaw = raw; syncLines = raw.synced(syncNow); }
+        return syncLines;
+    }
+
+    // Opens or closes the lock. Open: the list of every line, so the owner
+    // can tap each one as it is sung.
+    private void setLyricsSyncing(boolean on) {
+        applyLyricsSyncing(on);
+        ui.removeCallbacks(lyricsTick);
+        if (lyricsShown()) ui.post(lyricsTick);
+    }
+
+    // The same without starting the lyrics clock: for the clock itself.
+    private void applyLyricsSyncing(boolean on) {
+        lyricsSyncing = on;
+        if (lyricsLockIcon != null) {
+            lyricsLockIcon.setImageResource(on ? R.drawable.ic_lock_open : R.drawable.ic_lock);
+            lyricsLockIcon.setColorFilter(on ? Style.ACCENT : Style.TEXT_DIM, android.graphics.PorterDuff.Mode.SRC_IN);
+        }
+        if (lyricSlotsBox != null) lyricSlotsBox.setVisibility(on ? View.GONE : View.VISIBLE);
+        if (syncScroll != null) syncScroll.setVisibility(on ? View.VISIBLE : View.GONE);
+        syncListRaw = null;              // built again from the top
+        lyricsTickLines = null;          // the next tick draws again
+        lyricIndex = Integer.MIN_VALUE;
+    }
+
+    // A tap on a line while the lock is open: that line is sung now.
+    private void markLyricLine(int i) {
+        if (syncRaw == null || i < 0 || i >= syncRaw.size() || !MusicState.playing()) return;
+        long pos = MusicState.positionNowMs(android.os.SystemClock.elapsedRealtime());
+        syncNow = syncNow.with(syncRaw.timeAt(i), pos);
+        LyricsClient.saveSync(this, syncTrack, syncNow);
+        syncLines = syncRaw.synced(syncNow);
+        lyricIndex = Integer.MIN_VALUE;
+        ui.removeCallbacks(lyricsTick);
+        ui.post(lyricsTick);
+    }
+
+    // The reset icon: the song's own timing again.
+    private void resetLyricSync() {
+        syncNow = com.geely.drivemem.util.LyricSync.NONE;
+        LyricsClient.saveSync(this, syncTrack, syncNow);
+        if (syncRaw != null) syncLines = syncRaw;
+        lyricIndex = Integer.MIN_VALUE;
+        ui.removeCallbacks(lyricsTick);
+        ui.post(lyricsTick);
+    }
+
+    // The lock open: every line, the one sung now full, the ones the owner
+    // tapped in the accent colour. The list turns a page only when the line
+    // sung now nears the bottom, so the lines hold still under the finger.
+    private void showSyncList(Lrc lines, int now) {
+        if (syncRaw != syncListRaw) {
+            syncListRaw = syncRaw;
+            syncList.removeAllViews();
+            for (int i = 0; syncRaw != null && i < syncRaw.size(); i++) {
+                TextView t = new TextView(this);
+                t.setText(syncRaw.display(i));
+                t.setTextSize(30);
+                t.setTypeface(null, android.graphics.Typeface.BOLD);
+                t.setPadding(0, Style.dp(this, 10), 0, Style.dp(this, 10));
+                final int idx = i;
+                t.setOnClickListener(v -> markLyricLine(idx));
+                syncList.addView(t);
+            }
+            syncScroll.scrollTo(0, 0);
+        }
+        for (int i = 0; i < syncList.getChildCount(); i++) {
+            TextView t = (TextView) syncList.getChildAt(i);
+            boolean marked = syncRaw != null && syncNow.has(syncRaw.timeAt(i));
+            t.setTextColor(marked ? Style.ACCENT : Style.TEXT);
+            t.setAlpha(i == now ? 1f : 0.45f);
+        }
+        if (now < 0 || now >= syncList.getChildCount()) return;
+        final View row = syncList.getChildAt(now);
+        syncScroll.post(() -> {
+            int h = syncScroll.getHeight(), y = syncScroll.getScrollY();
+            if (h <= 0) return;
+            if (row.getTop() < y || row.getBottom() > y + h * 3 / 4)
+                syncScroll.smoothScrollTo(0, Math.max(0, row.getTop() - h / 4));
+        });
+    }
+
     // The line sung now (-1: none yet) in the second slot, the one before it
     // above, the next two below. Before the first line the now-slot holds a
     // note, so the first two lines show as coming.
@@ -1537,6 +1676,7 @@ public class ComfortActivity extends Activity {
     // Starts or stops the lyrics clock; the jumbo card's place is placeJumbo()'s.
     private void setLyricsVisible(boolean on) {
         ui.removeCallbacks(lyricsTick);
+        if (!on && lyricsSyncing) applyLyricsSyncing(false);   // the lock closes with the card
         if (on) {
             lyricIndex = Integer.MIN_VALUE;   // the next tick colours and scrolls again
             ui.post(lyricsTick);
@@ -1567,11 +1707,16 @@ public class ComfortActivity extends Activity {
     private final Runnable lyricsTick = new Runnable() {
         @Override public void run() {
             if (!lyricsShown()) return;
-            Lrc lines = LyricsClient.linesFor(MusicState.trackId());
+            Lrc lines = shownLyrics();
             // Plain lyrics do not move with the song, which looked stuck: a
             // small struck-through clock says they have no timing.
             if (untimedIcon != null)
                 untimedIcon.setVisibility(lines != null && !lines.timed() ? View.VISIBLE : View.GONE);
+            boolean timed = lines != null && lines.timed();
+            if (!timed && lyricsSyncing) applyLyricsSyncing(false);
+            if (lyricsLockIcon != null) lyricsLockIcon.setVisibility(timed ? View.VISIBLE : View.GONE);
+            if (lyricsResetIcon != null)
+                lyricsResetIcon.setVisibility(lyricsSyncing && !syncNow.isEmpty() ? View.VISIBLE : View.GONE);
             if (lines == null && lyricsTickLines != null) {   // a new track, lines on the way
                 lyricsTickLines = null;
                 showLyricLines(null, 0);   // blank slots
@@ -1580,7 +1725,9 @@ public class ComfortActivity extends Activity {
                 if (lines != lyricsTickLines) plainIndex = 0;   // a new song starts at its first line
                 int i;
                 if (lines.timed()) {
-                    long pos = MusicState.positionNowMs(android.os.SystemClock.elapsedRealtime()) + LYRICS_LEAD_MS;
+                    // Open lock: no lead, the line lights when it is sung.
+                    long pos = MusicState.positionNowMs(android.os.SystemClock.elapsedRealtime())
+                        + (lyricsSyncing ? 0 : LYRICS_LEAD_MS);
                     i = lines.indexAt(pos);
                 } else {
                     i = plainIndex;   // plain lyrics: where the driver's taps left them
@@ -1588,7 +1735,7 @@ public class ComfortActivity extends Activity {
                 if (lines != lyricsTickLines || i != lyricIndex) {
                     lyricsTickLines = lines;
                     lyricIndex = i;
-                    showLyricLines(lines, i);
+                    if (lyricsSyncing) showSyncList(lines, i); else showLyricLines(lines, i);
                 }
             }
             ui.postDelayed(this, LYRICS_TICK_MS);
@@ -2100,7 +2247,8 @@ public class ComfortActivity extends Activity {
     // A long press on the cover: forget the kept cover of this album and
     // take the player's cover again. For a wrong cover that stays (one kept
     // from the last song). The cover goes blank, then the player's comes in;
-    // a player that sends no cover leaves it blank.
+    // a player that sends no cover leaves it blank. The song's lyrics
+    // timing fix goes too: a fresh start for this song.
     private boolean reloadMusicArt(View v) {
         v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
         String track = CoverCache.key(MusicState.artist(), MusicState.album(), MusicState.trackId());
@@ -2109,6 +2257,8 @@ public class ComfortActivity extends Activity {
         lastMusicArtUrl = null;
         CarMediaSessions.refreshArt();
         showMusicArt();
+        if (java.util.Objects.equals(syncTrack, MusicState.trackId())) resetLyricSync();
+        else LyricsClient.saveSync(this, MusicState.trackId(), com.geely.drivemem.util.LyricSync.NONE);
         return true;
     }
 
