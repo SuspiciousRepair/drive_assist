@@ -130,8 +130,7 @@ grandes de Tocar e Avançar.
 
 Ligue **Busca de letras**, na mesma página, para ver a letra da música. O botão
 **Letra** do cartão aumenta o cartão para duas colunas e a altura toda da tela.
-No alto, num tom suave da cor principal da capa do álbum, ficam a capa, a
-música, o artista e o álbum. Embaixo vem a letra da música, no tempo dela: a
+No alto ficam a capa, a música, o artista e o álbum. Embaixo vem a letra da música, no tempo dela: a
 linha cantada agora em letra grande, a linha anterior e as duas próximas. A
 barra embaixo tem Tocar, Avançar e **✕**, que fecha a letra. O cartão lembra a
 sua última escolha, aberta ou fechada, de uma música para a outra e depois que
