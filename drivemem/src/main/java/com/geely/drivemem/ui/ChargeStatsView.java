@@ -657,7 +657,7 @@ public class ChargeStatsView extends LinearLayout {
     }
 
     private static CharSequence lowHours(long ms) {
-        return ms == 0 ? "0" : hours(ms);
+        return ms == 0 ? Style.valueWithUnit("0", null, "h", Style.UNIT_SCALE_ROW) : hours(ms);
     }
 
     /** "3,6 h" with a small h. */

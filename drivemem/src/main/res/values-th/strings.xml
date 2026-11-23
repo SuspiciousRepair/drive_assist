@@ -734,7 +734,7 @@
     <string name="charge_card_no_cost">ยังไม่ได้ใส่ค่าใช้จ่าย</string>
     <string name="charge_card_low">สุขภาพแบตเตอรี่</string>
     <string name="charge_card_low_cap">ต่ำสุด · %1$s</string>
-    <string name="charge_card_below">ชั่วโมงที่ต่ำกว่า %1$d%%</string>
+    <string name="charge_card_below">ต่ำกว่า %1$d%%</string>
     <string name="charge_card_today">วันนี้</string>
     <string name="charge_card_yesterday">เมื่อวาน</string>
     <string name="charge_card_days_ago">%1$d วันที่แล้ว</string>

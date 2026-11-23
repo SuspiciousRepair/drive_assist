@@ -730,7 +730,7 @@
     <string name="charge_card_no_cost">nenhum custo informado</string>
     <string name="charge_card_low">Saúde da bateria</string>
     <string name="charge_card_low_cap">menor carga · %1$s</string>
-    <string name="charge_card_below">Horas abaixo de %1$d%%</string>
+    <string name="charge_card_below">Abaixo de %1$d%%</string>
     <string name="charge_card_today">hoje</string>
     <string name="charge_card_yesterday">ontem</string>
     <string name="charge_card_days_ago">há %1$d dias</string>

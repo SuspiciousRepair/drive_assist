@@ -745,7 +745,7 @@
     <string name="charge_card_no_cost">no cost entered</string>
     <string name="charge_card_low">Battery health</string>
     <string name="charge_card_low_cap">lowest charge · %1$s</string>
-    <string name="charge_card_below">Hours below %1$d%%</string>
+    <string name="charge_card_below">Below %1$d%%</string>
     <string name="charge_card_today">today</string>
     <string name="charge_card_yesterday">yesterday</string>
     <string name="charge_card_days_ago">%1$d days ago</string>
