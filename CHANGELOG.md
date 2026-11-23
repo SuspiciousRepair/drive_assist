@@ -10,6 +10,9 @@
 - **Music card: the sound settings button is an equalizer.** The gear in
   the card's corner, which opens the car's sound settings, is now three
   sliders.
+- **Music card: press and hold the cover to reload it.** A wrong cover kept
+  from another song no longer stays. Holding the cover makes the car forget
+  that album's kept cover and take the phone's cover again.
 
 ### Fixed
 - **Music card: the album name and cover keep up with the song.** A phone

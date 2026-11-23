@@ -1011,6 +1011,7 @@ public class ComfortActivity extends Activity {
         int artSize = Style.dp(this, 80);
         musicArtView.setLayoutParams(new LinearLayout.LayoutParams(artSize, artSize));
         musicArtView.setBackground(Style.tile(this));   // placeholder fill until art loads
+        musicArtView.setOnLongClickListener(this::reloadMusicArt);
         musicArtView.setClipToOutline(true);
         final int artRadius = Style.dp(this, Style.RADIUS_DP - 8);
         musicArtView.setOutlineProvider(new android.view.ViewOutlineProvider() {
@@ -1145,6 +1146,7 @@ public class ComfortActivity extends Activity {
         // bounded card beats one whose height swings wildly per track.
         musicArtView.setMaxHeight(Style.dp(this, 280));
         musicArtView.setBackground(Style.tile(this));   // placeholder fill until art loads
+        musicArtView.setOnLongClickListener(this::reloadMusicArt);
         artFrame.addView(musicArtView, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -1292,6 +1294,7 @@ public class ComfortActivity extends Activity {
         jumboArtView = new android.widget.ImageView(this);
         jumboArtView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
         jumboArtView.setBackground(Style.tile(this));   // placeholder until the art loads
+        jumboArtView.setOnLongClickListener(this::reloadMusicArt);
         jumboArtView.setClipToOutline(true);
         final int artRadius = Style.dp(this, Style.RADIUS_DP - 8);
         jumboArtView.setOutlineProvider(new android.view.ViewOutlineProvider() {
@@ -2081,6 +2084,21 @@ public class ComfortActivity extends Activity {
             android.graphics.Bitmap b = CoverCache.get(app, track);
             if (b != null) applyMusicArt(key, b);
         }, "music-art").start();
+    }
+
+    // A long press on the cover: forget the kept cover of this album and
+    // take the player's cover again. For a wrong cover that stays (one kept
+    // from the last song). The cover goes blank, then the player's comes in;
+    // a player that sends no cover leaves it blank.
+    private boolean reloadMusicArt(View v) {
+        v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+        String track = CoverCache.key(MusicState.artist(), MusicState.album(), MusicState.trackId());
+        CoverCache.remove(getApplicationContext(), track);
+        lastMusicCover = null;   // showMusicArt() clears the cover shown
+        lastMusicArtUrl = null;
+        CarMediaSessions.refreshArt();
+        showMusicArt();
+        return true;
     }
 
     // Keyed by the address AND the album: the same address on another album

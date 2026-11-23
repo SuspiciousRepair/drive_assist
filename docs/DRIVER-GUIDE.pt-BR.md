@@ -149,7 +149,9 @@ aparece, ou quando os outros cartões precisam de mais de uma coluna.
 A letra vem do [LRCLIB](https://lrclib.net), um site gratuito de letras. Para
 achá-la, o carro envia para lá os nomes da música, do artista e do álbum, uma
 vez por música. O carro guarda a letra das últimas 1000 músicas e a capa dos
-últimos 200 álbuns, então uma música ouvida de novo não precisa de internet. Algumas músicas só têm letra sem tempo no LRCLIB. O cartão
+últimos 200 álbuns, então uma música ouvida de novo não precisa de internet.
+Capa errada? Segure o dedo nela. O carro esquece a capa desse álbum e pega a
+capa do celular de novo. Algumas músicas só têm letra sem tempo no LRCLIB. O cartão
 mostra essa letra também, mas ela não anda sozinha, e um pequeno relógio riscado
 aparece no alto: toque na metade de baixo da
 letra para descer uma linha, na metade de cima para voltar uma. Para uma música
