@@ -67,7 +67,7 @@ final class ChargeSessionCard extends LinearLayout {
         power = rowValue(c);
         line2.addView(power);
         body.addView(line2);
-        addView(body, new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        body.setLayoutParams(new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         costTile = new LinearLayout(c);
         costTile.setOrientation(VERTICAL);
@@ -78,9 +78,8 @@ final class ChargeSessionCard extends LinearLayout {
         costBottom = tileText(c);
         costBottom.setPadding(0, Style.dp(c, 2), 0, 0);
         costTile.addView(costBottom);
-        LayoutParams rlp = new LayoutParams(Style.dp(c, 140), ViewGroup.LayoutParams.MATCH_PARENT);
-        rlp.leftMargin = Style.dp(c, 16);
-        addView(costTile, rlp);
+        costTile.setLayoutParams(new LayoutParams(Style.dp(c, 140), ViewGroup.LayoutParams.MATCH_PARENT));
+        Style.addMirrored(this, 16, body, costTile);
     }
 
     /** The body (all but the cost tile) opens the charge. */
