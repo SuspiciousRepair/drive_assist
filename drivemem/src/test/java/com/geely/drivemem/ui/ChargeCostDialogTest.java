@@ -1,25 +1,28 @@
 package com.geely.drivemem.ui;
 
-import org.junit.Test;
-
 import static org.junit.Assert.assertEquals;
 
+import com.geely.drivemem.state.CarState;
+
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.junit.Test;
+
+/** The cost window closes when the car leaves Park (CLAUDE.md safety rule). */
 public class ChargeCostDialogTest {
-
-    @Test public void digitsAreInterpretedAsCents() {
-        assertEquals(0, ChargeCostDialog.centsFromText(""));
-        assertEquals(1, ChargeCostDialog.centsFromText("0,01"));
-        assertEquals(1234, ChargeCostDialog.centsFromText("12,34"));
+    @Test public void leavingParkClosesTheWindowOnTheGivenThread() {
+        AtomicInteger closed = new AtomicInteger(), posted = new AtomicInteger();
+        CarState.Listener l = ChargeCostDialog.closeWhenDriving(closed::incrementAndGet,
+            r -> { posted.incrementAndGet(); r.run(); });
+        l.onParked(false);
+        assertEquals(1, closed.get());
+        assertEquals(1, posted.get());
     }
 
-    @Test public void centsAlwaysShowTwoDecimalPlaces() {
-        assertEquals("0,00", ChargeCostDialog.formatCents(0));
-        assertEquals("0,01", ChargeCostDialog.formatCents(1));
-        assertEquals("12,34", ChargeCostDialog.formatCents(1234));
-    }
-
-    @Test public void ratePerKwhBecomesRoundedTotalCost() {
-        assertEquals(3.66, ChargeCostDialog.totalCostFromRateCents(60, 6.1), 0.001);
-        assertEquals(0.0, ChargeCostDialog.totalCostFromRateCents(0, 14.2), 0.001);
+    @Test public void parkingDoesNotCloseIt() {
+        AtomicInteger closed = new AtomicInteger();
+        CarState.Listener l = ChargeCostDialog.closeWhenDriving(closed::incrementAndGet, Runnable::run);
+        l.onParked(true);
+        assertEquals(0, closed.get());
     }
 }

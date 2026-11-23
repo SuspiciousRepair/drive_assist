@@ -277,7 +277,12 @@ public class ChargeDetailActivity extends Activity {
         blocks.clear();
         int typeColor = d.dc ? Style.GOOD : Style.ACCENT;
         // Every unit smaller and dimmer than its number (docs/STYLE-GUIDE.md).
-        stat(R.string.session_stat_battery, Style.percentRange(d.socStart, d.socEnd, Style.UNIT_SCALE_ROW), null, Style.TEXT, null);
+        // A level unknown at plug-in is saved as -1: never show "-1%".
+        CharSequence battery = d.socStart >= 0 && d.socEnd >= 0
+            ? Style.percentRange(d.socStart, d.socEnd, Style.UNIT_SCALE_ROW)
+            : d.socEnd >= 0 ? Style.valueWithUnit(String.valueOf(d.socEnd), null, "%", Style.UNIT_SCALE_ROW)
+            : getString(R.string.value_unavailable);
+        stat(R.string.session_stat_battery, battery, null, Style.TEXT, null);
         stat(R.string.session_stat_charged_energy, Style.valueWithUnit(
             String.format(Locale.getDefault(), "+%.1f", d.kwh), typeColor, "kWh", Style.UNIT_SCALE_ROW), null, Style.TEXT, null);
         stat(R.string.charge_detail_charging, Style.durationWithUnits(d.endMs - d.startMs, Style.UNIT_SCALE_ROW), null, Style.TEXT, null);

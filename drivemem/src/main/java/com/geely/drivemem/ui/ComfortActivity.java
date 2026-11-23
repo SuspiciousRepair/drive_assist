@@ -2468,7 +2468,8 @@ public class ComfortActivity extends Activity {
         chargeActiveIcon.setColorFilter(plugColor, android.graphics.PorterDuff.Mode.SRC_IN);
 
         long elapsedMs = Math.max(0, nowWallMs - startWallMs);
-        SpannableStringBuilder hero = new SpannableStringBuilder(formatElapsed(elapsedMs));
+        SpannableStringBuilder hero = new SpannableStringBuilder(
+            Style.durationWithUnits(elapsedMs, Style.UNIT_SCALE_ROW));   // h and m smaller than the digits
         Long remainingMs = ChargeSession.estimateRemainingMs(socNow, elapsedMs);
         String status;
         if (socNow >= 100) {

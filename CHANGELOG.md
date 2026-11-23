@@ -142,6 +142,11 @@
   at all.
 
 ### Fixed
+- **The cost window closes when the car leaves Park.** Opened from
+  Charging stats or from a charge's page, it stayed on the screen, with its
+  keyboard, after a shift to D. Now it closes at once, from any screen.
+- **The charge page no longer shows "-1%".** A charge that started with
+  the battery level unknown shows only the level at the end.
 - **The Stats page scrolls again.** A change in this version took away the
   page's scrolling, so the cards below the first screen could not be
   reached.
