@@ -2,9 +2,11 @@ package com.geely.drivemem.ui;
 
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
+import android.graphics.Shader;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -16,11 +18,14 @@ import java.util.Locale;
 /** The charge page's charts, stacked on one time axis, each with its own
  * single scale (never two scales on one chart):
  *
- *   top:    power in kW
- *   middle: battery temperature (the charge's own colour family: warm) and
- *           the outside temperature (a thin grey context line), in °C; left
- *           out when no temperature was read
- *   bottom: battery %
+ *   top:    power in kW, in the charge type's colour (AC blue, DC green,
+ *           as in Charging stats)
+ *   middle: battery temperature and the outside temperature, in °C; left
+ *           out when no temperature was read. The battery line takes the
+ *           colour of its own value on the home screen's temperature scale
+ *           (TempRangeView: green fine, amber warm, red hot), so a hot
+ *           battery shows at a glance; outside is a thin grey context line
+ *   bottom: battery %, grey (as in the charge-curve window)
  *
  * A finger on any chart draws one vertical line through all of them, with a dot
  * where it crosses each line and a box with every value at that time. The
@@ -83,10 +88,23 @@ final class ChargeDetailChartView extends View {
     }
 
     private int kwColor() { return dc ? Style.GOOD : Style.ACCENT; }
-    // Battery temperature: warm, but not the alarm red. Outside: grey, a
-    // context line only.
-    private static int batColor() { return Style.HEAT; }
+    private static int socColor() { return Style.blend(Style.CARD, Style.TEXT, .45f); }
     private static int outColor() { return Style.TEXT_DIM; }
+    // Set while a series is drawn with a colour per value (battery temperature).
+    private Shader shade;
+
+    /** A vertical gradient over r so a line drawn in r has, at each height,
+     * the colour of the temperature there. */
+    private static Shader tempShader(RectF r, float lo, float hi) {
+        int n = 12;
+        int[] colors = new int[n];
+        float[] pos = new float[n];
+        for (int i = 0; i < n; i++) {
+            pos[i] = i / (float) (n - 1);
+            colors[i] = TempRangeView.colorFor(lo + (hi - lo) * pos[i]);
+        }
+        return new LinearGradient(0, r.bottom, 0, r.top, colors, pos, Shader.TileMode.CLAMP);
+    }
 
     @Override public boolean onTouchEvent(MotionEvent e) {
         int a = e.getActionMasked();
@@ -174,7 +192,15 @@ final class ChargeDetailChartView extends View {
         c.drawText(lblPower, top.left, top.top - capY, axis);
         if (tAx != null) {
             float cx = mid.left;
-            if (ChargeDetail.range(batT) != null) cx = legend(c, cx, mid.top - capY, batColor(), lineW, lblBat);
+            if (ChargeDetail.range(batT) != null) {
+                // Its legend line runs green to red: the line's colour is its value.
+                float ly0 = mid.top - capY - Style.dp(ctx, 6);
+                shade = new LinearGradient(cx, ly0, cx + Style.dp(ctx, 30), ly0,
+                    new int[]{TempRangeView.colorFor(20f), TempRangeView.colorFor(30f), TempRangeView.colorFor(40f)},
+                    null, Shader.TileMode.CLAMP);
+                cx = legend(c, cx, mid.top - capY, Style.TEXT, lineW, lblBat);
+                shade = null;
+            }
             if (ChargeDetail.range(outT) != null) legend(c, cx, mid.top - capY, outColor(), thinW, lblOut);
         }
         c.drawText(lblSoc, bot.left, bot.top - capY, axis);
@@ -182,10 +208,12 @@ final class ChargeDetailChartView extends View {
         series(c, kw, 0, kwMax, top, kwColor(), lineW, false);
         if (tAx != null) {
             series(c, outT, tAx[0], tAx[1], mid, outColor(), thinW, false);
-            series(c, batT, tAx[0], tAx[1], mid, batColor(), lineW, false);
+            shade = tempShader(mid, tAx[0], tAx[1]);
+            series(c, batT, tAx[0], tAx[1], mid, Style.TEXT, lineW, false);
+            shade = null;
         }
         // Battery % with a soft area under it.
-        series(c, soc, 0, 100, bot, kwColor(), lineW, true);
+        series(c, soc, 0, 100, bot, socColor(), lineW, true);
 
         if (crossT >= 0) cross(c, kwMax, tAx);
     }
@@ -196,7 +224,9 @@ final class ChargeDetailChartView extends View {
         float y = baseline - Style.dp(ctx, 6);
         line.setColor(color);
         line.setStrokeWidth(width);
+        line.setShader(shade);
         c.drawLine(x, y, x + Style.dp(ctx, 30), y, line);
+        line.setShader(null);
         line.setStrokeWidth(lineW);
         axis.setTextAlign(Paint.Align.LEFT);
         c.drawText(label, x + Style.dp(ctx, 40), baseline, axis);
@@ -236,7 +266,9 @@ final class ChargeDetailChartView extends View {
         }
         line.setColor(color);
         line.setStrokeWidth(width);
+        line.setShader(shade);
         c.drawPath(path, line);
+        line.setShader(null);
         line.setStrokeWidth(lineW);
     }
 
@@ -261,7 +293,7 @@ final class ChargeDetailChartView extends View {
         if (tAx != null) {
             i = ChargeDetail.nearest(ts, batT, crossT);
             if (i >= 0) {
-                dot(c, x, mid, batT[i], tAx[0], tAx[1], batColor());
+                dot(c, x, mid, batT[i], tAx[0], tAx[1], TempRangeView.colorFor(batT[i]));
                 lines.add(new String[]{lblBat + " ", String.valueOf(Math.round(batT[i])), "°"}); colors.add(Style.TEXT);
             }
             i = ChargeDetail.nearest(ts, outT, crossT);
@@ -272,7 +304,7 @@ final class ChargeDetailChartView extends View {
         }
         i = ChargeDetail.nearest(ts, soc, crossT);
         if (i >= 0) {
-            dot(c, x, bot, soc[i], 0, 100, kwColor());
+            dot(c, x, bot, soc[i], 0, 100, socColor());
             lines.add(new String[]{"", String.valueOf(Math.round(soc[i])), "%"}); colors.add(Style.TEXT);
         }
 

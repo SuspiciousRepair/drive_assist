@@ -10,8 +10,10 @@
   be added in Charging stats.
 - **Charge page: clearer charts and names.** The charts are now three, one
   under the other, each with its own scale: power, temperature and battery
-  %. The battery temperature is orange and the outside temperature is a thin
-  grey line. **Parked at 100%** is now **Time at 100%**. The cost has a
+  %. Power is blue for AC and green for DC. The battery temperature line
+  takes the colour of its value, as on the home screen's temperature bar:
+  green is fine, amber is warm, red is hot. The outside temperature is a
+  thin grey line, and the battery % is grey. **Parked at 100%** is now **Time at 100%**. The cost has a
   pencil icon, to show that you can tap it to change it.
 
 ## [v0.11.1] — 2026-11-23
