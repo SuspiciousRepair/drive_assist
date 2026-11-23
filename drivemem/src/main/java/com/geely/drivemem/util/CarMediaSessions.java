@@ -58,9 +58,23 @@ public final class CarMediaSessions {
         // always 0 and the lyrics stayed at the start. Paused, Android leaves
         // it alone, which is why pausing showed the right line.
         PlaybackState state;
+        // While it plays, CarPlay sends its position every ~5 s. After the
+        // cable is pulled it keeps saying "playing" and just stops sending.
+        long lastPlayingPush;   // elapsedRealtime of the last "playing" update
+        int ticks;              // updates in a row, each within TICK_GAP_MS
         final MediaController.Callback cb = new MediaController.Callback() {
             @Override public void onMetadataChanged(MediaMetadata m) { follow(); }
-            @Override public void onPlaybackStateChanged(PlaybackState s) { state = s; follow(); }
+            @Override public void onPlaybackStateChanged(PlaybackState s) {
+                state = s;
+                long now = android.os.SystemClock.elapsedRealtime();
+                if (s != null && s.getState() == PlaybackState.STATE_PLAYING) {
+                    ticks = lastPlayingPush > 0 && now - lastPlayingPush <= TICK_GAP_MS ? ticks + 1 : 1;
+                    lastPlayingPush = now;
+                } else {
+                    ticks = 0;
+                }
+                follow();
+            }
             @Override public void onSessionDestroyed() { drop(Link.this); follow(); }
         };
         Link(ComponentName name) { this.name = name; }
@@ -133,6 +147,26 @@ public final class CarMediaSessions {
         if (l.controller == current) current = null;
         l.controller = null;
         l.state = null;
+        l.ticks = 0;
+        l.lastPlayingPush = 0;
+    }
+
+    private static Link linkOf(MediaController c) {
+        for (Link l : links) if (l.controller == c) return l;
+        return null;
+    }
+
+    /** Two "playing" updates this close count as the player ticking. */
+    static final long TICK_GAP_MS = 10_000;
+    /** A ticking player silent this long while "playing" is gone. */
+    static final long SILENT_MS = 20_000;
+
+    /** When a playing session that was ticking (3 updates in a row) counts as
+     * gone: SILENT_MS after its last update. 0 when the rule does not apply:
+     * paused, or a player that does not tick (Bluetooth sends on change only). */
+    static long silentAt(boolean playing, int ticks, long lastPlayingPush) {
+        if (!playing || ticks < 3 || lastPlayingPush <= 0) return 0;
+        return lastPlayingPush + SILENT_MS;
     }
 
     /** The session's own last state (see Link.state), or Android's view of
@@ -211,6 +245,15 @@ public final class CarMediaSessions {
         // Android moves a playing session's position on by itself when it is
         // read, and stops it at the song's end. So "playing" at the end for
         // longer than the grace means nothing plays any more.
+        // A player that kept sending updates while playing and went quiet:
+        // the phone is gone (CarPlay after the cable is pulled).
+        Link link = linkOf(c);
+        long silentAt = link == null ? 0 : silentAt(t.playing, link.ticks, link.lastPlayingPush);
+        if (silentAt > 0 && now >= silentAt) {
+            Log.i(TAG, "music: " + c.getPackageName() + " stopped sending while playing, hiding the card");
+            MusicState.setSession(null, null);
+            return;
+        }
         long ends = endsAt(t.playing, t.progressMs, t.progressAtMs, t.durationMs);
         long hideAt = staleAt(t.id, ends, now);
         if (hideAt > 0 && now >= hideAt) {
@@ -228,6 +271,7 @@ public final class CarMediaSessions {
             return;
         }
         long wake = hideAt > 0 ? hideAt : ends > 0 ? ends : pausedHideAt;
+        if (silentAt > 0 && (wake <= 0 || silentAt < wake)) wake = silentAt;
         if (wake > 0) main.postDelayed(staleCheck, Math.max(0, wake - now) + 1000);
         android.graphics.Bitmap art = m.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
         if (art == null) art = m.getBitmap(MediaMetadata.METADATA_KEY_ART);
