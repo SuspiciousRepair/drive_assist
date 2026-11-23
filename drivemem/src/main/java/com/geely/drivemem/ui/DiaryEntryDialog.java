@@ -5,6 +5,7 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.text.Editable;
 import android.text.InputFilter;
@@ -15,9 +16,12 @@ import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
+import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -34,8 +38,10 @@ import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.Style;
 
 import java.text.SimpleDateFormat;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
@@ -51,15 +57,19 @@ import java.util.Set;
 
 /** Calm 2-column automotive modal for adding a Car Diary entry.
  *
+ * Fixed-height modal with independently scrollable panes so content never clips
+ * or jumps across categories, locales, or when the soft keyboard opens:
+ *
  * Left column toggles between:
- *  - Collapsed item list (`<- [icon] Class` + plain rows, crisp accent outline on active item)
+ *  - Collapsed item list (`<- [icon] Class` + plain rows, accent outline on active)
  *  - Expanded 5-class picker (`x Add entry` + Config-sidebar pills with chevrons)
  *
  * Right column is the live Details card:
- *  - Title + read-only auto-looked-up odometer (`Today · 14,820 km` / `21 Nov · ~14,747 km`)
- *  - `Today | Yesterday | Pick date` segmented pill + inline scrollable 6-day strip
- *  - Adaptive per-item control (no Cold/Warm toggle — inferred automatically from CarDb)
- *  - Compact `Cost` + `Note` pair and full-width primary `Save` pill.
+ *  - Pinned header: Item title + read-only auto-odometer (`Today · 14,820 km`)
+ *    and `Today | Yesterday | Pick date` (opens a clean dark/light Month Calendar)
+ *  - Scrollable middle: adaptive per-item control (Cold/Warm inferred from CarDb)
+ *    + compact `Cost` & `Note` pair
+ *  - Pinned footer: full-width primary `Save` pill.
  *
  * Park-gated for keyboard safety. */
 public final class DiaryEntryDialog {
@@ -98,6 +108,8 @@ public final class DiaryEntryDialog {
         private final CarDiary.PendingJolt jolt;
         private final Runnable onSaved;
         private final DateTimeFormatter shortDateFmt = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault());
+        private final DateTimeFormatter shortYearDateFmt = DateTimeFormatter.ofPattern("d MMM yy", Locale.getDefault());
+        private final DateTimeFormatter monthYearFmt = DateTimeFormatter.ofPattern("LLLL yyyy", Locale.getDefault());
         private final Set<CarDiary.Category> dueCats = EnumSet.noneOf(CarDiary.Category.class);
         private final Set<CarDiary.Group> dueGroups = EnumSet.noneOf(CarDiary.Group.class);
         private final Map<CarDiary.Group, CarDiary.Category> pickedByGroup = new EnumMap<>(CarDiary.Group.class);
@@ -106,8 +118,6 @@ public final class DiaryEntryDialog {
         private CarDiary.Group selectedGroup;
         private CarDiary.Category selectedCat;
         private LocalDate selectedDate;
-        private boolean stripOpen = false;
-        private int stripPage = 0;
 
         // Auto-attached car odometer for selectedDate (never manually edited)
         private Double resolvedOdoKm = null;
@@ -128,11 +138,12 @@ public final class DiaryEntryDialog {
         private final Set<CarDiary.Category> bundled = new LinkedHashSet<>();
 
         // UI references
-        private LinearLayout leftHost;
+        private LinearLayout leftHeaderHost;
+        private LinearLayout leftListHost;
         private TextView paneTitle;
         private TextView paneCtx;
         private LinearLayout dateSeg;
-        private LinearLayout dateStrip;
+        private ScrollView paneBodyScroll;
         private LinearLayout adaptiveBox;
         private EditText costInput;
         private EditText noteInput;
@@ -184,28 +195,36 @@ public final class DiaryEntryDialog {
             int pad = Style.dp(c, 22);
             sheet.setPadding(pad, pad, pad, pad);
 
-            // ---- LEFT COLUMN (35%): collapses between 5 Classes <-> [<- Icon Class + Items] ----
-            ScrollView leftScroll = new ScrollView(c);
-            leftScroll.setVerticalScrollBarEnabled(false);
-            leftScroll.setLayoutParams(new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 35f));
+            // ---- LEFT COLUMN (33%): pinned header + scrollable list ----
+            LinearLayout leftCol = new LinearLayout(c);
+            leftCol.setOrientation(LinearLayout.VERTICAL);
+            leftCol.setLayoutParams(new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.MATCH_PARENT, 33f));
 
-            leftHost = new LinearLayout(c);
-            leftHost.setOrientation(LinearLayout.VERTICAL);
-            leftScroll.addView(leftHost, new ViewGroup.LayoutParams(
+            leftHeaderHost = new LinearLayout(c);
+            leftHeaderHost.setOrientation(LinearLayout.VERTICAL);
+            leftCol.addView(leftHeaderHost, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-            // ---- RIGHT COLUMN (65%): calm Details card ----
+            ScrollView leftScroll = new ScrollView(c);
+            leftScroll.setVerticalScrollBarEnabled(false);
+            leftListHost = new LinearLayout(c);
+            leftListHost.setOrientation(LinearLayout.VERTICAL);
+            leftScroll.addView(leftListHost, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            leftCol.addView(leftScroll, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
+            // ---- RIGHT COLUMN (67%): pinned header + scrollable body + pinned Save ----
             LinearLayout pane = new LinearLayout(c);
             pane.setOrientation(LinearLayout.VERTICAL);
             pane.setBackground(roundedRect(Style.CARD_HI, borderColor(), 1, 22));
             int pp = Style.dp(c, 24);
             pane.setPadding(pp, pp, pp, pp);
-            pane.setMinimumHeight(Style.dp(c, 520));
             pane.setLayoutParams(new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.MATCH_PARENT, 65f));
+                0, ViewGroup.LayoutParams.MATCH_PARENT, 67f));
 
-            // Header: Item title + quiet read-only Date · Odometer
+            // Pinned top: Item title + quiet read-only Date · Odometer
             LinearLayout pHead = new LinearLayout(c);
             pHead.setOrientation(LinearLayout.HORIZONTAL);
             pHead.setGravity(Gravity.CENTER_VERTICAL);
@@ -214,19 +233,21 @@ public final class DiaryEntryDialog {
             paneTitle.setTextColor(Style.TEXT);
             paneTitle.setTextSize(26f);
             paneTitle.setTypeface(null, Typeface.BOLD);
-            paneTitle.setMaxLines(1);
+            paneTitle.setSingleLine(true);
             paneTitle.setEllipsize(TextUtils.TruncateAt.END);
             pHead.addView(paneTitle, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
             paneCtx = new TextView(c);
             paneCtx.setTextColor(Style.TEXT_DIM);
-            paneCtx.setTextSize(17f);
-            paneCtx.setPadding(Style.dp(c, 14), 0, 0, 0);
+            paneCtx.setTextSize(17.5f);
+            paneCtx.setSingleLine(true);
+            paneCtx.setPadding(Style.dp(c, 16), 0, 0, 0);
             pHead.addView(paneCtx);
-            pane.addView(pHead);
+            pane.addView(pHead, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-            // Date segmented pill: Today | Yesterday | Pick date
+            // Pinned date segmented pill: Today | Yesterday | Pick date
             dateSeg = new LinearLayout(c);
             dateSeg.setOrientation(LinearLayout.HORIZONTAL);
             dateSeg.setBackground(roundedRect(wellFill(), borderColor(), 1, 99));
@@ -234,26 +255,21 @@ public final class DiaryEntryDialog {
             dateSeg.setPadding(sp, sp, sp, sp);
             LinearLayout.LayoutParams dslp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            dslp.topMargin = Style.dp(c, 18);
+            dslp.topMargin = Style.dp(c, 16);
             pane.addView(dateSeg, dslp);
 
-            // Expandable 6-day date strip
-            dateStrip = new LinearLayout(c);
-            dateStrip.setOrientation(LinearLayout.HORIZONTAL);
-            dateStrip.setGravity(Gravity.CENTER_VERTICAL);
-            dateStrip.setVisibility(View.GONE);
-            LinearLayout.LayoutParams stLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            stLp.topMargin = Style.dp(c, 10);
-            pane.addView(dateStrip, stLp);
+            // Scrollable middle body: Adaptive controls + Cost/Note pair (never clips!)
+            paneBodyScroll = new ScrollView(c);
+            paneBodyScroll.setVerticalScrollBarEnabled(false);
+            paneBodyScroll.setFillViewport(false);
+            LinearLayout paneBody = new LinearLayout(c);
+            paneBody.setOrientation(LinearLayout.VERTICAL);
+            paneBody.setPadding(0, Style.dp(c, 18), 0, Style.dp(c, 12));
 
-            // Adaptive per-item control container
             adaptiveBox = new LinearLayout(c);
             adaptiveBox.setOrientation(LinearLayout.VERTICAL);
-            LinearLayout.LayoutParams adLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            adLp.topMargin = Style.dp(c, 18);
-            pane.addView(adaptiveBox, adLp);
+            paneBody.addView(adaptiveBox, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
             // Compact Cost + Note pair (single row, no stacked labels)
             LinearLayout pair = new LinearLayout(c);
@@ -308,14 +324,14 @@ public final class DiaryEntryDialog {
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             pair.addView(noteWell, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 65f));
-            pane.addView(pair, pairLp);
+            paneBody.addView(pair, pairLp);
 
-            // Flexible spacer so Save sits pinned cleanly at the bottom of the Details card
-            View spacer = new View(c);
-            pane.addView(spacer, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 16), 1f));
+            paneBodyScroll.addView(paneBody, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            pane.addView(paneBodyScroll, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
-            // Full-width primary Save pill
+            // Pinned full-width primary Save pill
             TextView saveBtn = new TextView(c);
             saveBtn.setText(c.getString(R.string.diary_btn_save));
             saveBtn.setTextColor(Style.onFill(Style.ACCENT));
@@ -323,15 +339,14 @@ public final class DiaryEntryDialog {
             saveBtn.setTypeface(null, Typeface.BOLD);
             saveBtn.setGravity(Gravity.CENTER);
             saveBtn.setBackground(roundedRect(Style.ACCENT, 0, 0, 99));
-            saveBtn.setMinimumHeight(Style.dp(c, 58));
             saveBtn.setOnClickListener(v -> save());
             LinearLayout.LayoutParams saveLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 58));
-            saveLp.topMargin = Style.dp(c, 8);
+            saveLp.topMargin = Style.dp(c, 10);
             pane.addView(saveBtn, saveLp);
 
             // Mirror left/right columns in RHD so the category picker stays on the driver's edge
-            Style.addMirrored(sheet, 22, leftScroll, pane);
+            Style.addMirrored(sheet, 22, leftCol, pane);
 
             rebuildLeft();
             rebuildPaneHeader();
@@ -339,15 +354,19 @@ public final class DiaryEntryDialog {
             rebuildAdaptive();
             refreshOdometerForSelectedDate(true);
 
-            dialog = new AlertDialog.Builder(c).setView(sheet).create();
-            if (dialog.getWindow() != null) {
-                dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+            dialog = new AlertDialog.Builder(c).create();
+            dialog.setView(sheet, 0, 0, 0, 0);
+            Window win = dialog.getWindow();
+            if (win != null) {
+                win.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+                win.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
             }
             dialog.show();
-            if (dialog.getWindow() != null) {
-                int w = Math.min(Style.dp(c, 1260),
-                    (int) (c.getResources().getDisplayMetrics().widthPixels * 0.84f));
-                dialog.getWindow().setLayout(w, ViewGroup.LayoutParams.WRAP_CONTENT);
+            if (win != null) {
+                DisplayMetrics dm = c.getResources().getDisplayMetrics();
+                int w = Math.min(Style.dp(c, 1380), (int) (dm.widthPixels * 0.88f));
+                int h = Math.min(Style.dp(c, 680), (int) (dm.heightPixels * 0.78f));
+                win.setLayout(w, h);
             }
             return dialog;
         }
@@ -355,7 +374,8 @@ public final class DiaryEntryDialog {
         // ---- Left Column: Collapsed Items <-> Expanded 5 Classes ----
 
         private void rebuildLeft() {
-            leftHost.removeAllViews();
+            leftHeaderHost.removeAllViews();
+            leftListHost.removeAllViews();
             if (showingClasses) {
                 buildClassesList();
             } else {
@@ -364,7 +384,7 @@ public final class DiaryEntryDialog {
         }
 
         private void buildItemsList() {
-            // Header: [<- circle] [accent icon] ClassName  (tap anywhere to expand 5 classes)
+            // Pinned header: [<- circle] [accent icon] ClassName (tap anywhere to expand 5 classes)
             LinearLayout head = new LinearLayout(c);
             head.setOrientation(LinearLayout.HORIZONTAL);
             head.setGravity(Gravity.CENTER_VERTICAL);
@@ -388,15 +408,14 @@ public final class DiaryEntryDialog {
             clsTitle.setTextColor(Style.TEXT);
             clsTitle.setTextSize(21f);
             clsTitle.setTypeface(null, Typeface.BOLD);
-            clsTitle.setMaxLines(1);
+            clsTitle.setSingleLine(true);
             clsTitle.setEllipsize(TextUtils.TruncateAt.END);
             LinearLayout.LayoutParams tlLp = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             tlLp.leftMargin = Style.dp(c, 12);
             head.addView(clsTitle, tlLp);
-            leftHost.addView(head);
-
-            leftHost.addView(leftDivider());
+            leftHeaderHost.addView(head);
+            leftHeaderHost.addView(leftDivider());
 
             // Plain calm rows; only active item gets the crisp accent outline + CARD_HI fill
             List<CarDiary.Category> items = CarDiary.Category.forGroup(selectedGroup);
@@ -419,7 +438,7 @@ public final class DiaryEntryDialog {
                 lbl.setTextColor(Style.TEXT);
                 lbl.setTextSize(18.5f);
                 lbl.setTypeface(null, active ? Typeface.BOLD : Typeface.NORMAL);
-                lbl.setMaxLines(1);
+                lbl.setSingleLine(true);
                 lbl.setEllipsize(TextUtils.TruncateAt.END);
                 row.addView(lbl, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
@@ -440,17 +459,18 @@ public final class DiaryEntryDialog {
                     rebuildLeft();
                     rebuildPaneHeader();
                     rebuildAdaptive();
+                    paneBodyScroll.scrollTo(0, 0);
                 });
 
                 LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
                 if (i > 0) rlp.topMargin = Style.dp(c, 8);
-                leftHost.addView(row, rlp);
+                leftListHost.addView(row, rlp);
             }
         }
 
         private void buildClassesList() {
-            // Header: [x circle] Add entry  (tap closes the dialog)
+            // Pinned header: [x circle] Add entry (tap closes the dialog)
             LinearLayout head = new LinearLayout(c);
             head.setOrientation(LinearLayout.HORIZONTAL);
             head.setGravity(Gravity.CENTER_VERTICAL);
@@ -469,9 +489,8 @@ public final class DiaryEntryDialog {
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             tlLp.leftMargin = Style.dp(c, 14);
             head.addView(title, tlLp);
-            leftHost.addView(head);
-
-            leftHost.addView(leftDivider());
+            leftHeaderHost.addView(head);
+            leftHeaderHost.addView(leftDivider());
 
             CarDiary.Group[] groups = CarDiary.Group.values();
             for (int i = 0; i < groups.length; i++) {
@@ -497,7 +516,7 @@ public final class DiaryEntryDialog {
                 lbl.setTextColor(active ? fg : Style.TEXT);
                 lbl.setTextSize(19f);
                 lbl.setTypeface(null, active ? Typeface.BOLD : Typeface.NORMAL);
-                lbl.setMaxLines(1);
+                lbl.setSingleLine(true);
                 lbl.setEllipsize(TextUtils.TruncateAt.END);
                 LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(
                     0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
@@ -532,12 +551,13 @@ public final class DiaryEntryDialog {
                     rebuildLeft();
                     rebuildPaneHeader();
                     rebuildAdaptive();
+                    paneBodyScroll.scrollTo(0, 0);
                 });
 
                 LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
                 if (i > 0) rlp.topMargin = Style.dp(c, 8);
-                leftHost.addView(row, rlp);
+                leftListHost.addView(row, rlp);
             }
         }
 
@@ -564,7 +584,14 @@ public final class DiaryEntryDialog {
             return v;
         }
 
-        // ---- Right Column: Header + Auto-Odometer + Date Segmented & Strip ----
+        // ---- Right Column: Header + Auto-Odometer + Date Segmented & Month Calendar ----
+
+        private String formatShortDate(LocalDate d) {
+            LocalDate today = LocalDate.now();
+            return (d.getYear() == today.getYear())
+                ? shortDateFmt.format(d)
+                : shortYearDateFmt.format(d);
+        }
 
         private void rebuildPaneHeader() {
             paneTitle.setText(c.getString(selectedCat.labelRes));
@@ -573,7 +600,7 @@ public final class DiaryEntryDialog {
                 ? c.getString(R.string.diary_date_today)
                 : (selectedDate.equals(today.minusDays(1))
                     ? c.getString(R.string.diary_date_yesterday)
-                    : shortDateFmt.format(selectedDate));
+                    : formatShortDate(selectedDate));
 
             SpannableStringBuilder sb = new SpannableStringBuilder();
             sb.append(dateLabel);
@@ -598,46 +625,33 @@ public final class DiaryEntryDialog {
             boolean isCustom = !isToday && !isYesterday;
 
             dateSeg.addView(segBtn(c.getString(R.string.diary_date_today), isToday, () -> {
-                selectedDate = today;
-                stripOpen = false;
-                rebuildDateSeg();
-                rebuildDateStrip();
-                rebuildPaneHeader();
-                refreshOdometerForSelectedDate(false);
+                applyDate(today);
             }));
             dateSeg.addView(segBtn(c.getString(R.string.diary_date_yesterday), isYesterday, () -> {
-                selectedDate = yesterday;
-                stripOpen = false;
-                rebuildDateSeg();
-                rebuildDateStrip();
-                rebuildPaneHeader();
-                refreshOdometerForSelectedDate(false);
+                applyDate(yesterday);
             }));
             String pickLbl = isCustom
-                ? shortDateFmt.format(selectedDate)
+                ? formatShortDate(selectedDate)
                 : c.getString(R.string.diary_date_pick);
-            dateSeg.addView(segBtn(pickLbl, isCustom || stripOpen, () -> {
-                stripOpen = true;
-                if (!isCustom) {
-                    selectedDate = today.minusDays(2);
-                    stripPage = 0;
-                    refreshOdometerForSelectedDate(false);
-                }
-                rebuildDateSeg();
-                rebuildDateStrip();
-                rebuildPaneHeader();
-            }));
+            dateSeg.addView(segBtn(pickLbl, isCustom, this::openCalendarPicker));
+        }
+
+        private void applyDate(LocalDate d) {
+            selectedDate = d;
+            rebuildDateSeg();
+            rebuildPaneHeader();
+            refreshOdometerForSelectedDate(false);
         }
 
         private TextView segBtn(String label, boolean active, Runnable onTap) {
             TextView tv = new TextView(c);
             tv.setText(label);
-            tv.setTextSize(16.5f);
+            tv.setTextSize(17f);
             tv.setTypeface(null, active ? Typeface.BOLD : Typeface.NORMAL);
             tv.setTextColor(active ? Style.TEXT : Style.TEXT_DIM);
             tv.setGravity(Gravity.CENTER);
-            tv.setMinimumHeight(Style.dp(c, 46));
-            tv.setMaxLines(1);
+            tv.setMinimumHeight(Style.dp(c, 48));
+            tv.setSingleLine(true);
             if (active) {
                 tv.setBackground(roundedRect(Style.CARD_HI, strongBorderColor(), 1, 99));
             }
@@ -647,88 +661,185 @@ public final class DiaryEntryDialog {
             return tv;
         }
 
-        private void rebuildDateStrip() {
-            dateStrip.removeAllViews();
-            if (!stripOpen) {
-                dateStrip.setVisibility(View.GONE);
-                return;
-            }
-            dateStrip.setVisibility(View.VISIBLE);
-            LocalDate today = LocalDate.now();
+        /** Clean Drive Assist dark/light Month Calendar overlay — large touch cells,
+         * clear Month + Year header, instant month stepping, future days disabled. */
+        private void openCalendarPicker() {
+            final LocalDate today = LocalDate.now();
+            final YearMonth currentYm = YearMonth.from(today);
+            final YearMonth[] shown = {YearMonth.from(selectedDate)};
+
+            LinearLayout card = new LinearLayout(c);
+            card.setOrientation(LinearLayout.VERTICAL);
+            card.setBackground(roundedRect(Style.CARD, strongBorderColor(), 1, 24));
+            int p = Style.dp(c, 22);
+            card.setPadding(p, p, p, p);
+
+            // Header: [<]  Month YYYY  [>]
+            LinearLayout head = new LinearLayout(c);
+            head.setOrientation(LinearLayout.HORIZONTAL);
+            head.setGravity(Gravity.CENTER_VERTICAL);
+
+            TextView prevBtn = calNavBtn("‹");
+            TextView monthTitle = new TextView(c);
+            monthTitle.setTextColor(Style.TEXT);
+            monthTitle.setTextSize(22f);
+            monthTitle.setTypeface(null, Typeface.BOLD);
+            monthTitle.setGravity(Gravity.CENTER);
+            TextView nextBtn = calNavBtn("›");
+
+            head.addView(prevBtn);
+            head.addView(monthTitle, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            head.addView(nextBtn);
+            card.addView(head);
+
+            // Weekday row (Sun .. Sat)
+            LinearLayout wdRow = new LinearLayout(c);
+            wdRow.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout.LayoutParams wlp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            wlp.topMargin = Style.dp(c, 16);
+            wlp.bottomMargin = Style.dp(c, 6);
             Locale loc = Locale.getDefault();
-            int gap = Style.dp(c, 8);
-
-            // Earlier button (<)
-            dateStrip.addView(stripPageBtn("‹", true, () -> {
-                stripPage++;
-                rebuildDateStrip();
-            }));
-
-            // 6 day tiles (oldest -> newest left to right, starting at 2 days ago)
-            for (int k = 5; k >= 0; k--) {
-                int daysAgo = 2 + stripPage * 6 + k;
-                LocalDate d = today.minusDays(daysAgo);
-                boolean active = d.equals(selectedDate);
-
-                LinearLayout tile = new LinearLayout(c);
-                tile.setOrientation(LinearLayout.VERTICAL);
-                tile.setGravity(Gravity.CENTER);
-                tile.setMinimumHeight(Style.dp(c, 56));
-                tile.setBackground(active
-                    ? roundedRect(accentTint(), Style.ACCENT, 2, 14)
-                    : roundedRect(wellFill(), borderColor(), 1, 14));
-
-                TextView wd = new TextView(c);
-                wd.setText(d.getDayOfWeek().getDisplayName(TextStyle.SHORT, loc));
-                wd.setTextColor(Style.TEXT_DIM);
-                wd.setTextSize(12.5f);
-                wd.setMaxLines(1);
-                tile.addView(wd);
-
-                TextView dn = new TextView(c);
-                dn.setText(String.valueOf(d.getDayOfMonth()));
-                dn.setTextColor(Style.TEXT);
-                dn.setTextSize(17.5f);
-                dn.setTypeface(null, Typeface.BOLD);
-                tile.addView(dn);
-
-                tile.setOnClickListener(v -> {
-                    selectedDate = d;
-                    rebuildDateSeg();
-                    rebuildDateStrip();
-                    rebuildPaneHeader();
-                    refreshOdometerForSelectedDate(false);
-                });
-
-                LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
-                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-                tlp.leftMargin = gap;
-                dateStrip.addView(tile, tlp);
+            DayOfWeek[] order = {
+                DayOfWeek.SUNDAY, DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
+                DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY
+            };
+            for (DayOfWeek dow : order) {
+                TextView w = new TextView(c);
+                w.setText(dow.getDisplayName(TextStyle.SHORT, loc));
+                w.setTextColor(Style.TEXT_DIM);
+                w.setTextSize(14f);
+                w.setTypeface(null, Typeface.BOLD);
+                w.setGravity(Gravity.CENTER);
+                wdRow.addView(w, new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             }
+            card.addView(wdRow, wlp);
 
-            // Later button (>)
-            TextView later = stripPageBtn("›", stripPage > 0, () -> {
-                if (stripPage > 0) {
-                    stripPage--;
-                    rebuildDateStrip();
+            // 6x7 day grid container
+            LinearLayout gridHost = new LinearLayout(c);
+            gridHost.setOrientation(LinearLayout.VERTICAL);
+            card.addView(gridHost, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+            // Footer: Today (left) + Cancel (right)
+            LinearLayout foot = new LinearLayout(c);
+            foot.setOrientation(LinearLayout.HORIZONTAL);
+            foot.setGravity(Gravity.CENTER_VERTICAL);
+            LinearLayout.LayoutParams flp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            flp.topMargin = Style.dp(c, 14);
+
+            AlertDialog calDlg = new AlertDialog.Builder(c).create();
+            calDlg.setView(card, 0, 0, 0, 0);
+
+            TextView todayBtn = Style.cardButton(c, c.getString(R.string.diary_date_today), false, () -> {
+                applyDate(today);
+                calDlg.dismiss();
+            });
+            foot.addView(todayBtn);
+            foot.addView(new View(c), new LinearLayout.LayoutParams(0, 1, 1f));
+            TextView closeBtn = Style.cardButton(c, c.getString(android.R.string.cancel), false, calDlg::dismiss);
+            foot.addView(closeBtn);
+            card.addView(foot, flp);
+
+            Runnable renderMonth = () -> {
+                YearMonth ym = shown[0];
+                String raw = monthYearFmt.format(ym.atDay(1));
+                String cap = raw.isEmpty() ? raw
+                    : raw.substring(0, 1).toUpperCase(loc) + raw.substring(1);
+                monthTitle.setText(cap);
+
+                boolean canNext = ym.isBefore(currentYm);
+                nextBtn.setEnabled(canNext);
+                nextBtn.setAlpha(canNext ? 1f : 0.28f);
+
+                gridHost.removeAllViews();
+                LocalDate first = ym.atDay(1);
+                int leadBlanks = first.getDayOfWeek().getValue() % 7; // Sunday=0..Saturday=6
+                int daysInMonth = ym.lengthOfMonth();
+                int rows = (leadBlanks + daysInMonth + 6) / 7;
+
+                for (int r = 0; r < rows; r++) {
+                    LinearLayout row = new LinearLayout(c);
+                    row.setOrientation(LinearLayout.HORIZONTAL);
+                    for (int col = 0; col < 7; col++) {
+                        int dayNum = r * 7 + col - leadBlanks + 1;
+                        TextView cell = new TextView(c);
+                        cell.setGravity(Gravity.CENTER);
+                        cell.setTextSize(18f);
+                        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(
+                            0, Style.dp(c, 54), 1f);
+                        clp.setMargins(Style.dp(c, 3), Style.dp(c, 3), Style.dp(c, 3), Style.dp(c, 3));
+
+                        if (dayNum < 1 || dayNum > daysInMonth) {
+                            cell.setText("");
+                        } else {
+                            LocalDate d = ym.atDay(dayNum);
+                            boolean future = d.isAfter(today);
+                            boolean isSel = d.equals(selectedDate);
+                            boolean isTod = d.equals(today);
+                            cell.setText(String.valueOf(dayNum));
+                            if (future) {
+                                cell.setTextColor(withAlpha(Style.TEXT_DIM, 0.30f));
+                            } else if (isSel) {
+                                cell.setTextColor(Style.onFill(Style.ACCENT));
+                                cell.setTypeface(null, Typeface.BOLD);
+                                cell.setBackground(roundedRect(Style.ACCENT, 0, 0, 14));
+                            } else if (isTod) {
+                                cell.setTextColor(Style.TEXT);
+                                cell.setTypeface(null, Typeface.BOLD);
+                                cell.setBackground(roundedRect(Color.TRANSPARENT, Style.ACCENT, 2, 14));
+                            } else {
+                                cell.setTextColor(Style.TEXT);
+                                cell.setBackground(roundedRect(Style.CARD_HI, 0, 0, 14));
+                            }
+                            if (!future) {
+                                cell.setOnClickListener(v -> {
+                                    applyDate(d);
+                                    calDlg.dismiss();
+                                });
+                            }
+                        }
+                        row.addView(cell, clp);
+                    }
+                    gridHost.addView(row);
+                }
+            };
+
+            prevBtn.setOnClickListener(v -> {
+                shown[0] = shown[0].minusMonths(1);
+                renderMonth.run();
+            });
+            nextBtn.setOnClickListener(v -> {
+                if (shown[0].isBefore(currentYm)) {
+                    shown[0] = shown[0].plusMonths(1);
+                    renderMonth.run();
                 }
             });
-            LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(
-                Style.dp(c, 42), Style.dp(c, 56));
-            llp.leftMargin = gap;
-            dateStrip.addView(later, llp);
+            renderMonth.run();
+
+            Window win = calDlg.getWindow();
+            if (win != null) {
+                win.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            }
+            calDlg.show();
+            if (win != null) {
+                win.setLayout(Style.dp(c, 540), ViewGroup.LayoutParams.WRAP_CONTENT);
+            }
         }
 
-        private TextView stripPageBtn(String glyph, boolean enabled, Runnable onTap) {
-            TextView tv = new TextView(c);
-            tv.setText(glyph);
-            tv.setTextColor(enabled ? Style.TEXT_DIM : withAlpha(Style.TEXT_DIM, 0.3f));
-            tv.setTextSize(24f);
-            tv.setGravity(Gravity.CENTER);
-            tv.setBackground(roundedRect(Color.TRANSPARENT, borderColor(), 1, 14));
-            tv.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(c, 42), Style.dp(c, 56)));
-            if (enabled) tv.setOnClickListener(v -> onTap.run());
-            return tv;
+        private TextView calNavBtn(String glyph) {
+            TextView b = new TextView(c);
+            b.setText(glyph);
+            b.setTextColor(Style.TEXT);
+            b.setTextSize(26f);
+            b.setGravity(Gravity.CENTER);
+            b.setBackground(roundedRect(Style.CARD_HI, strongBorderColor(), 1, 99));
+            int sz = Style.dp(c, 48);
+            b.setLayoutParams(new LinearLayout.LayoutParams(sz, sz));
+            return b;
         }
 
         private void refreshOdometerForSelectedDate(boolean initial) {
@@ -836,8 +947,8 @@ public final class DiaryEntryDialog {
             box.setOrientation(LinearLayout.HORIZONTAL);
             box.setGravity(Gravity.CENTER);
             box.setBackground(roundedRect(wellFill(), borderColor(), 1, 18));
-            box.setMinimumHeight(Style.dp(c, allFour ? 82 : 62));
-            int px = Style.dp(c, allFour ? 20 : 12);
+            box.setMinimumHeight(Style.dp(c, allFour ? 84 : 64));
+            int px = Style.dp(c, allFour ? 20 : 14);
             int py = Style.dp(c, allFour ? 12 : 8);
             box.setPadding(px, py, px, py);
 
@@ -845,9 +956,9 @@ public final class DiaryEntryDialog {
                 TextView wl = new TextView(c);
                 wl.setText(wheelLabel);
                 wl.setTextColor(Style.TEXT_DIM);
-                wl.setTextSize(14f);
+                wl.setTextSize(15f);
                 wl.setTypeface(null, Typeface.BOLD);
-                wl.setMinWidth(Style.dp(c, 28));
+                wl.setMinWidth(Style.dp(c, 32));
                 box.addView(wl);
                 box.addView(new View(c), new LinearLayout.LayoutParams(0, 1, 1f));
             }
@@ -857,10 +968,11 @@ public final class DiaryEntryDialog {
             val.setTypeface(null, Typeface.BOLD);
             val.setTextColor(Style.TEXT);
             val.setGravity(Gravity.CENTER);
+            val.setSingleLine(true);
             val.setText(Style.valueWithUnit(String.valueOf(psi[idx]), Style.TEXT, "PSI",
                 allFour ? Style.UNIT_SCALE_HERO : Style.UNIT_SCALE_ROW));
 
-            int btnSz = allFour ? 50 : 40;
+            int btnSz = allFour ? 52 : 44;
             TextView minus = roundStepButton("−", btnSz, () -> {
                 int next = Math.max(MIN_PSI, psi[idx] - 1);
                 if (allFour) { for (int i = 0; i < 4; i++) psi[i] = next; }
@@ -878,7 +990,7 @@ public final class DiaryEntryDialog {
 
             box.addView(minus);
             LinearLayout.LayoutParams vlp = new LinearLayout.LayoutParams(
-                Style.dp(c, allFour ? 160 : 96), ViewGroup.LayoutParams.WRAP_CONTENT);
+                Style.dp(c, allFour ? 170 : 108), ViewGroup.LayoutParams.WRAP_CONTENT);
             vlp.leftMargin = Style.dp(c, allFour ? 20 : 8);
             vlp.rightMargin = Style.dp(c, allFour ? 20 : 8);
             box.addView(val, vlp);
@@ -912,7 +1024,8 @@ public final class DiaryEntryDialog {
             }
             LinearLayout wWrap = new LinearLayout(c);
             wWrap.setOrientation(LinearLayout.VERTICAL);
-            addNColumnGrid(wWrap, where, 4, 8);
+            // 2x2 grid so longer localized labels (e.g. "Dianteira esq.") never clip
+            addNColumnGrid(wWrap, where, 2, 10);
             LinearLayout.LayoutParams lp1 = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             lp1.topMargin = Style.dp(c, 8);
@@ -921,7 +1034,7 @@ public final class DiaryEntryDialog {
             TextView l2 = subtleLabel(c.getString(R.string.diary_noise_when));
             LinearLayout.LayoutParams l2p = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            l2p.topMargin = Style.dp(c, 14);
+            l2p.topMargin = Style.dp(c, 16);
             adaptiveBox.addView(l2, l2p);
 
             List<View> when = new ArrayList<>();
@@ -934,7 +1047,7 @@ public final class DiaryEntryDialog {
             }
             LinearLayout whWrap = new LinearLayout(c);
             whWrap.setOrientation(LinearLayout.VERTICAL);
-            addNColumnGrid(whWrap, when, 3, 8);
+            addNColumnGrid(whWrap, when, 3, 10);
             LinearLayout.LayoutParams lp2 = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             lp2.topMargin = Style.dp(c, 8);
@@ -945,13 +1058,13 @@ public final class DiaryEntryDialog {
             TextView tv = new TextView(c);
             tv.setText(label);
             tv.setTextColor(Style.TEXT);
-            tv.setTextSize(16f);
+            tv.setTextSize(17f);
             tv.setTypeface(null, active ? Typeface.BOLD : Typeface.NORMAL);
             tv.setGravity(Gravity.CENTER);
-            tv.setMinimumHeight(Style.dp(c, 48));
-            tv.setMaxLines(1);
+            tv.setMinimumHeight(Style.dp(c, 50));
+            tv.setSingleLine(true);
             tv.setEllipsize(TextUtils.TruncateAt.END);
-            tv.setPadding(Style.dp(c, 10), Style.dp(c, 8), Style.dp(c, 10), Style.dp(c, 8));
+            tv.setPadding(Style.dp(c, 14), Style.dp(c, 10), Style.dp(c, 14), Style.dp(c, 10));
             tv.setBackground(active
                 ? roundedRect(accentTint(), Style.ACCENT, 2, 99)
                 : roundedRect(wellFill(), borderColor(), 1, 99));
@@ -1034,7 +1147,7 @@ public final class DiaryEntryDialog {
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
             row.setPadding(Style.dp(c, 16), Style.dp(c, 10), Style.dp(c, 14), Style.dp(c, 10));
-            row.setMinimumHeight(Style.dp(c, 52));
+            row.setMinimumHeight(Style.dp(c, 54));
             row.setBackground(checked
                 ? roundedRect(accentTint(), Style.ACCENT, 2, 16)
                 : roundedRect(wellFill(), borderColor(), 1, 16));
@@ -1056,9 +1169,9 @@ public final class DiaryEntryDialog {
             TextView tv = new TextView(c);
             tv.setText(label);
             tv.setTextColor(Style.TEXT);
-            tv.setTextSize(16.5f);
+            tv.setTextSize(17f);
             tv.setTypeface(null, checked ? Typeface.BOLD : Typeface.NORMAL);
-            tv.setMaxLines(1);
+            tv.setSingleLine(true);
             tv.setEllipsize(TextUtils.TruncateAt.END);
             row.addView(tv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
@@ -1095,8 +1208,6 @@ public final class DiaryEntryDialog {
             final Context app = c.getApplicationContext();
 
             if (cat == CarDiary.Category.TIRE_PRESSURE) {
-                // Infer cold/warm automatically from CarDb trip & park history when logging today;
-                // omit (null) for past dates or when no data exists.
                 final int[] snap = {psi[0], psi[1], psi[2], psi[3]};
                 Runnable commit = () -> {
                     Boolean cold = isToday ? CarDiary.inferColdTires(app, tsMs) : null;
