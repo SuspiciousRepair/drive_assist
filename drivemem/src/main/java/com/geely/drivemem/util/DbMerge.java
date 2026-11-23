@@ -34,7 +34,8 @@ public final class DbMerge {
     static final String[] ID_TABLES = {
         "telemetry_sample", "trip", "charge_session", "park_session",
         "comfort_event", "battery_health_reading", "charge_stop_event",
-        "valet_session", "trip_energy_segment", "trip_point"};
+        "valet_session", "trip_energy_segment", "trip_point",
+        "diary_event", "aux_12v_reading"};
 
     /** column -> table it points at, per table. */
     static final Map<String, Map<String, String>> REFS = new LinkedHashMap<>();
@@ -54,6 +55,9 @@ public final class DbMerge {
         Map<String, String> stop = new LinkedHashMap<>();
         stop.put("session_id", "charge_session");
         REFS.put("charge_stop_event", stop);
+        Map<String, String> diary = new LinkedHashMap<>();
+        diary.put("parent_id", "diary_event");
+        REFS.put("diary_event", diary);
     }
 
     /** What happened, per table. offsets: how far each table's live ids moved,

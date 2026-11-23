@@ -48,6 +48,8 @@ Property IDs and scales of the car's own (VHAL) properties are in
 | `car.carplay_connected` | CarPlay link (from `CarplayState`) | every 4 s |
 | `car.tire_warn_fl`, `car.tire_warn_fr`, `car.tire_warn_rl`, `car.tire_warn_rr` | soft-tyre warning per wheel (`TireWarning`), raw value: 0 = no warning. **No pressures**: this car's warning is indirect (ITPMS_TYRE_WARN, wheel speeds), the pressure properties are "not supported". The value of a real warning is not yet seen; anything not 0 counts as a warning | every 10 s |
 | `car.tire_warn` | 1 when any wheel warns, else 0 (derived) | when a wheel changes |
+| `car.aux_12v_v` | auxiliary 12V battery rail voltage, V (`BODY_BATTERY_U_BATT_INFO`, `557875206`, `raw × 0.1 V`, 0.1 V steps). Works without OBD2 or CAN (`Aux12vHub`) | every 10 s |
+| `car.aux_12v_low` | factory low-12V battery / power-saving flag (`557883432` / `557887632`), 1 when active else 0 (`Aux12vHub`) | every 15 s |
 
 ### `telemetry.tick`: the 30-second snapshot
 
@@ -145,7 +147,8 @@ replays the trip's rows once, then adds one tick at a time.
 ### Events
 
 `trip.completed`, `charge.completed`, `charge.cost_updated`,
-`charge.dismissed`, `parking.changed`, `valet.changed`, `valet.progress`.
+`charge.dismissed`, `parking.changed`, `valet.changed`, `valet.progress`,
+`diary.changed`.
 
 ## 3. Which value exists in which setup
 

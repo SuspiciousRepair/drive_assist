@@ -32,7 +32,7 @@ public final class CarDb extends SQLiteOpenHelper {
     // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
     // every write failed until this was bumped past 14. See the v15 entry in
     // onUpgrade below for what v15 itself actually does.
-    private static final int VERSION = 35;
+    private static final int VERSION = 36;
 
     /** SQL predicate for telemetry rows representing driving: gear is not Park (4),
      * or if gear is missing, car is not charging. */
@@ -198,6 +198,8 @@ public final class CarDb extends SQLiteOpenHelper {
 
         createValetSession(db);
         createChargeStopEvent(db);
+        createDiaryEvent(db);
+        createAux12vReading(db);
 
         createDailyStat(db);
     }
@@ -298,6 +300,54 @@ public final class CarDb extends SQLiteOpenHelper {
             + "id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER NOT NULL,"
             + "occurred_ms INTEGER NOT NULL, soc INTEGER, kwh REAL, published INTEGER NOT NULL DEFAULT 0,"
             + "UNIQUE(session_id, occurred_ms))");
+    }
+
+    /** Permanent owner diary events: routine care, cosmetic work, noises,
+     * incidents, and auto-logged car warnings. Kept forever and merged across
+     * backup restores via DbMerge. */
+    public static final String DIARY_EVENT_DDL =
+        "CREATE TABLE IF NOT EXISTS diary_event ("
+        + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        + "uuid TEXT NOT NULL UNIQUE,"
+        + "ts_ms INTEGER NOT NULL,"
+        + "kind TEXT NOT NULL,"
+        + "category TEXT NOT NULL,"
+        + "status TEXT NOT NULL DEFAULT 'DONE',"
+        + "odo_km REAL,"
+        + "outside_temp_c REAL,"
+        + "lat REAL, lon REAL,"
+        + "cost REAL,"
+        + "title TEXT,"
+        + "note TEXT,"
+        + "tags TEXT,"
+        + "clip_name TEXT,"
+        + "parent_id INTEGER,"
+        + "meta_json TEXT)";
+
+    /** Compact 12V auxiliary battery readings (wake, resting, DC-DC active,
+     * warning) for multi-month health trend tracking. */
+    public static final String AUX_12V_READING_DDL =
+        "CREATE TABLE IF NOT EXISTS aux_12v_reading ("
+        + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        + "ts_ms INTEGER NOT NULL,"
+        + "odo_km REAL,"
+        + "voltage_v REAL,"
+        + "phase TEXT NOT NULL,"
+        + "dcdc_active INTEGER,"
+        + "dcdc_amps REAL,"
+        + "outside_temp_c REAL,"
+        + "parked_hours REAL,"
+        + "source TEXT NOT NULL)";
+
+    private static void createDiaryEvent(SQLiteDatabase db) {
+        db.execSQL(DIARY_EVENT_DDL);
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_diary_ts ON diary_event(ts_ms)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_diary_cat_ts ON diary_event(category, ts_ms)");
+    }
+
+    private static void createAux12vReading(SQLiteDatabase db) {
+        db.execSQL(AUX_12V_READING_DDL);
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_aux12v_ts ON aux_12v_reading(ts_ms)");
     }
 
     @Override public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
@@ -562,6 +612,11 @@ public final class CarDb extends SQLiteOpenHelper {
         // page's moving speed. NULL = not stored: the next rollup fills the
         // days the samples still cover, and a read works it out until then.
         if (oldVersion < 35) db.execSQL("ALTER TABLE daily_stat ADD COLUMN " + MOVING_COLUMN_V35);
+        // v36: Car Diary (diary_event) and 12V health history (aux_12v_reading).
+        if (oldVersion < 36) {
+            createDiaryEvent(db);
+            createAux12vReading(db);
+        }
     }
 
     /** sensors.MovingTime's time with a speed above zero, ms per day. */

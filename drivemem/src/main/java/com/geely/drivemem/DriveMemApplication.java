@@ -76,6 +76,8 @@ public final class DriveMemApplication extends Application {
         com.geely.drivemem.sensors.GpsOwner.ensure(this);
         Obd2Reader.ensureStarted(this);   // no-ops unless obd2_enabled is set
         com.geely.drivemem.sensors.BatteryHealth.ensureSubscribed(this);   // keeps obd.soh
+        com.geely.drivemem.state.CarDiary.ensureSubscribed(this);          // auto iTPMS diary events
+        com.geely.drivemem.sensors.Aux12vMonitor.ensureSubscribed(this);   // keeps car.aux_12v_v history
         CanEnergyReader.ensureStarted(this);   // no-ops unless can_energy is set
         // The brake pedal (can.brake) for the dashcam's subtitle line.
         com.geely.drivemem.sensors.DashBrake.ensureSubscribed(this);

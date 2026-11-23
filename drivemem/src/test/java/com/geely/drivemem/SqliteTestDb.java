@@ -119,6 +119,9 @@ public final class SqliteTestDb {
                 "occurred_ms INTEGER NOT NULL, soc INTEGER, kwh REAL, published INTEGER NOT NULL DEFAULT 0," +
                 "UNIQUE(session_id, occurred_ms))",
 
+            com.geely.drivemem.car.CarDb.DIARY_EVENT_DDL,
+            com.geely.drivemem.car.CarDb.AUX_12V_READING_DDL,
+
             "CREATE TABLE daily_stat (" +
                 "date TEXT PRIMARY KEY," +
                 "first_odo_km REAL NOT NULL, last_odo_km REAL NOT NULL," +

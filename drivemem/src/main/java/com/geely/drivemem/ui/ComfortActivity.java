@@ -100,14 +100,18 @@ public class ComfortActivity extends Activity {
     private static final int MODE_CARDS = 0;
     private static final int MODE_DRIVING_STATS = 1;
     private static final int MODE_CHARGE_STATS = 2;
+    private static final int MODE_DIARY = 3;
     private int mainViewMode = MODE_CARDS;
 
     private android.widget.ImageView haStatusIcon, abrpStatusIcon, obd2StatusIcon;
-    private android.widget.ImageView cardsDockIcon, statsDockIcon, chargeDockIcon;
+    private android.widget.ImageView cardsDockIcon, statsDockIcon, chargeDockIcon, diaryDockIcon;
+    private View diaryBadgeDot;
     private DailyStatsView dailyStatsView;
     private FrameLayout statsContainer;
     private ChargeStatsView chargeStatsView;
     private FrameLayout chargeStatsContainer;
+    private CarDiaryView carDiaryView;
+    private FrameLayout diaryContainer;
     private FrameLayout konamiZone;
     // purge: one button, both directions. The Purge object holds where each pane
     // was before it moved, so closing puts them back rather than shutting them.
@@ -369,6 +373,21 @@ public class ComfortActivity extends Activity {
         chargeStatsContainer.addView(chargeStatsScroll);
         chargeStatsContainer.setVisibility(View.GONE);
         screen.addView(chargeStatsContainer, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        // Car Diary & 12V Health view on home screen (swappable with band cards)
+        diaryContainer = new FrameLayout(this);
+        Style.setDriverPadding(diaryContainer, sidebarClearance, padTop + Style.statusBarHeight(this), padH, padV);
+        android.widget.ScrollView diaryScroll = new android.widget.ScrollView(this);
+        diaryScroll.setLayoutParams(new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        diaryScroll.setVerticalScrollBarEnabled(false);
+        diaryScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        carDiaryView = new CarDiaryView(this, this::refreshDiaryBadge);
+        diaryScroll.addView(carDiaryView);
+        diaryContainer.addView(diaryScroll);
+        diaryContainer.setVisibility(View.GONE);
+        screen.addView(diaryContainer, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         // Status sidebar: a fixed strip pinned to the driver's edge, OUTSIDE
@@ -722,12 +741,34 @@ public class ComfortActivity extends Activity {
         cardsDockIcon = createDockButton(R.drawable.ic_cards_view, () -> setMainViewMode(MODE_CARDS));
         statsDockIcon = createDockButton(R.drawable.ic_chart_bar, () -> setMainViewMode(MODE_DRIVING_STATS));
         chargeDockIcon = createDockButton(R.drawable.ic_ev_station, () -> setMainViewMode(MODE_CHARGE_STATS));
+        diaryDockIcon = createDockButton(R.drawable.ic_diary, () -> setMainViewMode(MODE_DIARY));
+
+        // Wrap diary dock button with an iOS-style notification dot overlay
+        FrameLayout diaryWrap = new FrameLayout(this);
+        int dockSize = Style.dp(this, 62);
+        LinearLayout.LayoutParams dwLp = new LinearLayout.LayoutParams(dockSize, dockSize);
+        dwLp.gravity = Gravity.CENTER_HORIZONTAL;
+        diaryDockIcon.setLayoutParams(new FrameLayout.LayoutParams(dockSize, dockSize));
+        diaryWrap.addView(diaryDockIcon);
+        diaryBadgeDot = new View(this);
+        android.graphics.drawable.GradientDrawable dotBg = new android.graphics.drawable.GradientDrawable();
+        dotBg.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        dotBg.setColor(Style.WARN);
+        diaryBadgeDot.setBackground(dotBg);
+        int dotPx = Style.dp(this, 10);
+        FrameLayout.LayoutParams dotLp = new FrameLayout.LayoutParams(dotPx, dotPx, Gravity.TOP | Gravity.END);
+        dotLp.topMargin = Style.dp(this, 6);
+        dotLp.rightMargin = Style.dp(this, 6);
+        diaryBadgeDot.setVisibility(View.GONE);
+        diaryWrap.addView(diaryBadgeDot, dotLp);
 
         bar.addView(cardsDockIcon);
         Style.gap(bar, this, 14);
         bar.addView(statsDockIcon);
         Style.gap(bar, this, 14);
         bar.addView(chargeDockIcon);
+        Style.gap(bar, this, 14);
+        bar.addView(diaryWrap, dwLp);
 
         // Flexible space pushing settings cog to the bottom
         View spacerBottom = new View(this);
@@ -763,21 +804,32 @@ public class ComfortActivity extends Activity {
             band.setVisibility(View.GONE);
             statsContainer.setVisibility(View.VISIBLE);
             chargeStatsContainer.setVisibility(View.GONE);
+            if (diaryContainer != null) diaryContainer.setVisibility(View.GONE);
             if (konamiZone != null) konamiZone.setVisibility(View.GONE);
             if (dailyStatsView != null) dailyStatsView.refresh();
         } else if (mainViewMode == MODE_CHARGE_STATS) {
             band.setVisibility(View.GONE);
             statsContainer.setVisibility(View.GONE);
             chargeStatsContainer.setVisibility(View.VISIBLE);
+            if (diaryContainer != null) diaryContainer.setVisibility(View.GONE);
             if (konamiZone != null) konamiZone.setVisibility(View.GONE);
             if (chargeStatsView != null) chargeStatsView.showCurrent();
+        } else if (mainViewMode == MODE_DIARY) {
+            band.setVisibility(View.GONE);
+            statsContainer.setVisibility(View.GONE);
+            chargeStatsContainer.setVisibility(View.GONE);
+            if (diaryContainer != null) diaryContainer.setVisibility(View.VISIBLE);
+            if (konamiZone != null) konamiZone.setVisibility(View.GONE);
+            if (carDiaryView != null) carDiaryView.refresh();
         } else {
             statsContainer.setVisibility(View.GONE);
             chargeStatsContainer.setVisibility(View.GONE);
+            if (diaryContainer != null) diaryContainer.setVisibility(View.GONE);
             band.setVisibility(View.VISIBLE);
             if (konamiZone != null) konamiZone.setVisibility(View.VISIBLE);
         }
         updateDockButtons();
+        refreshDiaryBadge();
     }
 
     private void updateDockButtons() {
@@ -790,6 +842,23 @@ public class ComfortActivity extends Activity {
 
         chargeDockIcon.setBackground(Style.card(mainViewMode == MODE_CHARGE_STATS ? Style.CARD_ON : 0x00000000, this, 18));
         chargeDockIcon.setColorFilter(mainViewMode == MODE_CHARGE_STATS ? Style.onFill(Style.CARD_ON) : Style.TEXT_DIM);
+
+        if (diaryDockIcon != null) {
+            diaryDockIcon.setBackground(Style.card(mainViewMode == MODE_DIARY ? Style.CARD_ON : 0x00000000, this, 18));
+            diaryDockIcon.setColorFilter(mainViewMode == MODE_DIARY ? Style.onFill(Style.CARD_ON) : Style.TEXT_DIM);
+        }
+    }
+
+    private void refreshDiaryBadge() {
+        if (diaryBadgeDot == null) return;
+        CarActor a = CarActor.get(this);
+        if (a == null) return;
+        a.runOnCarThread(() -> {
+            boolean show = com.geely.drivemem.state.CarDiary.hasAttentionDot(this);
+            ui.post(() -> {
+                if (diaryBadgeDot != null) diaryBadgeDot.setVisibility(show ? View.VISIBLE : View.GONE);
+            });
+        });
     }
 
     private android.widget.ImageView statusIcon(int drawableRes) {
@@ -837,6 +906,7 @@ public class ComfortActivity extends Activity {
         if (obd2On) obd2StatusIcon.setColorFilter(com.geely.drivemem.sensors.ObdHub.connected(CarActor.get(this)) ? Style.ACCENT : Style.TEXT_DIM);
 
         updateDockButtons();
+        refreshDiaryBadge();
     }
 
     // Gate availability: available() (HA's zone call — "is the car home")
