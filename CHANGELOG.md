@@ -25,6 +25,13 @@
   runs, and once it did not), the helper skipped every later installer as
   "already at version 1", and the car said the update was applied. The
   installer now has the build's version, and the helper never skips it.
+- **Stats page: "Energy by use" now keeps a trip when the app restarts
+  during it.** An app update or restart in the middle of a drive threw
+  away where that trip's energy went, so the trip was left out and the
+  chart showed less than the day's trips used. The app now saves it every
+  30 seconds and takes it back after a restart. A trip loses it only if
+  the restarts together leave out more than about a tenth of the drive.
+  Trips from before this version stay as they are.
 
 ## [v0.11.1] — 2026-11-23
 

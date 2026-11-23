@@ -556,6 +556,64 @@ public final class EnergyIntegrator {
         synchronized (LOCK) { tripSeededMs = Math.max(0, seededMs); }
     }
 
+    /** The open trip's split accumulators, to save while the trip runs
+     * (TripSession, every telemetry tick), so an app restart mid-trip does
+     * not throw the split away. They are only in memory otherwise, and
+     * telemetry_sample does not keep them: on 2026-11-22 four test installs
+     * during one drive left its 18.5 kWh out of the Sankey. One line, so it
+     * goes to SharedPreferences in one write. */
+    public static String splitState() {
+        synchronized (LOCK) {
+            return encodeSplit(new double[]{tripCanNetKwh, tripDriveSpentKwh, tripDriveRegenKwh,
+                tripClimateRawKwh, tripClimateOnMs, tripFanKwh, tripMeasuredMs, tripCanMs, tripSeededMs});
+        }
+    }
+
+    static String encodeSplit(double[] v) {
+        StringBuilder b = new StringBuilder("1");
+        for (double d : v) b.append(';').append(d);
+        return b.toString();
+    }
+
+    /** The values encodeSplit wrote, or null when the line is not one. */
+    static double[] decodeSplit(String s) {
+        if (s == null) return null;
+        String[] f = s.split(";");
+        if (f.length != 10 || !"1".equals(f[0])) return null;
+        double[] v = new double[9];
+        try {
+            for (int i = 0; i < 9; i++) {
+                v[i] = Double.parseDouble(f[i + 1]);
+                if (!Double.isFinite(v[i])) return null;
+            }
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        return v;
+    }
+
+    /** After startTrip and seedTrip on recovery: puts back the split that
+     * splitState saved. lostMs is the time since that save, which no sample
+     * covered: it counts as time CAN did not measure, as seedTrip's does.
+     * False (nothing changed) when the line is not a saved split. */
+    public static boolean restoreSplit(String saved, long lostMs) {
+        double[] v = decodeSplit(saved);
+        if (v == null) return false;
+        synchronized (LOCK) {
+            tripCanNetKwh = v[0];
+            tripDriveSpentKwh = v[1];
+            tripDriveRegenKwh = v[2];
+            tripClimateRawKwh = v[3];
+            tripClimateOnMs = v[4];
+            tripFanKwh = v[5];
+            tripMeasuredMs = (long) v[6];
+            tripCanMs = (long) v[7];
+            long seeded = v[8] >= Long.MAX_VALUE ? Long.MAX_VALUE : (long) v[8];
+            tripSeededMs = seeded == Long.MAX_VALUE ? Long.MAX_VALUE : seeded + Math.max(0, lostMs);
+        }
+        return true;
+    }
+
     /** Stops tracking and returns the accumulated trip energy. */
     public static TripSnapshot endTrip() {
         synchronized (LOCK) {
