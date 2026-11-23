@@ -161,9 +161,17 @@ public class TelemetryActivity extends Activity {
         int sp = Style.dp(this, 12);
         side.setPadding(sp, Style.dp(this, 22) + Style.statusBarHeight(this), sp, sp);
 
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        head.addView(Style.backButton(this, this::finish));
         TextView title = Style.title(this, getString(R.string.cfg_title));
         title.setTextSize(26);
-        LinearLayout head = Style.headerRow(this, Style.backButton(this, this::finish), title);
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tlp.leftMargin = Style.dp(this, 12);
+        title.setLayoutParams(tlp);
+        head.addView(title);
         side.addView(head);
         Style.gap(side, this, 10);
 
@@ -224,7 +232,6 @@ public class TelemetryActivity extends Activity {
         t.setTextSize(15);
         t.setLetterSpacing(0.05f);
         t.setTypeface(null, android.graphics.Typeface.BOLD);
-        t.setGravity(Style.driverGravity());
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.topMargin = Style.dp(this, 14);
@@ -233,7 +240,7 @@ public class TelemetryActivity extends Activity {
         return t;
     }
 
-    // Selected sidebar row: a thin accent bar on the driver edge plus a faint
+    // Selected sidebar row: a thin accent bar on the left edge plus a faint
     // tinted row background, matching this car's own OEM settings menu
     // (thin blue rail + tinted label, sharp -- no glow) instead of the
     // solid filled pill this used before.
@@ -244,7 +251,7 @@ public class TelemetryActivity extends Activity {
         bar.setColor(Style.ACCENT);
         android.graphics.drawable.LayerDrawable ld = new android.graphics.drawable.LayerDrawable(
             new android.graphics.drawable.Drawable[]{row, bar});
-        ld.setLayerGravity(1, Style.driverGravity() | Gravity.FILL_VERTICAL);
+        ld.setLayerGravity(1, Gravity.LEFT | Gravity.FILL_VERTICAL);
         ld.setLayerWidth(1, Style.dp(this, 3));
         return ld;
     }
@@ -253,7 +260,7 @@ public class TelemetryActivity extends Activity {
     private TextView navItem(String label, final int idx) {
         TextView t = new TextView(this);
         t.setText(label); t.setTextSize(26);
-        t.setGravity(Gravity.CENTER_VERTICAL | Style.driverGravity());
+        t.setGravity(Gravity.CENTER_VERTICAL);
         t.setMinHeight(Style.dp(this, 64));   // taller buttons, easy to hit
         t.setPadding(Style.dp(this, 14), Style.dp(this, 14), Style.dp(this, 14), Style.dp(this, 14));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
@@ -283,9 +290,9 @@ public class TelemetryActivity extends Activity {
     private View integrationHeader(Integrations.Integration in) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL | Style.driverGravity());
+        row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(0, 0, 0, Style.dp(this, 18));
-        View back = Style.backButton(this, () -> selectSection(SEC_INTEGRATIONS));
+        row.addView(Style.backButton(this, () -> selectSection(SEC_INTEGRATIONS)));
 
         ImageView icon = new ImageView(this);
         android.graphics.drawable.GradientDrawable badge = new android.graphics.drawable.GradientDrawable();
@@ -298,15 +305,14 @@ public class TelemetryActivity extends Activity {
         icon.setImageTintList(android.content.res.ColorStateList.valueOf(0xFFFFFFFF));
         LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(Style.dp(this, 48), Style.dp(this, 48));
         ilp.leftMargin = Style.dp(this, 16);
-        icon.setLayoutParams(ilp);
+        row.addView(icon, ilp);
 
         TextView name = Style.title(this, getString(in.nameRes));
         name.setTextSize(24);
         LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         nlp.leftMargin = Style.dp(this, 14);
-        name.setLayoutParams(nlp);
-        Style.addMirrored(row, 0, back, icon, name);
+        row.addView(name, nlp);
         return row;
     }
 

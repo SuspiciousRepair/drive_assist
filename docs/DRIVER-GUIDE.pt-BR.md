@@ -48,9 +48,10 @@ desligue para um ajuste que você prefere mudar na tela do próprio carro.
 
 Os ajustes ficam em **Config**: Portas, Climatização, Modo de condução, Elementos
 (o que aparece na tela inicial), Aparência (temas, dia/noite automático e **Lado
-do motorista**: Automático, Esquerdo ou Direito, espelhando a barra lateral, os
-cartões, o painel flutuante e a arte para carros com volante à direita) e
-Sistema.
+do motorista**: Automático, Esquerdo ou Direito, levando barras laterais,
+colunas de cartões, telas divididas, painel flutuante e arte para o lado do
+motorista em carros com volante à direita, mantendo o conteúdo dos cartões da
+esquerda para a direita) e Sistema.
 
 Os ajustes do veículo são aplicados pelo pequeno auxiliar **ModeHelper**,
 instalado junto com o Drive Assist. O painel e o auxiliar privilegiado ficam

@@ -58,8 +58,17 @@ public class CleanupActivity extends Activity {
         root.setPadding(pad, pad + Style.statusBarHeight(this), pad, pad);
 
         // header: back + title (a destructive screen needs a visible way out)
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        head.addView(Style.backButton(this, this::finish));
         TextView t = Style.title(this, getString(R.string.cleanup_title)); t.setTextSize(22);
-        root.addView(Style.headerRow(this, Style.backButton(this, this::finish), t));
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tlp.leftMargin = Style.dp(this, 14);
+        t.setLayoutParams(tlp);
+        head.addView(t);
+        root.addView(head);
 
         TextView sub = new TextView(this);
         sub.setTextColor(Style.TEXT_DIM); sub.setTextSize(14);

@@ -277,37 +277,6 @@ public class Style {
         }
     }
 
-    /** Builds a horizontal screen header row mirrored for RHD:
-     * LHD: [back, title, (spacer), trailing...], RHD: [trailing..., (spacer), title, back]. */
-    public static LinearLayout headerRow(Context c, View backBtn, View title, View... trailing) {
-        LinearLayout row = new LinearLayout(c);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL | driverGravity());
-        row.setLayoutParams(new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        java.util.List<View> items = new java.util.ArrayList<>();
-        if (backBtn != null) items.add(backBtn);
-        if (title != null) items.add(title);
-        java.util.List<View> trail = new java.util.ArrayList<>();
-        if (trailing != null) {
-            for (View t : trailing) if (t != null) trail.add(t);
-        }
-        boolean titleWeighted = title != null
-            && title.getLayoutParams() instanceof LinearLayout.LayoutParams
-            && ((LinearLayout.LayoutParams) title.getLayoutParams()).weight > 0f;
-        if (titleWeighted && title instanceof TextView) {
-            ((TextView) title).setGravity(Gravity.CENTER_VERTICAL | driverGravity());
-        }
-        if (!trail.isEmpty() && !titleWeighted) {
-            View spacer = new View(c);
-            spacer.setLayoutParams(new LinearLayout.LayoutParams(0, 1, 1f));
-            items.add(spacer);
-        }
-        items.addAll(trail);
-        addMirrored(row, 14, items.toArray(new View[0]));
-        return row;
-    }
-
     /** Mirrors a normalized [0..1] horizontal coordinate in RHD. */
     public static float mirrorX(float frac) { return RHD ? 1f - frac : frac; }
 
@@ -844,14 +813,6 @@ public class Style {
         return Color.argb(a, r, g, b);
     }
 
-    /** Maps pill index {@code 0..2*max} to its signed HVAC effort level:
-     * LHD goes cold-to-warm ({@code +max..-max}), RHD mirrors warm-to-cold
-     * ({@code -max..+max}) so cold stays on the driver's side matching the
-     * mirrored cooler/warmer tiles. */
-    static int effortPillLevel(int index, int max, boolean rhd) {
-        return rhd ? (index - max) : (max - index);
-    }
-
     /** Creates the effort scale with optional defrosting (dimmed) state. */
     public static android.graphics.Bitmap effortScale(Context c, int w, int h,
             int level, boolean approx, boolean defrosting) {
@@ -877,7 +838,7 @@ public class Style {
 
         float x = 0;
         for (int i = 0; i < 11; i++) {
-            int n = effortPillLevel(i, max, RHD);         // LHD: C5..C1, 0, W1..W5; RHD: W5..W1, 0, C1..C5
+            int n = max - i;                              // C5..C1, 0, W1..W5
             float pw = (n == 0) ? zeroW : sideW;
             android.graphics.RectF r = new android.graphics.RectF(x, 0, x + pw, h);
 

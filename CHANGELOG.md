@@ -5,12 +5,12 @@
 ### Added
 - **Right-hand drive (RHD) layout.** Go to **Config → Appearance → Driver side**
   and choose **Auto**, **Left** or **Right** (default **Auto**, reading the
-  car's steering-wheel side). In right-hand mode, the home sidebar, climate and
-  quick controls, music card, full-bleed art, floating overlay, settings
-  sidebar, statistics card rows and two-pane detail screens mirror to keep
-  primary controls on the driver's side while leaving charts, maps, calendars,
-  date arrows, the 2×2 window grid and text direction left-to-right. Backups
-  keep your choice. Not yet checked on a real right-hand-drive car.
+  car's steering-wheel side). In right-hand mode, the home sidebar, card
+  columns, full-bleed art, floating overlay, settings sidebar and two-pane
+  layouts mirror to keep primary panels on the driver's side while card
+  contents, menus, controls, charts, maps, calendars and text stay
+  left-to-right. Backups keep your choice. Not yet checked on a real
+  right-hand-drive car.
 
 ## [v0.11.2] — 2026-11-23
 

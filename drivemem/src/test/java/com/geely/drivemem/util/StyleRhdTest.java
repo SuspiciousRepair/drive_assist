@@ -87,16 +87,6 @@ public class StyleRhdTest {
         assertEquals(0.5f, Style.mirrorX(0.5f), 1e-6f);
     }
 
-    @Test public void effortPillLevelMirrorsWarmAndColdSides() {
-        int max = 5;
-        int[] expectedLhd = { 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5 };
-        int[] expectedRhd = { -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5 };
-        for (int i = 0; i < 11; i++) {
-            assertEquals("LHD index " + i, expectedLhd[i], Style.effortPillLevel(i, max, false));
-            assertEquals("RHD index " + i, expectedRhd[i], Style.effortPillLevel(i, max, true));
-        }
-    }
-
     @Test public void mirrorIndexReversesOrderOnlyInRhd() {
         for (int n = 1; n <= 4; n++) {
             for (int i = 0; i < n; i++) {

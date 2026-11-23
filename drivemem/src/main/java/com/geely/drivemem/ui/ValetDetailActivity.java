@@ -75,9 +75,17 @@ public class ValetDetailActivity extends Activity {
         int pad = Style.dp(this, 22);
         root.setPadding(pad, pad + Style.statusBarHeight(this), pad, pad);
 
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        head.addView(Style.backButton(this, this::finish));
         title = Style.title(this, getString(R.string.valet_short));
         title.setTextSize(22);
-        root.addView(Style.headerRow(this, Style.backButton(this, this::finish), title));
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tlp.leftMargin = Style.dp(this, 14);
+        head.addView(title, tlp);
+        root.addView(head);
 
         LinearLayout body = new LinearLayout(this);
         body.setOrientation(LinearLayout.HORIZONTAL);

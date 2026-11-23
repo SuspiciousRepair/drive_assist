@@ -49,8 +49,9 @@ would rather change in the car's own screen.
 
 Settings are grouped in **Config**: Doors, Climate, Driving mode, Elements (what
 shows on the home screen), Appearance (themes, Auto day/night, and **Driver
-side**: Auto, Left or Right, mirroring the navigation rail, cards, floating
-controls and art for right-hand-drive cars), and System.
+side**: Auto, Left or Right, moving sidebars, card columns, two-pane layouts,
+floating controls and art to the driver's side for right-hand-drive cars while
+keeping card contents left-to-right), and System.
 
 Vehicle settings are applied through the small **ModeHelper** companion that
 installs with Drive Assist. The dashboard and the privileged helper stay
