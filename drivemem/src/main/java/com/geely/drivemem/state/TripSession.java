@@ -54,6 +54,11 @@ public final class TripSession {
     private static final String PREF_OPEN_START_SAMPLE_ID = "trip_open_start_sample_id";
     private static final String PREF_OPEN_START_ODO_KM = "trip_open_start_odo_km";
     private static final String PREF_OPEN_START_SOC = "trip_open_start_soc";
+    // The open trip's split (EnergyIntegrator.splitState), saved every tick
+    // with the trip start it belongs to and when it was saved.
+    private static final String PREF_OPEN_SPLIT = "trip_open_split";
+    private static final String PREF_OPEN_SPLIT_START_MS = "trip_open_split_start_ms";
+    private static final String PREF_OPEN_SPLIT_SAVED_MS = "trip_open_split_saved_ms";
 
     private static volatile boolean subscribed = false;
 
@@ -238,6 +243,7 @@ public final class TripSession {
         // arrived would otherwise recover a marker with startOdoKm still -1.
         if (backfilled && ctx != null) persistOpenTrip(ctx);
         long now = System.currentTimeMillis();
+        if (ctx != null) persistSplit(ctx, now);
         feedLive(now, data);
         if (ctx != null) publishLive(ctx, num(data.get("odometer"), -1),
             data.get("battery") instanceof Integer ? (Integer) data.get("battery") : -1, now);
@@ -401,6 +407,18 @@ public final class TripSession {
             .remove(PREF_OPEN_START_SAMPLE_ID)
             .remove(PREF_OPEN_START_ODO_KM)
             .remove(PREF_OPEN_START_SOC)
+            .remove(PREF_OPEN_SPLIT)
+            .remove(PREF_OPEN_SPLIT_START_MS)
+            .remove(PREF_OPEN_SPLIT_SAVED_MS)
+            .apply();
+    }
+
+    /** Saves the open trip's split, so a restart keeps it (see recovery). */
+    private static void persistSplit(Context ctx, long now) {
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(PREF_OPEN_SPLIT, EnergyIntegrator.splitState())
+            .putLong(PREF_OPEN_SPLIT_START_MS, startMs)
+            .putLong(PREF_OPEN_SPLIT_SAVED_MS, now)
             .apply();
     }
 
@@ -463,6 +481,14 @@ public final class TripSession {
         EnergyIntegrator.startTrip();
         double[] energy = sumEnergySince(ctx, persistedStartMs, nowMs);
         EnergyIntegrator.seedTrip(energy[0], energy[1], energy[2], Math.max(0, nowMs - persistedStartMs));
+        // The split saved before the restart, when it is this trip's: then
+        // only the time since that save is lost, not the whole trip so far.
+        if (p.getLong(PREF_OPEN_SPLIT_START_MS, -1) == persistedStartMs) {
+            long savedMs = p.getLong(PREF_OPEN_SPLIT_SAVED_MS, -1);
+            if (savedMs > 0 && savedMs <= nowMs) {
+                EnergyIntegrator.restoreSplit(p.getString(PREF_OPEN_SPLIT, null), nowMs - savedMs);
+            }
+        }
         // One replay of the rows already written, so trip.live does not
         // restart from zero after an app update mid-drive. Every later
         // tick is added by feedLive().
