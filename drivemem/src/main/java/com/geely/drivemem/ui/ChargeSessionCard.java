@@ -103,8 +103,13 @@ final class ChargeSessionCard extends LinearLayout {
         x.setBackground(Style.tile(c));
         x.setOnClickListener(v -> r.run());
         LayoutParams lp = new LayoutParams(Style.dp(c, 64), ViewGroup.LayoutParams.MATCH_PARENT);
-        lp.leftMargin = Style.dp(c, 12);
-        addView(x, lp);
+        if (Style.RHD) {
+            lp.rightMargin = Style.dp(c, 12);
+            addView(x, 0, lp);
+        } else {
+            lp.leftMargin = Style.dp(c, 12);
+            addView(x, lp);
+        }
     }
 
     /** Fills the card. gray: Config's grayscale cards. withDate: say when,

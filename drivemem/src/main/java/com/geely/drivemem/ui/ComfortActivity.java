@@ -487,6 +487,9 @@ public class ComfortActivity extends Activity {
         boolean jumbo = lyricsWanted();
         lyricsWantedAtPack = jumbo;
         if (jumbo) {
+            // Detach jumbo first so Style.packIntoColumns' prevCount tracks real
+            // columns only (not the jumbo card itself).
+            detachJumbo();
             // The others first; the jumbo card takes the two columns they
             // leave -- again after the pack's own verify pass, if that one
             // repacks (it clears `columns`).
@@ -1036,17 +1039,19 @@ public class ComfortActivity extends Activity {
 
         LinearLayout textCol = new LinearLayout(this);
         textCol.setOrientation(LinearLayout.VERTICAL);
-        textCol.setGravity(Gravity.CENTER_VERTICAL);
+        textCol.setGravity(Gravity.CENTER_VERTICAL | Style.driverGravity());
         musicTitleView = new TextView(this);
         musicTitleView.setTextColor(Style.TEXT); musicTitleView.setTextSize(25);
         musicTitleView.setTypeface(null, android.graphics.Typeface.BOLD);
         musicTitleView.setMaxLines(1);
         musicTitleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        musicTitleView.setGravity(Style.driverGravity());
         textCol.addView(musicTitleView);
         musicArtistView = new TextView(this);
         musicArtistView.setTextColor(Style.TEXT_DIM); musicArtistView.setTextSize(20);
         musicArtistView.setMaxLines(1);
         musicArtistView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        musicArtistView.setGravity(Style.driverGravity());
         musicArtistView.setPadding(0, Style.dp(this, 4), 0, 0);
         textCol.addView(musicArtistView);
         LinearLayout.LayoutParams textLp =
@@ -1323,6 +1328,7 @@ public class ComfortActivity extends Activity {
         jumboArtView.setLayoutParams(new LinearLayout.LayoutParams(art, art));
         LinearLayout info = new LinearLayout(this);
         info.setOrientation(LinearLayout.VERTICAL);
+        info.setGravity(Style.driverGravity());
         jumboTitleView = headerText(32, true);
         jumboArtistView = headerText(24, false);
         jumboAlbumView = headerText(20, false);
@@ -1410,6 +1416,7 @@ public class ComfortActivity extends Activity {
         if (bold) t.setTypeface(null, android.graphics.Typeface.BOLD);
         t.setMaxLines(1);
         t.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        t.setGravity(Style.driverGravity());
         return t;
     }
 
