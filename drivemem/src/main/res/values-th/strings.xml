@@ -149,11 +149,11 @@
     <string name="cfg_ca_reset_ok">รีเซ็ตใบรับรอง CA เป็นค่าเริ่มต้นแล้ว</string>
 
     <string name="cfg_music_large_card">การ์ดขนาดใหญ่</string>
-    <string name="cfg_music_large_card_hint">ปกอัลบั้มเต็มการ์ด พร้อมแถบเล่น/ข้ามขนาดใหญ่ด้านล่าง ปิดไว้จะแสดงการ์ดขนาดเล็กที่ปกอยู่ข้างชื่อเพลง</string>
+    <string name="cfg_music_large_card_hint">ปกอัลบั้มเต็มการ์ด พร้อมปุ่มเล่นและข้ามขนาดใหญ่</string>
     <string name="cfg_lyrics_search">ค้นหาเนื้อเพลง</string>
-    <string name="cfg_lyrics_search_hint">ค้นหาเนื้อเพลงของแต่ละเพลง และปุ่มเนื้อเพลงบนการ์ดเพลงจะเปิดเนื้อเพลงตามจังหวะเพลง บนการ์ดกว้างสองคอลัมน์และสูงเต็มจอ ปุ่ม ✕ ปิดเนื้อเพลง การ์ดจะจำตัวเลือกล่าสุดของคุณ ว่าเปิดหรือปิด จากเพลงหนึ่งไปอีกเพลง และจะเป็นขนาดปกติเมื่อแผง Home Assistant แสดงอยู่ หรือเมื่อการ์ดอื่นต้องใช้มากกว่าหนึ่งคอลัมน์ เพื่อค้นหาเนื้อเพลง ชื่อเพลง ศิลปิน และอัลบั้มจะถูกส่งไปที่ lrclib.net ซึ่งเป็นเว็บเนื้อเพลงฟรี หากปิดไว้ จะไม่มีการส่งข้อมูลใดๆ</string>
+    <string name="cfg_lyrics_search_hint">ส่งชื่อเพลง ศิลปิน และอัลบั้มไปที่ lrclib.net เพื่อค้นหาเนื้อเพลง ปิดไว้: ไม่มีการส่งข้อมูลใดๆ</string>
     <string name="cfg_bt_music">เพลงจากโทรศัพท์</string>
-    <string name="cfg_bt_music_hint">แสดงการ์ดเพลงบนหน้าจอหลัก: สิ่งที่โทรศัพท์เล่นผ่านรถ (บลูทูธ, Apple CarPlay หรือ Android Auto) จากแอปใดก็ได้ พร้อมปุ่มเล่นและข้าม Drive Assist อ่านข้อมูลนี้จากแอปเพลงของรถเอง ไม่ต้องขอสิทธิ์ใด ๆ ไม่มีข้อมูลใดออกจากรถ</string>
+    <string name="cfg_bt_music_hint">แสดงเพลงที่โทรศัพท์เล่นในรถ จากแอปใดก็ได้</string>
     <string name="music_play_label">เล่น</string>
     <string name="music_skip_label">ข้าม</string>
     <string name="music_lyrics_label">เนื้อเพลง</string>
@@ -607,7 +607,7 @@
     <string name="int_abrp_name">ABRP</string>
     <string name="int_abrp_desc">ข้อมูลสดสำหรับ A Better Route Planner</string>
     <string name="int_music_name">เพลง</string>
-    <string name="int_music_desc">เพลงที่โทรศัพท์เล่นและเนื้อเพลง บนหน้าจอหลัก</string>
+    <string name="int_music_desc">เพลงจากโทรศัพท์และเนื้อเพลง บนหน้าจอหลัก</string>
     <string name="int_status_connected">เชื่อมต่อแล้ว</string>
     <string name="int_status_searching">กำลังค้นหา…</string>
     <string name="int_status_needs_setup">ต้องตั้งค่า</string>

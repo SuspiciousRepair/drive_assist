@@ -151,11 +151,11 @@
     <string name="cfg_ca_reset_ok">Certificado CA redefinido para o padrão.</string>
 
     <string name="cfg_music_large_card">Cartão grande</string>
-    <string name="cfg_music_large_card_hint">A capa do álbum preenche o cartão, com uma faixa grande de Play/Avançar embaixo. Desligado mostra o cartão menor, com a capa ao lado do título.</string>
+    <string name="cfg_music_large_card_hint">A capa ocupa o cartão, com botões grandes de Tocar e Avançar.</string>
     <string name="cfg_lyrics_search">Busca de letras</string>
-    <string name="cfg_lyrics_search_hint">Busca a letra de cada música, e o botão Letra do cartão de música abre a letra no tempo da música, num cartão de duas colunas e da altura toda. ✕ fecha. O cartão lembra a sua última escolha, aberta ou fechada, de uma música para a outra. Fica normal quando o painel do Home Assistant aparece, ou quando os outros cartões precisam de mais de uma coluna. Para achar a letra, os nomes da música, do artista e do álbum vão para lrclib.net, um site gratuito de letras. Desligado: nada é enviado.</string>
+    <string name="cfg_lyrics_search_hint">Envia música, artista e álbum ao lrclib.net para achar a letra. Desligado: nada é enviado.</string>
     <string name="cfg_bt_music">Música do celular</string>
-    <string name="cfg_bt_music_hint">Mostra o cartão de música na tela inicial: o que o celular toca pelo carro (Bluetooth, Apple CarPlay ou Android Auto), de qualquer app, com Tocar e Avançar. O Drive Assist lê isso dos próprios apps de música do carro. Nenhuma permissão é necessária. Nada sai do carro.</string>
+    <string name="cfg_bt_music_hint">Mostra o que o celular toca no carro, de qualquer app.</string>
     <string name="music_play_label">Tocar</string>
     <string name="music_skip_label">Avançar</string>
     <string name="music_lyrics_label">Letra</string>
@@ -603,7 +603,7 @@
     <string name="int_abrp_name">ABRP</string>
     <string name="int_abrp_desc">Dados ao vivo para o A Better Route Planner.</string>
     <string name="int_music_name">Música</string>
-    <string name="int_music_desc">O que o celular toca, e a letra, na tela inicial.</string>
+    <string name="int_music_desc">A música do celular e a letra, na tela inicial.</string>
     <string name="int_status_connected">Conectado</string>
     <string name="int_status_searching">Procurando…</string>
     <string name="int_status_needs_setup">Falta configurar</string>

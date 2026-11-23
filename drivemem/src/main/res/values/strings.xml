@@ -163,11 +163,11 @@
     <string name="cfg_ca_reset_ok">CA certificate reset to default.</string>
 
     <string name="cfg_music_large_card">Large card</string>
-    <string name="cfg_music_large_card_hint">Album art fills the card, with a big Play/Skip band underneath. Off shows the smaller card with the art beside the title.</string>
+    <string name="cfg_music_large_card_hint">The cover fills the card, with big Play and Skip buttons.</string>
     <string name="cfg_lyrics_search">Lyrics search</string>
-    <string name="cfg_lyrics_search_hint">Looks up the words of each song, and the Lyrics button on the music card opens them in time with the song, on a card two columns wide and the full height. ✕ closes them. The card remembers your last choice, open or closed, from song to song. It stays normal when the Home Assistant panel is up, or when the other cards need more than one column. To find lyrics, the song, artist and album names go to lrclib.net, a free lyrics site. Off: nothing is sent.</string>
+    <string name="cfg_lyrics_search_hint">Sends the song, artist and album to lrclib.net to find the lyrics. Off: nothing is sent.</string>
     <string name="cfg_bt_music">Phone music</string>
-    <string name="cfg_bt_music_hint">Shows the music card on the home screen: what your phone plays through the car (Bluetooth, Apple CarPlay or Android Auto), from any app, with Play and Skip. Drive Assist reads it from the car\'s own music apps. No permission is needed. Nothing leaves the car.</string>
+    <string name="cfg_bt_music_hint">Shows what your phone plays in the car, from any app.</string>
     <string name="music_play_label">Play</string>
     <string name="music_skip_label">Skip</string>
     <string name="music_lyrics_label">Lyrics</string>
@@ -618,7 +618,7 @@
     <string name="int_abrp_name">ABRP</string>
     <string name="int_abrp_desc">Live data for A Better Route Planner.</string>
     <string name="int_music_name">Music</string>
-    <string name="int_music_desc">What your phone plays, and its lyrics, on the home screen.</string>
+    <string name="int_music_desc">Your phone\'s music and lyrics, on the home screen.</string>
     <string name="int_status_connected">Connected</string>
     <string name="int_status_searching">Searching…</string>
     <string name="int_status_needs_setup">Needs setup</string>
