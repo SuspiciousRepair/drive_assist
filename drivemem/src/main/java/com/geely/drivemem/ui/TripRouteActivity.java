@@ -178,17 +178,25 @@ public class TripRouteActivity extends Activity {
         Loaded d = new Loaded();
         try {
             Cursor c = CarDb.get(this).db().rawQuery(
-                "SELECT lat, lon, COALESCE(speed_kmh, 0), alt_m, ts_ms FROM trip_point "
+                "SELECT lat, lon, COALESCE(speed_kmh, 0), alt_m, ts_ms, accuracy_m FROM trip_point "
               + "WHERE trip_id = ? ORDER BY ts_ms", new String[]{String.valueOf(tripId)});
             try {
                 int n = c.getCount();
                 d.lat = new double[n]; d.lon = new double[n]; d.speed = new double[n];
                 d.alt = new double[n]; d.ts = new long[n];
+                double[] acc = new double[n];
                 for (int i = 0; c.moveToNext(); i++) {
                     d.lat[i] = c.getDouble(0); d.lon[i] = c.getDouble(1); d.speed[i] = c.getDouble(2);
                     d.alt[i] = c.isNull(3) ? Double.NaN : c.getDouble(3);
                     d.ts[i] = c.getLong(4);
+                    acc[i] = c.isNull(5) ? Double.NaN : c.getDouble(5);
                 }
+                // Heights not trusted yet (trip start, a vague fix) and
+                // heights the car could not have driven to (a GPS jump) are
+                // left out of the chart and the height range.
+                d.alt = com.geely.drivemem.sensors.AltitudeGate.dropJumps(
+                    com.geely.drivemem.sensors.AltitudeGate.dropUnsure(d.alt, d.ts, acc),
+                    TripRouteStats.cumulativeKm(d.lat, d.lon));
             } finally { c.close(); }
             int np = d.lat.length;
             if (np >= 2) {
