@@ -20,8 +20,7 @@
 - **Song lyrics on the music card.** Turn on **Config → Integrations →
   Music → Lyrics search** (off by default). The **Lyrics** button on the
   music card grows it to two columns and the full height of the screen: at
-  the top the art, song, artist and album, in a soft shade of the album
-  art's main colour; under them the line sung now in large type, the line
+  the top the art, song, artist and album; under them the line sung now in large type, the line
   before it and the next two, in time with the song; and Play, Skip and a
   shrink button (two arrows pointing in) at the bottom. The card remembers the last choice, open
   or closed, from song to song. The card keeps its normal size when the Home

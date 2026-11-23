@@ -34,7 +34,6 @@ import com.geely.drivemem.state.TripSession;
 import com.geely.drivemem.state.LiveTrip;
 import com.geely.drivemem.state.TempTrail;
 import com.geely.drivemem.state.ValetSession;
-import com.geely.drivemem.util.ArtColor;
 import com.geely.drivemem.util.BootReceiver;
 import com.geely.drivemem.util.CarMediaSessions;
 import com.geely.drivemem.util.LayoutWait;
@@ -155,7 +154,6 @@ public class ComfortActivity extends Activity {
     // always, with an open-lyrics button. The setting is read on every onResume.
     private LinearLayout musicJumbo;
     private LinearLayout jumboBar, jumboHeader;
-    private View jumboFade;   // the header's colour fading into the card's
     private android.widget.ImageView jumboArtView;
     private TextView jumboTitleView, jumboArtistView, jumboAlbumView;
     private final java.util.List<View> lyricsOpenButtons = new java.util.ArrayList<>();   // on the condensed card
@@ -164,7 +162,6 @@ public class ComfortActivity extends Activity {
     private boolean lyricsOpen;
     private boolean eqAvailable;              // the car's sound settings can be opened (OemSound); read once, at build
     private final java.util.List<android.widget.ImageView> soundGears = new java.util.ArrayList<>();
-    private int jumboFill = 0;   // the cover's main colour, see loadMusicArt()
     // Four lines only: the one just sung, the one sung now, the next two.
     private final TextView[] lyricSlots = new TextView[4];
     private static final int LYRIC_NOW_SLOT = 1;
@@ -1267,10 +1264,9 @@ public class ComfortActivity extends Activity {
         return m;
     }
 
-    // The jumbo music card, across both columns: a header on the cover's
-    // main colour with the art, song, artist and album (text near-black or
-    // white, whichever reads on that colour -- ArtColor.textOn); under it, on
-    // the theme's own card colours, four lines of the song -- the one just
+    // The jumbo music card, across both columns, all on the theme's own card
+    // colours (a header tinted from the cover stood out too much): a header
+    // with the art, song, artist and album; under it four lines of the song -- the one just
     // sung (faint), the one sung now (large, full), the next two (half); and
     // a bar at the bottom with Play, Skip and Close lyrics.
     private LinearLayout musicJumbo() {
@@ -1328,12 +1324,6 @@ public class ComfortActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         headLp.setMargins(stroke, stroke, stroke, 0);
         outer.addView(jumboHeader, headLp);
-        // A soft step from the header's colour to the card's, not a hard edge.
-        jumboFade = new View(this);
-        LinearLayout.LayoutParams fadeLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 72));
-        fadeLp.setMargins(stroke, 0, stroke, 0);
-        outer.addView(jumboFade, fadeLp);
 
         // Fixed slots, centred between the header and the bar. Each keeps two
         // lines of room, so a long lyric line never moves the others.
@@ -1391,23 +1381,11 @@ public class ComfortActivity extends Activity {
     // Before any cover arrives: the theme's own colours.
     private void paintJumbo() {
         if (jumboHeader == null) return;
-        int card = Style.cardPaint(Style.cardFillColor());
-        int fill = jumboFill != 0 ? Style.blend(jumboFill, card, 0.5f) : card;
-        int text = jumboFill != 0 ? ArtColor.textOn(fill) : Style.TEXT;
-        jumboHeader.setBackgroundColor(fill);
-        // Eased, not linear: a straight two-stop ramp shows a visible band
-        // where it ends. Four stops curve into the card colour.
-        jumboFade.setBackground(new android.graphics.drawable.GradientDrawable(
-            android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-            new int[]{fill, Style.blend(fill, card, 0.45f), Style.blend(fill, card, 0.85f), card}));
-        jumboTitleView.setTextColor(text);
-        jumboArtistView.setTextColor(text);
-        jumboAlbumView.setTextColor(text);
+        jumboTitleView.setTextColor(Style.TEXT);
+        jumboArtistView.setTextColor(Style.TEXT);
+        jumboAlbumView.setTextColor(Style.TEXT);
         jumboArtistView.setAlpha(0.85f);
         jumboAlbumView.setAlpha(0.7f);
-        // The jumbo header's gear follows the header's text colour.
-        for (android.widget.ImageView g : soundGears)
-            if (g.getParent() == jumboHeader) g.setColorFilter(text, android.graphics.PorterDuff.Mode.SRC_IN);
     }
 
     private void showMusicText(String title, String artist) {
@@ -2119,7 +2097,7 @@ public class ComfortActivity extends Activity {
         }, "music-art").start();
     }
 
-    // Off the UI thread: blur and colour, then swap in -- unless a newer
+    // Off the UI thread: blur, then swap in -- unless a newer
     // picture was asked for meanwhile.
     private void applyMusicArt(String url, android.graphics.Bitmap bmp) {
         final android.graphics.Bitmap fbmp = bmp;
@@ -2127,7 +2105,6 @@ public class ComfortActivity extends Activity {
         // here on the background thread since it's a few extra bitmap
         // ops, cheap next to the network fetch that already happened.
         final android.graphics.Bitmap fblur = fbmp != null ? blurredCopy(fbmp) : null;
-        final int fill = fbmp != null ? coverColor(fbmp) : 0;
         // url.equals(lastMusicArtUrl): a newer fetch may have started (and
         // maybe even finished) while this one was in flight — do not let a
         // slow, stale request stomp a fresher picture that already landed.
@@ -2136,22 +2113,7 @@ public class ComfortActivity extends Activity {
             if (musicArtView != null) musicArtView.setImageBitmap(fbmp);
             if (musicArtBgView != null) musicArtBgView.setImageBitmap(fblur);
             if (jumboArtView != null) jumboArtView.setImageBitmap(fbmp);
-            jumboFill = fill;
-            paintJumbo();
         });
-    }
-
-    // The cover's main colour (ArtColor), from a 24x24 copy: plenty to find
-    // what most of the picture is. 0 when it cannot be read.
-    private static int coverColor(android.graphics.Bitmap src) {
-        try {
-            android.graphics.Bitmap small = android.graphics.Bitmap.createScaledBitmap(src, 24, 24, true);
-            int[] px = new int[24 * 24];
-            small.getPixels(px, 0, 24, 0, 0, 24, 24);
-            return ArtColor.dominant(px, 0);
-        } catch (Throwable t) {
-            return 0;
-        }
     }
 
     // Cheap dependency-free blur: downscale then upscale twice, throwing away
