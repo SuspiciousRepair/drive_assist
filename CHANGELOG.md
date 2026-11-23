@@ -8,6 +8,11 @@
   leaves Park, so an old charge is not on the screen at the next stop. A
   charge that ends after the car left Park never shows. The price can still
   be added in Charging stats.
+- **Charge page: clearer charts and names.** The charts are now three, one
+  under the other, each with its own scale: power, temperature and battery
+  %. The battery temperature is orange and the outside temperature is a thin
+  grey line. **Parked at 100%** is now **Time at 100%**. The cost has a
+  pencil icon, to show that you can tap it to change it.
 
 ## [v0.11.1] — 2026-11-23
 

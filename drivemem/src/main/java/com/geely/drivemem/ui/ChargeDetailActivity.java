@@ -30,9 +30,9 @@ import java.util.Locale;
  * finger moves through both. Right: the numbers, the cost (tap to set it)
  * and the map of where the car charged.
  *
- * "Parked at 100 %" is the time from the end of a charge that reached 100 %
- * to the next drive (the next trip row), or until now when the car has not
- * moved since. It needs no plug sensor. */
+ * "Time at 100 %" is the time from the end of a charge that reached 100 %
+ * to the next drive (the next trip row), or until now ("so far") when the
+ * car has not moved since. It needs no plug sensor. */
 public class ChargeDetailActivity extends Activity {
     static final String EXTRA_CHARGE_ID = "charge_id";
     private static final long LIVE_REFRESH_MS = 15_000L;
@@ -314,7 +314,7 @@ public class ChargeDetailActivity extends Activity {
         long idle = ChargeDetail.idleAtFullMs(d.socEnd, d.endMs, d.nextTripMs, System.currentTimeMillis(), d.active);
         if (idle >= 0) {
             stat(R.string.charge_detail_idle, Style.durationWithUnits(idle, Style.UNIT_SCALE_ROW),
-                getString(d.nextTripMs > 0 ? R.string.charge_detail_idle_next : R.string.charge_detail_idle_now),
+                d.nextTripMs > 0 ? null : getString(R.string.charge_detail_idle_now),
                 Style.WARN, null);
         }
 
@@ -373,7 +373,9 @@ public class ChargeDetailActivity extends Activity {
         v.setTextColor(color);
         v.setTextSize(26);
         v.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        block.addView(v);
+        // Only as wide as the text, so an icon after it sits next to it.
+        block.addView(v, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         if (sub != null) {
             TextView s = new TextView(this);
             s.setText(sub);
@@ -381,7 +383,16 @@ public class ChargeDetailActivity extends Activity {
             s.setTextSize(17);
             block.addView(s);
         }
-        if (onTap != null) block.setOnClickListener(x -> onTap.run());
+        if (onTap != null) {
+            // A pencil after the value says it can be tapped to edit.
+            android.graphics.drawable.Drawable icon = getDrawable(R.drawable.ic_edit_outline).mutate();
+            icon.setTint(Style.ACCENT);
+            int size = Style.dp(this, 26);
+            icon.setBounds(0, 0, size, size);
+            v.setCompoundDrawablesRelative(null, null, icon, null);
+            v.setCompoundDrawablePadding(Style.dp(this, 12));
+            block.setOnClickListener(x -> onTap.run());
+        }
         blocks.add(block);
     }
 }

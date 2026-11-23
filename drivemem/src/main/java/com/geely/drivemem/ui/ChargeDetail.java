@@ -78,9 +78,8 @@ final class ChargeDetail {
 
     /** The °C axis: the range of both temperatures, from a multiple of 5
      * at least 2° under the lowest (so that line does not sit on the
-     * chart's bottom edge, the 0 kW line),
-     * and a multiple of 20 tall, so its four grid steps (the kW grid's) are
-     * whole multiples of 5. Null with no temperature. */
+     * chart's bottom edge), and a multiple of 20 tall, so its grid steps
+     * are whole multiples of 5. Null with no temperature. */
     static float[] tempAxis(float[] a, float[] b) {
         float[] ra = range(a), rb = range(b);
         if (ra == null && rb == null) return null;
