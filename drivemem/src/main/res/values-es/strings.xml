@@ -195,6 +195,9 @@
     <string name="cfg_bar_home_header">Pantalla principal</string>
     <string name="cfg_card_grayscale">Tarjetas en escala de grises</string>
     <string name="cfg_overlay_label">Botón flotante de acceso rápido</string>
+    <string name="cfg_localization_header">Localización</string>
+    <string name="cfg_currency_label">Moneda</string>
+    <string name="cfg_currency_hint">Se muestra en los costos y estadísticas de carga.</string>
     <string name="overlay_climate_label">Climatización</string>
     <string name="overlay_open_app">Abrir app</string>
     <string name="notif_overlay_channel">Botón flotante de acceso rápido</string>
@@ -318,9 +321,11 @@
     <string name="charge_card_soc">%1$d%%</string>
     <string name="charge_card_elapsed">%1$d min cargando</string>
     <string name="charge_card_remaining">~%1$d min hasta el 100%%</string>
+    <string name="charge_card_remaining_short">~%1$s hasta el 100%%</string>
     <string name="charge_card_calculating">Estimando…</string>
     <string name="charge_card_ready">Listo</string>
     <string name="charge_card_unknown">Desconocido</string>
+    <string name="charge_avg_short">prom.</string>
 
     <!-- regen boost -->
     <string name="regen_boost_title">Regen</string>

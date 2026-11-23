@@ -80,6 +80,63 @@ public final class TelemetryBarSection extends LinearLayout {
                     if (android.os.Build.VERSION.SDK_INT >= 26) activity.startForegroundService(svc); else activity.startService(svc);
                 } else activity.stopService(svc);
             }));
+
+        LinearLayout loc = ConfigCards.card(activity, activity.getString(R.string.cfg_localization_header));
+        ConfigCards.add(col, loc);
+        loc.addView(ConfigCards.hint(activity, activity.getString(R.string.cfg_currency_hint)));
+
+        final String[] presets = {"R$", "$", "€", "£", "¥"};
+        final java.util.List<android.widget.TextView> presetBtns = new java.util.ArrayList<>();
+        final android.widget.EditText[] customInputRef = new android.widget.EditText[1];
+
+        Runnable syncPresetSelection = () -> {
+            String cur = com.geely.drivemem.util.Prefs.getCurrency(activity);
+            for (int i = 0; i < presets.length; i++) {
+                boolean sel = presets[i].equals(cur);
+                android.widget.TextView b = presetBtns.get(i);
+                int fill = sel ? Style.CARD_ON : Style.CARD;
+                b.setTextColor(Style.onFill(fill));
+                b.setBackground(Style.card(fill, activity));
+            }
+            if (customInputRef[0] != null && !cur.equals(customInputRef[0].getText().toString().trim())) {
+                customInputRef[0].setText(cur);
+            }
+        };
+
+        LinearLayout presetRow = new LinearLayout(activity);
+        presetRow.setOrientation(LinearLayout.HORIZONTAL);
+        for (String symbol : presets) {
+            boolean sel = symbol.equals(com.geely.drivemem.util.Prefs.getCurrency(activity));
+            android.widget.TextView b = Style.cardButton(activity, symbol, sel, () -> {
+                com.geely.drivemem.util.Prefs.setCurrency(activity, symbol);
+                syncPresetSelection.run();
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            int m = Style.dp(activity, 4);
+            lp.setMargins(m, Style.dp(activity, 6), m, 0);
+            b.setLayoutParams(lp);
+            presetBtns.add(b);
+            presetRow.addView(b);
+        }
+        loc.addView(presetRow);
+
+        android.widget.EditText customCurrency = Style.field(activity, loc,
+            activity.getString(R.string.cfg_currency_label),
+            com.geely.drivemem.util.Prefs.getCurrency(activity),
+            android.text.InputType.TYPE_CLASS_TEXT);
+        customInputRef[0] = customCurrency;
+        LinearLayout saveRow = new LinearLayout(activity);
+        saveRow.setOrientation(LinearLayout.HORIZONTAL);
+        saveRow.addView(Style.button(activity, activity.getString(R.string.cfg_btn_save), Style.ACCENT, () -> {
+            String val = com.geely.drivemem.util.Prefs.normalizeCurrency(customCurrency.getText().toString());
+            com.geely.drivemem.util.Prefs.setCurrency(activity, val);
+            customCurrency.setText(val);
+            syncPresetSelection.run();
+            android.widget.Toast.makeText(activity, activity.getString(R.string.cfg_saved),
+                android.widget.Toast.LENGTH_SHORT).show();
+        }));
+        loc.addView(saveRow);
     }
 
     private LinearLayout toggleRow(Activity activity, String label, boolean on, com.geely.drivemem.controls.GeelySwitch.OnToggle cb) {

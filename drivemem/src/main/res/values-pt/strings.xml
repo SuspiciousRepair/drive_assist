@@ -287,6 +287,9 @@
     <string name="cfg_bar_home_header">Tela inicial</string>
     <string name="cfg_card_grayscale">Cartões em tons de cinza</string>
     <string name="cfg_overlay_label">Botão flutuante de acesso rápido</string>
+    <string name="cfg_localization_header">Localização</string>
+    <string name="cfg_currency_label">Moeda</string>
+    <string name="cfg_currency_hint">Exibida nos custos e estatísticas de recarga.</string>
     <string name="overlay_climate_label">Clima</string>
     <string name="overlay_open_app">Abrir app</string>
     <string name="notif_overlay_channel">Botão flutuante</string>
@@ -436,9 +439,11 @@
     <string name="charge_card_soc">%1$d%%</string>
     <string name="charge_card_elapsed">%1$d min carregando</string>
     <string name="charge_card_remaining">~%1$d min até 100%%</string>
+    <string name="charge_card_remaining_short">~%1$s até 100%%</string>
     <string name="charge_card_calculating">Calculando…</string>
     <string name="charge_card_ready">Pronto</string>
     <string name="charge_card_unknown">Desconhecido</string>
+    <string name="charge_avg_short">méd.</string>
 
     <!-- charge stats & cost tracking -->
     <string name="charge_stats_title">Estatísticas de recarga</string>
