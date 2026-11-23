@@ -116,4 +116,21 @@ public class Aux12vMonitorTest {
         assertEquals(Aux12vMonitor.PHASE_RESTING,
             Aux12vMonitor.classifyPhase(12.9, true, true, false, false));
     }
+
+    @Test
+    public void spuriousWarnAtHealthyVoltageIsIgnoredWhileLowVoltageWarnFaults() {
+        long t0 = 1_800_000_000_000L;
+        List<Aux12vMonitor.Sample> samples = new ArrayList<>();
+        samples.add(new Aux12vMonitor.Sample(t0, 13.9, Aux12vMonitor.PHASE_DCDC, 32.0, null));
+        // Reproduces live EX2 PEPS_WARNING_BATTERY_SAVING firing while bus was 13.9 V
+        samples.add(new Aux12vMonitor.Sample(t0 + 60_000L, 13.9, Aux12vMonitor.PHASE_WARN, 32.0, null));
+        samples.add(new Aux12vMonitor.Sample(t0 + 120_000L, 12.9, Aux12vMonitor.PHASE_RESTING, 31.5, null));
+        Aux12vMonitor.Summary ok = Aux12vMonitor.evaluate(samples, null, t0 + 180_000L, UTC);
+        assertEquals(Aux12vMonitor.Health.GOOD, ok.health);
+
+        // Genuine low-voltage factory warning (< 12.6 V) still triggers FAULT
+        samples.add(new Aux12vMonitor.Sample(t0 + 240_000L, 11.7, Aux12vMonitor.PHASE_WARN, 25.0, null));
+        Aux12vMonitor.Summary bad = Aux12vMonitor.evaluate(samples, null, t0 + 300_000L, UTC);
+        assertEquals(Aux12vMonitor.Health.FAULT, bad.health);
+    }
 }

@@ -249,6 +249,7 @@ public final class Aux12vMonitor {
         boolean alertable = (h == Health.WATCH || h == Health.WEAK || h == Health.FAULT);
         if (alertable && h != lastAlertedHealth) {
             lastAlertedHealth = h;
+            if (hasRecentAutoAlert(ctx, nowMs - 86_400_000L)) return;
             String note = s.latestRestingV != null
                 ? String.format(Locale.US, "%s · %.1f V", h.name(), s.latestRestingV)
                 : h.name();
@@ -257,6 +258,16 @@ public final class Aux12vMonitor {
                 null, null, note, null, null, null, null, null);
         } else if (h == Health.GOOD) {
             lastAlertedHealth = Health.GOOD;
+        }
+    }
+
+    private static boolean hasRecentAutoAlert(Context ctx, long sinceMs) {
+        try (Cursor c = CarDb.get(ctx).db().rawQuery(
+                "SELECT 1 FROM diary_event WHERE category = ? AND ts_ms >= ? LIMIT 1",
+                new String[]{CarDiary.Category.AUX12V_AUTO.name(), String.valueOf(sinceMs)})) {
+            return c.moveToFirst();
+        } catch (Throwable ignored) {
+            return false;
         }
     }
 
@@ -341,7 +352,11 @@ public final class Aux12vMonitor {
         for (Sample s : allSamples) {
             if (batteryReplacedAtMs != null && s.tsMs < batteryReplacedAtMs) continue;
             if (PHASE_WARN.equals(s.phase) && s.tsMs >= warnHorizonMs) {
-                warnFault = true;
+                // Ignore spurious warning flags recorded while the 12V bus is healthy (>= 12.6 V),
+                // e.g. PEPS power-saving prompts logged during normal 13.9 V operation.
+                if (Double.isNaN(s.voltageV) || s.voltageV < 12.60) {
+                    warnFault = true;
+                }
             } else if (PHASE_DCDC.equals(s.phase) && !Double.isNaN(s.voltageV)) {
                 latestReady = s.voltageV;
                 if (s.tsMs >= faultHorizonMs) {

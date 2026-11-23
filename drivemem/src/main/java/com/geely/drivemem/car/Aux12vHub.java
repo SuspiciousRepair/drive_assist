@@ -6,8 +6,11 @@ package com.geely.drivemem.car;
  * Verified live on the EX2 / IHU629G (2026-11-23):
  * - VHAL 557875206 (0x21408006, BODY_BATTERY_U_BATT_INFO): integer in tenths
  *   of a volt (128 = 12.8 V parked; 139..140 = 13.9..14.0 V in READY).
- * - VHAL 557883432 (0x2140a028, VPOWERINFO_BATTERY_LOW) and 557887632
- *   (0x2140b090, PEPS_WARNING_BATTERY_SAVING): 0 normally, non-zero on low 12V.
+ * - VHAL 557883432 (0x2140a028, VPOWERINFO_BATTERY_LOW): 0 normally, non-zero
+ *   on low 12V.
+ * - Note: VHAL 557887632 (0x2140b090, PEPS_WARNING_BATTERY_SAVING) was observed
+ *   firing during normal driving/parking while 12V was 13.9 V (PEPS / ACC power
+ *   saving prompt, not a 12V battery fault), so it is intentionally excluded.
  *
  * Works on every car without an OBD2 dongle or CAN daemon. */
 public final class Aux12vHub {
@@ -17,8 +20,6 @@ public final class Aux12vHub {
     static final int PROP_VOLTAGE = 557875206;
     /** VPOWERINFO_BATTERY_LOW (0x2140a028). */
     static final int PROP_LOW_BATT = 557883432;
-    /** PEPS_WARNING_BATTERY_SAVING (0x2140b090). */
-    static final int PROP_BATT_SAVE = 557887632;
 
     static final int VOLT_POLL_MS = 10_000;
     static final int WARN_POLL_MS = 15_000;
@@ -46,10 +47,8 @@ public final class Aux12vHub {
 
     private static CarActor.Reading readLowWarn(CarAccess c) {
         String a = c.readAny(PROP_LOW_BATT, 0, 'i');
-        String b = c.readAny(PROP_BATT_SAVE, 0, 'i');
-        if (a == null && b == null) return CarActor.Reading.error("no reading");
-        boolean warn = isNonZero(a) || isNonZero(b);
-        return CarActor.Reading.ok(warn ? 1 : 0);
+        if (a == null) return CarActor.Reading.error("no reading");
+        return CarActor.Reading.ok(isNonZero(a) ? 1 : 0);
     }
 
     /** Pure decoder: raw tenths of a volt -> volts, or null if out of band. */
