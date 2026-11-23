@@ -315,7 +315,7 @@ public class ChargeDetailActivity extends Activity {
         if (idle >= 0) {
             stat(R.string.charge_detail_idle, Style.durationWithUnits(idle, Style.UNIT_SCALE_ROW),
                 d.nextTripMs > 0 ? null : getString(R.string.charge_detail_idle_now),
-                Style.WARN, null);
+                Style.TEXT, null);
         }
 
         float[] kwr = ChargeDetail.range(d.kw);
