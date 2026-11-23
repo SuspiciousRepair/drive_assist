@@ -52,11 +52,12 @@ public final class CoverCache {
         return b;
     }
 
-    /** Keeps this cover for the key, if none is kept yet. */
+    /** Keeps this cover for the key, in place of the one kept before: the
+     * player's newest cover is the right one (a grey "no cover" picture
+     * kept once must not stay forever). */
     public static void put(Context ctx, String key, Bitmap b) {
         if (key == null || b == null || b.getWidth() <= 0 || b.getHeight() <= 0) return;
         File f = file(ctx, key);
-        if (f.isFile()) return;
         File dir = f.getParentFile();
         if (dir == null || !(dir.isDirectory() || dir.mkdirs())) return;
         int[] wh = scaled(b.getWidth(), b.getHeight(), MAX_SIDE);
