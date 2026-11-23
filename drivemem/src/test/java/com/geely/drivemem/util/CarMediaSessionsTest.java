@@ -46,4 +46,10 @@ public class CarMediaSessionsTest {
         assertFalse(CarMediaSessions.usable("com.x", false, null, "com.geely.drivemem"));
         assertFalse(CarMediaSessions.usable("com.x", true, "com.x.PRIVATE", "com.geely.drivemem"));
     }
+
+    @Test public void aPausedSongLeavesTheCardAfterTenMinutes() {
+        assertEquals(5_000 + CarMediaSessions.PAUSED_SHOW_MS, CarMediaSessions.pausedHideAt(false, 5_000));
+        assertEquals(0, CarMediaSessions.pausedHideAt(true, 5_000));    // playing: never by this rule
+        assertEquals(0, CarMediaSessions.pausedHideAt(false, 0));       // pause time unknown
+    }
 }

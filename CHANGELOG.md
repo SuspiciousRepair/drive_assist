@@ -28,7 +28,7 @@
   position, so they are exactly in time). When Spotify is playing, the card
   follows Spotify. Drive Assist reads this from the car's own music apps,
   which share it with any app; no permission is asked. Nothing leaves the
-  car for this.
+  car for this. A song paused for more than 10 minutes leaves the card.
 - **A gear on the Spotify card for the car's sound settings.** The small
   gear in the card's top-right corner opens the car's own sound settings,
   with the equalizer presets (Standard, Pop, Rock, ...). On a car whose

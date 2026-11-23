@@ -186,7 +186,16 @@ public final class CarMediaSessions {
             MusicState.setSession(null, null);
             return;
         }
-        long wake = hideAt > 0 ? hideAt : ends;
+        // Paused for long: the phone left, or nobody will press Play again.
+        // A paused session keeps the time it was paused at (Android re-stamps
+        // only a playing one), so this counts from the pause.
+        long pausedHideAt = pausedHideAt(t.playing, st == null ? 0 : st.getLastPositionUpdateTime());
+        if (pausedHideAt > 0 && now >= pausedHideAt) {
+            Log.i(TAG, "music: " + c.getPackageName() + " paused for long, hiding the card");
+            MusicState.setSession(null, null);
+            return;
+        }
+        long wake = hideAt > 0 ? hideAt : ends > 0 ? ends : pausedHideAt;
         if (wake > 0) main.postDelayed(staleCheck, Math.max(0, wake - now) + 1000);
         android.graphics.Bitmap art = m.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
         if (art == null) art = m.getBitmap(MediaMetadata.METADATA_KEY_ART);
@@ -212,6 +221,15 @@ public final class CarMediaSessions {
     static long endsAt(boolean playing, long progressMs, long progressAtMs, long durationMs) {
         if (!playing || durationMs <= 0) return 0;
         return progressAtMs + Math.max(0, durationMs - progressMs);
+    }
+
+    /** How long a paused session stays on the card. */
+    static final long PAUSED_SHOW_MS = 10 * 60_000L;
+
+    /** When a paused session leaves the card (elapsedRealtime): PAUSED_SHOW_MS
+     * after it was paused. 0 while it plays, or when the pause time is unknown. */
+    static long pausedHideAt(boolean playing, long pausedAtMs) {
+        return playing || pausedAtMs <= 0 ? 0 : pausedAtMs + PAUSED_SHOW_MS;
     }
 
     private static String endId;      // the track first seen past its end ...
