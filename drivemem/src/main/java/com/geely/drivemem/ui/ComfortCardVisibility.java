@@ -52,7 +52,7 @@ public final class ComfortCardVisibility {
     }
 
     /**
-     * Music card visible when Spotify has an actual track loaded.
+     * Music card visible when the phone's music session has a track.
      * Starts GONE — nothing to show until a real title arrives.
      */
     public static boolean showMusicCard(String title) {
@@ -61,7 +61,7 @@ public final class ComfortCardVisibility {
 
     /**
      * The jumbo music card (two columns, full height, lyrics), before the
-     * room check: Config's Lyrics on, left open (the driver's last choice),
+     * room check: Config's Lyrics search on, left open (the driver's last choice),
      * music playing, lines for the track. Never with the Home Assistant panel
      * up: the panel needs the room. Parked or driving alike (owner's call,
      * 2026-11-22).

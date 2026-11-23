@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** What the phone plays through the car -- Bluetooth music, Apple CarPlay,
- * Android Auto -- for the music card (MusicState's SESSION source).
+ * Android Auto -- for the music card (MusicState).
  *
  * Each of those car apps offers a media browser service (the standard
  * Android way for a music app to share what it plays), exported and with no
@@ -30,8 +30,8 @@ import java.util.List;
  * is asked or granted for this. A notification listener was used first; it
  * needs an Android screen this head unit does not have.
  *
- * Runs only while the home screen is up (start/stop from ComfortActivity,
- * like SpotifyClient's poll). Follows one session: the one playing, else
+ * Runs only while the home screen is up (start/stop from ComfortActivity).
+ * Follows one session: the one playing, else
  * the first with a title. The position comes straight from the session's
  * PlaybackState (position + the elapsedRealtime it was taken at), so the
  * lyrics follow it exactly. */
@@ -243,17 +243,20 @@ public final class CarMediaSessions {
         return playing || pausedAtMs <= 0 ? 0 : pausedAtMs + PAUSED_SHOW_MS;
     }
 
+    /** How long a session may say "playing" past its song's end before the
+     * card stops believing it. Short drop-outs do not blink the card off. */
+    static final long STALE_GRACE_MS = 30_000;
+
     private static String endId;      // the track first seen past its end ...
     private static long endSeenMs;    // ... at this time
 
     /** When a session still "playing" past its song's end stops being
-     * believed: SpotifyClient.STALE_GRACE_MS after it was first seen there,
-     * the same rule as Spotify's when it cannot be reached. 0 while the song
-     * has not ended (or it is paused, or has no length). */
+     * believed: STALE_GRACE_MS after it was first seen there. 0 while the
+     * song has not ended (or it is paused, or has no length). */
     static long staleAt(String id, long endsAt, long nowMs) {
         if (endsAt <= 0 || nowMs < endsAt) { endId = null; return 0; }
         if (endId == null || !endId.equals(id)) { endId = id; endSeenMs = nowMs; }
-        return endSeenMs + SpotifyClient.STALE_GRACE_MS;
+        return endSeenMs + STALE_GRACE_MS;
     }
 
     // The car's own Bluetooth music app owns the audio source. A play sent
@@ -289,7 +292,7 @@ public final class CarMediaSessions {
         } catch (Throwable t) { Log.w(TAG, "music bt play: " + t); return false; }
     }
 
-    /** A stable id for a session track (sessions give no Spotify id): the
+    /** A stable id for a session track (sessions give no track id): the
      * lyrics cache key. Same artist and title, same key. */
     static String trackKey(String artist, String title) {
         String s = (artist == null ? "" : artist.trim().toLowerCase(java.util.Locale.ROOT)) + "\n"

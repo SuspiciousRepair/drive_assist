@@ -32,7 +32,7 @@ import java.util.List;
  * plus the full certificate import/management UI (client cert, CA cert, TLS tests).
  *
  * Extracted from TelemetryActivity.buildMqtt() and buildCertSection() following the same
- * pattern as TelemetrySpotifySection and TelemetryDoorsSection. */
+ * pattern as TelemetryDoorsSection. */
 public final class TelemetryMqttSection extends LinearLayout {
     private final Activity activity;
     private final TextView status;  // shared with Activity (reused by sections)

@@ -45,7 +45,7 @@ public class LyricsClientTest {
         assertNull(LyricsClient.pickSynced(null, 200));
     }
 
-    @Test public void safeNameKeepsSpotifyIdsAndCleansTheRest() {
+    @Test public void safeNameKeepsSafeIdsAndCleansTheRest() {
         assertEquals("4uLU6hMCjMI75M1A2tKUQC", LyricsClient.safeName("4uLU6hMCjMI75M1A2tKUQC"));
         assertEquals("a_b_c", LyricsClient.safeName("a/b.c"));
     }

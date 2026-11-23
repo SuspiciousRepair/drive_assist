@@ -26,7 +26,7 @@ public class CarMediaSessionsTest {
     }
 
     @Test public void stuckAtTheEndIsStaleAfterTheGrace() {
-        long g = SpotifyClient.STALE_GRACE_MS;
+        long g = CarMediaSessions.STALE_GRACE_MS;
         assertEquals(0, CarMediaSessions.staleAt("a", 190_000, 100_000));       // still playing
         assertEquals(200_000 + g, CarMediaSessions.staleAt("a", 190_000, 200_000)); // first seen at the end
         // Android re-stamps the position on each read: the end moves to "now",

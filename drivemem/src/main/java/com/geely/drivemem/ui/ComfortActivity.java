@@ -43,7 +43,6 @@ import com.geely.drivemem.util.LyricsClient;
 import com.geely.drivemem.util.Modes;
 import com.geely.drivemem.util.OemSound;
 import com.geely.drivemem.util.Prefs;
-import com.geely.drivemem.util.SpotifyClient;
 import com.geely.drivemem.net.Updater;
 import com.geely.drivemem.util.Style;
 
@@ -147,7 +146,7 @@ public class ComfortActivity extends Activity {
     private TextView musicTitleView, musicArtistView;
     private boolean lastMusicAvailable = false;
     private String lastMusicArtUrl = null;   // avoids re-fetching the same art on every state ping
-    private boolean musicLargeCardAtBuild;   // Config > Spotify: "Large card" -- read once like turboEnabledAtBuild
+    private boolean musicLargeCardAtBuild;   // Config > Integrations > Music: "Large card" -- read once like turboEnabledAtBuild
     // Jumbo: the music card grown to two columns and the full height, all
     // lyrics, on the cover's main colour, with Play/Skip/Close at the bottom.
     // Not in `cards`: when lyricsWanted() and the other cards fit in one
@@ -161,7 +160,7 @@ public class ComfortActivity extends Activity {
     private TextView jumboTitleView, jumboArtistView, jumboAlbumView;
     private final java.util.List<View> lyricsOpenButtons = new java.util.ArrayList<>();   // on the condensed card
     // Open or closed: the driver's last choice (✕ or the Lyrics button),
-    // kept across tracks and restarts in Prefs.spotify_lyrics_open.
+    // kept across tracks and restarts (Prefs.getLyricsOpen).
     private boolean lyricsOpen;
     private boolean eqAvailable;              // the car's sound settings can be opened (OemSound); read once, at build
     private final java.util.List<android.widget.ImageView> soundGears = new java.util.ArrayList<>();
@@ -169,15 +168,16 @@ public class ComfortActivity extends Activity {
     // Four lines only: the one just sung, the one sung now, the next two.
     private final TextView[] lyricSlots = new TextView[4];
     private static final int LYRIC_NOW_SLOT = 1;
-    // Config: Lyrics. Off (the default): no lyrics at all -- nothing is sent
-    // to lrclib.net and the card has no Lyrics button. It is both the
-    // consent and the behaviour; see Prefs.getSpotifyLyrics.
+    // Config > Integrations > Music: "Lyrics search". Off (the default): no
+    // lyrics at all -- nothing is sent to lrclib.net and the card has no
+    // Lyrics button. It is both the consent and the behaviour; see
+    // Prefs.getLyricsSearch.
     private boolean lyricsEnabled;
     private boolean lyricsWantedAtPack;     // what the last repack decided from, so refreshLyrics() repacks only on a change
     private Lrc lyricsTickLines;            // the lines the slots show now
     private int lyricIndex = Integer.MIN_VALUE;
-    // Show a line this much before Spotify's position reaches it: the poll's
-    // answer is already a little old when it lands, and the eye needs a beat.
+    // Show a line this much before the session's position reaches it: the
+    // eye needs a beat.
     private static final long LYRICS_LEAD_MS = 400;
     private static final long LYRICS_TICK_MS = 250;
 
@@ -230,9 +230,9 @@ public class ComfortActivity extends Activity {
         themeLight = Style.LIGHT;
         turboEnabledAtBuild = Prefs.getTurboEnabled(this);
         turboSlotsAtBuild = turboSlotsFromPrefs();
-        musicLargeCardAtBuild = Prefs.getSpotifyLargeCard(this);
-        lyricsEnabled = Prefs.getSpotifyLyrics(this);
-        lyricsOpen = Prefs.getSpotifyLyricsOpen(this);
+        musicLargeCardAtBuild = Prefs.getMusicLargeCard(this);
+        lyricsEnabled = Prefs.getLyricsSearch(this);
+        lyricsOpen = Prefs.getLyricsOpen(this);
         eqAvailable = OemSound.intent(this) != null;
         skylineEnabledAtBuild = Prefs.getSkylineEnabled(this);
         skylineSeedAtBuild = Prefs.getSkylineSeed(this, com.geely.drivemem.art.Skyline.DEFAULT_SEED);
@@ -980,12 +980,11 @@ public class ComfortActivity extends Activity {
     }
 
     // Music card: album art + title/artist, then skip/play-pause tiles. Starts
-    // GONE — nothing to show until SpotifyClient's own polling of Spotify's
-    // Web API (not MQTT/Home Assistant -- there is no such path, despite
-    // what this comment used to claim) delivers the first real state via
+    // GONE — nothing to show until the phone's music, read from the car's
+    // media sessions (CarMediaSessions), delivers the first real state via
     // MusicState -- same as Portão, and packed the same re-flowing way
     // (see repackColumns()).
-    // Two layouts, chosen once at build time by Config > Spotify's "Large
+    // Two layouts, chosen once at build time by Config > Music's "Large
     // card" toggle (musicLargeCardAtBuild) -- both wire up the same
     // musicArtView/musicTitleView/musicArtistView fields and musicCard
     // reference, so every other call site (loadMusicArt, the listener,
@@ -1236,7 +1235,7 @@ public class ComfortActivity extends Activity {
 
         LinearLayout btnBand = new LinearLayout(this);
         btnBand.setOrientation(LinearLayout.HORIZONTAL);
-        btnBand.addView(turboStyleHalf(getString(R.string.spotify_play_label), "⏯", MusicState::playPause),
+        btnBand.addView(turboStyleHalf(getString(R.string.music_play_label), "⏯", MusicState::playPause),
             new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         View divider = new View(this);
         LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(Style.dp(this, 1), ViewGroup.LayoutParams.MATCH_PARENT);
@@ -1244,13 +1243,13 @@ public class ComfortActivity extends Activity {
         divider.setBackgroundColor(Style.TEXT_DIM);
         divider.getBackground().setAlpha(60);
         btnBand.addView(divider, divLp);
-        btnBand.addView(turboStyleHalf(getString(R.string.spotify_skip_label), "⏭", MusicState::next),
+        btnBand.addView(turboStyleHalf(getString(R.string.music_skip_label), "⏭", MusicState::next),
             new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         View divider2 = new View(this);
         divider2.setBackgroundColor(Style.TEXT_DIM);
         divider2.getBackground().setAlpha(60);
         btnBand.addView(divider2, new LinearLayout.LayoutParams(divLp));
-        LinearLayout lyrHalf = turboStyleHalf(getString(R.string.spotify_lyrics_label), "", () -> setLyricsOpen(true));
+        LinearLayout lyrHalf = turboStyleHalf(getString(R.string.music_lyrics_label), "", () -> setLyricsOpen(true));
         // An icon, not a glyph: there is no lyrics character.
         TextView glyphSlot = (TextView) lyrHalf.getChildAt(0);
         lyrHalf.removeView(glyphSlot);
@@ -1459,7 +1458,7 @@ public class ComfortActivity extends Activity {
     private void setLyricsOpen(boolean open) {
         if (open == lyricsOpen) return;
         lyricsOpen = open;
-        Prefs.setSpotifyLyricsOpen(this, open);
+        Prefs.setLyricsOpen(this, open);
         if (columns != null) repackColumns();
     }
 
@@ -1522,9 +1521,9 @@ public class ComfortActivity extends Activity {
             MusicState.album(), MusicState.durationMs(), () -> ui.post(this::refreshLyrics));
     }
 
-    // Spotify is polled every 6 s; between polls the position is moved on
-    // here (MusicState.positionNowMs), so the line changes on time. A seek
-    // shows up at the next poll. Views are only touched when the line changes.
+    // The session reports its position when it changes state; between
+    // reports the position is moved on here (MusicState.positionNowMs), so
+    // the line changes on time. A seek shows up at the session's next report. Views are only touched when the line changes.
     private final Runnable lyricsTick = new Runnable() {
         @Override public void run() {
             if (!lyricsShown()) return;
@@ -2845,9 +2844,9 @@ public class ComfortActivity extends Activity {
         if (Prefs.getDriveCardEnabled(this) != driveCardEnabledAtBuild) { recreate(); return; }
         // Same mistake as the skyline comment above describes, made fresh:
         // musicLargeCardAtBuild was read once at onCreate with no onResume
-        // check, so toggling Config > Spotify > "Large card" and coming
+        // check, so toggling Config > Music > "Large card" and coming
         // back to Home did nothing -- reported live. Same fix, same pattern.
-        if (Prefs.getSpotifyLargeCard(this) != musicLargeCardAtBuild) { recreate(); return; }
+        if (Prefs.getMusicLargeCard(this) != musicLargeCardAtBuild) { recreate(); return; }
         // Same again for the skyline settings. This was previously missing
         // the "skyline_enabled" half entirely -- the toggle saved fine but
         // nothing ever told this already-running screen to rebuild art, so
@@ -2902,8 +2901,8 @@ public class ComfortActivity extends Activity {
         // reason: a track can start or end while the screen is off.
         boolean nowMusicAvailable = ComfortCardVisibility.showMusicCard(MusicState.title());
         if (musicCard != null) musicCard.setVisibility(nowMusicAvailable ? View.VISIBLE : View.GONE);
-        lyricsEnabled = Prefs.getSpotifyLyrics(this);   // may have changed in Config
-        lyricsOpen = Prefs.getSpotifyLyricsOpen(this);
+        lyricsEnabled = Prefs.getLyricsSearch(this);   // may have changed in Config
+        lyricsOpen = Prefs.getLyricsOpen(this);
         refreshLyricsButtons();
         if (nowMusicAvailable) {
             showMusicText(MusicState.title(), MusicState.artist());
@@ -2949,9 +2948,8 @@ public class ComfortActivity extends Activity {
         }
         refreshJourneyCard();
         // Screen-scoped, not process-wide like Turbo/the gate: nothing bad
-        // happens if this stops polling while the screen is off, unlike
-        // abandoning a countdown mid-boost.
-        SpotifyClient.startPolling(this);
+        // happens if this stops while the screen is off, unlike abandoning a
+        // countdown mid-boost.
         CarMediaSessions.start(this);   // phone music, when Config allows
         try {
             registerReceiver(updateReceiver, new IntentFilter(Updater.ACTION_UPDATE_AVAILABLE));
@@ -3008,7 +3006,6 @@ public class ComfortActivity extends Activity {
             activeCostDialog = null;
         }
         if (gateCard != null) gateCard.onPause();
-        SpotifyClient.stopPolling();
         CarMediaSessions.stop();
         ui.removeCallbacks(lyricsTick);
         TurboMode.get(this).setListener(null);

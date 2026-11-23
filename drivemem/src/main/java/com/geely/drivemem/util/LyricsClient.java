@@ -8,17 +8,17 @@ import com.geely.drivemem.car.CarAccess;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 
-/** Synced lyrics for the Spotify card, from LRCLIB (lrclib.net).
+/** Synced lyrics for the music card, from LRCLIB (lrclib.net).
  *
- * Spotify's Web API has no lyrics. LRCLIB is a free, open lyrics database
- * with time-stamped (LRC) lines and no API key. What it gets from the car:
- * the track name, the artist, the album and the length. Nothing else, and
- * only while Config's Lyrics switch is on (the callers check it: that
+ * LRCLIB is a free, open lyrics database with time-stamped (LRC) lines and
+ * no API key. What it gets from the car: the track name, the artist, the
+ * album and the length. Nothing else, and only while the "Lyrics search"
+ * switch is on (Config > Integrations > Lyrics; the callers check it: that
  * switch is the driver's consent to this lookup).
  *
- * One request per track, made ahead for the next track in Spotify's queue
- * (prefetch) and else when the track starts. The answer is kept in the cache folder, one file
- * per Spotify track id, so a song heard again costs no network. A track
+ * One request per track, made when the track starts. The answer is kept in
+ * the cache folder, one file per track id (CarMediaSessions.trackKey), so a
+ * song heard again costs no network. A track
  * with no synced lyrics is kept too, as an empty file, and asked again
  * after NONE_RETRY_MS (LRCLIB grows). A network failure is not kept: the
  * next request for that track tries again, at most once per RETRY_MS.
@@ -31,7 +31,7 @@ public final class LyricsClient {
     private static final long NONE_RETRY_MS = 7L * 24 * 3600_000L;
     private static final long RETRY_MS = 60_000L;
     private static final int MAX_FILES = 300;
-    /** A search hit counts only when its length is this close to Spotify's. */
+    /** A search hit counts only when its length is this close to the track's. */
     static final int DURATION_TOLERANCE_S = 3;
 
     private static final java.util.concurrent.ExecutorService io =
@@ -79,19 +79,6 @@ public final class LyricsClient {
             if (!trackId.equals(inFlightId)) return;
             inFlightId = null;
             if (onDone != null) onDone.run();
-        });
-    }
-
-    /** Puts the lyrics of a track that has not started yet (the next in the
-     * queue) in the cache, so they are there at once when it starts. Does
-     * not touch what the card shows. */
-    public static void prefetch(Context ctx, String trackId, String title, String artist,
-                                String album, long durationMs) {
-        if (trackId == null || title == null || title.isEmpty() || artist == null) return;
-        final Context app = ctx.getApplicationContext();
-        io.execute(() -> {
-            try { load(app, trackId, title, artist, album, durationMs); }
-            catch (Throwable t) { Log.w(TAG, "lyrics prefetch: " + t); }
         });
     }
 
@@ -204,7 +191,7 @@ public final class LyricsClient {
         return userAgent;
     }
 
-    /** Spotify ids are base62; anything else is made file-safe all the same. */
+    /** Track ids are made file-safe for the cache file name. */
     static String safeName(String id) {
         return id.replaceAll("[^A-Za-z0-9_-]", "_");
     }

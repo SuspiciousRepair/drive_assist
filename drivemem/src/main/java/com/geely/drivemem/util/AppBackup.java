@@ -752,7 +752,7 @@ public final class AppBackup {
     /** True when the user has set nothing yet: a fresh install. */
     public static boolean looksFresh(Context ctx) {
         Map<String, ?> all = Prefs.file(ctx).getAll();
-        for (String k : new String[]{"mqtt_uri", "abrp_user_token", "spotify_client_id", "theme", "appearance"}) {
+        for (String k : new String[]{"mqtt_uri", "abrp_user_token", "theme", "appearance"}) {
             if (all.containsKey(k)) return false;
         }
         return true;

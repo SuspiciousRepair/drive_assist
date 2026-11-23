@@ -29,8 +29,8 @@ import com.geely.drivemem.util.Style;
  * window lock cannot be read on this car and is not enforced against our
  * writes, so nothing on this page is protected by it.
  *
- * Extracted from TelemetryActivity.buildDoors(), same pattern as
- * TelemetrySpotifySection. */
+ * Extracted from TelemetryActivity.buildDoors(), one View subclass per
+ * Config section. */
 public final class TelemetryDoorsSection extends LinearLayout {
 
     public TelemetryDoorsSection(Activity activity) {

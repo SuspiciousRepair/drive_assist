@@ -26,7 +26,9 @@ public class PhoneRestoreKeysTest {
     /** Settings a phone restore still brings back. */
     private static final String[] ALLOWED = {
         "mqtt_uri", "mqtt_uri_alt", "mqtt_user", "mqtt_pass", "tele_enabled", "tele_interval_s",
-        "abrp_user_token", "abrp_enabled", "spotify_client_id",
+        "abrp_user_token", "abrp_enabled",
+        // the music card and lyrics switches keep their historical names
+        "bt_music", "spotify_lyrics", "spotify_lyrics_open", "spotify_large_card",
         // the owner's choice: the phone settings page edits it too
         "update_url",
         "theme", "appearance", "drive", "regen", Prefs.KEY_DASHCAM_ON, Prefs.KEY_WIFI_KEEP_ON,
