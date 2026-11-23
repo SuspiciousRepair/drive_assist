@@ -90,10 +90,30 @@ public class Aux12vMonitorTest {
     public void dcdcOutOfRangeOrFactoryWarnTriggersFault() {
         long t0 = 1_800_000_000_000L;
         List<Aux12vMonitor.Sample> samples = new ArrayList<>();
-        samples.add(new Aux12vMonitor.Sample(t0, 12.6, Aux12vMonitor.PHASE_RESTING, 20.0, 10.0));
-        samples.add(new Aux12vMonitor.Sample(t0 + 1000L, 15.2, Aux12vMonitor.PHASE_DCDC, 20.0, null));
-        Aux12vMonitor.Summary fault = Aux12vMonitor.evaluate(samples, null, t0 + 2000L, UTC);
+        samples.add(new Aux12vMonitor.Sample(t0, 12.9, Aux12vMonitor.PHASE_RESTING, 20.0, 10.0));
+        // Smart EV float at 12.9 V while driving/charging is healthy, never a fault
+        samples.add(new Aux12vMonitor.Sample(t0 + 1000L, 12.9, Aux12vMonitor.PHASE_DCDC, 20.0, null));
+        Aux12vMonitor.Summary floatOk = Aux12vMonitor.evaluate(samples, null, t0 + 2000L, UTC);
+        assertEquals(Aux12vMonitor.Health.GOOD, floatOk.health);
+
+        // Real DC-DC under-load collapse (<12.1 V while driving) -> FAULT
+        samples.add(new Aux12vMonitor.Sample(t0 + 3000L, 11.8, Aux12vMonitor.PHASE_DCDC, 20.0, null));
+        Aux12vMonitor.Summary lowFault = Aux12vMonitor.evaluate(samples, null, t0 + 4000L, UTC);
+        assertEquals(Aux12vMonitor.Health.FAULT, lowFault.health);
+
+        // Recovery to normal 14.0 V clears transient DC-DC fault
+        samples.add(new Aux12vMonitor.Sample(t0 + 5000L, 14.0, Aux12vMonitor.PHASE_DCDC, 20.0, null));
+        Aux12vMonitor.Summary recovered = Aux12vMonitor.evaluate(samples, null, t0 + 6000L, UTC);
+        assertEquals(Aux12vMonitor.Health.GOOD, recovered.health);
+
+        // Overvoltage (>14.9 V) -> FAULT
+        samples.add(new Aux12vMonitor.Sample(t0 + 7000L, 15.2, Aux12vMonitor.PHASE_DCDC, 20.0, null));
+        Aux12vMonitor.Summary fault = Aux12vMonitor.evaluate(samples, null, t0 + 8000L, UTC);
         assertEquals(Aux12vMonitor.Health.FAULT, fault.health);
         assertNotNull(fault.latestReadyV);
+
+        // Parked + AC charging at 12.9 V classifies as RESTING (not DCDC_CHARGING)
+        assertEquals(Aux12vMonitor.PHASE_RESTING,
+            Aux12vMonitor.classifyPhase(12.9, true, true, false, false));
     }
 }

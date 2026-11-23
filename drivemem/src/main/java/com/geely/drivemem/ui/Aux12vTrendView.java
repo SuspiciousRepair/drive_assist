@@ -28,7 +28,7 @@ import java.util.Locale;
 public final class Aux12vTrendView extends View {
 
     private static final double Y_MIN = 11.8;
-    private static final double Y_MAX = 12.9;
+    private static final double Y_MAX = 13.1;
 
     private List<Aux12vMonitor.TrendPoint> points = Collections.emptyList();
     private Long replacedAtMs;

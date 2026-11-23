@@ -42,13 +42,16 @@ public final class Aux12vMonitor {
     public static final String SOURCE_VHAL = "vhal";
 
     /** Thresholds calibrated against standard 12V lead-acid EV auxiliary behavior
-     * and EX2 parked/READY captures (12.8 V parked, 13.9-14.2 V DC-DC active). */
+     * and EX2 parked/READY captures (12.8-12.9 V parked/float, 13.9-14.2 V DC-DC bulk).
+     * Smart EV DC-DC converters routinely drop to ~12.7-13.1 V float once the 12V
+     * battery is full, so only genuine under-load collapse (<12.1 V) or overvoltage
+     * (>14.9 V) counts as a DC-DC fault. */
     public static final double HEALTHY_RESTING_LIMIT_V = 12.25;
     public static final double WEAK_RESTING_LIMIT_V = 12.05;
     public static final double WEAK_WAKE_SAG_V = 11.60;
     public static final double BASELINE_DROP_WATCH_V = 0.25;
     public static final double DCDC_ON_THRESHOLD_V = 13.30;
-    public static final double DCDC_FAULT_LOW_V = 13.20;
+    public static final double DCDC_FAULT_LOW_V = 12.10;
     public static final double DCDC_FAULT_HIGH_V = 14.90;
 
     static final long WAKE_GAP_MS = 4L * 3600_000L;
@@ -257,12 +260,14 @@ public final class Aux12vMonitor {
         }
     }
 
-    /** Pure phase classifier. */
+    /** Pure phase classifier. While parked & AC charging, the EX2 cycles DC-DC on and off
+     * (resting around 12.8-12.9 V between top-ups), so charging only counts as DCDC_CHARGING
+     * when bus voltage is actually elevated (>= 13.3 V). */
     public static String classifyPhase(double v, boolean parked, boolean charging,
                                        boolean lowWarn, boolean inWakeWindow) {
         if (lowWarn) return PHASE_WARN;
-        if (!parked || charging || v >= DCDC_ON_THRESHOLD_V) return PHASE_DCDC;
-        if (inWakeWindow) return PHASE_WAKE_SAG;
+        if (!parked || v >= DCDC_ON_THRESHOLD_V) return PHASE_DCDC;
+        if (inWakeWindow && !charging) return PHASE_WAKE_SAG;
         return PHASE_RESTING;
     }
 
@@ -328,18 +333,24 @@ public final class Aux12vMonitor {
         List<Sample> resting = new ArrayList<>();
         List<Sample> wakeSags = new ArrayList<>();
         Double latestReady = null;
-        boolean fault = false;
+        boolean warnFault = false;
+        boolean dcdcFault = false;
+        long warnHorizonMs = nowMs - 2L * 86_400_000L;
         long faultHorizonMs = nowMs - 7L * 86_400_000L;
 
         for (Sample s : allSamples) {
             if (batteryReplacedAtMs != null && s.tsMs < batteryReplacedAtMs) continue;
-            if (PHASE_WARN.equals(s.phase) && s.tsMs >= faultHorizonMs) {
-                fault = true;
+            if (PHASE_WARN.equals(s.phase) && s.tsMs >= warnHorizonMs) {
+                warnFault = true;
             } else if (PHASE_DCDC.equals(s.phase) && !Double.isNaN(s.voltageV)) {
                 latestReady = s.voltageV;
-                if (s.tsMs >= faultHorizonMs
-                        && (s.voltageV < DCDC_FAULT_LOW_V || s.voltageV > DCDC_FAULT_HIGH_V)) {
-                    fault = true;
+                if (s.tsMs >= faultHorizonMs) {
+                    if (s.voltageV < DCDC_FAULT_LOW_V || s.voltageV > DCDC_FAULT_HIGH_V) {
+                        dcdcFault = true;
+                    } else if (s.voltageV >= 12.60 && s.voltageV <= 14.70) {
+                        // DC-DC recovered to normal float or charging voltage.
+                        dcdcFault = false;
+                    }
                 }
             } else if (PHASE_WAKE_SAG.equals(s.phase) && !Double.isNaN(s.voltageV)) {
                 wakeSags.add(s);
@@ -348,6 +359,7 @@ public final class Aux12vMonitor {
                 resting.add(s);
             }
         }
+        boolean fault = warnFault || dcdcFault;
 
         // Collapse resting readings to one morning/first-wake point per local day for trend + baseline.
         Map<LocalDate, Sample> dailyFirst = new LinkedHashMap<>();
