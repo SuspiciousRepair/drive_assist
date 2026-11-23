@@ -276,40 +276,42 @@ public class ChargeDetailActivity extends Activity {
         stats.removeAllViews();
         blocks.clear();
         int typeColor = d.dc ? Style.GOOD : Style.ACCENT;
-        stat(R.string.session_stat_battery, d.socStart + "% → " + d.socEnd + "%", null, Style.TEXT, null);
-        stat(R.string.session_stat_charged_energy, String.format(Locale.getDefault(), "+%.1f kWh", d.kwh),
-            null, typeColor, null);
-        stat(R.string.charge_detail_charging, SessionText.duration(d.endMs - d.startMs), null, Style.TEXT, null);
+        // Every unit smaller and dimmer than its number (docs/STYLE-GUIDE.md).
+        stat(R.string.session_stat_battery, Style.percentRange(d.socStart, d.socEnd, Style.UNIT_SCALE_ROW), null, Style.TEXT, null);
+        stat(R.string.session_stat_charged_energy, Style.valueWithUnit(
+            String.format(Locale.getDefault(), "+%.1f", d.kwh), typeColor, "kWh", Style.UNIT_SCALE_ROW), null, Style.TEXT, null);
+        stat(R.string.charge_detail_charging, Style.durationWithUnits(d.endMs - d.startMs, Style.UNIT_SCALE_ROW), null, Style.TEXT, null);
 
         long idle = ChargeDetail.idleAtFullMs(d.socEnd, d.endMs, d.nextTripMs, System.currentTimeMillis(), d.active);
         if (idle >= 0) {
-            stat(R.string.charge_detail_idle, SessionText.duration(idle),
+            stat(R.string.charge_detail_idle, Style.durationWithUnits(idle, Style.UNIT_SCALE_ROW),
                 getString(d.nextTripMs > 0 ? R.string.charge_detail_idle_next : R.string.charge_detail_idle_now),
                 Style.WARN, null);
         }
 
         float[] kwr = ChargeDetail.range(d.kw);
         if (!Double.isNaN(d.avgPowerW)) {
-            stat(R.string.session_stat_avg_power,
-                String.format(Locale.getDefault(), "%.1f kW", d.avgPowerW / 1000.0), null, Style.TEXT, null);
+            stat(R.string.session_stat_avg_power, Style.valueWithUnit(
+                String.format(Locale.getDefault(), "%.1f", d.avgPowerW / 1000.0), null, "kW", Style.UNIT_SCALE_ROW), null, Style.TEXT, null);
         }
         if (kwr != null) {
-            stat(R.string.session_stat_max_power, String.format(Locale.getDefault(), "%.1f kW", kwr[1]),
-                null, Style.TEXT, null);
+            stat(R.string.session_stat_max_power, Style.valueWithUnit(
+                String.format(Locale.getDefault(), "%.1f", kwr[1]), null, "kW", Style.UNIT_SCALE_ROW), null, Style.TEXT, null);
         }
         float[] bt = ChargeDetail.firstLast(d.batT);
         if (bt != null) {
-            stat(R.string.charge_detail_bat_temp_label,
-                String.format(Locale.getDefault(), "%.0f° → %.0f°", bt[0], bt[1]), null, Style.TEXT, null);
+            stat(R.string.charge_detail_bat_temp_label, Style.rangeWithUnit(String.valueOf(Math.round(bt[0])),
+                String.valueOf(Math.round(bt[1])), "°", Style.UNIT_SCALE_ROW), null, Style.TEXT, null);
         }
         float[] ot = ChargeDetail.firstLast(d.outT);
         if (ot != null) {
-            stat(R.string.route_stat_outside,
-                String.format(Locale.getDefault(), "%.0f° → %.0f°", ot[0], ot[1]), null, Style.TEXT, null);
+            stat(R.string.route_stat_outside, Style.rangeWithUnit(String.valueOf(Math.round(ot[0])),
+                String.valueOf(Math.round(ot[1])), "°", Style.UNIT_SCALE_ROW), null, Style.TEXT, null);
         }
         if (!d.active && d.id > 0) {
             boolean hasCost = d.cost != null && d.cost >= 0;
-            String value = hasCost ? Prefs.formatMoney(d.cost) : "+ " + getString(R.string.charge_cost_label);
+            CharSequence value = hasCost ? Style.moneyWithUnit(d.cost, null, Style.UNIT_SCALE_ROW)
+                : "+ " + getString(R.string.charge_cost_label);
             String sub = hasCost && d.kwh > 0 ? Prefs.formatMoneyPerKwh(d.cost / d.kwh) : null;
             stat(R.string.session_stat_cost, value, sub, hasCost ? Style.TEXT : Style.ACCENT, () ->
                 ChargeCostDialog.show(this, d.id, d.kwh, d.socStart, d.socEnd, d.cost, this::reload));
@@ -328,7 +330,7 @@ public class ChargeDetailActivity extends Activity {
 
     // One number: a small dim label, the value, and an optional dim line
     // under it. With onTap, the whole block is a button.
-    private void stat(int label, String value, String sub, int color, Runnable onTap) {
+    private void stat(int label, CharSequence value, String sub, int color, Runnable onTap) {
         LinearLayout block = new LinearLayout(this);
         block.setOrientation(LinearLayout.VERTICAL);
         block.setPadding(0, Style.dp(this, 12), 0, 0);

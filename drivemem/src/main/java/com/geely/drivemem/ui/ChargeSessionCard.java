@@ -126,7 +126,7 @@ final class ChargeSessionCard extends LinearLayout {
             GradientDrawable g = Style.card(Style.cardFillColor(), c, 18);
             g.setStroke(Style.dp(c, 2), gray ? Style.TEXT_DIM : Style.ACCENT);
             costTile.setBackground(g);
-            costTop.setText(s.costLabel());
+            costTop.setText(Style.moneyWithUnit(s.cost, null, Style.UNIT_SCALE_ROW));
             costTop.setTextColor(gray ? Style.TEXT : Style.ACCENT);
             costTop.setTextSize(19);
             String perKwh = s.costPerKwhLabel();

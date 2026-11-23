@@ -9,10 +9,30 @@ the same thing differently, that's the signal to stop and reuse instead.
 ## Numbers and units
 
 **A unit is always smaller and dimmer than the value it's attached to.**
-Never build it as one plain concatenated string (`"20.3 kWh"` as a single
-`TextView.setText`) — that renders the unit at the same size and weight as
-the number, which reads as "these two things matter equally" when they
-don't.
+This is a rule for every screen, card, dialog and chart label that shows a
+number with a unit — no exceptions for "small" places. Never build it as
+one plain concatenated string (`"20.3 kWh"` as a single
+`TextView.setText`, or `String.format("%.1f kW", v)` handed to a view) —
+that renders the unit at the same size and weight as the number, which
+reads as "these two things matter equally" when they don't.
+
+A unit here is anything after (or before) the number that names what it
+counts: kWh, kW, km, km/h, %, °, h and m in a duration, the currency
+symbol. The helper for each:
+
+| Shows | Helper |
+|---|---|
+| `20.3 kWh`, `4.2 kW`, `12 km` | `Style.valueWithUnit` |
+| `24% → 100%` | `Style.percentRange` |
+| `27° → 31°` (any from → to) | `Style.rangeWithUnit` |
+| `3h 12m`, `44m` | `Style.durationWithUnits` |
+| `R$ 35,40` (symbol first) | `Style.moneyWithUnit` |
+| anything else after a number | `Style.appendUnit` |
+
+On a `Canvas` (chart labels, value boxes) draw the unit with its own
+`Paint`: the number's text size × the unit scale, in `Style.TEXT_DIM`.
+`ChargeDetailChartView`'s value box is the example. Axis tick labels are
+the one exception: they are already small and dim as a whole.
 
 Use `Style.valueWithUnit(number, numberColor, unit, unitScale)`:
 - `numberColor`: the color the value itself should render in (`null` to
@@ -21,10 +41,10 @@ Use `Style.valueWithUnit(number, numberColor, unit, unitScale)`:
   figure (a card's headline number), `Style.UNIT_SCALE_ROW` (0.68) for a
   smaller inline one (a session-list row, a live status line).
 
-A currency symbol as a *prefix* ("R$ 12,15") is not covered by this
-helper (it's suffix-only). Money goes through `Prefs.formatMoney` /
-`Prefs.formatMoneyPerKwh`, which put the driver's chosen symbol (Config →
-Elements → Localization) in front. Never write "R$" as a literal.
+Money always uses the driver's chosen symbol (Config → Elements →
+Localization): `Style.moneyWithUnit` on screen, `Prefs.formatMoney` /
+`Prefs.formatMoneyPerKwh` where only plain text works (a CSV, a dim
+sub-line that is already all small). Never write "R$" as a literal.
 
 ## Charging: AC vs DC
 
