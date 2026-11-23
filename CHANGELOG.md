@@ -13,6 +13,11 @@
 - **Music card: press and hold the cover to reload it.** A wrong cover kept
   from another song no longer stays. Holding the cover makes the car forget
   that album's kept cover and take the phone's cover again.
+- **Music card: fix lyrics that are early or late.** Tap the lock at the
+  top of the lyrics card, then tap each line as it is sung. One tap moves
+  every line; more taps also fix lyrics that drift. The car keeps the fix
+  for each song; the turning arrow undoes it, and so does holding the
+  cover.
 
 ### Fixed
 - **Music card: the album name and cover keep up with the song.** A phone

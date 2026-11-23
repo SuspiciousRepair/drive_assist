@@ -107,6 +107,16 @@ public final class Lrc {
         return new Lrc(times, texts);
     }
 
+    /** These lines moved by the owner's timing fix. The same lines when
+     * there is none, or when they have no times. */
+    public Lrc synced(LyricSync sync) {
+        if (sync == null || sync.isEmpty() || times.length == 0) return this;
+        long[] t = new long[times.length];
+        // LyricSync keeps its points rising, so the times stay sorted.
+        for (int i = 0; i < t.length; i++) t[i] = Math.max(0, sync.map(times[i]));
+        return new Lrc(t, texts);
+    }
+
     public int size() { return texts.length; }
     /** Only for timed lyrics. */
     public long timeAt(int i) { return times[i]; }
