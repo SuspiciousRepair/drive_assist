@@ -280,24 +280,18 @@ for target in "${CAR_HOSTS[@]}"; do
   # Updater.installBlockedReason() already refuses to let an OTA install
   # cause while the car is charging (a real DC fast charge was cut short
   # and cost real money, 2026-09-23 — see docs/incidents.md). This cable
-  # path had no such check. Reads the same is_charging the app itself
-  # records, straight from its own database, so it can't disagree with
-  # what the app would say. FORCE_INSTALL=1 overrides, same escape-hatch
-  # shape as NO_GUARD/SKIP_TESTS above.
-  if [ -z "${FORCE_INSTALL:-}" ] && command -v sqlite3 >/dev/null 2>&1; then
-    charge_db=$(mktemp)
-    if adb -s "$target" pull /data/user/0/com.geely.drivemem/databases/car.db "$charge_db" >/dev/null 2>&1; then
-      charging=$(sqlite3 "$charge_db" \
-        "SELECT is_charging FROM telemetry_sample ORDER BY ts_ms DESC LIMIT 1;" 2>/dev/null)
-    else
-      charging=""
-    fi
-    rm -f "$charge_db"
-    if [ "$charging" = "1" ]; then
-      echo "car   -> $target ($model): skipped install — vehicle appears to be charging (FORCE_INSTALL=1 to override)"
-      tried="$tried $target"
-      continue
-    fi
+  # path checks the same thing: the app keeps an open charge in its
+  # preferences (ChargeSession's charge_open_start_ms) from the start of a
+  # charge to its end, so one grep over adb answers it. Pulling the whole
+  # database for this took ~20 s on the car's Wi-Fi, and the car has no
+  # sqlite3. FORCE_INSTALL=1 overrides, same escape-hatch shape as
+  # NO_GUARD/SKIP_TESTS above.
+  if [ -z "${FORCE_INSTALL:-}" ] && adb -s "$target" shell \
+      "grep -q 'name=\"charge_open_start_ms\"' /data/user/0/com.geely.drivemem/shared_prefs/drivemem.xml" \
+      >/dev/null 2>&1; then
+    echo "car   -> $target ($model): skipped install — a charge is open (FORCE_INSTALL=1 to override)"
+    tried="$tried $target"
+    continue
   fi
 
   out=$(adb -s "$target" install -r drive_assist.apk 2>&1 | tail -1 || true)
