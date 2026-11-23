@@ -83,42 +83,50 @@ public final class ComfortCardVisibility {
     }
 
     /**
-     * Charge card shows active charging progress when parked and actively charging.
+     * Charge card shows active charging progress when parked and actively charging,
+     * unless Valet is active (where the purple "End Valet" card stands alone).
      * Charging only makes sense while parked — see CarState's header for why this
      * is a real check, not just tidiness.
      */
     public static boolean showActiveCharging(boolean parked, boolean charging) {
-        return parked && charging;
+        return showActiveCharging(parked, charging, false);
+    }
+
+    public static boolean showActiveCharging(boolean parked, boolean charging, boolean valetActive) {
+        return parked && charging && !valetActive;
     }
 
     /**
-     * Charge card shows completed charge session when one exists and hasn't been dismissed.
+     * Charge card shows completed charge session when one exists and hasn't been dismissed,
+     * unless Valet is active.
      * The dismissal is local (stored in SharedPreferences), doesn't depend on broker.
      */
     public static boolean showCompletedCharging(boolean hasRetainedSession) {
-        return hasRetainedSession;
+        return showCompletedCharging(hasRetainedSession, false);
+    }
+
+    public static boolean showCompletedCharging(boolean hasRetainedSession, boolean valetActive) {
+        return hasRetainedSession && !valetActive;
     }
 
     /**
      * Journey/Drive card visibility. The card shows:
      * - When Valet is active (any time, moving or not)
-     * - When parked (always available as entry point, even if drive card is disabled)
-     * - When driving and drive card is enabled, UNLESS dismissed for this specific trip
+     * - When parked and not actively charging (always available as entry point, even if drive card is disabled;
+     *   while actively charging, the Charging card replaces the Parked card)
+     * - When driving and drive card is enabled
      *
      * The parked entry point remains available even when the optional live drive card
      * is disabled; otherwise Valet could become unreachable.
      */
     public static boolean showJourneyCard(boolean valetActive, boolean parked, boolean driveCardEnabled,
-                                         boolean driving, boolean dismissed) {
-        return valetActive || parked || (driveCardEnabled && driving && !dismissed);
+                                         boolean driving) {
+        return showJourneyCard(valetActive, parked, driveCardEnabled, driving, false);
     }
 
-    /**
-     * Journey card dismiss button (×) visible only while driving, and not when Valet is active.
-     * Can't dismiss while parked or in Valet mode.
-     */
-    public static boolean showJourneyDismissButton(boolean driving, boolean valetActive) {
-        return driving && !valetActive;
+    public static boolean showJourneyCard(boolean valetActive, boolean parked, boolean driveCardEnabled,
+                                         boolean driving, boolean activeCharging) {
+        return valetActive || (parked && !activeCharging) || (driveCardEnabled && driving);
     }
 
     /**

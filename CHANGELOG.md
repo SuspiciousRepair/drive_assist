@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Added
+- **Choose the currency for charge costs.** Go to **Config → Elements →
+  Localization**. Tap R$, $, €, £ or ¥, or type your own symbol and tap
+  Save. The default is R$. All charge costs use it: the home card, the cost
+  window, Charging stats and the Stats page. A backup keeps the choice.
 - **The music card shows what your phone plays, with no sign-in.** Turn on
   **Config → Integrations → Music → Phone music** (off by default). The
   card then shows what the phone plays through the car (Bluetooth, Apple
@@ -19,7 +23,7 @@
   the top the art, song, artist and album, in a soft shade of the album
   art's main colour; under them the line sung now in large type, the line
   before it and the next two, in time with the song; and Play, Skip and a
-  close button at the bottom. The card remembers the last choice, open
+  shrink button (two arrows pointing in) at the bottom. The card remembers the last choice, open
   or closed, from song to song. The card keeps its normal size when the Home
   Assistant panel is up, or when the other cards need more than one
   column; the Lyrics button then says there is no room. The lyrics come from LRCLIB (lrclib.net), a free lyrics site:
@@ -44,6 +48,21 @@
   client ID field.
 
 ### Changed
+- **Home: a smaller charging card with more information.** The card now has
+  two lines, like the trip card. While the car charges, the first line shows
+  the time charging and the time left to 100%. The second line shows the
+  battery level at the start and now, and the energy added. On the right, a
+  tile shows the charging power in kW, with a small power curve. When the
+  charge is done, the card shows the energy added, the time, the battery
+  levels and the average power. Tap the card to open the charge's power
+  curve. Tap the cost tile on the right to add the price. The "Dismiss"
+  button is now inside these two windows, not on the card.
+- **Home: the charging card and the Parked card work together.** While the
+  car charges, the charging card takes the place of the Parked card. When
+  Valet mode is on, the Valet card shows alone, with no charging card.
+- **Home: the trip card has no close button.** The "×" at the end of the
+  first line took room from the text, and the minutes could be cut off. To
+  hide the card, use its switch in Settings.
 - **The Orbit view in the clip player lines up.** Orbit turns the four
   cameras into one view you drag with a finger. Where two cameras met, the
   picture jumped: there was a hard line, and the road on one side did not

@@ -35,6 +35,12 @@ public final class ChargeCostDialog {
     /** Null, with a short note, when the car is not in Park. */
     public static AlertDialog show(Context context, long sessionId, double kwh, int socStart, int socEnd,
                                    Double currentCost, Runnable onUpdated) {
+        return show(context, sessionId, kwh, socStart, socEnd, currentCost, onUpdated, null);
+    }
+
+    /** Null, with a short note, when the car is not in Park. */
+    public static AlertDialog show(Context context, long sessionId, double kwh, int socStart, int socEnd,
+                                   Double currentCost, Runnable onUpdated, Runnable onDismiss) {
         if (!com.geely.drivemem.state.CarState.isParked()) {
             android.widget.Toast.makeText(context, com.geely.drivemem.R.string.charge_cost_parked_only,
                 android.widget.Toast.LENGTH_SHORT).show();
@@ -110,6 +116,15 @@ public final class ChargeCostDialog {
         AlertDialog dialog = builder.setView(card).create();
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        if (onDismiss != null) {
+            TextView btnDismiss = Style.cardButton(context, context.getString(R.string.charge_cost_btn_dismiss), false, () -> {
+                dialog.dismiss();
+                onDismiss.run();
+            });
+            btnRow.addView(btnDismiss);
+            btnRow.addView(new android.view.View(context), new LinearLayout.LayoutParams(0, 1, 1f));
         }
 
         TextView btnCancel = Style.cardButton(context, context.getString(android.R.string.cancel), false, dialog::dismiss);

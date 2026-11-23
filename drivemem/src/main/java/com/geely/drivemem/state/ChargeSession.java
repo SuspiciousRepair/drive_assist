@@ -149,12 +149,12 @@ public final class ChargeSession {
 
         public String costLabel() {
             if (cost == null) return null;
-            return String.format(Locale.getDefault(), "R$ %.2f", cost);
+            return com.geely.drivemem.util.Prefs.formatMoney(cost);
         }
 
         public String costPerKwhLabel() {
             if (cost == null || kwh <= 0) return null;
-            return String.format(Locale.getDefault(), "R$ %.2f/kWh", cost / kwh);
+            return com.geely.drivemem.util.Prefs.formatMoneyPerKwh(cost / kwh);
         }
     }
 
@@ -243,6 +243,9 @@ public final class ChargeSession {
     private static double battWhAccum = 0;
     private static int battSamples = 0;
     private static double maxChargeV = Double.NaN;
+    private static double lastPowerKw = Double.NaN;
+    private static final int MAX_CURVE_POINTS = 64;
+    private static final java.util.List<Float> powerCurveKw = new java.util.ArrayList<>();
     private static double odoStart = -1;
     private static int sampleCount = 0;
     private static boolean wasCharging = false;
@@ -277,6 +280,33 @@ public final class ChargeSession {
     public static long currentStartWallMs() { return startWallMs; }
     public static long currentPauseWallMs() { return pauseWallMs; }
     public static double currentKwh() { return whAccum / 1000.0; }
+    public static double currentPowerKw() { return lastPowerKw; }
+    public static double currentMaxChargeV() { return maxChargeV; }
+    public static boolean currentIsDcfc() { return isDcfc(maxChargeV); }
+    public static boolean currentHasChargeVoltage() { return !Double.isNaN(maxChargeV) && maxChargeV > 0; }
+
+    public static synchronized float[] currentPowerCurveKw() {
+        float[] out = new float[powerCurveKw.size()];
+        for (int i = 0; i < out.length; i++) out[i] = powerCurveKw.get(i);
+        return out;
+    }
+
+    private static synchronized void appendCurvePoint(float kw) {
+        if (!Float.isFinite(kw) || kw <= 0f) return;
+        if (powerCurveKw.size() >= MAX_CURVE_POINTS) {
+            for (int i = 0; i < powerCurveKw.size() / 2; i++) {
+                powerCurveKw.set(i, powerCurveKw.get(i * 2));
+            }
+            while (powerCurveKw.size() > MAX_CURVE_POINTS / 2) {
+                powerCurveKw.remove(powerCurveKw.size() - 1);
+            }
+        }
+        powerCurveKw.add(kw);
+    }
+
+    private static synchronized void clearCurvePoints() {
+        powerCurveKw.clear();
+    }
 
     // Nameplate pack capacity: 39.6 kWh (used for time-to-full estimation).
     // See field-catalog.md for details.
@@ -360,6 +390,20 @@ public final class ChargeSession {
                 battSamples = 0;
                 fullSinceMonoMs = 0;
                 maxChargeV = Double.NaN;
+                lastPowerKw = Double.NaN;
+                clearCurvePoints();
+                if (ctx != null) {
+                    CarActor actor = CarActor.get(ctx);
+                    if (actor != null) {
+                        Float a = asFloat(actor.get("car.charge_a") != null ? actor.get("car.charge_a").value : null);
+                        Float v = asFloat(actor.get("telemetry.charge_v") != null ? actor.get("telemetry.charge_v").value : null);
+                        if (v != null && v > 0) maxChargeV = v;
+                        if (a != null && v != null && a > 0 && v > 0) {
+                            lastPowerKw = (a * v) / 1000.0;
+                            appendCurvePoint((float) lastPowerKw);
+                        }
+                    }
+                }
                 sampleCount = 0;
                 odoStart = -1;
                 currentSessionRowId = -1;
@@ -549,6 +593,8 @@ public final class ChargeSession {
         battSamples = 0;
         fullSinceMonoMs = 0;
         maxChargeV = Double.NaN;
+        lastPowerKw = Double.NaN;
+        clearCurvePoints();
         sampleCount = 0;
         odoStart = -1;
         currentSessionRowId = -1;
@@ -605,6 +651,10 @@ public final class ChargeSession {
         boolean frozenTail = fullSinceMonoMs != 0 && nowMono - fullSinceMonoMs > FULL_TAIL_MS;
         if (odoStart < 0 && odo != null) odoStart = odo;
         if (v != null && v > 0 && (Double.isNaN(maxChargeV) || v > maxChargeV)) maxChargeV = v;
+        if (a != null && v != null && a >= 0 && v > 0 && !frozenTail) {
+            lastPowerKw = (a * v) / 1000.0;
+            appendCurvePoint((float) lastPowerKw);
+        }
         // Rectangular integration at the tick's own cadence (whatever it
         // actually was, measured via nowMono - lastSampleMonoMs — not
         // assumed): this tick's power held for the time since the last
@@ -923,6 +973,7 @@ public final class ChargeSession {
           + "WHERE id BETWEEN ? AND ? ORDER BY id ASC",
             new String[]{String.valueOf(fromSampleId), String.valueOf(endSampleId)});
         try {
+            clearCurvePoints();
             java.util.List<Object[]> rows = new java.util.ArrayList<>();
             while (c.moveToNext()) {
                 long ts = c.getLong(0);
@@ -930,6 +981,10 @@ public final class ChargeSession {
                 Float v = c.isNull(2) ? null : c.getFloat(2);
                 Integer soc = c.isNull(3) ? null : c.getInt(3);
                 rows.add(new Object[]{ts, a, v, soc});
+                if (a != null && v != null && a > 0 && v > 0) {
+                    lastPowerKw = (a * v) / 1000.0;
+                    appendCurvePoint((float) lastPowerKw);
+                }
             }
             double[] res = replayTelemetry(rows.toArray(new Object[0][]), whAccum, sampleCount, maxChargeV, socEnd);
             whAccum = res[0];

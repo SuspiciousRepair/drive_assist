@@ -21,8 +21,10 @@ A tela inicial foi feita para uso rápido enquanto você dirige:
 - a escala de conforto pede ar mais frio ou mais quente em um toque, em vez de
   ajustar ventilador, temperatura e A/C um a um;
 - botões grandes fazem resfriar, aquecer, recirculação e abrir um vão nos vidros;
-- durante a recarga, um cartão de bateria mostra a porcentagem e o tempo estimado
-  até 100%;
+- durante a recarga, um cartão de recarga fica no lugar do cartão Estacionado.
+  Ele mostra o tempo carregando, o tempo até 100%, o nível da bateria, a energia
+  colocada e a potência. Depois da recarga, toque no cartão para ver a curva de
+  potência, ou toque no quadro de custo para informar o preço;
 - cartões opcionais mostram o portão da garagem, um painel enviado pelo Home
   Assistant, ou o que o celular toca pelo carro.
 
@@ -85,7 +87,8 @@ velocidade e potência máximas, bateria e temperatura).
 As **Estatísticas de recarga** guardam cada recarga — energia, tempo, variação da
 bateria e potência média. Toque em uma recarga (em P) para adicionar ou corrigir
 o preço; uma recarga gratuita pode ser salva como zero, e isso continua diferente
-de uma recarga sem preço informado. Há visão de mês e ano, um cartão de
+de uma recarga sem preço informado. Para trocar o símbolo da moeda (R$ por
+padrão), vá em Config → Elementos → Localização. Há visão de mês e ano, um cartão de
 temperatura da bateria e um mapa dos lugares onde você recarrega.
 
 Um cartão de **saúde da bateria** mostra os kWh por recarga, as horas que a

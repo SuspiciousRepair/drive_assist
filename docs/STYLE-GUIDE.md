@@ -21,9 +21,10 @@ Use `Style.valueWithUnit(number, numberColor, unit, unitScale)`:
   figure (a card's headline number), `Style.UNIT_SCALE_ROW` (0.68) for a
   smaller inline one (a session-list row, a live status line).
 
-A currency symbol as a *prefix* ("R$ 12,15") is not yet covered by this
-helper (it's suffix-only today) and hasn't been touched — worth the same
-treatment if this comes up again, but out of scope for this pass.
+A currency symbol as a *prefix* ("R$ 12,15") is not covered by this
+helper (it's suffix-only). Money goes through `Prefs.formatMoney` /
+`Prefs.formatMoneyPerKwh`, which put the driver's chosen symbol (Config →
+Elements → Localization) in front. Never write "R$" as a literal.
 
 ## Charging: AC vs DC
 
@@ -86,8 +87,7 @@ A small glyph still needs a real touch target. Size the tappable
 `LayoutParams` for a hand (≥40dp, 44dp where there's room), and let padding
 inside that box control how large the glyph itself looks — the box and the
 icon are two different numbers. See `ChargeStatsView.chargeRow`'s curve
-icon (44dp box, 24dp glyph) or `ComfortActivity`'s journey-card dismiss ×
-(48dp box) for the pattern. This isn't new — CLAUDE.md's own section on
+icon (44dp box, 24dp glyph) for the pattern. This isn't new — CLAUDE.md's own section on
 this panel's display already makes the general case (a 44dp distance is
 ~6mm of glass, ordinary at phone density but easy to under-size at 1:1);
 this is that same rule applied specifically to icon buttons.

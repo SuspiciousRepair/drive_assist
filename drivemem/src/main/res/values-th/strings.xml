@@ -66,6 +66,9 @@
     <!-- overlay: floating quick-access button -->
     <string name="cfg_card_grayscale">การ์ดสีเทา</string>
     <string name="cfg_overlay_label">ปุ่มลอยเข้าถึงด่วน</string>
+    <string name="cfg_localization_header">ภาษาและภูมิภาค</string>
+    <string name="cfg_currency_label">สกุลเงิน</string>
+    <string name="cfg_currency_hint">แสดงในค่าชาร์จและสถิติการชาร์จ</string>
     <string name="notif_overlay_channel">ปุ่มลอย</string>
     <string name="notif_overlay_fg_text">ปุ่มเข้าถึงด่วน</string>
     <string name="overlay_climate_label">ระบบปรับอากาศ</string>
@@ -447,9 +450,11 @@
     <string name="charge_card_soc">%1$d%%</string>
     <string name="charge_card_elapsed">ชาร์จมาแล้ว %1$d นาที</string>
     <string name="charge_card_remaining">อีก ~%1$d นาทีถึง 100%%</string>
+    <string name="charge_card_remaining_short">อีก ~%1$s ถึง 100%%</string>
     <string name="charge_card_calculating">กำลังประมาณการ…</string>
     <string name="charge_card_ready">พร้อม</string>
     <string name="charge_card_unknown">ไม่ทราบ</string>
+    <string name="charge_avg_short">เฉลี่ย</string>
 
     <!-- home screen cards (current drive / parked) -->
     <string name="parked_card_title">จอดอยู่</string>

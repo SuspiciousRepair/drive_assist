@@ -151,8 +151,6 @@ public final class Prefs {
      * tile) and draw them in the theme's text colours instead. Off by default. */
     public static boolean getCardGrayscale(Context ctx) { return file(ctx).getBoolean("card_grayscale", false); }
     public static void setCardGrayscale(Context ctx, boolean v) { file(ctx).edit().putBoolean("card_grayscale", v).apply(); }
-    public static long getDriveCardDismissedTrip(Context ctx) { return file(ctx).getLong("drive_card_dismissed_trip", -1); }
-    public static void setDriveCardDismissedTrip(Context ctx, long v) { file(ctx).edit().putLong("drive_card_dismissed_trip", v).apply(); }
     public static int getPanelDismissed(Context ctx) { return file(ctx).getInt("panel_dismissed", 0); }
     public static void setPanelDismissed(Context ctx, int v) { file(ctx).edit().putInt("panel_dismissed", v).apply(); }
 
@@ -221,7 +219,7 @@ public final class Prefs {
     // sends nothing to lrclib.net and shows no Lyrics button.
     public static boolean getLyricsSearch(Context ctx) { return file(ctx).getBoolean("spotify_lyrics", false); }
     public static void setLyricsSearch(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_lyrics", v).apply(); }
-    // The lyrics open (jumbo card) or closed: the last ✕ / Lyrics tap, kept across tracks and
+    // The lyrics open (jumbo card) or closed: the last shrink / Lyrics tap, kept across tracks and
     // restarts. Open by default, so turning the search on shows them.
     public static boolean getLyricsOpen(Context ctx) { return file(ctx).getBoolean("spotify_lyrics_open", true); }
     public static void setLyricsOpen(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_lyrics_open", v).apply(); }
@@ -254,11 +252,45 @@ public final class Prefs {
     public static int getTeleIntervalS(Context ctx) { return file(ctx).getInt("tele_interval_s", 10); }
     public static void setTeleIntervalS(Context ctx, int v) { file(ctx).edit().putInt("tele_interval_s", v).apply(); }
 
-    // --- Theme / appearance ---
+    // --- Theme / appearance / currency ---
     public static String getAppearance(Context ctx, String def) { return file(ctx).getString("appearance", def); }
     public static void setAppearance(Context ctx, String v) { file(ctx).edit().putString("appearance", v).apply(); }
     public static String getTheme(Context ctx, String def) { return file(ctx).getString("theme", def); }
     public static void setTheme(Context ctx, String v) { file(ctx).edit().putString("theme", v).apply(); }
+
+    public static final String KEY_CURRENCY = "currency";
+    public static final String DEFAULT_CURRENCY = "R$";
+    private static volatile String cachedCurrency = DEFAULT_CURRENCY;
+
+    public static String normalizeCurrency(String raw) {
+        if (raw == null) return DEFAULT_CURRENCY;
+        String t = raw.trim();
+        return t.isEmpty() ? DEFAULT_CURRENCY : t;
+    }
+
+    public static String getCurrency(Context ctx) {
+        String s = normalizeCurrency(ctx != null ? file(ctx).getString(KEY_CURRENCY, DEFAULT_CURRENCY) : cachedCurrency);
+        cachedCurrency = s;
+        return s;
+    }
+
+    public static void setCurrency(Context ctx, String v) {
+        String s = normalizeCurrency(v);
+        cachedCurrency = s;
+        if (ctx != null) file(ctx).edit().putString(KEY_CURRENCY, s).apply();
+    }
+
+    public static String currencySymbol() {
+        return cachedCurrency;
+    }
+
+    public static String formatMoney(double amount) {
+        return String.format(java.util.Locale.getDefault(), "%s %,.2f", cachedCurrency, amount);
+    }
+
+    public static String formatMoneyPerKwh(double amountPerKwh) {
+        return String.format(java.util.Locale.getDefault(), "%s %.2f/kWh", cachedCurrency, amountPerKwh);
+    }
 
     // --- Auto update check throttle ---
     public static long getAutoUpdateLastCheckMs(Context ctx) { return file(ctx).getLong("auto_update_last_check_ms", 0); }
@@ -298,7 +330,8 @@ public final class Prefs {
     private static final java.util.Set<String> NOT_BACKED_UP = new java.util.HashSet<>(java.util.Arrays.asList(
         "update_last_url", "auto_update_last_check_ms",
         "db_migrated_v1",
-        "panel_dismissed", "drive_card_dismissed_trip",
+        "panel_dismissed",
+        "drive_card_dismissed_trip",             // no longer written (the drive card's × is gone); an old install may hold it
         KEY_PHONE_TOKEN,                         // a credential: phones scan again after a restore
         "can_explore_until"));                   // CAN explorer timer (tools)
     private static final String[] NOT_BACKED_UP_PREFIXES = {

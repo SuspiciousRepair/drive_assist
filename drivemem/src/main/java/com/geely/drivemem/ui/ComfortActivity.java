@@ -159,7 +159,7 @@ public class ComfortActivity extends Activity {
     private android.widget.ImageView jumboArtView;
     private TextView jumboTitleView, jumboArtistView, jumboAlbumView;
     private final java.util.List<View> lyricsOpenButtons = new java.util.ArrayList<>();   // on the condensed card
-    // Open or closed: the driver's last choice (✕ or the Lyrics button),
+    // Open or closed: the driver's last choice (shrink or the Lyrics button),
     // kept across tracks and restarts (Prefs.getLyricsOpen).
     private boolean lyricsOpen;
     private boolean eqAvailable;              // the car's sound settings can be opened (OemSound); read once, at build
@@ -183,22 +183,25 @@ public class ComfortActivity extends Activity {
 
     // Charge card: active session progress or retained completed charge with cost input.
     private LinearLayout chargeCard;
-    private TextView chargeCardTitle;
     private LinearLayout chargeActiveLayout;
     private LinearLayout chargeCompletedLayout;
-    private TextView chargeSocView, chargeElapsedView, chargeRemainingView;
-    private android.widget.ImageView chargeBarView;
-    private TextView chargeCompletedMetrics, chargeCompletedCostText;
-    private TextView chargeCostActionBtn, chargeDismissBtn;
+    private android.widget.ImageView chargeActiveIcon;
+    private TextView chargeActiveHero, chargeActiveSoc, chargeActiveEnergy;
+    private ChargePowerBadgeView chargePowerBadge;
+    private android.widget.ImageView chargeCompletedIcon;
+    private TextView chargeCompletedHero, chargeCompletedSoc, chargeCompletedPower;
+    private LinearLayout chargeCostTile;
+    private TextView chargeCostTop, chargeCostBottom;
     private ChargeSession.Summary retainedChargeSession = null;
     private boolean lastChargeAvailable = false;
+    private String currencyAtBuild;
 
     // One compact identity whose content follows driving, parked and Valet state.
     private LinearLayout journeyCard;
     // Two compact two-line layouts: journeyParked (parked) and journeyTrip
     // (driving, and Valet). Only one is shown at a time.
     private LinearLayout journeyParked, journeyTrip, tripValetStop;
-    private TextView journeyDismiss, tripHero, tripLeft, tripRight;
+    private TextView tripHero, tripLeft, tripRight;
     private android.widget.ImageView tripIcon, tripLeftIcon, tripRightIcon;
     private EfficiencyBadgeView tripEff;
     private TextView parkedHero, parkedBattery;
@@ -228,6 +231,7 @@ public class ComfortActivity extends Activity {
         Style.load(this);                  // before any View: the palette rules the drawing
         themeId = Style.current().id;
         themeLight = Style.LIGHT;
+        currencyAtBuild = Prefs.getCurrency(this);
         turboEnabledAtBuild = Prefs.getTurboEnabled(this);
         turboSlotsAtBuild = turboSlotsFromPrefs();
         musicLargeCardAtBuild = Prefs.getMusicLargeCard(this);
@@ -319,12 +323,12 @@ public class ComfortActivity extends Activity {
             lastTurboVisible = turboCardView.getVisibility() == View.VISIBLE;
         }
         driveCardEnabledAtBuild = Prefs.getDriveCardEnabled(this);
+        chargeCard = chargeCard();
+        cards.add(chargeCard);
         journeyCard = journeyCard();
         cards.add(journeyCard);
         cards.add(musicCard());
         musicJumbo = musicJumbo();
-        chargeCard = chargeCard();
-        cards.add(chargeCard);
         // Last, on purpose: the HA context panel used to be a fixed rightmost
         // column the art drew a window around. It's an ordinary card now,
         // lowest packing priority, so it only claims a column when there's
@@ -342,14 +346,11 @@ public class ComfortActivity extends Activity {
         // Daily Statistics view on home screen (swappable with band cards)
         statsContainer = new FrameLayout(this);
         statsContainer.setPadding(sidebarClearance, padTop + Style.statusBarHeight(this), padH, padV);
-        android.widget.ScrollView statsScroll = new android.widget.ScrollView(this);
-        statsScroll.setLayoutParams(new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        statsScroll.setVerticalScrollBarEnabled(false);
-        statsScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        // No ScrollView here: the view scrolls by itself, under its own
+        // header row, which stays in place.
         dailyStatsView = new DailyStatsView(this, null);
-        statsScroll.addView(dailyStatsView);
-        statsContainer.addView(statsScroll);
+        statsContainer.addView(dailyStatsView, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         statsContainer.setVisibility(View.GONE);
         screen.addView(statsContainer, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -1363,10 +1364,12 @@ public class ComfortActivity extends Activity {
         jumboBar.setOrientation(LinearLayout.HORIZONTAL);
         int pad = Style.dp(this, 26);
         jumboBar.setPadding(pad, Style.dp(this, 8), pad, pad);
-        // "⏯"/"⏭"/"✕" are icons, not prose -- same tiles as the small card.
+        // "⏯"/"⏭" are icons, not prose -- same tiles as the small card.
+        // Closing shrinks the card back, so it wears the "make it small"
+        // sign (two arrows pointing in), not a close ✕.
         jumboBar.addView(mediaTile("⏯", MusicState::playPause), tileLp(88, 0));
         jumboBar.addView(mediaTile("⏭", MusicState::next), tileLp(88, 14));
-        jumboBar.addView(mediaTile("✕", () -> setLyricsOpen(false)), tileLp(88, 14));
+        jumboBar.addView(iconTile(R.drawable.ic_lyrics_collapse, () -> setLyricsOpen(false)), tileLp(88, 14));
         outer.addView(jumboBar);
         paintJumbo();
         return outer;
@@ -1585,110 +1588,150 @@ public class ComfortActivity extends Activity {
     }
 
     // Charge card: active session progress or retained completed charge with cost input.
+    /**
+     * Compact two-line charging card matching the Driving and Parked cards:
+     * Active charging:
+     *   [plug] 42m   ~35m até 100%                  |    6,4    |
+     *   [battery] 44% → 72%   [bolt] +11,4 kWh      | kW +curve |
+     * Completed charging (whole card opens the power curve modal; right tile opens cost dialog):
+     *   [plug] +22,8 kWh   3h 40m                   |   + R$    |
+     *   [battery] 44% → 100%   [bolt] 6,2 kW méd.   |   Custo   |
+     */
     private LinearLayout chargeCard() {
         LinearLayout m = new LinearLayout(this);
         m.setOrientation(LinearLayout.VERTICAL);
-        int pad = Style.dp(this, 26);
+        int pad = Style.dp(this, 22);
         m.setPadding(pad, pad, pad, pad);
         m.setBackground(Style.card(Style.cardFillColor(), this));
         m.setVisibility(View.GONE);
 
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        chargeCardTitle = new TextView(this);
-        chargeCardTitle.setText(getString(R.string.charge_card_title));
-        chargeCardTitle.setTextColor(Style.TEXT); chargeCardTitle.setTextSize(22);
-        chargeCardTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        row.addView(chargeCardTitle, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView glyph = new TextView(this);
-        glyph.setText("🔋"); glyph.setTextSize(28);
-        row.addView(glyph);
-        m.addView(row);
-
         // --- Active charging layout ---
         chargeActiveLayout = new LinearLayout(this);
-        chargeActiveLayout.setOrientation(LinearLayout.VERTICAL);
+        chargeActiveLayout.setOrientation(LinearLayout.HORIZONTAL);
+        chargeActiveLayout.setBaselineAligned(false);
 
-        chargeSocView = new TextView(this);
-        chargeSocView.setTextColor(Style.TEXT); chargeSocView.setTextSize(52);
-        chargeSocView.setTypeface(null, android.graphics.Typeface.BOLD);
-        chargeSocView.setPadding(0, Style.dp(this, 4), 0, 0);
-        chargeActiveLayout.addView(chargeSocView);
+        LinearLayout activeLeft = new LinearLayout(this);
+        activeLeft.setOrientation(LinearLayout.VERTICAL);
+        activeLeft.setGravity(Gravity.CENTER_VERTICAL);
 
-        chargeBarView = new android.widget.ImageView(this);
-        LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 14));
-        barLp.topMargin = Style.dp(this, 10);
-        chargeBarView.setLayoutParams(barLp);
-        chargeActiveLayout.addView(chargeBarView);
+        LinearLayout activeLine1 = new LinearLayout(this);
+        activeLine1.setGravity(Gravity.CENTER_VERTICAL);
+        chargeActiveIcon = rowIcon(R.drawable.ic_power_plug);
+        activeLine1.addView(chargeActiveIcon);
+        chargeActiveHero = new TextView(this);
+        chargeActiveHero.setTextColor(Style.TEXT);
+        chargeActiveHero.setTextSize(30);
+        chargeActiveHero.setTypeface(null, android.graphics.Typeface.BOLD);
+        chargeActiveHero.setSingleLine(true);
+        activeLine1.addView(chargeActiveHero, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        activeLeft.addView(activeLine1);
 
-        LinearLayout durRow = new LinearLayout(this);
-        durRow.setOrientation(LinearLayout.HORIZONTAL);
-        durRow.setPadding(0, Style.dp(this, 8), 0, 0);
-        chargeElapsedView = new TextView(this);
-        chargeElapsedView.setTextColor(Style.TEXT_DIM); chargeElapsedView.setTextSize(16);
-        durRow.addView(chargeElapsedView, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        chargeRemainingView = new TextView(this);
-        chargeRemainingView.setTextColor(Style.TEXT_DIM); chargeRemainingView.setTextSize(16);
-        chargeRemainingView.setGravity(Gravity.END);
-        durRow.addView(chargeRemainingView, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        chargeActiveLayout.addView(durRow);
+        LinearLayout activeLine2 = new LinearLayout(this);
+        activeLine2.setGravity(Gravity.CENTER_VERTICAL);
+        activeLine2.setPadding(0, Style.dp(this, 8), 0, 0);
+        activeLine2.addView(rowIcon(R.drawable.ic_battery));
+        chargeActiveSoc = rowValue();
+        activeLine2.addView(chargeActiveSoc);
+        activeLine2.addView(new View(this), new LinearLayout.LayoutParams(Style.dp(this, 20), 1));
+        activeLine2.addView(rowIcon(R.drawable.ic_flash));
+        chargeActiveEnergy = rowValue();
+        activeLine2.addView(chargeActiveEnergy);
+        activeLeft.addView(activeLine2);
 
+        chargeActiveLayout.addView(activeLeft, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        chargePowerBadge = new ChargePowerBadgeView(this);
+        LinearLayout.LayoutParams activeRightLp = new LinearLayout.LayoutParams(
+            Style.dp(this, 140), ViewGroup.LayoutParams.MATCH_PARENT);
+        activeRightLp.leftMargin = Style.dp(this, 16);
+        chargeActiveLayout.addView(chargePowerBadge, activeRightLp);
         m.addView(chargeActiveLayout);
 
-        // --- Completed charging layout (retained for cost input) ---
+        // --- Completed charging layout (retained for cost input; whole card opens curve dialog) ---
         chargeCompletedLayout = new LinearLayout(this);
-        chargeCompletedLayout.setOrientation(LinearLayout.VERTICAL);
+        chargeCompletedLayout.setOrientation(LinearLayout.HORIZONTAL);
+        chargeCompletedLayout.setBaselineAligned(false);
         chargeCompletedLayout.setVisibility(View.GONE);
 
-        chargeCompletedMetrics = new TextView(this);
-        chargeCompletedMetrics.setTextColor(Style.TEXT);
-        chargeCompletedMetrics.setTextSize(20);
-        chargeCompletedMetrics.setTypeface(null, android.graphics.Typeface.BOLD);
-        chargeCompletedMetrics.setPadding(0, Style.dp(this, 12), 0, Style.dp(this, 4));
-        chargeCompletedLayout.addView(chargeCompletedMetrics);
-
-        chargeCompletedCostText = new TextView(this);
-        chargeCompletedCostText.setTextColor(Style.TEXT_DIM);
-        chargeCompletedCostText.setTextSize(16);
-        chargeCompletedLayout.addView(chargeCompletedCostText);
-
-        LinearLayout actRow = new LinearLayout(this);
-        actRow.setOrientation(LinearLayout.HORIZONTAL);
-        actRow.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams arLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        arLp.topMargin = Style.dp(this, 14);
-        actRow.setLayoutParams(arLp);
-
-        chargeDismissBtn = Style.cardButton(this, getString(R.string.charge_cost_btn_dismiss), false, () -> {
+        Runnable openCurveModal = () -> {
             if (retainedChargeSession != null) {
-                ChargeSession.dismissSession(this, retainedChargeSession.id);
-                retainedChargeSession = null;
+                ChargeCurrentCurveDialog.show(this, retainedChargeSession, () -> {
+                    retainedChargeSession = ChargeSession.getLatestUndismissed(this);
+                    checkRetainedCharge();
+                });
             }
-            hideCharging();
-        });
-        actRow.addView(chargeDismissBtn);
-        Style.gap(actRow, this, 10);
+        };
+        chargeCompletedLayout.setOnClickListener(v -> openCurveModal.run());
 
-        chargeCostActionBtn = Style.cardButton(this, getString(R.string.charge_cost_btn_input), true, () -> {
+        LinearLayout completedLeft = new LinearLayout(this);
+        completedLeft.setOrientation(LinearLayout.VERTICAL);
+        completedLeft.setGravity(Gravity.CENTER_VERTICAL);
+
+        LinearLayout completedLine1 = new LinearLayout(this);
+        completedLine1.setGravity(Gravity.CENTER_VERTICAL);
+        chargeCompletedIcon = rowIcon(R.drawable.ic_power_plug);
+        completedLine1.addView(chargeCompletedIcon);
+        chargeCompletedHero = new TextView(this);
+        chargeCompletedHero.setTextColor(Style.TEXT);
+        chargeCompletedHero.setTextSize(30);
+        chargeCompletedHero.setTypeface(null, android.graphics.Typeface.BOLD);
+        chargeCompletedHero.setSingleLine(true);
+        completedLine1.addView(chargeCompletedHero, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        completedLeft.addView(completedLine1);
+
+        LinearLayout completedLine2 = new LinearLayout(this);
+        completedLine2.setGravity(Gravity.CENTER_VERTICAL);
+        completedLine2.setPadding(0, Style.dp(this, 8), 0, 0);
+        completedLine2.addView(rowIcon(R.drawable.ic_battery));
+        chargeCompletedSoc = rowValue();
+        completedLine2.addView(chargeCompletedSoc);
+        completedLine2.addView(new View(this), new LinearLayout.LayoutParams(Style.dp(this, 20), 1));
+        completedLine2.addView(rowIcon(R.drawable.ic_flash));
+        chargeCompletedPower = rowValue();
+        completedLine2.addView(chargeCompletedPower);
+        completedLeft.addView(completedLine2);
+
+        chargeCompletedLayout.addView(completedLeft, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        chargeCostTile = new LinearLayout(this);
+        chargeCostTile.setOrientation(LinearLayout.VERTICAL);
+        chargeCostTile.setGravity(Gravity.CENTER);
+        int tilePadH = Style.dp(this, 6), tilePadV = Style.dp(this, 8);
+        chargeCostTile.setPadding(tilePadH, tilePadV, tilePadH, tilePadV);
+
+        chargeCostTop = new TextView(this);
+        chargeCostTop.setTypeface(null, android.graphics.Typeface.BOLD);
+        chargeCostTop.setGravity(Gravity.CENTER);
+        chargeCostTop.setSingleLine(true);
+        chargeCostTile.addView(chargeCostTop);
+
+        chargeCostBottom = new TextView(this);
+        chargeCostBottom.setTypeface(null, android.graphics.Typeface.BOLD);
+        chargeCostBottom.setGravity(Gravity.CENTER);
+        chargeCostBottom.setSingleLine(true);
+        chargeCostBottom.setPadding(0, Style.dp(this, 2), 0, 0);
+        chargeCostTile.addView(chargeCostBottom);
+
+        chargeCostTile.setOnClickListener(v -> {
             if (retainedChargeSession != null) {
-                if (!CarState.isParked()) {
-                    android.widget.Toast.makeText(this, R.string.charge_cost_parked_only, android.widget.Toast.LENGTH_SHORT).show();
-                    return;
-                }
                 activeCostDialog = ChargeCostDialog.show(this, retainedChargeSession.id, retainedChargeSession.kwh,
                     retainedChargeSession.socStart, retainedChargeSession.socEnd, retainedChargeSession.cost, () -> {
                         retainedChargeSession = ChargeSession.getLatestUndismissed(this);
+                        checkRetainedCharge();
+                    }, () -> {
                         if (retainedChargeSession != null) {
-                            showCompletedCharging(retainedChargeSession);
+                            ChargeSession.dismissSession(this, retainedChargeSession.id);
+                            retainedChargeSession = null;
                         }
+                        hideCharging();
                     });
             }
         });
-        actRow.addView(chargeCostActionBtn);
-        chargeCompletedLayout.addView(actRow);
+
+        LinearLayout.LayoutParams completedRightLp = new LinearLayout.LayoutParams(
+            Style.dp(this, 140), ViewGroup.LayoutParams.MATCH_PARENT);
+        completedRightLp.leftMargin = Style.dp(this, 16);
+        chargeCompletedLayout.addView(chargeCostTile, completedRightLp);
 
         m.addView(chargeCompletedLayout);
 
@@ -1709,12 +1752,14 @@ public class ComfortActivity extends Activity {
 
     /**
      * Driving (and Valet), in two lines, same shape as the parked card:
-     *   [car] 2,5 km  8m · desde 19:14         ×  | 8,7        |
+     *   [car] 2,5 km  8m · desde 19:14            | 8,7        |
      *   [battery] 96% → 94%   [bolt] 0,22 kWh net  | kWh/100 km |
      * The right tile is consumption on a fixed colour scale
      * (EfficiencyBadgeView). With Valet on, the tile is the filled purple
      * "End" button instead -- ending Valet must be found fast.
      * Numbers come from the hub (trip.live), never from car.db.
+     * No close button: its 48dp at the end of line one cut the minutes off
+     * (owner, 2026-11-22). The card is hidden in Settings.
      */
     private View tripLayout() {
         journeyTrip = new LinearLayout(this);
@@ -1735,16 +1780,6 @@ public class ComfortActivity extends Activity {
         tripHero.setTypeface(null, android.graphics.Typeface.BOLD);
         tripHero.setSingleLine(true);
         line1.addView(tripHero, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        journeyDismiss = new TextView(this);
-        journeyDismiss.setText("×");
-        journeyDismiss.setTextColor(Style.TEXT_DIM);
-        journeyDismiss.setTextSize(28);
-        journeyDismiss.setGravity(Gravity.CENTER);
-        journeyDismiss.setOnClickListener(v -> {
-            Prefs.setDriveCardDismissedTrip(this, TripSession.getActiveTripStartMs());
-            refreshJourneyCard();
-        });
-        line1.addView(journeyDismiss, new LinearLayout.LayoutParams(Style.dp(this, 48), Style.dp(this, 48)));
         left.addView(line1);
 
         LinearLayout line2 = new LinearLayout(this);
@@ -1911,12 +1946,11 @@ public class ComfortActivity extends Activity {
         boolean valet = ValetSession.isActive(this);
         boolean parked = CarState.isParked();
         boolean driving = !parked && TripSession.isTripActive();
-        long dismissed = Prefs.getDriveCardDismissedTrip(this);
         // The parked entry point remains available even when the optional live
         // drive card is disabled; otherwise Valet could become unreachable.
-        boolean dismissedForThisTrip = dismissed == TripSession.getActiveTripStartMs();
+        // While actively charging, the Charging card replaces the Parked card.
         boolean visible = ComfortCardVisibility.showJourneyCard(valet, parked, driveCardEnabledAtBuild,
-            driving, dismissedForThisTrip);
+            driving, ChargeSession.isCharging());
         journeyCard.setVisibility(visible ? View.VISIBLE : View.GONE);
         if (!visible) {
             if (lastJourneyAvailable) { lastJourneyAvailable = false; repackColumns(); }
@@ -1926,7 +1960,6 @@ public class ComfortActivity extends Activity {
         boolean gray = Prefs.getCardGrayscale(this);
         tripEff.setGrayscale(gray);
         parkedTemp.setGrayscale(gray);
-        journeyDismiss.setVisibility(ComfortCardVisibility.showJourneyDismissButton(driving, valet) ? View.VISIBLE : View.GONE);
         boolean parkedView = !valet && !driving;
         journeyParked.setVisibility(parkedView ? View.VISIBLE : View.GONE);
         journeyTrip.setVisibility(parkedView ? View.GONE : View.VISIBLE);
@@ -2366,19 +2399,38 @@ public class ComfortActivity extends Activity {
             // Charging only makes sense while parked — see CarState's header
             // for why this is a real check, not just tidiness.
             ui.post(() -> {
-                if (ComfortCardVisibility.showActiveCharging(CarState.isParked(), true)) showCharging(socStart, socNow, startWallMs, nowWallMs);
-                else hideCharging();
+                if (ComfortCardVisibility.showActiveCharging(CarState.isParked(), true,
+                        ValetSession.isActive(ComfortActivity.this))) {
+                    showCharging(socStart, socNow, startWallMs, nowWallMs);
+                } else {
+                    hideCharging();
+                }
+                refreshJourneyCard();
             });
         }
         @Override public void onCompleted(ChargeSession.Summary s) {
-            ui.post(() -> showCompletedCharging(s));
+            ui.post(() -> {
+                if (ComfortCardVisibility.showCompletedCharging(s != null,
+                        ValetSession.isActive(ComfortActivity.this))) {
+                    showCompletedCharging(s);
+                } else {
+                    hideCharging();
+                }
+                refreshJourneyCard();
+            });
         }
         @Override public void onIdle() {
-            ui.post(ComfortActivity.this::checkRetainedCharge);
+            ui.post(() -> {
+                checkRetainedCharge();
+                refreshJourneyCard();
+            });
         }
     };
     private final EntityBus.Listener chargeBusListener = (key, reading) -> ui.post(this::checkRetainedCharge);
-    private final EntityBus.Listener journeyBusListener = (key, reading) -> ui.post(this::refreshJourneyCard);
+    private final EntityBus.Listener journeyBusListener = (key, reading) -> ui.post(() -> {
+        if ("valet.changed".equals(key)) checkRetainedCharge();
+        refreshJourneyCard();
+    });
 
     private Updater.UpdateInfo pendingUpdate = null;
     private android.app.AlertDialog activeUpdateDialog = null;
@@ -2423,10 +2475,11 @@ public class ComfortActivity extends Activity {
                 if (columns != null) repackColumns();
             }
         }
-        if (ComfortCardVisibility.showActiveCharging(parked, ChargeSession.isCharging())) {
+        boolean valet = ValetSession.isActive(this);
+        if (ComfortCardVisibility.showActiveCharging(parked, ChargeSession.isCharging(), valet)) {
             showCharging(ChargeSession.currentSocStart(), ChargeSession.currentSocEnd(),
                 ChargeSession.currentStartWallMs(), System.currentTimeMillis());
-        } else if (retainedChargeSession != null) {
+        } else if (retainedChargeSession != null && ComfortCardVisibility.showCompletedCharging(true, valet)) {
             showCompletedCharging(retainedChargeSession);
         } else {
             checkRetainedCharge();
@@ -2472,22 +2525,48 @@ public class ComfortActivity extends Activity {
 
         chargeActiveLayout.setVisibility(View.VISIBLE);
         chargeCompletedLayout.setVisibility(View.GONE);
-        chargeCardTitle.setText(getString(R.string.charge_card_title));
 
-        chargeSocView.setText(getString(R.string.charge_card_soc, socNow));
+        boolean gray = Prefs.getCardGrayscale(this);
+        boolean dcfc = ChargeSession.currentIsDcfc();
+        boolean hasV = ChargeSession.currentHasChargeVoltage();
+        int plugIcon = (hasV && dcfc) ? R.drawable.ic_ev_plug_ccs2 : R.drawable.ic_power_plug;
+        int plugColor = (!gray && hasV) ? (dcfc ? Style.GOOD : Style.ACCENT) : Style.TEXT_DIM;
+        chargeActiveIcon.setImageResource(plugIcon);
+        chargeActiveIcon.setColorFilter(plugColor, android.graphics.PorterDuff.Mode.SRC_IN);
+
         long elapsedMs = Math.max(0, nowWallMs - startWallMs);
-        chargeElapsedView.setText(getString(R.string.charge_card_elapsed, elapsedMs / 60000));
+        SpannableStringBuilder hero = new SpannableStringBuilder(formatElapsed(elapsedMs));
         Long remainingMs = ChargeSession.estimateRemainingMs(socNow, elapsedMs);
+        String status;
         if (socNow >= 100) {
-            chargeRemainingView.setText(getString(R.string.charge_card_ready));
+            status = getString(R.string.charge_card_ready);
         } else if (remainingMs != null) {
-            chargeRemainingView.setText(getString(R.string.charge_card_remaining, remainingMs / 60000));
+            status = getString(R.string.charge_card_remaining_short, formatElapsed(remainingMs));
         } else if (elapsedMs < 35_000) {
-            chargeRemainingView.setText(getString(R.string.charge_card_calculating));
+            status = getString(R.string.charge_card_calculating);
         } else {
-            chargeRemainingView.setText(getString(R.string.charge_card_unknown));
+            status = "";
         }
-        redrawChargeBar(socStart, socNow);
+        if (!status.isEmpty()) {
+            Style.appendUnit(hero, "   " + status, 0.6f);
+        }
+        chargeActiveHero.setText(hero);
+
+        if (socStart >= 0 && socNow >= 0) {
+            chargeActiveSoc.setText(Style.percentRange(socStart, socNow, Style.UNIT_SCALE_ROW));
+        } else if (socNow >= 0) {
+            chargeActiveSoc.setText(Style.valueWithUnit(String.valueOf(socNow), null, "%", Style.UNIT_SCALE_ROW));
+        } else {
+            chargeActiveSoc.setText(R.string.value_unavailable);
+        }
+
+        double kwh = Math.max(0.0, ChargeSession.currentKwh());
+        chargeActiveEnergy.setText(Style.valueWithUnit(
+            String.format(Locale.getDefault(), "+%.1f", kwh), null, "kWh", Style.UNIT_SCALE_ROW));
+
+        chargePowerBadge.setGrayscale(gray);
+        chargePowerBadge.setPower(ChargeSession.currentPowerKw(), dcfc, hasV, ChargeSession.currentPowerCurveKw());
+
         if (!wasVisible && columns != null) repackColumns();
     }
 
@@ -2500,29 +2579,71 @@ public class ComfortActivity extends Activity {
 
         chargeActiveLayout.setVisibility(View.GONE);
         chargeCompletedLayout.setVisibility(View.VISIBLE);
-        chargeCardTitle.setText(getString(R.string.charge_completed_title));
 
-        String socStr = (s.socStart >= 0 && s.socEnd >= 0) ? (s.socStart + "% ➔ " + s.socEnd + "%") : "";
-        chargeCompletedMetrics.setText(String.format(Locale.US, "+%.1f kWh  •  %s  (%s)", s.kwh, socStr, s.durationLabel()));
+        boolean gray = Prefs.getCardGrayscale(this);
+        boolean dcfc = s.isDcfc();
+        boolean hasV = s.hasChargeVoltage();
+        int typeColor = (!gray && hasV) ? (dcfc ? Style.GOOD : Style.ACCENT) : Style.TEXT;
+        int iconColor = (!gray && hasV) ? (dcfc ? Style.GOOD : Style.ACCENT) : Style.TEXT_DIM;
+        chargeCompletedIcon.setImageResource(dcfc ? R.drawable.ic_ev_plug_ccs2 : R.drawable.ic_power_plug);
+        chargeCompletedIcon.setColorFilter(iconColor, android.graphics.PorterDuff.Mode.SRC_IN);
+
+        SpannableStringBuilder hero = new SpannableStringBuilder(Style.valueWithUnit(
+            String.format(Locale.getDefault(), "+%.1f", s.kwh),
+            (!gray && hasV) ? typeColor : null, "kWh", Style.UNIT_SCALE_ROW));
+        Style.appendUnit(hero, "   " + formatElapsed(s.endWallMs - s.startWallMs), 0.6f);
+        chargeCompletedHero.setText(hero);
+
+        if (s.socStart >= 0 && s.socEnd >= 0) {
+            chargeCompletedSoc.setText(Style.percentRange(s.socStart, s.socEnd, Style.UNIT_SCALE_ROW));
+        } else if (s.socEnd >= 0) {
+            chargeCompletedSoc.setText(Style.valueWithUnit(String.valueOf(s.socEnd), null, "%", Style.UNIT_SCALE_ROW));
+        } else {
+            chargeCompletedSoc.setText(R.string.value_unavailable);
+        }
+
+        SpannableStringBuilder pwr = new SpannableStringBuilder(Style.valueWithUnit(
+            String.format(Locale.getDefault(), "%.1f", s.avgPowerW / 1000.0), null, "kW", Style.UNIT_SCALE_ROW));
+        Style.appendUnit(pwr, " " + getString(R.string.charge_avg_short), Style.UNIT_SCALE_ROW);
+        chargeCompletedPower.setText(pwr);
 
         if (s.cost != null && s.cost >= 0) {
-            chargeCompletedCostText.setText(getString(R.string.charge_cost_label) + ": " + s.costLabel() + " (" + s.costPerKwhLabel() + ")");
-            chargeCostActionBtn.setText(getString(R.string.charge_cost_btn_edit));
+            GradientDrawable g = Style.card(Style.cardFillColor(), this, 18);
+            g.setStroke(Style.dp(this, 2), gray ? Style.TEXT_DIM : Style.ACCENT);
+            chargeCostTile.setBackground(g);
+            chargeCostTop.setText(s.costLabel());
+            chargeCostTop.setTextColor(gray ? Style.TEXT : Style.ACCENT);
+            chargeCostTop.setTextSize(19);
+            String perKwh = s.costPerKwhLabel();
+            chargeCostBottom.setText(perKwh != null ? perKwh : getString(R.string.charge_cost_label));
+            chargeCostBottom.setTextColor(Style.TEXT_DIM);
+            chargeCostBottom.setTextSize(13);
         } else {
-            chargeCompletedCostText.setText(getString(R.string.charge_cost_not_set));
-            chargeCostActionBtn.setText(getString(R.string.charge_cost_btn_input));
+            GradientDrawable g = new GradientDrawable();
+            g.setCornerRadius(Style.dp(this, 18));
+            int fill = gray ? Style.CARD_HI : Style.ACCENT;
+            g.setColor(fill);
+            chargeCostTile.setBackground(g);
+            int onFill = Style.onFill(fill);
+            chargeCostTop.setText("+ " + Prefs.getCurrency(this));
+            chargeCostTop.setTextColor(onFill);
+            chargeCostTop.setTextSize(22);
+            chargeCostBottom.setText(getString(R.string.charge_cost_label));
+            chargeCostBottom.setTextColor(onFill);
+            chargeCostBottom.setTextSize(15);
         }
 
         if (!wasVisible && columns != null) repackColumns();
     }
 
     private void checkRetainedCharge() {
-        if (ComfortCardVisibility.showActiveCharging(CarState.isParked(), ChargeSession.isCharging())) {
+        boolean valet = ValetSession.isActive(this);
+        if (ComfortCardVisibility.showActiveCharging(CarState.isParked(), ChargeSession.isCharging(), valet)) {
             showCharging(ChargeSession.currentSocStart(), ChargeSession.currentSocEnd(),
                 ChargeSession.currentStartWallMs(), System.currentTimeMillis());
         } else {
             ChargeSession.Summary s = ChargeSession.getLatestUndismissed(this);
-            if (s != null) {
+            if (ComfortCardVisibility.showCompletedCharging(s != null, valet)) {
                 showCompletedCharging(s);
             } else {
                 hideCharging();
@@ -2535,20 +2656,6 @@ public class ComfortActivity extends Activity {
         lastChargeAvailable = false;
         chargeCard.setVisibility(View.GONE);
         if (columns != null) repackColumns();
-    }
-
-    private int chargeBarW = -1, chargeBarStart = -1, chargeBarNow = -1;
-
-    private void redrawChargeBar(int socStart, int socNow) {
-        if (chargeBarView == null) return;
-        int w = chargeBarView.getWidth();
-        if (w <= 0) { LayoutWait.onNextLayout(chargeBarView, () -> redrawChargeBar(socStart, socNow)); return; }
-        if (w == chargeBarW && socStart == chargeBarStart && socNow == chargeBarNow) return;
-        chargeBarW = w; chargeBarStart = socStart; chargeBarNow = socNow;
-        int color = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
-        if (color == 0) color = Style.ACCENT;
-        chargeBarView.setImageBitmap(Style.chargeBar(this, w, chargeBarView.getHeight(),
-            socStart / 100f, socNow / 100f, color));
     }
 
     // TurboMode already calls back on the UI thread — no ui.post needed here.
@@ -2849,6 +2956,7 @@ public class ComfortActivity extends Activity {
         // whole screen (see the themeId/themeLight comment above)
         Style.load(this);
         if (!Style.current().id.equals(themeId) || Style.LIGHT != themeLight) { recreate(); return; }
+        if (!Prefs.getCurrency(this).equals(currencyAtBuild)) { recreate(); return; }
         // same idea: the Turbo toggle in Config only takes effect on the next
         // build of this screen, same as a theme change
         if (Prefs.getTurboEnabled(this) != turboEnabledAtBuild) { recreate(); return; }
@@ -2931,7 +3039,6 @@ public class ComfortActivity extends Activity {
         if (lyricsShown()) setLyricsVisible(true);
         ChargeSession.setProgressListener(chargeListener);
         CarState.addListener(carStateListener);
-        chargeBarW = -1;   // force one redraw even if the numbers match
         checkRetainedCharge();
         EntityBus.subscribe("charge.cost_updated", chargeBusListener);
         EntityBus.subscribe("charge.dismissed", chargeBusListener);

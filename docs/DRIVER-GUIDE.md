@@ -21,8 +21,10 @@ The home screen is made for quick use while you drive:
 - The comfort scale asks for cooler or warmer air in one move, instead of
   setting fan, temperature and A/C one by one.
 - Large buttons do cooling, heating, recirculation and a window clear.
-- While the car charges, a battery card shows the percent and an estimated time
-  to full.
+- While the car charges, a charging card takes the place of the Parked card. It
+  shows the time charging, the time left to 100%, the battery level, the energy
+  added and the charging power. After the charge, tap the card to see its power
+  curve, or tap its cost tile to add the price.
 - Optional cards can show your garage gate, a panel sent by Home Assistant, or
   what your phone plays through the car.
 
@@ -83,7 +85,8 @@ temperature low to high).
 **Charging stats** keeps every past charge — energy, time, battery change and
 average power. Tap a charge (in Park) to add or fix its price; a free charge can
 be saved as zero, and that stays different from a charge whose price you never
-entered. There is a month and year view, a battery-temperature card, and a map
+entered. To change the currency symbol (R$ by default), go to Config → Elements
+→ Localization. There is a month and year view, a battery-temperature card, and a map
 of the places where you charge.
 
 A **battery health** card shows kWh per charge, the hours the battery spent below

@@ -299,6 +299,9 @@
     <string name="cfg_bar_home_header">Home screen</string>
     <string name="cfg_card_grayscale">Grayscale cards</string>
     <string name="cfg_overlay_label">Floating quick-access button</string>
+    <string name="cfg_localization_header">Localization</string>
+    <string name="cfg_currency_label">Currency symbol</string>
+    <string name="cfg_currency_hint">Shown on charging costs and statistics.</string>
     <string name="overlay_climate_label">Climate</string>
     <string name="overlay_open_app">Open app</string>
     <string name="notif_overlay_channel">Floating quick-access button</string>
@@ -451,9 +454,11 @@
     <string name="charge_card_soc">%1$d%%</string>
     <string name="charge_card_elapsed">%1$d min charging</string>
     <string name="charge_card_remaining">~%1$d min to 100%%</string>
+    <string name="charge_card_remaining_short">~%1$s to 100%%</string>
     <string name="charge_card_calculating">Estimating…</string>
     <string name="charge_card_ready">Ready</string>
     <string name="charge_card_unknown">Unknown</string>
+    <string name="charge_avg_short">avg</string>
 
     <!-- charge stats & cost tracking -->
     <string name="charge_stats_title">Charging stats</string>

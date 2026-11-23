@@ -119,12 +119,24 @@ public class ComfortCardVisibilityTest {
         assertFalse(ComfortCardVisibility.showActiveCharging(false, false));
     }
 
+    @Test
+    public void testShowActiveChargingHiddenDuringValet() {
+        assertTrue(ComfortCardVisibility.showActiveCharging(true, true, false));
+        assertFalse(ComfortCardVisibility.showActiveCharging(true, true, true));
+    }
+
     // === Completed Charging Visibility Tests ===
 
     @Test
     public void testShowCompletedChargingWithRetainedSession() {
         // Visible when a completed session exists and hasn't been dismissed
         assertTrue(ComfortCardVisibility.showCompletedCharging(true));
+        assertTrue(ComfortCardVisibility.showCompletedCharging(true, false));
+    }
+
+    @Test
+    public void testShowCompletedChargingHiddenDuringValet() {
+        assertFalse(ComfortCardVisibility.showCompletedCharging(true, true));
     }
 
     @Test
@@ -137,66 +149,43 @@ public class ComfortCardVisibilityTest {
 
     @Test
     public void testShowJourneyCardValetActive() {
-        // Visible when Valet is active, regardless of other state
-        assertTrue(ComfortCardVisibility.showJourneyCard(true, false, false, false, false));
-        assertTrue(ComfortCardVisibility.showJourneyCard(true, true, true, true, true));
+        // Visible when Valet is active, regardless of other state (even if charging)
+        assertTrue(ComfortCardVisibility.showJourneyCard(true, false, false, false));
+        assertTrue(ComfortCardVisibility.showJourneyCard(true, true, true, true));
+        assertTrue(ComfortCardVisibility.showJourneyCard(true, true, false, false, true));
     }
 
     @Test
     public void testShowJourneyCardParked() {
-        // Always visible when parked (entry point for Valet), even if drive card disabled
+        // Visible when parked and not actively charging (entry point for Valet), even if drive card disabled
+        assertTrue(ComfortCardVisibility.showJourneyCard(false, true, false, false));
         assertTrue(ComfortCardVisibility.showJourneyCard(false, true, false, false, false));
     }
 
     @Test
-    public void testShowJourneyCardDrivingWithCardEnabledNotDismissed() {
-        // Visible when driving, drive card enabled, and not dismissed for this trip
-        assertTrue(ComfortCardVisibility.showJourneyCard(false, false, true, true, false));
+    public void testShowJourneyCardParkedWhileActivelyCharging() {
+        // Replaced by the Active Charging card while parked and actively charging (unless Valet is active)
+        assertFalse(ComfortCardVisibility.showJourneyCard(false, true, true, false, true));
+        assertFalse(ComfortCardVisibility.showJourneyCard(false, true, false, false, true));
     }
 
     @Test
-    public void testShowJourneyCardDrivingWithCardEnabledButDismissed() {
-        // Hidden when dismissed for this specific trip
-        assertFalse(ComfortCardVisibility.showJourneyCard(false, false, true, true, true));
+    public void testShowJourneyCardDrivingWithCardEnabled() {
+        // Visible when driving with the drive card enabled: the card has no
+        // close button any more, so nothing else can hide it.
+        assertTrue(ComfortCardVisibility.showJourneyCard(false, false, true, true));
     }
 
     @Test
     public void testShowJourneyCardDrivingWithCardDisabled() {
         // Hidden when drive card feature is disabled
-        assertFalse(ComfortCardVisibility.showJourneyCard(false, false, false, true, false));
+        assertFalse(ComfortCardVisibility.showJourneyCard(false, false, false, true));
     }
 
     @Test
     public void testShowJourneyCardIdle() {
         // Hidden when not parked, not driving, and Valet not active
-        assertFalse(ComfortCardVisibility.showJourneyCard(false, false, true, false, false));
-    }
-
-    // === Journey Dismiss Button Visibility Tests ===
-
-    @Test
-    public void testShowJourneyDismissWhileDrivingNotInValet() {
-        // Visible only while actively driving, and not in Valet mode
-        assertTrue(ComfortCardVisibility.showJourneyDismissButton(true, false));
-    }
-
-    @Test
-    public void testShowJourneyDismissWhileDrivingInValet() {
-        // Hidden when Valet is active, even while "driving"
-        // (can't dismiss the Valet card's trip, Stop button is there instead)
-        assertFalse(ComfortCardVisibility.showJourneyDismissButton(true, true));
-    }
-
-    @Test
-    public void testShowJourneyDismissWhileParked() {
-        // Hidden while parked
-        assertFalse(ComfortCardVisibility.showJourneyDismissButton(false, false));
-    }
-
-    @Test
-    public void testShowJourneyDismissWhileParkedInValet() {
-        // Hidden while parked, even in Valet
-        assertFalse(ComfortCardVisibility.showJourneyDismissButton(false, true));
+        assertFalse(ComfortCardVisibility.showJourneyCard(false, false, true, false));
     }
 
     // === Journey Action Button Visibility Tests ===

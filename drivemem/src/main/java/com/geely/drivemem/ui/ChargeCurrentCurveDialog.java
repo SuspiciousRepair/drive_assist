@@ -94,15 +94,29 @@ public final class ChargeCurrentCurveDialog {
         costCol.addView(costValue);
         costRow.addView(costCol);
         costRow.addView(new android.view.View(c), new LinearLayout.LayoutParams(0, 1, 1f));
+        int bh = Style.dp(c, 28), bv = Style.dp(c, 14);
+        if (!session.dismissed && session.id > 0) {
+            TextView dismissBtn = Style.button(c, c.getString(R.string.charge_cost_btn_dismiss), Style.CARD, () -> {
+                ChargeSession.dismissSession(c, session.id);
+                dialog.dismiss();
+                if (onCostChanged != null) onCostChanged.run();
+            });
+            dismissBtn.setBackground(Style.tile(c));
+            dismissBtn.setTextColor(Style.TEXT_DIM);
+            dismissBtn.setTextSize(17);
+            dismissBtn.setPadding(bh, bv, bh, bv);
+            LinearLayout.LayoutParams dlp = (LinearLayout.LayoutParams) dismissBtn.getLayoutParams();
+            dlp.setMargins(Style.dp(c, 16), 0, 0, 0);
+            costRow.addView(dismissBtn, dlp);
+        }
         TextView costBtn = Style.button(c, hasCost ? c.getString(R.string.charge_cost_change)
                 : "+ " + c.getString(R.string.charge_cost_label), Style.CARD, editCost);
         costBtn.setBackground(Style.outlinedCard(Style.ACCENT, c));
         costBtn.setTextColor(Style.ACCENT);
         costBtn.setTextSize(17);
-        int bh = Style.dp(c, 28), bv = Style.dp(c, 14);
         costBtn.setPadding(bh, bv, bh, bv);
         LinearLayout.LayoutParams blp = (LinearLayout.LayoutParams) costBtn.getLayoutParams();
-        blp.setMargins(Style.dp(c, 24), 0, 0, 0);
+        blp.setMargins(Style.dp(c, 16), 0, 0, 0);
         costRow.addView(costBtn, blp);
         LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);

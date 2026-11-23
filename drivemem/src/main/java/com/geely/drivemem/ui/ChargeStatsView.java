@@ -495,7 +495,7 @@ public class ChargeStatsView extends LinearLayout {
     }
 
     private static String money(double v) {
-        return String.format(Locale.getDefault(), "R$ %,.2f", v);
+        return com.geely.drivemem.util.Prefs.formatMoney(v);
     }
 
     private static String shortDate(long ms) {
