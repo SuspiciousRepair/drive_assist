@@ -106,6 +106,8 @@ public final class CarMediaSessions {
         current = null;
         artCover = null;
         art = null;
+        artUrlCover = null;
+        artUrl = null;
         MusicState.setSession(null, null);
     }
 
@@ -316,7 +318,8 @@ public final class CarMediaSessions {
         }
         t.id = trackKey(t.artist, t.title);
         long now = android.os.SystemClock.elapsedRealtime();
-        String state = c.getPackageName() + " '" + t.title + "' playing=" + t.playing + " dur=" + t.durationMs;
+        String state = c.getPackageName() + " '" + t.title + "' album='" + t.album + "' playing=" + t.playing
+            + " dur=" + t.durationMs + " art=" + artKind(m);
         if (!state.equals(loggedState)) { loggedState = state; Log.i(TAG, "bt music: " + state); }
         // Android moves a playing session's position on by itself when it is
         // read, and stops it at the song's end. So "playing" at the end for
@@ -359,7 +362,7 @@ public final class CarMediaSessions {
         if (pic == null) {
             String u = m.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI);
             if (u == null) u = m.getString(MediaMetadata.METADATA_KEY_ART_URI);
-            t.artUrl = u;
+            t.artUrl = songArtUrl(CoverCache.key(t.artist, t.album, t.id), u);
         }
         MusicState.setSession(t, new MusicState.Controls() {
             @Override public void playPause() {
@@ -382,6 +385,8 @@ public final class CarMediaSessions {
     // rule kept the first picture of a song (same track, same size), so the
     // card stayed on the last song's cover for the whole song.
     private static String artCover;   // the album (CoverCache.key) of `art`
+    private static String artUrlCover;   // the album of `artUrl`
+    private static String artUrl;        // the last cover address a session gave
     private static android.graphics.Bitmap art;
 
     /** What the card does with a picture the session handed over. */
@@ -392,6 +397,30 @@ public final class CarMediaSessions {
         STALE,
         /** A new picture: show it. */
         NEW
+    }
+
+    // The same for a cover the session gives as an address (Bluetooth): the
+    // last song's address on a new album is the last song's cover.
+    private static String songArtUrl(String cover, String url) {
+        if (url == null) return null;
+        switch (artUse(artUrlCover, cover, url.equals(artUrl))) {
+            case SAME: return url;
+            case STALE: return null;
+            default:
+                artUrlCover = cover;
+                artUrl = url;
+                return url;
+        }
+    }
+
+    /** For the log: how the session gives its cover. */
+    private static String artKind(MediaMetadata m) {
+        if (m.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART) != null
+                || m.getBitmap(MediaMetadata.METADATA_KEY_ART) != null) return "bitmap";
+        if (m.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON) != null) return "icon";
+        if (m.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI) != null
+                || m.getString(MediaMetadata.METADATA_KEY_ART_URI) != null) return "uri";
+        return "none";
     }
 
     /** samePixels: the picture equals the one shown now (album lastCover). */
