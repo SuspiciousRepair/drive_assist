@@ -179,6 +179,7 @@ public class ComfortActivity extends Activity {
     private Lrc lyricsTickLines;            // the lines the slots show now
     private int lyricIndex = Integer.MIN_VALUE;
     private int plainIndex;   // the line shown now, for plain (untimed) lyrics
+    private android.widget.ImageView untimedIcon;   // shown while the lyrics have no timing
     // Show a line this much before the session's position reaches it: the
     // eye needs a beat.
     private static final long LYRICS_LEAD_MS = 400;
@@ -1313,6 +1314,15 @@ public class ComfortActivity extends Activity {
         LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         infoLp.leftMargin = Style.dp(this, 26);
         jumboHeader.addView(info, infoLp);
+        untimedIcon = new android.widget.ImageView(this);
+        untimedIcon.setImageResource(R.drawable.ic_lyrics_untimed);
+        untimedIcon.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        untimedIcon.setColorFilter(Style.TEXT_DIM, android.graphics.PorterDuff.Mode.SRC_IN);
+        untimedIcon.setPadding(Style.dp(this, 10), Style.dp(this, 10), Style.dp(this, 10), Style.dp(this, 10));
+        untimedIcon.setVisibility(View.GONE);
+        LinearLayout.LayoutParams uLp = new LinearLayout.LayoutParams(Style.dp(this, 52), Style.dp(this, 52));
+        uLp.gravity = Gravity.TOP;
+        jumboHeader.addView(untimedIcon, uLp);
         android.widget.ImageView jGear = soundGear(false);
         if (jGear != null) {
             LinearLayout.LayoutParams gLp = new LinearLayout.LayoutParams(Style.dp(this, 52), Style.dp(this, 52));
@@ -1414,14 +1424,18 @@ public class ComfortActivity extends Activity {
     }
 
     // Open or close the lyrics (the buttons). Kept across tracks and restarts.
-    // The small gear in the music card's top-right corner: the car's own
-    // sound settings, with the EQ (OemSound). Null when this car has none.
+    // The small equalizer (three sliders) in the music card's top-right
+    // corner: the car's own sound settings, with the EQ (OemSound). Null
+    // when this car has none.
     // onArt: it sits on the album art, so it gets a dark disc to read on
     // any picture.
     private android.widget.ImageView soundGear(boolean onArt) {
         if (!eqAvailable) return null;
-        android.widget.ImageView g = Style.cogButton(this, () -> OemSound.open(this));
-        int pad = Style.dp(this, 8);
+        android.widget.ImageView g = new android.widget.ImageView(this);
+        g.setImageResource(R.drawable.ic_equalizer);
+        g.setColorFilter(Style.TEXT_DIM, android.graphics.PorterDuff.Mode.SRC_IN);
+        g.setOnClickListener(v -> OemSound.open(this));
+        int pad = Style.dp(this, 10);
         g.setPadding(pad, pad, pad, pad);
         g.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
         if (onArt) {
@@ -1540,6 +1554,10 @@ public class ComfortActivity extends Activity {
         @Override public void run() {
             if (!lyricsShown()) return;
             Lrc lines = LyricsClient.linesFor(MusicState.trackId());
+            // Plain lyrics do not move with the song, which looked stuck: a
+            // small struck-through clock says they have no timing.
+            if (untimedIcon != null)
+                untimedIcon.setVisibility(lines != null && !lines.timed() ? View.VISIBLE : View.GONE);
             if (lines == null && lyricsTickLines != null) {   // a new track, lines on the way
                 lyricsTickLines = null;
                 showLyricLines(null, 0);   // blank slots
@@ -2050,10 +2068,7 @@ public class ComfortActivity extends Activity {
             if (key.equals(lastMusicArtUrl)) return;
             lastMusicArtUrl = key;
             new Thread(() -> applyMusicArt(key, b), "music-art").start();
-            ui.postDelayed(() -> {
-                if (key.equals(lastMusicArtUrl))
-                    new Thread(() -> CoverCache.put(app, track, b), "music-art").start();
-            }, COVER_KEEP_MS);
+            keepCoverIfStillUp(key, track, b);
             return;
         }
         String url = MusicState.artUrl();
@@ -2068,13 +2083,17 @@ public class ComfortActivity extends Activity {
         }, "music-art").start();
     }
 
+    // Keyed by the address AND the album: the same address on another album
+    // is loaded again (the cache may hold that album's own cover).
     private void loadMusicArt(String url, String track) {
-        if (url == null || url.equals(lastMusicArtUrl)) return;
-        lastMusicArtUrl = url;
+        if (url == null) return;
+        final String key = url + "|" + track;
+        if (key.equals(lastMusicArtUrl)) return;
+        lastMusicArtUrl = key;
         final Context app = getApplicationContext();
         new Thread(() -> {
             android.graphics.Bitmap bmp = CoverCache.get(app, track);
-            if (bmp != null) { applyMusicArt(url, bmp); return; }
+            if (bmp != null) { applyMusicArt(key, bmp); return; }
             try {
                 if (url.startsWith("content:") || url.startsWith("file:") || url.startsWith("android.resource:")) {
                     // A session's art URI (Bluetooth cover art) is local.
@@ -2093,8 +2112,8 @@ public class ComfortActivity extends Activity {
                 }
             } catch (Throwable t) { android.util.Log.w(CarAccess.TAG, "music art: " + t); }
             if (bmp != null) {
-                applyMusicArt(url, bmp);
-                CoverCache.put(app, track, bmp);
+                applyMusicArt(key, bmp);
+                keepCoverIfStillUp(key, track, bmp);
             }
         }, "music-art").start();
     }
@@ -2114,6 +2133,16 @@ public class ComfortActivity extends Activity {
             if (!url.equals(lastMusicArtUrl)) return;
             setMusicArt(fbmp, fblur);
         });
+    }
+
+    // Kept on the head unit only if still up after COVER_KEEP_MS: a cover
+    // that a moment later turns out to be the last song's is not kept.
+    private void keepCoverIfStillUp(String key, String track, android.graphics.Bitmap b) {
+        final Context app = getApplicationContext();
+        ui.postDelayed(() -> {
+            if (key.equals(lastMusicArtUrl))
+                new Thread(() -> CoverCache.put(app, track, b), "music-art").start();
+        }, COVER_KEEP_MS);
     }
 
     /** UI thread. Null: no cover, the card's plain tile shows. */

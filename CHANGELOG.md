@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Added
+- **Music card: an icon when the lyrics have no timing.** Some songs have
+  only plain lyrics, which do not move with the song (tap the lower half to
+  go down a line, the upper half to go back). A small struck-through clock
+  now shows at the top of the lyrics card while they are up.
+- **Music card: the sound settings button is an equalizer.** The gear in
+  the card's corner, which opens the car's sound settings, is now three
+  sliders.
+
+### Fixed
+- **Music card: the album name and cover keep up with the song.** A phone
+  that sends the album a moment after the song's name left the card on the
+  last song's album name and cover until something else changed. A new
+  album now redraws the card and loads its own cover.
 ## [v0.11.2] — 2026-11-23
 
 ### Changed
