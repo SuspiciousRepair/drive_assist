@@ -125,13 +125,13 @@ final class ChargePowerBadgeView extends View {
         float total = numH + (hasCurve ? descHalf + sparkGap + sparkH : 0);
         float top = (h - total) / 2f;
         float baseline = top + numH;
-        float x = (w - (numW + gap + unitW)) / 2f;
+        float textX = (w - (numW + gap + unitW)) / 2f;
 
         number.setColor(hasPower ? (grayscale ? Style.TEXT : accent) : Style.TEXT_DIM);
-        canvas.drawText(numberText, x, baseline, number);
+        canvas.drawText(numberText, textX, baseline, number);
         if (!unitText.isEmpty()) {
             unit.setColor(Style.TEXT_DIM);
-            canvas.drawText(unitText, x + numW + gap, baseline, unit);
+            canvas.drawText(unitText, textX + numW + gap, baseline, unit);
         }
 
         if (!hasCurve) return;
