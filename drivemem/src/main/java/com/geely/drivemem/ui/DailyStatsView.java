@@ -169,14 +169,13 @@ public class DailyStatsView extends LinearLayout {
         periodDropdownBtn.setOrientation(LinearLayout.HORIZONTAL);
         periodDropdownBtn.setGravity(Gravity.CENTER_VERTICAL);
         periodDropdownBtn.setBackground(Style.card(Style.CARD, c));
-        int ddPadH = Style.dp(c, 18), ddPadV = Style.dp(c, 14);
-        periodDropdownBtn.setPadding(ddPadH, ddPadV, ddPadH, ddPadV);
+        int ddPad = Style.dp(c, 18);
+        periodDropdownBtn.setPadding(ddPad, ddPad, ddPad, ddPad);
 
         periodDropdownLabel = new TextView(c);
         periodDropdownLabel.setText(periodDisplayName(period));
         periodDropdownLabel.setTextColor(Style.onFill(Style.CARD));
-        periodDropdownLabel.setTextSize(15.5f);
-        periodDropdownLabel.setTypeface(null, Typeface.BOLD);
+        periodDropdownLabel.setTextSize(18f);
         periodDropdownBtn.addView(periodDropdownLabel);
 
         ImageView periodChevron = new ImageView(c);
