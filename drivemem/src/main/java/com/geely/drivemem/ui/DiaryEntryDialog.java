@@ -198,6 +198,12 @@ public final class DiaryEntryDialog {
         // Service bundled state
         private final Set<CarDiary.Category> bundled = new LinkedHashSet<>();
 
+        // Coverage (insurance, tax and licensing): end date of the cover, and
+        // for insurance who to call. Null date = entry date + one year.
+        private LocalDate validUntil;
+        private String insurer, policyNo, assistPhone;
+        private EditText insurerInput, policyInput, phoneInput;
+
         // Coolant mode (default Top-up so topping off doesn't reset the 4-year / 80k flush clock)
         private boolean coolantTopUp = true;
 
@@ -253,6 +259,13 @@ public final class DiaryEntryDialog {
                 Boolean topUp = CarDiary.parseTopUp(editing.metaJson);
                 if (topUp != null) coolantTopUp = topUp;
                 bundled.addAll(CarDiary.parseBundled(editing.metaJson));
+                Long until = CarDiary.parseValidUntilMs(editing.metaJson);
+                if (until != null) {
+                    validUntil = Instant.ofEpochMilli(until).atZone(ZoneId.systemDefault()).toLocalDate();
+                }
+                insurer = CarDiary.parseMetaText(editing.metaJson, CarDiary.META_PROVIDER);
+                policyNo = CarDiary.parseMetaText(editing.metaJson, CarDiary.META_POLICY_NO);
+                assistPhone = CarDiary.parseMetaText(editing.metaJson, CarDiary.META_ASSIST_PHONE);
                 if (editing.tags != null && !editing.tags.trim().isEmpty()) {
                     for (String tok : editing.tags.split(",")) {
                         String t = tok.trim();
@@ -789,10 +802,18 @@ public final class DiaryEntryDialog {
 
         /** Clean Drive Assist dark/light Month Calendar overlay — large touch cells,
          * clear Month + Year header, instant month stepping, future days disabled. */
+        /** The entry date: no future days. */
         private void openCalendarPicker() {
+            openCalendar(selectedDate, false, this::applyDate);
+        }
+
+        /** Month calendar. Future days can be picked only when allowFuture is set
+         * (the end date of an insurance policy). */
+        private void openCalendar(LocalDate calSelected, boolean allowFuture,
+                                  java.util.function.Consumer<LocalDate> onPick) {
             final LocalDate today = LocalDate.now();
             final YearMonth currentYm = YearMonth.from(today);
-            final YearMonth[] shown = {YearMonth.from(selectedDate)};
+            final YearMonth[] shown = {YearMonth.from(calSelected)};
 
             LinearLayout card = new LinearLayout(c);
             card.setOrientation(LinearLayout.VERTICAL);
@@ -866,7 +887,7 @@ public final class DiaryEntryDialog {
             calDlg.setOnDismissListener(d -> { if (calDialog == calDlg) calDialog = null; });
 
             TextView todayBtn = Style.cardButton(c, c.getString(R.string.diary_date_today), false, () -> {
-                applyDate(today);
+                onPick.accept(today);
                 calDlg.dismiss();
             });
             foot.addView(todayBtn);
@@ -908,8 +929,8 @@ public final class DiaryEntryDialog {
                             cell.setText("");
                         } else {
                             LocalDate d = ym.atDay(dayNum);
-                            boolean future = d.isAfter(today);
-                            boolean isSel = d.equals(selectedDate);
+                            boolean future = !allowFuture && d.isAfter(today);
+                            boolean isSel = d.equals(calSelected);
                             boolean isTod = d.equals(today);
                             cell.setText(String.valueOf(dayNum));
                             if (future) {
@@ -928,7 +949,7 @@ public final class DiaryEntryDialog {
                             }
                             if (!future) {
                                 cell.setOnClickListener(v -> {
-                                    applyDate(d);
+                                    onPick.accept(d);
                                     calDlg.dismiss();
                                 });
                             }
@@ -944,7 +965,7 @@ public final class DiaryEntryDialog {
                 renderMonth.run();
             });
             nextBtn.setOnClickListener(v -> {
-                if (shown[0].isBefore(currentYm)) {
+                if (allowFuture || shown[0].isBefore(currentYm)) {
                     shown[0] = shown[0].plusMonths(1);
                     renderMonth.run();
                 }
@@ -1035,8 +1056,12 @@ public final class DiaryEntryDialog {
             if (dateSeg != null) dateSeg.setVisibility(joltIncident ? View.GONE : View.VISIBLE);
             if (joltIncident && !selectedDate.equals(joltDate())) applyDate(joltDate());
 
+            stashCoverageInputs();
             adaptiveBox.removeAllViews();
-            if (selectedCat == CarDiary.Category.TIRE_PRESSURE) {
+            if (hasCoverage(selectedCat)) {
+                adaptiveBox.setVisibility(View.VISIBLE);
+                buildCoverageControls();
+            } else if (selectedCat == CarDiary.Category.TIRE_PRESSURE) {
                 adaptiveBox.setVisibility(View.VISIBLE);
                 buildTirePressureControls();
             } else if (selectedCat == CarDiary.Category.NOISE) {
@@ -1286,6 +1311,110 @@ public final class DiaryEntryDialog {
             adaptiveBox.addView(clipWell);
         }
 
+        /** Yearly cover with its own end date: insurance, tax and licensing. */
+        private static boolean hasCoverage(CarDiary.Category cat) {
+            return cat != null && cat.coverageDays >= 365;
+        }
+
+        private LocalDate effectiveValidUntil() {
+            return (validUntil != null && validUntil.isAfter(selectedDate))
+                ? validUntil : selectedDate.plusYears(1);
+        }
+
+        /** The box is rebuilt often: keep what was typed. */
+        private void stashCoverageInputs() {
+            if (insurerInput != null) insurer = insurerInput.getText().toString().trim();
+            if (policyInput != null) policyNo = policyInput.getText().toString().trim();
+            if (phoneInput != null) assistPhone = phoneInput.getText().toString().trim();
+            insurerInput = policyInput = phoneInput = null;
+        }
+
+        private String coverageMeta() {
+            stashCoverageInputs();
+            long untilMs = effectiveValidUntil().atTime(23, 59, 59)
+                .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            boolean ins = selectedCat == CarDiary.Category.INSURANCE;
+            return CarDiary.buildCoverageMeta(untilMs, ins ? insurer : null,
+                ins ? policyNo : null, ins ? assistPhone : null);
+        }
+
+        private void buildCoverageControls() {
+            boolean ins = selectedCat == CarDiary.Category.INSURANCE;
+            int gap = Style.dp(c, 12);
+
+            LinearLayout row1 = new LinearLayout(c);
+            row1.setOrientation(LinearLayout.HORIZONTAL);
+
+            // "Valid until  27 Jan 27": tap for the calendar (future days allowed).
+            TextView until = new TextView(c);
+            android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder(
+                c.getString(R.string.diary_cov_valid_until) + "   ");
+            sb.setSpan(new android.text.style.ForegroundColorSpan(Style.TEXT_DIM), 0, sb.length(),
+                android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            int st = sb.length();
+            sb.append(shortYearDateFmt.format(effectiveValidUntil()));
+            sb.setSpan(new android.text.style.StyleSpan(Typeface.BOLD), st, sb.length(),
+                android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            until.setText(sb);
+            until.setTextColor(Style.TEXT);
+            until.setTextSize(20f);
+            until.setGravity(Gravity.CENTER_VERTICAL);
+            until.setSingleLine(true);
+            until.setBackground(roundedRect(wellFill(), borderColor(), 1, 18));
+            until.setPadding(Style.dp(c, 18), Style.dp(c, 8), Style.dp(c, 18), Style.dp(c, 8));
+            until.setMinimumHeight(Style.dp(c, TOUCH_DP));
+            until.setOnClickListener(v -> openCalendar(effectiveValidUntil(), true, d -> {
+                validUntil = d;
+                rebuildAdaptive();
+            }));
+            row1.addView(until, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+            if (ins) {
+                insurerInput = coverageInput(R.string.diary_cov_insurer, insurer,
+                    InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_WORDS);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                lp.leftMargin = gap;
+                row1.addView(coverageWell(insurerInput), lp);
+            }
+            adaptiveBox.addView(row1, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            if (!ins) return;
+
+            LinearLayout row2 = new LinearLayout(c);
+            row2.setOrientation(LinearLayout.HORIZONTAL);
+            policyInput = coverageInput(R.string.diary_cov_policy, policyNo,
+                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+            phoneInput = coverageInput(R.string.diary_cov_phone, assistPhone, InputType.TYPE_CLASS_PHONE);
+            row2.addView(coverageWell(policyInput),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            plp.leftMargin = gap;
+            row2.addView(coverageWell(phoneInput), plp);
+            LinearLayout.LayoutParams r2 = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            r2.topMargin = gap;
+            adaptiveBox.addView(row2, r2);
+        }
+
+        private EditText coverageInput(int hintRes, String value, int inputType) {
+            EditText e = bareInput(inputType, c.getString(hintRes), 20f, false);
+            if (value != null) e.setText(value);
+            return e;
+        }
+
+        private LinearLayout coverageWell(EditText input) {
+            LinearLayout well = new LinearLayout(c);
+            well.setOrientation(LinearLayout.HORIZONTAL);
+            well.setGravity(Gravity.CENTER_VERTICAL);
+            well.setBackground(roundedRect(wellFill(), borderColor(), 1, 18));
+            well.setPadding(Style.dp(c, 18), Style.dp(c, 8), Style.dp(c, 18), Style.dp(c, 8));
+            well.setMinimumHeight(Style.dp(c, TOUCH_DP));
+            well.addView(input, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            return well;
+        }
+
         private void buildCoolantControls() {
             LinearLayout seg = new LinearLayout(c);
             seg.setOrientation(LinearLayout.HORIZONTAL);
@@ -1408,7 +1537,9 @@ public final class DiaryEntryDialog {
                         ? CarDiary.STATUS_OPEN : CarDiary.STATUS_DONE;
                 }
                 String meta = null;
-                if (cat == CarDiary.Category.TIRE_PRESSURE) {
+                if (hasCoverage(cat)) {
+                    meta = coverageMeta();
+                } else if (cat == CarDiary.Category.TIRE_PRESSURE) {
                     meta = CarDiary.buildTirePressureMeta(psi[0], psi[1], psi[2], psi[3], originalCold);
                 } else if (cat == CarDiary.Category.SERVICE && !bundled.isEmpty()) {
                     meta = CarDiary.buildServiceBundledMeta(new ArrayList<>(bundled));
@@ -1443,7 +1574,9 @@ public final class DiaryEntryDialog {
                     null, note, tags, meta, jolt != null ? jolt.id : null, onSaved);
             } else {
                 String meta = null;
-                if (cat == CarDiary.Category.SERVICE && !bundled.isEmpty()) {
+                if (hasCoverage(cat)) {
+                    meta = coverageMeta();
+                } else if (cat == CarDiary.Category.SERVICE && !bundled.isEmpty()) {
                     meta = CarDiary.buildServiceBundledMeta(new ArrayList<>(bundled));
                 } else if (cat == CarDiary.Category.COOLANT) {
                     meta = CarDiary.buildCoolantMeta(coolantTopUp);

@@ -1303,6 +1303,22 @@ public final class CarDiaryView extends LinearLayout {
                 }
             }
         }
+        if (e.category != null && e.category.coverageDays >= 365) {
+            // Insurance, tax and licensing: who, until when, and the number to call.
+            String provider = CarDiary.parseMetaText(e.metaJson, CarDiary.META_PROVIDER);
+            Long until = CarDiary.parseValidUntilMs(e.metaJson);
+            String phone = CarDiary.parseMetaText(e.metaJson, CarDiary.META_ASSIST_PHONE);
+            if (provider != null) sb.append(provider);
+            if (until != null) {
+                if (sb.length() > 0) sb.append(" · ");
+                sb.append(c.getString(R.string.diary_cov_until_detail,
+                    new SimpleDateFormat("d MMM yy", Locale.getDefault()).format(new Date(until))));
+            }
+            if (phone != null) {
+                if (sb.length() > 0) sb.append(" · ");
+                sb.append("\u260E ").append(phone);
+            }
+        }
         if (e.category == CarDiary.Category.COOLANT) {
             Boolean topUp = CarDiary.parseTopUp(e.metaJson);
             if (topUp != null) {

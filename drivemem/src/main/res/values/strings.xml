@@ -887,6 +887,11 @@
     <string name="diary_hint_note_short">Note</string>
     <string name="diary_cat_balance_100">Charge to 100%</string>
     <string name="diary_at_km_prefix">at %1$s</string>
+    <string name="diary_cov_valid_until">Valid until</string>
+    <string name="diary_cov_insurer">Insurer</string>
+    <string name="diary_cov_policy">Policy no.</string>
+    <string name="diary_cov_phone">24h assistance phone</string>
+    <string name="diary_cov_until_detail">until %1$s</string>
     <string name="diary_coolant_topup">Top-up</string>
     <string name="diary_coolant_change">Full change</string>
     <string name="diary_edit_title">Edit entry</string>

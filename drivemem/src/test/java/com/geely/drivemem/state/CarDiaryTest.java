@@ -11,6 +11,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /** Unit tests for Car Diary category hierarchy, due-status engine (km, time,
@@ -447,5 +448,37 @@ public class CarDiaryTest {
         assertTrue(CarDiary.decodeJolts("").isEmpty());
         assertEquals(1, CarDiary.decodeJolts("garbage\n" + CarDiary.encodeJolts(
             Collections.singletonList(bare))).size());
+    }
+
+    @Test
+    public void coverageMetaRoundTripsAndEndDateDrivesCostAndReminder() {
+        long day = 86_400_000L;
+        long t0 = 1_800_000_000_000L;
+        long until = t0 + 245 * day; // an 8-month renewal, not a full year
+        String meta = CarDiary.buildCoverageMeta(until, "Acme \"Auto\"", "517-A\\9", "0800 130 700");
+        assertEquals(Long.valueOf(until), CarDiary.parseValidUntilMs(meta));
+        assertEquals("Acme \"Auto\"", CarDiary.parseMetaText(meta, CarDiary.META_PROVIDER));
+        assertEquals("517-A\\9", CarDiary.parseMetaText(meta, CarDiary.META_POLICY_NO));
+        assertEquals("0800 130 700", CarDiary.parseMetaText(meta, CarDiary.META_ASSIST_PHONE));
+        assertNull(CarDiary.buildCoverageMeta(null, " ", null, ""));
+        assertNull(CarDiary.parseValidUntilMs("{\"topUp\":true}"));
+
+        CarDiary.Entry e = new CarDiary.Entry(1, "u", t0, CarDiary.KIND_CARE,
+            CarDiary.Category.INSURANCE, CarDiary.STATUS_DONE, null, null, null, null,
+            600.0, null, null, null, null, null, meta, 1);
+        assertEquals(until, CarDiary.coverageEndMs(e));
+        // The cost is spread over the 245 days of the policy: all of it is inside them.
+        assertEquals(600.0, CarDiary.entryCostForWindow(e, t0, until, false), 0.01);
+        assertEquals(300.0, CarDiary.entryCostForWindow(e, t0, t0 + 245 * day / 2, false), 0.5);
+
+        // The reminder counts down to the end date, not to entry date + 12 months.
+        long now = t0 + 240 * day;
+        for (CarDiary.DueStatus d : CarDiary.computeDueStatuses(
+                java.util.Collections.singletonList(e), null, now, null, null)) {
+            if (d.category == CarDiary.Category.INSURANCE) {
+                assertEquals(Integer.valueOf(5), d.daysRemaining);
+                assertTrue(d.dueSoon);
+            }
+        }
     }
 }

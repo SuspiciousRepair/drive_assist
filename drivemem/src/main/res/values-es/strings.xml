@@ -859,6 +859,11 @@
     <string name="diary_hint_note_short">Nota</string>
     <string name="diary_cat_balance_100">Carga al 100%</string>
     <string name="diary_at_km_prefix">a los %1$s</string>
+    <string name="diary_cov_valid_until">Válido hasta</string>
+    <string name="diary_cov_insurer">Aseguradora</string>
+    <string name="diary_cov_policy">Nº de póliza</string>
+    <string name="diary_cov_phone">Teléfono de asistencia 24h</string>
+    <string name="diary_cov_until_detail">hasta %1$s</string>
     <string name="diary_coolant_topup">Rellenar</string>
     <string name="diary_coolant_change">Cambio completo</string>
     <string name="diary_edit_title">Editar registro</string>

@@ -521,9 +521,9 @@ public final class CarDiary {
         int covDays = e.category != null ? e.category.coverageDays : 0;
         if (covDays > 0) {
             if (winEndMs <= winStartMs) return 0.0;
-            double spanMs = covDays * MS_PER_DAY;
             long covStart = e.tsMs;
-            long covEnd = covStart + (long) spanMs;
+            long covEnd = coverageEndMs(e);
+            double spanMs = covEnd - covStart;
             long ovStart = Math.max(covStart, winStartMs);
             long ovEnd = Math.min(covEnd, winEndMs);
             double overlapMs = Math.max(0L, ovEnd - ovStart);
@@ -1580,6 +1580,12 @@ public final class CarDiary {
 
             int daysSince = (int) Math.max(0, Math.floor((nowMs - last.tsMs) / MS_PER_DAY));
             Integer daysRem = dayLimit != null ? (dayLimit - daysSince) : null;
+            // A policy states its own end date: that date is the reminder, not
+            // "entry date + interval" (a renewal can cover less than a year).
+            Long validUntil = parseValidUntilMs(last.metaJson);
+            if (daysRem != null && validUntil != null && validUntil > last.tsMs) {
+                daysRem = (int) Math.ceil((validUntil - nowMs) / MS_PER_DAY);
+            }
 
             boolean overdueKm = kmRem != null && kmRem <= 0.0;
             boolean overdueTime = daysRem != null && daysRem <= 0;
@@ -1745,6 +1751,78 @@ public final class CarDiary {
         sb.append(String.format(Locale.US, "{\"joltG\":%.2f", peakG));
         if (speedKmh != null) sb.append(String.format(Locale.US, ",\"speedKmh\":%.0f", speedKmh));
         return sb.append('}').toString();
+    }
+
+    // Coverage entries (insurance, tax and licensing): the end date of the
+    // cover, and for insurance who to call. Kept in meta_json.
+    public static final String META_VALID_UNTIL = "validUntil";
+    public static final String META_PROVIDER = "provider";
+    public static final String META_POLICY_NO = "policyNo";
+    public static final String META_ASSIST_PHONE = "assistPhone";
+
+    /** Builds the meta_json of a coverage entry; empty parts are left out. Null when all are empty. */
+    public static String buildCoverageMeta(Long validUntilMs, String provider,
+                                           String policyNo, String assistPhone) {
+        StringBuilder sb = new StringBuilder("{");
+        if (validUntilMs != null && validUntilMs > 0) {
+            sb.append('"').append(META_VALID_UNTIL).append("\":").append(validUntilMs);
+        }
+        appendMetaText(sb, META_PROVIDER, provider);
+        appendMetaText(sb, META_POLICY_NO, policyNo);
+        appendMetaText(sb, META_ASSIST_PHONE, assistPhone);
+        return sb.length() > 1 ? sb.append('}').toString() : null;
+    }
+
+    private static void appendMetaText(StringBuilder sb, String key, String value) {
+        if (value == null || value.trim().isEmpty()) return;
+        if (sb.length() > 1) sb.append(',');
+        sb.append('"').append(key).append("\":\"");
+        String v = value.trim();
+        for (int i = 0; i < v.length(); i++) {
+            char ch = v.charAt(i);
+            if (ch == '"' || ch == '\\') sb.append('\\').append(ch);
+            else if (ch < 0x20) sb.append(' ');
+            else sb.append(ch);
+        }
+        sb.append('"');
+    }
+
+    /** End of cover in ms from meta_json, or null. */
+    public static Long parseValidUntilMs(String metaJson) {
+        if (metaJson == null) return null;
+        String k = "\"" + META_VALID_UNTIL + "\":";
+        int i = metaJson.indexOf(k);
+        if (i < 0) return null;
+        int s = i + k.length(), e = s;
+        while (e < metaJson.length() && Character.isDigit(metaJson.charAt(e))) e++;
+        if (e == s) return null;
+        try { return Long.parseLong(metaJson.substring(s, e)); }
+        catch (NumberFormatException ex) { return null; }
+    }
+
+    /** A text value written by {@link #buildCoverageMeta}, or null. */
+    public static String parseMetaText(String metaJson, String key) {
+        if (metaJson == null || key == null) return null;
+        String k = "\"" + key + "\":\"";
+        int i = metaJson.indexOf(k);
+        if (i < 0) return null;
+        StringBuilder out = new StringBuilder();
+        for (int p = i + k.length(); p < metaJson.length(); p++) {
+            char ch = metaJson.charAt(p);
+            if (ch == '\\' && p + 1 < metaJson.length()) { out.append(metaJson.charAt(++p)); continue; }
+            if (ch == '"') return out.length() > 0 ? out.toString() : null;
+            out.append(ch);
+        }
+        return null;
+    }
+
+    /** When the cost of a coverage entry stops counting: the end date written
+     * on the entry, else entry date + the category's usual span. Pure. */
+    public static long coverageEndMs(Entry e) {
+        Long until = parseValidUntilMs(e.metaJson);
+        if (until != null && until > e.tsMs) return until;
+        int covDays = e.category != null ? e.category.coverageDays : 0;
+        return e.tsMs + (long) (covDays * MS_PER_DAY);
     }
 
     public static String buildCoolantMeta(boolean topUp) {
