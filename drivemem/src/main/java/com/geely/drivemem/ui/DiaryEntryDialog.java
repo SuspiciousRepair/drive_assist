@@ -96,15 +96,19 @@ public final class DiaryEntryDialog {
                                    CarDiary.PendingJolt jolt,
                                    List<CarDiary.DueStatus> dueList,
                                    Runnable onSaved) {
-        if (!CarState.isParked()) {
-            Toast.makeText(c, c.getString(R.string.diary_park_required), Toast.LENGTH_SHORT).show();
-            return null;
-        }
-        return new Builder(c, initialCat, jolt, dueList, onSaved).show();
+        return new Builder(c, null, initialCat, jolt, dueList, onSaved).show();
+    }
+
+    public static AlertDialog showEdit(Context c, CarDiary.Entry existing,
+                                       List<CarDiary.DueStatus> dueList,
+                                       Runnable onSaved) {
+        if (existing == null) return null;
+        return new Builder(c, existing, existing.category, null, dueList, onSaved).show();
     }
 
     private static final class Builder {
         private final Context c;
+        private final CarDiary.Entry editing;
         private final CarDiary.PendingJolt jolt;
         private final Runnable onSaved;
         private final DateTimeFormatter shortDateFmt = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault());
@@ -118,6 +122,8 @@ public final class DiaryEntryDialog {
         private CarDiary.Group selectedGroup;
         private CarDiary.Category selectedCat;
         private LocalDate selectedDate;
+        private LocalDate originalDate;
+        private Boolean originalCold = null;
 
         // Auto-attached car odometer for selectedDate (never manually edited)
         private Double resolvedOdoKm = null;
@@ -152,9 +158,10 @@ public final class DiaryEntryDialog {
         private EditText noteInput;
         private AlertDialog dialog;
 
-        Builder(Context c, CarDiary.Category initialCat, CarDiary.PendingJolt jolt,
-                List<CarDiary.DueStatus> dueList, Runnable onSaved) {
+        Builder(Context c, CarDiary.Entry editing, CarDiary.Category initialCat,
+                CarDiary.PendingJolt jolt, List<CarDiary.DueStatus> dueList, Runnable onSaved) {
             this.c = c;
+            this.editing = editing;
             this.jolt = jolt;
             this.onSaved = onSaved;
 
@@ -167,7 +174,35 @@ public final class DiaryEntryDialog {
                 }
             }
 
-            if (jolt != null) {
+            if (editing != null) {
+                CarDiary.Category cat = editing.category != null && editing.category.userPickable
+                    ? editing.category : CarDiary.Category.OTHER;
+                this.selectedCat = cat;
+                this.selectedGroup = cat.group;
+                this.selectedDate = Instant.ofEpochMilli(editing.tsMs)
+                    .atZone(ZoneId.systemDefault()).toLocalDate();
+                this.originalDate = this.selectedDate;
+                this.showingClasses = false;
+                if (editing.odoKm != null && editing.odoKm > 0) {
+                    this.resolvedOdoKm = editing.odoKm;
+                    this.resolvedOdoExact = true;
+                }
+                int[] parsedPsi = CarDiary.parsePsi(editing.metaJson);
+                if (parsedPsi != null) {
+                    System.arraycopy(parsedPsi, 0, psi, 0, 4);
+                    perWheel = !(psi[0] == psi[1] && psi[1] == psi[2] && psi[2] == psi[3]);
+                }
+                originalCold = CarDiary.parseCold(editing.metaJson);
+                Boolean topUp = CarDiary.parseTopUp(editing.metaJson);
+                if (topUp != null) coolantTopUp = topUp;
+                bundled.addAll(CarDiary.parseBundled(editing.metaJson));
+                if (editing.tags != null && !editing.tags.trim().isEmpty()) {
+                    for (String tok : editing.tags.split(",")) {
+                        String t = tok.trim();
+                        if (!t.isEmpty()) selectedTags.add(t);
+                    }
+                }
+            } else if (jolt != null) {
                 this.selectedCat = CarDiary.Category.INCIDENT;
                 this.selectedGroup = CarDiary.Group.NOTES;
                 this.selectedDate = Instant.ofEpochMilli(jolt.tsMs)
@@ -304,6 +339,10 @@ public final class DiaryEntryDialog {
             costInput = bareInput(InputType.TYPE_CLASS_NUMBER,
                 c.getString(R.string.diary_hint_cost_short), 19f, true);
             installCentsFormatter(costInput);
+            if (editing != null && editing.cost != null && editing.cost > 0) {
+                long cents = Math.round(editing.cost * 100.0);
+                costInput.setText(ChargeCostDialog.formatCents(cents));
+            }
             costWell.addView(costInput, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             pair.addView(costWell, new LinearLayout.LayoutParams(
@@ -321,7 +360,9 @@ public final class DiaryEntryDialog {
 
             noteInput = bareInput(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES,
                 c.getString(R.string.diary_hint_note_short), 18f, false);
-            if (jolt != null) {
+            if (editing != null && editing.note != null) {
+                noteInput.setText(editing.note);
+            } else if (jolt != null) {
                 String pre = jolt.speedKmh != null
                     ? c.getString(R.string.diary_jolt_prefill_note, jolt.maxG(), jolt.speedKmh)
                     : c.getString(R.string.diary_jolt_prefill_note_nospeed, jolt.maxG());
@@ -488,7 +529,7 @@ public final class DiaryEntryDialog {
             head.addView(circleIconButton(R.drawable.ic_close));
 
             TextView title = new TextView(c);
-            title.setText(c.getString(R.string.diary_add_title));
+            title.setText(c.getString(editing != null ? R.string.diary_edit_title : R.string.diary_add_title));
             title.setTextColor(Style.TEXT);
             title.setTextSize(20f);
             title.setTypeface(null, Typeface.BOLD);
@@ -850,6 +891,12 @@ public final class DiaryEntryDialog {
         }
 
         private void refreshOdometerForSelectedDate(boolean initial) {
+            if (initial && editing != null && editing.odoKm != null && editing.odoKm > 0) {
+                resolvedOdoKm = editing.odoKm;
+                resolvedOdoExact = true;
+                rebuildPaneHeader();
+                return;
+            }
             if (initial && jolt != null && jolt.odoKm != null && jolt.odoKm > 0) {
                 resolvedOdoKm = jolt.odoKm;
                 resolvedOdoExact = true;
@@ -1218,7 +1265,9 @@ public final class DiaryEntryDialog {
 
             final boolean isToday = selectedDate.equals(LocalDate.now());
             final long tsMs;
-            if (jolt != null && selectedCat == CarDiary.Category.INCIDENT
+            if (editing != null && selectedDate.equals(originalDate)) {
+                tsMs = editing.tsMs;
+            } else if (jolt != null && selectedCat == CarDiary.Category.INCIDENT
                     && selectedDate.equals(Instant.ofEpochMilli(jolt.tsMs)
                         .atZone(ZoneId.systemDefault()).toLocalDate())) {
                 tsMs = jolt.tsMs;
@@ -1235,7 +1284,25 @@ public final class DiaryEntryDialog {
                 ? String.join(", ", selectedTags) : null;
             final Context app = c.getApplicationContext();
 
-            if (cat == CarDiary.Category.TIRE_PRESSURE) {
+            if (editing != null) {
+                String status = editing.status;
+                if (editing.category != cat) {
+                    status = (cat == CarDiary.Category.NOISE || cat == CarDiary.Category.INCIDENT)
+                        ? CarDiary.STATUS_OPEN : CarDiary.STATUS_DONE;
+                }
+                String meta = null;
+                if (cat == CarDiary.Category.TIRE_PRESSURE) {
+                    meta = CarDiary.buildTirePressureMeta(psi[0], psi[1], psi[2], psi[3], originalCold);
+                } else if (cat == CarDiary.Category.SERVICE && !bundled.isEmpty()) {
+                    meta = CarDiary.buildServiceBundledMeta(new ArrayList<>(bundled));
+                } else if (cat == CarDiary.Category.COOLANT) {
+                    meta = CarDiary.buildCoolantMeta(coolantTopUp);
+                } else if (cat == CarDiary.Category.INCIDENT && editing.category == CarDiary.Category.INCIDENT) {
+                    meta = editing.metaJson;
+                }
+                String title = (editing.category == cat) ? editing.title : null;
+                CarDiary.update(app, editing.id, cat, status, tsMs, odo, cost, title, note, tags, meta, onSaved);
+            } else if (cat == CarDiary.Category.TIRE_PRESSURE) {
                 final int[] snap = {psi[0], psi[1], psi[2], psi[3]};
                 Runnable commit = () -> {
                     Boolean cold = isToday ? CarDiary.inferColdTires(app, tsMs) : null;

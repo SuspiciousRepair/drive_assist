@@ -99,6 +99,8 @@ public class TelemetryActivity extends Activity {
     static final int SEC_OEM_TEXT = 14;
     // The music card and its lyrics (TelemetryMusicSection). Appended, same reason as SEC_DOORS.
     static final int SEC_MUSIC = 15;
+    // Maintenance schedule, jolt sensitivity, and battery health guide (TelemetryDiarySection).
+    public static final int SEC_DIARY = 16;
 
     private final List<TextView> navItems = new ArrayList<>();
     private TextView status;                  // recreated by each panel that needs it
@@ -195,6 +197,7 @@ public class TelemetryActivity extends Activity {
         nav.addView(navItem(getString(R.string.cfg_nav_drive), SEC_DRIVE));
         nav.addView(navItem(getString(R.string.cfg_nav_climate), SEC_CLIMATE));
         nav.addView(navItem(getString(R.string.cfg_nav_doors), SEC_DOORS));
+        nav.addView(navItem(getString(R.string.cfg_nav_diary), SEC_DIARY));
         nav.addView(navItem(getString(R.string.cfg_nav_clips), SEC_CLIPS));
 
         nav.addView(sideGroupLabel(getString(R.string.cfg_group_display)));
@@ -363,6 +366,7 @@ public class TelemetryActivity extends Activity {
                 content.addView(abrpSection);
                 break;
             case SEC_MUSIC: content.addView(new TelemetryMusicSection(this)); break;
+            case SEC_DIARY: content.addView(new TelemetryDiarySection(this)); break;
             case SEC_OEM_TEXT: content.addView(new TelemetryOemTextSection(this)); break;
             case SEC_SYSTEM: systemSection = new TelemetrySystemSection(this); content.addView(systemSection); break;
             default:       // SEC_DRIVE, and the landing page

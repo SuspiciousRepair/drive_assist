@@ -216,6 +216,21 @@ public class RouteView extends View {
         return p;
     }
 
+    /** Clears any drawn trip routes without touching charge pins. */
+    void clearRoutes() {
+        set(new double[0], new double[0], new double[0], new int[]{0}, false);
+    }
+
+    /** Clears any drawn charge pins without touching routes. */
+    void clearSpots() {
+        spotLat = new double[0]; spotLon = new double[0];
+        spotDc = new boolean[0]; spotLabel = new String[0];
+        selSpot = -1;
+        project();
+        rebuild();
+        invalidate();
+    }
+
     /** lat, lon in degrees, speed in km/h; same length, oldest first. */
     public void setRoute(double[] lat, double[] lon, double[] speedKmh) {
         set(lat, lon, speedKmh, new int[]{0}, false);

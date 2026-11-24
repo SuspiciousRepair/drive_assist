@@ -13,8 +13,13 @@ import com.geely.drivemem.car.CarDb;
 import com.geely.drivemem.car.EntityBus;
 import com.geely.drivemem.car.TireWarning;
 import com.geely.drivemem.sensors.Aux12vMonitor;
+import com.geely.drivemem.sensors.BatteryHealth;
+import com.geely.drivemem.sensors.BatteryHeat;
+import com.geely.drivemem.sensors.ChargePeriodSummary;
 import com.geely.drivemem.sensors.LocationHub;
+import com.geely.drivemem.sensors.SocHistory;
 import com.geely.drivemem.util.DiaryClipTrimmer;
+import com.geely.drivemem.util.Prefs;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -235,6 +240,154 @@ public final class CarDiary {
             this.overdue = overdue;
             this.dueSoon = dueSoon;
             this.coldSnapNudge = coldSnapNudge;
+        }
+    }
+
+    /** Configurable maintenance intervals (0 = disabled / Off). Pure & unit-tested. */
+    public static final class ScheduleConfig {
+        public final int balanceDays;
+        public final int tirePressureDays;
+        public final boolean coldSnapEnabled;
+        public final int tireRotationKm;
+        public final int serviceKm, serviceMonths;
+        public final int cabinFilterKm, cabinFilterMonths;
+        public final int brakeFluidKm, brakeFluidMonths;
+        public final int coolantKm, coolantMonths;
+        public final int gearOilKm, gearOilMonths;
+        public final int wipersMonths;
+        public final int battery12vMonths;
+
+        public ScheduleConfig(int balanceDays, int tirePressureDays, boolean coldSnapEnabled,
+                              int tireRotationKm, int serviceKm, int serviceMonths,
+                              int cabinFilterKm, int cabinFilterMonths,
+                              int brakeFluidKm, int brakeFluidMonths,
+                              int coolantKm, int coolantMonths,
+                              int gearOilKm, int gearOilMonths,
+                              int wipersMonths, int battery12vMonths) {
+            this.balanceDays = Math.max(0, balanceDays);
+            this.tirePressureDays = Math.max(0, tirePressureDays);
+            this.coldSnapEnabled = coldSnapEnabled;
+            this.tireRotationKm = Math.max(0, tireRotationKm);
+            this.serviceKm = Math.max(0, serviceKm);
+            this.serviceMonths = Math.max(0, serviceMonths);
+            this.cabinFilterKm = Math.max(0, cabinFilterKm);
+            this.cabinFilterMonths = Math.max(0, cabinFilterMonths);
+            this.brakeFluidKm = Math.max(0, brakeFluidKm);
+            this.brakeFluidMonths = Math.max(0, brakeFluidMonths);
+            this.coolantKm = Math.max(0, coolantKm);
+            this.coolantMonths = Math.max(0, coolantMonths);
+            this.gearOilKm = Math.max(0, gearOilKm);
+            this.gearOilMonths = Math.max(0, gearOilMonths);
+            this.wipersMonths = Math.max(0, wipersMonths);
+            this.battery12vMonths = Math.max(0, battery12vMonths);
+        }
+
+        public static ScheduleConfig defaults() {
+            return new ScheduleConfig(
+                BALANCE_INTERVAL_DAYS, 30, true,
+                10_000, 20_000, 12,
+                20_000, 12,
+                40_000, 24,
+                80_000, 48,
+                80_000, 48,
+                12, 48);
+        }
+
+        public static ScheduleConfig fromPrefs(Context ctx) {
+            if (ctx == null) return defaults();
+            return new ScheduleConfig(
+                Prefs.getDiaryBalanceDays(ctx),
+                Prefs.getDiaryTirePressureDays(ctx),
+                Prefs.getDiaryTireColdSnap(ctx),
+                Prefs.getDiaryTireRotationKm(ctx),
+                Prefs.getDiaryServiceKm(ctx), Prefs.getDiaryServiceMonths(ctx),
+                Prefs.getDiaryCabinFilterKm(ctx), Prefs.getDiaryCabinFilterMonths(ctx),
+                Prefs.getDiaryBrakeFluidKm(ctx), Prefs.getDiaryBrakeFluidMonths(ctx),
+                Prefs.getDiaryCoolantKm(ctx), Prefs.getDiaryCoolantMonths(ctx),
+                Prefs.getDiaryGearOilKm(ctx), Prefs.getDiaryGearOilMonths(ctx),
+                Prefs.getDiaryWipersMonths(ctx),
+                Prefs.getDiaryBattery12vMonths(ctx));
+        }
+
+        public Double kmInterval(Category cat) {
+            switch (cat) {
+                case TIRE_PRESSURE: return tirePressureDays > 0 ? cat.kmInterval : null;
+                case TIRE_ROTATION: return tireRotationKm > 0 ? (double) tireRotationKm : null;
+                case SERVICE: return serviceKm > 0 ? (double) serviceKm : null;
+                case CABIN_FILTER: return cabinFilterKm > 0 ? (double) cabinFilterKm : null;
+                case BRAKE_FLUID: return brakeFluidKm > 0 ? (double) brakeFluidKm : null;
+                case COOLANT: return coolantKm > 0 ? (double) coolantKm : null;
+                case GEAR_OIL: return gearOilKm > 0 ? (double) gearOilKm : null;
+                default: return cat.kmInterval;
+            }
+        }
+
+        public Integer dayInterval(Category cat) {
+            switch (cat) {
+                case TIRE_PRESSURE: return tirePressureDays > 0 ? tirePressureDays : null;
+                case SERVICE: return serviceMonths > 0 ? (int) Math.round(serviceMonths * DAYS_PER_MONTH) : null;
+                case CABIN_FILTER: return cabinFilterMonths > 0 ? (int) Math.round(cabinFilterMonths * DAYS_PER_MONTH) : null;
+                case BRAKE_FLUID: return brakeFluidMonths > 0 ? (int) Math.round(brakeFluidMonths * DAYS_PER_MONTH) : null;
+                case COOLANT: return coolantMonths > 0 ? (int) Math.round(coolantMonths * DAYS_PER_MONTH) : null;
+                case GEAR_OIL: return gearOilMonths > 0 ? (int) Math.round(gearOilMonths * DAYS_PER_MONTH) : null;
+                case WIPERS: return wipersMonths > 0 ? (int) Math.round(wipersMonths * DAYS_PER_MONTH) : null;
+                case BATTERY_12V: return battery12vMonths > 0 ? (int) Math.round(battery12vMonths * DAYS_PER_MONTH) : null;
+                default:
+                    return cat.monthInterval != null
+                        ? (int) Math.round(cat.monthInterval * DAYS_PER_MONTH) : null;
+            }
+        }
+
+        public boolean isEnabled(Category cat) {
+            return kmInterval(cat) != null || dayInterval(cat) != null;
+        }
+    }
+
+    /** Lifetime Total Cost of Ownership combining Energy (charges) + Maintenance (diary). */
+    public static final class TcoSummary {
+        public final double chargeCost;
+        public final double diaryCost;
+        public final double totalCost;
+        public final double trackedKm;
+        public final double costPerKm;     // -1 when trackedKm <= 0 or totalCost <= 0
+        public final double chargeShare;   // 0..1, -1 when totalCost <= 0
+
+        public TcoSummary(double chargeCost, double diaryCost, double trackedKm,
+                          double costPerKm, double chargeShare) {
+            this.chargeCost = chargeCost;
+            this.diaryCost = diaryCost;
+            this.totalCost = chargeCost + diaryCost;
+            this.trackedKm = trackedKm;
+            this.costPerKm = costPerKm;
+            this.chargeShare = chargeShare;
+        }
+
+        public static TcoSummary compute(double chargeCost, double diaryCost, double trackedKm) {
+            double c = Math.max(0.0, chargeCost);
+            double d = Math.max(0.0, diaryCost);
+            double tot = c + d;
+            double km = Math.max(0.0, trackedKm);
+            double perKm = (tot > 0 && km >= 1.0) ? (tot / km) : -1.0;
+            double share = tot > 0 ? (c / tot) : -1.0;
+            return new TcoSummary(c, d, km, perKm, share);
+        }
+
+        public boolean hasCosts() { return totalCost > 0.005; }
+    }
+
+    /** 60-day HV traction battery longevity summary (moved from ChargeStatsView). */
+    public static final class HvHealthSummary {
+        public final Double soh;
+        public final BatteryHeat.Stats heat;
+        public final ChargePeriodSummary charges;
+        public final java.time.LocalDate windowStart;
+
+        public HvHealthSummary(Double soh, BatteryHeat.Stats heat,
+                               ChargePeriodSummary charges, java.time.LocalDate windowStart) {
+            this.soh = soh;
+            this.heat = heat;
+            this.charges = charges;
+            this.windowStart = windowStart;
         }
     }
 
@@ -517,6 +670,43 @@ public final class CarDiary {
         });
     }
 
+    /** Updates an existing diary entry asynchronously on CarDb's writer thread. */
+    public static void update(Context ctx, long id, Category cat, String status, long tsMs,
+                              Double odoKm, Double cost, String title, String note, String tags,
+                              String metaJson, Runnable onDone) {
+        if (ctx == null || cat == null || id <= 0) return;
+        final Context app = ctx.getApplicationContext();
+        final String st = (status != null) ? status
+            : ((cat == Category.NOISE || cat == Category.INCIDENT) ? STATUS_OPEN : STATUS_DONE);
+        CarDb.get(app).write(() -> {
+            try {
+                SQLiteDatabase db = CarDb.get(app).db();
+                ContentValues v = new ContentValues();
+                v.put("ts_ms", tsMs);
+                v.put("kind", cat.kind);
+                v.put("category", cat.name());
+                v.put("status", st);
+                if (odoKm != null && odoKm > 0) v.put("odo_km", odoKm);
+                else v.putNull("odo_km");
+                if (cost != null && cost > 0) v.put("cost", cost);
+                else v.putNull("cost");
+                if (title != null && !title.trim().isEmpty()) v.put("title", title.trim());
+                else v.putNull("title");
+                if (note != null && !note.trim().isEmpty()) v.put("note", note.trim());
+                else v.putNull("note");
+                if (tags != null && !tags.trim().isEmpty()) v.put("tags", tags.trim());
+                else v.putNull("tags");
+                if (metaJson != null && !metaJson.trim().isEmpty()) v.put("meta_json", metaJson);
+                else v.putNull("meta_json");
+                db.update("diary_event", v, "id = ?", new String[]{String.valueOf(id)});
+                publishChanged();
+                if (onDone != null) onDone.run();
+            } catch (Throwable t) {
+                Log.w(CarAccess.TAG, "diary update failed: " + t);
+            }
+        });
+    }
+
     /** Deletes an entry (plus any recurrence children and attached 5-second clip). */
     public static void delete(Context ctx, long id, String clipName, Runnable onDone) {
         if (ctx == null) return;
@@ -733,19 +923,90 @@ public final class CarDiary {
         List<Entry> entries = readEntries(ctx);
         Double odo = latestOdometerKm(ctx);
         Double outC = latestOutsideTempC();
-        for (DueStatus d : computeDueStatuses(entries, odo, now, outC)) {
+        ScheduleConfig cfg = ScheduleConfig.fromPrefs(ctx);
+        for (DueStatus d : computeDueStatuses(entries, odo, now, outC, cfg)) {
             if (d.overdue) return true;
         }
         return false;
     }
 
+    /** Reads lifetime Total Cost of Ownership (charging + diary) and tracked distance off-thread. */
+    public static TcoSummary readTcoSummary(Context ctx) {
+        if (ctx == null) return TcoSummary.compute(0, 0, 0);
+        double chargeCost = 0, diaryCost = 0, trackedKm = 0;
+        try {
+            SQLiteDatabase db = CarDb.get(ctx).db();
+            try (Cursor c = db.rawQuery(
+                    "SELECT COALESCE(SUM(cost), 0) FROM charge_session WHERE cost > 0", null)) {
+                if (c.moveToFirst()) chargeCost = c.getDouble(0);
+            }
+            try (Cursor c = db.rawQuery(
+                    "SELECT COALESCE(SUM(cost), 0) FROM diary_event WHERE parent_id IS NULL AND cost > 0", null)) {
+                if (c.moveToFirst()) diaryCost = c.getDouble(0);
+            }
+            double firstOdo = -1, lastOdo = -1;
+            try (Cursor c = db.rawQuery(
+                    "SELECT MIN(CASE WHEN first_odo_km > 0 THEN first_odo_km END), "
+                    + "MAX(CASE WHEN last_odo_km > 0 THEN last_odo_km END) FROM daily_stat", null)) {
+                if (c.moveToFirst()) {
+                    if (!c.isNull(0)) firstOdo = c.getDouble(0);
+                    if (!c.isNull(1)) lastOdo = c.getDouble(1);
+                }
+            }
+            Double liveOdo = latestOdometerKm(ctx);
+            if (liveOdo != null && liveOdo > lastOdo) lastOdo = liveOdo;
+            if (firstOdo > 0 && lastOdo > firstOdo) {
+                trackedKm = lastOdo - firstOdo;
+            } else if (liveOdo != null && liveOdo > 0) {
+                trackedKm = liveOdo;
+            }
+        } catch (Throwable t) {
+            Log.w(CarAccess.TAG, "diary tco read failed: " + t);
+        }
+        return TcoSummary.compute(chargeCost, diaryCost, trackedKm);
+    }
+
+    /** Reads 60-day HV traction battery longevity summary off-thread. */
+    public static HvHealthSummary readHvHealthSummary(Context ctx, long nowMs) {
+        java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+        java.time.LocalDate today = java.time.Instant.ofEpochMilli(nowMs).atZone(zone).toLocalDate();
+        java.time.LocalDate start = today.minusDays(59);
+        java.time.LocalDate endExcl = today.plusDays(1);
+        if (ctx == null) {
+            return new HvHealthSummary(null, new BatteryHeat.Stats(),
+                new ChargePeriodSummary(), start);
+        }
+        long fromMs = start.atStartOfDay(zone).toInstant().toEpochMilli();
+        long toMs = endExcl.atStartOfDay(zone).toInstant().toEpochMilli();
+        Double soh = null;
+        BatteryHeat.Stats heat = new BatteryHeat.Stats();
+        ChargePeriodSummary charges = new ChargePeriodSummary();
+        try {
+            soh = BatteryHealth.latestBefore(ctx, nowMs);
+            heat = BatteryHeat.read(ctx, start, endExcl);
+            List<SocHistory.DayRange> ranges = SocHistory.dailyRanges(ctx, start, today);
+            List<ChargeSession.Summary> all = ChargeSession.readLog(ctx);
+            charges = ChargePeriodSummary.of(all, fromMs, toMs, nowMs, ranges);
+        } catch (Throwable t) {
+            Log.w(CarAccess.TAG, "diary hv health read failed: " + t);
+        }
+        return new HvHealthSummary(soh, heat, charges, start);
+    }
+
     // ---- Pure Due-Status Calculation Engine ----
 
-    /** Computes due status for every tracked category from the given entries, current odometer,
-     * current wall time, and optional outside temperature (for tire-pressure cold-snap nudge).
-     * Recognizes items bundled inside SERVICE entries (meta_json.bundled). Pure & unit-tested. */
+    /** Computes due status using default Geely Brasil EX2 intervals. Pure & unit-tested. */
     public static List<DueStatus> computeDueStatuses(List<Entry> entries, Double currentOdoKm,
                                                      long nowMs, Double currentOutTempC) {
+        return computeDueStatuses(entries, currentOdoKm, nowMs, currentOutTempC, ScheduleConfig.defaults());
+    }
+
+    /** Computes due status for every enabled tracked category from the given entries,
+     * current odometer, wall time, outside temp, and ScheduleConfig. Pure & unit-tested. */
+    public static List<DueStatus> computeDueStatuses(List<Entry> entries, Double currentOdoKm,
+                                                     long nowMs, Double currentOutTempC,
+                                                     ScheduleConfig config) {
+        ScheduleConfig cfg = config != null ? config : ScheduleConfig.defaults();
         Map<Category, Entry> latestByCat = new HashMap<>();
         if (entries != null) {
             for (Entry e : entries) {
@@ -764,15 +1025,19 @@ public final class CarDiary {
         List<DueStatus> out = new ArrayList<>();
         for (Category cat : Category.values()) {
             if (!cat.userPickable || !cat.hasInterval()) continue;
+            Double kmLimit = cfg.kmInterval(cat);
+            Integer dayLimit = cfg.dayInterval(cat);
+            if (kmLimit == null && dayLimit == null) continue; // disabled (Off) in Settings
+
             Entry last = latestByCat.get(cat);
             if (last == null) {
                 // On a new car that has not yet reached its first factory km milestone
                 // (e.g. 7,077 km < 20,000 km Scheduled Service or 10,000 km Tire Rotation),
                 // count down cleanly from 0 km without ever firing a false overdue alert.
-                if (currentOdoKm != null && currentOdoKm > 0 && cat.kmInterval != null
-                        && currentOdoKm < cat.kmInterval) {
-                    double kmRem = cat.kmInterval - currentOdoKm;
-                    boolean soonKm = kmRem <= cat.kmInterval * 0.10;
+                if (currentOdoKm != null && currentOdoKm > 0 && kmLimit != null
+                        && currentOdoKm < kmLimit) {
+                    double kmRem = kmLimit - currentOdoKm;
+                    boolean soonKm = kmRem <= kmLimit * 0.10;
                     out.add(new DueStatus(cat, null, currentOdoKm, kmRem, null, null,
                         false, soonKm, false));
                 } else {
@@ -782,26 +1047,22 @@ public final class CarDiary {
             }
             Double kmSince = (currentOdoKm != null && last.odoKm != null && currentOdoKm >= last.odoKm)
                 ? (currentOdoKm - last.odoKm) : null;
-            Double kmRem = (cat.kmInterval != null && kmSince != null)
-                ? (cat.kmInterval - kmSince) : null;
+            Double kmRem = (kmLimit != null && kmSince != null)
+                ? (kmLimit - kmSince) : null;
 
             int daysSince = (int) Math.max(0, Math.floor((nowMs - last.tsMs) / MS_PER_DAY));
-            Integer daysRem = null;
-            if (cat.monthInterval != null) {
-                int limitDays = (int) Math.round(cat.monthInterval * DAYS_PER_MONTH);
-                daysRem = limitDays - daysSince;
-            }
+            Integer daysRem = dayLimit != null ? (dayLimit - daysSince) : null;
 
             boolean overdueKm = kmRem != null && kmRem <= 0.0;
             boolean overdueTime = daysRem != null && daysRem <= 0;
             boolean overdue = overdueKm || overdueTime;
 
-            boolean soonKm = !overdue && cat.kmInterval != null && kmRem != null
-                && kmRem <= cat.kmInterval * 0.10;
-            boolean soonTime = !overdue && cat.monthInterval != null && daysRem != null
-                && daysRem <= Math.max(3, (int) Math.round(cat.monthInterval * DAYS_PER_MONTH * 0.10));
+            boolean soonKm = !overdue && kmLimit != null && kmRem != null
+                && kmRem <= kmLimit * 0.10;
+            boolean soonTime = !overdue && dayLimit != null && daysRem != null
+                && daysRem <= Math.max(3, (int) Math.round(dayLimit * 0.10));
 
-            boolean coldSnap = cat == Category.TIRE_PRESSURE && !overdue
+            boolean coldSnap = cfg.coldSnapEnabled && cat == Category.TIRE_PRESSURE && !overdue
                 && currentOutTempC != null && last.outsideTempC != null
                 && (last.outsideTempC - currentOutTempC) >= COLD_SNAP_DROP_C;
 
@@ -1084,6 +1345,11 @@ public final class CarDiary {
             return (LocationHub.Fix) r.value;
         }
         return null;
+    }
+
+    /** Notifies listeners (CarDiaryView, dock badge) that diary data or schedule settings changed. */
+    public static void notifyChanged() {
+        publishChanged();
     }
 
     private static void publishChanged() {

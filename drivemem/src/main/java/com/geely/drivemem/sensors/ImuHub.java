@@ -43,6 +43,20 @@ public final class ImuHub {
     public static final float JOLT_PEAK_Z_G = 0.85f;
     public static final float JOLT_PEAK_HORIZ_G = 0.75f;
 
+    /** Jolt sensitivity presets stored in Prefs ("off", "low", "medium", "high"). */
+    public static final String JOLT_OFF = "off";
+    public static final String JOLT_LOW = "low";
+    public static final String JOLT_MEDIUM = "medium";
+    public static final String JOLT_HIGH = "high";
+
+    /** Returns {zThresholdG, horizThresholdG} for a sensitivity level, or null if off. Pure. */
+    public static float[] joltThresholds(String sensitivity) {
+        if (JOLT_OFF.equals(sensitivity)) return null;
+        if (JOLT_LOW.equals(sensitivity)) return new float[]{1.10f, 0.95f};
+        if (JOLT_HIGH.equals(sensitivity)) return new float[]{0.65f, 0.55f};
+        return new float[]{JOLT_PEAK_Z_G, JOLT_PEAK_HORIZ_G};
+    }
+
     /** Instantaneous calibrated car-frame acceleration in g (+fwd, +right, +up). */
     public interface Listener { void onImu(float axG, float ayG, float azG); }
 
@@ -172,7 +186,7 @@ public final class ImuHub {
         Integer brake = readCachedBrake();
         LocationHub.Fix fix = LocationHub.get(c);
         LOG.write(c, nowMs, s, speedKmh, driveKw, brake, fix);
-        if (shouldTriggerJolt(s, speedKmh)) {
+        if (shouldTriggerJolt(s, speedKmh, com.geely.drivemem.util.Prefs.getDiaryJoltSensitivity(c))) {
             float zG = s.peakZ / ImuFilter.G;
             float xG = s.peakX / ImuFilter.G;
             float yG = s.peakY / ImuFilter.G;
@@ -187,14 +201,21 @@ public final class ImuHub {
         }
     }
 
-    /** Pure jolt detector for Car Diary pending incident queue. */
+    /** Pure jolt detector for Car Diary pending incident queue (default medium sensitivity). */
     public static boolean shouldTriggerJolt(ImuFilter.Summary s, Float speedKmh) {
+        return shouldTriggerJolt(s, speedKmh, JOLT_MEDIUM);
+    }
+
+    /** Pure jolt detector with configurable sensitivity preset ("off", "low", "medium", "high"). */
+    public static boolean shouldTriggerJolt(ImuFilter.Summary s, Float speedKmh, String sensitivity) {
+        float[] th = joltThresholds(sensitivity);
+        if (th == null) return false;
         if (s == null || !s.calZ || speedKmh == null || !Float.isFinite(speedKmh)) return false;
         if (speedKmh < JOLT_MIN_SPEED_KMH) return false;
         float absZG = Math.abs(s.peakZ) / ImuFilter.G;
         float absXG = Math.abs(s.peakX) / ImuFilter.G;
         float absYG = Math.abs(s.peakY) / ImuFilter.G;
-        return absZG >= JOLT_PEAK_Z_G || absXG >= JOLT_PEAK_HORIZ_G || absYG >= JOLT_PEAK_HORIZ_G;
+        return absZG >= th[0] || absXG >= th[1] || absYG >= th[1];
     }
 
     private static void maybePersistBasis(Context c, boolean calZ, boolean calXy) {

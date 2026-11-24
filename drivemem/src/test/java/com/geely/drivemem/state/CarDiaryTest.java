@@ -273,4 +273,49 @@ public class CarDiaryTest {
         assertNotNull(coolFull.lastEntry);
         assertEquals(79_000.0, coolFull.kmRemaining, 0.01);
     }
+
+    @Test
+    public void scheduleConfigCustomIntervalsAndOffDisablesCategories() {
+        long now = 1_800_000_000_000L;
+        // Turn off Tire Rotation & Wipers; shorten Tire Pressure to 15 days and disable cold-snap
+        CarDiary.ScheduleConfig cfg = new CarDiary.ScheduleConfig(
+            7, 15, false,
+            0, 10_000, 12,
+            20_000, 12,
+            40_000, 24,
+            80_000, 48,
+            80_000, 48,
+            0, 48);
+        List<CarDiary.Entry> entries = Collections.singletonList(
+            entry(1, CarDiary.Category.TIRE_PRESSURE, now - 16 * DAY, 5_000.0, 30.0, null)
+        );
+        List<CarDiary.DueStatus> statuses = CarDiary.computeDueStatuses(entries, 5_200.0, now, 15.0, cfg);
+        for (CarDiary.DueStatus d : statuses) {
+            assertFalse("Disabled Tire Rotation must be omitted", d.category == CarDiary.Category.TIRE_ROTATION);
+            assertFalse("Disabled Wipers must be omitted", d.category == CarDiary.Category.WIPERS);
+        }
+
+        CarDiary.DueStatus tp = find(statuses, CarDiary.Category.TIRE_PRESSURE);
+        assertNotNull(tp);
+        assertTrue(tp.overdue);
+        assertEquals(-1, tp.daysRemaining.intValue());
+        assertFalse(tp.coldSnapNudge);
+
+        // Factory countdown uses custom 10k service interval on a 5,200 km car -> 4,800 km remaining
+        CarDiary.DueStatus svc = find(statuses, CarDiary.Category.SERVICE);
+        assertEquals(4_800.0, svc.kmRemaining, 0.01);
+    }
+
+    @Test
+    public void tcoSummaryComputesCostPerKmAndEnergyShare() {
+        CarDiary.TcoSummary empty = CarDiary.TcoSummary.compute(0, 0, 5_000);
+        assertFalse(empty.hasCosts());
+        assertEquals(-1.0, empty.costPerKm, 0.001);
+
+        CarDiary.TcoSummary tco = CarDiary.TcoSummary.compute(600.0, 200.0, 4_000.0);
+        assertTrue(tco.hasCosts());
+        assertEquals(800.0, tco.totalCost, 0.001);
+        assertEquals(0.20, tco.costPerKm, 0.0001);
+        assertEquals(0.75, tco.chargeShare, 0.0001);
+    }
 }

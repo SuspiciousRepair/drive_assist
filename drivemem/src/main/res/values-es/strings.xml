@@ -882,4 +882,71 @@
     <string name="diary_at_km_prefix">a los %1$s km</string>
     <string name="diary_coolant_topup">Rellenar</string>
     <string name="diary_coolant_change">Cambio completo</string>
+    <string name="diary_edit_title">Editar registro</string>
+    <string name="diary_btn_edit">Editar</string>
+    <string name="diary_tco_title">Costo total de uso</string>
+    <string name="diary_tco_over_km">en %1$s km</string>
+    <string name="diary_tco_total">Total</string>
+    <string name="diary_tco_energy">Energía</string>
+    <string name="diary_tco_maintenance">Mantenimiento</string>
+    <string name="diary_tco_empty">Registra costos de carga o mantenimiento para ver el costo por km.</string>
+    <string name="diary_battery_health_title">Salud de baterías</string>
+    <string name="diary_hv_subtitle">Batería principal (60d)</string>
+    <string name="diary_hv_soh">SoH %1$s%%</string>
+    <string name="diary_hv_min_soc">Mín. %1$d%%</string>
+    <string name="diary_hv_low_hours">Bajo 20%% / 10%%</string>
+    <string name="diary_hv_peak_temp">Temp. máx. (60d)</string>
+    <string name="diary_hv_ac_dc">AC %1$d%% · DC %2$d%%</string>
+    <string name="diary_hv_info_body" formatted="false">Batería principal (LFP): cargar ocasionalmente al 100% calibra el BMS; evitar calor prolongado al 100% o quedar bajo el 20% cuida su vida útil.\n\nBatería 12V: el voltaje matutino en reposo debe estar en 12,4 V o más. Bajo 12,2 V indica desgaste.</string>
+    <string name="diary_12v_subtitle">Batería 12V · tendencia matutina (60 días)</string>
+
+    <!-- Ajustes de Mantenimiento -->
+    <string name="cfg_nav_diary">Mantenimiento</string>
+    <string name="cfg_diary_schedule_title">Intervalos de mantenimiento</string>
+    <string name="cfg_diary_schedule_hint">Los plazos cuentan desde tu último registro (o desde 0 km en un coche nuevo). Pon cualquier elemento en Desact. para ocultarlo.</string>
+    <string name="cfg_diary_off">Desact.</string>
+    <string name="cfg_diary_cold_snap">Aviso de presión por ola de frío (-10 °C)</string>
+    <string name="cfg_diary_reset_btn">Restaurar valores EX2</string>
+    <string name="cfg_diary_reset_done">Intervalos predeterminados del Geely EX2 restaurados</string>
+    <string name="cfg_diary_jolt_title">Detección de impactos</string>
+    <string name="cfg_diary_jolt_hint">Usa el acelerómetro por encima de 10 km/h para sugerir un registro de incidente con clip de 5 s.</string>
+    <string name="cfg_diary_jolt_low">Baja (1,1 g)</string>
+    <string name="cfg_diary_jolt_medium">Media (0,85 g)</string>
+    <string name="cfg_diary_jolt_high">Alta (0,65 g)</string>
+    <string name="cfg_diary_health_title">Cómo funcionan plazos y salud</string>
+    <string name="cfg_diary_health_12v_title">Límites de batería 12V</string>
+    <string name="cfg_diary_health_12v_body">Sana: ≥ 12,4 V en reposo · Atención: 12,2–12,4 V · Débil: &lt; 12,2 V · Fallo DC-DC: &lt; 12,1 V encendido.</string>
+    <string name="cfg_diary_health_hv_title">Batería principal (LFP)</string>
+    <string name="cfg_diary_health_hv_body" formatted="false">Rastrea en los últimos 60 días el tiempo al 100%, picos de temperatura, horas bajo 20%/10%, proporción AC/DC y SoH por OBD2.</string>
+    <string name="cfg_diary_health_due_title">Orden inteligente</string>
+    <string name="cfg_diary_health_due_body">Los próximos elementos se ordenan por días estimados restantes usando tu ritmo promedio de km/día de los últimos 60 días.</string>
+
+    <!-- Estadísticas Unificadas -->
+    <string name="stats_period_day">Día</string>
+    <string name="stats_period_week">Semana</string>
+    <string name="stats_card_efficiency">Consumo y Energía</string>
+    <string name="stats_eff_by_speed">Consumo por velocidad</string>
+    <string name="stats_eff_from_charges">Por cargas (incluye uso parado)</string>
+    <string name="stats_speed_buckets_no_obd">Desglose por velocidad no disponible sin OBD2</string>
+    <string name="stats_energy_net">Neto</string>
+    <string name="stats_energy_regen">Regen</string>
+    <string name="stats_split_drive">Tracción</string>
+    <string name="stats_split_climate">Clima</string>
+    <string name="stats_split_other">Otros</string>
+    <string name="stats_card_charging">Cargas y Costo</string>
+    <string name="stats_charges_none_period">Sin cargas en este período</string>
+    <string name="stats_sessions_title">Sesiones</string>
+    <string name="stats_unit_trip">viaje</string>
+    <string name="stats_unit_trips">viajes</string>
+    <string name="stats_unit_charge">carga</string>
+    <string name="stats_unit_charges">cargas</string>
+    <string name="stats_filter_all">Todos</string>
+    <string name="stats_filter_trips">Viajes</string>
+    <string name="stats_filter_charges">Cargas</string>
+    <string name="stats_filter_valet">Valet</string>
+    <string name="stats_trips_none">No hay viajes registrados en este período.</string>
+    <string name="stats_sessions_none">No hay viajes ni cargas registrados en este período.</string>
+    <string name="stats_map_routes_title">Rutas del período</string>
+    <string name="stats_map_charges_title">Lugares de carga</string>
+    <string name="stats_map_routes_none">No hay rutas registradas en este período.</string>
 </resources>

@@ -910,4 +910,71 @@
     <string name="diary_at_km_prefix">at %1$s km</string>
     <string name="diary_coolant_topup">Top-up</string>
     <string name="diary_coolant_change">Full change</string>
+    <string name="diary_edit_title">Edit entry</string>
+    <string name="diary_btn_edit">Edit</string>
+    <string name="diary_tco_title">Total cost of ownership</string>
+    <string name="diary_tco_over_km">over %1$s km</string>
+    <string name="diary_tco_total">Total</string>
+    <string name="diary_tco_energy">Energy</string>
+    <string name="diary_tco_maintenance">Maintenance</string>
+    <string name="diary_tco_empty">Log charging or maintenance costs to track your cost per km.</string>
+    <string name="diary_battery_health_title">Battery health</string>
+    <string name="diary_hv_subtitle">HV Traction Battery (60d)</string>
+    <string name="diary_hv_soh">SoH %1$s%%</string>
+    <string name="diary_hv_min_soc">Min %1$d%%</string>
+    <string name="diary_hv_low_hours">Below 20%% / 10%%</string>
+    <string name="diary_hv_peak_temp">60d peak temp</string>
+    <string name="diary_hv_ac_dc">AC %1$d%% · DC %2$d%%</string>
+    <string name="diary_hv_info_body" formatted="false">HV LFP battery: occasional charges to 100% keep the BMS calibrated, while avoiding prolonged heat at 100% or sitting below 20% preserves long-term capacity.\n\n12V battery: morning resting voltage before ready mode should stay at or above 12.4 V. Below 12.2 V signals a weakening battery.</string>
+    <string name="diary_12v_subtitle">12V Battery · 60-day morning trend</string>
+
+    <!-- Maintenance & Diary Settings -->
+    <string name="cfg_nav_diary">Maintenance</string>
+    <string name="cfg_diary_schedule_title">Maintenance intervals</string>
+    <string name="cfg_diary_schedule_hint">Deadlines count from your last logged entry (or from 0 km on a new car before the first milestone). Set any item to Off to hide it.</string>
+    <string name="cfg_diary_off">Off</string>
+    <string name="cfg_diary_cold_snap">Cold-snap tire pressure nudge (-10 °C)</string>
+    <string name="cfg_diary_reset_btn">Reset to EX2 defaults</string>
+    <string name="cfg_diary_reset_done">Restored Geely EX2 default intervals</string>
+    <string name="cfg_diary_jolt_title">Impact &amp; jolt detection</string>
+    <string name="cfg_diary_jolt_hint">Uses the head-unit accelerometer above 10 km/h to queue an incident banner with an optional 5s dashcam clip.</string>
+    <string name="cfg_diary_jolt_low">Low (1.1 g)</string>
+    <string name="cfg_diary_jolt_medium">Medium (0.85 g)</string>
+    <string name="cfg_diary_jolt_high">High (0.65 g)</string>
+    <string name="cfg_diary_health_title">How health &amp; deadlines work</string>
+    <string name="cfg_diary_health_12v_title">12V Battery thresholds</string>
+    <string name="cfg_diary_health_12v_body">Healthy: ≥ 12.4 V resting · Watch: 12.2–12.4 V · Weak: &lt; 12.2 V · DC-DC Fault: &lt; 12.1 V while running.</string>
+    <string name="cfg_diary_health_hv_title">HV Traction Battery (LFP)</string>
+    <string name="cfg_diary_health_hv_body" formatted="false">Tracks 60-day time at 100%, peak temperatures, hours below 20%/10%, AC/DC charging mix, and OBD2 SoH when available.</string>
+    <string name="cfg_diary_health_due_title">Smart sorting</string>
+    <string name="cfg_diary_health_due_body">Upcoming items sort automatically by estimated days remaining using your 60-day driving pace, so both time and distance schedules stay in order.</string>
+
+    <!-- Unified Stats -->
+    <string name="stats_period_day">Day</string>
+    <string name="stats_period_week">Week</string>
+    <string name="stats_card_efficiency">Efficiency &amp; Energy</string>
+    <string name="stats_eff_by_speed">Consumption by speed</string>
+    <string name="stats_eff_from_charges">From charges (includes parked use)</string>
+    <string name="stats_speed_buckets_no_obd">Speed breakdown unavailable without OBD2</string>
+    <string name="stats_energy_net">Net</string>
+    <string name="stats_energy_regen">Regen</string>
+    <string name="stats_split_drive">Drive</string>
+    <string name="stats_split_climate">Climate</string>
+    <string name="stats_split_other">Other</string>
+    <string name="stats_card_charging">Charging &amp; Cost</string>
+    <string name="stats_charges_none_period">No charges in this period</string>
+    <string name="stats_sessions_title">Sessions</string>
+    <string name="stats_unit_trip">trip</string>
+    <string name="stats_unit_trips">trips</string>
+    <string name="stats_unit_charge">charge</string>
+    <string name="stats_unit_charges">charges</string>
+    <string name="stats_filter_all">All</string>
+    <string name="stats_filter_trips">Trips</string>
+    <string name="stats_filter_charges">Charges</string>
+    <string name="stats_filter_valet">Valet</string>
+    <string name="stats_trips_none">No trips recorded in this period.</string>
+    <string name="stats_sessions_none">No trips or charges recorded in this period.</string>
+    <string name="stats_map_routes_title">Period routes</string>
+    <string name="stats_map_charges_title">Charging spots</string>
+    <string name="stats_map_routes_none">No routes recorded in this period.</string>
 </resources>

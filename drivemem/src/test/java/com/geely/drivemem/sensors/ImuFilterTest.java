@@ -170,5 +170,13 @@ public class ImuFilterTest {
         // Sharp 0.85 g horizontal shock (hard curb / panic brake) -> triggers jolt
         ImuFilter.Summary curb = new ImuFilter.Summary(16, true, true, 1.0f, 2.0f, -2f, -8.3f, 0f, 1.0f, 9f, 0f, -9.8f, 0f);
         assertTrue(ImuHub.shouldTriggerJolt(curb, 30f));
+
+        // Configurable sensitivity presets: off, low (1.1 g), medium (0.85 g), high (0.65 g)
+        assertFalse(ImuHub.shouldTriggerJolt(pothole, 40f, ImuHub.JOLT_OFF));
+        assertFalse(ImuHub.shouldTriggerJolt(pothole, 40f, ImuHub.JOLT_LOW));   // 0.95g < 1.1g
+        assertTrue(ImuHub.shouldTriggerJolt(pothole, 40f, ImuHub.JOLT_MEDIUM)); // 0.95g >= 0.85g
+        ImuFilter.Summary moderate = new ImuFilter.Summary(16, true, true, 1.5f, 7.0f, 0f, 1.0f, 0f, 0.5f, 5f, 0f, -9.8f, 0f);
+        assertFalse(ImuHub.shouldTriggerJolt(moderate, 40f, ImuHub.JOLT_MEDIUM)); // 0.71g < 0.85g
+        assertTrue(ImuHub.shouldTriggerJolt(moderate, 40f, ImuHub.JOLT_HIGH));    // 0.71g >= 0.65g
     }
 }

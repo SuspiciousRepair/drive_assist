@@ -145,4 +145,16 @@ public class StatsCalendarTest {
         assertFalse(cells.get(2).dc);
         assertEquals(1, cells.get(2).charges);
     }
+
+    @Test
+    public void yearGrainCoversCalendarYearAndStepsByYear() {
+        LocalDate d = d("2026-11-24");
+        LocalDate[] y = StatsCalendar.period(d, StatsCalendar.Grain.YEAR);
+        assertEquals(d("2026-01-01"), y[0]);
+        assertEquals(d("2026-12-31"), y[1]);
+        assertEquals(d("2025-11-24"), StatsCalendar.step(d, StatsCalendar.Grain.YEAR, -1));
+        assertFalse(StatsCalendar.canStep(d, StatsCalendar.Grain.YEAR, 1, d("2026-09-01"), d));
+        assertFalse(StatsCalendar.canStep(d, StatsCalendar.Grain.YEAR, -1, d("2026-09-01"), d));
+        assertTrue(StatsCalendar.canStep(d, StatsCalendar.Grain.YEAR, -1, d("2025-12-15"), d));
+    }
 }

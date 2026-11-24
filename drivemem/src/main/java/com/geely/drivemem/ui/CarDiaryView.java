@@ -6,21 +6,25 @@ import android.content.Intent;
 import android.graphics.PorterDuff;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.car.EntityBus;
 import com.geely.drivemem.sensors.Aux12vMonitor;
+import com.geely.drivemem.sensors.BatteryHeat;
+import com.geely.drivemem.sensors.ChargePeriodSummary;
 import com.geely.drivemem.state.CarDiary;
-import com.geely.drivemem.state.CarState;
 import com.geely.drivemem.util.DiaryClipTrimmer;
+import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.Style;
 
 import java.io.File;
@@ -32,19 +36,18 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-/** Car Diary & 12V Health dock screen (1920x1080 @ 1.0 density).
+/** Maintenance, TCO & Battery Health dock screen (Tab 3 of the 3-icon dock, 1920x1080 @ 1.0 density).
  *
- * Layout:
- * - Top row: single primary "+ Add entry" pill on the driver's side (left in
- *   LHD, mirrored in RHD) beside a calm 3-figure summary card (12V battery,
- *   Next due, Open notes).
- * - Optional pending-jolt review banner (shown when parked and an IMU jolt is
- *   queued for review: Log incident / Dismiss).
+ * Layout (Option A):
+ * - Top row: primary "+ Add entry" pill on the driver's edge beside a calm 3-figure summary card
+ *   (12V battery, Next maintenance, Open notes).
+ * - Optional pending IMU jolt banner (Log incident / Dismiss).
  * - Two-column body:
- *   - Left (52%): "Car Diary · recent first" with All / Care / Notes filters,
- *     spacious selectable 2-line rows, and inline actions on the selected row.
- *   - Right (48%): Care Schedule card (plus quiet 100% balance reference line)
- *     stacked above the 60-day 12V Morning Trend chart. */
+ *   - Left (52%): Compact Total Cost of Ownership (TCO) card (R$/km, lifetime total,
+ *     Energy vs Maintenance split bar) stacked above "Car Diary · recent first" with class filters,
+ *     selectable 2-line rows, Edit button, and Delete icon button.
+ *   - Right (48%): Maintenance schedule (Magic Sort + Settings shortcut) stacked above
+ *     unified Battery Health card (HV Traction 60-day longevity + 12V 60-day morning trend). */
 public final class CarDiaryView extends LinearLayout {
 
     private final Runnable onAttentionChanged;
@@ -54,16 +57,17 @@ public final class CarDiaryView extends LinearLayout {
 
     private LinearLayout topSummaryCard;
     private LinearLayout pendingBannerHost;
+    private LinearLayout tcoCard;
     private LinearLayout filterBar;
     private LinearLayout entriesList;
     private LinearLayout scheduleList;
+    private LinearLayout hvHealthBox;
     private Aux12vTrendView trendView;
 
     private List<CarDiary.Entry> cachedEntries = Collections.emptyList();
     private List<CarDiary.DueStatus> cachedDue = Collections.emptyList();
 
     private final EntityBus.Listener diaryListener = (key, r) -> post(this::refresh);
-    private final CarState.Listener parkListener = parked -> post(this::refresh);
 
     public CarDiaryView(Context context, Runnable onAttentionChanged) {
         super(context);
@@ -79,7 +83,8 @@ public final class CarDiaryView extends LinearLayout {
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         EntityBus.subscribe(CarDiary.EVENT_CHANGED, diaryListener);
-        CarState.addListener(parkListener);
+        EntityBus.subscribe("charge.cost_updated", diaryListener);
+        EntityBus.subscribe("charge.completed", diaryListener);
         refresh();
     }
 
@@ -87,13 +92,14 @@ public final class CarDiaryView extends LinearLayout {
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         EntityBus.unsubscribe(CarDiary.EVENT_CHANGED, diaryListener);
-        CarState.removeListener(parkListener);
+        EntityBus.unsubscribe("charge.cost_updated", diaryListener);
+        EntityBus.unsubscribe("charge.completed", diaryListener);
     }
 
     private void buildSkeleton() {
         Context c = getContext();
 
-        // 1. Top row: single "+ Add entry" button on driver's edge + 3-figure summary card
+        // 1. Top row: "+ Add entry" on driver's edge + 3-figure summary card
         LinearLayout topRow = new LinearLayout(c);
         topRow.setOrientation(LinearLayout.HORIZONTAL);
         topRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -124,7 +130,7 @@ public final class CarDiaryView extends LinearLayout {
         addView(topRow, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        // 2. Optional pending IMU jolt banner (hidden when empty or moving)
+        // 2. Optional pending IMU jolt banner
         pendingBannerHost = new LinearLayout(c);
         pendingBannerHost.setOrientation(LinearLayout.VERTICAL);
         pendingBannerHost.setVisibility(View.GONE);
@@ -133,7 +139,7 @@ public final class CarDiaryView extends LinearLayout {
         pLp.topMargin = Style.dp(c, Style.CARD_GAP_DP);
         addView(pendingBannerHost, pLp);
 
-        // 3. Bottom two-column grid (52% Diary list | 48% Schedule + 12V Trend)
+        // 3. Two-column body (52% TCO + Diary list | 48% Maintenance + Unified Battery Health)
         LinearLayout grid = new LinearLayout(c);
         grid.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout.LayoutParams gLp = new LinearLayout.LayoutParams(
@@ -141,14 +147,28 @@ public final class CarDiaryView extends LinearLayout {
         gLp.topMargin = Style.dp(c, Style.COLUMN_GAP_DP);
         addView(grid, gLp);
 
-        // Left card: Car Diary · recent first
-        LinearLayout leftCard = new LinearLayout(c);
-        leftCard.setOrientation(LinearLayout.VERTICAL);
-        leftCard.setBackground(Style.card(Style.cardFillColor(), c));
         int cp = Style.dp(c, 20);
-        leftCard.setPadding(cp, cp, cp, cp);
-        leftCard.setLayoutParams(new LinearLayout.LayoutParams(
+
+        // ---- Left column (52%): Compact TCO card + Car Diary list ----
+        LinearLayout leftCol = new LinearLayout(c);
+        leftCol.setOrientation(LinearLayout.VERTICAL);
+        leftCol.setLayoutParams(new LinearLayout.LayoutParams(
             0, ViewGroup.LayoutParams.WRAP_CONTENT, 52f));
+
+        tcoCard = new LinearLayout(c);
+        tcoCard.setOrientation(LinearLayout.VERTICAL);
+        tcoCard.setBackground(Style.card(Style.cardFillColor(), c));
+        tcoCard.setPadding(cp, Style.dp(c, 16), cp, Style.dp(c, 16));
+        leftCol.addView(tcoCard, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        LinearLayout diaryCard = new LinearLayout(c);
+        diaryCard.setOrientation(LinearLayout.VERTICAL);
+        diaryCard.setBackground(Style.card(Style.cardFillColor(), c));
+        diaryCard.setPadding(cp, cp, cp, cp);
+        LinearLayout.LayoutParams dcLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        dcLp.topMargin = Style.dp(c, Style.CARD_GAP_DP);
 
         LinearLayout listHead = new LinearLayout(c);
         listHead.setOrientation(LinearLayout.VERTICAL);
@@ -168,16 +188,17 @@ public final class CarDiaryView extends LinearLayout {
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         fLp.topMargin = Style.dp(c, 12);
         listHead.addView(fScroll, fLp);
-        leftCard.addView(listHead);
+        diaryCard.addView(listHead);
 
         entriesList = new LinearLayout(c);
         entriesList.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams elp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         elp.topMargin = Style.dp(c, 16);
-        leftCard.addView(entriesList, elp);
+        diaryCard.addView(entriesList, elp);
+        leftCol.addView(diaryCard, dcLp);
 
-        // Right column: Care Schedule + 12V Morning Trend
+        // ---- Right column (48%): Maintenance Schedule + Unified Battery Health (HV + 12V) ----
         LinearLayout rightCol = new LinearLayout(c);
         rightCol.setOrientation(LinearLayout.VERTICAL);
         rightCol.setLayoutParams(new LinearLayout.LayoutParams(
@@ -187,72 +208,129 @@ public final class CarDiaryView extends LinearLayout {
         schedCard.setOrientation(LinearLayout.VERTICAL);
         schedCard.setBackground(Style.card(Style.cardFillColor(), c));
         schedCard.setPadding(cp, cp, cp, cp);
+
+        LinearLayout schedHead = new LinearLayout(c);
+        schedHead.setOrientation(LinearLayout.HORIZONTAL);
+        schedHead.setGravity(Gravity.CENTER_VERTICAL);
         TextView schedTitle = new TextView(c);
         schedTitle.setText(c.getString(R.string.diary_schedule_title));
         schedTitle.setTextColor(Style.TEXT);
         schedTitle.setTextSize(21f);
         schedTitle.setTypeface(null, Typeface.BOLD);
-        schedCard.addView(schedTitle);
+        schedHead.addView(schedTitle, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        // Quick settings shortcut -> TelemetryActivity SEC_DIARY
+        ImageView tuneBtn = new ImageView(c);
+        tuneBtn.setImageResource(R.drawable.ic_tune);
+        tuneBtn.setColorFilter(Style.TEXT_DIM, PorterDuff.Mode.SRC_IN);
+        tuneBtn.setBackground(Style.tile(c));
+        int tp = Style.dp(c, 9);
+        tuneBtn.setPadding(tp, tp, tp, tp);
+        int tsz = Style.dp(c, 40);
+        tuneBtn.setLayoutParams(new LinearLayout.LayoutParams(tsz, tsz));
+        tuneBtn.setOnClickListener(v -> c.startActivity(
+            new Intent(c, TelemetryActivity.class).putExtra("section", TelemetryActivity.SEC_DIARY)));
+        schedHead.addView(tuneBtn);
+        schedCard.addView(schedHead);
 
         scheduleList = new LinearLayout(c);
         scheduleList.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        slp.topMargin = Style.dp(c, 14);
+        slp.topMargin = Style.dp(c, 12);
         schedCard.addView(scheduleList, slp);
         rightCol.addView(schedCard, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        // 12V Morning Trend card
-        LinearLayout trendCard = new LinearLayout(c);
-        trendCard.setOrientation(LinearLayout.VERTICAL);
-        trendCard.setBackground(Style.card(Style.cardFillColor(), c));
-        trendCard.setPadding(cp, cp, cp, cp);
-        LinearLayout.LayoutParams tcLp = new LinearLayout.LayoutParams(
+        // Unified Battery Health card: HV Traction (top) + 12V Morning Trend (bottom)
+        LinearLayout healthCard = new LinearLayout(c);
+        healthCard.setOrientation(LinearLayout.VERTICAL);
+        healthCard.setBackground(Style.card(Style.cardFillColor(), c));
+        healthCard.setPadding(cp, cp, cp, cp);
+        LinearLayout.LayoutParams hcLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        tcLp.topMargin = Style.dp(c, Style.CARD_GAP_DP);
+        hcLp.topMargin = Style.dp(c, Style.CARD_GAP_DP);
+
+        LinearLayout healthHead = new LinearLayout(c);
+        healthHead.setOrientation(LinearLayout.HORIZONTAL);
+        healthHead.setGravity(Gravity.CENTER_VERTICAL);
+        TextView healthTitle = new TextView(c);
+        healthTitle.setText(c.getString(R.string.diary_battery_health_title));
+        healthTitle.setTextColor(Style.TEXT);
+        healthTitle.setTextSize(21f);
+        healthTitle.setTypeface(null, Typeface.BOLD);
+        healthHead.addView(healthTitle, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        ImageView infoIco = new ImageView(c);
+        infoIco.setImageResource(R.drawable.ic_info_outline);
+        infoIco.setColorFilter(Style.TEXT_DIM, PorterDuff.Mode.SRC_IN);
+        int isz = Style.dp(c, 26);
+        infoIco.setLayoutParams(new LinearLayout.LayoutParams(isz, isz));
+        infoIco.setOnClickListener(v -> ChargeStatsView.showInfo(c,
+            c.getString(R.string.diary_battery_health_title),
+            c.getString(R.string.diary_hv_info_body)));
+        healthHead.addView(infoIco);
+        healthCard.addView(healthHead);
+
+        hvHealthBox = new LinearLayout(c);
+        hvHealthBox.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams hvbLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        hvbLp.topMargin = Style.dp(c, 12);
+        healthCard.addView(hvHealthBox, hvbLp);
+
+        View div = hairline(c);
+        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 1));
+        divLp.topMargin = Style.dp(c, 16);
+        divLp.bottomMargin = Style.dp(c, 14);
+        healthCard.addView(div, divLp);
 
         LinearLayout trendHead = new LinearLayout(c);
         trendHead.setOrientation(LinearLayout.HORIZONTAL);
         trendHead.setGravity(Gravity.CENTER_VERTICAL);
         TextView trendTitle = new TextView(c);
-        trendTitle.setText(c.getString(R.string.diary_12v_trend_title));
+        trendTitle.setText(c.getString(R.string.diary_12v_subtitle));
         trendTitle.setTextColor(Style.TEXT);
-        trendTitle.setTextSize(21f);
+        trendTitle.setTextSize(17.5f);
         trendTitle.setTypeface(null, Typeface.BOLD);
         trendHead.addView(trendTitle, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView limitLegend = new TextView(c);
         limitLegend.setText("--- " + c.getString(R.string.diary_12v_healthy_limit));
         limitLegend.setTextColor(Style.WARN);
-        limitLegend.setTextSize(15f);
+        limitLegend.setTextSize(14.5f);
         trendHead.addView(limitLegend);
-        trendCard.addView(trendHead);
+        healthCard.addView(trendHead);
 
         trendView = new Aux12vTrendView(c);
         LinearLayout.LayoutParams tvLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 210));
-        tvLp.topMargin = Style.dp(c, 12);
-        trendCard.addView(trendView, tvLp);
-        rightCol.addView(trendCard, tcLp);
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 190));
+        tvLp.topMargin = Style.dp(c, 10);
+        healthCard.addView(trendView, tvLp);
 
-        Style.addMirrored(grid, Style.COLUMN_GAP_DP, leftCard, rightCol);
+        rightCol.addView(healthCard, hcLp);
+
+        Style.addMirrored(grid, Style.COLUMN_GAP_DP, leftCol, rightCol);
         rebuildFilters();
     }
 
-    /** Reloads diary entries, due statuses, 12V summary, and pending jolts off the UI thread. */
+    /** Reloads diary entries, due statuses, TCO, HV health, 12V summary, and pending jolts off-thread. */
     public void refresh() {
         final Context c = getContext().getApplicationContext();
         final int gen = ++loadGen;
         CarActor actor = CarActor.get(c);
         Runnable load = () -> {
             long now = System.currentTimeMillis();
+            CarDiary.ScheduleConfig cfg = CarDiary.ScheduleConfig.fromPrefs(c);
             List<CarDiary.Entry> entries = CarDiary.readEntries(c);
             Double odo = CarDiary.latestOdometerKm(c);
             Double outC = CarDiary.latestOutsideTempC();
-            List<CarDiary.DueStatus> due = CarDiary.computeDueStatuses(entries, odo, now, outC);
+            List<CarDiary.DueStatus> due = CarDiary.computeDueStatuses(entries, odo, now, outC, cfg);
             double avgDailyKm = CarDiary.avgDailyKm(c, now);
             CarDiary.LastFullCharge full = CarDiary.last100PctCharge(c, odo, now);
+            CarDiary.TcoSummary tco = CarDiary.readTcoSummary(c);
+            CarDiary.HvHealthSummary hv = CarDiary.readHvHealthSummary(c, now);
             Aux12vMonitor.Summary s12 = Aux12vMonitor.readSummary(c, now);
             List<CarDiary.PendingJolt> jolts = CarDiary.pendingJolts(now);
             post(() -> {
@@ -261,8 +339,10 @@ public final class CarDiaryView extends LinearLayout {
                 cachedDue = due;
                 renderSummary(entries, due, avgDailyKm, s12);
                 renderPendingJolts(jolts, now);
+                renderTcoCard(tco);
                 renderEntries();
-                renderSchedule(due, full, avgDailyKm);
+                renderSchedule(due, full, avgDailyKm, cfg);
+                renderHvHealth(hv);
                 trendView.setData(s12.morningTrend, s12.replacedAtMs);
                 if (onAttentionChanged != null) onAttentionChanged.run();
             });
@@ -271,12 +351,13 @@ public final class CarDiaryView extends LinearLayout {
         else new Thread(load, "diary-load").start();
     }
 
+    // ---- Top 3-Figure Summary ----
+
     private void renderSummary(List<CarDiary.Entry> entries, List<CarDiary.DueStatus> due,
                                double avgDailyKm, Aux12vMonitor.Summary s12) {
         Context c = getContext();
         topSummaryCard.removeAllViews();
 
-        // Figure 1: 12V battery
         Double shownV = s12.latestRestingV != null ? s12.latestRestingV : s12.latestReadyV;
         CharSequence v12Text = shownV != null
             ? Style.valueWithUnit(String.format(Locale.US, "%.1f", shownV),
@@ -292,7 +373,6 @@ public final class CarDiaryView extends LinearLayout {
 
         topSummaryCard.addView(verticalDivider(c));
 
-        // Figure 2: Next due (Magic Sort: closest upcoming by time or distance)
         CarDiary.DueStatus next = CarDiary.mostUrgent(due, avgDailyKm);
         CharSequence dueVal = next != null
             ? c.getString(next.category.labelRes)
@@ -306,7 +386,6 @@ public final class CarDiaryView extends LinearLayout {
 
         topSummaryCard.addView(verticalDivider(c));
 
-        // Figure 3: Open notes (noises + incidents)
         int openNoises = 0, openIncidents = 0;
         for (CarDiary.Entry e : entries) {
             if (!e.isOpen()) continue;
@@ -383,9 +462,136 @@ public final class CarDiaryView extends LinearLayout {
         return v;
     }
 
+    // ---- Option A: Compact Total Cost of Ownership (TCO) Card ----
+
+    private void renderTcoCard(CarDiary.TcoSummary tco) {
+        Context c = getContext();
+        tcoCard.removeAllViews();
+
+        LinearLayout head = new LinearLayout(c);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        TextView title = new TextView(c);
+        title.setText(c.getString(R.string.diary_tco_title));
+        title.setTextColor(Style.TEXT);
+        title.setTextSize(18f);
+        title.setTypeface(null, Typeface.BOLD);
+        head.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        if (tco.hasCosts() && tco.trackedKm >= 1.0) {
+            TextView kmTag = new TextView(c);
+            kmTag.setText(c.getString(R.string.diary_tco_over_km,
+                String.format(Locale.getDefault(), "%,.0f", tco.trackedKm)));
+            kmTag.setTextColor(Style.TEXT_DIM);
+            kmTag.setTextSize(14.5f);
+            head.addView(kmTag);
+        }
+        tcoCard.addView(head);
+
+        if (!tco.hasCosts()) {
+            TextView empty = new TextView(c);
+            empty.setText(c.getString(R.string.diary_tco_empty));
+            empty.setTextColor(Style.TEXT_DIM);
+            empty.setTextSize(15.5f);
+            empty.setPadding(0, Style.dp(c, 8), 0, 0);
+            tcoCard.addView(empty);
+            return;
+        }
+
+        // Hero row: R$/km (left) + Total lifetime R$ (right)
+        LinearLayout heroRow = new LinearLayout(c);
+        heroRow.setOrientation(LinearLayout.HORIZONTAL);
+        heroRow.setGravity(Gravity.BOTTOM);
+        LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        hlp.topMargin = Style.dp(c, 8);
+
+        TextView perKmTv = new TextView(c);
+        if (tco.costPerKm > 0) {
+            SpannableStringBuilder sb = new SpannableStringBuilder(
+                Style.moneyWithUnit(tco.costPerKm, Style.TEXT, Style.UNIT_SCALE_HERO));
+            Style.appendUnit(sb, " / km", Style.UNIT_SCALE_HERO);
+            perKmTv.setText(sb);
+        } else {
+            perKmTv.setText(Style.moneyWithUnit(tco.totalCost, Style.TEXT, Style.UNIT_SCALE_HERO));
+        }
+        perKmTv.setTextSize(30f);
+        perKmTv.setTypeface(null, Typeface.BOLD);
+        heroRow.addView(perKmTv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView totalTv = new TextView(c);
+        SpannableStringBuilder totSb = new SpannableStringBuilder();
+        Style.appendUnit(totSb, c.getString(R.string.diary_tco_total) + "  ", Style.UNIT_SCALE_ROW);
+        totSb.append(Style.moneyWithUnit(tco.totalCost, Style.TEXT, Style.UNIT_SCALE_ROW));
+        totalTv.setText(totSb);
+        totalTv.setTextSize(19f);
+        totalTv.setTypeface(null, Typeface.BOLD);
+        heroRow.addView(totalTv);
+        tcoCard.addView(heroRow, hlp);
+
+        // Energy vs Maintenance proportional bar
+        float energyShare = (float) Math.max(0.0, Math.min(1.0, tco.chargeShare));
+        float maintShare = Math.max(0f, 1f - energyShare);
+        LinearLayout bar = new LinearLayout(c);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 8));
+        blp.topMargin = Style.dp(c, 12);
+        if (energyShare > 0.005f) {
+            bar.addView(barSeg(c, Style.ACCENT, true, maintShare <= 0.005f),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, energyShare));
+        }
+        if (maintShare > 0.005f) {
+            bar.addView(barSeg(c, Style.WARN, energyShare <= 0.005f, true),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, maintShare));
+        }
+        tcoCard.addView(bar, blp);
+
+        // Legend row
+        int pEnergy = (int) Math.round(energyShare * 100);
+        int pMaint = 100 - pEnergy;
+        SpannableStringBuilder leg = new SpannableStringBuilder();
+        appendDot(leg, Style.ACCENT,
+            c.getString(R.string.diary_tco_energy) + ": " + Prefs.formatMoney(tco.chargeCost) + " (" + pEnergy + "%)");
+        leg.append("    ");
+        appendDot(leg, Style.WARN,
+            c.getString(R.string.diary_tco_maintenance) + ": " + Prefs.formatMoney(tco.diaryCost) + " (" + pMaint + "%)");
+
+        TextView legTv = new TextView(c);
+        legTv.setText(leg);
+        legTv.setTextColor(Style.TEXT_DIM);
+        legTv.setTextSize(14.5f);
+        legTv.setPadding(0, Style.dp(c, 8), 0, 0);
+        tcoCard.addView(legTv);
+    }
+
+    private View barSeg(Context c, int color, boolean leftR, boolean rightR) {
+        View v = new View(c);
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(color);
+        float r = Style.dp(c, 4);
+        g.setCornerRadii(new float[]{
+            leftR ? r : 0, leftR ? r : 0,
+            rightR ? r : 0, rightR ? r : 0,
+            rightR ? r : 0, rightR ? r : 0,
+            leftR ? r : 0, leftR ? r : 0
+        });
+        v.setBackground(g);
+        return v;
+    }
+
+    private static void appendDot(SpannableStringBuilder sb, int color, String text) {
+        int a = sb.length();
+        sb.append("● ");
+        sb.setSpan(new ForegroundColorSpan(color), a, a + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        sb.append(text);
+    }
+
+    // ---- Pending IMU Jolts Banner (park-gate relieved) ----
+
     private void renderPendingJolts(List<CarDiary.PendingJolt> jolts, long nowMs) {
         pendingBannerHost.removeAllViews();
-        if (jolts == null || jolts.isEmpty() || !CarState.isParked()) {
+        if (jolts == null || jolts.isEmpty()) {
             pendingBannerHost.setVisibility(View.GONE);
             return;
         }
@@ -416,8 +622,7 @@ public final class CarDiaryView extends LinearLayout {
             () -> DiaryEntryDialog.show(c, CarDiary.Category.INCIDENT, j, cachedDue, () -> post(this::refresh)));
         card.addView(logBtn);
 
-        View g = new View(c);
-        card.addView(g, new LinearLayout.LayoutParams(Style.dp(c, 12), 1));
+        card.addView(new View(c), new LinearLayout.LayoutParams(Style.dp(c, 12), 1));
 
         TextView disBtn = Style.cardButton(c, c.getString(R.string.diary_jolt_dismiss_btn), false, () -> {
             CarDiary.dismissPendingJolt(j.id);
@@ -428,6 +633,8 @@ public final class CarDiaryView extends LinearLayout {
         pendingBannerHost.addView(card, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
     }
+
+    // ---- Diary Filters & Entries List (with Edit button + Delete trash icon) ----
 
     private void rebuildFilters() {
         Context c = getContext();
@@ -557,7 +764,7 @@ public final class CarDiaryView extends LinearLayout {
         }
         box.addView(l2);
 
-        // Inline action strip when selected
+        // Inline action strip when selected: status actions + Edit button + Delete icon
         if (selected) {
             LinearLayout act = new LinearLayout(c);
             act.setOrientation(LinearLayout.HORIZONTAL);
@@ -580,7 +787,11 @@ public final class CarDiaryView extends LinearLayout {
                             .putExtra(ClipPlayerActivity.EXTRA_PATH, clipFile.getAbsolutePath()))));
                 }
             }
-            act.addView(inlineBtn(c, c.getString(R.string.diary_btn_delete), false, () -> confirmDelete(e)));
+            if (e.category != null && e.category.userPickable) {
+                act.addView(inlineIconTextBtn(c, R.drawable.ic_edit_outline, c.getString(R.string.diary_btn_edit),
+                    () -> DiaryEntryDialog.showEdit(c, e, cachedDue, () -> post(this::refresh))));
+            }
+            act.addView(inlineIconOnlyBtn(c, R.drawable.ic_delete_outline, Style.DANGER, () -> confirmDelete(e)));
             box.addView(act);
         }
 
@@ -598,6 +809,36 @@ public final class CarDiaryView extends LinearLayout {
         lp.leftMargin = Style.dp(c, 10);
         b.setLayoutParams(lp);
         return b;
+    }
+
+    private TextView inlineIconTextBtn(Context c, int iconRes, String label, Runnable onTap) {
+        TextView b = Style.cardButton(c, label, false, onTap);
+        android.graphics.drawable.Drawable ic = c.getDrawable(iconRes).mutate();
+        int sz = Style.dp(c, 18);
+        ic.setBounds(0, 0, sz, sz);
+        ic.setTint(b.getCurrentTextColor());
+        b.setCompoundDrawables(ic, null, null, null);
+        b.setCompoundDrawablePadding(Style.dp(c, 8));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.leftMargin = Style.dp(c, 10);
+        b.setLayoutParams(lp);
+        return b;
+    }
+
+    private ImageView inlineIconOnlyBtn(Context c, int iconRes, int tint, Runnable onTap) {
+        ImageView iv = new ImageView(c);
+        iv.setImageResource(iconRes);
+        iv.setColorFilter(tint, PorterDuff.Mode.SRC_IN);
+        iv.setBackground(Style.card(Style.CARD, c, 14));
+        int pad = Style.dp(c, 11);
+        iv.setPadding(pad, pad, pad, pad);
+        int sz = Style.dp(c, 46);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(sz, sz);
+        lp.leftMargin = Style.dp(c, 10);
+        iv.setLayoutParams(lp);
+        iv.setOnClickListener(v -> onTap.run());
+        return iv;
     }
 
     private void confirmDelete(CarDiary.Entry e) {
@@ -668,6 +909,8 @@ public final class CarDiaryView extends LinearLayout {
         return sb.toString();
     }
 
+    // ---- Maintenance Schedule (Magic Sort + Custom Intervals) ----
+
     private static final class ScheduleItem {
         final double sortDays;
         final int iconRes;
@@ -692,7 +935,7 @@ public final class CarDiaryView extends LinearLayout {
     }
 
     private void renderSchedule(List<CarDiary.DueStatus> allDue, CarDiary.LastFullCharge full,
-                                double avgDailyKm) {
+                                double avgDailyKm, CarDiary.ScheduleConfig cfg) {
         Context c = getContext();
         scheduleList.removeAllViews();
         SimpleDateFormat fmt = new SimpleDateFormat("d MMM", Locale.getDefault());
@@ -703,11 +946,12 @@ public final class CarDiaryView extends LinearLayout {
             int iconTint = !hasCountdown ? Style.TEXT_DIM
                 : ((d.overdue || d.dueSoon) ? Style.WARN : Style.ACCENT);
             String sub;
+            Double cfgKm = cfg != null ? cfg.kmInterval(d.category) : d.category.kmInterval;
             if (d.lastEntry != null) {
                 sub = c.getString(R.string.diary_last_prefix, fmt.format(new Date(d.lastEntry.tsMs)));
-            } else if (d.kmRemaining != null && d.category.kmInterval != null) {
+            } else if (d.kmRemaining != null && cfgKm != null) {
                 sub = c.getString(R.string.diary_at_km_prefix,
-                    String.format(Locale.getDefault(), "%,.0f", d.category.kmInterval));
+                    String.format(Locale.getDefault(), "%,.0f", cfgKm));
             } else {
                 sub = c.getString(R.string.diary_not_logged);
             }
@@ -724,11 +968,12 @@ public final class CarDiaryView extends LinearLayout {
                 () -> DiaryEntryDialog.show(c, d.category, null, cachedDue, () -> post(this::refresh))));
         }
 
-        // Auto-tracked 100% LFP balancing (30-day cycle) in the same Magic Sort & row style
-        if (full != null) {
-            int rem = CarDiary.BALANCE_INTERVAL_DAYS - full.daysAgo;
+        // Auto-tracked 100% LFP balancing (respects Settings interval; 0 = hidden)
+        int balDays = cfg != null ? cfg.balanceDays : CarDiary.BALANCE_INTERVAL_DAYS;
+        if (full != null && balDays > 0) {
+            int rem = balDays - full.daysAgo;
             boolean overdue = rem <= 0;
-            boolean dueSoon = !overdue && rem <= 3;
+            boolean dueSoon = !overdue && rem <= Math.max(2, balDays / 10);
             CharSequence stText = overdue
                 ? c.getString(R.string.diary_overdue_days, Math.max(1, -rem))
                 : c.getString(R.string.diary_in_days, Math.max(1, rem));
@@ -757,7 +1002,7 @@ public final class CarDiaryView extends LinearLayout {
         LinearLayout row = new LinearLayout(c);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, Style.dp(c, 12), 0, Style.dp(c, 12));
+        row.setPadding(0, Style.dp(c, 11), 0, Style.dp(c, 11));
 
         ImageView ico = new ImageView(c);
         ico.setImageResource(item.iconRes);
@@ -798,6 +1043,153 @@ public final class CarDiaryView extends LinearLayout {
         }
         return row;
     }
+
+    // ---- HV Traction Battery 60-Day Longevity (top half of Unified Battery Health card) ----
+
+    private void renderHvHealth(CarDiary.HvHealthSummary hv) {
+        Context c = getContext();
+        hvHealthBox.removeAllViews();
+
+        BatteryHeat.Stats h = hv != null && hv.heat != null ? hv.heat : new BatteryHeat.Stats();
+        ChargePeriodSummary ch = hv != null && hv.charges != null ? hv.charges : new ChargePeriodSummary();
+        BatteryHeat.Temps t = h.shown();
+
+        // Subtitle row: HV Traction (60d) + SoH (or Min SoC) pill
+        LinearLayout subRow = new LinearLayout(c);
+        subRow.setOrientation(LinearLayout.HORIZONTAL);
+        subRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView sub = new TextView(c);
+        sub.setText(c.getString(R.string.diary_hv_subtitle));
+        sub.setTextColor(Style.TEXT);
+        sub.setTextSize(17.5f);
+        sub.setTypeface(null, Typeface.BOLD);
+        subRow.addView(sub, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView badge = new TextView(c);
+        badge.setTextSize(15.5f);
+        badge.setTypeface(null, Typeface.BOLD);
+        if (hv != null && hv.soh != null) {
+            badge.setText(c.getString(R.string.diary_hv_soh, String.format(Locale.getDefault(), "%.1f", hv.soh)));
+            badge.setTextColor(Style.GOOD);
+        } else if (ch.lowest != null) {
+            badge.setText(c.getString(R.string.diary_hv_min_soc, ch.lowest.min));
+            badge.setTextColor(ch.lowest.min < 10 ? Style.DANGER : Style.TEXT_DIM);
+        } else {
+            badge.setText("—");
+            badge.setTextColor(Style.TEXT_DIM);
+        }
+        subRow.addView(badge);
+        hvHealthBox.addView(subRow);
+
+        // 2x2 HV Longevity Tiles
+        CharSequence stayVal = h.fullCount == 0 ? "—"
+            : withDimWord(hoursVal(h.avgFullMs()), c.getString(R.string.charge_avg_short));
+        CharSequence fullTempVal = t.fullN == 0 ? "—"
+            : withDimWord(degC(t.fullMax), c.getString(R.string.charge_max_short));
+        int fullTempCol = (t.fullN > 0 && t.fullMax >= 35) ? Style.WARN : Style.TEXT;
+
+        SpannableStringBuilder lowVal = new SpannableStringBuilder();
+        lowVal.append(hoursVal(h.below20Ms));
+        Style.appendUnit(lowVal, " / ", Style.UNIT_SCALE_ROW);
+        int b10Start = lowVal.length();
+        lowVal.append(hoursVal(h.below10Ms));
+        if (h.below10Ms > 0) {
+            lowVal.setSpan(new ForegroundColorSpan(Style.DANGER), b10Start, lowVal.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+
+        CharSequence peakVal = t.n > 0 ? degC(t.max) : "—";
+        int peakCol = t.n > 0 ? (t.max >= 40 ? Style.DANGER : t.max >= 35 ? Style.WARN : Style.TEXT) : Style.TEXT;
+        String peakSub = null;
+        if (ch.count > 0) {
+            double totalKwh = ch.totalKwh();
+            int acPct = totalKwh > 0 ? (int) Math.round(ch.acKwh / totalKwh * 100) : 100;
+            peakSub = c.getString(R.string.diary_hv_ac_dc, acPct, 100 - acPct);
+        }
+
+        LinearLayout row1 = new LinearLayout(c);
+        row1.setOrientation(LinearLayout.HORIZONTAL);
+        row1.setBaselineAligned(false);
+        LinearLayout.LayoutParams r1Lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        r1Lp.topMargin = Style.dp(c, 10);
+        LinearLayout.LayoutParams leftLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+        leftLp.rightMargin = Style.dp(c, 10);
+        LinearLayout.LayoutParams rightLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+
+        row1.addView(hvTile(c, c.getString(R.string.charge_card_full_time), stayVal, Style.TEXT, null), leftLp);
+        row1.addView(hvTile(c, c.getString(R.string.charge_card_full_temp), fullTempVal, fullTempCol, null), rightLp);
+        hvHealthBox.addView(row1, r1Lp);
+
+        LinearLayout row2 = new LinearLayout(c);
+        row2.setOrientation(LinearLayout.HORIZONTAL);
+        row2.setBaselineAligned(false);
+        LinearLayout.LayoutParams r2Lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        r2Lp.topMargin = Style.dp(c, 10);
+        LinearLayout.LayoutParams leftLp2 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+        leftLp2.rightMargin = Style.dp(c, 10);
+        LinearLayout.LayoutParams rightLp2 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+
+        row2.addView(hvTile(c, c.getString(R.string.diary_hv_low_hours), lowVal,
+            h.below20Ms == 0 ? Style.GOOD : Style.TEXT, null), leftLp2);
+        row2.addView(hvTile(c, c.getString(R.string.diary_hv_peak_temp), peakVal, peakCol, peakSub), rightLp2);
+        hvHealthBox.addView(row2, r2Lp);
+    }
+
+    private View hvTile(Context c, String label, CharSequence value, int valColor, String sub) {
+        LinearLayout t = new LinearLayout(c);
+        t.setOrientation(LinearLayout.VERTICAL);
+        t.setBackground(Style.tile(c));
+        int p = Style.dp(c, 12);
+        t.setPadding(p, Style.dp(c, 8), p, Style.dp(c, 8));
+
+        TextView l = new TextView(c);
+        l.setText(label);
+        l.setTextColor(Style.TEXT_DIM);
+        l.setTextSize(14f);
+        l.setSingleLine(true);
+        t.addView(l);
+
+        TextView v = new TextView(c);
+        v.setText(value);
+        v.setTextColor(valColor);
+        v.setTextSize(20f);
+        v.setTypeface(null, Typeface.BOLD);
+        v.setSingleLine(true);
+        t.addView(v);
+
+        if (sub != null) {
+            TextView s = new TextView(c);
+            s.setText(sub);
+            s.setTextColor(Style.TEXT_DIM);
+            s.setTextSize(13.5f);
+            s.setSingleLine(true);
+            t.addView(s);
+        }
+        return t;
+    }
+
+    private static CharSequence hoursVal(long ms) {
+        if (ms <= 0) return Style.valueWithUnit("0", null, "h", Style.UNIT_SCALE_ROW);
+        double h = ms / 3_600_000.0;
+        return Style.valueWithUnit(String.format(Locale.getDefault(), h >= 10 ? "%.0f" : "%.1f", h),
+            null, "h", Style.UNIT_SCALE_ROW);
+    }
+
+    private static CharSequence degC(double temp) {
+        return Style.valueWithUnit(String.format(Locale.getDefault(), "%.0f", temp),
+            null, "°C", Style.UNIT_SCALE_ROW);
+    }
+
+    private static CharSequence withDimWord(CharSequence val, String word) {
+        SpannableStringBuilder sb = new SpannableStringBuilder(val);
+        Style.appendUnit(sb, " " + word, Style.UNIT_SCALE_ROW);
+        return sb;
+    }
+
+    // ---- Shared Formatters & Small Helpers ----
 
     private CharSequence formatDueStatus(Context c, CarDiary.DueStatus d) {
         if (d.lastEntry == null && d.kmRemaining == null && d.daysRemaining == null) {
