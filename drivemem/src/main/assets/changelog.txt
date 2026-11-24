@@ -1,5 +1,6 @@
-- Changed: a finished charge's card on the home screen has a close button. It also closes when the car leaves Park, or when you add the charge's price.
-- Changed: the charge page has three charts, each with its own scale: power (blue for AC, green for DC), temperature and battery level. The cost has a pencil to show you can change it.
-- Fixed: updates over the air reach the car again.
-- Fixed: on the Stats page, Energy by use keeps a trip when the app restarts during the drive.
-- Fixed: the music card shows the song's own cover, not the cover of the song before.
+- New: fix lyrics that run early or late by tapping the lock icon on the lyrics card and tapping each line as it is sung.
+- New: press and hold the album cover on the music card to reload it from the phone.
+- Changed: Charging stats now uses the same charging event cards as the Stats page (battery, energy added, average power and cost), while the Home screen keeps its own charging card. Tapping a charge on the Stats page opens the full charge page.
+- Changed: the music card uses an equalizer icon for sound settings and shows a small icon when a song's lyrics have no timing.
+- Fixed: climb, day peak and height charts no longer count GPS height jumps or the first 90 seconds after trip start.
+- Fixed: the music card updates the album name and cover when a player sends the album after the song title.

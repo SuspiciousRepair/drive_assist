@@ -11,6 +11,10 @@
   panels on the driver's side while card contents, menus, controls, charts,
   maps, calendars and text stay left-to-right. Backups keep your choice. Not
   yet checked on a real right-hand-drive car.
+
+## [v0.11.3] — 2026-11-23
+
+### Added
 - **Music card: an icon when the lyrics have no timing.** Some songs have
   only plain lyrics, which do not move with the song (tap the lower half to
   go down a line, the upper half to go back). A small struck-through clock
@@ -26,6 +30,15 @@
   every line; more taps also fix lyrics that drift. The car keeps the fix
   for each song; the turning arrow undoes it, and so does holding the
   cover.
+
+### Changed
+- **Charging stats uses the Stats page's charging event card.** Both
+  Charging stats and the daily Stats page now share one charging-event card
+  layout (plug icon, time range and duration, and four aligned columns for
+  battery, energy added, average power and cost). The Home screen keeps its
+  own compact finished-charge card. Tapping a charge on the Stats page now
+  opens the full charge page, and tapping its Cost column opens the price
+  dialog directly.
 
 ### Fixed
 - **Climb and height no longer count GPS height jumps.** GPS height can
