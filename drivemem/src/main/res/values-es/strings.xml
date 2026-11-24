@@ -886,7 +886,7 @@
     <string name="diary_btn_edit">Editar</string>
     <string name="diary_btn_map">Mapa</string>
     <string name="diary_tco_title">Costo total de uso</string>
-    <string name="diary_tco_over_km">en %1$s km</string>
+    <string name="diary_tco_over_km">en %1$s km registrados</string>
     <string name="diary_tco_total">Total</string>
     <string name="diary_tco_energy">Energía</string>
     <string name="diary_tco_maintenance">Mantenimiento</string>
@@ -895,8 +895,11 @@
     <string name="diary_hv_subtitle">Batería principal (60d)</string>
     <string name="diary_hv_soh">SoH %1$s%%</string>
     <string name="diary_hv_min_soc">Mín. %1$d%%</string>
-    <string name="diary_hv_low_hours">Bajo 20%% / 10%%</string>
-    <string name="diary_hv_peak_temp">Temp. máx. (60d)</string>
+    <string name="diary_hv_time_100" formatted="false">Tiempo al 100%</string>
+    <string name="diary_hv_temp_at_100_sub">máx. %1$s al 100%%</string>
+    <string name="diary_hv_low_hours" formatted="false">Carga baja (&lt;20% / &lt;10%)</string>
+    <string name="diary_hv_peak_temp">Temperatura máxima</string>
+    <string name="diary_hv_charging_mix">Perfil de carga</string>
     <string name="diary_hv_ac_dc">AC %1$d%% · DC %2$d%%</string>
     <string name="diary_hv_info_body" formatted="false">Batería principal (LFP): cargar ocasionalmente al 100% calibra el BMS; evitar calor prolongado al 100% o quedar bajo el 20% cuida su vida útil.\n\nBatería 12V: el voltaje matutino en reposo debe estar en 12,4 V o más. Bajo 12,2 V indica desgaste.</string>
     <string name="diary_12v_subtitle">Batería 12V · tendencia matutina (60 días)</string>

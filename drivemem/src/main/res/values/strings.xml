@@ -914,7 +914,7 @@
     <string name="diary_btn_edit">Edit</string>
     <string name="diary_btn_map">Map</string>
     <string name="diary_tco_title">Total cost of ownership</string>
-    <string name="diary_tco_over_km">over %1$s km</string>
+    <string name="diary_tco_over_km">over %1$s tracked km</string>
     <string name="diary_tco_total">Total</string>
     <string name="diary_tco_energy">Energy</string>
     <string name="diary_tco_maintenance">Maintenance</string>
@@ -923,8 +923,11 @@
     <string name="diary_hv_subtitle">HV Traction Battery (60d)</string>
     <string name="diary_hv_soh">SoH %1$s%%</string>
     <string name="diary_hv_min_soc">Min %1$d%%</string>
-    <string name="diary_hv_low_hours">Below 20%% / 10%%</string>
-    <string name="diary_hv_peak_temp">60d peak temp</string>
+    <string name="diary_hv_time_100" formatted="false">Time at 100%</string>
+    <string name="diary_hv_temp_at_100_sub">max %1$s at 100%%</string>
+    <string name="diary_hv_low_hours" formatted="false">Low charge (&lt;20% / &lt;10%)</string>
+    <string name="diary_hv_peak_temp">Peak temperature</string>
+    <string name="diary_hv_charging_mix">Charging mix</string>
     <string name="diary_hv_ac_dc">AC %1$d%% · DC %2$d%%</string>
     <string name="diary_hv_info_body" formatted="false">HV LFP battery: occasional charges to 100% keep the BMS calibrated, while avoiding prolonged heat at 100% or sitting below 20% preserves long-term capacity.\n\n12V battery: morning resting voltage before ready mode should stay at or above 12.4 V. Below 12.2 V signals a weakening battery.</string>
     <string name="diary_12v_subtitle">12V Battery · 60-day morning trend</string>
