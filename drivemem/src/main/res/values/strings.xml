@@ -791,11 +791,8 @@
     <string name="diary_12v_fault">Fault · check now</string>
     <string name="diary_12v_waiting">Waiting for data</string>
     <string name="diary_sum_next_due">Next due</string>
-    <string name="diary_sum_open_notes">Open notes</string>
     <string name="diary_all_clear">All clear</string>
     <string name="diary_nothing_due">Nothing due</string>
-    <string name="diary_open_none">No open issues</string>
-    <string name="diary_open_breakdown">%1$d noise · %2$d incident</string>
     <string name="diary_filter_all">All</string>
     <string name="diary_empty">No diary entries yet. Tap + Add entry to log maintenance, noises, or incidents.</string>
     <string name="diary_grp_tires">Tires</string>

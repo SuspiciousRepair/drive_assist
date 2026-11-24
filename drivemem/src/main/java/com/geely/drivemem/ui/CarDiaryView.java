@@ -156,7 +156,7 @@ public final class CarDiaryView extends LinearLayout {
     private void buildSkeleton() {
         Context c = getContext();
 
-        // 1. Top row: "+ Add entry" on driver's edge + 3-figure summary card
+        // 1. Top row: "+ Add entry" on driver's edge + summary card
         LinearLayout topRow = new LinearLayout(c);
         topRow.setOrientation(LinearLayout.HORIZONTAL);
         topRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -467,7 +467,7 @@ public final class CarDiaryView extends LinearLayout {
         });
     }
 
-    // ---- Top Summary Strip: TCO (2/4) | Next Maintenance (1/4) | Open Notes (1/4) ----
+    // ---- Top Summary Strip: TCO (2/3) | Next Maintenance (1/3) ----
 
     private void renderSummary(List<CarDiary.Entry> entries, List<CarDiary.DueStatus> due,
                                double avgDailyKm, CarDiary.TcoSummary tco) {
@@ -490,21 +490,6 @@ public final class CarDiaryView extends LinearLayout {
             dueSub, dueSubColor, true),
             new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
 
-        topSummaryCard.addView(verticalDivider(c));
-
-        int openNoises = 0, openIncidents = 0;
-        for (CarDiary.Entry e : entries) {
-            if (!e.isOpen()) continue;
-            if (CarDiary.KIND_NOISE.equals(e.kind)) openNoises++;
-            else openIncidents++;
-        }
-        int totalOpen = openNoises + openIncidents;
-        String openSub = totalOpen == 0
-            ? c.getString(R.string.diary_open_none)
-            : c.getString(R.string.diary_open_breakdown, openNoises, openIncidents);
-        topSummaryCard.addView(summaryFigure(String.valueOf(totalOpen), 0,
-            c.getString(R.string.diary_sum_open_notes), openSub, Style.TEXT_DIM, false),
-            new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
     }
 
     private LinearLayout summaryFigure(CharSequence hero, int heroIconRes, String label, CharSequence sub,
