@@ -1146,17 +1146,6 @@ public final class CarDiaryView extends LinearLayout {
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
 
-        CharSequence mixVal = "—";
-        String mixSub = null;
-        if (ch.count > 0) {
-            double totalKwh = ch.totalKwh();
-            int acPct = totalKwh > 0 ? (int) Math.round(ch.acKwh / totalKwh * 100) : 100;
-            mixVal = c.getString(R.string.diary_hv_ac_dc, acPct, 100 - acPct);
-            mixSub = ch.count == 1
-                ? c.getString(R.string.stats_charge_one)
-                : c.getString(R.string.stats_charge_many, ch.count);
-        }
-
         LinearLayout row1 = new LinearLayout(c);
         row1.setOrientation(LinearLayout.HORIZONTAL);
         row1.setBaselineAligned(false);
@@ -1185,9 +1174,89 @@ public final class CarDiaryView extends LinearLayout {
 
         row2.addView(hvTile(c, c.getString(R.string.diary_hv_low_hours), lowVal,
             h.below20Ms == 0 ? Style.GOOD : Style.TEXT, null, Style.TEXT_DIM), leftLp2);
-        row2.addView(hvTile(c, c.getString(R.string.diary_hv_charging_mix), mixVal, Style.TEXT,
-            mixSub, Style.TEXT_DIM), rightLp2);
+        row2.addView(hvChargingMixTile(c, ch), rightLp2);
         hvHealthBox.addView(row2, r2Lp);
+    }
+
+    private View hvChargingMixTile(Context c, ChargePeriodSummary ch) {
+        if (ch == null || ch.count <= 0) {
+            return hvTile(c, c.getString(R.string.diary_hv_charging_mix), "—", Style.TEXT, null, Style.TEXT_DIM);
+        }
+        double totalKwh = ch.totalKwh();
+        float acShare = totalKwh > 0 ? (float) Math.max(0.0, Math.min(1.0, ch.acKwh / totalKwh)) : 1f;
+        float dcShare = Math.max(0f, 1f - acShare);
+        int acPct = Math.round(acShare * 100f);
+        int dcPct = 100 - acPct;
+
+        LinearLayout t = new LinearLayout(c);
+        t.setOrientation(LinearLayout.VERTICAL);
+        t.setBackground(Style.tile(c));
+        int p = Style.dp(c, 12);
+        t.setPadding(p, Style.dp(c, 8), p, Style.dp(c, 8));
+
+        LinearLayout head = new LinearLayout(c);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        TextView l = new TextView(c);
+        l.setText(c.getString(R.string.diary_hv_charging_mix));
+        l.setTextColor(Style.TEXT_DIM);
+        l.setTextSize(14f);
+        l.setSingleLine(true);
+        head.addView(l, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView countTv = new TextView(c);
+        countTv.setText(ch.count == 1
+            ? c.getString(R.string.stats_charge_one)
+            : c.getString(R.string.stats_charge_many, ch.count));
+        countTv.setTextColor(Style.TEXT_DIM);
+        countTv.setTextSize(13f);
+        countTv.setSingleLine(true);
+        head.addView(countTv);
+        t.addView(head);
+
+        // Proportional AC (blue) vs DC (green) bar
+        LinearLayout bar = new LinearLayout(c);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 9));
+        blp.topMargin = Style.dp(c, 8);
+        blp.bottomMargin = Style.dp(c, 7);
+        if (acShare > 0.005f) {
+            bar.addView(barSeg(c, Style.ACCENT, true, dcShare <= 0.005f),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, acShare));
+        }
+        if (dcShare > 0.005f) {
+            bar.addView(barSeg(c, Style.GOOD, acShare <= 0.005f, true),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, dcShare));
+        }
+        t.addView(bar, blp);
+
+        LinearLayout legRow = new LinearLayout(c);
+        legRow.setOrientation(LinearLayout.HORIZONTAL);
+        legRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        SpannableStringBuilder acSb = new SpannableStringBuilder();
+        appendDot(acSb, Style.ACCENT, "AC " + acPct + "%");
+        TextView acTv = new TextView(c);
+        acTv.setText(acSb);
+        acTv.setTextColor(Style.TEXT);
+        acTv.setTextSize(15f);
+        acTv.setTypeface(null, Typeface.BOLD);
+        acTv.setSingleLine(true);
+        legRow.addView(acTv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        SpannableStringBuilder dcSb = new SpannableStringBuilder();
+        appendDot(dcSb, Style.GOOD, "DC " + dcPct + "%");
+        TextView dcTv = new TextView(c);
+        dcTv.setText(dcSb);
+        dcTv.setTextColor(Style.TEXT);
+        dcTv.setTextSize(15f);
+        dcTv.setTypeface(null, Typeface.BOLD);
+        dcTv.setSingleLine(true);
+        legRow.addView(dcTv);
+        t.addView(legRow);
+
+        return t;
     }
 
     private void render12vBadge(Aux12vMonitor.Summary s12) {
