@@ -767,7 +767,7 @@
     <!-- Car Diary & 12V Health -->
     <string name="diary_add_btn">+ Registrar</string>
     <string name="diary_add_title">Novo registro</string>
-    <string name="diary_list_title">Diário do Carro · recentes primeiro</string>
+    <string name="diary_list_title">Diário do Carro</string>
     <string name="diary_schedule_title">Manutenção</string>
     <string name="diary_12v_no_trend">Coletando leituras matinais de 12V…</string>
     <string name="diary_12v_good">Boa · manhã</string>
@@ -787,7 +787,7 @@
     <string name="diary_grp_service">Revisão</string>
     <string name="diary_grp_electrical">Elétrica &amp; Carroceria</string>
     <string name="diary_grp_cosmetic">Estética</string>
-    <string name="diary_grp_bureaucracy">Burocracia</string>
+    <string name="diary_grp_bureaucracy">Taxas e seguro</string>
     <string name="diary_grp_notes">Notas</string>
     <string name="diary_cat_tire_pressure">Calibragem</string>
     <string name="diary_cat_tire_rotation">Rodízio</string>
@@ -882,7 +882,7 @@
     <string name="diary_tco_total">Total</string>
     <string name="diary_tco_energy">Energia</string>
     <string name="diary_tco_maintenance">Manutenção</string>
-    <string name="diary_tco_bureaucracy">Burocracia</string>
+    <string name="diary_tco_bureaucracy">Taxas e seguro</string>
     <string name="diary_period_all">Todo período</string>
     <string name="diary_period_30d">Últimos 30 dias</string>
     <string name="diary_period_90d">Últimos 90 dias</string>

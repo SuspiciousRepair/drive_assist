@@ -771,7 +771,7 @@
     <!-- Car Diary & 12V Health -->
     <string name="diary_add_btn">+ บันทึก</string>
     <string name="diary_add_title">เพิ่มบันทึก</string>
-    <string name="diary_list_title">สมุดบันทึกรถ · ล่าสุดก่อน</string>
+    <string name="diary_list_title">สมุดบันทึกรถ</string>
     <string name="diary_schedule_title">กำหนดดูแลรักษา</string>
     <string name="diary_12v_no_trend">กำลังเก็บค่า 12V ช่วงเช้า…</string>
     <string name="diary_12v_good">ดี · ช่วงเช้า</string>
@@ -791,7 +791,7 @@
     <string name="diary_grp_service">เช็คระยะ</string>
     <string name="diary_grp_electrical">ไฟฟ้าและตัวถัง</string>
     <string name="diary_grp_cosmetic">ดูแลสีรถ</string>
-    <string name="diary_grp_bureaucracy">เอกสารและค่าใช้จ่าย</string>
+    <string name="diary_grp_bureaucracy">ค่าธรรมเนียมและประกัน</string>
     <string name="diary_grp_notes">บันทึก</string>
     <string name="diary_cat_tire_pressure">ลมยาง</string>
     <string name="diary_cat_tire_rotation">สลับยาง</string>
@@ -886,7 +886,7 @@
     <string name="diary_tco_total">รวม</string>
     <string name="diary_tco_energy">พลังงาน</string>
     <string name="diary_tco_maintenance">บำรุงรักษา</string>
-    <string name="diary_tco_bureaucracy">ค่าคงที่</string>
+    <string name="diary_tco_bureaucracy">ค่าธรรมเนียมและประกัน</string>
     <string name="diary_period_all">ทั้งหมด</string>
     <string name="diary_period_30d">30 วันล่าสุด</string>
     <string name="diary_period_90d">90 วันล่าสุด</string>

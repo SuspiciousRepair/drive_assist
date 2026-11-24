@@ -1036,10 +1036,14 @@ public final class CarDiaryView extends LinearLayout {
         l1.setOrientation(LinearLayout.HORIZONTAL);
         l1.setGravity(Gravity.CENTER_VERTICAL);
 
-        View dot = statusDot(c, entryDotColor(e));
-        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(Style.dp(c, 10), Style.dp(c, 10));
+        // The class icon tells what the entry is; its colour tells the state
+        // (amber = still open, as the dot did before).
+        ImageView ico = new ImageView(c);
+        ico.setImageResource(e.category != null ? e.category.group.iconRes : R.drawable.ic_diary_notes);
+        ico.setColorFilter(entryDotColor(e), PorterDuff.Mode.SRC_IN);
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(Style.dp(c, 26), Style.dp(c, 26));
         dlp.rightMargin = Style.dp(c, 12);
-        l1.addView(dot, dlp);
+        l1.addView(ico, dlp);
 
         TextView title = new TextView(c);
         String label = (e.title != null && !e.title.isEmpty()) ? e.title : c.getString(e.category.labelRes);
@@ -1060,7 +1064,7 @@ public final class CarDiaryView extends LinearLayout {
         LinearLayout l2 = new LinearLayout(c);
         l2.setOrientation(LinearLayout.HORIZONTAL);
         l2.setGravity(Gravity.CENTER_VERTICAL);
-        l2.setPadding(Style.dp(c, 22), Style.dp(c, 6), 0, 0);
+        l2.setPadding(Style.dp(c, 38), Style.dp(c, 6), 0, 0);
 
         TextView detail = new TextView(c);
         detail.setText(buildDetailLine(c, e));
@@ -1122,7 +1126,7 @@ public final class CarDiaryView extends LinearLayout {
                     () -> trackEntryDialog(DiaryEntryDialog.showEdit(
                         c, e, cachedDue, () -> post(this::refresh)))));
             }
-            act.addView(inlineIconOnlyBtn(c, R.drawable.ic_delete_outline, Style.DANGER, () -> confirmDelete(e)));
+            act.addView(inlineIconOnlyBtn(c, R.drawable.ic_delete_outline, Style.TEXT_DIM, () -> confirmDelete(e)));
             box.addView(act);
         }
 
@@ -1781,17 +1785,7 @@ public final class CarDiaryView extends LinearLayout {
 
     private int entryDotColor(CarDiary.Entry e) {
         if (e.isOpen()) return Style.WARN;
-        if (CarDiary.KIND_AUTO.equals(e.kind)) return Style.ACCENT;
-        return Style.GOOD;
-    }
-
-    private View statusDot(Context c, int color) {
-        View d = new View(c);
-        GradientDrawable g = new GradientDrawable();
-        g.setShape(GradientDrawable.OVAL);
-        g.setColor(color);
-        d.setBackground(g);
-        return d;
+        return Style.TEXT_DIM;
     }
 
     private View hairline(Context c) {
