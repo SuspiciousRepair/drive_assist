@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.11.3] — 2026-11-23
+
 ### Added
 - **Music card: an icon when the lyrics have no timing.** Some songs have
   only plain lyrics, which do not move with the song (tap the lower half to
@@ -19,6 +21,15 @@
   for each song; the turning arrow undoes it, and so does holding the
   cover.
 
+### Changed
+- **Charging stats uses the Stats page's charging event card.** Both
+  Charging stats and the daily Stats page now share one charging-event card
+  layout (plug icon, time range and duration, and four aligned columns for
+  battery, energy added, average power and cost). The Home screen keeps its
+  own compact finished-charge card. Tapping a charge on the Stats page now
+  opens the full charge page, and tapping its Cost column opens the price
+  dialog directly.
+
 ### Fixed
 - **Climb and height no longer count GPS height jumps.** GPS height can
   jump by 100 m or more while the car is stopped or slow, at the start of a
@@ -33,6 +44,7 @@
   that sends the album a moment after the song's name left the card on the
   last song's album name and cover until something else changed. A new
   album now redraws the card and loads its own cover.
+
 ## [v0.11.2] — 2026-11-23
 
 ### Changed
