@@ -57,9 +57,15 @@ public final class DiaryClipTrimmer {
     public static String captureFiveSecondClip(Context ctx, long targetWallMs, String uuid) {
         List<Clips.Clip> all = Clips.list(ctx);
         Clips.Clip match = findMatchingClip(all, targetWallMs);
-        if (match == null || match.mp4 == null || !match.mp4.exists()) return null;
+        if (match == null || match.mp4 == null || !match.mp4.exists()) {
+            Log.i(CarAccess.TAG, "diary clip: no closed clip covering ts=" + targetWallMs
+                + " (total clips=" + (all == null ? 0 : all.size())
+                + ", liveCovering=" + hasLiveSegmentCovering(all, targetWallMs) + ")");
+            return null;
+        }
 
-        long offsetMs = computeOffsetMs(match.whenMs, match.seconds, targetWallMs);
+        long durMs = effectiveDurationMs(match);
+        long offsetMs = computeOffsetMs(match.whenMs, (int) (durMs / 1000L), targetWallMs);
         long startUs = Math.max(0L, (offsetMs - PRE_MS) * 1000L);
         long endUs = (offsetMs + POST_MS) * 1000L;
 
@@ -67,10 +73,39 @@ public final class DiaryClipTrimmer {
         File outFile = new File(dir(ctx), outName);
         boolean ok = trimMp4(match.mp4, outFile, startUs, endUs);
         if (ok && outFile.exists() && outFile.length() > 1024) {
+            Log.i(CarAccess.TAG, "diary clip: saved " + outName + " (" + (outFile.length() / 1024)
+                + " KB) from " + match.mp4.getName() + " offset=" + (offsetMs / 1000L) + "s");
             return outName;
         }
+        Log.w(CarAccess.TAG, "diary clip: trim produced empty output from " + match.mp4.getName());
         if (outFile.exists()) outFile.delete();
         return null;
+    }
+
+    /** True when a dashcam segment covering targetWallMs is currently RECORDING (.mp4.tmp). */
+    public static boolean hasLiveSegmentCovering(Context ctx, long targetWallMs) {
+        return hasLiveSegmentCovering(Clips.list(ctx), targetWallMs);
+    }
+
+    static boolean hasLiveSegmentCovering(List<Clips.Clip> clips, long targetWallMs) {
+        if (clips == null) return false;
+        for (Clips.Clip c : clips) {
+            if (c.kind != Clips.Kind.RECORDING) continue;
+            if (targetWallMs >= c.whenMs - 5_000L && targetWallMs <= c.whenMs + 6 * 60_000L) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Estimates clip duration without relying solely on VTT cue count (which can stop early). */
+    private static long effectiveDurationMs(Clips.Clip c) {
+        long vttMs = c.seconds > 0 ? c.seconds * 1000L : 0L;
+        long mtimeMs = (c.mp4 != null && c.mp4.lastModified() > c.whenMs)
+            ? (c.mp4.lastModified() - c.whenMs) : 0L;
+        if (mtimeMs > 10 * 60_000L) mtimeMs = 0L; // ignore skewed mtime
+        long best = Math.max(vttMs, mtimeMs);
+        return best > 5_000L ? best : 5 * 60_000L;
     }
 
     /** Pure helper: picks the closed clip whose span covers targetWallMs, else the
@@ -81,7 +116,7 @@ public final class DiaryClipTrimmer {
         for (Clips.Clip c : clips) {
             if (!c.playable()) continue;
             if (newest == null || c.whenMs > newest.whenMs) newest = c;
-            long durMs = c.seconds > 0 ? c.seconds * 1000L : 5 * 60_000L;
+            long durMs = effectiveDurationMs(c);
             if (targetWallMs >= c.whenMs - 2_000L && targetWallMs <= c.whenMs + durMs + 2_000L) {
                 return c;
             }
@@ -131,6 +166,7 @@ public final class DiaryClipTrimmer {
             ByteBuffer buf = ByteBuffer.allocate(BUF_SIZE);
             MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
             long basePts = -1L;
+            long lastWrittenPts = -1L;
             int frames = 0;
             while (true) {
                 int size = extractor.readSampleData(buf, 0);
@@ -140,13 +176,18 @@ public final class DiaryClipTrimmer {
                 if (basePts < 0) basePts = pts;
                 if (pts > endUs && frames > 0) break;
 
+                long relPts = Math.max(0L, pts - basePts);
+                if (lastWrittenPts >= 0 && relPts <= lastWrittenPts) {
+                    relPts = lastWrittenPts + 1L;
+                }
                 info.offset = 0;
                 info.size = size;
-                info.presentationTimeUs = Math.max(0L, pts - basePts);
+                info.presentationTimeUs = relPts;
                 int flags = extractor.getSampleFlags();
                 info.flags = (flags & MediaExtractor.SAMPLE_FLAG_SYNC) != 0
                     ? MediaCodec.BUFFER_FLAG_KEY_FRAME : 0;
                 muxer.writeSampleData(dstTrack, buf, info);
+                lastWrittenPts = relPts;
                 frames++;
                 extractor.advance();
             }

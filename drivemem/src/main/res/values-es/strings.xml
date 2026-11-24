@@ -884,6 +884,7 @@
     <string name="diary_coolant_change">Cambio completo</string>
     <string name="diary_edit_title">Editar registro</string>
     <string name="diary_btn_edit">Editar</string>
+    <string name="diary_btn_map">Mapa</string>
     <string name="diary_tco_title">Costo total de uso</string>
     <string name="diary_tco_over_km">en %1$s km</string>
     <string name="diary_tco_total">Total</string>
@@ -913,6 +914,9 @@
     <string name="cfg_diary_jolt_low">Baja (1,1 g)</string>
     <string name="cfg_diary_jolt_medium">Media (0,85 g)</string>
     <string name="cfg_diary_jolt_high">Alta (0,65 g)</string>
+    <string name="cfg_diary_jolt_fb_empty">Al registrar o descartar impactos, Drive Assist guarda su fuerza G aquí para ajustar el umbral.</string>
+    <string name="cfg_diary_jolt_fb_summary">Calibración: %1$d descartados (máx. %2$.2f g) · %3$d registrados</string>
+    <string name="cfg_diary_jolt_fb_apply">Cambiar a %1$s</string>
     <string name="cfg_diary_health_title">Cómo funcionan plazos y salud</string>
     <string name="cfg_diary_health_12v_title">Límites de batería 12V</string>
     <string name="cfg_diary_health_12v_body">Sana: ≥ 12,4 V en reposo · Atención: 12,2–12,4 V · Débil: &lt; 12,2 V · Fallo DC-DC: &lt; 12,1 V encendido.</string>
@@ -934,6 +938,10 @@
     <string name="stats_split_climate">Clima</string>
     <string name="stats_split_other">Otros</string>
     <string name="stats_card_charging">Cargas y Costo</string>
+    <string name="stats_chip_ac_charges">Cargas AC</string>
+    <string name="stats_chip_dc_charges">Cargas DC</string>
+    <string name="stats_chip_ac_cost_kwh">Costo AC / kWh</string>
+    <string name="stats_chip_dc_cost_kwh">Costo DC / kWh</string>
     <string name="stats_charges_none_period">Sin cargas en este período</string>
     <string name="stats_sessions_title">Sesiones</string>
     <string name="stats_unit_trip">viaje</string>

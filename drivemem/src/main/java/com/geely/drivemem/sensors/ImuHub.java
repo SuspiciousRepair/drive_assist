@@ -190,11 +190,13 @@ public final class ImuHub {
             float zG = s.peakZ / ImuFilter.G;
             float xG = s.peakX / ImuFilter.G;
             float yG = s.peakY / ImuFilter.G;
+            float rmsZG = s.rmsZ / ImuFilter.G;
+            float jerkZGs = s.peakJerkZ / ImuFilter.G;
             Log.i(TAG, String.format(java.util.Locale.US,
-                "imu: jolt detected z=%.2fg x=%.2fg y=%.2fg speed=%.0fkm/h",
-                zG, xG, yG, speedKmh));
+                "imu: jolt detected z=%.2fg jerkZ=%.1fg/s rmsZ=%.2fg x=%.2fg y=%.2fg speed=%.0fkm/h",
+                zG, jerkZGs, rmsZG, xG, yG, speedKmh));
             CarDiary.recordPendingJolt(
-                nowMs, zG, xG, yG, speedKmh,
+                nowMs, zG, xG, yG, rmsZG, jerkZGs, speedKmh,
                 CarDiary.latestOdometerKm(c),
                 fix != null ? fix.lat : null,
                 fix != null ? fix.lon : null);

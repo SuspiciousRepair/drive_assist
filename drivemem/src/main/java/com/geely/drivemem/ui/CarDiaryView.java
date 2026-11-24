@@ -625,6 +625,7 @@ public final class CarDiaryView extends LinearLayout {
         card.addView(new View(c), new LinearLayout.LayoutParams(Style.dp(c, 12), 1));
 
         TextView disBtn = Style.cardButton(c, c.getString(R.string.diary_jolt_dismiss_btn), false, () -> {
+            com.geely.drivemem.sensors.JoltFeedback.record(c, j, false);
             CarDiary.dismissPendingJolt(j.id);
             refresh();
         });
@@ -787,6 +788,10 @@ public final class CarDiaryView extends LinearLayout {
                             .putExtra(ClipPlayerActivity.EXTRA_PATH, clipFile.getAbsolutePath()))));
                 }
             }
+            if (e.lat != null && e.lon != null) {
+                act.addView(inlineIconTextBtn(c, R.drawable.ic_map, c.getString(R.string.diary_btn_map),
+                    () -> showLocationDialog(c, e)));
+            }
             if (e.category != null && e.category.userPickable) {
                 act.addView(inlineIconTextBtn(c, R.drawable.ic_edit_outline, c.getString(R.string.diary_btn_edit),
                     () -> DiaryEntryDialog.showEdit(c, e, cachedDue, () -> post(this::refresh))));
@@ -839,6 +844,49 @@ public final class CarDiaryView extends LinearLayout {
         iv.setLayoutParams(lp);
         iv.setOnClickListener(v -> onTap.run());
         return iv;
+    }
+
+    private void showLocationDialog(Context c, CarDiary.Entry e) {
+        if (e.lat == null || e.lon == null) return;
+        android.app.Dialog dlg = new android.app.Dialog(c);
+        dlg.setCanceledOnTouchOutside(true);
+
+        LinearLayout root = new LinearLayout(c);
+        root.setOrientation(LinearLayout.VERTICAL);
+        int pad = Style.dp(c, 22);
+        root.setPadding(pad, pad, pad, pad);
+        root.setBackground(Style.card(Style.cardFillColor(), c));
+
+        LinearLayout head = new LinearLayout(c);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        String label = (e.title != null && !e.title.isEmpty()) ? e.title : c.getString(e.category.labelRes);
+        TextView title = Style.title(c, label);
+        title.setTextSize(22f);
+        head.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        String coords = String.format(Locale.US, "%.5f, %.5f", e.lat, e.lon);
+        TextView sub = new TextView(c);
+        sub.setText(new SimpleDateFormat("d MMM HH:mm", Locale.getDefault()).format(new Date(e.tsMs)) + "  ·  " + coords);
+        sub.setTextColor(Style.TEXT_DIM);
+        sub.setTextSize(15.5f);
+        head.addView(sub);
+        root.addView(head);
+
+        RouteView map = new RouteView(c);
+        map.setLocationPin(e.lat, e.lon, "!");
+        LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 420));
+        mlp.topMargin = Style.dp(c, 14);
+        root.addView(map, mlp);
+
+        dlg.setContentView(root);
+        android.view.Window win = dlg.getWindow();
+        if (win != null) {
+            win.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            win.setLayout(Style.dp(c, 860), ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+        dlg.show();
     }
 
     private void confirmDelete(CarDiary.Entry e) {

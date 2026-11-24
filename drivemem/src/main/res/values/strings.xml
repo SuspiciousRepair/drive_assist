@@ -912,6 +912,7 @@
     <string name="diary_coolant_change">Full change</string>
     <string name="diary_edit_title">Edit entry</string>
     <string name="diary_btn_edit">Edit</string>
+    <string name="diary_btn_map">Map</string>
     <string name="diary_tco_title">Total cost of ownership</string>
     <string name="diary_tco_over_km">over %1$s km</string>
     <string name="diary_tco_total">Total</string>
@@ -941,6 +942,9 @@
     <string name="cfg_diary_jolt_low">Low (1.1 g)</string>
     <string name="cfg_diary_jolt_medium">Medium (0.85 g)</string>
     <string name="cfg_diary_jolt_high">High (0.65 g)</string>
+    <string name="cfg_diary_jolt_fb_empty">As you log or dismiss jolts, Drive Assist tracks their G-force here to help tune your threshold.</string>
+    <string name="cfg_diary_jolt_fb_summary">Calibration log: %1$d dismissed (max %2$.2f g) · %3$d logged</string>
+    <string name="cfg_diary_jolt_fb_apply">Switch to %1$s</string>
     <string name="cfg_diary_health_title">How health &amp; deadlines work</string>
     <string name="cfg_diary_health_12v_title">12V Battery thresholds</string>
     <string name="cfg_diary_health_12v_body">Healthy: ≥ 12.4 V resting · Watch: 12.2–12.4 V · Weak: &lt; 12.2 V · DC-DC Fault: &lt; 12.1 V while running.</string>
@@ -962,6 +966,10 @@
     <string name="stats_split_climate">Climate</string>
     <string name="stats_split_other">Other</string>
     <string name="stats_card_charging">Charging &amp; Cost</string>
+    <string name="stats_chip_ac_charges">AC charges</string>
+    <string name="stats_chip_dc_charges">DC charges</string>
+    <string name="stats_chip_ac_cost_kwh">AC cost / kWh</string>
+    <string name="stats_chip_dc_cost_kwh">DC cost / kWh</string>
     <string name="stats_charges_none_period">No charges in this period</string>
     <string name="stats_sessions_title">Sessions</string>
     <string name="stats_unit_trip">trip</string>

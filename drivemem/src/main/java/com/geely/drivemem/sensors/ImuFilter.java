@@ -53,10 +53,10 @@ public final class ImuFilter {
     private boolean gravInit;
     private float gravX, gravY, gravZ;
 
-    // Previous raw sample & previous horizontal linear accel for rest check and jerk.
+    // Previous raw sample & previous linear accel for rest check and jerk.
     private float prevRawX, prevRawY, prevRawZ;
     private boolean hasPrevRaw;
-    private float prevAx, prevAy;
+    private float prevAx, prevAy, prevAz;
     private boolean hasPrevHoriz;
     private long prevSampleNs;
 
@@ -78,6 +78,7 @@ public final class ImuFilter {
     private float peakZ;          // signed value with largest |az|
     private float peakX;          // signed value with largest |ax|
     private float peakY;          // signed value with largest |ay|
+    private float peakJerkZ;      // max |d(az)/dt| in m/s^3 (sharpness of vertical impact)
     private double sumSqJerk;
 
     public ImuFilter() {
@@ -275,10 +276,12 @@ public final class ImuFilter {
         if (hasPrevHoriz && dt > 0.005f) {
             float jx = (ax - prevAx) / dt;
             float jy = (ay - prevAy) / dt;
+            float jz = Math.abs(az - prevAz) / dt;
+            if (jz > peakJerkZ) peakJerkZ = jz;
             sumSqJerk += (double) jx * jx + (double) jy * jy;
             winJerkCount++;
         }
-        prevAx = ax; prevAy = ay;
+        prevAx = ax; prevAy = ay; prevAz = az;
         hasPrevHoriz = true;
     }
 
@@ -290,17 +293,27 @@ public final class ImuFilter {
         public final float meanX, peakX;
         public final float meanY, peakY;
         public final float jerkRms;
+        public final float peakJerkZ;
         public final float rawX, rawY, rawZ;
 
         Summary(int count, boolean calZ, boolean calXy,
                 float rmsZ, float peakZ, float meanX, float peakX,
                 float meanY, float peakY, float jerkRms,
                 float rawX, float rawY, float rawZ) {
+            this(count, calZ, calXy, rmsZ, peakZ, meanX, peakX, meanY, peakY,
+                jerkRms, 0f, rawX, rawY, rawZ);
+        }
+
+        Summary(int count, boolean calZ, boolean calXy,
+                float rmsZ, float peakZ, float meanX, float peakX,
+                float meanY, float peakY, float jerkRms, float peakJerkZ,
+                float rawX, float rawY, float rawZ) {
             this.count = count; this.calZ = calZ; this.calXy = calXy;
             this.rmsZ = rmsZ; this.peakZ = peakZ;
             this.meanX = meanX; this.peakX = peakX;
             this.meanY = meanY; this.peakY = peakY;
             this.jerkRms = jerkRms;
+            this.peakJerkZ = peakJerkZ;
             this.rawX = rawX; this.rawY = rawY; this.rawZ = rawZ;
         }
     }
@@ -315,6 +328,7 @@ public final class ImuFilter {
             (float) (sumAx / n), peakX,
             (float) (sumAy / n), peakY,
             winJerkCount > 0 ? (float) Math.sqrt(sumSqJerk / winJerkCount) : 0f,
+            peakJerkZ,
             (float) (sumRx / n), (float) (sumRy / n), (float) (sumRz / n)
         );
         resetWindow();
@@ -326,7 +340,7 @@ public final class ImuFilter {
         sumRx = sumRy = sumRz = 0;
         sumAx = sumAy = sumAz = 0;
         sumSqZ = sumSqJerk = 0;
-        peakZ = peakX = peakY = 0f;
+        peakZ = peakX = peakY = peakJerkZ = 0f;
     }
 
     /** Resets transient IIR/window state on Park->Drive without discarding learned calibration. */

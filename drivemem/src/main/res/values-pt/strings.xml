@@ -897,6 +897,7 @@
     <string name="diary_coolant_change">Troca completa</string>
     <string name="diary_edit_title">Editar registro</string>
     <string name="diary_btn_edit">Editar</string>
+    <string name="diary_btn_map">Mapa</string>
     <string name="diary_tco_title">Custo total de uso</string>
     <string name="diary_tco_over_km">em %1$s km</string>
     <string name="diary_tco_total">Total</string>
@@ -926,6 +927,9 @@
     <string name="cfg_diary_jolt_low">Baixa (1,1 g)</string>
     <string name="cfg_diary_jolt_medium">Média (0,85 g)</string>
     <string name="cfg_diary_jolt_high">Alta (0,65 g)</string>
+    <string name="cfg_diary_jolt_fb_empty">Ao registrar ou descartar impactos, o Drive Assist registra a força G aqui para ajudar a calibrar o limite.</string>
+    <string name="cfg_diary_jolt_fb_summary">Calibração: %1$d descartados (máx. %2$.2f g) · %3$d registrados</string>
+    <string name="cfg_diary_jolt_fb_apply">Usar %1$s</string>
     <string name="cfg_diary_health_title">Como funcionam prazos e saúde</string>
     <string name="cfg_diary_health_12v_title">Limites da bateria 12V</string>
     <string name="cfg_diary_health_12v_body">Saudável: ≥ 12,4 V em repouso · Atenção: 12,2–12,4 V · Fraca: &lt; 12,2 V · Falha DC-DC: &lt; 12,1 V ligado.</string>
@@ -947,6 +951,10 @@
     <string name="stats_split_climate">Clima</string>
     <string name="stats_split_other">Outros</string>
     <string name="stats_card_charging">Recargas &amp; Custo</string>
+    <string name="stats_chip_ac_charges">Recargas AC</string>
+    <string name="stats_chip_dc_charges">Recargas DC</string>
+    <string name="stats_chip_ac_cost_kwh">Custo AC / kWh</string>
+    <string name="stats_chip_dc_cost_kwh">Custo DC / kWh</string>
     <string name="stats_charges_none_period">Nenhuma recarga neste período</string>
     <string name="stats_sessions_title">Sessões</string>
     <string name="stats_unit_trip">viagem</string>

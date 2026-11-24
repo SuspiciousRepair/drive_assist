@@ -901,6 +901,7 @@
     <string name="diary_coolant_change">เปลี่ยนถ่าย</string>
     <string name="diary_edit_title">แก้ไขรายการ</string>
     <string name="diary_btn_edit">แก้ไข</string>
+    <string name="diary_btn_map">แผนที่</string>
     <string name="diary_tco_title">ค่าใช้จ่ายรวม</string>
     <string name="diary_tco_over_km">ใน %1$s km</string>
     <string name="diary_tco_total">รวม</string>
@@ -930,6 +931,9 @@
     <string name="cfg_diary_jolt_low">ต่ำ (1.1 g)</string>
     <string name="cfg_diary_jolt_medium">กลาง (0.85 g)</string>
     <string name="cfg_diary_jolt_high">สูง (0.65 g)</string>
+    <string name="cfg_diary_jolt_fb_empty">เมื่อคุณบันทึกหรือปิดแจ้งเตือนแรงกระแทก ระบบจะเก็บค่าแรง G ไว้ช่วยปรับความไวให้เหมาะกับรถของคุณ</string>
+    <string name="cfg_diary_jolt_fb_summary">ข้อมูลปรับเทียบ: ปิด %1$d ครั้ง (สูงสุด %2$.2f g) · บันทึก %3$d ครั้ง</string>
+    <string name="cfg_diary_jolt_fb_apply">เปลี่ยนเป็น %1$s</string>
     <string name="cfg_diary_health_title">การทำงานของกำหนดการและสุขภาพแบต</string>
     <string name="cfg_diary_health_12v_title">เกณฑ์แบตเตอรี่ 12V</string>
     <string name="cfg_diary_health_12v_body">ปกติ: ≥ 12.4 V ขณะพัก · เฝ้าระวัง: 12.2–12.4 V · อ่อน: &lt; 12.2 V · DC-DC ผิดปกติ: &lt; 12.1 V ขณะเปิดรถ</string>
@@ -951,6 +955,10 @@
     <string name="stats_split_climate">แอร์</string>
     <string name="stats_split_other">อื่นๆ</string>
     <string name="stats_card_charging">การชาร์จและค่าใช้จ่าย</string>
+    <string name="stats_chip_ac_charges">ชาร์จ AC</string>
+    <string name="stats_chip_dc_charges">ชาร์จ DC</string>
+    <string name="stats_chip_ac_cost_kwh">ค่าไฟ AC / kWh</string>
+    <string name="stats_chip_dc_cost_kwh">ค่าไฟ DC / kWh</string>
     <string name="stats_charges_none_period">ไม่มีการชาร์จในช่วงนี้</string>
     <string name="stats_sessions_title">กิจกรรม</string>
     <string name="stats_unit_trip">ทริป</string>

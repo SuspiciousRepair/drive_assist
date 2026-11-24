@@ -404,22 +404,31 @@ public final class CarDiary {
         }
     }
 
-    /** Accelerometer-detected jolt waiting for driver review while parked. */
+    /** Accelerometer-detected jolt waiting for driver review. */
     public static final class PendingJolt {
         public final String id;
         public final long tsMs;
         public final float peakZG, peakXG, peakYG;
+        public final float rmsZG, peakJerkZGs;
         public final Float speedKmh;
         public final Double odoKm;
         public final Double lat, lon;
 
         public PendingJolt(String id, long tsMs, float peakZG, float peakXG, float peakYG,
                            Float speedKmh, Double odoKm, Double lat, Double lon) {
+            this(id, tsMs, peakZG, peakXG, peakYG, 0f, 0f, speedKmh, odoKm, lat, lon);
+        }
+
+        public PendingJolt(String id, long tsMs, float peakZG, float peakXG, float peakYG,
+                           float rmsZG, float peakJerkZGs,
+                           Float speedKmh, Double odoKm, Double lat, Double lon) {
             this.id = id;
             this.tsMs = tsMs;
             this.peakZG = peakZG;
             this.peakXG = peakXG;
             this.peakYG = peakYG;
+            this.rmsZG = rmsZG;
+            this.peakJerkZGs = peakJerkZGs;
             this.speedKmh = speedKmh;
             this.odoKm = odoKm;
             this.lat = lat;
@@ -438,23 +447,28 @@ public final class CarDiary {
     private static final long JOLT_COOLDOWN_MS = 30_000L;
     private static final List<PendingJolt> pendingJolts = new ArrayList<>();
 
-    /** Hook for ImuHub (or tests) to queue a sharp driving jolt for post-park review.
-     * Lights the iOS-style notification dot on the Diary dock icon without interrupting driving. */
+    /** Hook for ImuHub (or tests) to queue a sharp driving jolt for review. */
     public static synchronized PendingJolt recordPendingJolt(
             long tsMs, float peakZG, float peakXG, float peakYG,
+            Float speedKmh, Double odoKm, Double lat, Double lon) {
+        return recordPendingJolt(tsMs, peakZG, peakXG, peakYG, 0f, 0f, speedKmh, odoKm, lat, lon);
+    }
+
+    public static synchronized PendingJolt recordPendingJolt(
+            long tsMs, float peakZG, float peakXG, float peakYG,
+            float rmsZG, float peakJerkZGs,
             Float speedKmh, Double odoKm, Double lat, Double lon) {
         pruneExpiredJoltsLocked(tsMs);
         if (!pendingJolts.isEmpty()) {
             PendingJolt last = pendingJolts.get(0);
             if (Math.abs(tsMs - last.tsMs) < JOLT_COOLDOWN_MS) {
-                // Keep the stronger shock within the same cooldown window.
                 float g = Math.max(Math.abs(peakZG), Math.max(Math.abs(peakXG), Math.abs(peakYG)));
                 if (g <= last.maxG()) return last;
                 pendingJolts.remove(0);
             }
         }
         PendingJolt j = new PendingJolt(UUID.randomUUID().toString(), tsMs,
-            peakZG, peakXG, peakYG, speedKmh, odoKm, lat, lon);
+            peakZG, peakXG, peakYG, rmsZG, peakJerkZGs, speedKmh, odoKm, lat, lon);
         pendingJolts.add(0, j);
         while (pendingJolts.size() > MAX_PENDING_JOLTS) {
             pendingJolts.remove(pendingJolts.size() - 1);
@@ -593,6 +607,20 @@ public final class CarDiary {
             }
             try {
                 SQLiteDatabase db = CarDb.get(app).db();
+                Double finalLat = lat, finalLon = lon;
+                if (finalLat == null || finalLon == null) {
+                    // Fallback to nearest recorded trip_point within +-15 s of the impact
+                    try (Cursor tc = db.rawQuery(
+                            "SELECT lat, lon FROM trip_point WHERE ts_ms BETWEEN ? AND ? "
+                            + "ORDER BY ABS(ts_ms - ?) ASC LIMIT 1",
+                            new String[]{String.valueOf(tsMs - 15_000L),
+                                String.valueOf(tsMs + 15_000L), String.valueOf(tsMs)})) {
+                        if (tc.moveToFirst()) {
+                            finalLat = tc.getDouble(0);
+                            finalLon = tc.getDouble(1);
+                        }
+                    } catch (Throwable ignored) {}
+                }
                 ContentValues v = new ContentValues();
                 v.put("uuid", uuid);
                 v.put("ts_ms", tsMs);
@@ -601,22 +629,55 @@ public final class CarDiary {
                 v.put("status", st);
                 if (odoKm != null && odoKm > 0) v.put("odo_km", odoKm);
                 if (outsideTempC != null) v.put("outside_temp_c", outsideTempC);
-                if (lat != null) v.put("lat", lat);
-                if (lon != null) v.put("lon", lon);
+                if (finalLat != null) v.put("lat", finalLat);
+                if (finalLon != null) v.put("lon", finalLon);
                 if (cost != null && cost > 0) v.put("cost", cost);
                 if (title != null && !title.trim().isEmpty()) v.put("title", title.trim());
                 if (note != null && !note.trim().isEmpty()) v.put("note", note.trim());
                 if (tags != null && !tags.trim().isEmpty()) v.put("tags", tags.trim());
                 if (clip != null) v.put("clip_name", clip);
                 if (metaJson != null && !metaJson.trim().isEmpty()) v.put("meta_json", metaJson);
-                db.insert("diary_event", null, v);
+                long rowId = db.insert("diary_event", null, v);
                 if (pendingJoltId != null) dismissPendingJolt(pendingJoltId);
                 else publishChanged();
                 if (onDone != null) onDone.run();
+
+                // If the dashcam segment covering tsMs is still RECORDING (.mp4.tmp),
+                // wait in the background for it to close and attach the 5s clip automatically.
+                if (captureClip && clip == null && rowId > 0
+                        && DiaryClipTrimmer.hasLiveSegmentCovering(app, tsMs)) {
+                    scheduleDelayedClipAttach(app, rowId, tsMs, uuid);
+                }
             } catch (Throwable t) {
                 Log.w(CarAccess.TAG, "diary incident insert failed: " + t);
             }
         });
+    }
+
+    /** Polls up to 6 minutes for an active dashcam segment covering tsMs to close,
+     * then extracts the 5-second clip and updates diary_event.clip_name. */
+    private static void scheduleDelayedClipAttach(Context app, long rowId, long tsMs, String uuid) {
+        new Thread(() -> {
+            for (int attempt = 0; attempt < 24; attempt++) {
+                try { Thread.sleep(15_000L); } catch (InterruptedException e) { return; }
+                String clip = DiaryClipTrimmer.captureFiveSecondClip(app, tsMs, uuid);
+                if (clip != null) {
+                    CarDb.get(app).write(() -> {
+                        try {
+                            ContentValues upd = new ContentValues();
+                            upd.put("clip_name", clip);
+                            CarDb.get(app).db().update("diary_event", upd, "id = ?",
+                                new String[]{String.valueOf(rowId)});
+                            publishChanged();
+                        } catch (Throwable t) {
+                            Log.w(CarAccess.TAG, "diary delayed clip attach failed: " + t);
+                        }
+                    });
+                    return;
+                }
+                if (!DiaryClipTrimmer.hasLiveSegmentCovering(app, tsMs)) return;
+            }
+        }, "diary-clip-retry").start();
     }
 
     /** Appends a '+1 happened again' recurrence child row linked to parentId, and bumps parent ts_ms. */

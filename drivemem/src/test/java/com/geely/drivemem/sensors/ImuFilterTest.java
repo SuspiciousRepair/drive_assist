@@ -179,4 +179,23 @@ public class ImuFilterTest {
         assertFalse(ImuHub.shouldTriggerJolt(moderate, 40f, ImuHub.JOLT_MEDIUM)); // 0.71g < 0.85g
         assertTrue(ImuHub.shouldTriggerJolt(moderate, 40f, ImuHub.JOLT_HIGH));    // 0.71g >= 0.65g
     }
+
+    @Test public void joltFeedbackSuggestsLowerSensitivityWhenBumpsDismissed() {
+        java.util.List<JoltFeedback.Sample> samples = java.util.Arrays.asList(
+            new JoltFeedback.Sample(1_000L, false, ImuHub.JOLT_MEDIUM, 40f, 0.92f, 12f, 0.25f, 0.1f, 0.1f),
+            new JoltFeedback.Sample(2_000L, false, ImuHub.JOLT_MEDIUM, 35f, 1.02f, 14f, 0.30f, 0.1f, 0.1f)
+        );
+        JoltFeedback.Stats st = JoltFeedback.summarize(samples, ImuHub.JOLT_MEDIUM);
+        assertEquals(0, st.loggedCount);
+        assertEquals(2, st.dismissedCount);
+        assertEquals(1.02f, st.maxDismissedG, 0.001f);
+        assertEquals(ImuHub.JOLT_LOW, st.suggestedSensitivity);
+
+        // If a real incident was logged at 0.95 g, don't suggest raising floor to 1.10 g
+        java.util.List<JoltFeedback.Sample> withReal = new java.util.ArrayList<>(samples);
+        withReal.add(new JoltFeedback.Sample(3_000L, true, ImuHub.JOLT_MEDIUM, 45f, 0.95f, 22f, 0.20f, 0.1f, 0.1f));
+        JoltFeedback.Stats stReal = JoltFeedback.summarize(withReal, ImuHub.JOLT_MEDIUM);
+        assertEquals(1, stReal.loggedCount);
+        assertNull(stReal.suggestedSensitivity);
+    }
 }

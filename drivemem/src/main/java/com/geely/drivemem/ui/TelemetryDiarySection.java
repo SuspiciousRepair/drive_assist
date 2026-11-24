@@ -172,6 +172,42 @@ public final class TelemetryDiarySection extends LinearLayout {
             rebuild();
         }));
 
+        // Live calibration feedback summary from driver's Logged / Dismissed verdicts
+        final LinearLayout fbBox = new LinearLayout(c);
+        fbBox.setOrientation(VERTICAL);
+        LinearLayout.LayoutParams fblp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        fblp.topMargin = Style.dp(c, 12);
+        joltCard.addView(fbBox, fblp);
+        new Thread(() -> {
+            com.geely.drivemem.sensors.JoltFeedback.Stats st =
+                com.geely.drivemem.sensors.JoltFeedback.readStats(c);
+            post(() -> {
+                fbBox.removeAllViews();
+                if (st.total() == 0) {
+                    fbBox.addView(ConfigCards.hint(c, c.getString(R.string.cfg_diary_jolt_fb_empty)));
+                    return;
+                }
+                String summary = c.getString(R.string.cfg_diary_jolt_fb_summary,
+                    st.dismissedCount, st.maxDismissedG, st.loggedCount);
+                fbBox.addView(ConfigCards.hint(c, summary));
+                if (st.suggestedSensitivity != null) {
+                    String sugLabel = ImuHub.JOLT_LOW.equals(st.suggestedSensitivity)
+                        ? c.getString(R.string.cfg_diary_jolt_low)
+                        : c.getString(R.string.cfg_diary_jolt_medium);
+                    TextView applyBtn = Style.cardButton(c,
+                        c.getString(R.string.cfg_diary_jolt_fb_apply, sugLabel), true, () -> {
+                            Prefs.setDiaryJoltSensitivity(c, st.suggestedSensitivity);
+                            rebuild();
+                        });
+                    LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                    alp.topMargin = Style.dp(c, 8);
+                    fbBox.addView(applyBtn, alp);
+                }
+            });
+        }, "jolt-fb-read").start();
+
         LinearLayout healthCard = ConfigCards.card(c, c.getString(R.string.cfg_diary_health_title));
         ConfigCards.add(rightCol, healthCard);
         addExplainer(healthCard, c.getString(R.string.cfg_diary_health_12v_title),

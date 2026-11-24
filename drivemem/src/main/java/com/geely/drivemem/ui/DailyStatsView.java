@@ -383,7 +383,6 @@ public class DailyStatsView extends LinearLayout {
         String date;
         DailyStatsProvider.DayOverview ov;          // Day view
         DailyStatsProvider.PeriodOverview po;       // Week / Month / Year view
-        DailyStatsProvider.SpeedBucket[] buckets;
         ChargePeriodSummary chargeSummary;
         RouteSet routeSet;                          // period's trip routes for contextual map
         List<ChargeSpots.Spot> routeChargeSpots = Collections.emptyList();
@@ -433,16 +432,12 @@ public class DailyStatsView extends LinearLayout {
         l.date = date;
         if (p == Period.DAY) {
             l.ov = DailyStatsProvider.getDayOverview(c, date);
-            l.buckets = DailyStatsProvider.getSpeedBucketEfficiency(c, date);
         } else if (p == Period.WEEK) {
             l.po = DailyStatsProvider.recentWeeks(c, date, 1).get(0);
-            l.buckets = speedBucketsForPeriod(c, l.po);
         } else if (p == Period.MONTH) {
             l.po = DailyStatsProvider.recentMonths(c, date, 1).get(0);
-            l.buckets = speedBucketsForPeriod(c, l.po);
         } else {
             l.po = DailyStatsProvider.yearOverview(c, date);
-            l.buckets = speedBucketsForPeriod(c, l.po);
         }
 
         ZoneId zone = ZoneId.systemDefault();
@@ -480,13 +475,6 @@ public class DailyStatsView extends LinearLayout {
         // Trip routes in this period (bounded by period window, capped to recent 80 trips for fast Year draw)
         l.routeSet = loadPeriodRoutes(c, fromMs, toMs);
         return l;
-    }
-
-    private static DailyStatsProvider.SpeedBucket[] speedBucketsForPeriod(
-            Context c, DailyStatsProvider.PeriodOverview po) {
-        List<String> dates = new ArrayList<>(po.days.size());
-        for (DailyStatsProvider.DayOverview d : po.days) dates.add(d.date);
-        return DailyStatsProvider.getSpeedBucketEfficiency(c, dates);
     }
 
     private static RouteSet loadPeriodRoutes(Context c, long fromMs, long toMs) {
@@ -672,7 +660,7 @@ public class DailyStatsView extends LinearLayout {
         }
 
         renderTripCard(totals);
-        renderConsumptionCard(totals, l.buckets);
+        renderConsumptionCard(totals);
         renderChargingCard(l.chargeSummary, totals);
 
         rebuildSessionFilterBar(totals);
@@ -726,10 +714,9 @@ public class DailyStatsView extends LinearLayout {
         distributeInPairs(c, tripCard, chips, 10);
     }
 
-    // ---- Card 2: Efficiency & Energy (speed buckets + compact Drive/Climate/Other/Regen bar) ----
+    // ---- Card 2: Efficiency & Energy (Hero consumption + EnergySankeyView) ----
 
-    private void renderConsumptionCard(DailyStatsProvider.DayOverview ov,
-                                       DailyStatsProvider.SpeedBucket[] buckets) {
+    private void renderConsumptionCard(DailyStatsProvider.DayOverview ov) {
         Context c = getContext();
         consumptionCard.removeAllViews();
         cardTitle(consumptionCard, c.getString(R.string.stats_card_efficiency));
@@ -739,7 +726,7 @@ public class DailyStatsView extends LinearLayout {
                 null, EnergyUnits.WH_PER_KM, HERO_UNIT_SCALE), ov.energySource)
             : "—";
         CharSequence consumptionCaption = withEnergySourceMark(
-            c.getString(R.string.stats_eff_by_speed), ov.energySource);
+            c.getString(R.string.route_stat_by_use), ov.energySource);
         if (ov.efficiencyFromCharges) {
             heroVal = valueWithUnit(EnergyUnits.number(ov.chargeBasedKwh100km),
                 null, EnergyUnits.WH_PER_KM, HERO_UNIT_SCALE);
@@ -748,99 +735,25 @@ public class DailyStatsView extends LinearLayout {
         consumptionCard.addView(createHeroView(c, heroVal, consumptionCaption));
         Style.gap(consumptionCard, c, 10);
 
-        consumptionCard.addView(ov.efficiencyFromCharges
-            || ov.energySource == EnergySource.ESTIMATED || ov.energySource == EnergySource.MIXED
-            ? buildSpeedBucketUnavailable(c)
-            : buildSpeedBucketChart(c, buckets, ov.efficiencyKwh100km));
-
-        // Compact Energy by Use split bar (Drive / Climate / Other + Regen)
+        // Energy flow Sankey (battery + regen -> used -> drive, climate, other)
         double[] split = DailyStatsProvider.splitTotals(ov.sessions);
         if (split != null) {
-            Style.gap(consumptionCard, c, 12);
-            consumptionCard.addView(buildCompactEnergySplit(c, split));
+            EnergySankeyView sankey = new EnergySankeyView(c);
+            sankey.setData(split[4], split[5], split[0], split[1], split[2], split[3]);
+            consumptionCard.addView(sankey, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         } else if (ov.dischargeKwh > 0 || ov.regenKwh > 0) {
-            Style.gap(consumptionCard, c, 12);
             List<View> chips = new ArrayList<>();
             chips.add(metricChip(c, c.getString(R.string.stats_energy_net),
                 valueWithUnit(String.format(Locale.US, "%.1f", ov.netKwh), null, "kWh", ROW_UNIT_SCALE)));
             chips.add(metricChip(c, c.getString(R.string.stats_energy_regen),
                 valueWithUnit(String.format(Locale.US, "%.1f", ov.regenKwh), Style.GOOD, "kWh", ROW_UNIT_SCALE)));
             distributeInPairs(c, consumptionCard, chips, 10);
+        } else {
+            TextView none = Style.label(c, c.getString(R.string.stats_by_use_none));
+            none.setTextSize(14f);
+            consumptionCard.addView(none);
         }
-    }
-
-    /** Compact proportional bar showing Drive / Climate / Other share plus Regen recovered. */
-    private View buildCompactEnergySplit(Context c, double[] t) {
-        // t = {motorOut, climate, other, km, battery, regen}
-        double motor = Math.max(0, t[0]), climate = Math.max(0, t[1]), other = Math.max(0, t[2]);
-        double regen = Math.max(0, t[5]);
-        double sum = motor + climate + other;
-        if (sum <= 0.001) return new View(c);
-
-        LinearLayout box = new LinearLayout(c);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setBackground(Style.tile(c));
-        int p = Style.dp(c, 10);
-        box.setPadding(p, Style.dp(c, 8), p, Style.dp(c, 8));
-
-        LinearLayout bar = new LinearLayout(c);
-        bar.setOrientation(LinearLayout.HORIZONTAL);
-        bar.setLayoutParams(new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 8)));
-        addSplitSeg(bar, (float) (motor / sum), Style.ACCENT, true, climate <= 0 && other <= 0);
-        if (climate > 0) addSplitSeg(bar, (float) (climate / sum), Style.HEAT, false, other <= 0);
-        if (other > 0) addSplitSeg(bar, (float) (other / sum), Style.TEXT_DIM, false, true);
-        box.addView(bar);
-
-        int pDrive = (int) Math.round(motor / sum * 100);
-        int pClim = (int) Math.round(climate / sum * 100);
-        int pOther = Math.max(0, 100 - pDrive - pClim);
-        SpannableStringBuilder leg = new SpannableStringBuilder();
-        appendDotLabel(leg, Style.ACCENT, c.getString(R.string.stats_split_drive) + " " + pDrive + "%");
-        leg.append("  ");
-        appendDotLabel(leg, Style.HEAT, c.getString(R.string.stats_split_climate) + " " + pClim + "%");
-        if (pOther > 0) {
-            leg.append("  ");
-            appendDotLabel(leg, Style.TEXT_DIM, c.getString(R.string.stats_split_other) + " " + pOther + "%");
-        }
-        if (regen > 0.05) {
-            leg.append("  ·  ");
-            int s = leg.length();
-            leg.append(c.getString(R.string.stats_energy_regen) + " ");
-            leg.append(String.format(Locale.getDefault(), "%.1f kWh", regen));
-            leg.setSpan(new ForegroundColorSpan(Style.GOOD), s, leg.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        }
-
-        TextView legTv = new TextView(c);
-        legTv.setText(leg);
-        legTv.setTextColor(Style.TEXT_DIM);
-        legTv.setTextSize(13.5f);
-        legTv.setPadding(0, Style.dp(c, 6), 0, 0);
-        box.addView(legTv);
-        return box;
-    }
-
-    private void addSplitSeg(LinearLayout bar, float weight, int color, boolean leftRound, boolean rightRound) {
-        if (weight <= 0.001f) return;
-        View seg = new View(getContext());
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(color);
-        float r = Style.dp(getContext(), 4);
-        bg.setCornerRadii(new float[]{
-            leftRound ? r : 0, leftRound ? r : 0,
-            rightRound ? r : 0, rightRound ? r : 0,
-            rightRound ? r : 0, rightRound ? r : 0,
-            leftRound ? r : 0, leftRound ? r : 0
-        });
-        seg.setBackground(bg);
-        bar.addView(seg, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, weight));
-    }
-
-    private static void appendDotLabel(SpannableStringBuilder sb, int color, String text) {
-        int a = sb.length();
-        sb.append("● ");
-        sb.setSpan(new ForegroundColorSpan(color), a, a + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        sb.append(text);
     }
 
     // ---- Card 3: Charging & Energy Cost ----
@@ -856,10 +769,13 @@ public class DailyStatsView extends LinearLayout {
         CharSequence cap;
         if (m.anyCost && m.totalCost() > 0) {
             hero = Style.moneyWithUnit(m.totalCost(), null, HERO_UNIT_SCALE);
-            String per100 = ov.distanceKm > 0.5
-                ? c.getString(R.string.charge_card_per_100km, Prefs.formatMoney(m.totalCost() / ov.distanceKm * 100.0))
-                : c.getString(R.string.charge_card_energy_cap, kwhNum(m.totalKwh()));
-            cap = per100 + "  ·  " + kwhNum(m.totalKwh()) + " kWh";
+            if (ov.distanceKm > 0.5) {
+                String per100 = c.getString(R.string.charge_card_per_100km,
+                    Prefs.formatMoney(m.totalCost() / ov.distanceKm * 100.0));
+                cap = per100 + "  ·  " + kwhNum(m.totalKwh()) + " kWh";
+            } else {
+                cap = c.getString(R.string.charge_card_energy_cap, kwhNum(m.totalKwh()));
+            }
         } else if (m.count > 0) {
             hero = valueWithUnit("+" + kwhNum(m.totalKwh()), null, "kWh", HERO_UNIT_SCALE);
             String countStr = m.count == 1 ? c.getString(R.string.stats_charge_one)
@@ -876,11 +792,11 @@ public class DailyStatsView extends LinearLayout {
         int dcUnitCol = dcUnit >= 0 && acUnit > 0 && dcUnit > 2 * acUnit ? Style.DANGER : Style.TEXT;
 
         List<View> chips = new ArrayList<>();
-        chips.add(metricChip(c, "AC", countKwh(m.acCount, m.acKwh, Style.ACCENT)));
-        chips.add(metricChip(c, "DC", countKwh(m.dcCount, m.dcKwh, Style.GOOD)));
-        chips.add(metricChip(c, c.getString(R.string.charge_card_per_kwh, "AC"),
+        chips.add(metricChip(c, c.getString(R.string.stats_chip_ac_charges), countKwh(m.acCount, m.acKwh, Style.ACCENT)));
+        chips.add(metricChip(c, c.getString(R.string.stats_chip_dc_charges), countKwh(m.dcCount, m.dcKwh, Style.GOOD)));
+        chips.add(metricChip(c, c.getString(R.string.stats_chip_ac_cost_kwh),
             acUnit >= 0 ? Style.moneyWithUnit(acUnit, null, ROW_UNIT_SCALE) : "—"));
-        chips.add(metricChip(c, c.getString(R.string.charge_card_per_kwh, "DC"),
+        chips.add(metricChip(c, c.getString(R.string.stats_chip_dc_cost_kwh),
             dcUnit >= 0 ? Style.moneyWithUnit(dcUnit, dcUnitCol, ROW_UNIT_SCALE) : "—"));
         distributeInPairs(c, chargingCard, chips, 10);
     }
@@ -1292,130 +1208,6 @@ public class DailyStatsView extends LinearLayout {
             chip.addView(subTv);
         }
         return chip;
-    }
-
-    private View buildSpeedBucketUnavailable(Context c) {
-        TextView msg = Style.label(c, c.getString(R.string.stats_speed_buckets_no_obd));
-        msg.setTextSize(13.5f);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = Style.dp(c, 6);
-        lp.bottomMargin = Style.dp(c, 6);
-        msg.setLayoutParams(lp);
-        return msg;
-    }
-
-    private static final String[] SPEED_BUCKET_LABELS = com.geely.drivemem.sensors.SpeedBuckets.LABELS;
-
-    private View buildSpeedBucketChart(Context c, DailyStatsProvider.SpeedBucket[] buckets, double overallAvg) {
-        int barsBudget = Style.dp(c, 42);
-        int labelH = Style.dp(c, 14);
-        int chartH = barsBudget + labelH;
-
-        double maxVal = overallAvg;
-        for (DailyStatsProvider.SpeedBucket b : buckets) maxVal = Math.max(maxVal, b.kwh100km);
-        if (maxVal <= 0) maxVal = 1;
-
-        LinearLayout wrap = new LinearLayout(c);
-        wrap.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams wrapLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        wrapLp.topMargin = Style.dp(c, 6);
-        wrap.setLayoutParams(wrapLp);
-
-        FrameLayout chartArea = new FrameLayout(c);
-        chartArea.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, chartH));
-
-        LinearLayout barsRow = new LinearLayout(c);
-        barsRow.setOrientation(LinearLayout.HORIZONTAL);
-        barsRow.setLayoutParams(new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-
-        for (int i = 0; i < buckets.length; i++) {
-            DailyStatsProvider.SpeedBucket b = buckets[i];
-            boolean hasData = b.distanceKm > 0.2;
-
-            LinearLayout col = new LinearLayout(c);
-            col.setOrientation(LinearLayout.VERTICAL);
-            col.setGravity(Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-            LinearLayout.LayoutParams colLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-            if (i > 0) colLp.leftMargin = Style.dp(c, 5);
-            col.setLayoutParams(colLp);
-
-            TextView valLbl = new TextView(c);
-            valLbl.setText(hasData ? EnergyUnits.number(b.kwh100km) : "—");
-            valLbl.setTextColor(Style.TEXT_DIM);
-            valLbl.setTextSize(11.5f);
-            col.addView(valLbl);
-
-            View bar = new View(c);
-            int barH = hasData
-                ? Math.max(Style.dp(c, 2), (int) Math.round(barsBudget * (b.kwh100km / maxVal)))
-                : Style.dp(c, 2);
-            LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, barH);
-            barLp.topMargin = Style.dp(c, 2);
-            bar.setLayoutParams(barLp);
-            GradientDrawable barBg = new GradientDrawable();
-            barBg.setColor(Style.ACCENT);
-            barBg.setAlpha(hasData ? 120 : 60);
-            barBg.setCornerRadius(Style.dp(c, 2));
-            bar.setBackground(barBg);
-            col.addView(bar);
-
-            barsRow.addView(col);
-        }
-        chartArea.addView(barsRow);
-
-        if (overallAvg > 0) {
-            int lineY = chartH - (int) Math.round(barsBudget * Math.min(1.0, overallAvg / maxVal));
-            View line = new DottedLineView(c);
-            FrameLayout.LayoutParams lineLp = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 4));
-            lineLp.topMargin = lineY - Style.dp(c, 2);
-            line.setLayoutParams(lineLp);
-            chartArea.addView(line);
-        }
-
-        wrap.addView(chartArea);
-
-        LinearLayout labelsRow = new LinearLayout(c);
-        labelsRow.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams lrLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lrLp.topMargin = Style.dp(c, 4);
-        labelsRow.setLayoutParams(lrLp);
-        for (int i = 0; i < SPEED_BUCKET_LABELS.length; i++) {
-            TextView lbl = new TextView(c);
-            lbl.setText(SPEED_BUCKET_LABELS[i]);
-            lbl.setTextColor(Style.TEXT_DIM);
-            lbl.setTextSize(11.5f);
-            lbl.setGravity(Gravity.CENTER);
-            LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            if (i > 0) llp.leftMargin = Style.dp(c, 5);
-            lbl.setLayoutParams(llp);
-            labelsRow.addView(lbl);
-        }
-        wrap.addView(labelsRow);
-        return wrap;
-    }
-
-    private static final class DottedLineView extends View {
-        private final android.graphics.Paint paint;
-
-        DottedLineView(Context c) {
-            super(c);
-            paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
-            paint.setColor(Style.TEXT_DIM);
-            paint.setStrokeWidth(Style.dp(c, 2));
-            paint.setPathEffect(new android.graphics.DashPathEffect(
-                new float[]{Style.dp(c, 2), Style.dp(c, 3)}, 0));
-        }
-
-        @Override protected void onDraw(android.graphics.Canvas canvas) {
-            super.onDraw(canvas);
-            float y = getHeight() / 2f;
-            canvas.drawLine(0, y, getWidth(), y, paint);
-        }
     }
 
     private void setNavIcon(TextView btn, int drawableRes, boolean onLeft) {

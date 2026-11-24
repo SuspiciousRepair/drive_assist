@@ -216,6 +216,20 @@ public class RouteView extends View {
         return p;
     }
 
+    /** Shows a single labeled pin on the map (e.g. an incident location). Clears any routes. */
+    public void setLocationPin(double lat, double lon, String label) {
+        rLat = new double[0]; rLon = new double[0]; speed = new double[0];
+        starts = new int[]{0}; many = false; selected = -1;
+        spotLat = new double[]{lat}; spotLon = new double[]{lon};
+        spotDc = new boolean[]{false};
+        spotLabel = new String[]{label != null ? label : "!"};
+        selSpot = 0;
+        minSpanM = 500;
+        project();
+        rebuild();
+        invalidate();
+    }
+
     /** Clears any drawn trip routes without touching charge pins. */
     void clearRoutes() {
         set(new double[0], new double[0], new double[0], new int[]{0}, false);

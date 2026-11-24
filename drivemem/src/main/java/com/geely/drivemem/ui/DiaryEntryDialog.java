@@ -1319,6 +1319,9 @@ public final class DiaryEntryDialog {
                 Double lon = jolt != null ? jolt.lon : null;
                 String meta = jolt != null ? CarDiary.buildJoltMeta(jolt.maxG(), jolt.speedKmh) : null;
                 boolean captureClip = (jolt != null && saveClip);
+                if (jolt != null) {
+                    com.geely.drivemem.sensors.JoltFeedback.record(app, jolt, true);
+                }
                 CarDiary.insertIncidentWithOptionalClip(
                     app, tsMs, captureClip, true, odo, outC, lat, lon, cost,
                     null, note, tags, meta, jolt != null ? jolt.id : null, onSaved);
