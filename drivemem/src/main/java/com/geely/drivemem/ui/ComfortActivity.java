@@ -203,7 +203,7 @@ public class ComfortActivity extends Activity {
     // Charge card: active session progress or retained completed charge with cost input.
     private LinearLayout chargeCard;
     private LinearLayout chargeActiveLayout;
-    private ChargeSessionCard chargeCompletedLayout;   // the same card as Charging stats' list
+    private ChargeSessionCard chargeCompletedLayout;   // finished-charge home card
     private android.widget.ImageView chargeActiveIcon;
     private TextView chargeActiveHero, chargeActiveSoc, chargeActiveEnergy;
     private ChargePowerBadgeView chargePowerBadge;

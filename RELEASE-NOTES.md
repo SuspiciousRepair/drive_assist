@@ -12,6 +12,15 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.11.3 — 2026-11-23
+
+- New: fix lyrics that run early or late by tapping the lock icon on the lyrics card and tapping each line as it is sung.
+- New: press and hold the album cover on the music card to reload it from the phone.
+- Changed: Charging stats now uses the same charging event cards as the Stats page (battery, energy added, average power and cost), while the Home screen keeps its own charging card. Tapping a charge on the Stats page opens the full charge page.
+- Changed: the music card uses an equalizer icon for sound settings and shows a small icon when a song's lyrics have no timing.
+- Fixed: climb, day peak and height charts no longer count GPS height jumps or the first 90 seconds after trip start.
+- Fixed: the music card updates the album name and cover when a player sends the album after the song title.
+
 ## v0.11.2 — 2026-11-23
 
 - Changed: a finished charge's card on the home screen has a close button. It also closes when the car leaves Park, or when you add the charge's price.
