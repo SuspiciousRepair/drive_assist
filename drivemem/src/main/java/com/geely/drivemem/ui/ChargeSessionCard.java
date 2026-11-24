@@ -18,17 +18,15 @@ import com.geely.drivemem.util.Style;
 
 import java.util.Locale;
 
-/** One finished charge, the same card on the home screen and in Charging
- * stats:
+/** Finished-charge card shown on the home screen (Daily Stats and Charging
+ * stats share the tabular ChargeEventCard instead):
  *
  *   [plug] +22,8 kWh   3h 40m                    |  R$ 18,40 |
  *   [battery] 44% → 100%   [bolt] 6,2 kW avg     | 0,81/kWh  |
  *
- * In a list (withDate) the first line also says when: "+22,8 kWh  11 set
- * 13:40 → 17:20 · 3h 40m". The body opens the charge's page; the right tile
- * the cost window. On the home screen a ✕ after the tile closes the card
- * (setOnClose); the list has none. No background or padding of its own:
- * the screen that holds it sets them. */
+ * The body opens the charge's page; the right tile opens the cost window;
+ * the ✕ after the tile closes the card (setOnClose). No background or
+ * padding of its own: the screen that holds it sets them. */
 final class ChargeSessionCard extends LinearLayout {
     private final ImageView icon;
     private final TextView hero, soc, power, costTop, costBottom;

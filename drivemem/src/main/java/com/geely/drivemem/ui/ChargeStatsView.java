@@ -141,8 +141,8 @@ public class ChargeStatsView extends LinearLayout {
         kpiContainer.setLayoutParams(kpiLp);
         addView(kpiContainer);
 
-        // 3. The charges (the home screen's charging card, one per charge) and
-        // the map of where they happened. The battery-bar chart that sat
+        // 3. The charges (shared Stats-style ChargeEventCard, one per charge)
+        // and the map of where they happened. The battery-bar chart that sat
         // between them went (2026-11-23): each card already says its battery
         // levels, and the list needed the room.
         overview = new LinearLayout(c);
@@ -153,8 +153,7 @@ public class ChargeStatsView extends LinearLayout {
         overviewLp.topMargin = Style.dp(c, 12);
         overview.setLayoutParams(overviewLp);
 
-        // No frame and no title around the list: the cards are the list,
-        // as on the home screen.
+        // No frame and no title around the list: the cards are the list.
         LinearLayout listCard = new LinearLayout(c);
         listCard.setOrientation(LinearLayout.VERTICAL);
 
@@ -169,7 +168,7 @@ public class ChargeStatsView extends LinearLayout {
         listCard.addView(sessionListScroll, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, MIN_LIST_DP)));
         listCard.setLayoutParams(new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.WRAP_CONTENT, 40f));   // about the home card's width
+            ViewGroup.LayoutParams.WRAP_CONTENT, 45f));
 
         // Where we charged: the period's charge places on the map, the
         // number of charges in each pin. Touch a pin: its newest charge is
@@ -197,7 +196,7 @@ public class ChargeStatsView extends LinearLayout {
         mapFrame.addView(chargeMapNone, new android.widget.FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         mapFrame.setLayoutParams(new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.MATCH_PARENT, 60f));
+            ViewGroup.LayoutParams.MATCH_PARENT, 55f));
         Style.addMirrored(overview, 12, listCard, mapFrame);
         addView(overview);
     }
@@ -763,26 +762,32 @@ public class ChargeStatsView extends LinearLayout {
         if (window != null) window.setLayout(Style.dp(c, 760), ViewGroup.LayoutParams.WRAP_CONTENT);
     }
 
-    /** One charge: the home screen's finished-charge card (ChargeSessionCard),
-     * with the date. The card selects the charge (outline + its pin on the
-     * map) and opens its page (ChargeDetailActivity); the right tile
-     * sets the cost (ChargeCostDialog; typing waits for Park). */
+    /** One charge: the shared Stats-page charge event card (ChargeEventCard),
+     * with the date. Tapping the card selects the charge (outline + its pin on
+     * the map) and opens its page (ChargeDetailActivity); tapping the Cost
+     * column opens ChargeCostDialog directly (typing waits for Park). */
     private View chargeRow(ChargeSession.Summary s) {
         Context c = getContext();
-        ChargeSessionCard card = new ChargeSessionCard(c);
-        card.bind(s, false, true);
-        int pad = Style.dp(c, 22);
+        LinearLayout card = ChargeEventCard.forSummary(c, s,
+            () -> {
+                selectSession(s.id, false);
+                if (s.id > 0) {
+                    c.startActivity(ChargeDetailActivity.intent(c, s.id));
+                }
+            },
+            () -> {
+                selectSession(s.id, false);
+                ChargeCostDialog.show(c, s.id, s.kwh, s.socStart, s.socEnd,
+                    s.cost != null && s.cost >= 0 ? s.cost : null, this::refresh);
+            });
+        int pad = Style.dp(c, 16);
         card.setPadding(pad, pad, pad, pad);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        if (listContainer.getChildCount() > 0) lp.topMargin = Style.dp(c, 14);
+        if (listContainer.getChildCount() > 0) {
+            lp.topMargin = Style.dp(c, Style.CARD_GAP_DP);
+        }
         card.setLayoutParams(lp);
-        card.setOnOpen(() -> {
-            selectSession(s.id, false);
-            if (s.id > 0) c.startActivity(ChargeDetailActivity.intent(c, s.id));
-        });
-        card.setOnCost(() -> ChargeCostDialog.show(c, s.id, s.kwh, s.socStart, s.socEnd,
-            s.cost != null && s.cost >= 0 ? s.cost : null, this::refresh));
         card.setBackground(s.id == selectedSessionId
             ? Style.outlinedCard(s.isDcfc() ? Style.GOOD : Style.ACCENT, c)
             : Style.card(Style.cardFillColor(), c));
