@@ -1723,52 +1723,18 @@ public class DailyStatsView extends LinearLayout {
 
     private void buildChargeSessionCard(LinearLayout card, DailyStatsProvider.ChargeSessionItem ch, long dayStartMs) {
         Context c = getContext();
-        // App-wide charging color code (2026-09-13): AC = blue + plug, DC = green + CCS.
-        int color = ch.isDcfc ? Style.GOOD : Style.ACCENT;
-        int icon = ch.isDcfc ? R.drawable.ic_ev_plug_ccs2 : R.drawable.ic_power_plug;
-        // Same grid as the trip card: Battery, then the energy in column 2
-        // (a trip's net energy, a charge's energy added), so the kWh is in
-        // the same place on both (owner, 2026-11-17). The title line's right
-        // side, a trip's km, has no charge counterpart and stays empty.
-        card.addView(titleRow(icon, color, ch, dayStartMs, ""));
-        View energy = stat(R.string.session_stat_charged_energy,
-                valueWithUnit(String.format(Locale.US, "+%.1f", ch.kwh), color, "kWh", ROW_UNIT_SCALE), null);
-
-        View power = stat(R.string.session_stat_avg_power, number(ch.avgPowerKw, "kW"), null);
-        View third;
-        if (ch.endMs <= 0) {
-            third = stat(R.string.session_stat_eta, chargeEta(ch), null);
-        } else if (ch.cost != null && ch.cost >= 0) {
-            SpannableStringBuilder cost = new SpannableStringBuilder();
-            cost.append(com.geely.drivemem.util.Prefs.formatMoney(ch.cost));
-            cost.setSpan(new ForegroundColorSpan(Style.ACCENT), 0, cost.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            third = stat(R.string.session_stat_cost, cost, null);
-        } else if (ch.chargeId > 0) {
-            SpannableStringBuilder tap = new SpannableStringBuilder(c.getString(R.string.session_cost_tap));
-            tap.setSpan(new ForegroundColorSpan(Style.TEXT_DIM), 0, tap.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            tap.setSpan(new android.text.style.StyleSpan(Typeface.NORMAL), 0, tap.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            third = stat(R.string.session_stat_cost, tap, null);
-        } else {
-            third = null;
-        }
-        card.addView(statsRow(
-            stat(R.string.session_stat_battery, socValue(ch.socStart, ch.socEnd), null),
-            energy, power, third));
-
-        // Tapping a finished charge opens its details (ChargeCurrentCurveDialog:
-        // the cost, editable there in Park, and the power curve), the same
-        // window the charge page opens.
-        if (ch.endMs > 0 && ch.chargeId > 0) {
-            card.setOnClickListener(v -> {
-                for (com.geely.drivemem.state.ChargeSession.Summary s
-                        : com.geely.drivemem.state.ChargeSession.readLog(getContext())) {
-                    if (s.id == ch.chargeId) {
-                        ChargeCurrentCurveDialog.show(getContext(), s, this::refresh);
-                        return;
-                    }
-                }
-            });
-        }
+        boolean live = ch.endMs <= 0;
+        CharSequence eta = live ? chargeEta(ch) : null;
+        Runnable onOpen = live
+            ? () -> c.startActivity(ChargeDetailActivity.live(c))
+            : ch.chargeId > 0
+                ? () -> c.startActivity(ChargeDetailActivity.intent(c, ch.chargeId))
+                : null;
+        Runnable onCost = (!live && ch.chargeId > 0)
+            ? () -> ChargeCostDialog.show(c, ch.chargeId, ch.kwh, ch.socStart, ch.socEnd,
+                ch.cost != null && ch.cost >= 0 ? ch.cost : null, this::refresh)
+            : null;
+        ChargeEventCard.populateDaily(card, ch, dayStartMs, eta, onOpen, onCost);
     }
 
     /** Clock time the live charge should reach 100%, from the same estimate
