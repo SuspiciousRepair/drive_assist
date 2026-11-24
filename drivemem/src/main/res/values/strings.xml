@@ -700,6 +700,10 @@
     <string name="phone_stats_hint">CSV files. They open in any spreadsheet.</string>
     <string name="phone_trips_csv">Trips (CSV)</string>
     <string name="phone_charges_csv">Charges (CSV)</string>
+    <string name="phone_diary">Car Diary</string>
+    <string name="phone_diary_hint">Maintenance history, ownership costs, and 5s incident clips.</string>
+    <string name="phone_diary_open">Open report</string>
+    <string name="phone_diary_csv">Diary (CSV)</string>
     <string name="phone_backup">Backup</string>
     <string name="phone_backup_newest">Newest backup: %1$s</string>
     <string name="phone_backup_hint">The file is locked with your backup password.</string>
@@ -810,6 +814,7 @@
     <string name="diary_grp_service">Service</string>
     <string name="diary_grp_electrical">Electrical &amp; Body</string>
     <string name="diary_grp_cosmetic">Cosmetic</string>
+    <string name="diary_grp_bureaucracy">Bureaucracy</string>
     <string name="diary_grp_notes">Notes</string>
     <string name="diary_cat_tire_pressure">Tire pressure</string>
     <string name="diary_cat_tire_rotation">Tire rotation</string>
@@ -830,6 +835,13 @@
     <string name="diary_cat_polishing">Polishing</string>
     <string name="diary_cat_wax_ceramic">Wax &amp; ceramic</string>
     <string name="diary_cat_paint_dent">Paint &amp; dent</string>
+    <string name="diary_cat_accessories">Accessories</string>
+    <string name="diary_cat_insurance">Insurance</string>
+    <string name="diary_cat_tax_license">Tax &amp; registration</string>
+    <string name="diary_cat_traffic_ticket">Traffic ticket</string>
+    <string name="diary_cat_monthly_parking">Monthly parking</string>
+    <string name="diary_prorate_annual">Prorated across 12 months in cost/km.</string>
+    <string name="diary_prorate_monthly">Prorated across 30 days in cost/km.</string>
     <string name="diary_cat_noise">Noise</string>
     <string name="diary_cat_incident">Incident</string>
     <string name="diary_cat_other">Other</string>
@@ -918,6 +930,12 @@
     <string name="diary_tco_total">Total</string>
     <string name="diary_tco_energy">Energy</string>
     <string name="diary_tco_maintenance">Maintenance</string>
+    <string name="diary_tco_bureaucracy">Fixed &amp; fees</string>
+    <string name="diary_period_all">All time</string>
+    <string name="diary_period_30d">Last 30 days</string>
+    <string name="diary_period_90d">Last 90 days</string>
+    <string name="diary_export_usb">Export to USB</string>
+    <string name="diary_export_qr">Send to phone (QR)</string>
     <string name="diary_tco_empty">Log charging or maintenance costs to track your cost per km.</string>
     <string name="diary_battery_health_title">Battery health</string>
     <string name="diary_hv_subtitle">HV Traction Battery (60d)</string>

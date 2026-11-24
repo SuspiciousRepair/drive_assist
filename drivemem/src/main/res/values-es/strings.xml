@@ -673,6 +673,10 @@
     <string name="phone_stats_hint">Archivos CSV. Se abren en cualquier hoja de cálculo.</string>
     <string name="phone_trips_csv">Viajes (CSV)</string>
     <string name="phone_charges_csv">Cargas (CSV)</string>
+    <string name="phone_diary">Diario del Coche</string>
+    <string name="phone_diary_hint">Historial de mantenimiento, costos y clips de incidentes (5s).</string>
+    <string name="phone_diary_open">Abrir informe</string>
+    <string name="phone_diary_csv">Diario (CSV)</string>
     <string name="phone_backup">Copia de seguridad</string>
     <string name="phone_backup_newest">Copia más reciente: %1$s</string>
     <string name="phone_backup_hint">El archivo está protegido con tu contraseña de copia.</string>
@@ -782,6 +786,7 @@
     <string name="diary_grp_service">Revisión</string>
     <string name="diary_grp_electrical">Eléctrica y carrocería</string>
     <string name="diary_grp_cosmetic">Estética</string>
+    <string name="diary_grp_bureaucracy">Trámites</string>
     <string name="diary_grp_notes">Notas</string>
     <string name="diary_cat_tire_pressure">Presión</string>
     <string name="diary_cat_tire_rotation">Rotación</string>
@@ -802,6 +807,13 @@
     <string name="diary_cat_polishing">Pulido</string>
     <string name="diary_cat_wax_ceramic">Cera / cerámico</string>
     <string name="diary_cat_paint_dent">Pintura / chapa</string>
+    <string name="diary_cat_accessories">Accesorios</string>
+    <string name="diary_cat_insurance">Seguro</string>
+    <string name="diary_cat_tax_license">Impuestos y patente</string>
+    <string name="diary_cat_traffic_ticket">Multa</string>
+    <string name="diary_cat_monthly_parking">Estacionamiento mensual</string>
+    <string name="diary_prorate_annual">Prorrateado en 12 meses en el costo/km.</string>
+    <string name="diary_prorate_monthly">Prorrateado en 30 días en el costo/km.</string>
     <string name="diary_cat_noise">Ruido</string>
     <string name="diary_cat_incident">Incidente</string>
     <string name="diary_cat_other">Otro</string>
@@ -890,6 +902,12 @@
     <string name="diary_tco_total">Total</string>
     <string name="diary_tco_energy">Energía</string>
     <string name="diary_tco_maintenance">Mantenimiento</string>
+    <string name="diary_tco_bureaucracy">Trámites</string>
+    <string name="diary_period_all">Todo</string>
+    <string name="diary_period_30d">Últimos 30 días</string>
+    <string name="diary_period_90d">Últimos 90 días</string>
+    <string name="diary_export_usb">Exportar a USB</string>
+    <string name="diary_export_qr">Enviar al teléfono (QR)</string>
     <string name="diary_tco_empty">Registra costos de carga o mantenimiento para ver el costo por km.</string>
     <string name="diary_battery_health_title">Salud de baterías</string>
     <string name="diary_hv_subtitle">Batería principal (60d)</string>

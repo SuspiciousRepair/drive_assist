@@ -689,6 +689,10 @@
     <string name="phone_stats_hint">ไฟล์ CSV เปิดได้ในโปรแกรมสเปรดชีตทุกตัว</string>
     <string name="phone_trips_csv">การเดินทาง (CSV)</string>
     <string name="phone_charges_csv">การชาร์จ (CSV)</string>
+    <string name="phone_diary">สมุดบันทึกรถ</string>
+    <string name="phone_diary_hint">ประวัติบำรุงรักษา ค่าใช้จ่าย และคลิปเหตุการณ์ 5 วินาที</string>
+    <string name="phone_diary_open">เปิดรายงาน</string>
+    <string name="phone_diary_csv">สมุดบันทึก (CSV)</string>
     <string name="phone_backup">สำรองข้อมูล</string>
     <string name="phone_backup_newest">ไฟล์สำรองล่าสุด: %1$s</string>
     <string name="phone_backup_hint">ไฟล์นี้ล็อกด้วยรหัสผ่านสำรองข้อมูลของคุณ</string>
@@ -799,6 +803,7 @@
     <string name="diary_grp_service">เช็คระยะ</string>
     <string name="diary_grp_electrical">ไฟฟ้าและตัวถัง</string>
     <string name="diary_grp_cosmetic">ดูแลสีรถ</string>
+    <string name="diary_grp_bureaucracy">เอกสารและค่าใช้จ่าย</string>
     <string name="diary_grp_notes">บันทึก</string>
     <string name="diary_cat_tire_pressure">ลมยาง</string>
     <string name="diary_cat_tire_rotation">สลับยาง</string>
@@ -819,6 +824,13 @@
     <string name="diary_cat_polishing">ขัดสี</string>
     <string name="diary_cat_wax_ceramic">เคลือบสี / เซรามิก</string>
     <string name="diary_cat_paint_dent">ซ่อมสี / ลักยิ้ม</string>
+    <string name="diary_cat_accessories">อุปกรณ์เสริม</string>
+    <string name="diary_cat_insurance">ประกันภัย</string>
+    <string name="diary_cat_tax_license">ภาษีและ พ.ร.บ.</string>
+    <string name="diary_cat_traffic_ticket">ใบสั่งจราจร</string>
+    <string name="diary_cat_monthly_parking">ค่าจอดรถรายเดือน</string>
+    <string name="diary_prorate_annual">เฉลี่ยรายวันใน 12 เดือนสำหรับต้นทุน/กม.</string>
+    <string name="diary_prorate_monthly">เฉลี่ยรายวันใน 30 วันสำหรับต้นทุน/กม.</string>
     <string name="diary_cat_noise">เสียงผิดปกติ</string>
     <string name="diary_cat_incident">เหตุการณ์</string>
     <string name="diary_cat_other">อื่นๆ</string>
@@ -907,6 +919,12 @@
     <string name="diary_tco_total">รวม</string>
     <string name="diary_tco_energy">พลังงาน</string>
     <string name="diary_tco_maintenance">บำรุงรักษา</string>
+    <string name="diary_tco_bureaucracy">ค่าคงที่</string>
+    <string name="diary_period_all">ทั้งหมด</string>
+    <string name="diary_period_30d">30 วันล่าสุด</string>
+    <string name="diary_period_90d">90 วันล่าสุด</string>
+    <string name="diary_export_usb">ส่งออกไป USB</string>
+    <string name="diary_export_qr">ส่งไปมือถือ (QR)</string>
     <string name="diary_tco_empty">บันทึกค่าชาร์จหรือค่าบำรุงรักษาเพื่อดูค่าใช้จ่ายต่อ กม.</string>
     <string name="diary_battery_health_title">สุขภาพแบตเตอรี่</string>
     <string name="diary_hv_subtitle">แบตเตอรี่หลัก (60 วัน)</string>

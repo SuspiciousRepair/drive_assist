@@ -947,6 +947,14 @@ public final class DiaryEntryDialog {
             } else if (selectedCat == CarDiary.Category.COOLANT) {
                 adaptiveBox.setVisibility(View.VISIBLE);
                 buildCoolantControls();
+            } else if (selectedCat != null && selectedCat.coverageDays > 0) {
+                adaptiveBox.setVisibility(View.VISIBLE);
+                TextView note = new TextView(c);
+                note.setText(c.getString(selectedCat.coverageDays >= 300
+                    ? R.string.diary_prorate_annual : R.string.diary_prorate_monthly));
+                note.setTextColor(Style.TEXT_DIM);
+                note.setTextSize(15f);
+                adaptiveBox.addView(note);
             } else {
                 adaptiveBox.setVisibility(View.GONE);
             }

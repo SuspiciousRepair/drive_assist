@@ -3,9 +3,11 @@ package com.geely.drivemem.web;
 import android.content.Context;
 
 import com.geely.drivemem.R;
+import com.geely.drivemem.state.CarDiary;
 import com.geely.drivemem.util.AppBackup;
 import com.geely.drivemem.util.CarCaps;
 import com.geely.drivemem.util.Clips;
+import com.geely.drivemem.util.DiaryClipTrimmer;
 import com.geely.drivemem.util.Prefs;
 
 import java.text.DateFormat;
@@ -101,6 +103,12 @@ final class PhonePages {
          .append("<a class=\"btn\" href=\"/charges.csv\">").append(Http.esc(c.getString(R.string.phone_charges_csv))).append("</a>")
          .append("</div>");
 
+        b.append("<div class=\"card\"><h2>").append(Http.esc(c.getString(R.string.phone_diary))).append("</h2>")
+         .append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.phone_diary_hint))).append("</p>")
+         .append("<a class=\"btn\" href=\"/diary\">").append(Http.esc(c.getString(R.string.phone_diary_open))).append("</a>")
+         .append("<a class=\"btn\" href=\"/diary.csv\">").append(Http.esc(c.getString(R.string.phone_diary_csv))).append("</a>")
+         .append("</div>");
+
         b.append("<div class=\"card\"><h2>").append(Http.esc(c.getString(R.string.phone_routes))).append("</h2>")
          .append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.phone_routes_hint))).append("</p>")
          .append("<a class=\"btn\" href=\"/routes\">").append(Http.esc(c.getString(R.string.phone_routes_open))).append("</a></div>");
@@ -176,6 +184,60 @@ final class PhonePages {
         list.append("</ul>");
         if (n == 0) b.append("<p>").append(Http.esc(c.getString(R.string.phone_no_clips))).append("</p>");
         else b.append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.phone_clips_hint))).append("</p>").append(list);
+        b.append("</div>");
+        return page(c, title, b.toString());
+    }
+
+    /** Printable/viewable Car Diary report with CSV & 5s incident clip downloads. */
+    static String diary(Context c, List<CarDiary.Entry> entries) {
+        StringBuilder b = new StringBuilder(back(c));
+        String title = c.getString(R.string.phone_diary);
+        b.append("<h1>").append(Http.esc(title)).append("</h1>");
+        b.append("<div class=\"card\">");
+        double totalCost = 0;
+        int count = 0;
+        if (entries != null) {
+            for (CarDiary.Entry e : entries) {
+                if (e.parentId != null) continue;
+                count++;
+                if (e.cost != null && e.cost > 0) totalCost += e.cost;
+            }
+        }
+        String summary = totalCost > 0
+            ? count + " · " + Prefs.formatMoney(totalCost)
+            : String.valueOf(count);
+        b.append("<p class=\"dim\">").append(Http.esc(summary)).append("</p>")
+         .append("<a class=\"btn\" href=\"/diary.csv\">").append(Http.esc(c.getString(R.string.phone_diary_csv))).append("</a>");
+
+        if (count == 0) {
+            b.append("<p style=\"margin-top:12px\">").append(Http.esc(c.getString(R.string.diary_empty))).append("</p>");
+        } else {
+            DateFormat fmt = DateFormat.getDateInstance(DateFormat.MEDIUM);
+            b.append("<ul style=\"margin-top:12px\">");
+            for (CarDiary.Entry e : entries) {
+                if (e.parentId != null) continue;
+                String label = (e.title != null && !e.title.isEmpty())
+                    ? e.title : (e.category != null ? c.getString(e.category.labelRes) : "");
+                StringBuilder meta = new StringBuilder(fmt.format(new Date(e.tsMs)));
+                if (e.odoKm != null && e.odoKm > 0) {
+                    meta.append(" · ").append(String.format(java.util.Locale.getDefault(), "%,.0f km", e.odoKm));
+                }
+                if (e.cost != null && e.cost > 0) {
+                    meta.append(" · ").append(Prefs.formatMoney(e.cost));
+                }
+                if (e.note != null && !e.note.isEmpty()) {
+                    meta.append(" — ").append(e.note);
+                }
+                b.append("<li><div><strong>").append(Http.esc(label)).append("</strong>")
+                 .append("<p class=\"dim\">").append(Http.esc(meta.toString())).append("</p></div>");
+                if (e.clipName != null && DiaryClipTrimmer.resolveClip(c, e.clipName) != null) {
+                    b.append("<a class=\"btn\" href=\"/diary-clip?f=").append(Http.esc(Http.urlEnc(e.clipName)))
+                     .append("\">").append(Http.esc(c.getString(R.string.diary_btn_play_clip))).append("</a>");
+                }
+                b.append("</li>");
+            }
+            b.append("</ul>");
+        }
         b.append("</div>");
         return page(c, title, b.toString());
     }

@@ -1,7 +1,9 @@
 package com.geely.drivemem.ui;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.Intent;
 import android.graphics.PorterDuff;
 import android.graphics.Typeface;
@@ -14,7 +16,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarActor;
@@ -23,12 +27,14 @@ import com.geely.drivemem.sensors.Aux12vMonitor;
 import com.geely.drivemem.sensors.BatteryHeat;
 import com.geely.drivemem.sensors.ChargePeriodSummary;
 import com.geely.drivemem.state.CarDiary;
+import com.geely.drivemem.util.CsvExport;
 import com.geely.drivemem.util.DiaryClipTrimmer;
 import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.Style;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -51,11 +57,13 @@ public final class CarDiaryView extends LinearLayout {
 
     private final Runnable onAttentionChanged;
     private CarDiary.Group activeGroupFilter = null; // null = All
+    private CarDiary.PeriodFilter activePeriodFilter = CarDiary.PeriodFilter.ALL;
     private long selectedEntryId = -1L;
     private int loadGen;
 
     private LinearLayout topSummaryCard;
     private LinearLayout pendingBannerHost;
+    private TextView periodPillLabel;
     private LinearLayout filterBar;
     private LinearLayout entriesList;
     private LinearLayout scheduleList;
@@ -163,12 +171,62 @@ public final class CarDiaryView extends LinearLayout {
 
         LinearLayout listHead = new LinearLayout(c);
         listHead.setOrientation(LinearLayout.VERTICAL);
+
+        // Title row: "Car Diary" + Period filter pill + Export button (USB / Phone QR)
+        LinearLayout titleRow = new LinearLayout(c);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+
         TextView listTitle = new TextView(c);
         listTitle.setText(c.getString(R.string.diary_list_title));
         listTitle.setTextColor(Style.TEXT);
         listTitle.setTextSize(21f);
         listTitle.setTypeface(null, Typeface.BOLD);
-        listHead.addView(listTitle);
+        listTitle.setSingleLine(true);
+        titleRow.addView(listTitle, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        // Period dropdown pill (All time / 30d / 90d / Year)
+        LinearLayout periodPill = new LinearLayout(c);
+        periodPill.setOrientation(LinearLayout.HORIZONTAL);
+        periodPill.setGravity(Gravity.CENTER_VERTICAL);
+        periodPill.setBackground(Style.tile(c));
+        periodPill.setPadding(Style.dp(c, 12), Style.dp(c, 8), Style.dp(c, 10), Style.dp(c, 8));
+
+        periodPillLabel = new TextView(c);
+        periodPillLabel.setText(periodLabel(c, activePeriodFilter));
+        periodPillLabel.setTextColor(Style.TEXT);
+        periodPillLabel.setTextSize(15f);
+        periodPillLabel.setTypeface(null, Typeface.BOLD);
+        periodPill.addView(periodPillLabel);
+
+        ImageView pChev = new ImageView(c);
+        pChev.setImageResource(R.drawable.ic_chevron_right);
+        pChev.setColorFilter(Style.TEXT_DIM, PorterDuff.Mode.SRC_IN);
+        pChev.setRotation(90f);
+        LinearLayout.LayoutParams pChevLp = new LinearLayout.LayoutParams(Style.dp(c, 16), Style.dp(c, 16));
+        pChevLp.leftMargin = Style.dp(c, 6);
+        periodPill.addView(pChev, pChevLp);
+
+        periodPill.setOnClickListener(v -> showPeriodMenu(periodPill));
+        LinearLayout.LayoutParams ppLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, Style.dp(c, 40));
+        ppLp.leftMargin = Style.dp(c, 10);
+        titleRow.addView(periodPill, ppLp);
+
+        // Export button (USB CSV+clips / Phone QR)
+        ImageView exportBtn = new ImageView(c);
+        exportBtn.setImageResource(R.drawable.ic_export);
+        exportBtn.setColorFilter(Style.TEXT_DIM, PorterDuff.Mode.SRC_IN);
+        exportBtn.setBackground(Style.tile(c));
+        int ep = Style.dp(c, 9);
+        exportBtn.setPadding(ep, ep, ep, ep);
+        LinearLayout.LayoutParams exLp = new LinearLayout.LayoutParams(Style.dp(c, 40), Style.dp(c, 40));
+        exLp.leftMargin = Style.dp(c, 8);
+        exportBtn.setLayoutParams(exLp);
+        exportBtn.setOnClickListener(v -> showExportMenu(exportBtn));
+        titleRow.addView(exportBtn);
+
+        listHead.addView(titleRow);
 
         filterBar = new LinearLayout(c);
         filterBar.setOrientation(LinearLayout.HORIZONTAL);
@@ -316,6 +374,7 @@ public final class CarDiaryView extends LinearLayout {
     public void refresh() {
         final Context c = getContext().getApplicationContext();
         final int gen = ++loadGen;
+        final CarDiary.PeriodFilter periodSnap = activePeriodFilter;
         CarActor actor = CarActor.get(c);
         Runnable load = () -> {
             long now = System.currentTimeMillis();
@@ -326,7 +385,7 @@ public final class CarDiaryView extends LinearLayout {
             List<CarDiary.DueStatus> due = CarDiary.computeDueStatuses(entries, odo, now, outC, cfg);
             double avgDailyKm = CarDiary.avgDailyKm(c, now);
             CarDiary.LastFullCharge full = CarDiary.last100PctCharge(c, odo, now);
-            CarDiary.TcoSummary tco = CarDiary.readTcoSummary(c);
+            CarDiary.TcoSummary tco = CarDiary.readTcoSummary(c, periodSnap, now, entries);
             CarDiary.HvHealthSummary hv = CarDiary.readHvHealthSummary(c, now);
             Aux12vMonitor.Summary s12 = Aux12vMonitor.readSummary(c, now);
             List<CarDiary.PendingJolt> jolts = CarDiary.pendingJolts(now);
@@ -469,8 +528,12 @@ public final class CarDiaryView extends LinearLayout {
 
         if (tco.hasCosts() && tco.trackedKm >= 1.0) {
             TextView kmTag = new TextView(c);
-            kmTag.setText(c.getString(R.string.diary_tco_over_km,
-                String.format(Locale.getDefault(), "%,.0f", tco.trackedKm)));
+            String kmStr = c.getString(R.string.diary_tco_over_km,
+                String.format(Locale.getDefault(), "%,.0f", tco.trackedKm));
+            if (activePeriodFilter.kind != CarDiary.PeriodFilter.Kind.ALL) {
+                kmStr = periodLabel(c, activePeriodFilter) + " · " + kmStr;
+            }
+            kmTag.setText(kmStr);
             kmTag.setTextColor(Style.TEXT_DIM);
             kmTag.setTextSize(13.5f);
             head.addView(kmTag);
@@ -518,38 +581,54 @@ public final class CarDiaryView extends LinearLayout {
         heroRow.addView(totalTv);
         box.addView(heroRow, hlp);
 
-        // Energy vs Maintenance proportional bar
-        float energyShare = (float) Math.max(0.0, Math.min(1.0, tco.chargeShare));
-        float maintShare = Math.max(0f, 1f - energyShare);
+        // 3-bucket proportional bar: Energy (blue) | Maintenance (amber) | Bureaucracy (purple)
+        float eShare = (float) Math.max(0.0, Math.min(1.0, tco.chargeShare));
+        float mShare = (float) Math.max(0.0, Math.min(1.0, tco.maintenanceShare));
+        float bShare = (float) Math.max(0.0, Math.min(1.0, tco.bureaucracyShare));
+        boolean hasE = eShare > 0.005f;
+        boolean hasM = mShare > 0.005f;
+        boolean hasB = bShare > 0.005f;
+
         LinearLayout bar = new LinearLayout(c);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 7));
         blp.topMargin = Style.dp(c, 8);
-        if (energyShare > 0.005f) {
-            bar.addView(barSeg(c, Style.ACCENT, true, maintShare <= 0.005f),
-                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, energyShare));
+        if (hasE) {
+            bar.addView(barSeg(c, Style.ACCENT, true, !hasM && !hasB),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, eShare));
         }
-        if (maintShare > 0.005f) {
-            bar.addView(barSeg(c, Style.WARN, energyShare <= 0.005f, true),
-                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, maintShare));
+        if (hasM) {
+            bar.addView(barSeg(c, Style.WARN, !hasE, !hasB),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, mShare));
+        }
+        if (hasB) {
+            bar.addView(barSeg(c, Style.PURPLE, !hasE && !hasM, true),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, bShare));
         }
         box.addView(bar, blp);
 
         // Legend row
-        int pEnergy = (int) Math.round(energyShare * 100);
-        int pMaint = 100 - pEnergy;
+        int pE = Math.round(eShare * 100f);
+        int pB = hasB ? Math.round(bShare * 100f) : 0;
+        int pM = Math.max(0, 100 - pE - pB);
         SpannableStringBuilder leg = new SpannableStringBuilder();
         appendDot(leg, Style.ACCENT,
-            c.getString(R.string.diary_tco_energy) + ": " + Prefs.formatMoney(tco.chargeCost) + " (" + pEnergy + "%)");
-        leg.append("    ");
+            c.getString(R.string.diary_tco_energy) + ": " + Prefs.formatMoney(tco.chargeCost) + " (" + pE + "%)");
+        leg.append("   ");
         appendDot(leg, Style.WARN,
-            c.getString(R.string.diary_tco_maintenance) + ": " + Prefs.formatMoney(tco.diaryCost) + " (" + pMaint + "%)");
+            c.getString(R.string.diary_tco_maintenance) + ": " + Prefs.formatMoney(tco.maintenanceCost) + " (" + pM + "%)");
+        if (tco.bureaucracyCost > 0.005) {
+            leg.append("   ");
+            appendDot(leg, Style.PURPLE,
+                c.getString(R.string.diary_tco_bureaucracy) + ": " + Prefs.formatMoney(tco.bureaucracyCost)
+                    + " (" + pB + "%)");
+        }
 
         TextView legTv = new TextView(c);
         legTv.setText(leg);
         legTv.setTextColor(Style.TEXT_DIM);
-        legTv.setTextSize(13.5f);
+        legTv.setTextSize(13f);
         legTv.setSingleLine(true);
         legTv.setPadding(0, Style.dp(c, 6), 0, 0);
         box.addView(legTv);
@@ -664,7 +743,9 @@ public final class CarDiaryView extends LinearLayout {
     private void renderEntries() {
         Context c = getContext();
         entriesList.removeAllViews();
-        List<CarDiary.Entry> shown = CarDiary.filterByGroup(cachedEntries, activeGroupFilter);
+        List<CarDiary.Entry> shown = CarDiary.filterEntries(
+            cachedEntries, activeGroupFilter, activePeriodFilter,
+            System.currentTimeMillis(), ZoneId.systemDefault());
         if (shown.isEmpty()) {
             TextView empty = new TextView(c);
             empty.setText(c.getString(R.string.diary_empty));
@@ -684,6 +765,118 @@ public final class CarDiaryView extends LinearLayout {
             if (i > 0) lp.topMargin = Style.dp(c, Style.CARD_GAP_DP);
             entriesList.addView(row, lp);
         }
+    }
+
+    // ---- Diary Period Picker & Export Menu (USB + Phone QR) ----
+
+    private String periodLabel(Context c, CarDiary.PeriodFilter f) {
+        if (f == null) return c.getString(R.string.diary_period_all);
+        switch (f.kind) {
+            case DAYS_30: return c.getString(R.string.diary_period_30d);
+            case DAYS_90: return c.getString(R.string.diary_period_90d);
+            case YEAR: return String.valueOf(f.year);
+            default: return c.getString(R.string.diary_period_all);
+        }
+    }
+
+    private void showPeriodMenu(View anchor) {
+        Context c = getContext();
+        LinearLayout menu = new LinearLayout(c);
+        menu.setOrientation(LinearLayout.VERTICAL);
+        menu.setBackground(Style.card(Style.CARD, c));
+        int pad = Style.dp(c, 6);
+        menu.setPadding(pad, pad, pad, pad);
+
+        PopupWindow popup = new PopupWindow(menu,
+            Style.dp(c, 220), ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        popup.setOutsideTouchable(true);
+        popup.setElevation(Style.dp(c, 8));
+
+        List<CarDiary.PeriodFilter> options = new ArrayList<>();
+        options.add(CarDiary.PeriodFilter.ALL);
+        options.add(CarDiary.PeriodFilter.DAYS_30);
+        options.add(CarDiary.PeriodFilter.DAYS_90);
+        for (int yr : CarDiary.availableYears(cachedEntries, System.currentTimeMillis(), ZoneId.systemDefault())) {
+            options.add(CarDiary.PeriodFilter.ofYear(yr));
+        }
+        for (CarDiary.PeriodFilter opt : options) {
+            TextView row = new TextView(c);
+            row.setText(periodLabel(c, opt));
+            row.setTextSize(16f);
+            boolean current = opt.equals(activePeriodFilter);
+            row.setTypeface(null, current ? Typeface.BOLD : Typeface.NORMAL);
+            row.setTextColor(current ? Style.ACCENT : Style.TEXT);
+            int rpad = Style.dp(c, 14);
+            row.setPadding(rpad, rpad, rpad, rpad);
+            row.setOnClickListener(v -> {
+                popup.dismiss();
+                if (!opt.equals(activePeriodFilter)) {
+                    activePeriodFilter = opt;
+                    if (periodPillLabel != null) periodPillLabel.setText(periodLabel(c, opt));
+                    refresh();
+                }
+            });
+            menu.addView(row);
+        }
+        popup.showAsDropDown(anchor, 0, Style.dp(c, 8));
+    }
+
+    private void showExportMenu(View anchor) {
+        Context c = getContext();
+        LinearLayout menu = new LinearLayout(c);
+        menu.setOrientation(LinearLayout.VERTICAL);
+        menu.setBackground(Style.card(Style.CARD, c));
+        int pad = Style.dp(c, 6);
+        menu.setPadding(pad, pad, pad, pad);
+
+        PopupWindow popup = new PopupWindow(menu,
+            Style.dp(c, 260), ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        popup.setOutsideTouchable(true);
+        popup.setElevation(Style.dp(c, 8));
+
+        int rpad = Style.dp(c, 14);
+        TextView usbRow = new TextView(c);
+        usbRow.setText(c.getString(R.string.diary_export_usb));
+        usbRow.setTextSize(16f);
+        usbRow.setTextColor(Style.TEXT);
+        usbRow.setPadding(rpad, rpad, rpad, rpad);
+        usbRow.setOnClickListener(v -> {
+            popup.dismiss();
+            List<CarDiary.Entry> shown = CarDiary.filterEntries(
+                cachedEntries, null, activePeriodFilter,
+                System.currentTimeMillis(), ZoneId.systemDefault());
+            CsvExport.exportDiaryToUsb(c, shown, (ok, drive, copied) -> post(() -> {
+                String msg = drive == null ? c.getString(R.string.charge_export_no_drive)
+                    : !ok || copied == 0 ? c.getString(R.string.charge_export_nothing)
+                    : c.getString(R.string.charge_export_ok, copied);
+                Toast.makeText(c, msg, Toast.LENGTH_LONG).show();
+            }));
+        });
+        menu.addView(usbRow);
+
+        menu.addView(hairline(c));
+
+        TextView qrRow = new TextView(c);
+        qrRow.setText(c.getString(R.string.diary_export_qr));
+        qrRow.setTextSize(16f);
+        qrRow.setTextColor(Style.TEXT);
+        qrRow.setPadding(rpad, rpad, rpad, rpad);
+        qrRow.setOnClickListener(v -> {
+            popup.dismiss();
+            Activity act = unwrapActivity(c);
+            if (act != null) PhoneAccessBlock.showQr(act);
+        });
+        menu.addView(qrRow);
+
+        popup.showAsDropDown(anchor, -Style.dp(c, 220), Style.dp(c, 8));
+    }
+
+    private static Activity unwrapActivity(Context c) {
+        while (c instanceof ContextWrapper) {
+            if (c instanceof Activity) return (Activity) c;
+            c = ((ContextWrapper) c).getBaseContext();
+        }
+        return null;
     }
 
     private View buildEntryRow(CarDiary.Entry e, SimpleDateFormat fmt) {

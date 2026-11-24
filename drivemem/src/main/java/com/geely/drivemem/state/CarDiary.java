@@ -65,6 +65,7 @@ public final class CarDiary {
         SERVICE(R.string.diary_grp_service, R.drawable.ic_diary_service),
         ELECTRICAL(R.string.diary_grp_electrical, R.drawable.ic_diary_electrical),
         COSMETIC(R.string.diary_grp_cosmetic, R.drawable.ic_diary_cosmetic),
+        BUREAUCRACY(R.string.diary_grp_bureaucracy, R.drawable.ic_diary_bureaucracy),
         NOTES(R.string.diary_grp_notes, R.drawable.ic_diary_notes);
 
         public final int labelRes;
@@ -97,12 +98,19 @@ public final class CarDiary {
         WIPERS(Group.ELECTRICAL, KIND_CARE, R.string.diary_cat_wipers, null, 12, true),
         LIGHTS_FUSES(Group.ELECTRICAL, KIND_CARE, R.string.diary_cat_lights_fuses, null, null, true),
 
-        // Cosmetic / Aesthetics
+        // Cosmetic / Aesthetics & Accessories
         WASH_DETAIL(Group.COSMETIC, KIND_CARE, R.string.diary_cat_wash_detail, null, null, true),
         WASHER_FLUID(Group.COSMETIC, KIND_CARE, R.string.diary_cat_washer_fluid, null, null, true),
         POLISHING(Group.COSMETIC, KIND_CARE, R.string.diary_cat_polishing, null, null, true),
         WAX_CERAMIC(Group.COSMETIC, KIND_CARE, R.string.diary_cat_wax_ceramic, null, null, true),
         PAINT_DENT(Group.COSMETIC, KIND_CARE, R.string.diary_cat_paint_dent, null, null, true),
+        ACCESSORIES(Group.COSMETIC, KIND_CARE, R.string.diary_cat_accessories, null, null, true),
+
+        // Bureaucracy & Fixed Ownership Costs (annual/monthly costs prorate in TCO R$/km)
+        INSURANCE(Group.BUREAUCRACY, KIND_CARE, R.string.diary_cat_insurance, null, 12, true, 365),
+        TAX_LICENSE(Group.BUREAUCRACY, KIND_CARE, R.string.diary_cat_tax_license, null, 12, true, 365),
+        TRAFFIC_TICKET(Group.BUREAUCRACY, KIND_CARE, R.string.diary_cat_traffic_ticket, null, null, true, 0),
+        MONTHLY_PARKING(Group.BUREAUCRACY, KIND_CARE, R.string.diary_cat_monthly_parking, null, 1, true, 30),
 
         // Notes & Issues
         NOISE(Group.NOTES, KIND_NOISE, R.string.diary_cat_noise, null, null, true),
@@ -119,18 +127,27 @@ public final class CarDiary {
         public final Double kmInterval;
         public final Integer monthInterval;
         public final boolean userPickable;
+        /** Coverage span in days for TCO proration (0 = one-off, 30 = monthly, 365 = annual). */
+        public final int coverageDays;
 
         Category(Group group, String kind, int labelRes, Double kmInterval,
                  Integer monthInterval, boolean userPickable) {
+            this(group, kind, labelRes, kmInterval, monthInterval, userPickable, 0);
+        }
+
+        Category(Group group, String kind, int labelRes, Double kmInterval,
+                 Integer monthInterval, boolean userPickable, int coverageDays) {
             this.group = group;
             this.kind = kind;
             this.labelRes = labelRes;
             this.kmInterval = kmInterval;
             this.monthInterval = monthInterval;
             this.userPickable = userPickable;
+            this.coverageDays = coverageDays;
         }
 
         public boolean hasInterval() { return kmInterval != null || monthInterval != null; }
+        public boolean isBureaucracy() { return group == Group.BUREAUCRACY; }
 
         public static List<Category> forGroup(Group g) {
             List<Category> out = new ArrayList<>();
@@ -343,36 +360,189 @@ public final class CarDiary {
         }
     }
 
-    /** Lifetime Total Cost of Ownership combining Energy (charges) + Maintenance (diary). */
+    /** Time-period filter for the Diary list and TCO bar. Pure & unit-tested. */
+    public static final class PeriodFilter {
+        public enum Kind { ALL, DAYS_30, DAYS_90, YEAR }
+
+        public static final PeriodFilter ALL = new PeriodFilter(Kind.ALL, 0);
+        public static final PeriodFilter DAYS_30 = new PeriodFilter(Kind.DAYS_30, 0);
+        public static final PeriodFilter DAYS_90 = new PeriodFilter(Kind.DAYS_90, 0);
+
+        public final Kind kind;
+        public final int year;
+
+        private PeriodFilter(Kind kind, int year) {
+            this.kind = kind;
+            this.year = year;
+        }
+
+        public static PeriodFilter ofYear(int year) { return new PeriodFilter(Kind.YEAR, year); }
+
+        /** Returns [startMs, endMsExcl) in {@code zone}. For ALL, startMs = 0 and endMs = nowMs. */
+        public long[] boundsMs(long nowMs, java.time.ZoneId zone) {
+            java.time.LocalDate today = java.time.Instant.ofEpochMilli(nowMs).atZone(zone).toLocalDate();
+            switch (kind) {
+                case DAYS_30: {
+                    long start = today.minusDays(29).atStartOfDay(zone).toInstant().toEpochMilli();
+                    return new long[]{start, nowMs};
+                }
+                case DAYS_90: {
+                    long start = today.minusDays(89).atStartOfDay(zone).toInstant().toEpochMilli();
+                    return new long[]{start, nowMs};
+                }
+                case YEAR: {
+                    long start = java.time.LocalDate.of(year, 1, 1).atStartOfDay(zone).toInstant().toEpochMilli();
+                    long nextYr = java.time.LocalDate.of(year + 1, 1, 1).atStartOfDay(zone).toInstant().toEpochMilli();
+                    return new long[]{start, Math.min(nextYr, nowMs)};
+                }
+                default:
+                    return new long[]{0L, nowMs};
+            }
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof PeriodFilter)) return false;
+            PeriodFilter p = (PeriodFilter) o;
+            return kind == p.kind && year == p.year;
+        }
+
+        @Override
+        public int hashCode() { return kind.ordinal() * 31 + year; }
+    }
+
+    /** Total Cost of Ownership combining Energy (charges) + Maintenance + Bureaucracy (prorated). */
     public static final class TcoSummary {
         public final double chargeCost;
+        public final double maintenanceCost;
+        public final double bureaucracyCost;
+        /** Sum of maintenanceCost + bureaucracyCost (legacy alias for diary costs). */
         public final double diaryCost;
         public final double totalCost;
         public final double trackedKm;
-        public final double costPerKm;     // -1 when trackedKm <= 0 or totalCost <= 0
-        public final double chargeShare;   // 0..1, -1 when totalCost <= 0
+        public final double costPerKm;        // -1 when trackedKm < 1 or totalCost <= 0
+        public final double chargeShare;      // 0..1, -1 when totalCost <= 0
+        public final double maintenanceShare; // 0..1, -1 when totalCost <= 0
+        public final double bureaucracyShare; // 0..1, -1 when totalCost <= 0
+        /** True when at least one annual/monthly fixed cost was prorated over the tracked window. */
+        public final boolean prorated;
 
-        public TcoSummary(double chargeCost, double diaryCost, double trackedKm,
-                          double costPerKm, double chargeShare) {
+        public TcoSummary(double chargeCost, double maintenanceCost, double bureaucracyCost,
+                          double trackedKm, double costPerKm,
+                          double chargeShare, double maintenanceShare, double bureaucracyShare,
+                          boolean prorated) {
             this.chargeCost = chargeCost;
-            this.diaryCost = diaryCost;
-            this.totalCost = chargeCost + diaryCost;
+            this.maintenanceCost = maintenanceCost;
+            this.bureaucracyCost = bureaucracyCost;
+            this.diaryCost = maintenanceCost + bureaucracyCost;
+            this.totalCost = chargeCost + maintenanceCost + bureaucracyCost;
             this.trackedKm = trackedKm;
             this.costPerKm = costPerKm;
             this.chargeShare = chargeShare;
+            this.maintenanceShare = maintenanceShare;
+            this.bureaucracyShare = bureaucracyShare;
+            this.prorated = prorated;
         }
 
         public static TcoSummary compute(double chargeCost, double diaryCost, double trackedKm) {
+            return compute(chargeCost, diaryCost, 0.0, trackedKm, false);
+        }
+
+        public static TcoSummary compute(double chargeCost, double maintenanceCost,
+                                         double bureaucracyCost, double trackedKm, boolean prorated) {
             double c = Math.max(0.0, chargeCost);
-            double d = Math.max(0.0, diaryCost);
-            double tot = c + d;
+            double m = Math.max(0.0, maintenanceCost);
+            double b = Math.max(0.0, bureaucracyCost);
+            double tot = c + m + b;
             double km = Math.max(0.0, trackedKm);
             double perKm = (tot > 0 && km >= 1.0) ? (tot / km) : -1.0;
-            double share = tot > 0 ? (c / tot) : -1.0;
-            return new TcoSummary(c, d, km, perKm, share);
+            double cs = tot > 0 ? (c / tot) : -1.0;
+            double ms = tot > 0 ? (m / tot) : -1.0;
+            double bs = tot > 0 ? (b / tot) : -1.0;
+            return new TcoSummary(c, m, b, km, perKm, cs, ms, bs, prorated);
         }
 
         public boolean hasCosts() { return totalCost > 0.005; }
+    }
+
+    /** Computes an entry's cost contribution over [winStartMs, winEndMs).
+     * Coverage-period entries (e.g. annual Insurance/IPVA = 365d, monthly parking = 30d)
+     * are prorated by their overlap with the window so R$/km stays accurate instead of
+     * spiking artificially on day 1. One-off entries count 100% when inside the window
+     * (or unconditionally in ALL-time view). Pure & unit-tested. */
+    public static double entryCostForWindow(Entry e, long winStartMs, long winEndMs, boolean allTime) {
+        if (e == null || e.parentId != null || e.cost == null || e.cost <= 0) return 0.0;
+        int covDays = e.category != null ? e.category.coverageDays : 0;
+        if (covDays > 0) {
+            if (winEndMs <= winStartMs) return 0.0;
+            double spanMs = covDays * MS_PER_DAY;
+            long covStart = e.tsMs;
+            long covEnd = covStart + (long) spanMs;
+            long ovStart = Math.max(covStart, winStartMs);
+            long ovEnd = Math.min(covEnd, winEndMs);
+            double overlapMs = Math.max(0L, ovEnd - ovStart);
+            // If logged today inside the active window, count at least 1 day so the entry is visible immediately
+            if (e.tsMs >= winStartMs && e.tsMs <= winEndMs && overlapMs < MS_PER_DAY) {
+                overlapMs = Math.min(MS_PER_DAY, winEndMs - winStartMs);
+            }
+            if (overlapMs <= 0) return 0.0;
+            return e.cost * Math.min(1.0, overlapMs / spanMs);
+        }
+        if (allTime) return e.cost;
+        return (e.tsMs >= winStartMs && e.tsMs <= winEndMs) ? e.cost : 0.0;
+    }
+
+    /** Pure TCO aggregation over a window with automatic annual/monthly proration. */
+    public static TcoSummary computeTco(double chargeCost, List<Entry> entries, double trackedKm,
+                                        long winStartMs, long winEndMs, boolean allTime) {
+        double maint = 0.0, bureau = 0.0;
+        boolean prorated = false;
+        if (entries != null) {
+            for (Entry e : entries) {
+                double contrib = entryCostForWindow(e, winStartMs, winEndMs, allTime);
+                if (contrib <= 0) continue;
+                if (e.category != null && e.category.coverageDays > 0 && contrib < e.cost - 0.01) {
+                    prorated = true;
+                }
+                if (e.category != null && e.category.isBureaucracy()) bureau += contrib;
+                else maint += contrib;
+            }
+        }
+        return TcoSummary.compute(chargeCost, maint, bureau, trackedKm, prorated);
+    }
+
+    /** Filters entries by both optional Group and PeriodFilter. Pure & unit-tested. */
+    public static List<Entry> filterEntries(List<Entry> all, Group group, PeriodFilter period,
+                                            long nowMs, java.time.ZoneId zone) {
+        if (all == null || all.isEmpty()) return Collections.emptyList();
+        boolean filterPeriod = period != null && period.kind != PeriodFilter.Kind.ALL;
+        long[] bounds = filterPeriod ? period.boundsMs(nowMs, zone) : null;
+        List<Entry> out = new ArrayList<>();
+        for (Entry e : all) {
+            if (group != null && (e.category == null || e.category.group != group)) continue;
+            if (bounds != null) {
+                if (e.tsMs < bounds[0] || e.tsMs > bounds[1]) continue;
+            }
+            out.add(e);
+        }
+        return out;
+    }
+
+    /** Descending list of years available for the Diary period picker (always includes current year). */
+    public static List<Integer> availableYears(List<Entry> entries, long nowMs, java.time.ZoneId zone) {
+        int curYear = java.time.Instant.ofEpochMilli(nowMs).atZone(zone).getYear();
+        Set<Integer> yrs = new HashSet<>();
+        yrs.add(curYear);
+        if (entries != null) {
+            for (Entry e : entries) {
+                int y = java.time.Instant.ofEpochMilli(e.tsMs).atZone(zone).getYear();
+                if (y >= 2020 && y <= curYear + 1) yrs.add(y);
+            }
+        }
+        List<Integer> list = new ArrayList<>(yrs);
+        list.sort(Collections.reverseOrder());
+        return list;
     }
 
     /** 60-day HV traction battery longevity summary (moved from ChargeStatsView). */
@@ -991,40 +1161,94 @@ public final class CarDiary {
         return false;
     }
 
-    /** Reads lifetime Total Cost of Ownership (charging + diary) and tracked distance off-thread. */
+    /** Reads lifetime Total Cost of Ownership off-thread. */
     public static TcoSummary readTcoSummary(Context ctx) {
-        if (ctx == null) return TcoSummary.compute(0, 0, 0);
-        double chargeCost = 0, diaryCost = 0, trackedKm = 0;
+        return readTcoSummary(ctx, PeriodFilter.ALL, System.currentTimeMillis(), null);
+    }
+
+    /** Reads period-scoped Total Cost of Ownership (energy + maintenance + prorated bureaucracy)
+     * and tracked distance off-thread. Reuses {@code entries} if provided to avoid double reads. */
+    public static TcoSummary readTcoSummary(Context ctx, PeriodFilter period, long nowMs, List<Entry> entries) {
+        if (ctx == null) return TcoSummary.compute(0, 0, 0, 0, false);
+        PeriodFilter pf = period != null ? period : PeriodFilter.ALL;
+        boolean allTime = pf.kind == PeriodFilter.Kind.ALL;
+        java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+        long[] bounds = pf.boundsMs(nowMs, zone);
+        double chargeCost = 0, trackedKm = 0;
+        long winStartMs = bounds[0];
+        long winEndMs = bounds[1];
         try {
             SQLiteDatabase db = CarDb.get(ctx).db();
-            try (Cursor c = db.rawQuery(
-                    "SELECT COALESCE(SUM(cost), 0) FROM charge_session WHERE cost > 0", null)) {
-                if (c.moveToFirst()) chargeCost = c.getDouble(0);
-            }
-            try (Cursor c = db.rawQuery(
-                    "SELECT COALESCE(SUM(cost), 0) FROM diary_event WHERE parent_id IS NULL AND cost > 0", null)) {
-                if (c.moveToFirst()) diaryCost = c.getDouble(0);
-            }
-            double firstOdo = -1, lastOdo = -1;
-            try (Cursor c = db.rawQuery(
-                    "SELECT MIN(CASE WHEN first_odo_km > 0 THEN first_odo_km END), "
-                    + "MAX(CASE WHEN last_odo_km > 0 THEN last_odo_km END) FROM daily_stat", null)) {
-                if (c.moveToFirst()) {
-                    if (!c.isNull(0)) firstOdo = c.getDouble(0);
-                    if (!c.isNull(1)) lastOdo = c.getDouble(1);
+            if (allTime) {
+                try (Cursor c = db.rawQuery(
+                        "SELECT COALESCE(SUM(cost), 0) FROM charge_session WHERE cost > 0", null)) {
+                    if (c.moveToFirst()) chargeCost = c.getDouble(0);
+                }
+            } else {
+                try (Cursor c = db.rawQuery(
+                        "SELECT COALESCE(SUM(cost), 0) FROM charge_session "
+                        + "WHERE cost > 0 AND start_ms >= ? AND start_ms <= ?",
+                        new String[]{String.valueOf(bounds[0]), String.valueOf(bounds[1])})) {
+                    if (c.moveToFirst()) chargeCost = c.getDouble(0);
                 }
             }
-            Double liveOdo = latestOdometerKm(ctx);
+
+            double firstOdo = -1, lastOdo = -1;
+            String firstDateIso = null;
+            if (allTime) {
+                try (Cursor c = db.rawQuery(
+                        "SELECT MIN(CASE WHEN first_odo_km > 0 THEN first_odo_km END), "
+                        + "MAX(CASE WHEN last_odo_km > 0 THEN last_odo_km END), "
+                        + "MIN(CASE WHEN first_odo_km > 0 THEN date END) FROM daily_stat", null)) {
+                    if (c.moveToFirst()) {
+                        if (!c.isNull(0)) firstOdo = c.getDouble(0);
+                        if (!c.isNull(1)) lastOdo = c.getDouble(1);
+                        if (!c.isNull(2)) firstDateIso = c.getString(2);
+                    }
+                }
+            } else {
+                String startIso = java.time.Instant.ofEpochMilli(bounds[0]).atZone(zone).toLocalDate().toString();
+                String endIso = java.time.Instant.ofEpochMilli(bounds[1]).atZone(zone).toLocalDate().toString();
+                try (Cursor c = db.rawQuery(
+                        "SELECT MIN(CASE WHEN first_odo_km > 0 THEN first_odo_km END), "
+                        + "MAX(CASE WHEN last_odo_km > 0 THEN last_odo_km END), "
+                        + "MIN(CASE WHEN first_odo_km > 0 THEN date END) FROM daily_stat "
+                        + "WHERE date >= ? AND date <= ?",
+                        new String[]{startIso, endIso})) {
+                    if (c.moveToFirst()) {
+                        if (!c.isNull(0)) firstOdo = c.getDouble(0);
+                        if (!c.isNull(1)) lastOdo = c.getDouble(1);
+                        if (!c.isNull(2)) firstDateIso = c.getString(2);
+                    }
+                }
+            }
+
+            // Include live odometer if the window reaches today
+            boolean includesNow = bounds[1] >= nowMs - 60_000L;
+            Double liveOdo = includesNow ? latestOdometerKm(ctx) : null;
             if (liveOdo != null && liveOdo > lastOdo) lastOdo = liveOdo;
             if (firstOdo > 0 && lastOdo > firstOdo) {
                 trackedKm = lastOdo - firstOdo;
-            } else if (liveOdo != null && liveOdo > 0) {
+            } else if (allTime && liveOdo != null && liveOdo > 0) {
                 trackedKm = liveOdo;
             }
+
+            // For proration window start, anchor to the earliest tracked day when ALL-time
+            if (firstDateIso != null) {
+                try {
+                    long firstTrackedMs = java.time.LocalDate.parse(firstDateIso)
+                        .atStartOfDay(zone).toInstant().toEpochMilli();
+                    if (allTime || firstTrackedMs > winStartMs) {
+                        winStartMs = firstTrackedMs;
+                    }
+                } catch (Throwable ignored) {}
+            }
+            if (winStartMs <= 0) winStartMs = Math.max(0L, winEndMs - (long) (30 * MS_PER_DAY));
         } catch (Throwable t) {
             Log.w(CarAccess.TAG, "diary tco read failed: " + t);
         }
-        return TcoSummary.compute(chargeCost, diaryCost, trackedKm);
+        List<Entry> list = entries != null ? entries : readEntries(ctx);
+        return computeTco(chargeCost, list, trackedKm, winStartMs, winEndMs, allTime);
     }
 
     /** Reads 60-day HV traction battery longevity summary off-thread. */

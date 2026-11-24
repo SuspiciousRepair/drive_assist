@@ -38,6 +38,7 @@ public final class DiaryClipTrimmer {
     /** Resolves a stored clip_name (basename in diary_clips/ or fallback in dashcam keep/). */
     public static File resolveClip(Context ctx, String clipName) {
         if (clipName == null || clipName.trim().isEmpty()) return null;
+        if (clipName.contains("/") || clipName.contains("\\") || clipName.contains("..")) return null;
         File f = new File(dir(ctx), clipName);
         if (f.exists()) return f;
         File kept = new File(Clips.keepDir(ctx), clipName);

@@ -318,4 +318,63 @@ public class CarDiaryTest {
         assertEquals(0.20, tco.costPerKm, 0.0001);
         assertEquals(0.75, tco.chargeShare, 0.0001);
     }
+
+    @Test
+    public void bureaucracyCategoriesProrateAnnualAndMonthlyCostsInTco() {
+        assertTrue(CarDiary.Category.forGroup(CarDiary.Group.COSMETIC).contains(CarDiary.Category.ACCESSORIES));
+        assertTrue(CarDiary.Category.forGroup(CarDiary.Group.BUREAUCRACY).contains(CarDiary.Category.INSURANCE));
+        assertTrue(CarDiary.Category.forGroup(CarDiary.Group.BUREAUCRACY).contains(CarDiary.Category.TAX_LICENSE));
+        assertTrue(CarDiary.Category.forGroup(CarDiary.Group.BUREAUCRACY).contains(CarDiary.Category.TRAFFIC_TICKET));
+        assertTrue(CarDiary.Category.forGroup(CarDiary.Group.BUREAUCRACY).contains(CarDiary.Category.MONTHLY_PARKING));
+
+        long now = 1_800_000_000_000L;
+        long winStart = now - 73 * DAY; // exactly 73 days = 1/5 of 365 days
+
+        CarDiary.Entry insurance = new CarDiary.Entry(1, "u1", now - 100 * DAY,
+            CarDiary.KIND_CARE, CarDiary.Category.INSURANCE, CarDiary.STATUS_DONE,
+            4000.0, null, null, null, 3650.0, null, null, null, null, null, null, 1);
+        CarDiary.Entry parking = new CarDiary.Entry(2, "u2", now - 15 * DAY,
+            CarDiary.KIND_CARE, CarDiary.Category.MONTHLY_PARKING, CarDiary.STATUS_DONE,
+            6000.0, null, null, null, 300.0, null, null, null, null, null, null, 1);
+        CarDiary.Entry ticket = new CarDiary.Entry(3, "u3", now - 10 * DAY,
+            CarDiary.KIND_CARE, CarDiary.Category.TRAFFIC_TICKET, CarDiary.STATUS_DONE,
+            6500.0, null, null, null, 200.0, null, null, null, null, null, null, 1);
+        CarDiary.Entry accessory = new CarDiary.Entry(4, "u4", now - 20 * DAY,
+            CarDiary.KIND_CARE, CarDiary.Category.ACCESSORIES, CarDiary.STATUS_DONE,
+            5800.0, null, null, null, 150.0, null, null, null, null, null, null, 1);
+
+        // Insurance: 73/365 * 3650 = 730; Parking: 15/30 * 300 = 150; Ticket: 200 -> Bureaucracy = 1080
+        // Accessories -> Maintenance = 150; Charge = 770 -> Total = 2000 over 2000 km = 1.00/km
+        CarDiary.TcoSummary tco = CarDiary.computeTco(
+            770.0, Arrays.asList(insurance, parking, ticket, accessory),
+            2000.0, winStart, now, true);
+        assertTrue(tco.prorated);
+        assertEquals(770.0, tco.chargeCost, 0.01);
+        assertEquals(150.0, tco.maintenanceCost, 0.01);
+        assertEquals(1080.0, tco.bureaucracyCost, 0.01);
+        assertEquals(2000.0, tco.totalCost, 0.01);
+        assertEquals(1.00, tco.costPerKm, 0.001);
+        assertEquals(0.54, tco.bureaucracyShare, 0.001);
+    }
+
+    @Test
+    public void periodFilterScopesDiaryEntriesAndAvailableYears() {
+        java.time.ZoneId utc = java.time.ZoneId.of("UTC");
+        long now = java.time.LocalDate.of(2026, 11, 24).atTime(12, 0).atZone(utc).toInstant().toEpochMilli();
+        long d10 = now - 10 * DAY;
+        long d60 = now - 60 * DAY;
+        long yr2025 = java.time.LocalDate.of(2025, 6, 15).atTime(12, 0).atZone(utc).toInstant().toEpochMilli();
+
+        List<CarDiary.Entry> all = Arrays.asList(
+            entry(1, CarDiary.Category.TIRE_PRESSURE, d10, 7000.0, null, null),
+            entry(2, CarDiary.Category.INSURANCE, d60, 6000.0, null, null),
+            entry(3, CarDiary.Category.SERVICE, yr2025, 2000.0, null, null)
+        );
+        assertEquals(3, CarDiary.filterEntries(all, null, CarDiary.PeriodFilter.ALL, now, utc).size());
+        assertEquals(1, CarDiary.filterEntries(all, null, CarDiary.PeriodFilter.DAYS_30, now, utc).size());
+        assertEquals(2, CarDiary.filterEntries(all, null, CarDiary.PeriodFilter.DAYS_90, now, utc).size());
+        assertEquals(1, CarDiary.filterEntries(all, null, CarDiary.PeriodFilter.ofYear(2025), now, utc).size());
+        assertEquals(1, CarDiary.filterEntries(all, CarDiary.Group.BUREAUCRACY, CarDiary.PeriodFilter.DAYS_90, now, utc).size());
+        assertEquals(Arrays.asList(2026, 2025), CarDiary.availableYears(all, now, utc));
+    }
 }
