@@ -215,4 +215,21 @@ public class DbMergeTest {
         assertEquals(3, q("SELECT parent_id FROM main.diary_event WHERE uuid = 'u-live-2'"));
         assertEquals(2, q("SELECT COUNT(*) FROM main.aux_12v_reading"));
     }
+
+    /** The same diary entry on both sides (a backup restored onto a car that
+     * still has the entry): the restore must not fail on diary_event.uuid. */
+    @Test public void sameDiaryUuidOnBothSidesDoesNotFailTheRestore() throws Exception {
+        fill();
+        x("INSERT INTO old.diary_event (id, uuid, ts_ms, kind, category, status, parent_id) VALUES "
+            + "(1,'u-same',120,'CARE','SERVICE','DONE',NULL),"
+            + "(2,'u-old-only',150,'CARE','WIPERS','DONE',NULL)");
+        x("INSERT INTO main.diary_event (id, uuid, ts_ms, kind, category, status, parent_id) VALUES "
+            + "(1,'u-same',120,'CARE','SERVICE','DONE',NULL),"
+            + "(2,'u-live-only',1050,'CARE','TIRES','DONE',NULL)");
+
+        DbMerge.merge(sql);
+
+        assertEquals(1, q("SELECT COUNT(*) FROM main.diary_event WHERE uuid = 'u-same'"));
+        assertEquals(3, q("SELECT COUNT(*) FROM main.diary_event"));
+    }
 }

@@ -45,6 +45,24 @@ public final class CarDiary {
     /** EntityBus event emitted whenever diary entries or pending jolts change. */
     public static final String EVENT_CHANGED = "diary.changed";
 
+    /** One worker thread for diary reads and clip work. Diary queries are too
+     * heavy for the hub (car) thread and for the single DB writer thread. */
+    private static final java.util.concurrent.ExecutorService IO =
+        java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "diary-io");
+            t.setDaemon(true);
+            return t;
+        });
+
+    /** Runs a diary read (or other slow diary work) off the hub and UI threads. */
+    public static void runAsync(Runnable r) {
+        if (r == null) return;
+        IO.execute(() -> {
+            try { r.run(); }
+            catch (Throwable t) { Log.w(CarAccess.TAG, "diary async failed: " + t); }
+        });
+    }
+
     /** Kind values persisted in diary_event.kind. */
     public static final String KIND_CARE = "CARE";
     public static final String KIND_NOISE = "NOISE";
@@ -202,11 +220,27 @@ public final class CarDiary {
         public final String metaJson;
         /** Total occurrences (1 + child recurrence rows) for parent NOISE entries. */
         public final int occurrences;
+        /** When it last happened: the newest recurrence child's ts_ms, or
+         * {@link #tsMs} when there is none. {@link #tsMs} stays the first-seen date. */
+        public final long lastOccurrenceMs;
+        /** Odometer looked up from the car's history for the entry's date, set by
+         * {@link #readEntries} only when {@link #odoKm} is missing or above the current
+         * odometer. Used for km-based reminders; never shown as the entry's odometer. */
+        public final Double estOdoKm;
 
         public Entry(long id, String uuid, long tsMs, String kind, Category category,
                      String status, Double odoKm, Double outsideTempC, Double lat, Double lon,
                      Double cost, String title, String note, String tags, String clipName,
                      Long parentId, String metaJson, int occurrences) {
+            this(id, uuid, tsMs, kind, category, status, odoKm, outsideTempC, lat, lon,
+                cost, title, note, tags, clipName, parentId, metaJson, occurrences, tsMs, null);
+        }
+
+        public Entry(long id, String uuid, long tsMs, String kind, Category category,
+                     String status, Double odoKm, Double outsideTempC, Double lat, Double lon,
+                     Double cost, String title, String note, String tags, String clipName,
+                     Long parentId, String metaJson, int occurrences,
+                     long lastOccurrenceMs, Double estOdoKm) {
             this.id = id;
             this.uuid = uuid;
             this.tsMs = tsMs;
@@ -225,6 +259,8 @@ public final class CarDiary {
             this.parentId = parentId;
             this.metaJson = metaJson;
             this.occurrences = Math.max(1, occurrences);
+            this.lastOccurrenceMs = Math.max(tsMs, lastOccurrenceMs);
+            this.estOdoKm = estOdoKm;
         }
 
         public boolean isOpen() { return STATUS_OPEN.equals(status); }
@@ -472,6 +508,15 @@ public final class CarDiary {
      * spiking artificially on day 1. One-off entries count 100% when inside the window
      * (or unconditionally in ALL-time view). Pure & unit-tested. */
     public static double entryCostForWindow(Entry e, long winStartMs, long winEndMs, boolean allTime) {
+        return entryCostForWindow(e, winStartMs, winEndMs, winStartMs, winEndMs, allTime);
+    }
+
+    /** Same, with two windows. A one-off cost is tested against the real period
+     * [periodStartMs, periodEndInclMs], the bounds the list and the charge costs use.
+     * A coverage cost is prorated over [winStartMs, winEndMs), which may start later
+     * (the first tracked day), so the cost matches the km it is divided by. */
+    public static double entryCostForWindow(Entry e, long periodStartMs, long periodEndInclMs,
+                                            long winStartMs, long winEndMs, boolean allTime) {
         if (e == null || e.parentId != null || e.cost == null || e.cost <= 0) return 0.0;
         int covDays = e.category != null ? e.category.coverageDays : 0;
         if (covDays > 0) {
@@ -490,17 +535,73 @@ public final class CarDiary {
             return e.cost * Math.min(1.0, overlapMs / spanMs);
         }
         if (allTime) return e.cost;
-        return (e.tsMs >= winStartMs && e.tsMs <= winEndMs) ? e.cost : 0.0;
+        return (e.tsMs >= periodStartMs && e.tsMs <= periodEndInclMs) ? e.cost : 0.0;
     }
+
+    /** Last instant that belongs to a period. {@link PeriodFilter#boundsMs} returns an
+     * exclusive end; a closed period (a past year ends at the next Jan 1 00:00) must not
+     * take that instant in. A period that ends now keeps "now". Pure. */
+    public static long inclusiveEndMs(long[] bounds, long nowMs) {
+        return bounds[1] < nowMs ? bounds[1] - 1 : bounds[1];
+    }
+
+    /** {first, last} local day (yyyy-MM-dd, both inclusive) of a period, for daily_stat. Pure. */
+    static String[] tcoDayRange(long[] bounds, long nowMs, java.time.ZoneId zone) {
+        return new String[]{
+            java.time.Instant.ofEpochMilli(bounds[0]).atZone(zone).toLocalDate().toString(),
+            java.time.Instant.ofEpochMilli(inclusiveEndMs(bounds, nowMs)).atZone(zone).toLocalDate().toString()};
+    }
+
+    /** Km the car's history covers: 0 when there is no first reading or no distance
+     * between first and last, so no cost/km is derived from the whole odometer. Pure. */
+    static double trackedKmFrom(double firstOdo, double lastOdo, Double liveOdo) {
+        double last = (liveOdo != null && liveOdo > lastOdo) ? liveOdo : lastOdo;
+        return (firstOdo > 0 && last > firstOdo) ? (last - firstOdo) : 0.0;
+    }
+
+    /** Start of the window fixed costs are prorated over: the first tracked day when it
+     * is inside the period (always for ALL-time), else the period start; the last 30 days
+     * when neither is known. Only for proration, never to decide what is in the period. Pure. */
+    static long prorationStartMs(long periodStartMs, long winEndMs, String firstDateIso,
+                                 boolean allTime, java.time.ZoneId zone) {
+        long start = periodStartMs;
+        if (firstDateIso != null) {
+            try {
+                long firstTrackedMs = java.time.LocalDate.parse(firstDateIso)
+                    .atStartOfDay(zone).toInstant().toEpochMilli();
+                if (allTime || firstTrackedMs > start) start = firstTrackedMs;
+            } catch (Throwable ignored) {}
+        }
+        if (start <= 0) start = Math.max(0L, winEndMs - (long) (30 * MS_PER_DAY));
+        return start;
+    }
+
+    static final String TCO_CHARGE_COST_SQL =
+        "SELECT COALESCE(SUM(cost), 0) FROM charge_session "
+        + "WHERE cost > 0 AND start_ms >= ? AND start_ms <= ?";
+    static final String TCO_ODO_SQL =
+        "SELECT MIN(CASE WHEN first_odo_km > 0 THEN first_odo_km END), "
+        + "MAX(CASE WHEN last_odo_km > 0 THEN last_odo_km END), "
+        + "MIN(CASE WHEN first_odo_km > 0 THEN date END) FROM daily_stat";
+    static final String TCO_ODO_PERIOD_SQL = TCO_ODO_SQL + " WHERE date >= ? AND date <= ?";
 
     /** Pure TCO aggregation over a window with automatic annual/monthly proration. */
     public static TcoSummary computeTco(double chargeCost, List<Entry> entries, double trackedKm,
+                                        long winStartMs, long winEndMs, boolean allTime) {
+        return computeTco(chargeCost, entries, trackedKm, winStartMs, winEndMs,
+            winStartMs, winEndMs, allTime);
+    }
+
+    /** Same, with the period bounds (one-off costs) apart from the proration window. */
+    public static TcoSummary computeTco(double chargeCost, List<Entry> entries, double trackedKm,
+                                        long periodStartMs, long periodEndInclMs,
                                         long winStartMs, long winEndMs, boolean allTime) {
         double maint = 0.0, bureau = 0.0;
         boolean prorated = false;
         if (entries != null) {
             for (Entry e : entries) {
-                double contrib = entryCostForWindow(e, winStartMs, winEndMs, allTime);
+                double contrib = entryCostForWindow(e, periodStartMs, periodEndInclMs,
+                    winStartMs, winEndMs, allTime);
                 if (contrib <= 0) continue;
                 if (e.category != null && e.category.coverageDays > 0 && contrib < e.cost - 0.01) {
                     prorated = true;
@@ -518,11 +619,12 @@ public final class CarDiary {
         if (all == null || all.isEmpty()) return Collections.emptyList();
         boolean filterPeriod = period != null && period.kind != PeriodFilter.Kind.ALL;
         long[] bounds = filterPeriod ? period.boundsMs(nowMs, zone) : null;
+        long endIncl = filterPeriod ? inclusiveEndMs(bounds, nowMs) : 0L;
         List<Entry> out = new ArrayList<>();
         for (Entry e : all) {
             if (group != null && (e.category == null || e.category.group != group)) continue;
             if (bounds != null) {
-                if (e.tsMs < bounds[0] || e.tsMs > bounds[1]) continue;
+                if (e.tsMs < bounds[0] || e.tsMs > endIncl) continue;
             }
             out.add(e);
         }
@@ -616,6 +718,78 @@ public final class CarDiary {
     private static final long JOLT_TTL_MS = 24L * 3600_000L;
     private static final long JOLT_COOLDOWN_MS = 30_000L;
     private static final List<PendingJolt> pendingJolts = new ArrayList<>();
+    /** Same prefs file as util/Prefs; the queue is one string, one jolt per line. */
+    private static final String PREFS_FILE = "drivemem";
+    private static final String KEY_PENDING_JOLTS = "diary_pending_jolts";
+    /** Set by {@link #ensureSubscribed}; without it (unit tests) the queue is memory only. */
+    private static volatile Context appCtx;
+    private static boolean joltsLoaded;
+
+    /** Loads the saved queue once, as soon as there is a Context. Caller holds the class lock. */
+    private static void loadJoltsLocked() {
+        Context app = appCtx;
+        if (joltsLoaded || app == null) return;
+        joltsLoaded = true;
+        try {
+            String raw = app.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+                .getString(KEY_PENDING_JOLTS, null);
+            // Anything queued before the load is newer than what was saved.
+            for (PendingJolt j : decodeJolts(raw)) {
+                if (pendingJolts.size() >= MAX_PENDING_JOLTS) break;
+                pendingJolts.add(j);
+            }
+        } catch (Throwable t) {
+            Log.w(CarAccess.TAG, "diary jolts load failed: " + t);
+        }
+    }
+
+    private static void saveJoltsLocked() {
+        Context app = appCtx;
+        if (app == null) return;
+        try {
+            app.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE).edit()
+                .putString(KEY_PENDING_JOLTS, encodeJolts(pendingJolts)).apply();
+        } catch (Throwable t) {
+            Log.w(CarAccess.TAG, "diary jolts save failed: " + t);
+        }
+    }
+
+    /** One line per jolt, fields split by ';', an empty field for an unknown value. Pure. */
+    static String encodeJolts(List<PendingJolt> jolts) {
+        StringBuilder sb = new StringBuilder();
+        if (jolts == null) return "";
+        for (PendingJolt j : jolts) {
+            if (sb.length() > 0) sb.append('\n');
+            sb.append(j.id).append(';').append(j.tsMs)
+                .append(';').append(j.peakZG).append(';').append(j.peakXG).append(';').append(j.peakYG)
+                .append(';').append(j.rmsZG).append(';').append(j.peakJerkZGs)
+                .append(';').append(j.speedKmh == null ? "" : j.speedKmh.toString())
+                .append(';').append(j.odoKm == null ? "" : j.odoKm.toString())
+                .append(';').append(j.lat == null ? "" : j.lat.toString())
+                .append(';').append(j.lon == null ? "" : j.lon.toString());
+        }
+        return sb.toString();
+    }
+
+    /** Reverse of {@link #encodeJolts}; a damaged line is skipped. Pure. */
+    static List<PendingJolt> decodeJolts(String raw) {
+        List<PendingJolt> out = new ArrayList<>();
+        if (raw == null || raw.isEmpty()) return out;
+        for (String line : raw.split("\n")) {
+            String[] f = line.split(";", -1);
+            if (f.length != 11 || f[0].isEmpty()) continue;
+            try {
+                out.add(new PendingJolt(f[0], Long.parseLong(f[1]),
+                    Float.parseFloat(f[2]), Float.parseFloat(f[3]), Float.parseFloat(f[4]),
+                    Float.parseFloat(f[5]), Float.parseFloat(f[6]),
+                    f[7].isEmpty() ? null : Float.valueOf(f[7]),
+                    f[8].isEmpty() ? null : Double.valueOf(f[8]),
+                    f[9].isEmpty() ? null : Double.valueOf(f[9]),
+                    f[10].isEmpty() ? null : Double.valueOf(f[10])));
+            } catch (NumberFormatException ignored) {}
+        }
+        return out;
+    }
 
     /** Hook for ImuHub (or tests) to queue a sharp driving jolt for review. */
     public static synchronized PendingJolt recordPendingJolt(
@@ -628,6 +802,7 @@ public final class CarDiary {
             long tsMs, float peakZG, float peakXG, float peakYG,
             float rmsZG, float peakJerkZGs,
             Float speedKmh, Double odoKm, Double lat, Double lon) {
+        loadJoltsLocked();
         pruneExpiredJoltsLocked(tsMs);
         if (!pendingJolts.isEmpty()) {
             PendingJolt last = pendingJolts.get(0);
@@ -643,11 +818,13 @@ public final class CarDiary {
         while (pendingJolts.size() > MAX_PENDING_JOLTS) {
             pendingJolts.remove(pendingJolts.size() - 1);
         }
+        saveJoltsLocked();
         publishChanged();
         return j;
     }
 
     public static synchronized List<PendingJolt> pendingJolts(long nowMs) {
+        loadJoltsLocked();
         pruneExpiredJoltsLocked(nowMs);
         return new ArrayList<>(pendingJolts);
     }
@@ -658,8 +835,12 @@ public final class CarDiary {
 
     public static synchronized void dismissPendingJolt(String id) {
         if (id == null) return;
+        loadJoltsLocked();
         boolean removed = pendingJolts.removeIf(j -> id.equals(j.id));
-        if (removed) publishChanged();
+        if (removed) {
+            saveJoltsLocked();
+            publishChanged();
+        }
     }
 
     static synchronized void clearPendingJoltsForTest() {
@@ -667,7 +848,7 @@ public final class CarDiary {
     }
 
     private static void pruneExpiredJoltsLocked(long nowMs) {
-        pendingJolts.removeIf(j -> nowMs - j.tsMs > JOLT_TTL_MS);
+        if (pendingJolts.removeIf(j -> nowMs - j.tsMs > JOLT_TTL_MS)) saveJoltsLocked();
     }
 
     // ---- Auto-subscriptions (TireWarning -> TPMS_AUTO) ----
@@ -677,7 +858,9 @@ public final class CarDiary {
 
     /** Idempotent; called once from DriveMemApplication.onCreate(). */
     public static synchronized void ensureSubscribed(Context ctx) {
-        if (subscribed || ctx == null) return;
+        if (ctx == null) return;
+        if (appCtx == null) appCtx = ctx.getApplicationContext();
+        if (subscribed) return;
         subscribed = true;
         Context app = ctx.getApplicationContext();
         EntityBus.subscribe(TireWarning.ANY, (key, r) -> {
@@ -691,6 +874,15 @@ public final class CarDiary {
         });
     }
 
+    /** Counts the open auto tire entries. One open entry is enough: the in-memory
+     * edge detector starts from 0 on every app start, so the same warning would
+     * otherwise be logged again each time. */
+    static final String OPEN_TIRE_AUTO_SQL =
+        "SELECT COUNT(*) FROM diary_event WHERE category = 'TPMS_AUTO' "
+        + "AND status = 'OPEN' AND parent_id IS NULL";
+
+    /** Called on the hub thread: only reads the hub cache here; the database check
+     * and the insert run on CarDb's writer thread. */
     private static void logAutoTireWarning(Context ctx) {
         CarActor a = CarActor.get();
         StringBuilder wheels = new StringBuilder();
@@ -703,10 +895,26 @@ public final class CarDiary {
                 }
             }
         }
-        String note = wheels.length() > 0 ? "iTPMS: " + wheels : "iTPMS";
-        insert(ctx, Category.TPMS_AUTO, STATUS_OPEN, System.currentTimeMillis(),
-            latestOdometerKm(ctx), latestOutsideTempC(), null,
-            null, note, null, null, null, null, null);
+        final String note = wheels.length() > 0 ? "iTPMS: " + wheels : "iTPMS";
+        final long now = System.currentTimeMillis();
+        final Double outC = latestOutsideTempC();
+        final LocationHub.Fix fix = latestLocation();
+        final Context app = ctx.getApplicationContext();
+        CarDb.get(app).write(() -> {
+            try {
+                SQLiteDatabase db = CarDb.get(app).db();
+                try (Cursor c = db.rawQuery(OPEN_TIRE_AUTO_SQL, null)) {
+                    if (c.moveToFirst() && c.getLong(0) > 0) return;
+                }
+                insertNow(app, UUID.randomUUID().toString(), Category.TPMS_AUTO, STATUS_OPEN, now,
+                    latestOdometerKm(app), outC,
+                    fix != null ? fix.lat : null, fix != null ? fix.lon : null,
+                    null, null, note, null, null, null, null);
+                publishChanged();
+            } catch (Throwable t) {
+                Log.w(CarAccess.TAG, "diary tire auto entry failed: " + t);
+            }
+        });
     }
 
     // ---- Database CRUD ----
@@ -733,25 +941,8 @@ public final class CarDiary {
         final String uuid = UUID.randomUUID().toString();
         CarDb.get(app).write(() -> {
             try {
-                SQLiteDatabase db = CarDb.get(app).db();
-                ContentValues v = new ContentValues();
-                v.put("uuid", uuid);
-                v.put("ts_ms", tsMs);
-                v.put("kind", cat.kind);
-                v.put("category", cat.name());
-                v.put("status", st);
-                if (odoKm != null && odoKm > 0) v.put("odo_km", odoKm);
-                if (outsideTempC != null) v.put("outside_temp_c", outsideTempC);
-                if (lat != null) v.put("lat", lat);
-                if (lon != null) v.put("lon", lon);
-                if (cost != null && cost > 0) v.put("cost", cost);
-                if (title != null && !title.trim().isEmpty()) v.put("title", title.trim());
-                if (note != null && !note.trim().isEmpty()) v.put("note", note.trim());
-                if (tags != null && !tags.trim().isEmpty()) v.put("tags", tags.trim());
-                if (clipName != null && !clipName.trim().isEmpty()) v.put("clip_name", clipName.trim());
-                if (parentId != null) v.put("parent_id", parentId);
-                if (metaJson != null && !metaJson.trim().isEmpty()) v.put("meta_json", metaJson);
-                db.insert("diary_event", null, v);
+                insertNow(app, uuid, cat, st, tsMs, odoKm, outsideTempC, lat, lon,
+                    cost, title, note, tags, clipName, parentId, metaJson);
                 publishChanged();
                 if (onDone != null) onDone.run();
             } catch (Throwable t) {
@@ -760,7 +951,35 @@ public final class CarDiary {
         });
     }
 
-    /** Inserts an incident and optionally trims a lossless 5-second dashcam clip off-thread first. */
+    /** The row insert itself. Runs on CarDb's writer thread. Returns the row id. */
+    private static long insertNow(Context app, String uuid, Category cat, String st, long tsMs,
+                                  Double odoKm, Double outsideTempC, Double lat, Double lon,
+                                  Double cost, String title, String note, String tags,
+                                  String clipName, Long parentId, String metaJson) {
+        ContentValues v = new ContentValues();
+        v.put("uuid", uuid);
+        v.put("ts_ms", tsMs);
+        v.put("kind", cat.kind);
+        v.put("category", cat.name());
+        v.put("status", st);
+        if (odoKm != null && odoKm > 0) v.put("odo_km", odoKm);
+        if (outsideTempC != null) v.put("outside_temp_c", outsideTempC);
+        if (lat != null) v.put("lat", lat);
+        if (lon != null) v.put("lon", lon);
+        if (cost != null && cost > 0) v.put("cost", cost);
+        if (title != null && !title.trim().isEmpty()) v.put("title", title.trim());
+        if (note != null && !note.trim().isEmpty()) v.put("note", note.trim());
+        if (tags != null && !tags.trim().isEmpty()) v.put("tags", tags.trim());
+        if (clipName != null && !clipName.trim().isEmpty()) v.put("clip_name", clipName.trim());
+        if (parentId != null) v.put("parent_id", parentId);
+        if (metaJson != null && !metaJson.trim().isEmpty()) v.put("meta_json", metaJson);
+        return CarDb.get(app).db().insert("diary_event", null, v);
+    }
+
+    /** Inserts an incident now, on CarDb's writer thread. With captureClip, the
+     * lossless 5-second dashcam clip is cut afterwards on the diary worker thread
+     * (disk listing + MP4 remux are too slow for the writer thread) and attached
+     * to the row with a short update. */
     public static void insertIncidentWithOptionalClip(
             Context ctx, long tsMs, boolean captureClip, boolean flagForDealer,
             Double odoKm, Double outsideTempC, Double lat, Double lon,
@@ -771,10 +990,6 @@ public final class CarDiary {
         final String uuid = UUID.randomUUID().toString();
         final String st = flagForDealer ? STATUS_OPEN : STATUS_DONE;
         CarDb.get(app).write(() -> {
-            String clip = null;
-            if (captureClip) {
-                clip = DiaryClipTrimmer.captureFiveSecondClip(app, tsMs, uuid);
-            }
             try {
                 SQLiteDatabase db = CarDb.get(app).db();
                 Double finalLat = lat, finalLon = lon;
@@ -791,32 +1006,20 @@ public final class CarDiary {
                         }
                     } catch (Throwable ignored) {}
                 }
-                ContentValues v = new ContentValues();
-                v.put("uuid", uuid);
-                v.put("ts_ms", tsMs);
-                v.put("kind", KIND_INCIDENT);
-                v.put("category", Category.INCIDENT.name());
-                v.put("status", st);
-                if (odoKm != null && odoKm > 0) v.put("odo_km", odoKm);
-                if (outsideTempC != null) v.put("outside_temp_c", outsideTempC);
-                if (finalLat != null) v.put("lat", finalLat);
-                if (finalLon != null) v.put("lon", finalLon);
-                if (cost != null && cost > 0) v.put("cost", cost);
-                if (title != null && !title.trim().isEmpty()) v.put("title", title.trim());
-                if (note != null && !note.trim().isEmpty()) v.put("note", note.trim());
-                if (tags != null && !tags.trim().isEmpty()) v.put("tags", tags.trim());
-                if (clip != null) v.put("clip_name", clip);
-                if (metaJson != null && !metaJson.trim().isEmpty()) v.put("meta_json", metaJson);
-                long rowId = db.insert("diary_event", null, v);
+                long rowId = insertNow(app, uuid, Category.INCIDENT, st, tsMs, odoKm, outsideTempC,
+                    finalLat, finalLon, cost, title, note, tags, null, null, metaJson);
                 if (pendingJoltId != null) dismissPendingJolt(pendingJoltId);
                 else publishChanged();
                 if (onDone != null) onDone.run();
 
-                // If the dashcam segment covering tsMs is still RECORDING (.mp4.tmp),
-                // wait in the background for it to close and attach the 5s clip automatically.
-                if (captureClip && clip == null && rowId > 0
-                        && DiaryClipTrimmer.hasLiveSegmentCovering(app, tsMs)) {
-                    scheduleDelayedClipAttach(app, rowId, tsMs, uuid);
+                if (captureClip && rowId > 0) {
+                    runAsync(() -> {
+                        // The dashcam segment covering tsMs is usually still RECORDING
+                        // (.mp4.tmp): then wait for it to close and attach the clip later.
+                        if (tryAttachClip(app, rowId, tsMs, uuid) == CLIP_RETRY) {
+                            scheduleDelayedClipAttach(app, rowId, tsMs, uuid);
+                        }
+                    });
                 }
             } catch (Throwable t) {
                 Log.w(CarAccess.TAG, "diary incident insert failed: " + t);
@@ -824,33 +1027,58 @@ public final class CarDiary {
         });
     }
 
-    /** Polls up to 6 minutes for an active dashcam segment covering tsMs to close,
-     * then extracts the 5-second clip and updates diary_event.clip_name. */
-    private static void scheduleDelayedClipAttach(Context app, long rowId, long tsMs, String uuid) {
-        new Thread(() -> {
-            for (int attempt = 0; attempt < 24; attempt++) {
-                try { Thread.sleep(15_000L); } catch (InterruptedException e) { return; }
-                String clip = DiaryClipTrimmer.captureFiveSecondClip(app, tsMs, uuid);
-                if (clip != null) {
-                    CarDb.get(app).write(() -> {
-                        try {
-                            ContentValues upd = new ContentValues();
-                            upd.put("clip_name", clip);
-                            CarDb.get(app).db().update("diary_event", upd, "id = ?",
-                                new String[]{String.valueOf(rowId)});
-                            publishChanged();
-                        } catch (Throwable t) {
-                            Log.w(CarAccess.TAG, "diary delayed clip attach failed: " + t);
-                        }
-                    });
-                    return;
-                }
-                if (!DiaryClipTrimmer.hasLiveSegmentCovering(app, tsMs)) return;
+    private static final int CLIP_ATTACHED = 1, CLIP_RETRY = 0, CLIP_NONE = -1;
+
+    /** Cuts the 5-second clip and posts the clip_name update to the writer thread.
+     * CLIP_RETRY: no closed clip covers tsMs yet, but a segment that does is still
+     * recording. Slow (disk listing + remux): never on the hub or DB writer thread. */
+    private static int tryAttachClip(Context app, long rowId, long tsMs, String uuid) {
+        String clip = DiaryClipTrimmer.captureFiveSecondClip(app, tsMs, uuid);
+        if (clip == null) {
+            if (DiaryClipTrimmer.hasLiveSegmentCovering(app, tsMs)) return CLIP_RETRY;
+            // The segment may have closed between the two listings: look once more.
+            clip = DiaryClipTrimmer.captureFiveSecondClip(app, tsMs, uuid);
+            if (clip == null) return CLIP_NONE;
+        }
+        final String name = clip;
+        CarDb.get(app).write(() -> {
+            try {
+                ContentValues upd = new ContentValues();
+                upd.put("clip_name", name);
+                int rows = CarDb.get(app).db().update("diary_event", upd, "id = ?",
+                    new String[]{String.valueOf(rowId)});
+                // Entry deleted while the clip was being cut: do not leave the file behind.
+                if (rows == 0) DiaryClipTrimmer.deleteClip(app, name);
+                else publishChanged();
+            } catch (Throwable t) {
+                Log.w(CarAccess.TAG, "diary clip attach failed: " + t);
             }
-        }, "diary-clip-retry").start();
+        });
+        return CLIP_ATTACHED;
     }
 
-    /** Appends a '+1 happened again' recurrence child row linked to parentId, and bumps parent ts_ms. */
+    /** Polls up to 6 minutes for an active dashcam segment covering tsMs to close,
+     * then extracts the 5-second clip and updates diary_event.clip_name. Own thread:
+     * the waits must not hold up the diary worker. */
+    private static void scheduleDelayedClipAttach(Context app, long rowId, long tsMs, String uuid) {
+        Thread t = new Thread(() -> {
+            for (int attempt = 0; attempt < 24; attempt++) {
+                try { Thread.sleep(15_000L); } catch (InterruptedException e) { return; }
+                try {
+                    if (tryAttachClip(app, rowId, tsMs, uuid) != CLIP_RETRY) return;
+                } catch (Throwable e) {
+                    Log.w(CarAccess.TAG, "diary delayed clip attach failed: " + e);
+                    return;
+                }
+            }
+        }, "diary-clip-retry");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /** Appends a '+1 happened again' recurrence child row linked to parentId. The
+     * parent keeps its own ts_ms and odo_km (first seen; its cost stays in its TCO
+     * period). The last occurrence is read back as {@link Entry#lastOccurrenceMs}. */
     public static void addRecurrence(Context ctx, long parentId, Runnable onDone) {
         if (ctx == null) return;
         final Context app = ctx.getApplicationContext();
@@ -872,10 +1100,6 @@ public final class CarDiary {
                 if (fix != null) { v.put("lat", fix.lat); v.put("lon", fix.lon); }
                 v.put("parent_id", parentId);
                 db.insert("diary_event", null, v);
-                ContentValues upd = new ContentValues();
-                upd.put("ts_ms", now);
-                if (odo != null && odo > 0) upd.put("odo_km", odo);
-                db.update("diary_event", upd, "id = ?", new String[]{String.valueOf(parentId)});
                 publishChanged();
                 if (onDone != null) onDone.run();
             } catch (Throwable t) {
@@ -963,11 +1187,16 @@ public final class CarDiary {
         try {
             SQLiteDatabase db = CarDb.get(ctx).db();
             Map<Long, Integer> childCounts = new HashMap<>();
-            try (Cursor cc = db.rawQuery(
-                    "SELECT parent_id, COUNT(*) FROM diary_event WHERE parent_id IS NOT NULL GROUP BY parent_id",
-                    null)) {
-                while (cc.moveToNext()) childCounts.put(cc.getLong(0), cc.getInt(1));
+            Map<Long, Long> childLast = new HashMap<>();
+            try (Cursor cc = db.rawQuery(CHILD_STATS_SQL, null)) {
+                while (cc.moveToNext()) {
+                    childCounts.put(cc.getLong(0), cc.getInt(1));
+                    childLast.put(cc.getLong(0), cc.getLong(2));
+                }
             }
+            Double liveOdo = latestOdometerKm(ctx);
+            java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+            Map<java.time.LocalDate, Double> odoByDay = new HashMap<>();
             try (Cursor c = db.rawQuery(
                     "SELECT id, uuid, ts_ms, kind, category, status, odo_km, outside_temp_c, "
                     + "lat, lon, cost, title, note, tags, clip_name, parent_id, meta_json "
@@ -975,23 +1204,67 @@ public final class CarDiary {
                 while (c.moveToNext()) {
                     long id = c.getLong(0);
                     int occ = 1 + (childCounts.containsKey(id) ? childCounts.get(id) : 0);
+                    long tsMs = c.getLong(2);
+                    Category cat = Category.fromName(c.getString(4));
+                    Double odoKm = c.isNull(6) ? null : c.getDouble(6);
+                    // Km reminders need an odometer: look one up for the entry's day when
+                    // the entry has none (or an impossible one). Newest rows first, and a
+                    // few lookups at most: only the latest entry of a category counts.
+                    Double estOdo = null;
+                    if (needsOdoEstimate(cat, odoKm, liveOdo)) {
+                        java.time.LocalDate day = java.time.Instant.ofEpochMilli(tsMs).atZone(zone).toLocalDate();
+                        if (odoByDay.containsKey(day)) {
+                            estOdo = odoByDay.get(day);
+                        } else if (odoByDay.size() < MAX_ODO_LOOKUPS) {
+                            estOdo = odometerForDate(ctx, day).odoKm;
+                            odoByDay.put(day, estOdo);
+                        }
+                    }
+                    Long last = childLast.get(id);
                     out.add(new Entry(
-                        id, c.getString(1), c.getLong(2), c.getString(3),
-                        Category.fromName(c.getString(4)), c.getString(5),
-                        c.isNull(6) ? null : c.getDouble(6),
+                        id, c.getString(1), tsMs, c.getString(3),
+                        cat, c.getString(5),
+                        odoKm,
                         c.isNull(7) ? null : c.getDouble(7),
                         c.isNull(8) ? null : c.getDouble(8),
                         c.isNull(9) ? null : c.getDouble(9),
                         c.isNull(10) ? null : c.getDouble(10),
                         c.getString(11), c.getString(12), c.getString(13),
                         c.getString(14), c.isNull(15) ? null : c.getLong(15),
-                        c.getString(16), occ));
+                        c.getString(16), occ, last != null ? last : tsMs, estOdo));
                 }
             }
         } catch (Throwable t) {
             Log.w(CarAccess.TAG, "diary read failed: " + t);
         }
         return out;
+    }
+
+    /** parent id, number of recurrence children, newest child ts_ms. */
+    static final String CHILD_STATS_SQL =
+        "SELECT parent_id, COUNT(*), MAX(ts_ms) FROM diary_event "
+        + "WHERE parent_id IS NOT NULL GROUP BY parent_id";
+
+    private static final int MAX_ODO_LOOKUPS = 12;
+
+    /** True when a km reminder may read this entry and its own odometer cannot be
+     * used: missing, or above the car's current odometer (a typo). Pure. */
+    static boolean needsOdoEstimate(Category cat, Double odoKm, Double currentOdoKm) {
+        if (cat == null || (cat.kmInterval == null && cat != Category.SERVICE)) return false;
+        return odoForReminder(odoKm, null, currentOdoKm) == null;
+    }
+
+    /** The odometer a km reminder counts from: the entry's own when it is usable (set
+     * and not above the current odometer), else the one looked up for its date, with
+     * the same check; null when neither is usable. Pure. */
+    static Double odoForReminder(Double odoKm, Double estOdoKm, Double currentOdoKm) {
+        if (usableOdo(odoKm, currentOdoKm)) return odoKm;
+        if (usableOdo(estOdoKm, currentOdoKm)) return estOdoKm;
+        return null;
+    }
+
+    private static boolean usableOdo(Double odoKm, Double currentOdoKm) {
+        return odoKm != null && odoKm > 0 && (currentOdoKm == null || odoKm <= currentOdoKm);
     }
 
     /** Filters entries by top-level class/group (null = All). Pure. */
@@ -1175,8 +1448,9 @@ public final class CarDiary {
         java.time.ZoneId zone = java.time.ZoneId.systemDefault();
         long[] bounds = pf.boundsMs(nowMs, zone);
         double chargeCost = 0, trackedKm = 0;
-        long winStartMs = bounds[0];
+        long periodEndIncl = inclusiveEndMs(bounds, nowMs);
         long winEndMs = bounds[1];
+        String firstDateIso = null;
         try {
             SQLiteDatabase db = CarDb.get(ctx).db();
             if (allTime) {
@@ -1185,70 +1459,36 @@ public final class CarDiary {
                     if (c.moveToFirst()) chargeCost = c.getDouble(0);
                 }
             } else {
-                try (Cursor c = db.rawQuery(
-                        "SELECT COALESCE(SUM(cost), 0) FROM charge_session "
-                        + "WHERE cost > 0 AND start_ms >= ? AND start_ms <= ?",
-                        new String[]{String.valueOf(bounds[0]), String.valueOf(bounds[1])})) {
+                try (Cursor c = db.rawQuery(TCO_CHARGE_COST_SQL,
+                        new String[]{String.valueOf(bounds[0]), String.valueOf(periodEndIncl)})) {
                     if (c.moveToFirst()) chargeCost = c.getDouble(0);
                 }
             }
 
             double firstOdo = -1, lastOdo = -1;
-            String firstDateIso = null;
-            if (allTime) {
-                try (Cursor c = db.rawQuery(
-                        "SELECT MIN(CASE WHEN first_odo_km > 0 THEN first_odo_km END), "
-                        + "MAX(CASE WHEN last_odo_km > 0 THEN last_odo_km END), "
-                        + "MIN(CASE WHEN first_odo_km > 0 THEN date END) FROM daily_stat", null)) {
-                    if (c.moveToFirst()) {
-                        if (!c.isNull(0)) firstOdo = c.getDouble(0);
-                        if (!c.isNull(1)) lastOdo = c.getDouble(1);
-                        if (!c.isNull(2)) firstDateIso = c.getString(2);
-                    }
-                }
-            } else {
-                String startIso = java.time.Instant.ofEpochMilli(bounds[0]).atZone(zone).toLocalDate().toString();
-                String endIso = java.time.Instant.ofEpochMilli(bounds[1]).atZone(zone).toLocalDate().toString();
-                try (Cursor c = db.rawQuery(
-                        "SELECT MIN(CASE WHEN first_odo_km > 0 THEN first_odo_km END), "
-                        + "MAX(CASE WHEN last_odo_km > 0 THEN last_odo_km END), "
-                        + "MIN(CASE WHEN first_odo_km > 0 THEN date END) FROM daily_stat "
-                        + "WHERE date >= ? AND date <= ?",
-                        new String[]{startIso, endIso})) {
-                    if (c.moveToFirst()) {
-                        if (!c.isNull(0)) firstOdo = c.getDouble(0);
-                        if (!c.isNull(1)) lastOdo = c.getDouble(1);
-                        if (!c.isNull(2)) firstDateIso = c.getString(2);
-                    }
+            try (Cursor c = allTime
+                    ? db.rawQuery(TCO_ODO_SQL, null)
+                    : db.rawQuery(TCO_ODO_PERIOD_SQL, tcoDayRange(bounds, nowMs, zone))) {
+                if (c.moveToFirst()) {
+                    if (!c.isNull(0)) firstOdo = c.getDouble(0);
+                    if (!c.isNull(1)) lastOdo = c.getDouble(1);
+                    if (!c.isNull(2)) firstDateIso = c.getString(2);
                 }
             }
 
             // Include live odometer if the window reaches today
             boolean includesNow = bounds[1] >= nowMs - 60_000L;
             Double liveOdo = includesNow ? latestOdometerKm(ctx) : null;
-            if (liveOdo != null && liveOdo > lastOdo) lastOdo = liveOdo;
-            if (firstOdo > 0 && lastOdo > firstOdo) {
-                trackedKm = lastOdo - firstOdo;
-            } else if (allTime && liveOdo != null && liveOdo > 0) {
-                trackedKm = liveOdo;
-            }
-
-            // For proration window start, anchor to the earliest tracked day when ALL-time
-            if (firstDateIso != null) {
-                try {
-                    long firstTrackedMs = java.time.LocalDate.parse(firstDateIso)
-                        .atStartOfDay(zone).toInstant().toEpochMilli();
-                    if (allTime || firstTrackedMs > winStartMs) {
-                        winStartMs = firstTrackedMs;
-                    }
-                } catch (Throwable ignored) {}
-            }
-            if (winStartMs <= 0) winStartMs = Math.max(0L, winEndMs - (long) (30 * MS_PER_DAY));
+            trackedKm = trackedKmFrom(firstOdo, lastOdo, liveOdo);
         } catch (Throwable t) {
             Log.w(CarAccess.TAG, "diary tco read failed: " + t);
         }
+        // The first tracked day moves only the proration window; one-off costs are
+        // tested against the real period bounds, the ones the charge costs use.
+        long prorateStartMs = prorationStartMs(bounds[0], winEndMs, firstDateIso, allTime, zone);
         List<Entry> list = entries != null ? entries : readEntries(ctx);
-        return computeTco(chargeCost, list, trackedKm, winStartMs, winEndMs, allTime);
+        return computeTco(chargeCost, list, trackedKm, bounds[0], periodEndIncl,
+            prorateStartMs, winEndMs, allTime);
     }
 
     /** Reads 60-day HV traction battery longevity summary off-thread. */
@@ -1330,8 +1570,11 @@ public final class CarDiary {
                 }
                 continue;
             }
-            Double kmSince = (currentOdoKm != null && last.odoKm != null && currentOdoKm >= last.odoKm)
-                ? (currentOdoKm - last.odoKm) : null;
+            // No odometer on the entry (or one above the current odometer): count from
+            // the odometer the car's history has for that date, so km-only items come due.
+            Double lastOdo = odoForReminder(last.odoKm, last.estOdoKm, currentOdoKm);
+            Double kmSince = (currentOdoKm != null && lastOdo != null)
+                ? (currentOdoKm - lastOdo) : null;
             Double kmRem = (kmLimit != null && kmSince != null)
                 ? (kmLimit - kmSince) : null;
 

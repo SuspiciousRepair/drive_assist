@@ -377,7 +377,9 @@ public class ComfortActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         diaryScroll.setVerticalScrollBarEnabled(false);
         diaryScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        carDiaryView = new CarDiaryView(this, this::refreshDiaryBadge);
+        // No badge callback: the badge follows CarDiary.EVENT_CHANGED itself
+        // (diaryBusListener), so the screen's own load need not trigger it.
+        carDiaryView = new CarDiaryView(this, null);
         diaryScroll.addView(carDiaryView);
         diaryContainer.addView(diaryScroll);
         diaryContainer.setVisibility(View.GONE);
@@ -802,7 +804,7 @@ public class ComfortActivity extends Activity {
             statsContainer.setVisibility(View.GONE);
             if (diaryContainer != null) diaryContainer.setVisibility(View.VISIBLE);
             if (konamiZone != null) konamiZone.setVisibility(View.GONE);
-            if (carDiaryView != null) carDiaryView.refresh();
+            // CarDiaryView reloads by itself when it becomes visible.
         } else {
             statsContainer.setVisibility(View.GONE);
             if (diaryContainer != null) diaryContainer.setVisibility(View.GONE);
@@ -810,7 +812,7 @@ public class ComfortActivity extends Activity {
             if (konamiZone != null) konamiZone.setVisibility(View.VISIBLE);
         }
         updateDockButtons();
-        refreshDiaryBadge();
+        recomputeDiaryBadge();
     }
 
     private void updateDockButtons() {
@@ -827,14 +829,43 @@ public class ComfortActivity extends Activity {
         }
     }
 
-    private void refreshDiaryBadge() {
+    // Diary dock badge. The answer is cached; it is worked out again only on
+    // resume, on a tab change and when the diary changes (diaryBusListener),
+    // never on the 10 s status poll, and always on the diary worker thread
+    // (CarDiary.runAsync), never on the hub thread: it reads the database.
+    private boolean diaryBadgeShown;
+    private boolean diaryBadgeBusy, diaryBadgeAgain;
+    private final EntityBus.Listener diaryBusListener = (key, reading) -> ui.post(this::recomputeDiaryBadge);
+
+    /** Shows the cached answer. Cheap; safe to call from any refresh. */
+    private void applyDiaryBadge() {
+        if (diaryBadgeDot != null) diaryBadgeDot.setVisibility(diaryBadgeShown ? View.VISIBLE : View.GONE);
+    }
+
+    /** Works the badge out again, off the hub and UI threads. Calls made while
+     * one is running are folded into a single run after it. UI thread only. */
+    private void recomputeDiaryBadge() {
+        applyDiaryBadge();
         if (diaryBadgeDot == null) return;
-        CarActor a = CarActor.get(this);
-        if (a == null) return;
-        a.runOnCarThread(() -> {
-            boolean show = com.geely.drivemem.state.CarDiary.hasAttentionDot(this);
+        if (diaryBadgeBusy) { diaryBadgeAgain = true; return; }
+        diaryBadgeBusy = true;
+        final Context app = getApplicationContext();
+        com.geely.drivemem.state.CarDiary.runAsync(() -> {
+            boolean show = diaryBadgeShown;
+            try {
+                show = com.geely.drivemem.state.CarDiary.hasAttentionDot(app);
+            } catch (Throwable ignored) {
+                // Keep the last answer.
+            }
+            final boolean result = show;
             ui.post(() -> {
-                if (diaryBadgeDot != null) diaryBadgeDot.setVisibility(show ? View.VISIBLE : View.GONE);
+                diaryBadgeBusy = false;
+                diaryBadgeShown = result;
+                applyDiaryBadge();
+                if (diaryBadgeAgain) {
+                    diaryBadgeAgain = false;
+                    recomputeDiaryBadge();
+                }
             });
         });
     }
@@ -884,7 +915,7 @@ public class ComfortActivity extends Activity {
         if (obd2On) obd2StatusIcon.setColorFilter(com.geely.drivemem.sensors.ObdHub.connected(CarActor.get(this)) ? Style.ACCENT : Style.TEXT_DIM);
 
         updateDockButtons();
-        refreshDiaryBadge();
+        applyDiaryBadge();
     }
 
     // Gate availability: available() (HA's zone call — "is the car home")
@@ -3259,6 +3290,8 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe("parking.changed", journeyBusListener);
         EntityBus.subscribe(ParkingState.TRAIL_KEY, journeyBusListener);
         EntityBus.subscribe(TripSession.LIVE_KEY, journeyBusListener);
+        EntityBus.subscribe(com.geely.drivemem.state.CarDiary.EVENT_CHANGED, diaryBusListener);
+        recomputeDiaryBadge();
         // Same "did it actually change while this screen was away" re-check
         // as the gate and music cards just above, and the same reason: a
         // park↔drive edge (and therefore Turbo's own visibility) can happen
@@ -3327,6 +3360,7 @@ public class ComfortActivity extends Activity {
         EntityBus.unsubscribe("parking.changed", journeyBusListener);
         EntityBus.unsubscribe(ParkingState.TRAIL_KEY, journeyBusListener);
         EntityBus.unsubscribe(TripSession.LIVE_KEY, journeyBusListener);
+        EntityBus.unsubscribe(com.geely.drivemem.state.CarDiary.EVENT_CHANGED, diaryBusListener);
         try { unregisterReceiver(updateReceiver); } catch (Throwable ignored) {}
         if (activeUpdateDialog != null && activeUpdateDialog.isShowing()) {
             try { activeUpdateDialog.dismiss(); } catch (Throwable ignored) {}

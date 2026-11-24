@@ -9,8 +9,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 /** Unit tests for Aux12vHub decoding and Aux12vMonitor debouncing, phase
  * classification, predictive health scoring, and baseline reset on 12V change. */
@@ -98,7 +100,10 @@ public class Aux12vMonitorTest {
 
         // Real DC-DC under-load collapse (<12.1 V while driving) -> FAULT
         samples.add(new Aux12vMonitor.Sample(t0 + 3000L, 11.8, Aux12vMonitor.PHASE_DCDC, 20.0, null));
-        Aux12vMonitor.Summary lowFault = Aux12vMonitor.evaluate(samples, null, t0 + 4000L, UTC);
+        // ... but only once it holds: one low poll while the converter ramps up is normal
+        Aux12vMonitor.Summary lowBrief = Aux12vMonitor.evaluate(samples, null, t0 + 4000L, UTC);
+        assertEquals(Aux12vMonitor.Health.GOOD, lowBrief.health);
+        Aux12vMonitor.Summary lowFault = Aux12vMonitor.evaluate(samples, null, t0 + 3000L + 61_000L, UTC);
         assertEquals(Aux12vMonitor.Health.FAULT, lowFault.health);
 
         // Recovery to normal 14.0 V clears transient DC-DC fault
@@ -108,7 +113,7 @@ public class Aux12vMonitorTest {
 
         // Overvoltage (>14.9 V) -> FAULT
         samples.add(new Aux12vMonitor.Sample(t0 + 7000L, 15.2, Aux12vMonitor.PHASE_DCDC, 20.0, null));
-        Aux12vMonitor.Summary fault = Aux12vMonitor.evaluate(samples, null, t0 + 8000L, UTC);
+        Aux12vMonitor.Summary fault = Aux12vMonitor.evaluate(samples, null, t0 + 7000L + 61_000L, UTC);
         assertEquals(Aux12vMonitor.Health.FAULT, fault.health);
         assertNotNull(fault.latestReadyV);
 
@@ -132,5 +137,39 @@ public class Aux12vMonitorTest {
         samples.add(new Aux12vMonitor.Sample(t0 + 240_000L, 11.7, Aux12vMonitor.PHASE_WARN, 25.0, null));
         Aux12vMonitor.Summary bad = Aux12vMonitor.evaluate(samples, null, t0 + 300_000L, UTC);
         assertEquals(Aux12vMonitor.Health.FAULT, bad.health);
+    }
+
+    @Test
+    public void fixedBaselineKeepsSlowAgeingVisible() {
+        long day = 86_400_000L;
+        long t0 = 1_800_000_000_000L;
+        // The first ten days at 12.8 V are the baseline.
+        List<Aux12vMonitor.Sample> first = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            first.add(new Aux12vMonitor.Sample(t0 + i * day, 12.8, Aux12vMonitor.PHASE_RESTING, 20.0, 10.0));
+        }
+        Double baseline = Aux12vMonitor.baselineOf(first, UTC);
+        assertEquals(12.8, baseline, 1e-9);
+
+        // Months later the window holds only aged readings at 12.5 V (still above the 12.25 V limit).
+        List<Aux12vMonitor.Sample> late = new ArrayList<>();
+        for (int i = 0; i < 12; i++) {
+            late.add(new Aux12vMonitor.Sample(t0 + (200 + i) * day, 12.5, Aux12vMonitor.PHASE_RESTING, 20.0, 10.0));
+        }
+        long now = t0 + 212 * day;
+        // A baseline taken from the window itself has moved down with the battery: nothing is seen.
+        assertEquals(Aux12vMonitor.Health.GOOD, Aux12vMonitor.evaluate(late, null, now, UTC).health);
+        // The fixed baseline shows the 0.3 V drop.
+        assertEquals(Aux12vMonitor.Health.WATCH, Aux12vMonitor.evaluate(late, null, now, UTC, baseline).health);
+    }
+
+    @Test
+    public void existingAlertCoversSameOrMilderHealthOnly() {
+        assertTrue(Aux12vMonitor.noteCovers("WATCH · 12.1 V", Aux12vMonitor.Health.WATCH));
+        assertTrue(Aux12vMonitor.noteCovers("FAULT", Aux12vMonitor.Health.WEAK));
+        // A worse state after a milder alert must get its own entry.
+        assertFalse(Aux12vMonitor.noteCovers("WATCH · 12.1 V", Aux12vMonitor.Health.FAULT));
+        assertFalse(Aux12vMonitor.noteCovers("free text", Aux12vMonitor.Health.WATCH));
+        assertFalse(Aux12vMonitor.noteCovers(null, Aux12vMonitor.Health.WATCH));
     }
 }

@@ -30,10 +30,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.geely.drivemem.R;
-import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.controls.GeelySwitch;
 import com.geely.drivemem.state.CarDiary;
-import com.geely.drivemem.state.CarState;
 import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.Style;
 
@@ -71,7 +69,7 @@ import java.util.Set;
  *    + compact `Cost` & `Note` pair
  *  - Pinned footer: full-width primary `Save` pill.
  *
- * Park-gated for keyboard safety. */
+ * The dialog opens in any gear; it has no Park gate. */
 public final class DiaryEntryDialog {
     private DiaryEntryDialog() {}
 
@@ -86,6 +84,59 @@ public final class DiaryEntryDialog {
     private static final int[] NOISE_WHEN_RES = {
         R.string.diary_tag_bumps, R.string.diary_tag_braking, R.string.diary_tag_highway
     };
+
+    // Noise tags are saved in diary_event.tags as these keys, not as the label
+    // on the pill, so a saved tag still matches its pill after a language
+    // change. Same order as the *_RES arrays above. Never rename a key.
+    private static final String[] NOISE_WHERE_KEYS = {"FRONT_LEFT", "FRONT_RIGHT", "REAR", "CABIN"};
+    private static final String[] NOISE_WHEN_KEYS = {"BUMPS", "BRAKING", "HIGHWAY"};
+
+    private static final int[] WHEEL_LABEL_RES = {
+        R.string.diary_wheel_fl, R.string.diary_wheel_fr,
+        R.string.diary_wheel_rl, R.string.diary_wheel_rr
+    };
+
+    /** Smallest touch target in this dialog, in px (1 dp = 1 px on the panel). */
+    private static final int TOUCH_DP = 60;
+
+    /** The key for one saved tag. Rows written before the keys existed hold the
+     * label text instead: those are matched against the labels of the current
+     * language. A tag that matches nothing is kept as it is. */
+    private static String noiseKeyOf(Context c, String token) {
+        String t = token.trim();
+        for (String k : NOISE_WHERE_KEYS) if (k.equalsIgnoreCase(t)) return k;
+        for (String k : NOISE_WHEN_KEYS) if (k.equalsIgnoreCase(t)) return k;
+        for (int i = 0; i < NOISE_WHERE_RES.length; i++) {
+            if (c.getString(NOISE_WHERE_RES[i]).equalsIgnoreCase(t)) return NOISE_WHERE_KEYS[i];
+        }
+        for (int i = 0; i < NOISE_WHEN_RES.length; i++) {
+            if (c.getString(NOISE_WHEN_RES[i]).equalsIgnoreCase(t)) return NOISE_WHEN_KEYS[i];
+        }
+        return t;
+    }
+
+    private static String noiseLabelOf(Context c, String key) {
+        for (int i = 0; i < NOISE_WHERE_KEYS.length; i++) {
+            if (NOISE_WHERE_KEYS[i].equals(key)) return c.getString(NOISE_WHERE_RES[i]);
+        }
+        for (int i = 0; i < NOISE_WHEN_KEYS.length; i++) {
+            if (NOISE_WHEN_KEYS[i].equals(key)) return c.getString(NOISE_WHEN_RES[i]);
+        }
+        return key;
+    }
+
+    /** Saved noise tags ("FRONT_LEFT, BUMPS") as text in the current language. */
+    static String noiseTagsLabel(Context c, String tags) {
+        if (tags == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (String tok : tags.split(",")) {
+            String t = tok.trim();
+            if (t.isEmpty()) continue;
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(noiseLabelOf(c, noiseKeyOf(c, t)));
+        }
+        return sb.toString();
+    }
 
     public static AlertDialog show(Context c, CarDiary.Category initialCat,
                                    CarDiary.PendingJolt jolt, Runnable onSaved) {
@@ -125,16 +176,20 @@ public final class DiaryEntryDialog {
         private LocalDate originalDate;
         private Boolean originalCold = null;
 
-        // Auto-attached car odometer for selectedDate (never manually edited)
+        // Auto-attached car odometer for selectedDate (never manually edited).
+        // odoPending: the lookup for selectedDate has not come back yet; Save
+        // waits for it, so an entry never gets the odometer of another date.
         private Double resolvedOdoKm = null;
         private boolean resolvedOdoExact = true;
         private int odoLookupGen = 0;
+        private boolean odoPending = false;
+        private final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
 
         // Tire pressure state (cold/warm inferred from CarDb on save when logging today)
         private final int[] psi = {DEFAULT_PSI, DEFAULT_PSI, DEFAULT_PSI, DEFAULT_PSI};
         private boolean perWheel = false;
 
-        // Noise tag state
+        // Noise tag state (stable keys, see NOISE_WHERE_KEYS)
         private final Set<String> selectedTags = new LinkedHashSet<>();
 
         // Incident state
@@ -156,7 +211,9 @@ public final class DiaryEntryDialog {
         private LinearLayout adaptiveBox;
         private EditText costInput;
         private EditText noteInput;
+        private TextView saveBtn;
         private AlertDialog dialog;
+        private AlertDialog calDialog;
 
         Builder(Context c, CarDiary.Entry editing, CarDiary.Category initialCat,
                 CarDiary.PendingJolt jolt, List<CarDiary.DueStatus> dueList, Runnable onSaved) {
@@ -199,7 +256,7 @@ public final class DiaryEntryDialog {
                 if (editing.tags != null && !editing.tags.trim().isEmpty()) {
                     for (String tok : editing.tags.split(",")) {
                         String t = tok.trim();
-                        if (!t.isEmpty()) selectedTags.add(t);
+                        if (!t.isEmpty()) selectedTags.add(noiseKeyOf(c, t));
                     }
                 }
             } else if (jolt != null) {
@@ -282,7 +339,7 @@ public final class DiaryEntryDialog {
 
             paneCtx = new TextView(c);
             paneCtx.setTextColor(Style.TEXT_DIM);
-            paneCtx.setTextSize(17.5f);
+            paneCtx.setTextSize(18f);
             paneCtx.setSingleLine(true);
             paneCtx.setPadding(Style.dp(c, 16), 0, 0, 0);
             pHead.addView(paneCtx);
@@ -326,18 +383,18 @@ public final class DiaryEntryDialog {
             costWell.setGravity(Gravity.CENTER_VERTICAL);
             costWell.setBackground(roundedRect(wellFill(), borderColor(), 1, 18));
             costWell.setPadding(Style.dp(c, 16), Style.dp(c, 8), Style.dp(c, 14), Style.dp(c, 8));
-            costWell.setMinimumHeight(Style.dp(c, 58));
+            costWell.setMinimumHeight(Style.dp(c, TOUCH_DP));
 
             TextView cur = new TextView(c);
             cur.setText(Prefs.getCurrency(c));
             cur.setTextColor(Style.TEXT_DIM);
-            cur.setTextSize(15f);
+            cur.setTextSize(18f);
             cur.setTypeface(null, Typeface.BOLD);
             cur.setPadding(0, 0, Style.dp(c, 8), 0);
             costWell.addView(cur);
 
             costInput = bareInput(InputType.TYPE_CLASS_NUMBER,
-                c.getString(R.string.diary_hint_cost_short), 19f, true);
+                c.getString(R.string.diary_hint_cost_short), 22f, true);
             installCentsFormatter(costInput);
             if (editing != null && editing.cost != null && editing.cost > 0) {
                 long cents = Math.round(editing.cost * 100.0);
@@ -356,7 +413,7 @@ public final class DiaryEntryDialog {
             noteWell.setGravity(Gravity.CENTER_VERTICAL);
             noteWell.setBackground(roundedRect(wellFill(), borderColor(), 1, 18));
             noteWell.setPadding(Style.dp(c, 18), Style.dp(c, 8), Style.dp(c, 18), Style.dp(c, 8));
-            noteWell.setMinimumHeight(Style.dp(c, 58));
+            noteWell.setMinimumHeight(Style.dp(c, TOUCH_DP));
 
             noteInput = bareInput(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES,
                 c.getString(R.string.diary_hint_note_short), 18f, false);
@@ -380,7 +437,7 @@ public final class DiaryEntryDialog {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
             // Pinned full-width primary Save pill
-            TextView saveBtn = new TextView(c);
+            saveBtn = new TextView(c);
             saveBtn.setText(c.getString(R.string.diary_btn_save));
             saveBtn.setTextColor(Style.onFill(Style.ACCENT));
             saveBtn.setTextSize(20f);
@@ -389,7 +446,7 @@ public final class DiaryEntryDialog {
             saveBtn.setBackground(roundedRect(Style.ACCENT, 0, 0, 99));
             saveBtn.setOnClickListener(v -> save());
             LinearLayout.LayoutParams saveLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 58));
+                ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, TOUCH_DP));
             saveLp.topMargin = Style.dp(c, 10);
             pane.addView(saveBtn, saveLp);
 
@@ -400,10 +457,18 @@ public final class DiaryEntryDialog {
             rebuildPaneHeader();
             rebuildDateSeg();
             rebuildAdaptive();
-            refreshOdometerForSelectedDate(true);
+            refreshOdometerForSelectedDate();
 
             dialog = new AlertDialog.Builder(c).create();
             dialog.setView(sheet, 0, 0, 0, 0);
+            // The calendar is a second dialog on top: it goes when this one goes.
+            dialog.setOnDismissListener(d -> {
+                odoLookupGen++;
+                if (calDialog != null) {
+                    try { calDialog.dismiss(); } catch (Throwable ignored) {}
+                    calDialog = null;
+                }
+            });
             Window win = dialog.getWindow();
             if (win != null) {
                 win.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
@@ -413,7 +478,7 @@ public final class DiaryEntryDialog {
             if (win != null) {
                 DisplayMetrics dm = c.getResources().getDisplayMetrics();
                 int w = Math.min(Style.dp(c, 1380), (int) (dm.widthPixels * 0.88f));
-                int h = Math.min(Style.dp(c, 680), (int) (dm.heightPixels * 0.78f));
+                int h = Math.min(Style.dp(c, 760), (int) (dm.heightPixels * 0.80f));
                 win.setLayout(w, h);
             }
             return dialog;
@@ -437,7 +502,7 @@ public final class DiaryEntryDialog {
             head.setOrientation(LinearLayout.HORIZONTAL);
             head.setGravity(Gravity.CENTER_VERTICAL);
             head.setPadding(Style.dp(c, 4), Style.dp(c, 4), Style.dp(c, 8), Style.dp(c, 4));
-            head.setMinimumHeight(Style.dp(c, 52));
+            head.setMinimumHeight(Style.dp(c, TOUCH_DP + 8));
             head.setOnClickListener(v -> {
                 showingClasses = true;
                 rebuildLeft();
@@ -476,7 +541,7 @@ public final class DiaryEntryDialog {
                 row.setOrientation(LinearLayout.HORIZONTAL);
                 row.setGravity(Gravity.CENTER_VERTICAL);
                 row.setPadding(Style.dp(c, 18), Style.dp(c, 12), Style.dp(c, 18), Style.dp(c, 12));
-                row.setMinimumHeight(Style.dp(c, 56));
+                row.setMinimumHeight(Style.dp(c, TOUCH_DP));
                 if (active) {
                     row.setBackground(roundedRect(Style.CARD_HI, Style.ACCENT, 2, 18));
                 }
@@ -494,7 +559,7 @@ public final class DiaryEntryDialog {
                     TextView due = new TextView(c);
                     due.setText(c.getString(R.string.diary_due_badge));
                     due.setTextColor(Style.WARN);
-                    due.setTextSize(15f);
+                    due.setTextSize(18f);
                     due.setTypeface(null, Typeface.BOLD);
                     due.setPadding(Style.dp(c, 10), 0, 0, 0);
                     row.addView(due);
@@ -523,7 +588,7 @@ public final class DiaryEntryDialog {
             head.setOrientation(LinearLayout.HORIZONTAL);
             head.setGravity(Gravity.CENTER_VERTICAL);
             head.setPadding(Style.dp(c, 4), Style.dp(c, 4), Style.dp(c, 8), Style.dp(c, 4));
-            head.setMinimumHeight(Style.dp(c, 52));
+            head.setMinimumHeight(Style.dp(c, TOUCH_DP + 8));
             head.setOnClickListener(v -> { if (dialog != null) dialog.dismiss(); });
 
             head.addView(circleIconButton(R.drawable.ic_close));
@@ -551,7 +616,7 @@ public final class DiaryEntryDialog {
                 row.setOrientation(LinearLayout.HORIZONTAL);
                 row.setGravity(Gravity.CENTER_VERTICAL);
                 row.setPadding(Style.dp(c, 18), Style.dp(c, 12), Style.dp(c, 16), Style.dp(c, 12));
-                row.setMinimumHeight(Style.dp(c, 58));
+                row.setMinimumHeight(Style.dp(c, TOUCH_DP));
                 if (active) {
                     row.setBackground(roundedRect(Style.ACCENT, 0, 0, 99));
                 }
@@ -575,7 +640,7 @@ public final class DiaryEntryDialog {
                     TextView due = new TextView(c);
                     due.setText(c.getString(R.string.diary_due_badge));
                     due.setTextColor(active ? fg : Style.WARN);
-                    due.setTextSize(14.5f);
+                    due.setTextSize(18f);
                     due.setTypeface(null, Typeface.BOLD);
                     due.setPadding(Style.dp(c, 8), 0, Style.dp(c, 6), 0);
                     row.addView(due);
@@ -613,9 +678,9 @@ public final class DiaryEntryDialog {
             LinearLayout box = new LinearLayout(c);
             box.setGravity(Gravity.CENTER);
             box.setBackground(roundedRect(Color.TRANSPARENT, strongBorderColor(), 1, 99));
-            int sz = Style.dp(c, 42);
+            int sz = Style.dp(c, TOUCH_DP);
             box.setLayoutParams(new LinearLayout.LayoutParams(sz, sz));
-            box.addView(iconView(drawableRes, 18, Style.TEXT));
+            box.addView(iconView(drawableRes, 24, Style.TEXT));
             return box;
         }
 
@@ -687,18 +752,31 @@ public final class DiaryEntryDialog {
         private void applyDate(LocalDate d) {
             selectedDate = d;
             rebuildDateSeg();
-            rebuildPaneHeader();
-            refreshOdometerForSelectedDate(false);
+            // Drops the odometer of the old date and looks up the new one.
+            refreshOdometerForSelectedDate();
+        }
+
+        private LocalDate joltDate() {
+            return Instant.ofEpochMilli(jolt.tsMs).atZone(ZoneId.systemDefault()).toLocalDate();
+        }
+
+        /** Save is off while the odometer for the picked date is still being read. */
+        private void setOdoPending(boolean pending) {
+            odoPending = pending;
+            if (saveBtn != null) {
+                saveBtn.setEnabled(!pending);
+                saveBtn.setAlpha(pending ? 0.4f : 1f);
+            }
         }
 
         private TextView segBtn(String label, boolean active, Runnable onTap) {
             TextView tv = new TextView(c);
             tv.setText(label);
-            tv.setTextSize(17f);
+            tv.setTextSize(18f);
             tv.setTypeface(null, active ? Typeface.BOLD : Typeface.NORMAL);
             tv.setTextColor(active ? Style.TEXT : Style.TEXT_DIM);
             tv.setGravity(Gravity.CENTER);
-            tv.setMinimumHeight(Style.dp(c, 48));
+            tv.setMinimumHeight(Style.dp(c, 56));
             tv.setSingleLine(true);
             if (active) {
                 tv.setBackground(roundedRect(Style.CARD_HI, strongBorderColor(), 1, 99));
@@ -757,7 +835,7 @@ public final class DiaryEntryDialog {
                 TextView w = new TextView(c);
                 w.setText(dow.getDisplayName(TextStyle.SHORT, loc));
                 w.setTextColor(Style.TEXT_DIM);
-                w.setTextSize(14f);
+                w.setTextSize(18f);
                 w.setTypeface(null, Typeface.BOLD);
                 w.setGravity(Gravity.CENTER);
                 wdRow.addView(w, new LinearLayout.LayoutParams(
@@ -779,8 +857,13 @@ public final class DiaryEntryDialog {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             flp.topMargin = Style.dp(c, 14);
 
+            if (calDialog != null) {
+                try { calDialog.dismiss(); } catch (Throwable ignored) {}
+            }
             AlertDialog calDlg = new AlertDialog.Builder(c).create();
             calDlg.setView(card, 0, 0, 0, 0);
+            calDialog = calDlg;
+            calDlg.setOnDismissListener(d -> { if (calDialog == calDlg) calDialog = null; });
 
             TextView todayBtn = Style.cardButton(c, c.getString(R.string.diary_date_today), false, () -> {
                 applyDate(today);
@@ -818,7 +901,7 @@ public final class DiaryEntryDialog {
                         cell.setGravity(Gravity.CENTER);
                         cell.setTextSize(18f);
                         LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(
-                            0, Style.dp(c, 54), 1f);
+                            0, Style.dp(c, 58), 1f);
                         clp.setMargins(Style.dp(c, 3), Style.dp(c, 3), Style.dp(c, 3), Style.dp(c, 3));
 
                         if (dayNum < 1 || dayNum > daysInMonth) {
@@ -874,7 +957,7 @@ public final class DiaryEntryDialog {
             }
             calDlg.show();
             if (win != null) {
-                win.setLayout(Style.dp(c, 540), ViewGroup.LayoutParams.WRAP_CONTENT);
+                win.setLayout(Style.dp(c, 560), ViewGroup.LayoutParams.WRAP_CONTENT);
             }
         }
 
@@ -885,52 +968,73 @@ public final class DiaryEntryDialog {
             b.setTextSize(26f);
             b.setGravity(Gravity.CENTER);
             b.setBackground(roundedRect(Style.CARD_HI, strongBorderColor(), 1, 99));
-            int sz = Style.dp(c, 48);
+            int sz = Style.dp(c, TOUCH_DP);
             b.setLayoutParams(new LinearLayout.LayoutParams(sz, sz));
             return b;
         }
 
-        private void refreshOdometerForSelectedDate(boolean initial) {
-            if (initial && editing != null && editing.odoKm != null && editing.odoKm > 0) {
+        /** Sets the odometer for selectedDate. The value of the old date is
+         * dropped at once; while the new one is being read (diary worker
+         * thread, never the hub thread) Save stays off. */
+        private void refreshOdometerForSelectedDate() {
+            final int gen = ++odoLookupGen;
+            if (editing != null && editing.odoKm != null && editing.odoKm > 0
+                    && selectedDate.equals(originalDate)) {
                 resolvedOdoKm = editing.odoKm;
                 resolvedOdoExact = true;
+                setOdoPending(false);
                 rebuildPaneHeader();
                 return;
             }
-            if (initial && jolt != null && jolt.odoKm != null && jolt.odoKm > 0) {
+            if (jolt != null && jolt.odoKm != null && jolt.odoKm > 0
+                    && selectedDate.equals(joltDate())) {
                 resolvedOdoKm = jolt.odoKm;
                 resolvedOdoExact = true;
+                setOdoPending(false);
                 rebuildPaneHeader();
                 return;
             }
+            resolvedOdoKm = null;
+            resolvedOdoExact = true;
+            setOdoPending(true);
+            rebuildPaneHeader();
+
             final LocalDate target = selectedDate;
-            final int gen = ++odoLookupGen;
             final Context app = c.getApplicationContext();
-            Runnable lookup = () -> {
-                CarDiary.OdoLookup res;
-                if (target.equals(LocalDate.now())) {
-                    Double live = CarDiary.latestOdometerKm(app);
-                    res = (live != null && live > 0)
-                        ? new CarDiary.OdoLookup(live, true)
-                        : CarDiary.odometerForDate(app, target);
-                } else {
-                    res = CarDiary.odometerForDate(app, target);
+            CarDiary.runAsync(() -> {
+                CarDiary.OdoLookup found = null;
+                try {
+                    if (target.equals(LocalDate.now())) {
+                        Double live = CarDiary.latestOdometerKm(app);
+                        found = (live != null && live > 0)
+                            ? new CarDiary.OdoLookup(live, true)
+                            : CarDiary.odometerForDate(app, target);
+                    } else {
+                        found = CarDiary.odometerForDate(app, target);
+                    }
+                } catch (Throwable ignored) {
+                    // No odometer for this date: the entry is saved without one.
                 }
-                paneCtx.post(() -> {
+                final CarDiary.OdoLookup res = found;
+                main.post(() -> {
                     if (gen != odoLookupGen) return;
-                    resolvedOdoKm = (res.odoKm != null && res.odoKm > 0) ? res.odoKm : null;
-                    resolvedOdoExact = res.exact;
+                    resolvedOdoKm = (res != null && res.odoKm != null && res.odoKm > 0) ? res.odoKm : null;
+                    resolvedOdoExact = res == null || res.exact;
+                    setOdoPending(false);
                     rebuildPaneHeader();
                 });
-            };
-            CarActor actor = CarActor.get(app);
-            if (actor != null) actor.runOnCarThread(lookup);
-            else new Thread(lookup, "diary-odo").start();
+            });
         }
 
         // ---- Adaptive Controls (only shown for categories that need them) ----
 
         private void rebuildAdaptive() {
+            // A jolt has its own time: the entry and its clip use it, so there
+            // is no date to pick while the category is Incident.
+            boolean joltIncident = jolt != null && selectedCat == CarDiary.Category.INCIDENT;
+            if (dateSeg != null) dateSeg.setVisibility(joltIncident ? View.GONE : View.VISIBLE);
+            if (joltIncident && !selectedDate.equals(joltDate())) applyDate(joltDate());
+
             adaptiveBox.removeAllViews();
             if (selectedCat == CarDiary.Category.TIRE_PRESSURE) {
                 adaptiveBox.setVisibility(View.VISIBLE);
@@ -947,14 +1051,6 @@ public final class DiaryEntryDialog {
             } else if (selectedCat == CarDiary.Category.COOLANT) {
                 adaptiveBox.setVisibility(View.VISIBLE);
                 buildCoolantControls();
-            } else if (selectedCat != null && selectedCat.coverageDays > 0) {
-                adaptiveBox.setVisibility(View.VISIBLE);
-                TextView note = new TextView(c);
-                note.setText(c.getString(selectedCat.coverageDays >= 300
-                    ? R.string.diary_prorate_annual : R.string.diary_prorate_monthly));
-                note.setTextColor(Style.TEXT_DIM);
-                note.setTextSize(15f);
-                adaptiveBox.addView(note);
             } else {
                 adaptiveBox.setVisibility(View.GONE);
             }
@@ -994,9 +1090,10 @@ public final class DiaryEntryDialog {
                 lp.topMargin = Style.dp(c, 12);
                 adaptiveBox.addView(stepper, lp);
             } else {
-                String[] wheelLabels = {"FL", "FR", "RL", "RR"};
                 List<View> steppers = new ArrayList<>();
-                for (int i = 0; i < 4; i++) steppers.add(buildPsiStepper(wheelLabels[i], i, false));
+                for (int i = 0; i < 4; i++) {
+                    steppers.add(buildPsiStepper(c.getString(WHEEL_LABEL_RES[i]), i, false));
+                }
                 LinearLayout wrap = new LinearLayout(c);
                 wrap.setOrientation(LinearLayout.VERTICAL);
                 addNColumnGrid(wrap, steppers, 2, 12);
@@ -1012,7 +1109,7 @@ public final class DiaryEntryDialog {
             box.setOrientation(LinearLayout.HORIZONTAL);
             box.setGravity(Gravity.CENTER);
             box.setBackground(roundedRect(wellFill(), borderColor(), 1, 18));
-            box.setMinimumHeight(Style.dp(c, allFour ? 84 : 64));
+            box.setMinimumHeight(Style.dp(c, allFour ? 84 : 76));
             int px = Style.dp(c, allFour ? 20 : 14);
             int py = Style.dp(c, allFour ? 12 : 8);
             box.setPadding(px, py, px, py);
@@ -1021,11 +1118,12 @@ public final class DiaryEntryDialog {
                 TextView wl = new TextView(c);
                 wl.setText(wheelLabel);
                 wl.setTextColor(Style.TEXT_DIM);
-                wl.setTextSize(15f);
+                wl.setTextSize(18f);
                 wl.setTypeface(null, Typeface.BOLD);
-                wl.setMinWidth(Style.dp(c, 32));
-                box.addView(wl);
-                box.addView(new View(c), new LinearLayout.LayoutParams(0, 1, 1f));
+                wl.setSingleLine(true);
+                wl.setEllipsize(TextUtils.TruncateAt.END);
+                // The label takes the room left by the two buttons and the value.
+                box.addView(wl, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             }
 
             TextView val = new TextView(c);
@@ -1037,7 +1135,7 @@ public final class DiaryEntryDialog {
             val.setText(Style.valueWithUnit(String.valueOf(psi[idx]), Style.TEXT, "PSI",
                 allFour ? Style.UNIT_SCALE_HERO : Style.UNIT_SCALE_ROW));
 
-            int btnSz = allFour ? 52 : 44;
+            int btnSz = TOUCH_DP;
             TextView minus = roundStepButton("−", btnSz, () -> {
                 int next = Math.max(MIN_PSI, psi[idx] - 1);
                 if (allFour) { for (int i = 0; i < 4; i++) psi[i] = next; }
@@ -1067,7 +1165,7 @@ public final class DiaryEntryDialog {
             TextView b = new TextView(c);
             b.setText(glyph);
             b.setTextColor(Style.TEXT);
-            b.setTextSize(sizeDp >= 48 ? 24f : 20f);
+            b.setTextSize(24f);
             b.setTypeface(null, Typeface.BOLD);
             b.setGravity(Gravity.CENTER);
             b.setBackground(roundedRect(Style.CARD_HI, strongBorderColor(), 1, 99));
@@ -1080,9 +1178,9 @@ public final class DiaryEntryDialog {
         private void buildNoiseTags() {
             adaptiveBox.addView(subtleLabel(c.getString(R.string.diary_noise_where)));
             List<View> where = new ArrayList<>();
-            for (int res : NOISE_WHERE_RES) {
-                String tag = c.getString(res);
-                where.add(tagPill(tag, selectedTags.contains(tag), () -> {
+            for (int i = 0; i < NOISE_WHERE_RES.length; i++) {
+                final String tag = NOISE_WHERE_KEYS[i];
+                where.add(tagPill(c.getString(NOISE_WHERE_RES[i]), selectedTags.contains(tag), () -> {
                     if (!selectedTags.remove(tag)) selectedTags.add(tag);
                     rebuildAdaptive();
                 }));
@@ -1103,9 +1201,9 @@ public final class DiaryEntryDialog {
             adaptiveBox.addView(l2, l2p);
 
             List<View> when = new ArrayList<>();
-            for (int res : NOISE_WHEN_RES) {
-                String tag = c.getString(res);
-                when.add(tagPill(tag, selectedTags.contains(tag), () -> {
+            for (int i = 0; i < NOISE_WHEN_RES.length; i++) {
+                final String tag = NOISE_WHEN_KEYS[i];
+                when.add(tagPill(c.getString(NOISE_WHEN_RES[i]), selectedTags.contains(tag), () -> {
                     if (!selectedTags.remove(tag)) selectedTags.add(tag);
                     rebuildAdaptive();
                 }));
@@ -1123,10 +1221,10 @@ public final class DiaryEntryDialog {
             TextView tv = new TextView(c);
             tv.setText(label);
             tv.setTextColor(Style.TEXT);
-            tv.setTextSize(17f);
+            tv.setTextSize(18f);
             tv.setTypeface(null, active ? Typeface.BOLD : Typeface.NORMAL);
             tv.setGravity(Gravity.CENTER);
-            tv.setMinimumHeight(Style.dp(c, 50));
+            tv.setMinimumHeight(Style.dp(c, TOUCH_DP));
             tv.setSingleLine(true);
             tv.setEllipsize(TextUtils.TruncateAt.END);
             tv.setPadding(Style.dp(c, 14), Style.dp(c, 10), Style.dp(c, 14), Style.dp(c, 10));
@@ -1161,7 +1259,7 @@ public final class DiaryEntryDialog {
                 TextView jb = new TextView(c);
                 jb.setText(sb);
                 jb.setTextColor(Style.TEXT_DIM);
-                jb.setTextSize(17f);
+                jb.setTextSize(18f);
                 jRow.addView(jb);
                 adaptiveBox.addView(jRow);
             }
@@ -1172,12 +1270,12 @@ public final class DiaryEntryDialog {
             clipWell.setGravity(Gravity.CENTER_VERTICAL);
             clipWell.setBackground(roundedRect(wellFill(), borderColor(), 1, 18));
             clipWell.setPadding(Style.dp(c, 18), Style.dp(c, 10), Style.dp(c, 14), Style.dp(c, 10));
-            clipWell.setMinimumHeight(Style.dp(c, 58));
+            clipWell.setMinimumHeight(Style.dp(c, TOUCH_DP));
 
             TextView lbl = new TextView(c);
             lbl.setText(c.getString(R.string.diary_incident_keep_clip));
             lbl.setTextColor(Style.TEXT);
-            lbl.setTextSize(17.5f);
+            lbl.setTextSize(18f);
             clipWell.addView(lbl, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
             GeelySwitch sw = new GeelySwitch(c);
@@ -1230,7 +1328,7 @@ public final class DiaryEntryDialog {
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
             row.setPadding(Style.dp(c, 16), Style.dp(c, 10), Style.dp(c, 14), Style.dp(c, 10));
-            row.setMinimumHeight(Style.dp(c, 54));
+            row.setMinimumHeight(Style.dp(c, TOUCH_DP));
             row.setBackground(checked
                 ? roundedRect(accentTint(), Style.ACCENT, 2, 16)
                 : roundedRect(wellFill(), borderColor(), 1, 16));
@@ -1238,13 +1336,13 @@ public final class DiaryEntryDialog {
             TextView box = new TextView(c);
             box.setText(checked ? "✓" : "");
             box.setTextColor(Style.onFill(Style.ACCENT));
-            box.setTextSize(13f);
+            box.setTextSize(18f);
             box.setTypeface(null, Typeface.BOLD);
             box.setGravity(Gravity.CENTER);
             box.setBackground(checked
                 ? roundedRect(Style.ACCENT, Style.ACCENT, 1, 6)
                 : roundedRect(Color.TRANSPARENT, withAlpha(Style.TEXT_DIM, 0.7f), 2, 6));
-            int bsz = Style.dp(c, 22);
+            int bsz = Style.dp(c, 28);
             LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(bsz, bsz);
             blp.rightMargin = Style.dp(c, 12);
             row.addView(box, blp);
@@ -1252,7 +1350,7 @@ public final class DiaryEntryDialog {
             TextView tv = new TextView(c);
             tv.setText(label);
             tv.setTextColor(Style.TEXT);
-            tv.setTextSize(17f);
+            tv.setTextSize(18f);
             tv.setTypeface(null, checked ? Typeface.BOLD : Typeface.NORMAL);
             tv.setSingleLine(true);
             tv.setEllipsize(TextUtils.TruncateAt.END);
@@ -1265,6 +1363,9 @@ public final class DiaryEntryDialog {
         // ---- Save ----
 
         private void save() {
+            // The odometer for the picked date is still being read: Save is
+            // greyed out until it lands (see setOdoPending).
+            if (odoPending) return;
             final Double odo = resolvedOdoKm;
             long cents = ChargeCostDialog.centsFromText(costInput.getText().toString());
             final Double cost = cents > 0 ? (cents / 100.0) : null;
@@ -1275,9 +1376,9 @@ public final class DiaryEntryDialog {
             final long tsMs;
             if (editing != null && selectedDate.equals(originalDate)) {
                 tsMs = editing.tsMs;
-            } else if (jolt != null && selectedCat == CarDiary.Category.INCIDENT
-                    && selectedDate.equals(Instant.ofEpochMilli(jolt.tsMs)
-                        .atZone(ZoneId.systemDefault()).toLocalDate())) {
+            } else if (jolt != null && selectedCat == CarDiary.Category.INCIDENT) {
+                // An incident logged from a jolt is the jolt: same time, and the
+                // clip is cut around that time (never around noon of a picked day).
                 tsMs = jolt.tsMs;
             } else if (isToday) {
                 tsMs = System.currentTimeMillis();
@@ -1291,6 +1392,14 @@ public final class DiaryEntryDialog {
             final String tags = (cat == CarDiary.Category.NOISE && !selectedTags.isEmpty())
                 ? String.join(", ", selectedTags) : null;
             final Context app = c.getApplicationContext();
+
+            // The jolt that opened this dialog is used up by any save, also when
+            // the driver changed the category. The Incident branch below hands
+            // it to insertIncidentWithOptionalClip, which removes it itself.
+            if (jolt != null && cat != CarDiary.Category.INCIDENT) {
+                com.geely.drivemem.sensors.JoltFeedback.record(app, jolt, true);
+                CarDiary.dismissPendingJolt(jolt.id);
+            }
 
             if (editing != null) {
                 String status = editing.status;
@@ -1319,9 +1428,8 @@ public final class DiaryEntryDialog {
                     CarDiary.insert(app, cat, CarDiary.STATUS_DONE, tsMs, odo, outC, cost,
                         null, note, null, null, null, meta, onSaved);
                 };
-                CarActor actor = CarActor.get(app);
-                if (actor != null) actor.runOnCarThread(commit);
-                else new Thread(commit, "diary-psi-save").start();
+                // inferColdTires reads the database: diary worker thread, not the hub thread.
+                CarDiary.runAsync(commit);
             } else if (cat == CarDiary.Category.INCIDENT) {
                 Double lat = jolt != null ? jolt.lat : null;
                 Double lon = jolt != null ? jolt.lon : null;
@@ -1385,7 +1493,7 @@ public final class DiaryEntryDialog {
             TextView tv = new TextView(c);
             tv.setText(text);
             tv.setTextColor(Style.TEXT_DIM);
-            tv.setTextSize(15.5f);
+            tv.setTextSize(18f);
             tv.setTypeface(null, Typeface.BOLD);
             return tv;
         }
@@ -1415,27 +1523,23 @@ public final class DiaryEntryDialog {
             return g;
         }
 
+        // All three come from the active theme (themes are dynamic), no fixed colours.
+
+        /** A recessed field: the card colour pulled toward the screen background. */
         private int wellFill() {
-            return Style.LIGHT ? 0xFFF2F5F9 : darken(Style.CARD, 0.78f);
+            return Style.blend(Style.cardFillColor(), Style.BG_BOTTOM, 0.35f);
         }
 
         private int borderColor() {
-            return Style.LIGHT ? 0x16000000 : 0x14FFFFFF;
+            return Style.tileStrokeColor();
         }
 
         private int strongBorderColor() {
-            return Style.LIGHT ? 0x26000000 : 0x29FFFFFF;
+            return withAlpha(Style.TEXT, 0.16f);
         }
 
         private int accentTint() {
             return withAlpha(Style.ACCENT, Style.LIGHT ? 0.14f : 0.22f);
-        }
-
-        private static int darken(int color, float factor) {
-            int r = Math.max(0, Math.round(Color.red(color) * factor));
-            int g = Math.max(0, Math.round(Color.green(color) * factor));
-            int b = Math.max(0, Math.round(Color.blue(color) * factor));
-            return Color.argb(Color.alpha(color), r, g, b);
         }
 
         private static int withAlpha(int color, float alpha) {

@@ -55,6 +55,12 @@ public final class Aux12vMonitor {
     public static final double DCDC_FAULT_HIGH_V = 14.90;
 
     static final long WAKE_GAP_MS = 4L * 3600_000L;
+    /** A DC-DC reading out of band must hold this long before it is a fault:
+     * one low poll while the converter ramps up is normal. */
+    static final long DCDC_FAULT_HOLD_MS = 60_000L;
+    /** The hub delivers changes only, so a jump that then holds steady never
+     * comes a second time. After this delay the held value is read again. */
+    static final long CONFIRM_DELAY_MS = 12_000L;
     static final long WAKE_WINDOW_MS = 30_000L;
     static final long STEADY_STORE_INTERVAL_MS = 4L * 3600_000L;
     static final long TREND_WINDOW_DAYS = 60L;
@@ -113,7 +119,9 @@ public final class Aux12vMonitor {
 
     /** Rejects isolated single-frame glitches (such as the 5.6 V / 11.4 V spikes
      * seen in EX2 CAN 0x176 captures): any sudden jump > 0.5 V must be confirmed
-     * by a second consecutive reading within 0.3 V before acceptance. Pure. */
+     * by a second consecutive reading within 0.3 V before acceptance. Pure.
+     * The hub sends changes only, so the caller feeds the held value again
+     * after CONFIRM_DELAY_MS (see scheduleConfirm). */
     public static final class Debouncer {
         private static final double JUMP_V = 0.5;
         private static final double CONFIRM_TOL_V = 0.3;
@@ -148,8 +156,11 @@ public final class Aux12vMonitor {
 
     private static volatile boolean subscribed;
     private static final Debouncer debouncer = new Debouncer();
-    private static long lastSeenMs = -1L;
+    private static long lastElapsedMs = -1L;
+    private static long lastUptimeMs = -1L;
     private static long wakeStartedMs = -1L;
+    private static Double wakeParkedHours;
+    private static boolean confirmScheduled;
     private static long lastStoredMs = -1L;
     private static String lastStoredPhase;
     private static double lastStoredV = Double.NaN;
@@ -163,7 +174,7 @@ public final class Aux12vMonitor {
 
         EntityBus.subscribe(Aux12vHub.VOLTAGE, (key, r) -> {
             if (r == null || r.status != CarActor.Reading.Status.OK || !(r.value instanceof Number)) return;
-            onVoltage(app, ((Number) r.value).doubleValue(), System.currentTimeMillis());
+            onVoltage(app, ((Number) r.value).doubleValue(), System.currentTimeMillis(), sleptSinceLastMs());
         });
         EntityBus.subscribe(Aux12vHub.LOW_WARN, (key, r) -> {
             if (r == null || r.status != CarActor.Reading.Status.OK || !(r.value instanceof Number)) return;
@@ -173,16 +184,30 @@ public final class Aux12vMonitor {
         });
     }
 
-    private static synchronized void onVoltage(Context ctx, double rawV, long nowMs) {
-        Double v = debouncer.accept(rawV);
-        if (v == null) return;
+    /** Time the head unit was suspended since the last voltage event. The
+     * elapsed clock counts sleep and the uptime clock does not, so a steady
+     * voltage on an awake unit is never taken for a wake-up. */
+    private static synchronized long sleptSinceLastMs() {
+        long el = android.os.SystemClock.elapsedRealtime();
+        long up = android.os.SystemClock.uptimeMillis();
+        long slept = lastElapsedMs < 0 ? 0L : Math.max(0L, (el - lastElapsedMs) - (up - lastUptimeMs));
+        lastElapsedMs = el;
+        lastUptimeMs = up;
+        return slept;
+    }
 
-        Double parkedHours = null;
-        if (lastSeenMs > 0 && nowMs - lastSeenMs >= WAKE_GAP_MS) {
+    private static synchronized void onVoltage(Context ctx, double rawV, long nowMs, long sleptMs) {
+        if (sleptMs >= WAKE_GAP_MS) {
             wakeStartedMs = nowMs;
-            parkedHours = (nowMs - lastSeenMs) / 3_600_000.0;
+            wakeParkedHours = sleptMs / 3_600_000.0;
         }
-        lastSeenMs = nowMs;
+        Double v = debouncer.accept(rawV);
+        if (v == null) {
+            scheduleConfirm(ctx);
+            return;
+        }
+        Double parkedHours = wakeParkedHours;
+        wakeParkedHours = null;
 
         boolean parked = CarState.isParked();
         boolean charging = isChargingNow();
@@ -197,12 +222,16 @@ public final class Aux12vMonitor {
         lastStoredMs = nowMs;
 
         final Double pHours = parkedHours;
-        final Double odo = CarDiary.latestOdometerKm(ctx);
         final Double outC = CarDiary.latestOutsideTempC();
         final int dcdc = PHASE_DCDC.equals(phase) ? 1 : 0;
+        if (dcdc == 1 && (v < DCDC_FAULT_LOW_V || v > DCDC_FAULT_HIGH_V)) {
+            scheduleFaultRecheck(ctx);
+        }
 
         CarDb.get(ctx).write(() -> {
             try {
+                // The odometer can fall back to a database read: keep it off the hub thread.
+                Double odo = CarDiary.latestOdometerKm(ctx);
                 SQLiteDatabase db = CarDb.get(ctx).db();
                 ContentValues cv = new ContentValues();
                 cv.put("ts_ms", nowMs);
@@ -223,10 +252,10 @@ public final class Aux12vMonitor {
 
     private static synchronized void onLowWarn(Context ctx, long nowMs) {
         Float v = Aux12vHub.latestVoltage();
-        Double odo = CarDiary.latestOdometerKm(ctx);
         Double outC = CarDiary.latestOutsideTempC();
         CarDb.get(ctx).write(() -> {
             try {
+                Double odo = CarDiary.latestOdometerKm(ctx);
                 ContentValues cv = new ContentValues();
                 cv.put("ts_ms", nowMs);
                 if (odo != null && odo > 0) cv.put("odo_km", odo);
@@ -243,32 +272,74 @@ public final class Aux12vMonitor {
         });
     }
 
+    /** Reads the held value again after a jump, because the hub will not send it twice. */
+    private static void scheduleConfirm(Context ctx) {
+        CarActor a = CarActor.get();
+        if (a == null || confirmScheduled) return;
+        confirmScheduled = true;
+        a.runOnCarThreadDelayed(() -> {
+            synchronized (Aux12vMonitor.class) { confirmScheduled = false; }
+            Float live = Aux12vHub.latestVoltage();
+            if (live != null) onVoltage(ctx, live, System.currentTimeMillis(), 0L);
+        }, CONFIRM_DELAY_MS);
+    }
+
+    /** A DC-DC fault counts only after it holds; with a steady voltage no new
+     * reading arrives, so look again once the hold time is over. */
+    private static void scheduleFaultRecheck(Context ctx) {
+        CarActor a = CarActor.get();
+        if (a == null) return;
+        a.runOnCarThreadDelayed(() -> CarDb.get(ctx).write(() -> {
+            try { maybeAutoLogHealthTransition(ctx, System.currentTimeMillis()); }
+            catch (Throwable t) { Log.w(CarAccess.TAG, "aux12v recheck failed: " + t); }
+        }), DCDC_FAULT_HOLD_MS + 15_000L);
+    }
+
+    /** Runs on the DB writer thread. */
     private static void maybeAutoLogHealthTransition(Context ctx, long nowMs) {
         Summary s = readSummary(ctx, nowMs);
         Health h = s.health;
         boolean alertable = (h == Health.WATCH || h == Health.WEAK || h == Health.FAULT);
-        if (alertable && h != lastAlertedHealth) {
-            lastAlertedHealth = h;
-            if (hasRecentAutoAlert(ctx, nowMs - 86_400_000L)) return;
-            String note = s.latestRestingV != null
-                ? String.format(Locale.US, "%s · %.1f V", h.name(), s.latestRestingV)
-                : h.name();
-            CarDiary.insert(ctx, CarDiary.Category.AUX12V_AUTO, CarDiary.STATUS_OPEN,
-                nowMs, CarDiary.latestOdometerKm(ctx), CarDiary.latestOutsideTempC(),
-                null, null, note, null, null, null, null, null);
-        } else if (h == Health.GOOD) {
-            lastAlertedHealth = Health.GOOD;
+        if (!alertable) {
+            if (h == Health.GOOD) lastAlertedHealth = Health.GOOD;
+            return;
         }
+        if (h == lastAlertedHealth) return;
+        lastAlertedHealth = h;
+        if (coveredByExistingAlert(ctx, h, nowMs - 86_400_000L)) return;
+        String note = s.latestRestingV != null
+            ? String.format(Locale.US, "%s · %.1f V", h.name(), s.latestRestingV)
+            : h.name();
+        CarDiary.insert(ctx, CarDiary.Category.AUX12V_AUTO, CarDiary.STATUS_OPEN,
+            nowMs, CarDiary.latestOdometerKm(ctx), CarDiary.latestOutsideTempC(),
+            null, null, note, null, null, null, null, null);
     }
 
-    private static boolean hasRecentAutoAlert(Context ctx, long sinceMs) {
+    /** True when an automatic 12V entry that is still open, or newer than
+     * sinceMs, already reports this health or a worse one. A worse state
+     * (WATCH, then FAULT) is not covered and gets its own entry. */
+    private static boolean coveredByExistingAlert(Context ctx, Health h, long sinceMs) {
         try (Cursor c = CarDb.get(ctx).db().rawQuery(
-                "SELECT 1 FROM diary_event WHERE category = ? AND ts_ms >= ? LIMIT 1",
-                new String[]{CarDiary.Category.AUX12V_AUTO.name(), String.valueOf(sinceMs)})) {
-            return c.moveToFirst();
+                "SELECT note FROM diary_event WHERE category = ? AND (status = ? OR ts_ms >= ?)",
+                new String[]{CarDiary.Category.AUX12V_AUTO.name(), CarDiary.STATUS_OPEN,
+                    String.valueOf(sinceMs)})) {
+            while (c.moveToNext()) {
+                if (noteCovers(c.isNull(0) ? null : c.getString(0), h)) return true;
+            }
+            return false;
         } catch (Throwable ignored) {
             return false;
         }
+    }
+
+    /** Pure: does an automatic entry's note ("WATCH · 12.1 V") report h or worse? */
+    static boolean noteCovers(String note, Health h) {
+        if (note == null || h == null) return false;
+        String head = note.trim();
+        int sp = head.indexOf(' ');
+        if (sp > 0) head = head.substring(0, sp);
+        try { return Health.valueOf(head).ordinal() >= h.ordinal(); }
+        catch (IllegalArgumentException e) { return false; }
     }
 
     /** Pure phase classifier. While parked & AC charging, the EX2 cycles DC-DC on and off
@@ -297,7 +368,12 @@ public final class Aux12vMonitor {
     public static Summary readSummary(Context ctx, long nowMs) {
         Long replacedAt = CarDiary.lastBattery12vReplacementMs(ctx);
         List<Sample> samples = readSamples(ctx, nowMs - 120L * 86_400_000L);
-        Summary s = evaluate(samples, replacedAt, nowMs, ZoneId.systemDefault());
+        ZoneId zone = ZoneId.systemDefault();
+        // The baseline comes from the first days after the replacement (or the
+        // first days on record), not from the start of the 120-day window: a
+        // window start moves with time, and slow ageing would move with it.
+        Double baseline = baselineOf(readEarliestResting(ctx, replacedAt), zone);
+        Summary s = evaluate(samples, replacedAt, nowMs, zone, baseline);
         // If DB has no rows yet, still surface the live hub voltage cleanly.
         if (s.latestRestingV == null && s.latestReadyV == null) {
             Float live = Aux12vHub.latestVoltage();
@@ -332,10 +408,57 @@ public final class Aux12vMonitor {
         return out;
     }
 
+    /** The earliest resting readings since the replacement, enough for the baseline. */
+    private static List<Sample> readEarliestResting(Context ctx, Long replacedAtMs) {
+        List<Sample> out = new ArrayList<>();
+        if (ctx == null) return out;
+        try (Cursor c = CarDb.get(ctx).db().rawQuery(
+                "SELECT ts_ms, voltage_v, phase FROM aux_12v_reading "
+                + "WHERE phase IN (?, ?) AND voltage_v IS NOT NULL AND ts_ms >= ? "
+                + "ORDER BY ts_ms ASC, id ASC LIMIT 600",
+                new String[]{PHASE_RESTING, PHASE_WAKE_SAG,
+                    String.valueOf(replacedAtMs != null ? replacedAtMs : 0L)})) {
+            while (c.moveToNext()) {
+                out.add(new Sample(c.getLong(0), c.getDouble(1), c.getString(2), null, null));
+            }
+        } catch (Throwable t) {
+            Log.w(CarAccess.TAG, "aux12v baseline read failed: " + t);
+        }
+        return out;
+    }
+
+    /** Pure: median of the first resting reading of each of the earliest 10
+     * days (at least 3 days), or null. Input is in time order. */
+    static Double baselineOf(List<Sample> restingAsc, ZoneId zone) {
+        if (restingAsc == null) return null;
+        List<Double> firstOfDay = new ArrayList<>();
+        LocalDate lastDay = null;
+        for (Sample s : restingAsc) {
+            if (Double.isNaN(s.voltageV)) continue;
+            LocalDate day = Instant.ofEpochMilli(s.tsMs).atZone(zone).toLocalDate();
+            if (day.equals(lastDay)) continue;
+            lastDay = day;
+            firstOfDay.add(s.voltageV);
+            if (firstOfDay.size() == 10) break;
+        }
+        int n = firstOfDay.size();
+        if (n < 3) return null;
+        Collections.sort(firstOfDay);
+        return (n % 2 == 1) ? firstOfDay.get(n / 2)
+            : (firstOfDay.get(n / 2 - 1) + firstOfDay.get(n / 2)) / 2.0;
+    }
+
     /** Pure health evaluator. Filters out readings prior to batteryReplacedAtMs so
      * logging a 12V battery replacement resets the baseline cleanly. */
     public static Summary evaluate(List<Sample> allSamples, Long batteryReplacedAtMs,
                                    long nowMs, ZoneId zone) {
+        return evaluate(allSamples, batteryReplacedAtMs, nowMs, zone, null);
+    }
+
+    /** As above, with a baseline that was fixed from the earliest readings.
+     * Null means: take it from the samples given. */
+    public static Summary evaluate(List<Sample> allSamples, Long batteryReplacedAtMs,
+                                   long nowMs, ZoneId zone, Double fixedBaseline) {
         if (allSamples == null || allSamples.isEmpty()) {
             return new Summary(Health.UNKNOWN, null, null, null, null,
                 Collections.emptyList(), batteryReplacedAtMs);
@@ -345,7 +468,7 @@ public final class Aux12vMonitor {
         List<Sample> wakeSags = new ArrayList<>();
         Double latestReady = null;
         boolean warnFault = false;
-        boolean dcdcFault = false;
+        long dcdcBadSinceMs = -1L;
         long warnHorizonMs = nowMs - 2L * 86_400_000L;
         long faultHorizonMs = nowMs - 7L * 86_400_000L;
 
@@ -361,10 +484,10 @@ public final class Aux12vMonitor {
                 latestReady = s.voltageV;
                 if (s.tsMs >= faultHorizonMs) {
                     if (s.voltageV < DCDC_FAULT_LOW_V || s.voltageV > DCDC_FAULT_HIGH_V) {
-                        dcdcFault = true;
+                        if (dcdcBadSinceMs < 0) dcdcBadSinceMs = s.tsMs;
                     } else if (s.voltageV >= 12.60 && s.voltageV <= 14.70) {
                         // DC-DC recovered to normal float or charging voltage.
-                        dcdcFault = false;
+                        dcdcBadSinceMs = -1L;
                     }
                 }
             } else if (PHASE_WAKE_SAG.equals(s.phase) && !Double.isNaN(s.voltageV)) {
@@ -374,6 +497,8 @@ public final class Aux12vMonitor {
                 resting.add(s);
             }
         }
+        // One low reading while the converter ramps up is not a fault: it must hold.
+        boolean dcdcFault = dcdcBadSinceMs >= 0 && nowMs - dcdcBadSinceMs >= DCDC_FAULT_HOLD_MS;
         boolean fault = warnFault || dcdcFault;
 
         // Collapse resting readings to one morning/first-wake point per local day for trend + baseline.
@@ -397,14 +522,7 @@ public final class Aux12vMonitor {
         Double latestResting = resting.isEmpty() ? null : resting.get(resting.size() - 1).voltageV;
 
         // Baseline: median of the earliest up to 10 daily resting readings after replacement.
-        Double baseline = null;
-        if (daily.size() >= 3) {
-            int n = Math.min(10, daily.size());
-            double[] vals = new double[n];
-            for (int i = 0; i < n; i++) vals[i] = daily.get(i).voltageV;
-            java.util.Arrays.sort(vals);
-            baseline = (n % 2 == 1) ? vals[n / 2] : (vals[n / 2 - 1] + vals[n / 2]) / 2.0;
-        }
+        Double baseline = fixedBaseline != null ? fixedBaseline : baselineOf(daily, zone);
 
         // Recent average: last up to 5 daily resting readings.
         Double recentAvg = null;

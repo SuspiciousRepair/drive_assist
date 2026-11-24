@@ -55,7 +55,7 @@ public final class Aux12vTrendView extends View {
     private void initPaints(Context c) {
         gridPaint.setStyle(Paint.Style.STROKE);
         gridPaint.setStrokeWidth(Style.dp(c, 1));
-        gridPaint.setColor(Style.LIGHT ? 0x1A000000 : 0x14FFFFFF);
+        gridPaint.setColor(Style.tileStrokeColor());
 
         limitPaint.setStyle(Paint.Style.STROKE);
         limitPaint.setStrokeWidth(Style.dp(c, 2));
@@ -81,14 +81,15 @@ public final class Aux12vTrendView extends View {
         axisPaint.setTextSize(Style.dp(c, 14));
 
         endNumPaint.setColor(Style.TEXT);
-        endNumPaint.setTextSize(Style.dp(c, 19));
+        endNumPaint.setTextSize(Style.dp(c, 22));
         endNumPaint.setFakeBoldText(true);
 
+        // The unit: the number's size x the row unit scale, dim (STYLE-GUIDE "Numbers and units").
         endUnitPaint.setColor(Style.TEXT_DIM);
-        endUnitPaint.setTextSize(Style.dp(c, 13));
+        endUnitPaint.setTextSize(Style.dp(c, 22) * Style.UNIT_SCALE_ROW);
 
         emptyPaint.setColor(Style.TEXT_DIM);
-        emptyPaint.setTextSize(Style.dp(c, 16));
+        emptyPaint.setTextSize(Style.dp(c, 18));
         emptyPaint.setTextAlign(Paint.Align.CENTER);
     }
 
@@ -108,7 +109,7 @@ public final class Aux12vTrendView extends View {
         if (w <= 0 || h <= 0) return;
 
         float padL = Style.dp(c, 46);
-        float padR = Style.dp(c, 74);
+        float padR = Style.dp(c, 92);   // room for the end figure ("12.6 V") right of the last point
         float padT = Style.dp(c, 14);
         float padB = Style.dp(c, 30);
         float plotW = Math.max(1f, w - padL - padR);
@@ -199,7 +200,7 @@ public final class Aux12vTrendView extends View {
         canvas.drawCircle(x, y, r, dotPaint);
         String num = String.format(Locale.US, "%.1f", v);
         float tx = x + Style.dp(c, 12);
-        float ty = y + Style.dp(c, 6);
+        float ty = y + Style.dp(c, 7);
         canvas.drawText(num, tx, ty, endNumPaint);
         float nw = endNumPaint.measureText(num);
         canvas.drawText(" V", tx + nw, ty, endUnitPaint);

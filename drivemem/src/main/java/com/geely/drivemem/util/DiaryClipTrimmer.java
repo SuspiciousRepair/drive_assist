@@ -25,7 +25,8 @@ public final class DiaryClipTrimmer {
     public static final String DIR_NAME = "diary_clips";
     public static final long PRE_MS = 3_000L;
     public static final long POST_MS = 2_000L;
-    private static final int BUF_SIZE = 1024 * 1024;
+    /** Fallback sample buffer when the track does not state its largest sample. */
+    private static final int BUF_SIZE = 4 * 1024 * 1024;
 
     public static File dir(Context ctx) {
         File base = ctx.getExternalFilesDir(null);
@@ -48,12 +49,15 @@ public final class DiaryClipTrimmer {
 
     public static void deleteClip(Context ctx, String clipName) {
         if (clipName == null || clipName.trim().isEmpty()) return;
+        // clip_name can arrive through a backup merge: never follow a path.
+        if (clipName.contains("/") || clipName.contains("\\") || clipName.contains("..")) return;
         File f = new File(dir(ctx), clipName);
         if (f.exists()) f.delete();
     }
 
-    /** Finds the best closed dashcam clip covering targetWallMs (or latest playable clip
-     * if within 10 minutes), and extracts a lossless 5-second slice into diary_clips/.
+    /** Finds the closed dashcam clip covering targetWallMs and extracts a lossless
+     * 5-second slice into diary_clips/. Returns null while the covering segment is
+     * still recording; the caller retries once it is closed.
      * Must be called off the UI thread. Returns the saved basename, or null on failure. */
     public static String captureFiveSecondClip(Context ctx, long targetWallMs, String uuid) {
         List<Clips.Clip> all = Clips.list(ctx);
@@ -109,21 +113,17 @@ public final class DiaryClipTrimmer {
         return best > 5_000L ? best : 5 * 60_000L;
     }
 
-    /** Pure helper: picks the closed clip whose span covers targetWallMs, else the
-     * newest closed clip if within 10 minutes of targetWallMs. */
+    /** Pure helper: picks the closed clip whose span covers targetWallMs, else null.
+     * There is no "newest clip" fallback: that showed footage from minutes before
+     * the event when the covering segment was still recording. */
     static Clips.Clip findMatchingClip(List<Clips.Clip> clips, long targetWallMs) {
         if (clips == null || clips.isEmpty()) return null;
-        Clips.Clip newest = null;
         for (Clips.Clip c : clips) {
             if (!c.playable()) continue;
-            if (newest == null || c.whenMs > newest.whenMs) newest = c;
             long durMs = effectiveDurationMs(c);
             if (targetWallMs >= c.whenMs - 2_000L && targetWallMs <= c.whenMs + durMs + 2_000L) {
                 return c;
             }
-        }
-        if (newest != null && Math.abs(targetWallMs - newest.whenMs) <= 10 * 60_000L) {
-            return newest;
         }
         return null;
     }
@@ -164,7 +164,11 @@ public final class DiaryClipTrimmer {
             muxer.start();
             started = true;
 
-            ByteBuffer buf = ByteBuffer.allocate(BUF_SIZE);
+            int bufSize = BUF_SIZE;
+            if (videoFmt.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE)) {
+                bufSize = Math.max(bufSize, videoFmt.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE));
+            }
+            ByteBuffer buf = ByteBuffer.allocate(bufSize);
             MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
             long basePts = -1L;
             long lastWrittenPts = -1L;

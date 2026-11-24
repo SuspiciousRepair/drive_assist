@@ -18,7 +18,14 @@ import com.geely.drivemem.state.CarState;
  *
  * Rides on the 16 Hz (80 ms) ACCELEROMETER stream that com.njda.adapter already
  * holds open since boot, on a dedicated background HandlerThread, gated to
- * driving only (0% CPU when parked).
+ * driving only (0% CPU when parked) and to a live CAN reader.
+ *
+ * It needs the CAN speed: the car's own speed in the hub can be 30 s old, and
+ * with an old speed a door slam at a stop light looks like a bump on the road
+ * and the "which way is up" calibration goes wrong. Without CAN it stays off.
+ *
+ * The 16 Hz stream is a direct path (the hub cannot take that rate). The hub
+ * gets a 1 Hz copy: {@link #VERT_G}, {@link #LONG_G}, {@link #LAT_G}.
  *
  * Consumers:
  * - Live UI listener (Noturno VaporArtView bounce & cornering roll)
@@ -56,6 +63,13 @@ public final class ImuHub {
         if (JOLT_HIGH.equals(sensitivity)) return new float[]{0.65f, 0.55f};
         return new float[]{JOLT_PEAK_Z_G, JOLT_PEAK_HORIZ_G};
     }
+
+    /** Hub keys: the largest acceleration of the last second on each car axis,
+     * in g, 0.1 g steps (Float). Only while driving with CAN live. */
+    public static final String VERT_G = "imu.vert_g";
+    public static final String LONG_G = "imu.long_g";
+    public static final String LAT_G = "imu.lat_g";
+    public static final String[] KEYS = {VERT_G, LONG_G, LAT_G};
 
     /** Instantaneous calibrated car-frame acceleration in g (+fwd, +right, +up). */
     public interface Listener { void onImu(float axG, float ayG, float azG); }
@@ -98,16 +112,31 @@ public final class ImuHub {
         thread.start();
         handler = new Handler(thread.getLooper());
         CarState.addListener(parked -> {
-            if (handler != null) handler.post(() -> syncRegistration(!parked));
+            if (handler != null) handler.post(ImuHub::syncRegistration);
         });
-        handler.post(() -> syncRegistration(!CarState.isParked()));
+        com.geely.drivemem.car.EntityBus.subscribe(CanHub.LIVE, (key, r) -> {
+            if (handler != null) handler.post(ImuHub::syncRegistration);
+        });
+        handler.post(ImuHub::syncRegistration);
     }
+
+    /** Out of Park and the CAN reader is live (hub key can.live). */
+    private static boolean wantActive() {
+        if (CarState.isParked()) return false;
+        CarActor a = CarActor.get();
+        if (a == null) return false;
+        CarActor.Reading r = a.get(CanHub.LIVE);
+        return r != null && r.status == CarActor.Reading.Status.OK
+            && r.value instanceof Number && ((Number) r.value).intValue() != 0;
+    }
+
+    private static void syncRegistration() { syncRegistration(wantActive()); }
 
     /** Registers the live UI consumer (e.g. ComfortActivity -> VaporArtView). */
     public static void setListener(Listener l) {
         liveListener = l;
         Handler h = handler;
-        if (h != null) h.post(() -> syncRegistration(!CarState.isParked()));
+        if (h != null) h.post(ImuHub::syncRegistration);
     }
 
     /** Clears the live UI consumer only if it is still {@code l}. */
@@ -115,7 +144,7 @@ public final class ImuHub {
         if (liveListener == l) {
             liveListener = null;
             Handler h = handler;
-            if (h != null) h.post(() -> syncRegistration(!CarState.isParked()));
+            if (h != null) h.post(ImuHub::syncRegistration);
         }
     }
 
@@ -131,7 +160,8 @@ public final class ImuHub {
                 LOG.close();
                 Listener l = liveListener;
                 if (l != null) l.onImu(0f, 0f, 0f);
-                Log.i(TAG, "imu: paused (parked)");
+                publish(0f, 0f, 0f);
+                Log.i(TAG, "imu: paused (parked or no CAN)");
             }
             return;
         }
@@ -153,10 +183,11 @@ public final class ImuHub {
     private static final SensorEventListener SENSOR_LISTENER = new SensorEventListener() {
         @Override public void onSensorChanged(SensorEvent e) {
             if (e.sensor.getType() != Sensor.TYPE_ACCELEROMETER) return;
-            Float speedKmh = readCachedSpeedKmh();
-            float speedVal = speedKmh != null ? speedKmh : -1f;
-            if (speedKmh != null) FILTER.onSpeedKmh(speedKmh, e.timestamp);
-            FILTER.onAccel(e.values[0], e.values[1], e.values[2], e.timestamp, speedVal);
+            // No fresh speed, no sample: an old speed would spoil the calibration.
+            Float speedKmh = CanEnergyReader.liveSpeedKmh();
+            if (speedKmh == null) return;
+            FILTER.onSpeedKmh(speedKmh, e.timestamp);
+            FILTER.onAccel(e.values[0], e.values[1], e.values[2], e.timestamp, speedKmh);
 
             Listener l = liveListener;
             if (l != null) {
@@ -181,8 +212,9 @@ public final class ImuHub {
         ImuFilter.Summary s = FILTER.drainWindow();
         if (s == null) return;
         maybePersistBasis(c, s.calZ, s.calXy);
-        Float speedKmh = readCachedSpeedKmh();
+        Float speedKmh = CanEnergyReader.liveSpeedKmh();
         Float driveKw = CanEnergyReader.liveDriveKw();
+        publish(s.peakZ / ImuFilter.G, s.peakX / ImuFilter.G, s.peakY / ImuFilter.G);
         Integer brake = readCachedBrake();
         LocationHub.Fix fix = LocationHub.get(c);
         LOG.write(c, nowMs, s, speedKmh, driveKw, brake, fix);
@@ -230,16 +262,17 @@ public final class ImuHub {
         }
     }
 
-    private static Float readCachedSpeedKmh() {
-        Float can = CanEnergyReader.liveSpeedKmh();
-        if (can != null) return can;
+    /** The hub's 1 Hz copy, in 0.1 g steps so road buzz does not republish. */
+    private static void publish(float vertG, float longG, float latG) {
         CarActor a = CarActor.get();
-        if (a == null) return null;
-        CarActor.Reading r = a.get("telemetry.speed");
-        if (r != null && r.status == CarActor.Reading.Status.OK && r.value instanceof Number) {
-            return ((Number) r.value).floatValue();
-        }
-        return null;
+        if (a == null) return;
+        a.inject(VERT_G, quantize(vertG));
+        a.inject(LONG_G, quantize(longG));
+        a.inject(LAT_G, quantize(latG));
+    }
+
+    static float quantize(float g) {
+        return Float.isFinite(g) ? Math.round(g * 10f) / 10f : 0f;
     }
 
     private static Integer readCachedBrake() {

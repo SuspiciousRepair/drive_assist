@@ -377,4 +377,75 @@ public class CarDiaryTest {
         assertEquals(1, CarDiary.filterEntries(all, CarDiary.Group.BUREAUCRACY, CarDiary.PeriodFilter.DAYS_90, now, utc).size());
         assertEquals(Arrays.asList(2026, 2025), CarDiary.availableYears(all, now, utc));
     }
+
+    @Test
+    public void kmOnlyItemComesDueFromTheOdometerOfItsDateWhenTheEntryHasNone() {
+        long now = 1_800_000_000_000L;
+        // Tire rotation has a km interval only. No odometer typed: nothing to count from.
+        CarDiary.Entry bare = entry(1, CarDiary.Category.TIRE_ROTATION, now - 200 * DAY, null, null, null);
+        CarDiary.DueStatus none = find(
+            CarDiary.computeDueStatuses(Collections.singletonList(bare), 25_000.0, now, null),
+            CarDiary.Category.TIRE_ROTATION);
+        assertEquals(null, none.kmSinceLast);
+        assertFalse(none.overdue);
+
+        // Same entry with the odometer the car's history has for that date.
+        CarDiary.Entry est = new CarDiary.Entry(1, "u-1", now - 200 * DAY,
+            CarDiary.KIND_CARE, CarDiary.Category.TIRE_ROTATION, CarDiary.STATUS_DONE,
+            null, null, null, null, null, null, null, null, null, null, null, 1,
+            now - 200 * DAY, 14_000.0);
+        CarDiary.DueStatus due = find(
+            CarDiary.computeDueStatuses(Collections.singletonList(est), 25_000.0, now, null),
+            CarDiary.Category.TIRE_ROTATION);
+        assertEquals(11_000.0, due.kmSinceLast, 0.01);
+        assertEquals(-1_000.0, due.kmRemaining, 0.01);
+        assertTrue(due.overdue);
+
+        // An entry odometer above the current one is not usable: same fallback.
+        CarDiary.Entry typo = new CarDiary.Entry(2, "u-2", now - 200 * DAY,
+            CarDiary.KIND_CARE, CarDiary.Category.TIRE_ROTATION, CarDiary.STATUS_DONE,
+            140_000.0, null, null, null, null, null, null, null, null, null, null, 1,
+            now - 200 * DAY, 20_000.0);
+        CarDiary.DueStatus fixed = find(
+            CarDiary.computeDueStatuses(Collections.singletonList(typo), 25_000.0, now, null),
+            CarDiary.Category.TIRE_ROTATION);
+        assertEquals(5_000.0, fixed.kmSinceLast, 0.01);
+        assertFalse(fixed.overdue);
+
+        // The entry's own odometer wins when it is usable.
+        assertEquals(9_000.0, CarDiary.odoForReminder(9_000.0, 14_000.0, 25_000.0), 0.01);
+        assertEquals(null, CarDiary.odoForReminder(null, 30_000.0, 25_000.0));
+        assertTrue(CarDiary.needsOdoEstimate(CarDiary.Category.TIRE_BALANCING, null, 25_000.0));
+        assertTrue(CarDiary.needsOdoEstimate(CarDiary.Category.SERVICE, 99_000.0, 25_000.0));
+        assertFalse(CarDiary.needsOdoEstimate(CarDiary.Category.TIRE_ROTATION, 9_000.0, 25_000.0));
+        assertFalse(CarDiary.needsOdoEstimate(CarDiary.Category.WASH_DETAIL, null, 25_000.0));
+    }
+
+    @Test
+    public void pendingJoltsSurviveAnEncodeDecodeRoundTrip() {
+        CarDiary.PendingJolt full = new CarDiary.PendingJolt("id-1", 1_800_000_000_000L,
+            2.5f, -0.25f, 0.5f, 0.75f, 12.5f, 48f, 14_000.5, -23.55052, -46.633308);
+        CarDiary.PendingJolt bare = new CarDiary.PendingJolt("id-2", 1_800_000_060_000L,
+            1.5f, 0f, 0f, 0f, 0f, null, null, null, null);
+        List<CarDiary.PendingJolt> back = CarDiary.decodeJolts(
+            CarDiary.encodeJolts(Arrays.asList(full, bare)));
+        assertEquals(2, back.size());
+        assertEquals("id-1", back.get(0).id);
+        assertEquals(1_800_000_000_000L, back.get(0).tsMs);
+        assertEquals(2.5f, back.get(0).peakZG, 0.0001f);
+        assertEquals(-0.25f, back.get(0).peakXG, 0.0001f);
+        assertEquals(12.5f, back.get(0).peakJerkZGs, 0.0001f);
+        assertEquals(48f, back.get(0).speedKmh, 0.0001f);
+        assertEquals(14_000.5, back.get(0).odoKm, 0.0001);
+        assertEquals(-46.633308, back.get(0).lon, 0.0000001);
+        assertEquals("id-2", back.get(1).id);
+        assertEquals(null, back.get(1).speedKmh);
+        assertEquals(null, back.get(1).lat);
+
+        // Nothing saved, or a damaged line: no jolt, no exception.
+        assertTrue(CarDiary.decodeJolts(null).isEmpty());
+        assertTrue(CarDiary.decodeJolts("").isEmpty());
+        assertEquals(1, CarDiary.decodeJolts("garbage\n" + CarDiary.encodeJolts(
+            Collections.singletonList(bare))).size());
+    }
 }

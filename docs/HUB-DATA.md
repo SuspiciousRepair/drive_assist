@@ -133,6 +133,16 @@ listener, so the GPS is not held on in a parked car, and the key holds the
 last known fix until the car leaves Park. Only GPS fixes become the live
 fix; a network fix never replaces one.
 
+### Motion sensor (`ImuHub`), only while out of Park with CAN live
+
+| Key | What it is | Update |
+|---|---|---|
+| `imu.vert_g`, `imu.long_g`, `imu.lat_g` | largest acceleration of the last second, up/down, forward/back and left/right, in g, 0.1 g steps. From the head unit's accelerometer, turned into car axes by `ImuFilter`. 0 when the stream stops | every 1 s, on change |
+
+It needs the CAN speed (`CanEnergyReader`), so it is off without "Exact
+energy": the car's own speed can be 30 s old, and the bump detection for the
+diary would take a door slam at a stop light for a bump.
+
 ### Sessions (built on the hub thread from `telemetry.tick`)
 
 | Key | What | Update |
@@ -178,6 +188,10 @@ except the SoC-based driving energy, which is marked "estimated".
   twice. When CAN is live but has no power value, the dongle's samples count.
   CAN samples also carry the drive and climate values held at that moment,
   for the trip's energy split.
+- `ImuHub` reads the accelerometer at 16 Hz on its own thread, because the
+  hub cannot take that rate. `ImuFilter`, the bump detection for the diary
+  and the art read that stream, with the CAN speed of the same moment. The
+  hub gets the 1 Hz `imu.*` keys in addition.
 - `AbrpUploader` reads `EnergyIntegrator.meanPowerKw`, the mean battery
   power over the last 6 s of those samples, because the hub keeps only the
   latest value. It is from the same source as `energy.power_kw` (the mean

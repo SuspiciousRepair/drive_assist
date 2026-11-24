@@ -110,19 +110,26 @@ public final class CsvExport {
         new Thread(() -> {
             File diaryCsv = null;
             List<CarDiary.Entry> list = entries != null ? entries : CarDiary.readEntries(app);
-            try {
-                diaryCsv = writeDiary(app, list);
-            } catch (Throwable t) {
-                Log.w(TAG, "csvexport diary: " + t);
+            final int[] copied = {0};
+            final boolean[] ok = {false};
+            final File[] drive = {null};
+            // Same lock as the phone download (web/PhoneServer): both write the same
+            // cache file, and this one may hold a filtered list. Held until the file
+            // is on the drive, so a download cannot rewrite it under the copy.
+            synchronized (CsvExport.class) {
+                try {
+                    diaryCsv = writeDiary(app, list);
+                } catch (Throwable t) {
+                    Log.w(TAG, "csvexport diary: " + t);
+                }
+                if (diaryCsv != null) {
+                    UsbExport.exportNow((o, d, n) -> { ok[0] = o; drive[0] = d; copied[0] = n; }, diaryCsv);
+                }
             }
             if (diaryCsv == null) {
                 if (cb != null) cb.onDone(false, null, 0);
                 return;
             }
-            final int[] copied = {0};
-            final boolean[] ok = {false};
-            final File[] drive = {null};
-            UsbExport.exportNow((o, d, n) -> { ok[0] = o; drive[0] = d; copied[0] = n; }, diaryCsv);
             if (drive[0] != null && ok[0]) {
                 java.util.List<File> clips = new java.util.ArrayList<>();
                 for (CarDiary.Entry e : list) {
@@ -276,12 +283,12 @@ public final class CsvExport {
                 fmt.format(new Date(e.tsMs)),
                 e.category != null && e.category.group != null ? e.category.group.name().toLowerCase(Locale.US) : "",
                 e.category != null ? e.category.name().toLowerCase(Locale.US) : "",
-                e.title != null ? e.title : "",
+                text(e.title),
                 e.status != null ? e.status.toLowerCase(Locale.US) : "",
                 e.odoKm != null && e.odoKm > 0 ? num(e.odoKm, 1) : "",
                 e.cost != null && e.cost > 0 ? num(e.cost, 2) : "",
-                e.note != null ? e.note : "",
-                e.tags != null ? e.tags : "",
+                text(e.note),
+                text(e.tags),
                 e.outsideTempC != null ? num(e.outsideTempC, 1) : "",
                 e.lat != null ? num(e.lat, 6) : "",
                 e.lon != null ? num(e.lon, 6) : "",
@@ -305,13 +312,23 @@ public final class CsvExport {
         sb.append("\r\n");
     }
 
-    // RFC 4180 quoting. Every value written today is a number, a date or an
-    // enum name, so this never fires — it is here so a future text column
-    // cannot break the file.
+    // RFC 4180 quoting. Numbers, dates and enum names never need it; the diary's
+    // free text (title, note, tags) does, and goes through text() first.
     static String field(String v) {
         if (v == null) return "";
         if (v.indexOf(',') < 0 && v.indexOf('"') < 0 && v.indexOf('\n') < 0 && v.indexOf('\r') < 0) return v;
         return '"' + v.replace("\"", "\"\"") + '"';
+    }
+
+    /** A free-text value (typed by the driver). A spreadsheet runs a cell that
+     * starts with = + - @ (or a tab / CR before one) as a formula, so such a
+     * value gets a leading single quote and stays text. Not for numeric
+     * columns: a negative number must stay a number. Quoting is still field()'s job. */
+    static String text(String v) {
+        if (v == null || v.isEmpty()) return "";
+        char c = v.charAt(0);
+        if (c == '=' || c == '+' || c == '-' || c == '@' || c == '\t' || c == '\r') return "'" + v;
+        return v;
     }
 
     static String num(double v, int decimals) {

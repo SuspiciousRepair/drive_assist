@@ -10,7 +10,6 @@ import com.geely.drivemem.sensors.StatsCalendar;
 import com.geely.drivemem.state.ChargeSession;
 import com.geely.drivemem.util.CsvExport;
 import com.geely.drivemem.util.EnergyUnits;
-import com.geely.drivemem.util.Prefs;
 import com.geely.drivemem.util.Style;
 
 import android.content.Context;
@@ -268,7 +267,7 @@ public class DailyStatsView extends LinearLayout {
 
         sessionsSummary = sectionSummary(c);
         sessionsSummary.setTextColor(Style.TEXT_DIM);
-        sessionsSummary.setTextSize(15f);
+        sessionsSummary.setTextSize(18f);
         sessionsSummary.setTypeface(null, Typeface.BOLD);
         sessionsCard.addView(sectionHeading(c, c.getString(R.string.stats_sessions_title), sessionsSummary));
 
@@ -298,24 +297,28 @@ public class DailyStatsView extends LinearLayout {
         mapHeaderTitle = new TextView(c);
         mapHeaderTitle.setText(c.getString(R.string.stats_map_routes_title));
         mapHeaderTitle.setTextColor(Style.TEXT);
-        mapHeaderTitle.setTextSize(17f);
+        mapHeaderTitle.setTextSize(18f);
         mapHeaderTitle.setTypeface(null, Typeface.BOLD);
+        mapHeaderTitle.setSingleLine(true);
+        mapHeaderTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
         mapHead.addView(mapHeaderTitle, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         mapActionPill = new TextView(c);
         mapActionPill.setText(c.getString(R.string.routes_all_title));
         mapActionPill.setTextColor(Style.onFill(Style.CARD));
-        mapActionPill.setTextSize(14.5f);
+        mapActionPill.setTextSize(18f);
         mapActionPill.setTypeface(null, Typeface.BOLD);
         mapActionPill.setBackground(Style.card(Style.CARD, c));
         android.graphics.drawable.Drawable mapIcon = c.getDrawable(R.drawable.ic_map).mutate();
-        int iconPx = Style.dp(c, 18);
+        int iconPx = Style.dp(c, 22);
         mapIcon.setBounds(0, 0, iconPx, iconPx);
         mapIcon.setTint(Style.onFill(Style.CARD));
         mapActionPill.setCompoundDrawables(mapIcon, null, null, null);
         mapActionPill.setCompoundDrawablePadding(Style.dp(c, 8));
         mapActionPill.setGravity(Gravity.CENTER_VERTICAL);
-        mapActionPill.setPadding(Style.dp(c, 14), Style.dp(c, 8), Style.dp(c, 14), Style.dp(c, 8));
+        mapActionPill.setSingleLine(true);
+        mapActionPill.setMinimumHeight(Style.dp(c, 60));
+        mapActionPill.setPadding(Style.dp(c, 18), 0, Style.dp(c, 18), 0);
         mapActionPill.setOnClickListener(v -> openAllRoutes());
         mapHead.addView(mapActionPill);
         mapCard.addView(mapHead);
@@ -471,10 +474,14 @@ public class DailyStatsView extends LinearLayout {
         l.chargePlaces = ChargeSpots.places(placed);
         l.routeChargeSpots = ChargeSpots.cluster(rawSpots);
 
-        // Trip routes in this period (bounded by period window, capped to recent 80 trips for fast Year draw)
+        // Trip routes in this period (bounded by period window, capped to the latest
+        // ROUTE_CAP trips for a fast Year draw; the map title says so when the cap is hit)
         l.routeSet = loadPeriodRoutes(c, fromMs, toMs);
         return l;
     }
+
+    /** Most trips drawn on the period map. */
+    private static final int ROUTE_CAP = 80;
 
     private static RouteSet loadPeriodRoutes(Context c, long fromMs, long toMs) {
         List<RouteSet.Trip> trips = new ArrayList<>();
@@ -498,7 +505,7 @@ public class DailyStatsView extends LinearLayout {
                             lat[i] = pt[0]; lon[i] = pt[1]; spd[i] = pt[2]; alt[i] = Double.NaN;
                         }
                         trips.add(new RouteSet.Trip(lat, lon, spd, alt));
-                        if (trips.size() >= 80) break;
+                        if (trips.size() >= ROUTE_CAP) break;
                     }
                     pts.clear();
                     curId = id;
@@ -702,11 +709,11 @@ public class DailyStatsView extends LinearLayout {
         int d = upDown.length();
         upDown.append(String.format(Locale.US, "↓%.0f", ov.descentDMinusM));
         upDown.setSpan(new ForegroundColorSpan(Style.COOL), d, upDown.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        upDown.append(" m");
+        Style.appendUnit(upDown, " m", ROW_UNIT_SCALE);
 
         List<View> chips = new ArrayList<>();
         chips.add(metricChip(c, c.getString(R.string.stats_driving_time),
-            String.format(Locale.US, "%dh %02dm", dMin / 60, dMin % 60)));
+            Style.durationWithUnits(dMin * 60_000L, ROW_UNIT_SCALE)));
         chips.add(metricChip(c, c.getString(R.string.stats_moving_speed), velVal));
         chips.add(metricChip(c, c.getString(R.string.stats_trips), tripsVal, perTrip));
         chips.add(metricChip(c, c.getString(R.string.stats_relief), netVal, upDown));
@@ -775,13 +782,17 @@ public class DailyStatsView extends LinearLayout {
         CharSequence cap;
         if (m.anyCost && m.totalCost() > 0) {
             hero = Style.moneyWithUnit(m.totalCost(), null, HERO_UNIT_SCALE);
-            if (ov.distanceKm > 0.5) {
-                String per100 = c.getString(R.string.charge_card_per_100km,
-                    Prefs.formatMoney(m.totalCost() / ov.distanceKm * 100.0));
-                cap = per100 + "  ·  " + kwhNum(m.totalKwh()) + " kWh";
-            } else {
-                cap = c.getString(R.string.charge_card_energy_cap, kwhNum(m.totalKwh()));
+            // Cost per 100 km only for a month or a year. Over a day or a week
+            // the charges and the km driven are not the same energy (one R$ 40
+            // charge and 5 km driven would read as R$ 800 / 100 km).
+            SpannableStringBuilder capSb = new SpannableStringBuilder();
+            if ((period == Period.MONTH || period == Period.YEAR) && ov.distanceKm > 0.5) {
+                capSb.append(Style.moneyWithUnit(m.totalCost() / ov.distanceKm * 100.0, null, ROW_UNIT_SCALE));
+                Style.appendUnit(capSb, " / 100 km", ROW_UNIT_SCALE);
+                capSb.append("  ·  ");
             }
+            capSb.append(valueWithUnit(kwhNum(m.totalKwh()), null, "kWh", ROW_UNIT_SCALE));
+            cap = capSb;
         } else if (m.count > 0) {
             hero = valueWithUnit("+" + kwhNum(m.totalKwh()), null, "kWh", HERO_UNIT_SCALE);
             String countStr = m.count == 1 ? c.getString(R.string.stats_charge_one)
@@ -849,12 +860,15 @@ public class DailyStatsView extends LinearLayout {
         boolean active = (f == sessionFilter);
         TextView b = new TextView(c);
         b.setText(label);
-        b.setTextSize(15.5f);
+        b.setTextSize(18f);
         b.setTextColor(active ? Style.onFill(Style.ACCENT) : Style.TEXT_DIM);
         b.setTypeface(null, active ? Typeface.BOLD : Typeface.NORMAL);
         b.setBackground(active ? Style.card(Style.ACCENT, c, 20) : Style.tile(c));
-        int h = Style.dp(c, 16), v = Style.dp(c, 8);
-        b.setPadding(h, v, h, v);
+        b.setGravity(Gravity.CENTER);
+        b.setSingleLine(true);
+        b.setMinimumHeight(Style.dp(c, 60));
+        int h = Style.dp(c, 20);
+        b.setPadding(h, 0, h, 0);
         b.setOnClickListener(view -> {
             if (sessionFilter == f) return;
             sessionFilter = f;
@@ -925,6 +939,33 @@ public class DailyStatsView extends LinearLayout {
         boolean anyRendered = false;
 
         for (DailyStatsProvider.DayOverview day : orderedDays) {
+            // A day that had driving or charging but whose session rows are
+            // gone (older than the retention window): keep the day in the
+            // list with a "details unavailable" row, so the list does not
+            // claim that nothing was recorded.
+            if (day.sessions.isEmpty()) {
+                boolean drove = day.distanceKm > 0.05, charged = day.chargeCount > 0;
+                boolean show;
+                switch (sessionFilter) {
+                    case TRIPS: show = drove; break;
+                    case CHARGES: show = charged; break;
+                    case VALET: show = false; break;
+                    default: show = drove || charged; break;
+                }
+                if (!show) continue;
+                anyRendered = true;
+                items.add(() -> periodDayHeader(day));
+                items.add(() -> {
+                    TextView unavailable = new TextView(c);
+                    unavailable.setText(c.getString(R.string.stats_day_details_unavailable));
+                    unavailable.setTextColor(Style.TEXT_DIM);
+                    unavailable.setTextSize(18f);
+                    unavailable.setPadding(0, Style.dp(c, 6), 0, Style.dp(c, 10));
+                    return unavailable;
+                });
+                continue;
+            }
+
             List<DailyStatsProvider.DaySession> dayFiltered = new ArrayList<>();
             for (DailyStatsProvider.DaySession s : day.sessions) {
                 if (matchesFilter(s)) dayFiltered.add(s);
@@ -997,7 +1038,13 @@ public class DailyStatsView extends LinearLayout {
                 }
             }
         } else {
-            mapHeaderTitle.setText(c.getString(R.string.stats_map_routes_title));
+            // Month / Year draw at most ROUTE_CAP trips: say so instead of
+            // passing the latest ones off as the whole period.
+            boolean capped = l.routeSet != null && l.routeSet.starts != null
+                && l.routeSet.starts.length >= ROUTE_CAP;
+            mapHeaderTitle.setText(capped
+                ? c.getString(R.string.stats_map_routes_latest, ROUTE_CAP)
+                : c.getString(R.string.stats_map_routes_title));
             mapActionPill.setVisibility(View.VISIBLE);
             contextMap.setOnSpotPick(null);
             contextMap.setMinSpanM(200);
@@ -1068,15 +1115,16 @@ public class DailyStatsView extends LinearLayout {
             : day.date;
         label.setText(d);
         label.setTextColor(Style.TEXT_DIM);
-        label.setTextSize(14f);
+        label.setTextSize(18f);
         label.setTypeface(null, Typeface.BOLD);
         row.addView(label, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         if (day.distanceKm > 0.05) {
             TextView km = new TextView(c);
-            km.setText(String.format(Locale.getDefault(), "%.1f km", day.distanceKm));
+            km.setText(valueWithUnit(String.format(Locale.getDefault(), "%.1f", day.distanceKm),
+                null, "km", ROW_UNIT_SCALE));
             km.setTextColor(Style.TEXT_DIM);
-            km.setTextSize(14f);
+            km.setTextSize(18f);
             row.addView(km);
         }
 
