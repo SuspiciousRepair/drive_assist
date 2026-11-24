@@ -713,12 +713,26 @@ public class DailyStatsView extends LinearLayout {
         distributeInPairs(c, tripCard, chips, 10);
     }
 
-    // ---- Card 2: Efficiency & Energy (Hero consumption + EnergySankeyView) ----
+    // ---- Card 2: Efficiency & Energy (EnergySankeyView when split exists, else hero fallback) ----
 
     private void renderConsumptionCard(DailyStatsProvider.DayOverview ov) {
         Context c = getContext();
         consumptionCard.removeAllViews();
         cardTitle(consumptionCard, c.getString(R.string.stats_card_efficiency));
+
+        // When CAN energy split is available, the Sankey already shows battery, regen,
+        // total used, and drive/climate/other — omit the redundant top hero so there is
+        // one consistent consumption figure and the card stays compact.
+        double[] split = DailyStatsProvider.splitTotals(ov.sessions);
+        if (split != null) {
+            EnergySankeyView sankey = new EnergySankeyView(c);
+            sankey.setData(split[4], split[5], split[0], split[1], split[2], split[3]);
+            LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            slp.topMargin = Style.dp(c, 6);
+            consumptionCard.addView(sankey, slp);
+            return;
+        }
 
         CharSequence heroVal = ov.efficiencyKwh100km > 0
             ? withEnergySourceMark(valueWithUnit(EnergyUnits.number(ov.efficiencyKwh100km),
@@ -734,14 +748,7 @@ public class DailyStatsView extends LinearLayout {
         consumptionCard.addView(createHeroView(c, heroVal, consumptionCaption));
         Style.gap(consumptionCard, c, 10);
 
-        // Energy flow Sankey (battery + regen -> used -> drive, climate, other)
-        double[] split = DailyStatsProvider.splitTotals(ov.sessions);
-        if (split != null) {
-            EnergySankeyView sankey = new EnergySankeyView(c);
-            sankey.setData(split[4], split[5], split[0], split[1], split[2], split[3]);
-            consumptionCard.addView(sankey, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        } else if (ov.dischargeKwh > 0 || ov.regenKwh > 0) {
+        if (ov.dischargeKwh > 0 || ov.regenKwh > 0) {
             List<View> chips = new ArrayList<>();
             chips.add(metricChip(c, c.getString(R.string.stats_energy_net),
                 valueWithUnit(String.format(Locale.US, "%.1f", ov.netKwh), null, "kWh", ROW_UNIT_SCALE)));
