@@ -132,7 +132,7 @@ Ligue **Config → Integrações → Música → Música do celular** e a tela i
 mostra o que o celular toca pelo carro (Bluetooth, Apple CarPlay ou Android
 Auto), de qualquer app, com Tocar e Avançar. Não é preciso entrar em nenhuma
 conta. O Drive Assist lê isso dos próprios apps de música do carro; nenhuma
-permissão é pedida, e nada sai do carro. A pequena engrenagem no canto de cima,
+permissão é pedida, e nada sai do carro. O pequeno equalizador (três controles deslizantes) no canto de cima,
 à direita, do cartão abre os ajustes de som do próprio carro, com o equalizador.
 **Cartão grande**, na mesma página, mostra a capa do álbum inteira e botões
 grandes de Tocar e Avançar.
@@ -149,11 +149,19 @@ aparece, ou quando os outros cartões precisam de mais de uma coluna.
 A letra vem do [LRCLIB](https://lrclib.net), um site gratuito de letras. Para
 achá-la, o carro envia para lá os nomes da música, do artista e do álbum, uma
 vez por música. O carro guarda a letra das últimas 1000 músicas e a capa dos
-últimos 200 álbuns, então uma música ouvida de novo não precisa de internet. Algumas músicas só têm letra sem tempo no LRCLIB. O cartão
-mostra essa letra também, mas ela não anda sozinha: toque na metade de baixo da
+últimos 200 álbuns, então uma música ouvida de novo não precisa de internet.
+Capa errada? Segure o dedo nela. O carro esquece a capa desse álbum e pega a
+capa do celular de novo. Algumas músicas só têm letra sem tempo no LRCLIB. O cartão
+mostra essa letra também, mas ela não anda sozinha, e um pequeno relógio riscado
+aparece no alto: toque na metade de baixo da
 letra para descer uma linha, na metade de cima para voltar uma. Para uma música
 sem letra nenhuma, o botão Letra fica apagado, e tocar nele diz "Letra não
-encontrada para esta música". Com a chave desligada, o carro não envia nada para
+encontrada para esta música". Letra com tempo um pouco adiantada ou atrasada?
+Toque no cadeado no alto. O cartão mostra então todas as linhas. Toque em cada
+linha quando ela é cantada: as outras linhas acompanham os seus toques, e o
+carro guarda o ajuste dessa música. Um toque move todas as linhas igualmente;
+mais toques também corrigem uma letra que vai se atrasando. A seta que volta
+desfaz o ajuste, e segurar a capa também. O cadeado fecha sozinho na próxima música. Faça isso parado. Com a chave desligada, o carro não envia nada para
 lá.
 
 ### Dashcam

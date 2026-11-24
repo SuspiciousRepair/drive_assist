@@ -46,6 +46,10 @@ public final class MusicState {
         boolean visibleChange = was.playing != now.playing
             || !java.util.Objects.equals(was.title, now.title)
             || !java.util.Objects.equals(was.artist, now.artist)
+            // The album names the cover (CoverCache) and shows on the card.
+            // A player that sends it after the title left the card on the
+            // last song's album and cover until something else changed.
+            || !java.util.Objects.equals(was.album, now.album)
             || !java.util.Objects.equals(was.artUrl, now.artUrl)
             || was.artImage != now.artImage;
         if (visibleChange) {

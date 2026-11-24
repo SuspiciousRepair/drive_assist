@@ -2,6 +2,49 @@
 
 ## [Unreleased]
 
+## [v0.11.3] — 2026-11-23
+
+### Added
+- **Music card: an icon when the lyrics have no timing.** Some songs have
+  only plain lyrics, which do not move with the song (tap the lower half to
+  go down a line, the upper half to go back). A small struck-through clock
+  now shows at the top of the lyrics card while they are up.
+- **Music card: the sound settings button is an equalizer.** The gear in
+  the card's corner, which opens the car's sound settings, is now three
+  sliders.
+- **Music card: press and hold the cover to reload it.** A wrong cover kept
+  from another song no longer stays. Holding the cover makes the car forget
+  that album's kept cover and take the phone's cover again.
+- **Music card: fix lyrics that are early or late.** Tap the lock at the
+  top of the lyrics card, then tap each line as it is sung. One tap moves
+  every line; more taps also fix lyrics that drift. The car keeps the fix
+  for each song; the turning arrow undoes it, and so does holding the
+  cover.
+
+### Changed
+- **Charging stats uses the Stats page's charging event card.** Both
+  Charging stats and the daily Stats page now share one charging-event card
+  layout (plug icon, time range and duration, and four aligned columns for
+  battery, energy added, average power and cost). The Home screen keeps its
+  own compact finished-charge card. Tapping a charge on the Stats page now
+  opens the full charge page, and tapping its Cost column opens the price
+  dialog directly.
+
+### Fixed
+- **Climb and height no longer count GPS height jumps.** GPS height can
+  jump by 100 m or more while the car is stopped or slow, at the start of a
+  trip, or right after a tunnel. A change steeper than any road (15 m of
+  height per 100 m driven) is now left out of the trip's climb (↑ ↓), the
+  day's highest point and the height chart. GPS height is also not used in
+  the first 90 seconds of a trip, while it settles, and the chart leaves out
+  points with a vague GPS position. On a trip on 2026-11-23 the climb went
+  from ↑318 ↓270 m to ↑168 ↓126 m. Trips already saved keep their old
+  numbers; their height chart is cleaned when it opens.
+- **Music card: the album name and cover keep up with the song.** A phone
+  that sends the album a moment after the song's name left the card on the
+  last song's album name and cover until something else changed. A new
+  album now redraws the card and loads its own cover.
+
 ## [v0.11.2] — 2026-11-23
 
 ### Changed

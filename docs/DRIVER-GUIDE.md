@@ -128,7 +128,7 @@ Turn on **Config → Integrations → Music → Phone music** and the home scree
 shows what your phone plays through the car (Bluetooth, Apple CarPlay or
 Android Auto), from any app, with Play and Skip. There is no sign-in. Drive
 Assist reads this from the car's own music apps; no permission is asked, and
-nothing leaves the car. The small gear in the card's top-right corner opens the
+nothing leaves the car. The small equalizer (three sliders) in the card's top-right corner opens the
 car's own sound settings, with the equalizer. **Large card** on the same page
 gives the card full album art and big Play and Skip buttons.
 
@@ -145,10 +145,17 @@ The lyrics come from [LRCLIB](https://lrclib.net), a free lyrics site. To find
 them, the car sends the song, artist and album names there, once for each song.
 The car keeps the lyrics of the last 1000 songs and the covers of the last 200 albums,
 so a song heard again needs no internet.
+A wrong cover? Press and hold it. The car forgets that album's cover and takes
+the cover from the phone again.
 Some songs have only untimed lyrics on LRCLIB. The card shows them too, but they
-do not move by themselves: tap the lower half of the lyrics to go down one line,
-the upper half to go back one. For a song with no lyrics at all, the Lyrics
+do not move by themselves, and a small struck-through clock shows at the top:
+tap the lower half of the lyrics to go down one line, the upper half to go back one. For a song with no lyrics at all, the Lyrics
 button is dim, and tapping it says "No lyrics found for this song".
+Timed lyrics a little early or late? Tap the lock at the top. The card then
+shows every line. Tap each line when it is sung: the other lines move with your
+taps, and the car keeps the fix for that song. One tap moves all lines by the
+same amount; more taps also fix lyrics that drift. The turning arrow undoes the
+fix, and so does holding the cover. The lock closes by itself on the next song. Do this when parked.
 With the switch off, the car sends nothing there.
 
 ### Dashcam

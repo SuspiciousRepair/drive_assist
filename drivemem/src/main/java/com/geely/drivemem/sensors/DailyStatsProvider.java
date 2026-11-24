@@ -1175,12 +1175,23 @@ public final class DailyStatsProvider {
         // Runs even for an already-frozen day (unlike everything above,
         // which foundInStat skips), so this was the one full-scan Week/Month
         // paid on every single day of its window even after that skip.
+        // The highest height that is not a GPS jump (AltitudeGate): a plain
+        // MAX showed a 933 m spike, taken at 0 km/h, as the day's top.
         long[] altBounds = dayBoundsMs(dateStr);
         Cursor altC = db.rawQuery(
-            "SELECT MAX(altitude_m) FROM telemetry_sample WHERE ts_ms >= ? AND ts_ms < ?",
+            "SELECT altitude_m, odo_km FROM telemetry_sample "
+          + "WHERE ts_ms >= ? AND ts_ms < ? AND altitude_m IS NOT NULL ORDER BY ts_ms",
             new String[]{String.valueOf(altBounds[0]), String.valueOf(altBounds[1])});
         try {
-            if (altC.moveToFirst() && !altC.isNull(0)) ov.maxAltitudeM = altC.getDouble(0);
+            int n = altC.getCount();
+            double[] alts = new double[n], odos = new double[n];
+            for (int i = 0; altC.moveToNext(); i++) {
+                alts[i] = altC.getDouble(0);
+                odos[i] = altC.isNull(1) ? Double.NaN : altC.getDouble(1);
+            }
+            double top = AltitudeGate.maxHeight(alts, odos,
+                com.geely.drivemem.state.TripSession.ALTITUDE_NOISE_M);
+            if (!Double.isNaN(top)) ov.maxAltitudeM = top;
         } finally { altC.close(); }
 
         // Not stored yet (today, a day frozen before v35): from the samples,

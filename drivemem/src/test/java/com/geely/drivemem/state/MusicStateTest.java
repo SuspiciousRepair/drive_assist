@@ -66,6 +66,19 @@ public class MusicStateTest {
         assertEquals(2, n.get());
     }
 
+    @Test public void anAlbumThatComesAfterTheTitleRedrawsTheCard() {
+        AtomicInteger n = new AtomicInteger();
+        MusicState.setListener((p, t, a, u) -> n.incrementAndGet());
+        MusicState.Track t = track("Song", true);
+        t.album = "Old album";
+        MusicState.setSession(t, null);
+        MusicState.Track later = track("Song", true);
+        later.album = "New album";
+        MusicState.setSession(later, null);
+        assertEquals(2, n.get());
+        assertEquals("New album", MusicState.album());
+    }
+
     @Test public void theSessionTrackIsCopied() {
         MusicState.Track t = track("Before", true);
         MusicState.setSession(t, null);
