@@ -789,6 +789,7 @@
     <string name="diary_cat_wipers">Limpiaparabrisas</string>
     <string name="diary_cat_washer_fluid">Líquido lavaparabrisas</string>
     <string name="diary_cat_lights_fuses">Luces y fusibles</string>
+    <string name="diary_cat_key_battery">Pila de la llave</string>
     <string name="diary_cat_wash_detail">Lavado</string>
     <string name="diary_cat_polishing">Pulido</string>
     <string name="diary_cat_wax_ceramic">Cera / cerámico</string>
@@ -907,6 +908,7 @@
     <string name="cfg_diary_grp_battery">Batería</string>
     <string name="cfg_diary_grp_service">Revisión y fluidos</string>
     <string name="cfg_diary_custom">Otro valor</string>
+    <string name="cfg_diary_add_item">Añadir elemento</string>
     <string name="cfg_diary_row_reset">Volver al valor de fábrica</string>
     <string name="cfg_diary_cancel">Cancelar</string>
     <string name="cfg_diary_jolt_title">Detección de impactos</string>

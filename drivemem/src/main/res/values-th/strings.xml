@@ -806,6 +806,7 @@
     <string name="diary_cat_wipers">ใบปัดน้ำฝน</string>
     <string name="diary_cat_washer_fluid">น้ำฉีดกระจก</string>
     <string name="diary_cat_lights_fuses">ไฟและฟิวส์</string>
+    <string name="diary_cat_key_battery">ถ่านกุญแจรีโมท</string>
     <string name="diary_cat_wash_detail">ล้างรถ</string>
     <string name="diary_cat_polishing">ขัดสี</string>
     <string name="diary_cat_wax_ceramic">เคลือบสี / เซรามิก</string>
@@ -924,6 +925,7 @@
     <string name="cfg_diary_grp_battery">แบตเตอรี่</string>
     <string name="cfg_diary_grp_service">บริการและของเหลว</string>
     <string name="cfg_diary_custom">ค่าอื่น</string>
+    <string name="cfg_diary_add_item">เพิ่มรายการ</string>
     <string name="cfg_diary_row_reset">กลับเป็นค่าโรงงาน</string>
     <string name="cfg_diary_cancel">ยกเลิก</string>
     <string name="cfg_diary_jolt_title">ตรวจจับแรงกระแทก</string>

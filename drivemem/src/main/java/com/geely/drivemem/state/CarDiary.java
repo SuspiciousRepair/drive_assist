@@ -118,6 +118,8 @@ public final class CarDiary {
         BATTERY_12V(Group.ELECTRICAL, KIND_CARE, R.string.diary_cat_battery_12v, null, 48, true),
         WIPERS(Group.ELECTRICAL, KIND_CARE, R.string.diary_cat_wipers, null, 12, true),
         LIGHTS_FUSES(Group.ELECTRICAL, KIND_CARE, R.string.diary_cat_lights_fuses, null, null, true),
+        // A thing to record, with no factory interval.
+        KEY_BATTERY(Group.ELECTRICAL, KIND_CARE, R.string.diary_cat_key_battery, null, null, true),
 
         // Cosmetic / Aesthetics & Accessories
         WASH_DETAIL(Group.COSMETIC, KIND_CARE, R.string.diary_cat_wash_detail, null, null, true),
@@ -288,6 +290,9 @@ public final class CarDiary {
         public final boolean overdue;
         public final boolean dueSoon;
         public final boolean coldSnapNudge;
+        /** The owner gave this item a schedule in Settings: it is shown in the
+         * schedule card also before its first entry. */
+        public boolean ownerScheduled;
 
         public DueStatus(Category category, Entry lastEntry, Double kmSinceLast, Double kmRemaining,
                          Integer daysSinceLast, Integer daysRemaining,
@@ -317,6 +322,10 @@ public final class CarDiary {
         public final int gearOilKm, gearOilMonths;
         public final int wipersMonths;
         public final int battery12vMonths;
+        /** Schedules the owner set for items with no setting of their own
+         * (polishing every 30 days), and overrides of the built-in ones
+         * (alignment, balancing, tires): {km, months, days}; all 0 = Off. */
+        public Map<Category, int[]> extras = Collections.emptyMap();
 
         public ScheduleConfig(int balanceDays, int tirePressureDays, boolean coldSnapEnabled,
                               int tireRotationKm, int serviceKm, int serviceMonths,
@@ -356,7 +365,7 @@ public final class CarDiary {
 
         public static ScheduleConfig fromPrefs(Context ctx) {
             if (ctx == null) return defaults();
-            return new ScheduleConfig(
+            ScheduleConfig cfg = new ScheduleConfig(
                 Prefs.getDiaryBalanceDays(ctx),
                 Prefs.getDiaryTirePressureDays(ctx),
                 Prefs.getDiaryTireColdSnap(ctx),
@@ -368,6 +377,18 @@ public final class CarDiary {
                 Prefs.getDiaryGearOilKm(ctx), Prefs.getDiaryGearOilMonths(ctx),
                 Prefs.getDiaryWipersMonths(ctx),
                 Prefs.getDiaryBattery12vMonths(ctx));
+            cfg.extras = parseExtras(Prefs.getDiaryExtraSchedules(ctx));
+            return cfg;
+        }
+
+        /** Items with a setting of their own: an extra never applies to them. */
+        public static boolean hasOwnSetting(Category cat) {
+            switch (cat) {
+                case TIRE_PRESSURE: case TIRE_ROTATION: case SERVICE: case CABIN_FILTER:
+                case BRAKE_FLUID: case COOLANT: case GEAR_OIL: case WIPERS: case BATTERY_12V:
+                    return true;
+                default: return false;
+            }
         }
 
         public Double kmInterval(Category cat) {
@@ -379,7 +400,11 @@ public final class CarDiary {
                 case BRAKE_FLUID: return brakeFluidKm > 0 ? (double) brakeFluidKm : null;
                 case COOLANT: return coolantKm > 0 ? (double) coolantKm : null;
                 case GEAR_OIL: return gearOilKm > 0 ? (double) gearOilKm : null;
-                default: return cat.kmInterval;
+                default: {
+                    int[] x = extras.get(cat);
+                    if (x != null) return x[0] > 0 ? (Double) (double) x[0] : null;
+                    return cat.kmInterval;
+                }
             }
         }
 
@@ -393,15 +418,49 @@ public final class CarDiary {
                 case GEAR_OIL: return gearOilMonths > 0 ? (int) Math.round(gearOilMonths * DAYS_PER_MONTH) : null;
                 case WIPERS: return wipersMonths > 0 ? (int) Math.round(wipersMonths * DAYS_PER_MONTH) : null;
                 case BATTERY_12V: return battery12vMonths > 0 ? (int) Math.round(battery12vMonths * DAYS_PER_MONTH) : null;
-                default:
+                default: {
+                    int[] x = extras.get(cat);
+                    if (x != null) {
+                        if (x[2] > 0) return x[2];
+                        return x[1] > 0 ? (Integer) (int) Math.round(x[1] * DAYS_PER_MONTH) : null;
+                    }
                     return cat.monthInterval != null
                         ? (int) Math.round(cat.monthInterval * DAYS_PER_MONTH) : null;
+                }
             }
         }
 
         public boolean isEnabled(Category cat) {
             return kmInterval(cat) != null || dayInterval(cat) != null;
         }
+    }
+
+    /** Pure: "POLISHING:0:0:30;TIRE_ALIGNMENT:10000:12:0" to a map. Unknown
+     * names (an item a newer version has) and broken parts are skipped. */
+    public static Map<Category, int[]> parseExtras(String text) {
+        Map<Category, int[]> out = new LinkedHashMap<>();
+        if (text == null) return out;
+        for (String part : text.split(";")) {
+            String[] f = part.trim().split(":");
+            if (f.length != 4) continue;
+            try {
+                Category cat = Category.valueOf(f[0]);
+                if (ScheduleConfig.hasOwnSetting(cat)) continue;
+                out.put(cat, new int[]{Math.max(0, Integer.parseInt(f[1])),
+                    Math.max(0, Integer.parseInt(f[2])), Math.max(0, Integer.parseInt(f[3]))});
+            } catch (IllegalArgumentException ignored) {}
+        }
+        return out;
+    }
+
+    public static String formatExtras(Map<Category, int[]> extras) {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<Category, int[]> e : extras.entrySet()) {
+            int[] x = e.getValue();
+            if (sb.length() > 0) sb.append(';');
+            sb.append(e.getKey().name()).append(':').append(x[0]).append(':').append(x[1]).append(':').append(x[2]);
+        }
+        return sb.toString();
     }
 
     /** Time-period filter for the Diary list and TCO bar. Pure & unit-tested. */
@@ -1571,7 +1630,8 @@ public final class CarDiary {
 
         List<DueStatus> out = new ArrayList<>();
         for (Category cat : Category.values()) {
-            if (!cat.userPickable || !cat.hasInterval()) continue;
+            boolean owner = cfg.extras.containsKey(cat) && !cat.hasInterval();
+            if (!cat.userPickable || (!cat.hasInterval() && !owner)) continue;
             Double kmLimit = cfg.kmInterval(cat);
             Integer dayLimit = cfg.dayInterval(cat);
             if (kmLimit == null && dayLimit == null) continue; // disabled (Off) in Settings
@@ -1624,6 +1684,9 @@ public final class CarDiary {
 
             out.add(new DueStatus(cat, last, kmSince, kmRem, daysSince, daysRem,
                 overdue, soonKm || soonTime || coldSnap, coldSnap));
+        }
+        for (DueStatus d : out) {
+            d.ownerScheduled = cfg.extras.containsKey(d.category) && !d.category.hasInterval();
         }
         return out;
     }
@@ -1690,7 +1753,8 @@ public final class CarDiary {
     }
 
     private static boolean isScheduleCandidate(DueStatus d) {
-        return d.lastEntry != null || d.overdue || d.dueSoon || coreRank(d.category) < SCHEDULE_CORE.length;
+        return d.lastEntry != null || d.overdue || d.dueSoon || d.ownerScheduled
+            || coreRank(d.category) < SCHEDULE_CORE.length;
     }
 
     private static int coreRank(Category c) {

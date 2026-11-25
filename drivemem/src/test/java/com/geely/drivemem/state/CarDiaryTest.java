@@ -518,4 +518,46 @@ public class CarDiaryTest {
         assertNull(CarDiary.parseTicketMinute(null));
         assertNull(CarDiary.parseTicketSpeed(CarDiary.buildTicketMeta(600, null)));
     }
+
+    // ---- Schedules the owner adds (polishing every 30 days) ----
+
+    @Test public void extrasRoundTripAndSkipWhatIsNotTheirs() {
+        java.util.Map<CarDiary.Category, int[]> m =
+            CarDiary.parseExtras("POLISHING:0:0:30;TIRE_ALIGNMENT:15000:24:0;NO_SUCH_ITEM:1:1:1;SERVICE:1:1:1;broken");
+        assertEquals(2, m.size());
+        assertArrayEquals(new int[]{0, 0, 30}, m.get(CarDiary.Category.POLISHING));
+        assertEquals("POLISHING:0:0:30;TIRE_ALIGNMENT:15000:24:0", CarDiary.formatExtras(m));
+        assertTrue(CarDiary.parseExtras(null).isEmpty());
+    }
+
+    @Test public void anOwnerScheduleMakesAnItemDue() {
+        CarDiary.ScheduleConfig cfg = CarDiary.ScheduleConfig.defaults();
+        assertNull(cfg.dayInterval(CarDiary.Category.POLISHING));
+        cfg.extras = CarDiary.parseExtras("POLISHING:0:0:30");
+        assertEquals(Integer.valueOf(30), cfg.dayInterval(CarDiary.Category.POLISHING));
+        assertNull(cfg.kmInterval(CarDiary.Category.POLISHING));
+
+        // No entry yet: it is in the due list, marked as the owner's, so the card shows it.
+        List<CarDiary.DueStatus> due = CarDiary.computeDueStatuses(
+            new java.util.ArrayList<>(), 7_000.0, 1_000_000_000_000L, null, cfg);
+        CarDiary.DueStatus pol = null;
+        for (CarDiary.DueStatus d : due) if (d.category == CarDiary.Category.POLISHING) pol = d;
+        assertNotNull(pol);
+        assertTrue(pol.ownerScheduled);
+    }
+
+    @Test public void anExtraOverridesABuiltInIntervalAndCanTurnItOff() {
+        CarDiary.ScheduleConfig cfg = CarDiary.ScheduleConfig.defaults();
+        assertEquals(10_000.0, cfg.kmInterval(CarDiary.Category.TIRE_ALIGNMENT), 1e-9);
+        cfg.extras = CarDiary.parseExtras("TIRE_ALIGNMENT:15000:24:0");
+        assertEquals(15_000.0, cfg.kmInterval(CarDiary.Category.TIRE_ALIGNMENT), 1e-9);
+        cfg.extras = CarDiary.parseExtras("TIRE_ALIGNMENT:0:0:0");
+        assertFalse(cfg.isEnabled(CarDiary.Category.TIRE_ALIGNMENT));
+    }
+
+    @Test public void theKeyBatteryIsAnItemToRecordWithNoSchedule() {
+        assertFalse(CarDiary.Category.KEY_BATTERY.hasInterval());
+        assertTrue(CarDiary.Category.KEY_BATTERY.userPickable);
+        assertEquals(CarDiary.Group.ELECTRICAL, CarDiary.Category.KEY_BATTERY.group);
+    }
 }

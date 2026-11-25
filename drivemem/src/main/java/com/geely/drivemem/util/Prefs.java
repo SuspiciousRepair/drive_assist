@@ -367,6 +367,9 @@ public final class Prefs {
     public static void setDiaryWipersMonths(Context ctx, int months) { file(ctx).edit().putInt("diary_wipers_months", months).apply(); }
     public static int getDiaryBattery12vMonths(Context ctx) { return file(ctx).getInt("diary_battery_12v_months", DIARY_DEF_BATTERY_12V_MONTHS); }
     public static void setDiaryBattery12vMonths(Context ctx, int months) { file(ctx).edit().putInt("diary_battery_12v_months", months).apply(); }
+    /** Schedules the owner added, and overrides of built-in ones: see CarDiary.parseExtras. */
+    public static String getDiaryExtraSchedules(Context ctx) { return file(ctx).getString("diary_extra_sched", ""); }
+    public static void setDiaryExtraSchedules(Context ctx, String v) { file(ctx).edit().putString("diary_extra_sched", v).apply(); }
     public static String getDiaryJoltSensitivity(Context ctx) { return file(ctx).getString("diary_jolt_sensitivity", "medium"); }
     public static void setDiaryJoltSensitivity(Context ctx, String level) { file(ctx).edit().putString("diary_jolt_sensitivity", level).apply(); }
     // --- Auto update check throttle ---

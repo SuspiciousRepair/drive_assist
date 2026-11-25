@@ -64,6 +64,8 @@ public final class TelemetryDiarySection extends LinearLayout {
             Prefs.DIARY_DEF_BATTERY_12V_MONTHS, 0, Prefs.getDiaryBattery12vMonths(c), 0,
             (a, m) -> Prefs.setDiaryBattery12vMonths(c, a))));
 
+        addGroupRows(batCard, CarDiary.Group.ELECTRICAL);
+
         LinearLayout tireCard = ConfigCards.card(c, c.getString(R.string.diary_grp_tires));
         ConfigCards.add(leftCol, tireCard);
         Row pressure = new Row(c.getString(R.string.diary_cat_tire_pressure), K_DAYS,
@@ -111,6 +113,13 @@ public final class TelemetryDiarySection extends LinearLayout {
             new int[][]{{0, 0}, {6, 0}, {12, 0}, {24, 0}},
             Prefs.DIARY_DEF_WIPERS_MONTHS, 0, Prefs.getDiaryWipersMonths(c), 0,
             (a, m) -> Prefs.setDiaryWipersMonths(c, a))));
+
+        addGroupRows(tireCard, CarDiary.Group.TIRES);
+        addGroupRows(srvCard, CarDiary.Group.SERVICE);
+
+        LinearLayout lookCard = ConfigCards.card(c, c.getString(R.string.diary_grp_cosmetic));
+        ConfigCards.add(leftCol, lookCard);
+        addGroupRows(lookCard, CarDiary.Group.COSMETIC);
 
         // ---- Right column: Jolt detection ----
         LinearLayout joltCard = ConfigCards.card(c, c.getString(R.string.cfg_diary_jolt_title));
@@ -257,8 +266,119 @@ public final class TelemetryDiarySection extends LinearLayout {
             case K_DAYS: return d(a);
             case K_MONTHS: return mo(a);
             case K_KM: return kKm(a / 1000);
-            default: return kmM(a / 1000, b);
+            default: return b > 0 ? kmM(a / 1000, b) : kKm(a / 1000);
         }
+    }
+
+    // ---- Items with no setting of their own: built-in ones, and the owner's ----
+
+    private static final int[][] P_DAYS = {{0, 0}, {15, 0}, {30, 0}, {60, 0}, {90, 0}, {180, 0}, {365, 0}};
+    private static final int[][] P_MONTHS = {{0, 0}, {6, 0}, {12, 0}, {24, 0}, {36, 0}, {60, 0}};
+    private static final int[][] P_KM = {{0, 0}, {5_000, 0}, {10_000, 0}, {15_000, 0}, {20_000, 0}};
+    private static final int[][] P_KM_MONTHS = {{0, 0}, {10_000, 12}, {20_000, 24}, {40_000, 48}};
+
+    /** Pure: the row kind of {km, months, days}; -1 when all are 0. */
+    static int kindOf(int km, int months, int days) {
+        if (days > 0) return K_DAYS;
+        if (km > 0) return months > 0 ? K_KM_MONTHS : K_KM;
+        return months > 0 ? K_MONTHS : -1;
+    }
+
+    /** Pure: a row value back to {km, months, days}. */
+    static int[] toExtra(int kind, int a, int b) {
+        switch (kind) {
+            case K_DAYS: return new int[]{0, 0, a};
+            case K_MONTHS: return new int[]{0, a, 0};
+            case K_KM: return new int[]{a, 0, 0};
+            default: return new int[]{a, a == 0 ? 0 : b, 0};
+        }
+    }
+
+    /** After a card's own rows: one row for each other item of the group that
+     * has a schedule (built into the app, or added by the owner), then
+     * "Add an item" for the ones that have none. */
+    private void addGroupRows(LinearLayout card, CarDiary.Group group) {
+        Context c = activity;
+        final java.util.Map<CarDiary.Category, int[]> extras =
+            CarDiary.parseExtras(Prefs.getDiaryExtraSchedules(c));
+        final java.util.List<CarDiary.Category> free = new java.util.ArrayList<>();
+        for (CarDiary.Category cat : CarDiary.Category.forGroup(group)) {
+            if (!cat.userPickable || CarDiary.ScheduleConfig.hasOwnSetting(cat)) continue;
+            int[] x = extras.get(cat);
+            final boolean builtIn = cat.hasInterval();
+            if (x == null && !builtIn) { free.add(cat); continue; }
+            final int defKm = cat.kmInterval != null ? (int) Math.round(cat.kmInterval) : 0;
+            final int defMo = cat.monthInterval != null ? cat.monthInterval : 0;
+            int kind = builtIn ? kindOf(defKm, defMo, 0) : kindOf(x[0], x[1], x[2]);
+            if (kind < 0) kind = K_DAYS;
+            final int k = kind;
+            int[] cur = x != null ? x : new int[]{defKm, defMo, 0};
+            int curA = k == K_DAYS ? cur[2] : (k == K_MONTHS ? cur[1] : cur[0]);
+            int curB = k == K_KM_MONTHS ? cur[1] : 0;
+            int defA = !builtIn ? curA : (k == K_MONTHS ? defMo : defKm);   // an owner's item has no factory value
+            int defB = !builtIn ? curB : (k == K_KM_MONTHS ? defMo : 0);
+            int[][] presets = k == K_DAYS ? P_DAYS : k == K_MONTHS ? P_MONTHS : k == K_KM ? P_KM : P_KM_MONTHS;
+            card.addView(intervalRow(new Row(c.getString(cat.labelRes), k, presets, defA, defB, curA, curB,
+                (a, m) -> {
+                    java.util.Map<CarDiary.Category, int[]> now =
+                        CarDiary.parseExtras(Prefs.getDiaryExtraSchedules(c));
+                    boolean isFactory = builtIn && a == (k == K_MONTHS ? defMo : defKm)
+                        && (k != K_KM_MONTHS || m == defMo);
+                    // Off takes an owner's item off the list; the factory value needs no override.
+                    if ((a == 0 && !builtIn) || isFactory) now.remove(cat);
+                    else now.put(cat, toExtra(k, a, m));
+                    Prefs.setDiaryExtraSchedules(c, CarDiary.formatExtras(now));
+                })));
+        }
+        if (free.isEmpty()) return;
+
+        TextView add = new TextView(c);
+        add.setText("+  " + c.getString(R.string.cfg_diary_add_item));
+        add.setTextColor(Style.ACCENT);
+        add.setTextSize(20f);
+        add.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 60));
+        alp.topMargin = Style.dp(c, 6);
+        add.setLayoutParams(alp);
+        add.setOnClickListener(v -> showAddMenu(add, group, free));
+        card.addView(add);
+    }
+
+    /** The items of the group with no schedule yet. A pick adds one with a
+     * usual first value (km and months for tires and service, else 30 days). */
+    private void showAddMenu(View anchor, CarDiary.Group group, java.util.List<CarDiary.Category> free) {
+        Context c = activity;
+        LinearLayout menu = new LinearLayout(c);
+        menu.setOrientation(VERTICAL);
+        menu.setBackground(Style.card(Style.CARD, c));
+        int pad = Style.dp(c, 6);
+        menu.setPadding(pad, pad, pad, pad);
+        android.widget.ScrollView scroll = new android.widget.ScrollView(c);
+        scroll.addView(menu);
+        android.widget.PopupWindow popup = new android.widget.PopupWindow(scroll,
+            Style.dp(c, 420), ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        popup.setOutsideTouchable(true);
+        popup.setElevation(Style.dp(c, 8));
+        final boolean byKm = group == CarDiary.Group.TIRES || group == CarDiary.Group.SERVICE;
+        for (CarDiary.Category cat : free) {
+            TextView row = new TextView(c);
+            row.setText(c.getString(cat.labelRes));
+            row.setTextSize(20f);
+            row.setTextColor(Style.TEXT);
+            int rp = Style.dp(c, 18);
+            row.setPadding(rp, rp, rp, rp);
+            row.setOnClickListener(v -> {
+                popup.dismiss();
+                java.util.Map<CarDiary.Category, int[]> now =
+                    CarDiary.parseExtras(Prefs.getDiaryExtraSchedules(c));
+                now.put(cat, byKm ? new int[]{10_000, 12, 0} : new int[]{0, 0, 30});
+                Prefs.setDiaryExtraSchedules(c, CarDiary.formatExtras(now));
+                notifyChange();
+            });
+            menu.addView(row);
+        }
+        popup.showAsDropDown(anchor, 0, 0);
     }
 
     private void apply(Row r, int a, int b) {

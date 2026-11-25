@@ -817,6 +817,7 @@
     <string name="diary_cat_wipers">Wipers</string>
     <string name="diary_cat_washer_fluid">Wiper fluid</string>
     <string name="diary_cat_lights_fuses">Lights &amp; fuses</string>
+    <string name="diary_cat_key_battery">Key fob battery</string>
     <string name="diary_cat_wash_detail">Wash &amp; detail</string>
     <string name="diary_cat_polishing">Polishing</string>
     <string name="diary_cat_wax_ceramic">Wax &amp; ceramic</string>
@@ -935,6 +936,7 @@
     <string name="cfg_diary_grp_battery">Battery</string>
     <string name="cfg_diary_grp_service">Service &amp; fluids</string>
     <string name="cfg_diary_custom">Other value</string>
+    <string name="cfg_diary_add_item">Add an item</string>
     <string name="cfg_diary_row_reset">Back to factory default</string>
     <string name="cfg_diary_cancel">Cancel</string>
     <string name="cfg_diary_jolt_title">Impact &amp; jolt detection</string>

@@ -802,6 +802,7 @@
     <string name="diary_cat_wipers">Palhetas</string>
     <string name="diary_cat_washer_fluid">Água do limpador</string>
     <string name="diary_cat_lights_fuses">Luzes e fusíveis</string>
+    <string name="diary_cat_key_battery">Bateria da chave</string>
     <string name="diary_cat_wash_detail">Lavagem</string>
     <string name="diary_cat_polishing">Polimento</string>
     <string name="diary_cat_wax_ceramic">Cera / vitrificação</string>
@@ -920,6 +921,7 @@
     <string name="cfg_diary_grp_battery">Bateria</string>
     <string name="cfg_diary_grp_service">Revisão e fluidos</string>
     <string name="cfg_diary_custom">Outro valor</string>
+    <string name="cfg_diary_add_item">Adicionar item</string>
     <string name="cfg_diary_row_reset">Voltar ao padrão de fábrica</string>
     <string name="cfg_diary_cancel">Cancelar</string>
     <string name="cfg_diary_jolt_title">Detecção de impactos</string>
