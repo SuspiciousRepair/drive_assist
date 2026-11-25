@@ -50,7 +50,7 @@ public final class TelemetryDiarySection extends LinearLayout {
 
         CharSequence off = c.getString(R.string.cfg_diary_off);
 
-        // ---- Left column: Battery, Tires, Jolt detection ----
+        // ---- Left column: the maintenance schedule, one card per group ----
         LinearLayout batCard = ConfigCards.card(c, c.getString(R.string.cfg_diary_grp_battery));
         ConfigCards.add(leftCol, batCard);
         batCard.addView(ConfigCards.hint(c, c.getString(R.string.cfg_diary_schedule_hint)));
@@ -80,9 +80,8 @@ public final class TelemetryDiarySection extends LinearLayout {
             Prefs.DIARY_DEF_TIRE_ROTATION_KM, 0, Prefs.getDiaryTireRotationKm(c), 0,
             (a, m) -> Prefs.setDiaryTireRotationKm(c, a))));
 
-        // ---- Right column: Service & fluids ----
         LinearLayout srvCard = ConfigCards.card(c, c.getString(R.string.cfg_diary_grp_service));
-        ConfigCards.add(rightCol, srvCard);
+        ConfigCards.add(leftCol, srvCard);
         srvCard.addView(intervalRow(new Row(c.getString(R.string.diary_cat_service), K_KM_MONTHS,
             new int[][]{{0, 0}, {10_000, 12}, {20_000, 12}, {30_000, 24}},
             Prefs.DIARY_DEF_SERVICE_KM, Prefs.DIARY_DEF_SERVICE_MONTHS,
@@ -113,9 +112,9 @@ public final class TelemetryDiarySection extends LinearLayout {
             Prefs.DIARY_DEF_WIPERS_MONTHS, 0, Prefs.getDiaryWipersMonths(c), 0,
             (a, m) -> Prefs.setDiaryWipersMonths(c, a))));
 
-        // ---- Left column, last: Jolt detection ----
+        // ---- Right column: Jolt detection ----
         LinearLayout joltCard = ConfigCards.card(c, c.getString(R.string.cfg_diary_jolt_title));
-        ConfigCards.add(leftCol, joltCard);
+        ConfigCards.add(rightCol, joltCard);
         joltCard.addView(ConfigCards.hint(c, c.getString(R.string.cfg_diary_jolt_hint)));
 
         String curSens = Prefs.getDiaryJoltSensitivity(c);
