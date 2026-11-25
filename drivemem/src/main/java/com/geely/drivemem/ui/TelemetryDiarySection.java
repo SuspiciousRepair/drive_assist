@@ -46,6 +46,24 @@ public final class TelemetryDiarySection extends LinearLayout {
 
         LinearLayout leftCol = ConfigCards.column(c);
         LinearLayout rightCol = ConfigCards.column(c);
+
+        // ---- The car: where first-time maintenance counts from ----
+        LinearLayout carCard = ConfigCards.card(c, c.getString(R.string.cfg_diary_car_title));
+        ConfigCards.add(leftCol, carCard);
+        long day = Prefs.getDiaryPickupDay(c);
+        final java.time.LocalDate picked = day >= 0 ? java.time.LocalDate.ofEpochDay(day) : null;
+        carCard.addView(valueRow(c.getString(R.string.cfg_diary_pickup_date),
+            picked == null ? null : java.time.format.DateTimeFormatter
+                .ofLocalizedDate(java.time.format.FormatStyle.MEDIUM).format(picked),
+            () -> DiaryCalendar.open(c, picked != null ? picked : java.time.LocalDate.now(), false, d -> {
+                Prefs.setDiaryPickupDay(c, d.toEpochDay());
+                notifyChange();
+            })));
+        int pkm = Prefs.getDiaryPickupKm(c);
+        carCard.addView(valueRow(c.getString(R.string.cfg_diary_pickup_km),
+            Style.valueWithUnit(String.format(java.util.Locale.getDefault(), "%,d", pkm),
+                Style.TEXT, "km", Style.UNIT_SCALE_ROW),
+            this::showPickupKmDialog));
         addView(ConfigCards.columns(c, leftCol, rightCol));
 
         CharSequence off = c.getString(R.string.cfg_diary_off);
@@ -493,6 +511,95 @@ public final class TelemetryDiarySection extends LinearLayout {
 
         row.addView(arrow(r, neighbour(r.presets, r.curA, r.curB, pairs, 1), false));
         return row;
+    }
+
+    /** A row with one value box and no arrows, in line with the interval rows.
+     * A null value shows as a dim "Set". */
+    private View valueRow(String label, CharSequence value, Runnable onTap) {
+        Context c = activity;
+        LinearLayout row = new LinearLayout(c);
+        row.setOrientation(HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams wlp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 60));
+        wlp.topMargin = Style.dp(c, 6);
+        row.setLayoutParams(wlp);
+
+        TextView lbl = new TextView(c);
+        lbl.setText(label);
+        lbl.setTextColor(Style.TEXT);
+        lbl.setTextSize(20f);
+        lbl.setSingleLine(true);
+        row.addView(lbl, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView val = new TextView(c);
+        boolean unset = value == null;
+        val.setText(unset ? c.getString(R.string.cfg_diary_set) : value);
+        val.setTextColor(unset ? Style.TEXT_DIM : Style.TEXT);
+        val.setTextSize(20f);
+        val.setTypeface(null, unset ? Typeface.NORMAL : Typeface.BOLD);
+        val.setGravity(Gravity.CENTER);
+        val.setSingleLine(true);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(Style.dp(c, 14));
+        bg.setColor(Style.CARD_HI);
+        bg.setStroke(Style.dp(c, 1), Style.tileStrokeColor());
+        val.setBackground(bg);
+        val.setOnClickListener(v -> onTap.run());
+        LinearLayout.LayoutParams vlp = new LinearLayout.LayoutParams(Style.dp(c, 220), Style.dp(c, 52));
+        vlp.rightMargin = Style.dp(c, 60);   // the place of the right arrow in the rows below
+        row.addView(val, vlp);
+        return row;
+    }
+
+    /** The odometer on the pick-up day, typed. The keyboard opens in Park only. */
+    private void showPickupKmDialog() {
+        Context c = activity;
+        if (!com.geely.drivemem.state.CarState.isParked()) return;
+        android.app.Dialog dialog = new android.app.Dialog(c);
+        dialog.setCanceledOnTouchOutside(true);
+        LinearLayout root = new LinearLayout(c);
+        root.setOrientation(VERTICAL);
+        int pad = Style.dp(c, 32);
+        root.setPadding(pad, pad, pad, pad);
+        root.setBackground(Style.card(Style.cardFillColor(), c));
+        root.addView(Style.title(c, c.getString(R.string.cfg_diary_pickup_km)));
+
+        android.widget.EditText in = new android.widget.EditText(c);
+        in.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        in.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(6)});
+        in.setText(String.valueOf(Prefs.getDiaryPickupKm(c)));
+        in.setSelectAllOnFocus(true);
+        in.setTextColor(Style.TEXT);
+        in.setTextSize(34f);
+        in.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        ilp.topMargin = Style.dp(c, 16);
+        ilp.bottomMargin = Style.dp(c, 20);
+        root.addView(in, ilp);
+
+        LinearLayout foot = new LinearLayout(c);
+        foot.setOrientation(HORIZONTAL);
+        foot.addView(Style.cardButton(c, c.getString(R.string.cfg_diary_cancel), false, dialog::dismiss));
+        foot.addView(new View(c), new LinearLayout.LayoutParams(0, 1, 1f));
+        foot.addView(Style.cardButton(c, c.getString(android.R.string.ok), true, () -> {
+            Prefs.setDiaryPickupKm(c, typed(in.getText().toString()));
+            dialog.dismiss();
+            notifyChange();
+        }));
+        root.addView(foot);
+
+        dialog.setContentView(root);
+        android.view.Window w = dialog.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0));
+            w.setLayout(Style.dp(c, 560), ViewGroup.LayoutParams.WRAP_CONTENT);
+            w.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+            w.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
+        }
+        dialog.show();
+        in.requestFocus();
     }
 
     /** A plain chevron, no box. Dim and without action at the end of the presets. */

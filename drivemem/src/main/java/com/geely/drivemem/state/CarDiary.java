@@ -207,6 +207,8 @@ public final class CarDiary {
     public static final double COLD_SNAP_DROP_C = 10.0;
     public static final long COLD_TIRE_PARK_MS = 3L * 3600_000L;
     public static final double DEFAULT_AVG_DAILY_KM = 40.0;
+    /** Shorter intervals (tire pressure, a monthly wash) do not count from the pick-up date. */
+    public static final int PICKUP_MIN_INTERVAL_DAYS = 150;
     public static final int BALANCE_INTERVAL_DAYS = 30;
     private static final double MS_PER_DAY = 86_400_000.0;
     private static final double DAYS_PER_MONTH = 30.4375;
@@ -327,6 +329,10 @@ public final class CarDiary {
          * (polishing every 30 days), and overrides of the built-in ones
          * (alignment, balancing, tires): {km, months, days}; all 0 = Off. */
         public Map<Category, int[]> extras = Collections.emptyMap();
+        /** When the owner got the car (0 = not set) and the odometer then.
+         * An item with no entry yet counts from here. */
+        public long pickupMs = 0L;
+        public double pickupKm = 0.0;
 
         public ScheduleConfig(int balanceDays, int tirePressureDays, boolean coldSnapEnabled,
                               int tireRotationKm, int serviceKm, int serviceMonths,
@@ -379,6 +385,12 @@ public final class CarDiary {
                 Prefs.getDiaryWipersMonths(ctx),
                 Prefs.getDiaryBattery12vMonths(ctx));
             cfg.extras = parseExtras(Prefs.getDiaryExtraSchedules(ctx));
+            long day = Prefs.getDiaryPickupDay(ctx);
+            if (day >= 0) {
+                cfg.pickupMs = java.time.LocalDate.ofEpochDay(day)
+                    .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+            }
+            cfg.pickupKm = Prefs.getDiaryPickupKm(ctx);
             return cfg;
         }
 
@@ -1639,14 +1651,28 @@ public final class CarDiary {
 
             Entry last = latestByCat.get(cat);
             if (last == null) {
-                // On a new car that has not yet reached its first factory km milestone
-                // (e.g. 7,077 km < 20,000 km Scheduled Service or 10,000 km Tire Rotation),
-                // count down cleanly from 0 km without ever firing a false overdue alert.
-                if (currentOdoKm != null && currentOdoKm > 0 && kmLimit != null
-                        && currentOdoKm < kmLimit) {
-                    double kmRem = kmLimit - currentOdoKm;
+                // No entry yet: the item counts from the day and the odometer the
+                // owner got the car (0 km for a new one).
+                Double kmSince = (currentOdoKm != null && currentOdoKm > 0)
+                    ? Math.max(0.0, currentOdoKm - cfg.pickupKm) : null;
+                // The months count only with a pick-up date, and only for long
+                // items: a monthly check with no entry is not "late since delivery".
+                boolean byTime = cfg.pickupMs > 0 && cfg.pickupMs <= nowMs
+                    && dayLimit != null && dayLimit >= PICKUP_MIN_INTERVAL_DAYS;
+                if (byTime) {
+                    Double kmRem = (kmLimit != null && kmSince != null) ? (kmLimit - kmSince) : null;
+                    int daysSince = (int) Math.floor((nowMs - cfg.pickupMs) / MS_PER_DAY);
+                    int daysRem = dayLimit - daysSince;
+                    boolean overdue = (kmRem != null && kmRem <= 0.0) || daysRem <= 0;
+                    boolean soon = !overdue && ((kmRem != null && kmRem <= kmLimit * 0.10)
+                        || daysRem <= Math.max(3, (int) Math.round(dayLimit * 0.10)));
+                    out.add(new DueStatus(cat, null, kmSince, kmRem, daysSince, daysRem,
+                        overdue, soon, false));
+                } else if (kmSince != null && kmLimit != null && kmSince < kmLimit) {
+                    // Without a date: count the km down, never a false overdue.
+                    double kmRem = kmLimit - kmSince;
                     boolean soonKm = kmRem <= kmLimit * 0.10;
-                    out.add(new DueStatus(cat, null, currentOdoKm, kmRem, null, null,
+                    out.add(new DueStatus(cat, null, kmSince, kmRem, null, null,
                         false, soonKm, false));
                 } else {
                     out.add(new DueStatus(cat, null, null, null, null, null, false, false, false));

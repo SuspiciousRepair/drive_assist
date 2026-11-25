@@ -560,4 +560,51 @@ public class CarDiaryTest {
         assertTrue(CarDiary.Category.KEY_BATTERY.userPickable);
         assertEquals(CarDiary.Group.ELECTRICAL, CarDiary.Category.KEY_BATTERY.group);
     }
+
+    private static CarDiary.DueStatus statusOf(List<CarDiary.DueStatus> all, CarDiary.Category cat) {
+        for (CarDiary.DueStatus d : all) if (d.category == cat) return d;
+        return null;
+    }
+
+    @Test
+    public void pickupDateStartsTheMonthsOfAFirstTimeItem() {
+        long now = 1_800_000_000_000L;
+        long day = 24L * 3600_000L;
+        CarDiary.ScheduleConfig cfg = CarDiary.ScheduleConfig.defaults();
+        cfg.pickupMs = now - 150 * day;   // 5 months with the car, 7,000 km
+        List<CarDiary.DueStatus> all = CarDiary.computeDueStatuses(
+            Collections.emptyList(), 7_000.0, now, 22.0, cfg);
+
+        // Service is 20,000 km or 12 months: both count, the time comes first.
+        CarDiary.DueStatus service = statusOf(all, CarDiary.Category.SERVICE);
+        org.junit.Assert.assertEquals(13_000.0, service.kmRemaining, 0.01);
+        org.junit.Assert.assertEquals(Integer.valueOf(365 - 150), service.daysRemaining);
+        org.junit.Assert.assertFalse(service.overdue);
+        // 7,000 km in 150 days: by distance it is 278 days away, by time 215.
+        org.junit.Assert.assertEquals(215.0,
+            CarDiary.estimatedDaysUntilDue(service, 7_000.0 / 150.0), 0.01);
+
+        // A short item (tire pressure, 30 days) is not "late since delivery".
+        CarDiary.DueStatus pressure = statusOf(all, CarDiary.Category.TIRE_PRESSURE);
+        org.junit.Assert.assertFalse(pressure.overdue);
+        org.junit.Assert.assertNull(pressure.daysRemaining);
+
+        // Past the 12 months with no service entry: late.
+        cfg.pickupMs = now - 400 * day;
+        service = statusOf(CarDiary.computeDueStatuses(
+            Collections.emptyList(), 9_000.0, now, 22.0, cfg), CarDiary.Category.SERVICE);
+        org.junit.Assert.assertTrue(service.overdue);
+    }
+
+    @Test
+    public void usedCarCountsTheKmFromThePickupOdometer() {
+        long now = 1_800_000_000_000L;
+        CarDiary.ScheduleConfig cfg = CarDiary.ScheduleConfig.defaults();
+        cfg.pickupKm = 30_000.0;   // no date: km only, never a false overdue
+        CarDiary.DueStatus service = statusOf(CarDiary.computeDueStatuses(
+            Collections.emptyList(), 37_000.0, now, 22.0, cfg), CarDiary.Category.SERVICE);
+        org.junit.Assert.assertEquals(13_000.0, service.kmRemaining, 0.01);
+        org.junit.Assert.assertNull(service.daysRemaining);
+        org.junit.Assert.assertFalse(service.overdue);
+    }
 }

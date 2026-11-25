@@ -18,6 +18,10 @@
   chart of the 12 V battery at rest. Readings taken while the car wakes or
   just after a recharge have their own colour and do not count against the
   battery.
+- **Car diary: pick-up date.** Under **Config → Maintenance → My car**, set
+  the day you got the car (and its odometer then, for a used car). An item
+  with no entry yet, such as the first service, then counts its months from
+  that day and not only the distance.
 - **Car diary: a ticket finds its place.** Type the hour on the notice and
   the diary takes the place and speed from that day's saved route.
 - **Right-hand drive (RHD) layout.** Detected automatically from the car's

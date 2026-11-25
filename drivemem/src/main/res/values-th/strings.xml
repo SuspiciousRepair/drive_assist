@@ -966,4 +966,8 @@
     <string name="stats_map_routes_latest">%1$d เส้นทางล่าสุด</string>
     <string name="stats_map_charges_title">จุดชาร์จ</string>
     <string name="stats_map_routes_none">ไม่มีเส้นทางที่บันทึกในช่วงนี้</string>
+    <string name="cfg_diary_car_title">รถของฉัน</string>
+    <string name="cfg_diary_pickup_date">วันรับรถ</string>
+    <string name="cfg_diary_pickup_km">เลขไมล์ตอนรับรถ</string>
+    <string name="cfg_diary_set">ตั้งค่า</string>
 </resources>

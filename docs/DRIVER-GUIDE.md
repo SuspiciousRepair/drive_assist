@@ -103,6 +103,8 @@ the car and what it costs:
   by time, or both. The intervals are in **Config → Maintenance**: change one
   with the arrows, tap the value to type any figure, and add a schedule to an
   item that has none. A changed row shows a reset icon.
+  Set the **pick-up date** under **My car** (and the odometer then, for a used
+  car): the first service then counts its 12 months from that day.
 - **Cost of ownership**: what the car cost in the chosen period, split in four
   groups. Tap the card to see it as money, per km, or in percent.
 - **Battery health**: the main battery (state of health needs an OBD2 dongle)

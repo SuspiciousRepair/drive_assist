@@ -977,4 +977,8 @@
     <string name="stats_map_routes_latest">Latest %1$d routes</string>
     <string name="stats_map_charges_title">Charging spots</string>
     <string name="stats_map_routes_none">No routes recorded in this period.</string>
+    <string name="cfg_diary_car_title">My car</string>
+    <string name="cfg_diary_pickup_date">Pick-up date</string>
+    <string name="cfg_diary_pickup_km">Odometer at pick-up</string>
+    <string name="cfg_diary_set">Set</string>
 </resources>
