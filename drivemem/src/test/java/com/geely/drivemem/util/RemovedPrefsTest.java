@@ -73,7 +73,11 @@ public class RemovedPrefsTest {
         assertTrue(Prefs.REMOVED_KEYS.contains("spotify_token_expiry"));
         assertTrue(Prefs.REMOVED_KEYS.contains("skip_update_vc"));
         assertTrue(Prefs.REMOVED_KEYS.contains("skip_update_vc_modehelper"));
-        assertEquals(7, Prefs.REMOVED_KEYS.size());
+        assertTrue(Prefs.REMOVED_KEYS.contains("restore_drive"));
+        assertTrue(Prefs.REMOVED_KEYS.contains("restore_regen"));
+        assertTrue(Prefs.REMOVED_KEYS.contains("restore_aeb"));
+        assertTrue(Prefs.REMOVED_KEYS.contains("restore_avas"));
+        assertEquals(11, Prefs.REMOVED_KEYS.size());
     }
 
     /** "Skip this version" went; a version skipped before the update stays

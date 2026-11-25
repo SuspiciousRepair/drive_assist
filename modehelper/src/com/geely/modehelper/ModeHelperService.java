@@ -69,43 +69,60 @@ public class ModeHelperService extends Service {
         return android.os.SystemClock.elapsedRealtime() - android.os.SystemClock.uptimeMillis();
     }
 
-    // Drive mode and regen: restored after each start until they match, the
-    // driver picks another, or time runs out, and only in Park (ModeRestore,
-    // issue #130). Armed with the window below, and again by the car's on signal.
+    // Drive mode and regen: remembered from the car and restored after each
+    // start until they match, the driver picks another, or time runs out, and
+    // only in Park (ModeRestore, issues #130, #201).
     private final ModeRestore driveRestore = new ModeRestore(), regenRestore = new ModeRestore();
     // Last RestorePolicy.VEHICLE_STATE_PROP reading, for its on/off edges.
     private Integer lastVehicleState;
-    // ModeRestore is the poll thread's only. A wake on the power-watch thread
-    // asks for an arm here; the poll thread does it (enforceModes).
-    private volatile boolean armModesNow = true;
+    // ModeRestore is the poll thread's only. Power/shutdown/SET_MODE threads
+    // signal arm/cancel/manual/hold state under tickLock; enforceModes() applies it.
+    private boolean armModesNow = true;
+    private boolean cancelModesNow = false;
+    private boolean manualDriveSet = false, manualRegenSet = false;
+    // Temporary boosts (TurboMode / Strong-regen toggle) pause learning so a
+    // momentary Sport or High-regen burst does not overwrite the remembered mode.
+    private static final long MAX_DRIVE_HOLD_MS = 180_000L;
+    private long driveHoldUntil = 0L;
+    private boolean regenHeld = false;
+    private boolean regenHoldSawHigh = false;
+    private long regenHoldSince = 0L;
 
     private void openRestoreWindow(String why) {
-        windowOpenedMs = android.os.SystemClock.elapsedRealtime();
-        restoreUntil = windowOpenedMs + RestorePolicy.WINDOW_MS;
-        armModeRestore();
+        long now = android.os.SystemClock.elapsedRealtime();
+        windowOpenedMs = now;
+        restoreUntil = now + RestorePolicy.WINDOW_MS;
+        synchronized (tickLock) {
+            cancelModesNow = false;
+            armModesNow = true;
+        }
         Log.i(TAG, "restore window open (" + why + ", " + RestorePolicy.WINDOW_MS / 1000 + " s)");
     }
 
-    private void armModeRestore() {
-        armModesNow = true;
+    private void closeRestore(String why) {
+        restoreUntil = 0L;
+        synchronized (tickLock) {
+            armModesNow = false;
+            cancelModesNow = true;
+            driveHoldUntil = 0L;
+            regenHeld = false;
+            regenHoldSawHigh = false;
+        }
+        Log.i(TAG, "modes: " + why + ", restore stopped");
     }
 
-    // The car's on/off signal (#130). The screen can wake long before the
-    // driver presses the brake; the car sets its own drive mode when it is
-    // switched on, after the wake window closed. Only drive/regen are re-armed
-    // here: AEB/AVAS keep the short wake window (#88).
+    // The car's on/off signal (#130, #201). The screen can wake long before
+    // the driver presses the brake, or the car can switch off and back on
+    // without suspending; re-opening the restore window here covers drive
+    // mode, regen, AEB and AVAS alike.
     private void watchVehicleState() {
         Integer vs = car.readIntProp(RestorePolicy.VEHICLE_STATE_PROP, 0);
         if (vs == null) return;
         if (!vs.equals(lastVehicleState)) Log.i(TAG, "vehicle state " + lastVehicleState + " -> " + vs);
         if (RestorePolicy.turnedOn(lastVehicleState, vs)) {
-            armModeRestore();
-            Log.i(TAG, "modes: car on, drive/regen restore armed");
+            openRestoreWindow("car on");
         } else if (RestorePolicy.turnedOff(lastVehicleState, vs)) {
-            armModesNow = false;
-            driveRestore.cancel();
-            regenRestore.cancel();
-            Log.i(TAG, "modes: car off, drive/regen restore stopped");
+            closeRestore("car off");
         }
         lastVehicleState = vs;
     }
@@ -156,13 +173,18 @@ public class ModeHelperService extends Service {
                         // touch what's actually present, so one doesn't clobber another.
                         SharedPreferences.Editor e = getSharedPreferences("modehelper", MODE_PRIVATE).edit();
                         StringBuilder log = new StringBuilder("default from drivemem:");
+                        boolean setDrive = false, setRegen = false;
                         if (it.hasExtra("drive")) {
                             int d = it.getIntExtra("drive", CarMode.DRIVE_ECO);
-                            e.putInt("drive", d); log.append(" drive=").append(d);
+                            if (CarMode.validDrive(d)) {
+                                e.putInt("drive", d); setDrive = true; log.append(" drive=").append(d);
+                            }
                         }
                         if (it.hasExtra("regen")) {
                             int r = it.getIntExtra("regen", CarMode.REGEN_MID);
-                            e.putInt("regen", r); log.append(" regen=").append(r);
+                            if (CarMode.validRegen(r)) {
+                                e.putInt("regen", r); setRegen = true; log.append(" regen=").append(r);
+                            }
                         }
                         if (it.hasExtra("aeb")) {
                             boolean aeb = it.getBooleanExtra("aeb", true);
@@ -177,12 +199,6 @@ public class ModeHelperService extends Service {
                             e.putBoolean("parked_monitoring", enabled);
                             log.append(" parked_monitoring=").append(enabled);
                         }
-                        for (String k : new String[]{"restore_drive", "restore_regen", "restore_aeb", "restore_avas"}) {
-                            if (it.hasExtra(k)) {
-                                boolean on = it.getBooleanExtra(k, false);
-                                e.putBoolean(k, on); log.append(' ').append(k).append('=').append(on);
-                            }
-                        }
                         if (it.hasExtra(CanReader.PREF_ENABLED)) {
                             boolean can = it.getBooleanExtra(CanReader.PREF_ENABLED, false);
                             CanReader.setEnabled(getApplicationContext(), can);
@@ -194,9 +210,33 @@ public class ModeHelperService extends Service {
                             log.append(" dashcam_limit_gb=").append(gb);
                         }
                         e.apply();
-                        // A user tap (not a watchdog sync): write this one value now.
-                        // Raised only AFTER apply(), so the poll thread can never
-                        // consume the tap and read the previous value (review #7).
+                        // State signals raised only AFTER apply(), so the poll thread
+                        // can never consume them and read the previous value (review #7).
+                        synchronized (tickLock) {
+                            if (setDrive) {
+                                manualDriveSet = true;
+                                driveHoldUntil = 0L;
+                            }
+                            if (setRegen) {
+                                manualRegenSet = true;
+                                regenHeld = false;
+                                regenHoldSawHigh = false;
+                            }
+                            if (it.hasExtra("drive_hold_ms")) {
+                                long ms = it.getLongExtra("drive_hold_ms", 0L);
+                                driveHoldUntil = ms > 0L
+                                    ? SystemClock.elapsedRealtime() + Math.min(ms, MAX_DRIVE_HOLD_MS)
+                                    : 0L;
+                                log.append(" drive_hold_ms=").append(ms);
+                            }
+                            if (it.hasExtra("regen_hold")) {
+                                boolean hold = it.getBooleanExtra("regen_hold", false);
+                                regenHeld = hold;
+                                regenHoldSawHigh = false;
+                                if (hold) regenHoldSince = SystemClock.elapsedRealtime();
+                                log.append(" regen_hold=").append(hold);
+                            }
+                        }
                         if (it.getBooleanExtra("apply_now", false)) {
                             if (it.hasExtra("aeb"))  applyAebNow = true;
                             if (it.hasExtra("avas")) applyAvasNow = true;
@@ -232,6 +272,7 @@ public class ModeHelperService extends Service {
             registerReceiver(new BroadcastReceiver() {
                 @Override public void onReceive(Context c, Intent it) {
                     String why = ACTION_SHUTDOWN_HU.equals(it.getAction()) ? "head unit shutdown" : "screen off";
+                    if (ACTION_SHUTDOWN_HU.equals(it.getAction())) closeRestore(why);
                     if (dash != null && dash.isRunning()) dash.closeSegmentNow(why);
                 }
             }, off);
@@ -422,8 +463,10 @@ public class ModeHelperService extends Service {
             boolean ok = PowerWatch.register(car.powerManager(), state -> {
                 Log.i(TAG, "power state " + state);
                 if (state == PowerWatch.SUSPEND_ENTER) {
+                    closeRestore("suspend");
                     if (dash != null && dash.isRunning()) dash.closeSegmentNow("suspend");
                 } else if (state == PowerWatch.SHUTDOWN_ENTER) {
+                    closeRestore("car shutdown");
                     stopForShutdown("car shutdown");
                 } else if (state == PowerWatch.SHUTDOWN_CANCELLED) {
                     shuttingDown = false;
@@ -548,52 +591,87 @@ public class ModeHelperService extends Service {
         }
     }
 
-    // Drive mode and regen after a start: ModeRestore decides, Park only.
-    // Only a setting with a saved value AND "Restore at start" on is written —
-    // no more forcing Eco/Mid on a car whose owner never picked anything.
+    // Drive mode and regen memory (issues #130, #201): restores the last
+    // remembered choice in Park after start, and learns steady changes made
+    // anywhere in the car once the car is on (excluding temporary Turbo and
+    // Strong-regen toggle boosts).
     private void enforceModes(boolean parked) {
         SharedPreferences p = getSharedPreferences("modehelper", MODE_PRIVATE);
         long now = android.os.SystemClock.elapsedRealtime();
-        if (armModesNow) {
-            armModesNow = false;
+        boolean doCancel, doArm, doManualDrive, doManualRegen;
+        long dHoldUntil;
+        boolean rHeld, rSawHigh;
+        long rHoldSince;
+        synchronized (tickLock) {
+            doCancel = cancelModesNow; cancelModesNow = false;
+            doArm = armModesNow; armModesNow = false;
+            doManualDrive = manualDriveSet; manualDriveSet = false;
+            doManualRegen = manualRegenSet; manualRegenSet = false;
+            dHoldUntil = driveHoldUntil;
+            rHeld = regenHeld;
+            rSawHigh = regenHoldSawHigh;
+            rHoldSince = regenHoldSince;
+        }
+        if (doCancel) {
+            driveRestore.cancel();
+            regenRestore.cancel();
+        }
+        if (doArm) {
             driveRestore.arm(now);
             regenRestore.arm(now);
         }
-        // Car off: nothing to write. The restore stays armed, and the car-on
-        // edge re-arms it anyway (watchVehicleState).
+        if (doManualDrive) driveRestore.onManualSave();
+        if (doManualRegen) regenRestore.onManualSave();
+        // Car off: nothing to write or learn. The car-on edge re-arms restore.
         if (RestorePolicy.knownOff(lastVehicleState)) return;
-        if (driveRestore.isPending() && shouldWrite(p, "restore_drive", "drive", true, false)) {
-            int drive = p.getInt("drive", CarMode.DRIVE_ECO);
-            Integer cd = car.readDrive();
-            Integer w = driveRestore.observe(cd, drive, parked, now);
-            if (w != null) car.writeDrive(w);
-            String note = driveRestore.takeNote();
-            if (note != null) Log.i(TAG, "modo: drive " + note + " (car " + cd + ", saved " + drive + ")");
+
+        Integer cdRaw = car.readDrive();
+        Integer cd = CarMode.validDrive(cdRaw) ? cdRaw : null;
+        Integer savedDrive = p.contains("drive") ? p.getInt("drive", 0) : null;
+        if (!CarMode.validDrive(savedDrive)) savedDrive = null;
+        boolean dHeld = dHoldUntil > now;
+        ModeRestore.Action da = driveRestore.observe(cd, savedDrive, parked, dHeld, now);
+        if (da.write != null) car.writeDrive(da.write);
+        if (da.learn != null) p.edit().putInt("drive", da.learn).apply();
+        String dNote = driveRestore.takeNote();
+        if (dNote != null) Log.i(TAG, "modo: drive " + dNote + " (car " + cd + ", saved " + savedDrive + ")");
+
+        Integer crRaw = car.readRegen();
+        Integer cr = CarMode.validRegen(crRaw) ? crRaw : null;
+        // Strong-regen toggle holds only while the car is in High; if the driver
+        // picks another level in the car's own screen (or the write never took),
+        // release the hold automatically so the new level is learned.
+        if (rHeld && cr != null) {
+            if (cr == CarMode.REGEN_HIGH) {
+                if (!rSawHigh) synchronized (tickLock) { if (regenHeld) regenHoldSawHigh = true; }
+            } else if (rSawHigh || now - rHoldSince >= ModeRestore.SETTLE_MS) {
+                synchronized (tickLock) {
+                    if (regenHeld && regenHoldSince == rHoldSince) {
+                        regenHeld = false;
+                        regenHoldSawHigh = false;
+                    }
+                }
+                rHeld = false;
+                Log.i(TAG, "modo: regen boost ended (car " + cr + ")");
+            }
         }
-        if (regenRestore.isPending() && shouldWrite(p, "restore_regen", "regen", true, false)) {
-            int regen = p.getInt("regen", CarMode.REGEN_MID);
-            Integer cr = car.readRegen();
-            Integer w = regenRestore.observe(cr, regen, parked, now);
-            if (w != null) car.writeRegen(w);
-            String note = regenRestore.takeNote();
-            if (note != null) Log.i(TAG, "modo: regen " + note + " (car " + cr + ", saved " + regen + ")");
-        }
+        Integer savedRegen = p.contains("regen") ? p.getInt("regen", 0) : null;
+        if (!CarMode.validRegen(savedRegen)) savedRegen = null;
+        ModeRestore.Action ra = regenRestore.observe(cr, savedRegen, parked, rHeld, now);
+        if (ra.write != null) car.writeRegen(ra.write);
+        if (ra.learn != null) p.edit().putInt("regen", ra.learn).apply();
+        String rNote = regenRestore.takeNote();
+        if (rNote != null) Log.i(TAG, "modo: regen " + rNote + " (car " + cr + ", saved " + savedRegen + ")");
     }
 
-    /** RestorePolicy.shouldWrite for one setting, from this app's stored values. */
-    private static boolean shouldWrite(SharedPreferences p, String flagKey, String valueKey,
-                                       boolean window, boolean tap) {
-        return RestorePolicy.shouldWrite(p.contains(valueKey),
-            RestorePolicy.restoreOn(p.contains(flagKey), p.getBoolean(flagKey, true)), window, tap);
-    }
-
-    // Same saved-value rule as enforceModes(), for AEB, but not Park-gated. Called only
-    // in the post-wake window (RestorePolicy) or for a user tap. No preference
-    // yet (no "aeb" extra ever sent) means "don't touch it", not "force it on".
-    // tap = a user tap in Drive Assist: written even if "Restore at start" is off.
+    // Explicit Drive Assist override for AEB (not Park-gated, never learned
+    // from OEM). Written in the post-start window (wake, car-on, screen-on) or
+    // on a user tap. No preference yet (no "aeb" extra ever sent) means "don't
+    // touch it", not "force it on".
     private void enforceAeb(boolean window, boolean tap) {
         SharedPreferences p = getSharedPreferences("modehelper", MODE_PRIVATE);
-        if (!shouldWrite(p, "restore_aeb", "aeb", window, tap)) return;
+        if (!RestorePolicy.shouldWrite(p.contains("aeb"), window, tap)) return;
+        if (!RestorePolicy.canRestoreNow(lastVehicleState, tap)) return;
         if (CarCaps.lacksAeb(caps())) return;   // the car says it has no AEB: nothing to set
         boolean want = p.getBoolean("aeb", true);
         Boolean have = car.readBoolProp(CarMode.AEB_PROP, CarMode.AEB_AREA);
@@ -603,21 +681,23 @@ public class ModeHelperService extends Service {
         }
     }
 
-    // AVAS mute. 0 = muted, >=1 = active mode (see AvasMuteTestReceiver). Same
-    // "no preference yet, don't touch it" rule as enforceAeb().
+    // Explicit Drive Assist override for AVAS mute. 0 = muted, >=1 = active
+    // sound type (see AvasMuteTestReceiver). Same "no preference yet, don't
+    // touch it" rule as enforceAeb().
     //
-    // The car re-arms AVAS on wake/power-on, and the head unit suspends instead
-    // of restarting this process — so the saved choice is held for the whole
-    // post-wake window (opened on SUSPEND_EXIT), not applied once. After the
-    // window a change made in the car stays (issue #12). Nothing is mirrored
-    // back from the car. See AvasPolicy, RestorePolicy, plan/AVAS-MUTE-ROADMAP.md.
+    // The car re-arms AVAS on wake/power-on, so the saved choice is held for
+    // the post-start window (opened on SUSPEND_EXIT, car-on, and screen-on).
+    // After the window a change made in the car stays (issue #12). Nothing is
+    // learned back from OEM Settings. See AvasPolicy, RestorePolicy.
     private void enforceAvasParked(boolean window, boolean tap) {
         SharedPreferences p = getSharedPreferences("modehelper", MODE_PRIVATE);
-        if (!shouldWrite(p, "restore_avas", "avas", window, tap)) return;
+        if (!RestorePolicy.shouldWrite(p.contains("avas"), window, tap)) return;
+        if (!RestorePolicy.canRestoreNow(lastVehicleState, tap)) return;
         Object cur = car.audioCall("getAVASMode");
         if (!(cur instanceof Integer)) return;
         int want = p.getInt("avas", 1);
-        Integer write = AvasPolicy.toWrite((Integer) cur, want);
+        int target = want == 0 ? 0 : Math.max(1, p.getInt("avas_type", want));
+        Integer write = AvasPolicy.toWrite((Integer) cur, target);
         if (write != null) {
             car.audioCall("setAVASMode", write);
             Log.i(TAG, "modo: avas " + cur + " -> " + write);

@@ -7,11 +7,6 @@ public final class RestorePolicyTest {
     }
 
     public static void main(String[] args) {
-        // restore switch: ON by default, OFF only when the user says so
-        check(RestorePolicy.restoreOn(false, false), "no switch stored yet: restore is on");
-        check(!RestorePolicy.restoreOn(true, false), "switch turned off: restore is off");
-        check(RestorePolicy.restoreOn(true, true), "switch on: restore is on");
-
         // window
         check(RestorePolicy.inWindow(99, 100), "before the end: in window");
         check(!RestorePolicy.inWindow(100, 100), "at the end: out of window");
@@ -23,22 +18,25 @@ public final class RestorePolicyTest {
         check(!RestorePolicy.inWindow(20_000, RestorePolicy.WINDOW_MS),
               "20 s after the wake the window is closed");
 
-        // #12: after the window a change made in the car stays
-        check(!RestorePolicy.shouldWrite(true, true, false, false),
-              "restore on, window closed, no tap: do not write");
-        check(RestorePolicy.shouldWrite(true, true, true, false),
-              "restore on, in window: write the saved value");
-        // #16: restore off is never written by the window
-        check(!RestorePolicy.shouldWrite(true, false, true, false),
-              "restore off, in window: do not write");
-        // review finding 1: a tap is written even in the window with restore off
-        check(RestorePolicy.shouldWrite(true, false, true, true),
-              "tap in window with restore off: write");
-        check(RestorePolicy.shouldWrite(true, false, false, true),
+        // #12 / #201: after the window a change made in the car stays
+        check(!RestorePolicy.shouldWrite(true, false, false),
+              "window closed, no tap: do not write");
+        check(RestorePolicy.shouldWrite(true, true, false),
+              "in window: write the saved value");
+        check(RestorePolicy.shouldWrite(true, false, true),
               "tap outside window: write");
-        // nothing saved: never (no forced Eco/Mid)
-        check(!RestorePolicy.shouldWrite(false, true, true, true),
+        check(RestorePolicy.shouldWrite(true, true, true),
+              "tap in window: write");
+        // nothing saved: never (untouched AEB/AVAS stay factory)
+        check(!RestorePolicy.shouldWrite(false, true, true),
               "nothing saved: never write");
+
+        // #201: AEB/AVAS automatic restore waits until car is not known off; taps always run
+        check(!RestorePolicy.canRestoreNow(2, false), "car off (2): wait for car on");
+        check(!RestorePolicy.canRestoreNow(3, false), "car starting (3): wait for car on");
+        check(RestorePolicy.canRestoreNow(4, false), "car on (4): restore");
+        check(RestorePolicy.canRestoreNow(null, false), "missing prop: restore");
+        check(RestorePolicy.canRestoreNow(2, true), "explicit tap while off: write now");
 
         // review finding 3: wake fallback from deep-sleep time
         check(RestorePolicy.sleptBetween(1_000, 1_000 + RestorePolicy.SLEEP_GAP_MS),

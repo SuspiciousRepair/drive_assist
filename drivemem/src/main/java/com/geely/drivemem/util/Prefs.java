@@ -33,16 +33,6 @@ public final class Prefs {
     public static boolean getParkedMonitoring(Context ctx) { return file(ctx).getBoolean("parked_monitoring", false); }
     public static void setParkedMonitoring(Context ctx, boolean v) { file(ctx).edit().putBoolean("parked_monitoring", v).apply(); }
 
-    // --- Restore at start (HelperSync.java, modehelper RestorePolicy) ---
-    // Per setting: does modehelper write the saved value back to the car in the
-    // 15 s after it wakes? (issues #12, #13, #16, #88). ON until the user turns it
-    // off: Drive Assist owns the car's start state; the switch exists for a
-    // user whose other app (e.g. Sapo) restores the same setting.
-    public static final String RESTORE_DRIVE = "restore_drive", RESTORE_REGEN = "restore_regen",
-                               RESTORE_AEB = "restore_aeb", RESTORE_AVAS = "restore_avas";
-    public static boolean getRestore(Context ctx, String key) { return file(ctx).getBoolean(key, true); }
-    public static void setRestore(Context ctx, String key, boolean v) { file(ctx).edit().putBoolean(key, v).apply(); }
-
     // --- Keep Wi-Fi on (WifiKeep.java) ---
     // Whether Drive Assist and modehelper turn Wi-Fi back on when it is off.
     // ON until the user turns it off: this car does not rejoin Wi-Fi after it
@@ -225,13 +215,15 @@ public final class Prefs {
     public static void setLyricsOpen(Context ctx, boolean v) { file(ctx).edit().putBoolean("spotify_lyrics_open", v).apply(); }
 
     /** Keys of removed features: the Spotify sign-in (client id, tokens,
-     * PKCE verifier, token expiry), and "Skip this version" on the update
-     * window (Later does its job now). dropRemoved() deletes them at start,
-     * and no backup or restore carries them (isBackedUp). */
+     * PKCE verifier, token expiry), "Skip this version" on the update window
+     * (Later does its job now), and the old per-setting "Restore at car start"
+     * switches (#201). dropRemoved() deletes them at start, and no backup or
+     * restore carries them (isBackedUp). */
     static final java.util.List<String> REMOVED_KEYS = java.util.Arrays.asList(
         "spotify_client_id", "spotify_access_token", "spotify_refresh_token",
         "spotify_pkce_verifier", "spotify_token_expiry",
-        "skip_update_vc", "skip_update_vc_modehelper");
+        "skip_update_vc", "skip_update_vc_modehelper",
+        "restore_drive", "restore_regen", "restore_aeb", "restore_avas");
 
     /** A removed key whose value moves to another before it goes: a skipped
      * version becomes a "Later" one, so it stays quiet after the update. */
