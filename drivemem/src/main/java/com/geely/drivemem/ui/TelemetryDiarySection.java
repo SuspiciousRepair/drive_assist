@@ -109,16 +109,17 @@ public final class TelemetryDiarySection extends LinearLayout {
             Prefs.DIARY_DEF_GEAR_OIL_KM, Prefs.DIARY_DEF_GEAR_OIL_MONTHS,
             Prefs.getDiaryGearOilKm(c), Prefs.getDiaryGearOilMonths(c),
             (a, m) -> Prefs.setDiaryGearOilInterval(c, a, m))));
-        srvCard.addView(intervalRow(new Row(c.getString(R.string.diary_cat_wipers), K_MONTHS,
-            new int[][]{{0, 0}, {6, 0}, {12, 0}, {24, 0}},
-            Prefs.DIARY_DEF_WIPERS_MONTHS, 0, Prefs.getDiaryWipersMonths(c), 0,
-            (a, m) -> Prefs.setDiaryWipersMonths(c, a))));
+
 
         addGroupRows(tireCard, CarDiary.Group.TIRES);
         addGroupRows(srvCard, CarDiary.Group.SERVICE);
 
         LinearLayout lookCard = ConfigCards.card(c, c.getString(R.string.diary_grp_cosmetic));
         ConfigCards.add(leftCol, lookCard);
+        lookCard.addView(intervalRow(new Row(c.getString(R.string.diary_cat_wipers), K_MONTHS,
+            new int[][]{{0, 0}, {6, 0}, {12, 0}, {24, 0}},
+            Prefs.DIARY_DEF_WIPERS_MONTHS, 0, Prefs.getDiaryWipersMonths(c), 0,
+            (a, m) -> Prefs.setDiaryWipersMonths(c, a))));
         addGroupRows(lookCard, CarDiary.Group.COSMETIC);
 
         // ---- Right column: Jolt detection ----

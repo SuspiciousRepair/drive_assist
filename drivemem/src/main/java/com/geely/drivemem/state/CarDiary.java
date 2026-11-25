@@ -116,13 +116,14 @@ public final class CarDiary {
 
         // Electrical & Body
         BATTERY_12V(Group.ELECTRICAL, KIND_CARE, R.string.diary_cat_battery_12v, null, 48, true),
-        WIPERS(Group.ELECTRICAL, KIND_CARE, R.string.diary_cat_wipers, null, 12, true),
         LIGHTS_FUSES(Group.ELECTRICAL, KIND_CARE, R.string.diary_cat_lights_fuses, null, null, true),
         // A thing to record, with no factory interval.
         KEY_BATTERY(Group.ELECTRICAL, KIND_CARE, R.string.diary_cat_key_battery, null, null, true),
 
         // Cosmetic / Aesthetics & Accessories
         WASH_DETAIL(Group.COSMETIC, KIND_CARE, R.string.diary_cat_wash_detail, null, null, true),
+        // Not an electrical part: with the washer fluid, the other wiper item.
+        WIPERS(Group.COSMETIC, KIND_CARE, R.string.diary_cat_wipers, null, 12, true),
         WASHER_FLUID(Group.COSMETIC, KIND_CARE, R.string.diary_cat_washer_fluid, null, null, true),
         POLISHING(Group.COSMETIC, KIND_CARE, R.string.diary_cat_polishing, null, null, true),
         WAX_CERAMIC(Group.COSMETIC, KIND_CARE, R.string.diary_cat_wax_ceramic, null, null, true),
