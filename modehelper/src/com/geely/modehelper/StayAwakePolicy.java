@@ -15,4 +15,14 @@ final class StayAwakePolicy {
     static boolean holdWakeLock(boolean onTrustedWifi, Integer parkModeRaw) {
         return onTrustedWifi && parkModeRaw != null && parkModeRaw != 0;
     }
+
+    /** True when a helper that has just started must not open the cameras yet:
+     * the car is known to be off and the screen is off. A helper restarted in
+     * that state (an update, a crash) used to start the dashcam, and the open
+     * cameras then kept the head unit from sleeping (seen on the car
+     * 2026-11-24: no suspend for 1 h 45 min after a helper install at car-off).
+     * An unknown car state does not hold the start. */
+    static boolean holdDashStart(Integer vehicleState, boolean screenOn) {
+        return vehicleState != null && vehicleState != RestorePolicy.VEHICLE_ON && !screenOn;
+    }
 }

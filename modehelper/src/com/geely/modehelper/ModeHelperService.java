@@ -499,11 +499,25 @@ public class ModeHelperService extends Service {
      * true keeps existing installs recording as before an explicit choice is
      * ever made. */
     private boolean dashAutoStarted = false;
+    private boolean dashStartHeld;
 
     private void maybeAutoStart() {
         if (dashAutoStarted || !car.isReady()) return;
         CarCaps.Cameras cam = cameras();
         if (cam == CarCaps.Cameras.UNKNOWN) return;   // asked again on a later tick
+        // Started while the car is off with the screen off (helper update or
+        // crash at night): wait for the car or the screen. See StayAwakePolicy.
+        boolean screenOn = true;
+        try {
+            android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE);
+            if (pm != null) screenOn = pm.isInteractive();
+        } catch (Throwable ignored) {}
+        if (StayAwakePolicy.holdDashStart(car.readIntProp(RestorePolicy.VEHICLE_STATE_PROP, 0), screenOn)) {
+            if (!dashStartHeld) Log.i(TAG, "dashcam: car off and screen off, start held");
+            dashStartHeld = true;
+            return;   // asked again on a later tick
+        }
+        dashStartHeld = false;
         dashAutoStarted = true;
         if (cam == CarCaps.Cameras.NO) { Log.i(TAG, "dashcam: this car reports no 360 cameras, not starting"); return; }
         boolean wanted = getSharedPreferences("modehelper", MODE_PRIVATE)
