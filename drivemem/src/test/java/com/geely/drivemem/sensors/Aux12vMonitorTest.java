@@ -188,7 +188,7 @@ public class Aux12vMonitorTest {
         assertEquals(Aux12vMonitor.PHASE_SETTLING, out[2]);    // 13.2 V, 18 s after the DC-DC
         assertEquals(Aux12vMonitor.PHASE_SETTLING, out[3]);    // 12.8 V
         assertEquals(Aux12vMonitor.PHASE_SETTLING, out[4]);    // 12.6 V, 13 min after
-        assertEquals(Aux12vMonitor.PHASE_SETTLING, out[5]);    // still inside 20 min
+        assertEquals(Aux12vMonitor.PHASE_WAKE_LOAD, out[5]);   // 12.2 V, 22 s before the DC-DC
         assertEquals(D, out[6]);
     }
 

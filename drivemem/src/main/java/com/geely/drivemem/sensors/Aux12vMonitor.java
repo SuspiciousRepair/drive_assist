@@ -367,10 +367,11 @@ public final class Aux12vMonitor {
      *
      * - RESTING/SETTLING right after a DC-DC reading, and for SETTLE_MS after
      *   that first one: SETTLING (surface charge).
-     * - RESTING/WAKE_LOAD followed by a DC-DC reading within WAKE_LOAD_MS, and
-     *   not settling: WAKE_LOAD (the car is waking, load before the DC-DC).
-     * - Everything else keeps its phase. A label never goes back to RESTING
-     *   on a later pass, so a pass over a part of the history is safe.
+     * - One of these followed by a DC-DC reading within WAKE_LOAD_MS, and not
+     *   itself right after a DC-DC reading: WAKE_LOAD (the car is waking,
+     *   load before the DC-DC). This wins over SETTLING.
+     * - Other phases (DC-DC, WAKE_SAG, WARN) are never changed. The three
+     *   labels are worked out again on each pass, from the readings alone.
      *
      * @param tsMs ascending. @return the new phases, same order. */
     static String[] relabelPhases(long[] tsMs, String[] phase) {
@@ -384,8 +385,13 @@ public final class Aux12vMonitor {
             boolean settling = settleStart != Long.MIN_VALUE && tsMs[i] - settleStart <= SETTLE_MS;
             boolean dcdcNext = i + 1 < out.length && PHASE_DCDC.equals(phase[i + 1])
                 && tsMs[i + 1] - tsMs[i] <= WAKE_LOAD_MS;
-            if (settling) out[i] = PHASE_SETTLING;
-            else if (dcdcNext) out[i] = PHASE_WAKE_LOAD;
+            // The wake wins over the settle time: 12.2 V, 17 min after the
+            // DC-DC stopped and 22 s before it started again, is the wake.
+            // A reading between two DC-DC readings is the converter cycling.
+            boolean dcdcPrev = i > 0 && PHASE_DCDC.equals(phase[i - 1]);
+            if (dcdcNext && !dcdcPrev) out[i] = PHASE_WAKE_LOAD;
+            else if (settling) out[i] = PHASE_SETTLING;
+            else out[i] = PHASE_RESTING;
         }
         return out;
     }
@@ -408,6 +414,9 @@ public final class Aux12vMonitor {
         String[] after = relabelPhases(ts, before);
         for (int i = 0; i < after.length; i++) {
             if (after[i].equals(before[i])) continue;
+            // In a pass over a part of the history, the first SETTLE_MS of
+            // readings are context only: their own DC-DC stop may be cut off.
+            if (sinceMs > 0 && ts[i] < sinceMs + SETTLE_MS) continue;
             ContentValues cv = new ContentValues();
             cv.put("phase", after[i]);
             db.update("aux_12v_reading", cv, "id = ?", new String[]{String.valueOf(rows.get(i)[0])});
