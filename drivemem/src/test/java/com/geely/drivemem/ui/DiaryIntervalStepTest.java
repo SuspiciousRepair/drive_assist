@@ -44,10 +44,32 @@ public class DiaryIntervalStepTest {
         assertEquals(60, TelemetryDiarySection.sliderMax(1, 48));         // months
     }
 
-    @Test public void aNudgeIsOneUnitAndStaysInside() {
-        assertEquals(41_000, TelemetryDiarySection.step(2, 40_000, 1, 100));
-        assertEquals(1_000, TelemetryDiarySection.step(2, 1_000, -1, 100));
+    @Test public void aNudgeGoesInRoundSteps() {
+        assertEquals(45_000, TelemetryDiarySection.step(2, 40_000, 1, 100));
+        assertEquals(35_000, TelemetryDiarySection.step(2, 40_000, -1, 100));
+        assertEquals(35, TelemetryDiarySection.step(0, 30, 1, 90));
+        assertEquals(54, TelemetryDiarySection.step(1, 48, 1, 60));
+        assertEquals(42, TelemetryDiarySection.step(1, 48, -1, 60));
+    }
+
+    // A typed value off the grid goes to the grid, not past it.
+    @Test public void offTheGridGoesToTheNextRoundValue() {
+        assertEquals(10, TelemetryDiarySection.step(0, 7, 1, 90));
+        assertEquals(5, TelemetryDiarySection.step(0, 7, -1, 90));
+        assertEquals(42_000 / 42 * 45, TelemetryDiarySection.step(2, 42_000, 1, 100));
+    }
+
+    @Test public void aNudgeStaysInside() {
+        assertEquals(1, TelemetryDiarySection.step(0, 5, -1, 90));
+        assertEquals(1, TelemetryDiarySection.step(0, 1, -1, 90));
+        assertEquals(5, TelemetryDiarySection.step(0, 1, 1, 90));
         assertEquals(90, TelemetryDiarySection.step(0, 90, 1, 90));
-        assertEquals(29, TelemetryDiarySection.step(0, 30, -1, 90));
+        // A typed 150,000 km is above the slider: plus does not pull it down.
+        assertEquals(150_000, TelemetryDiarySection.step(2, 150_000, 1, 100));
+    }
+
+    @Test public void typedTextIsANumberOrNothing() {
+        assertEquals(25, TelemetryDiarySection.typed("25"));
+        assertEquals(-1, TelemetryDiarySection.typed(""));
     }
 }

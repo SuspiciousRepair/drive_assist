@@ -361,8 +361,9 @@ public final class TelemetryDiarySection extends LinearLayout {
         return a;
     }
 
-    /** Any value, no keyboard: per quantity a big figure and a slider, with a
-     * minus and a plus for the last step (hold to repeat). */
+    /** Any value: per quantity a big figure and a slider, with a minus and a
+     * plus that go in round steps (hold to repeat). A tap on the figure opens
+     * the keyboard for an exact value. */
     private void showCustomDialog(Row r) {
         Context c = activity;
         android.app.Dialog dialog = new android.app.Dialog(c);
@@ -373,14 +374,16 @@ public final class TelemetryDiarySection extends LinearLayout {
         root.setPadding(pad, pad, pad, pad);
         root.setBackground(Style.card(Style.cardFillColor(), c));
         root.addView(Style.title(c, r.label));
+        // The window takes the first focus, so the keyboard waits for a tap on a figure.
+        root.setFocusableInTouchMode(true);
 
         // Start from the current value, or from the factory one when the row is Off.
         final int[] val = {r.curA > 0 ? r.curA : r.defA, r.curA > 0 ? r.curB : r.defB};
         if (r.kind == K_KM_MONTHS && val[1] <= 0) val[1] = r.defB;
 
         int firstKind = (r.kind == K_KM_MONTHS) ? K_KM : r.kind;
-        root.addView(quantity(val, 0, firstKind));
-        if (r.kind == K_KM_MONTHS) root.addView(quantity(val, 1, K_MONTHS));
+        root.addView(quantity(dialog, val, 0, firstKind));
+        if (r.kind == K_KM_MONTHS) root.addView(quantity(dialog, val, 1, K_MONTHS));
 
         if (r.extra != null) {
             View extra = r.extra.build();
@@ -412,9 +415,9 @@ public final class TelemetryDiarySection extends LinearLayout {
         dialog.setOnDismissListener(d -> { if (r.extra != null) rebuild(); });
         dialog.setContentView(root);
         android.view.Window window = dialog.getWindow();
-        if (window != null) window.setLayout(Style.dp(c, 680), ViewGroup.LayoutParams.WRAP_CONTENT);
+        if (window != null) window.setLayout(Style.dp(c, 760), ViewGroup.LayoutParams.WRAP_CONTENT);
         dialog.show();
-        if (window != null) window.setLayout(Style.dp(c, 680), ViewGroup.LayoutParams.WRAP_CONTENT);
+        if (window != null) window.setLayout(Style.dp(c, 760), ViewGroup.LayoutParams.WRAP_CONTENT);
     }
 
     /** Slider units: days, months, or thousands of km. */
@@ -427,14 +430,21 @@ public final class TelemetryDiarySection extends LinearLayout {
         return Math.max(max, value / unitOf(kind));
     }
 
-    /** Pure: a value moved by delta slider units, kept inside 1..max. */
-    static int step(int kind, int value, int delta, int max) {
-        int u = unitOf(kind);
-        return Math.max(1, Math.min(max, value / u + delta)) * u;
+    /** A tap on minus or plus: 5 days, 6 months, 5,000 km. */
+    static int gridOf(int kind) { return kind == K_MONTHS ? 6 : 5; }
+
+    /** Pure: the next value on the step grid in direction dir (-1 or +1), in
+     * slider units and kept inside 1..max. 7 days goes to 10 or 5, not 12 or 2. */
+    static int step(int kind, int value, int dir, int max) {
+        int u = unitOf(kind), g = gridOf(kind), v = value / u;
+        int next = dir > 0 ? (v / g + 1) * g : ((v + g - 1) / g - 1) * g;
+        return Math.max(1, Math.min(Math.max(max, v), next)) * u;
     }
 
-    /** One quantity: the figure, and under it [-] slider [+]. */
-    private View quantity(int[] val, int idx, int kind) {
+    /** One quantity: the figure, and under it [-] slider [+]. A tap on the
+     * figure moves the window up and opens the keyboard for a direct value
+     * (in Park only). */
+    private View quantity(android.app.Dialog dialog, int[] val, int idx, int kind) {
         Context c = activity;
         final int u = unitOf(kind);
         final int max = sliderMax(kind, val[idx]);
@@ -445,12 +455,33 @@ public final class TelemetryDiarySection extends LinearLayout {
         blp.topMargin = Style.dp(c, 20);
         box.setLayoutParams(blp);
 
-        final TextView num = new TextView(c);
+        // The figure: an editable number and its unit, smaller and dimmer.
+        LinearLayout fig = new LinearLayout(c);
+        fig.setOrientation(HORIZONTAL);
+        fig.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
+        final android.widget.EditText num = new android.widget.EditText(c);
         num.setTextSize(40f);
         num.setTypeface(null, Typeface.BOLD);
         num.setTextColor(Style.TEXT);
-        num.setGravity(Gravity.CENTER);
-        box.addView(num);
+        num.setBackground(null);
+        num.setPadding(Style.dp(c, 12), 0, Style.dp(c, 6), 0);
+        num.setIncludeFontPadding(false);
+        num.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        num.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(3)});
+        num.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
+        num.setSelectAllOnFocus(true);
+        num.setMinWidth(Style.dp(c, 60));
+        num.setGravity(Gravity.END);
+        fig.addView(num, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        TextView unit = new TextView(c);
+        unit.setText(c.getString(kind == K_KM ? R.string.cfg_diary_unit_thousand_km
+            : kind == K_MONTHS ? R.string.cfg_diary_unit_months : R.string.cfg_diary_unit_days));
+        unit.setTextSize(40f * Style.UNIT_SCALE_ROW);
+        unit.setTextColor(Style.TEXT_DIM);
+        unit.setPadding(0, 0, 0, Style.dp(c, 5));
+        fig.addView(unit);
+        box.addView(fig);
 
         final android.widget.SeekBar bar = new android.widget.SeekBar(c);
         bar.setMax(max - 1);
@@ -458,12 +489,42 @@ public final class TelemetryDiarySection extends LinearLayout {
         bar.setProgressTintList(accent);
         bar.setThumbTintList(accent);
         bar.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(Style.TEXT_DIM));
-        bar.setMinimumHeight(Style.dp(c, 60));
 
+        final boolean[] typing = {false};
+        // From the slider or the minus/plus: write the figure and move the thumb.
         final Runnable show = () -> {
-            num.setText(styleUnits(valueTitle(kind, val[idx], 0), Style.TEXT, Style.cardFillColor()));
-            if (bar.getProgress() != val[idx] / u - 1) bar.setProgress(val[idx] / u - 1);
+            typing[0] = true;
+            num.setText(String.valueOf(val[idx] / u));
+            num.setSelection(num.getText().length());
+            typing[0] = false;
+            bar.setProgress(val[idx] / u - 1);
         };
+        num.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence t, int a, int b, int d) {}
+            @Override public void onTextChanged(CharSequence t, int a, int b, int d) {}
+            @Override public void afterTextChanged(android.text.Editable e) {
+                if (typing[0]) return;
+                int n = typed(e.toString());
+                if (n < 1) return;              // empty or 0: keep the last good value
+                val[idx] = n * u;
+                bar.setProgress(n - 1);          // the slider stops at its end; the value does not
+            }
+        });
+        // Typing is for a parked car, like the other number fields.
+        num.setOnTouchListener((v, ev) -> !com.geely.drivemem.state.CarState.isParked());
+        num.setOnFocusChangeListener((v, has) -> {
+            android.view.Window w = dialog.getWindow();
+            if (!has || w == null) return;
+            // Up, clear of the keyboard.
+            android.view.WindowManager.LayoutParams lp = w.getAttributes();
+            lp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+            lp.y = Style.dp(c, 70);
+            w.setAttributes(lp);
+        });
+        num.setOnEditorActionListener((v, action, ev) -> {
+            if (val[idx] >= u) show.run();       // an empty field shows the kept value again
+            return false;
+        });
         bar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(android.widget.SeekBar sb, int progress, boolean fromUser) {
                 if (!fromUser) return;
@@ -483,6 +544,12 @@ public final class TelemetryDiarySection extends LinearLayout {
         box.addView(line);
         show.run();
         return box;
+    }
+
+    /** Pure: the typed figure, or -1 when it is not a number. */
+    static int typed(String text) {
+        try { return Integer.parseInt(text.trim()); }
+        catch (NumberFormatException e) { return -1; }
     }
 
     /** A plain minus or plus, no box. One step per tap; hold to repeat. */
@@ -519,6 +586,9 @@ public final class TelemetryDiarySection extends LinearLayout {
         Context c = activity;
         LinearLayout pills = new LinearLayout(c);
         pills.setOrientation(HORIZONTAL);
+        // Pills with bold or two-size text have other baselines: without this
+        // the row moves the plain ones down and cuts their bottom edge.
+        pills.setBaselineAligned(false);
         LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         plp.topMargin = Style.dp(c, 10);
@@ -527,7 +597,7 @@ public final class TelemetryDiarySection extends LinearLayout {
             final String k = keys[i];
             boolean sel = k.equals(current);
             TextView pill = buildPill(titles[i], sel, () -> onPick.onPick(k));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Style.dp(c, 60), 1f);
             if (i > 0) lp.leftMargin = Style.dp(c, 8);
             pills.addView(pill, lp);
         }
