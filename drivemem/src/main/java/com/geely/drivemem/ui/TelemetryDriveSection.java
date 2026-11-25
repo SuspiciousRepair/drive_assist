@@ -30,11 +30,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 /** Drive Mode panel of the Config screen — drive mode (Eco/Comfort/Sport),
- * regen mode (Low/Mid/High), turbo duration, ADAS controls (AEB/AVAS), and
- * the restore defaults button. Maintains live-updating mode card UI that
- * responds to vehicle state changes (current drive mode reported by the car),
- * with separate tracking of the user's saved standard and the car's actual
- * current mode.
+ * regen mode (Low/Mid/High), turbo duration, and ADAS controls (AEB/AVAS).
+ * Maintains live-updating mode cards that follow what the car reports:
+ * Drive Mode and Regen are remembered directly from the car's state, while
+ * AEB and AVAS are explicit Drive Assist overrides (issue #201).
  *
  * Extracted from TelemetryActivity.buildDrive() so that 2800+ line file
  * stops growing with every new Config section -- one View subclass per
@@ -44,8 +43,6 @@ import java.util.Map;
  * (driveListener, regenListener) subscribe to "car.drive_mode" and
  * "car.regen_mode" and call updateModeFromCar() and refreshAvasFromCar()
  * as the car's actual mode changes, keeping the card highlighting honest.
- * The user's saved standard (selDrive/selRegen) is separate and only changes
- * when they tap a card.
  */
 public final class TelemetryDriveSection extends LinearLayout {
     private final Activity activity;
@@ -59,11 +56,6 @@ public final class TelemetryDriveSection extends LinearLayout {
     private final Map<Integer, LinearLayout> driveCards = new HashMap<>();
     private final Map<Integer, LinearLayout> regenCards = new HashMap<>();
 
-    // User's saved standard: starts from prefs, changes only when they tap a
-    // card, and is applied AND saved in that same tap (pickDrive/pickRegen).
-    // Always known (falls back to Modes.DRIVE_ECO/REGEN_MID).
-    private int selDrive, selRegen;
-
     // What the car reports right now. Only meaningful once driveKnown/
     // regenKnown is true; set optimistically by a tap, then confirmed or
     // corrected by the car's own watch.
@@ -75,10 +67,6 @@ public final class TelemetryDriveSection extends LinearLayout {
         this.activity = activity;
         this.ui = new android.os.Handler(android.os.Looper.getMainLooper());
         setOrientation(VERTICAL);
-
-        // Load saved standards from prefs.
-        selDrive = Prefs.getDriveMode(activity, Modes.DRIVE_ECO);
-        selRegen = Prefs.getRegen(activity, Modes.REGEN_MID);
 
         // Everything for this page builds into `left` (still capped at
         // pageWidth, same as before) instead of straight into this view.
@@ -219,22 +207,18 @@ public final class TelemetryDriveSection extends LinearLayout {
         left.addView(Style.header(activity, activity.getString(R.string.cfg_adas_header)));
 
         // On a car whose equipment row says it has no AEB (CarCaps), the switch
-        // and its "Restore at start" row are left out: they would set nothing.
+        // is left out: it would set nothing.
         boolean hasAeb = !CarCaps.lacksAeb(CarCaps.read(activity));
         this.aebSwitch = hasAeb ? addAebRow(left, pageWidth) : null;
 
         // AVAS mute: no Park-gate, no confirmation — much lower stakes (a
         // pedestrian-warning chime, not braking), matching a "quick per-drive
-        // toggle" per plan/AVAS-MUTE-ROADMAP.md's still-open question.
+        // toggle" per plan/AVAS-MUTE-ROADMAP.md.
         //
         // Built without toggleRow()'s callback param, same as the AEB row
         // above, so refreshAvasFromCar() can move the switch on its own once
-        // the live read comes back — modehelper now mirrors an OEM-side
-        // change into its own saved preference (see ModeHelperService), so
-        // a saved copy here went stale the moment AVAS changed anywhere else
-        // (the Home AVAS button, OEM Settings): the switch drew "off" from it
-        // and jumped to "on" a second later. So there is no copy: the switch
-        // shows the car's state from the hub, hidden until it is known.
+        // the live read comes back. The switch shows the car's state from the
+        // hub, hidden until it is known.
         Boolean avasNow = AvasState.on(CarActor.get(activity).get(AvasState.KEY));
         LinearLayout avasRow = Style.toggleRow(activity, activity.getString(R.string.cfg_avas_label),
             avasNow != null && avasNow, null);
@@ -245,35 +229,6 @@ public final class TelemetryDriveSection extends LinearLayout {
         left.addView(avasRow);
         refreshAvasFromCar();
         refreshAebFromCar();
-
-        // ---- Advanced: Restore at start (issues #12, #16) ----
-        // Drive Assist owns the car's start state, so these are ON and folded
-        // away: they exist for a user whose other app (e.g. Sapo) restores the
-        // same setting, so the two do not fight.
-        final LinearLayout advanced = new LinearLayout(activity);
-        advanced.setOrientation(LinearLayout.VERTICAL);
-        advanced.setVisibility(View.GONE);
-        final String advLabel = activity.getString(R.string.cfg_advanced);
-        final TextView advToggle = Style.header(activity, advLabel + "  \u25B8");
-        advToggle.setOnClickListener(v -> {
-            boolean show = advanced.getVisibility() != View.VISIBLE;
-            advanced.setVisibility(show ? View.VISIBLE : View.GONE);
-            advToggle.setText(advLabel + (show ? "  \u25BE" : "  \u25B8"));
-        });
-        advanced.addView(Style.header(activity, activity.getString(R.string.cfg_restore_header)));
-        TextView restoreHint = new TextView(activity);
-        restoreHint.setText(activity.getString(R.string.cfg_restore_hint));
-        restoreHint.setTextColor(Style.TEXT_DIM);
-        restoreHint.setTextSize(14);
-        restoreHint.setPadding(0, 0, 0, Style.dp(activity, 6));
-        advanced.addView(restoreHint);
-        addRestoreRow(advanced, pageWidth, R.string.cfg_drive_header, Prefs.RESTORE_DRIVE);
-        addRestoreRow(advanced, pageWidth, R.string.cfg_regen_header, Prefs.RESTORE_REGEN);
-        if (hasAeb) addRestoreRow(advanced, pageWidth, R.string.cfg_aeb_label, Prefs.RESTORE_AEB);
-        addRestoreRow(advanced, pageWidth, R.string.cfg_avas_label, Prefs.RESTORE_AVAS);
-
-        left.addView(advToggle);
-        left.addView(advanced);
 
         // No separate car cutout here any more -- the whole Config screen's
         // background is now the OEM day/night render (see Style.configScreenBg,
@@ -332,30 +287,20 @@ public final class TelemetryDriveSection extends LinearLayout {
         return card;
     }
 
-    // Fill = your standard (selDrive/selRegen, always known). Border = what
-    // the car reports right now (liveDrive/liveRegen, only once driveKnown/
-    // regenKnown). A card can carry both, one, or neither — that overlap (or
-    // lack of it) is the whole point: it is what makes "car booted into
-    // something other than your standard" visible instead of silent.
+    // Highlights what the car is currently set to (once known). ModeHelper
+    // remembers the car's steady drive mode and regen automatically, so there
+    // is no separate "saved standard" vs "live mode" split (issue #201).
     private void highlight() {
         for (Map.Entry<Integer, LinearLayout> e : driveCards.entrySet())
-            paintCard(e.getValue(), e.getKey() == selDrive, driveKnown && e.getKey() == liveDrive);
+            paintCard(e.getValue(), driveKnown && e.getKey() == liveDrive);
         for (Map.Entry<Integer, LinearLayout> e : regenCards.entrySet())
-            paintCard(e.getValue(), e.getKey() == selRegen, regenKnown && e.getKey() == liveRegen);
+            paintCard(e.getValue(), regenKnown && e.getKey() == liveRegen);
     }
 
-    // card background + text: on the light theme the selected fill is dark blue,
-    // so the text has to turn light (otherwise it disappears). "isLive" adds a
-    // thicker accent-coloured stroke on top, independent of the fill. Each
-    // card's own onColor (set at build time, in modeCard's tag) replaces the
-    // one shared CARD_ON fill so Eco/Comfort/Sport read as green/amber/red at
-    // a glance instead of only by their label.
-    // 2026-11-17, owner: "too colorful". The selected card is now a quiet tint
-    // of the theme accent for every card; the per-card colour is unused.
-    private void paintCard(LinearLayout card, boolean selected, boolean isLive) {
-        int fill = selected ? Style.blend(Style.CARD, Style.ACCENT, 0.3f) : Style.CARD;
+    private void paintCard(LinearLayout card, boolean active) {
+        int fill = active ? Style.blend(Style.CARD, Style.ACCENT, 0.3f) : Style.CARD;
         android.graphics.drawable.GradientDrawable g = Style.card(fill, activity);
-        if (isLive) g.setStroke(Style.dp(activity, Style.STROKE_DP + 2), Style.ACCENT);
+        if (active) g.setStroke(Style.dp(activity, Style.STROKE_DP + 2), Style.ACCENT);
         card.setBackground(g);
         int fg = Style.onFill(fill);
         for (int i = 0; i < card.getChildCount(); i++) {
@@ -365,67 +310,41 @@ public final class TelemetryDriveSection extends LinearLayout {
         }
     }
 
-    // Applies to the car AND saves as the startup standard in the same tap —
-    // no separate Apply / Salvar padrão step to remember. A boost in
-    // progress no longer owns drive_mode past a manual pick: it ends right
-    // here (TurboMode.selectDriveMode), so the tap always reflects on the
-    // car immediately.
+    // Applies to the car and tells modehelper right away (so even an immediate
+    // car shutdown remembers it). A Turbo boost in progress ends here.
     private void pickDrive(int v) {
-        selDrive = v;
         Prefs.setDriveMode(activity, v);
-        notifyHelperDefault("drive", v);
+        HelperSync.setDrive(activity, v);
         if (TurboMode.get(activity).active()) TurboMode.get(activity).selectDriveMode(v);
         else CarActor.get(activity).cast("drive_mode", v);
         // Trusted as sent, not waited on — see CarActor's own comment for
         // why a cast doesn't block here.
         liveDrive = v; driveKnown = true;
         highlight();
-        status.setText(activity.getString(R.string.cfg_applied, Modes.driveName(selDrive), Modes.regenName(selRegen)));
+        updateAppliedStatus();
     }
 
     private void pickRegen(int v) {
-        selRegen = v;
         Prefs.setRegen(activity, v);
-        notifyHelperDefault("regen", v);
+        RegenTap.clearBoost();
+        HelperSync.setRegen(activity, v);
         CarActor.get(activity).cast("regen_mode", v);
         liveRegen = v; regenKnown = true;
         highlight();
-        status.setText(activity.getString(R.string.cfg_applied, Modes.driveName(selDrive), Modes.regenName(selRegen)));
+        updateAppliedStatus();
     }
 
-    // Tells the system helper (com.geely.modehelper) about the new startup
-    // default — it is the one that, running as uid system, re-applies it
-    // when the car wakes (here, as a normal app, we do not survive suspend).
-    // Only the one just picked: sending both made a regen the user never
-    // chose into a saved value that "Restore at start" then enforced (review #10).
-    private void notifyHelperDefault(String key, int value) {
-        try {
-            android.content.Intent i = new android.content.Intent("com.geely.modehelper.SET_MODE");
-            i.setPackage("com.geely.modehelper");
-            i.putExtra(key, value);
-            activity.sendBroadcast(i);
-        } catch (Throwable ignored) {}
-    }
-
-    // Single explicit reset for both pickers, to Eco + Mid regen — the same
-    // pair this screen starts from on a fresh install and modehelper falls
-    // back to on its own (ModeHelperService, CarMode.DRIVE_ECO/REGEN_MID).
-    private void addRestoreRow(LinearLayout parent, int width, int labelRes, String key) {
-        LinearLayout row = Style.toggleRow(activity, activity.getString(labelRes),
-            Prefs.getRestore(activity, key), on -> {
-                Prefs.setRestore(activity, key, on);
-                HelperSync.push(activity);
-            });
-        row.setLayoutParams(new LinearLayout.LayoutParams(width, ViewGroup.LayoutParams.WRAP_CONTENT));
-        parent.addView(row);
+    private void updateAppliedStatus() {
+        if (driveKnown && regenKnown) {
+            status.setText(activity.getString(R.string.cfg_applied, Modes.driveName(liveDrive), Modes.regenName(liveRegen)));
+        } else {
+            updateCurrentStatus();
+        }
     }
 
     // A fresh read (CarActor.read -> CarDataHub), not a cache lookup — this
     // is the one seed value the screen needs the instant it opens, and the
     // discrete watch above may not have delivered its first event yet.
-    // NEVER touches selDrive/selRegen — that field is the user's standard,
-    // and a stale/failed/booting-into-factory-default read here must not be
-    // able to overwrite it. See the field comment.
     private void refresh() {
         CarActor a = CarActor.get(activity);
         a.read("drive_mode", d -> {
