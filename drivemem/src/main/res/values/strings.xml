@@ -797,6 +797,7 @@
     <string name="diary_grp_electrical">Electrical &amp; Body</string>
     <string name="diary_grp_cosmetic">Cosmetic</string>
     <string name="diary_grp_bureaucracy">Fees &amp; insurance</string>
+    <string name="diary_grp_road">On the road</string>
     <string name="diary_grp_notes">Notes</string>
     <string name="diary_cat_tire_pressure">Tire pressure</string>
     <string name="diary_cat_tire_rotation">Tire rotation</string>
@@ -822,6 +823,8 @@
     <string name="diary_cat_tax_license">Tax &amp; registration</string>
     <string name="diary_cat_traffic_ticket">Traffic ticket</string>
     <string name="diary_cat_monthly_parking">Monthly parking</string>
+    <string name="diary_cat_parking">Parking</string>
+    <string name="diary_cat_toll">Toll</string>
     <string name="diary_cat_noise">Noise</string>
     <string name="diary_cat_incident">Incident</string>
     <string name="diary_cat_other">Other</string>
@@ -897,6 +900,7 @@
     <string name="diary_tco_energy">Energy</string>
     <string name="diary_tco_maintenance">Maintenance</string>
     <string name="diary_tco_bureaucracy">Fees &amp; insurance</string>
+    <string name="diary_tco_road">On the road</string>
     <string name="diary_period_all">All time</string>
     <string name="diary_period_30d">Last 30 days</string>
     <string name="diary_period_90d">Last 90 days</string>

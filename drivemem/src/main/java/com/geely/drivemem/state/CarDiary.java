@@ -83,6 +83,7 @@ public final class CarDiary {
         SERVICE(R.string.diary_grp_service, R.drawable.ic_diary_service),
         ELECTRICAL(R.string.diary_grp_electrical, R.drawable.ic_diary_electrical),
         COSMETIC(R.string.diary_grp_cosmetic, R.drawable.ic_diary_cosmetic),
+        ROAD(R.string.diary_grp_road, R.drawable.ic_diary_road),
         BUREAUCRACY(R.string.diary_grp_bureaucracy, R.drawable.ic_diary_bureaucracy),
         NOTES(R.string.diary_grp_notes, R.drawable.ic_diary_notes);
 
@@ -124,11 +125,15 @@ public final class CarDiary {
         PAINT_DENT(Group.COSMETIC, KIND_CARE, R.string.diary_cat_paint_dent, null, null, true),
         ACCESSORIES(Group.COSMETIC, KIND_CARE, R.string.diary_cat_accessories, null, null, true),
 
-        // Bureaucracy & Fixed Ownership Costs (annual/monthly costs prorate in TCO R$/km)
+        // On the road: what it costs to drive and stop somewhere (monthly parking prorates)
+        PARKING(Group.ROAD, KIND_CARE, R.string.diary_cat_parking, null, null, true, 0),
+        TOLL(Group.ROAD, KIND_CARE, R.string.diary_cat_toll, null, null, true, 0),
+        MONTHLY_PARKING(Group.ROAD, KIND_CARE, R.string.diary_cat_monthly_parking, null, 1, true, 30),
+        TRAFFIC_TICKET(Group.ROAD, KIND_CARE, R.string.diary_cat_traffic_ticket, null, null, true, 0),
+
+        // Owning the car: fixed costs, the same with the car in the garage (prorated in TCO R$/km)
         INSURANCE(Group.BUREAUCRACY, KIND_CARE, R.string.diary_cat_insurance, null, 12, true, 365),
         TAX_LICENSE(Group.BUREAUCRACY, KIND_CARE, R.string.diary_cat_tax_license, null, 12, true, 365),
-        TRAFFIC_TICKET(Group.BUREAUCRACY, KIND_CARE, R.string.diary_cat_traffic_ticket, null, null, true, 0),
-        MONTHLY_PARKING(Group.BUREAUCRACY, KIND_CARE, R.string.diary_cat_monthly_parking, null, 1, true, 30),
 
         // Notes & Issues
         NOISE(Group.NOTES, KIND_NOISE, R.string.diary_cat_noise, null, null, true),
@@ -166,6 +171,7 @@ public final class CarDiary {
 
         public boolean hasInterval() { return kmInterval != null || monthInterval != null; }
         public boolean isBureaucracy() { return group == Group.BUREAUCRACY; }
+        public boolean isRoad() { return group == Group.ROAD; }
 
         public static List<Category> forGroup(Group g) {
             List<Category> out = new ArrayList<>();
@@ -448,55 +454,52 @@ public final class CarDiary {
         public int hashCode() { return kind.ordinal() * 31 + year; }
     }
 
-    /** Total Cost of Ownership combining Energy (charges) + Maintenance + Bureaucracy (prorated). */
+    /** Total Cost of Ownership in four buckets: Energy (charges, moving the car) + Maintenance
+     * + Road (parking, tolls, tickets) + Bureaucracy (owning the car, prorated). */
     public static final class TcoSummary {
         public final double chargeCost;
         public final double maintenanceCost;
+        public final double roadCost;
         public final double bureaucracyCost;
-        /** Sum of maintenanceCost + bureaucracyCost (legacy alias for diary costs). */
+        /** Sum of the three diary buckets (all but the charges). */
         public final double diaryCost;
         public final double totalCost;
         public final double trackedKm;
         public final double costPerKm;        // -1 when trackedKm < 1 or totalCost <= 0
         public final double chargeShare;      // 0..1, -1 when totalCost <= 0
         public final double maintenanceShare; // 0..1, -1 when totalCost <= 0
+        public final double roadShare;        // 0..1, -1 when totalCost <= 0
         public final double bureaucracyShare; // 0..1, -1 when totalCost <= 0
         /** True when at least one annual/monthly fixed cost was prorated over the tracked window. */
         public final boolean prorated;
 
-        public TcoSummary(double chargeCost, double maintenanceCost, double bureaucracyCost,
-                          double trackedKm, double costPerKm,
-                          double chargeShare, double maintenanceShare, double bureaucracyShare,
-                          boolean prorated) {
+        private TcoSummary(double chargeCost, double maintenanceCost, double roadCost,
+                           double bureaucracyCost, double trackedKm, boolean prorated) {
             this.chargeCost = chargeCost;
             this.maintenanceCost = maintenanceCost;
+            this.roadCost = roadCost;
             this.bureaucracyCost = bureaucracyCost;
-            this.diaryCost = maintenanceCost + bureaucracyCost;
-            this.totalCost = chargeCost + maintenanceCost + bureaucracyCost;
+            this.diaryCost = maintenanceCost + roadCost + bureaucracyCost;
+            this.totalCost = chargeCost + diaryCost;
             this.trackedKm = trackedKm;
-            this.costPerKm = costPerKm;
-            this.chargeShare = chargeShare;
-            this.maintenanceShare = maintenanceShare;
-            this.bureaucracyShare = bureaucracyShare;
+            boolean any = totalCost > 0;
+            this.costPerKm = (any && trackedKm >= 1.0) ? (totalCost / trackedKm) : -1.0;
+            this.chargeShare = any ? chargeCost / totalCost : -1.0;
+            this.maintenanceShare = any ? maintenanceCost / totalCost : -1.0;
+            this.roadShare = any ? roadCost / totalCost : -1.0;
+            this.bureaucracyShare = any ? bureaucracyCost / totalCost : -1.0;
             this.prorated = prorated;
         }
 
         public static TcoSummary compute(double chargeCost, double diaryCost, double trackedKm) {
-            return compute(chargeCost, diaryCost, 0.0, trackedKm, false);
+            return compute(chargeCost, diaryCost, 0.0, 0.0, trackedKm, false);
         }
 
-        public static TcoSummary compute(double chargeCost, double maintenanceCost,
+        public static TcoSummary compute(double chargeCost, double maintenanceCost, double roadCost,
                                          double bureaucracyCost, double trackedKm, boolean prorated) {
-            double c = Math.max(0.0, chargeCost);
-            double m = Math.max(0.0, maintenanceCost);
-            double b = Math.max(0.0, bureaucracyCost);
-            double tot = c + m + b;
-            double km = Math.max(0.0, trackedKm);
-            double perKm = (tot > 0 && km >= 1.0) ? (tot / km) : -1.0;
-            double cs = tot > 0 ? (c / tot) : -1.0;
-            double ms = tot > 0 ? (m / tot) : -1.0;
-            double bs = tot > 0 ? (b / tot) : -1.0;
-            return new TcoSummary(c, m, b, km, perKm, cs, ms, bs, prorated);
+            return new TcoSummary(Math.max(0.0, chargeCost), Math.max(0.0, maintenanceCost),
+                Math.max(0.0, roadCost), Math.max(0.0, bureaucracyCost),
+                Math.max(0.0, trackedKm), prorated);
         }
 
         public boolean hasCosts() { return totalCost > 0.005; }
@@ -596,7 +599,7 @@ public final class CarDiary {
     public static TcoSummary computeTco(double chargeCost, List<Entry> entries, double trackedKm,
                                         long periodStartMs, long periodEndInclMs,
                                         long winStartMs, long winEndMs, boolean allTime) {
-        double maint = 0.0, bureau = 0.0;
+        double maint = 0.0, road = 0.0, bureau = 0.0;
         boolean prorated = false;
         if (entries != null) {
             for (Entry e : entries) {
@@ -607,10 +610,11 @@ public final class CarDiary {
                     prorated = true;
                 }
                 if (e.category != null && e.category.isBureaucracy()) bureau += contrib;
+                else if (e.category != null && e.category.isRoad()) road += contrib;
                 else maint += contrib;
             }
         }
-        return TcoSummary.compute(chargeCost, maint, bureau, trackedKm, prorated);
+        return TcoSummary.compute(chargeCost, maint, road, bureau, trackedKm, prorated);
     }
 
     /** Filters entries by both optional Group and PeriodFilter. Pure & unit-tested. */
@@ -1442,7 +1446,7 @@ public final class CarDiary {
     /** Reads period-scoped Total Cost of Ownership (energy + maintenance + prorated bureaucracy)
      * and tracked distance off-thread. Reuses {@code entries} if provided to avoid double reads. */
     public static TcoSummary readTcoSummary(Context ctx, PeriodFilter period, long nowMs, List<Entry> entries) {
-        if (ctx == null) return TcoSummary.compute(0, 0, 0, 0, false);
+        if (ctx == null) return TcoSummary.compute(0, 0, 0);
         PeriodFilter pf = period != null ? period : PeriodFilter.ALL;
         boolean allTime = pf.kind == PeriodFilter.Kind.ALL;
         java.time.ZoneId zone = java.time.ZoneId.systemDefault();

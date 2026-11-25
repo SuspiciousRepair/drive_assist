@@ -325,8 +325,10 @@ public class CarDiaryTest {
         assertTrue(CarDiary.Category.forGroup(CarDiary.Group.COSMETIC).contains(CarDiary.Category.ACCESSORIES));
         assertTrue(CarDiary.Category.forGroup(CarDiary.Group.BUREAUCRACY).contains(CarDiary.Category.INSURANCE));
         assertTrue(CarDiary.Category.forGroup(CarDiary.Group.BUREAUCRACY).contains(CarDiary.Category.TAX_LICENSE));
-        assertTrue(CarDiary.Category.forGroup(CarDiary.Group.BUREAUCRACY).contains(CarDiary.Category.TRAFFIC_TICKET));
-        assertTrue(CarDiary.Category.forGroup(CarDiary.Group.BUREAUCRACY).contains(CarDiary.Category.MONTHLY_PARKING));
+        assertTrue(CarDiary.Category.forGroup(CarDiary.Group.ROAD).contains(CarDiary.Category.TRAFFIC_TICKET));
+        assertTrue(CarDiary.Category.forGroup(CarDiary.Group.ROAD).contains(CarDiary.Category.MONTHLY_PARKING));
+        assertTrue(CarDiary.Category.forGroup(CarDiary.Group.ROAD).contains(CarDiary.Category.PARKING));
+        assertTrue(CarDiary.Category.forGroup(CarDiary.Group.ROAD).contains(CarDiary.Category.TOLL));
 
         long now = 1_800_000_000_000L;
         long winStart = now - 73 * DAY; // exactly 73 days = 1/5 of 365 days
@@ -344,7 +346,7 @@ public class CarDiaryTest {
             CarDiary.KIND_CARE, CarDiary.Category.ACCESSORIES, CarDiary.STATUS_DONE,
             5800.0, null, null, null, 150.0, null, null, null, null, null, null, 1);
 
-        // Insurance: 73/365 * 3650 = 730; Parking: 15/30 * 300 = 150; Ticket: 200 -> Bureaucracy = 1080
+        // Insurance: 73/365 * 3650 = 730 -> Bureaucracy; Parking: 15/30 * 300 = 150 + Ticket: 200 -> Road = 350
         // Accessories -> Maintenance = 150; Charge = 770 -> Total = 2000 over 2000 km = 1.00/km
         CarDiary.TcoSummary tco = CarDiary.computeTco(
             770.0, Arrays.asList(insurance, parking, ticket, accessory),
@@ -352,10 +354,12 @@ public class CarDiaryTest {
         assertTrue(tco.prorated);
         assertEquals(770.0, tco.chargeCost, 0.01);
         assertEquals(150.0, tco.maintenanceCost, 0.01);
-        assertEquals(1080.0, tco.bureaucracyCost, 0.01);
+        assertEquals(350.0, tco.roadCost, 0.01);
+        assertEquals(730.0, tco.bureaucracyCost, 0.01);
         assertEquals(2000.0, tco.totalCost, 0.01);
         assertEquals(1.00, tco.costPerKm, 0.001);
-        assertEquals(0.54, tco.bureaucracyShare, 0.001);
+        assertEquals(0.175, tco.roadShare, 0.001);
+        assertEquals(0.365, tco.bureaucracyShare, 0.001);
     }
 
     @Test

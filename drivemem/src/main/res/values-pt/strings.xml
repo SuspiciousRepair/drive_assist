@@ -782,6 +782,7 @@
     <string name="diary_grp_electrical">Elétrica &amp; Carroceria</string>
     <string name="diary_grp_cosmetic">Estética</string>
     <string name="diary_grp_bureaucracy">Taxas e seguro</string>
+    <string name="diary_grp_road">Circulação</string>
     <string name="diary_grp_notes">Notas</string>
     <string name="diary_cat_tire_pressure">Calibragem</string>
     <string name="diary_cat_tire_rotation">Rodízio</string>
@@ -807,6 +808,8 @@
     <string name="diary_cat_tax_license">IPVA &amp; Licenciamento</string>
     <string name="diary_cat_traffic_ticket">Multa</string>
     <string name="diary_cat_monthly_parking">Estacionamento mensal</string>
+    <string name="diary_cat_parking">Estacionamento</string>
+    <string name="diary_cat_toll">Pedágio</string>
     <string name="diary_cat_noise">Ruído</string>
     <string name="diary_cat_incident">Incidente</string>
     <string name="diary_cat_other">Outro</string>
@@ -882,6 +885,7 @@
     <string name="diary_tco_energy">Energia</string>
     <string name="diary_tco_maintenance">Manutenção</string>
     <string name="diary_tco_bureaucracy">Taxas e seguro</string>
+    <string name="diary_tco_road">Circulação</string>
     <string name="diary_period_all">Todo período</string>
     <string name="diary_period_30d">Últimos 30 dias</string>
     <string name="diary_period_90d">Últimos 90 dias</string>

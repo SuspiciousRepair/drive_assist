@@ -81,7 +81,7 @@ public class CarDiarySqlTest {
         CarDiary.Entry before = cost(3, CarDiary.Category.WASH_DETAIL, now - 40 * DAY, 999.0);
         CarDiary.TcoSummary tco = CarDiary.computeTco(0, Arrays.asList(ticket, wash, before), 500.0,
             bounds[0], endIncl, prorateStart, bounds[1], false);
-        assertEquals(200.0, tco.bureaucracyCost, 0.01);
+        assertEquals(200.0, tco.roadCost, 0.01);
         assertEquals(80.0, tco.maintenanceCost, 0.01);
 
         // A fixed cost is still prorated over the tracked part only: 10.5 of 365 days.
@@ -155,7 +155,7 @@ public class CarDiarySqlTest {
         assertEquals(100.0, CarDiary.trackedKmFrom(500, 600, null), 0.001);
         assertEquals(150.0, CarDiary.trackedKmFrom(500, 600, 650.0), 0.001);
 
-        CarDiary.TcoSummary tco = CarDiary.TcoSummary.compute(300.0, 100.0, 0.0, 0.0, false);
+        CarDiary.TcoSummary tco = CarDiary.TcoSummary.compute(300.0, 100.0, 0.0, 0.0, 0.0, false);
         assertTrue(tco.hasCosts());
         assertEquals(-1.0, tco.costPerKm, 0.001);
     }

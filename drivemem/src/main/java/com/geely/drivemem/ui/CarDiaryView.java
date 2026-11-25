@@ -540,13 +540,16 @@ public final class CarDiaryView extends LinearLayout {
 
         float eShare = (float) Math.max(0.0, Math.min(1.0, tco.chargeShare));
         float mShare = (float) Math.max(0.0, Math.min(1.0, tco.maintenanceShare));
+        float rShare = (float) Math.max(0.0, Math.min(1.0, tco.roadShare));
         float bShare = (float) Math.max(0.0, Math.min(1.0, tco.bureaucracyShare));
         boolean hasE = eShare > 0.005f;
         boolean hasM = mShare > 0.005f;
+        boolean hasR = rShare > 0.005f;
         boolean hasB = bShare > 0.005f;
         int pE = Math.round(eShare * 100f);
         int pB = hasB ? Math.round(bShare * 100f) : 0;
-        int pM = Math.max(0, 100 - pE - pB);
+        int pR = hasR ? Math.round(rShare * 100f) : 0;
+        int pM = Math.max(0, 100 - pE - pR - pB);
 
         LinearLayout bar = new LinearLayout(c);
         bar.setOrientation(LinearLayout.HORIZONTAL);
@@ -554,15 +557,19 @@ public final class CarDiaryView extends LinearLayout {
             ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 14));
         blp.topMargin = Style.dp(c, 10);
         if (hasE) {
-            bar.addView(barSeg(c, Style.ACCENT, true, !hasM && !hasB),
+            bar.addView(barSeg(c, Style.ACCENT, true, !hasM && !hasR && !hasB),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, eShare));
         }
         if (hasM) {
-            bar.addView(barSeg(c, Style.WARN, !hasE, !hasB),
+            bar.addView(barSeg(c, Style.WARN, !hasE, !hasR && !hasB),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, mShare));
         }
+        if (hasR) {
+            bar.addView(barSeg(c, Style.GOOD, !hasE && !hasM, !hasB),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, rShare));
+        }
         if (hasB) {
-            bar.addView(barSeg(c, Style.PURPLE, !hasE && !hasM, true),
+            bar.addView(barSeg(c, Style.PURPLE, !hasE && !hasM && !hasR, true),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, bShare));
         }
         topSummaryCard.addView(bar, blp);
@@ -576,6 +583,10 @@ public final class CarDiaryView extends LinearLayout {
             tco.chargeCost, pE), figLp);
         figs.addView(costFigure(c, Style.WARN, c.getString(R.string.diary_tco_maintenance),
             tco.maintenanceCost, pM), figLp);
+        if (tco.roadCost > 0.005) {
+            figs.addView(costFigure(c, Style.GOOD, c.getString(R.string.diary_tco_road),
+                tco.roadCost, pR), figLp);
+        }
         if (tco.bureaucracyCost > 0.005) {
             figs.addView(costFigure(c, Style.PURPLE, c.getString(R.string.diary_tco_bureaucracy),
                 tco.bureaucracyCost, pB), figLp);

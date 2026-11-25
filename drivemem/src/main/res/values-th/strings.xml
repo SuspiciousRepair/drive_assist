@@ -786,6 +786,7 @@
     <string name="diary_grp_electrical">ไฟฟ้าและตัวถัง</string>
     <string name="diary_grp_cosmetic">ดูแลสีรถ</string>
     <string name="diary_grp_bureaucracy">ค่าธรรมเนียมและประกัน</string>
+    <string name="diary_grp_road">ค่าทางและที่จอด</string>
     <string name="diary_grp_notes">บันทึก</string>
     <string name="diary_cat_tire_pressure">ลมยาง</string>
     <string name="diary_cat_tire_rotation">สลับยาง</string>
@@ -811,6 +812,8 @@
     <string name="diary_cat_tax_license">ภาษีและ พ.ร.บ.</string>
     <string name="diary_cat_traffic_ticket">ใบสั่งจราจร</string>
     <string name="diary_cat_monthly_parking">ค่าจอดรถรายเดือน</string>
+    <string name="diary_cat_parking">ค่าจอดรถ</string>
+    <string name="diary_cat_toll">ค่าทางด่วน</string>
     <string name="diary_cat_noise">เสียงผิดปกติ</string>
     <string name="diary_cat_incident">เหตุการณ์</string>
     <string name="diary_cat_other">อื่นๆ</string>
@@ -886,6 +889,7 @@
     <string name="diary_tco_energy">พลังงาน</string>
     <string name="diary_tco_maintenance">บำรุงรักษา</string>
     <string name="diary_tco_bureaucracy">ค่าธรรมเนียมและประกัน</string>
+    <string name="diary_tco_road">ค่าทางและที่จอด</string>
     <string name="diary_period_all">ทั้งหมด</string>
     <string name="diary_period_30d">30 วันล่าสุด</string>
     <string name="diary_period_90d">90 วันล่าสุด</string>
