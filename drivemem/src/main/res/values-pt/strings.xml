@@ -769,12 +769,12 @@
     <string name="diary_add_title">Novo registro</string>
     <string name="diary_list_title">Diário do Carro</string>
     <string name="diary_schedule_title">Manutenção</string>
-    <string name="diary_12v_no_trend">Coletando leituras matinais de 12V…</string>
+    <string name="diary_12v_no_trend">Coletando leituras de 12V…</string>
     <string name="diary_12v_leg_rest">Em repouso</string>
     <string name="diary_12v_leg_wake">Acordando</string>
     <string name="diary_12v_leg_settle">Após recarga</string>
-    <string name="diary_12v_good">Boa · manhã</string>
-    <string name="diary_12v_watch">Atenção · manhã</string>
+    <string name="diary_12v_good">Boa</string>
+    <string name="diary_12v_watch">Atenção</string>
     <string name="diary_12v_weak">Fraca · verificar logo</string>
     <string name="diary_12v_fault">Falha · verificar já</string>
     <string name="diary_12v_waiting">Aguardando dados</string>
@@ -907,7 +907,7 @@
     <string name="diary_hv_charging_mix">Perfil de recarga</string>
     <string name="diary_hv_ac_dc">● AC %1$s\u2003● DC %2$s</string>
     <string name="diary_hv_info_body" formatted="false">Bateria principal (LFP): recargas periódicas até 100% mantêm o BMS calibrado; evitar calor prolongado em 100% ou permanecer abaixo de 20% preserva a vida útil.\n\nBateria 12V: a tensão matinal em repouso deve ficar em 12,4 V ou mais. Abaixo de 12,2 V indica desgaste.</string>
-    <string name="diary_12v_subtitle">Bateria 12V · tendência matinal (60 dias)</string>
+    <string name="diary_12v_subtitle">Bateria 12V · em repouso (60 dias)</string>
 
     <!-- Configurações de Manutenção e Diário -->
     <string name="cfg_nav_diary">Manutenção</string>

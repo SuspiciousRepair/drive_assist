@@ -756,12 +756,12 @@
     <string name="diary_add_title">Nuevo registro</string>
     <string name="diary_list_title">Diario del Coche</string>
     <string name="diary_schedule_title">Mantenimiento</string>
-    <string name="diary_12v_no_trend">Recopilando lecturas matinales de 12V…</string>
+    <string name="diary_12v_no_trend">Recopilando lecturas de 12V…</string>
     <string name="diary_12v_leg_rest">En reposo</string>
     <string name="diary_12v_leg_wake">Despertando</string>
     <string name="diary_12v_leg_settle">Tras la carga</string>
-    <string name="diary_12v_good">Bien · mañana</string>
-    <string name="diary_12v_watch">Vigilar · mañana</string>
+    <string name="diary_12v_good">Bien</string>
+    <string name="diary_12v_watch">Vigilar</string>
     <string name="diary_12v_weak">Débil · revisar pronto</string>
     <string name="diary_12v_fault">Fallo · revisar ahora</string>
     <string name="diary_12v_waiting">Esperando datos</string>
@@ -894,7 +894,7 @@
     <string name="diary_hv_charging_mix">Perfil de carga</string>
     <string name="diary_hv_ac_dc">● AC %1$s\u2003● DC %2$s</string>
     <string name="diary_hv_info_body" formatted="false">Batería principal (LFP): cargar ocasionalmente al 100% calibra el BMS; evitar calor prolongado al 100% o quedar bajo el 20% cuida su vida útil.\n\nBatería 12V: el voltaje matutino en reposo debe estar en 12,4 V o más. Bajo 12,2 V indica desgaste.</string>
-    <string name="diary_12v_subtitle">Batería 12V · tendencia matutina (60 días)</string>
+    <string name="diary_12v_subtitle">Batería 12V · en reposo (60 días)</string>
 
     <!-- Ajustes de Mantenimiento -->
     <string name="cfg_nav_diary">Mantenimiento</string>

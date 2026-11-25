@@ -379,7 +379,38 @@ public final class TelemetryDiarySection extends LinearLayout {
             });
             menu.addView(row);
         }
-        popup.showAsDropDown(anchor, 0, 0);
+        // The list opens below the link, or above it when the room below is
+        // too small (the last card sits at the bottom of the screen).
+        int w = Style.dp(c, 420);
+        menu.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        int want = menu.getMeasuredHeight();
+        android.graphics.Rect frame = new android.graphics.Rect();
+        anchor.getWindowVisibleDisplayFrame(frame);
+        int[] at = new int[2];
+        anchor.getLocationOnScreen(at);
+        int gap = Style.dp(c, 8);
+        int[] fit = menuPlace(at[1], anchor.getHeight(), want,
+            frame.top + gap, Math.min(frame.bottom, SCREEN_BOTTOM_PX) - gap);
+        popup.setHeight(fit[1]);
+        popup.showAtLocation(anchor, android.view.Gravity.NO_GRAVITY, at[0], fit[0]);
+    }
+
+    /** The dock of the head unit covers the screen below this line. */
+    static final int SCREEN_BOTTOM_PX = 968;
+
+    /** Pure: where a menu of height want goes for an anchor at anchorTop.
+     * Below the anchor when it fits, else on the side with more room, cut to
+     * that room. Returns {top, height}. */
+    static int[] menuPlace(int anchorTop, int anchorH, int want, int top, int bottom) {
+        int below = bottom - (anchorTop + anchorH);
+        int above = anchorTop - top;
+        if (want <= below) return new int[]{anchorTop + anchorH, want};
+        if (above >= below) {
+            int h = Math.min(want, Math.max(above, 0));
+            return new int[]{anchorTop - h, h};
+        }
+        return new int[]{anchorTop + anchorH, Math.max(below, 0)};
     }
 
     private void apply(Row r, int a, int b) {

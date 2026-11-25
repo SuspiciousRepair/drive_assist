@@ -773,12 +773,12 @@
     <string name="diary_add_title">เพิ่มบันทึก</string>
     <string name="diary_list_title">สมุดบันทึกรถ</string>
     <string name="diary_schedule_title">กำหนดดูแลรักษา</string>
-    <string name="diary_12v_no_trend">กำลังเก็บค่า 12V ช่วงเช้า…</string>
+    <string name="diary_12v_no_trend">กำลังเก็บค่า 12V…</string>
     <string name="diary_12v_leg_rest">พัก</string>
     <string name="diary_12v_leg_wake">กำลังตื่น</string>
     <string name="diary_12v_leg_settle">หลังชาร์จ</string>
-    <string name="diary_12v_good">ดี · ช่วงเช้า</string>
-    <string name="diary_12v_watch">เฝ้าระวัง · ช่วงเช้า</string>
+    <string name="diary_12v_good">ดี</string>
+    <string name="diary_12v_watch">เฝ้าระวัง</string>
     <string name="diary_12v_weak">อ่อน · ควรตรวจเช็ค</string>
     <string name="diary_12v_fault">ผิดปกติ · ตรวจทันที</string>
     <string name="diary_12v_waiting">รอข้อมูล</string>
@@ -911,7 +911,7 @@
     <string name="diary_hv_charging_mix">สัดส่วนการชาร์จ</string>
     <string name="diary_hv_ac_dc">● AC %1$s\u2003● DC %2$s</string>
     <string name="diary_hv_info_body" formatted="false">แบตเตอรี่หลัก (LFP): การชาร์จเต็ม 100% เป็นระยะช่วยปรับเทียบ BMS แต่ควรหลีกเลี่ยงความร้อนสูงขณะเต็ม 100% หรือปล่อยต่ำกว่า 20% นานเกินไป\n\nแบตเตอรี่ 12V: แรงดันขณะพักตอนเช้าควรอยู่ที่ 12.4 V ขึ้นไป หากต่ำกว่า 12.2 V แสดงว่าแบตเตอรี่เริ่มเสื่อม</string>
-    <string name="diary_12v_subtitle">แบตเตอรี่ 12V · แนวโน้มตอนเช้า (60 วัน)</string>
+    <string name="diary_12v_subtitle">แบตเตอรี่ 12V · ขณะพัก (60 วัน)</string>
 
     <!-- ตั้งค่าการบำรุงรักษา -->
     <string name="cfg_nav_diary">บำรุงรักษา</string>

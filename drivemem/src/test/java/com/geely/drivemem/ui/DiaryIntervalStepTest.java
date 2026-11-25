@@ -72,4 +72,17 @@ public class DiaryIntervalStepTest {
         assertEquals(25, TelemetryDiarySection.typed("25"));
         assertEquals(-1, TelemetryDiarySection.typed(""));
     }
+
+    @org.junit.Test
+    public void addMenuOpensAboveWhenTheRoomBelowIsSmall() {
+        // Room below: opens under the link.
+        org.junit.Assert.assertArrayEquals(new int[]{460, 300},
+            TelemetryDiarySection.menuPlace(400, 60, 300, 8, 960));
+        // Link near the bottom: opens above it, bottom edge on the link.
+        org.junit.Assert.assertArrayEquals(new int[]{570, 300},
+            TelemetryDiarySection.menuPlace(870, 50, 300, 8, 960));
+        // Longer than the room above: cut to that room, it scrolls.
+        org.junit.Assert.assertArrayEquals(new int[]{8, 862},
+            TelemetryDiarySection.menuPlace(870, 50, 2000, 8, 960));
+    }
 }

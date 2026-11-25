@@ -784,12 +784,12 @@
     <string name="diary_add_title">Add entry</string>
     <string name="diary_list_title">Car Diary</string>
     <string name="diary_schedule_title">Care Schedule</string>
-    <string name="diary_12v_no_trend">Collecting morning 12V readings…</string>
+    <string name="diary_12v_no_trend">Collecting 12V readings…</string>
     <string name="diary_12v_leg_rest">At rest</string>
     <string name="diary_12v_leg_wake">Waking up</string>
     <string name="diary_12v_leg_settle">After charging</string>
-    <string name="diary_12v_good">Good · morning</string>
-    <string name="diary_12v_watch">Watch · morning</string>
+    <string name="diary_12v_good">Good</string>
+    <string name="diary_12v_watch">Watch</string>
     <string name="diary_12v_weak">Weak · check soon</string>
     <string name="diary_12v_fault">Fault · check now</string>
     <string name="diary_12v_waiting">Waiting for data</string>
@@ -921,8 +921,8 @@
     <string name="diary_hv_peak_temp">Peak temperature</string>
     <string name="diary_hv_charging_mix">Charging mix</string>
     <string name="diary_hv_ac_dc">● AC %1$s\u2003● DC %2$s</string>
-    <string name="diary_hv_info_body" formatted="false">HV LFP battery: occasional charges to 100% keep the BMS calibrated, while avoiding prolonged heat at 100% or sitting below 20% preserves long-term capacity.\n\n12V battery: morning resting voltage before ready mode should stay at or above 12.4 V. Below 12.2 V signals a weakening battery.</string>
-    <string name="diary_12v_subtitle">12V Battery · 60-day morning trend</string>
+    <string name="diary_hv_info_body" formatted="false">HV LFP battery: occasional charges to 100% keep the BMS calibrated, while avoiding prolonged heat at 100% or sitting below 20% preserves long-term capacity.\n\n12V battery: resting voltage before ready mode should stay at or above 12.4 V. Below 12.2 V signals a weakening battery.</string>
+    <string name="diary_12v_subtitle">12V Battery · at rest, 60 days</string>
 
     <!-- Maintenance & Diary Settings -->
     <string name="cfg_nav_diary">Maintenance</string>
