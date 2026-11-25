@@ -210,6 +210,7 @@ public final class DiaryEntryDialog {
         // UI references
         private LinearLayout leftHeaderHost;
         private LinearLayout leftListHost;
+        private LinearLayout paneBox;
         private TextView paneTitle;
         private TextView paneCtx;
         private LinearLayout dateSeg;
@@ -462,6 +463,7 @@ public final class DiaryEntryDialog {
                 ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, TOUCH_DP));
             saveLp.topMargin = Style.dp(c, 10);
             pane.addView(saveBtn, saveLp);
+            paneBox = pane;
 
             // Mirror left/right columns in RHD so the category picker stays on the driver's edge
             Style.addMirrored(sheet, 22, leftCol, pane);
@@ -506,6 +508,13 @@ public final class DiaryEntryDialog {
                 buildClassesList();
             } else {
                 buildItemsList();
+            }
+            // On the list of classes no item is picked: the form (and its Save)
+            // is not shown, only the empty pane.
+            if (paneBox != null) {
+                for (int i = 0; i < paneBox.getChildCount(); i++) {
+                    paneBox.getChildAt(i).setVisibility(showingClasses ? View.INVISIBLE : View.VISIBLE);
+                }
             }
         }
 
