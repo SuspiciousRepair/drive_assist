@@ -360,7 +360,7 @@ public final class CarDiaryView extends LinearLayout {
         ImageView infoIco = new ImageView(c);
         infoIco.setImageResource(R.drawable.ic_info_outline);
         infoIco.setColorFilter(Style.TEXT_DIM, PorterDuff.Mode.SRC_IN);
-        infoIco.setBackground(Style.tile(c));
+        // Icon only, no button box; the touch area keeps its size.
         int ip = Style.dp(c, 16);
         infoIco.setPadding(ip, ip, ip, ip);
         int isz = Style.dp(c, TOUCH_DP);
