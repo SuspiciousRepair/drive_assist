@@ -786,8 +786,8 @@
     <string name="diary_empty">ยังไม่มีบันทึก แตะ + บันทึก เพื่อจดการบำรุงรักษา เสียงผิดปกติ หรือเหตุการณ์</string>
     <string name="diary_grp_tires">ยาง</string>
     <string name="diary_grp_service">เช็คระยะ</string>
-    <string name="diary_grp_electrical">ไฟฟ้าและตัวถัง</string>
-    <string name="diary_grp_cosmetic">ดูแลสีรถ</string>
+    <string name="diary_grp_electrical">ไฟฟ้า</string>
+    <string name="diary_grp_cosmetic">ดูแลสีรถและตัวถัง</string>
     <string name="diary_grp_bureaucracy">ค่าธรรมเนียมและประกัน</string>
     <string name="diary_grp_road">ค่าทางและที่จอด</string>
     <string name="diary_grp_notes">บันทึก</string>

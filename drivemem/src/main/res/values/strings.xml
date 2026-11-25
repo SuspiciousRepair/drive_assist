@@ -797,8 +797,8 @@
     <string name="diary_empty">No diary entries yet. Tap + Add entry to log maintenance, noises, or incidents.</string>
     <string name="diary_grp_tires">Tires</string>
     <string name="diary_grp_service">Service</string>
-    <string name="diary_grp_electrical">Electrical &amp; Body</string>
-    <string name="diary_grp_cosmetic">Cosmetic</string>
+    <string name="diary_grp_electrical">Electrical</string>
+    <string name="diary_grp_cosmetic">Looks &amp; body</string>
     <string name="diary_grp_bureaucracy">Fees &amp; insurance</string>
     <string name="diary_grp_road">On the road</string>
     <string name="diary_grp_notes">Notes</string>

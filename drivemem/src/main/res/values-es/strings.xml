@@ -769,8 +769,8 @@
     <string name="diary_empty">Sin registros aún. Pulsa + Añadir registro para anotar mantenimientos, ruidos o incidentes.</string>
     <string name="diary_grp_tires">Neumáticos</string>
     <string name="diary_grp_service">Revisión</string>
-    <string name="diary_grp_electrical">Eléctrica y carrocería</string>
-    <string name="diary_grp_cosmetic">Estética</string>
+    <string name="diary_grp_electrical">Eléctrica</string>
+    <string name="diary_grp_cosmetic">Estética y carrocería</string>
     <string name="diary_grp_bureaucracy">Tasas y seguro</string>
     <string name="diary_grp_road">Circulación</string>
     <string name="diary_grp_notes">Notas</string>
