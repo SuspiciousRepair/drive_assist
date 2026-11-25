@@ -3,6 +3,23 @@
 ## [Unreleased]
 
 ### Added
+- **Car diary.** A new page on the stats screen (third icon) for what you do
+  to the car and what it costs: maintenance, tires, fluids, fees and
+  insurance, accessories, parking, tolls and tickets. It shows what is due
+  next, by distance or time, and the cost of ownership for the period you
+  pick (money, per km or percent). Change the intervals, or give any item
+  its own schedule, under **Config → Maintenance**. Export as CSV to a USB
+  stick or your phone.
+- **Car diary: impacts.** The car's motion sensor notes a hard bump while
+  driving; in Park the diary asks whether to keep it, with the place on the
+  map and, on a car with the dashcam, a 5-second clip. Three sensitivity
+  levels, or off, under **Config → Maintenance**.
+- **Car diary: battery health.** The main battery's numbers and a 60-day
+  chart of the 12 V battery at rest. Readings taken while the car wakes or
+  just after a recharge have their own colour and do not count against the
+  battery.
+- **Car diary: a ticket finds its place.** Type the hour on the notice and
+  the diary takes the place and speed from that day's saved route.
 - **Right-hand drive (RHD) layout.** Detected automatically from the car's
   steering-wheel side on first start, and changeable anytime under
   **Config → Appearance → Driver side** (**Left** or **Right**). In
@@ -11,6 +28,14 @@
   panels on the driver's side while card contents, menus, controls, charts,
   maps, calendars and text stay left-to-right. Backups keep your choice. Not
   yet checked on a real right-hand-drive car.
+
+### Fixed
+- **Drive mode and regeneration come back after a remote A/C start.** When
+  the car was woken from the phone app with nobody inside, the restore gave
+  up before you got in. It now tries again when the screen comes on.
+- **The cameras stay closed when the car is off.** ModeHelper no longer opens
+  them when it starts with the car off and the screen off.
+- **Tire pressure is due by time only**, not also every 1,500 km.
 
 ## [v0.11.3] — 2026-11-23
 
