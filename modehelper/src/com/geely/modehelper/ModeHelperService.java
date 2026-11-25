@@ -335,6 +335,8 @@ public class ModeHelperService extends Service {
                 superviseDash();
                 maybeWatchPower();
                 updateParkedMonitoring(parked);
+                // Home Wi-Fi wakelock follows the car's own Parking Mode schedule.
+                WifiGuardReceiver.onParkMode(this, car.isReady() ? car.readIntProp(CarMode.PARK_MODE, 0) : null);
                 if (g != null) {
                     if (g != lastGear) Log.i(TAG, "gear " + lastGear + " -> " + g);
                     lastGear = g;

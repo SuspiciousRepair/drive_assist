@@ -17,7 +17,8 @@ Property IDs and scales of the car's own (VHAL) properties are in
   suspends instead of shutting down; while it is suspended, nothing below
   updates, and every value keeps its last state until the next wake.
 - On the trusted home Wi-Fi, modehelper's `WifiGuardReceiver` holds a wake
-  lock, so the head unit stays awake there.
+  lock while the car's Parking Mode is on, so the head unit stays awake
+  there for the duration picked in the car. With Parking Mode off it sleeps.
 - A value that is not available reads `NOT_AVAILABLE` in the hub. Consumers
   must handle that; it is not zero.
 
