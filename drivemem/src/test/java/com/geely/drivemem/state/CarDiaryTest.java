@@ -498,4 +498,24 @@ public class CarDiaryTest {
             }
         }
     }
+
+    // ---- Traffic ticket: the hour on the notice ----
+
+    @Test public void ticketClockToMinuteOfDay() {
+        assertEquals(Integer.valueOf(14 * 60 + 35), CarDiary.clockMinute("14", "35"));
+        assertEquals(Integer.valueOf(9 * 60), CarDiary.clockMinute("9", ""));
+        assertNull(CarDiary.clockMinute("", "30"));
+        assertNull(CarDiary.clockMinute("24", "00"));
+        assertNull(CarDiary.clockMinute("12", "60"));
+    }
+
+    @Test public void ticketMetaKeepsHourAndSpeed() {
+        String meta = CarDiary.buildTicketMeta(875, 63.4);
+        assertEquals(Integer.valueOf(875), CarDiary.parseTicketMinute(meta));
+        assertEquals(Integer.valueOf(63), CarDiary.parseTicketSpeed(meta));
+        // No hour given: no meta, and nothing to read back.
+        assertNull(CarDiary.buildTicketMeta(null, 50.0));
+        assertNull(CarDiary.parseTicketMinute(null));
+        assertNull(CarDiary.parseTicketSpeed(CarDiary.buildTicketMeta(600, null)));
+    }
 }

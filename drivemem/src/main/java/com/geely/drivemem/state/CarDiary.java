@@ -1847,6 +1847,115 @@ public final class CarDiary {
         return e.tsMs + (long) (covDays * MS_PER_DAY);
     }
 
+    // ---- Traffic ticket: the hour on the notice, and the place from the saved route ----
+
+    /** A route point this close to the ticket's minute gives its place. */
+    static final long TICKET_PLACE_GAP_MS = 5 * 60_000L;
+
+    /** minuteOfDay: the hour on the notice (null = not given). speedKmh: the
+     * car's speed at the route point used for the place (null = no point). */
+    public static String buildTicketMeta(Integer minuteOfDay, Double speedKmh) {
+        if (minuteOfDay == null) return null;
+        StringBuilder sb = new StringBuilder("{\"timeMin\":").append(minuteOfDay);
+        if (speedKmh != null) sb.append(",\"speedKmh\":").append(Math.round(speedKmh));
+        return sb.append('}').toString();
+    }
+
+    public static Integer parseTicketMinute(String metaJson) {
+        Long v = metaLong(metaJson, "timeMin");
+        return v != null && v >= 0 && v < 1440 ? (Integer) v.intValue() : null;
+    }
+
+    public static Integer parseTicketSpeed(String metaJson) {
+        Long v = metaLong(metaJson, "speedKmh");
+        return v != null ? (Integer) v.intValue() : null;
+    }
+
+    private static Long metaLong(String metaJson, String key) {
+        if (metaJson == null) return null;
+        java.util.regex.Matcher m = java.util.regex.Pattern
+            .compile("\"" + key + "\":(-?\\d+)").matcher(metaJson);
+        try { return m.find() ? Long.valueOf(m.group(1)) : null; }
+        catch (NumberFormatException e) { return null; }
+    }
+
+    /** Pure: typed hour and minute to a minute of the day. Empty minutes are
+     * :00. Null when the hour is empty or either part is out of range. */
+    public static Integer clockMinute(String hh, String mm) {
+        try {
+            if (hh == null || hh.trim().isEmpty()) return null;
+            int h = Integer.parseInt(hh.trim());
+            int m = (mm == null || mm.trim().isEmpty()) ? 0 : Integer.parseInt(mm.trim());
+            return (h < 0 || h > 23 || m < 0 || m > 59) ? null : (Integer) (h * 60 + m);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /** The saved route point nearest to tsMs (the middle of the ticket's
+     * minute), within TICKET_PLACE_GAP_MS: {lat, lon, speed or NaN}. Null when
+     * the car has no route for that time. Runs on CarDb's writer thread. */
+    private static double[] routePointAt(SQLiteDatabase db, long tsMs) {
+        long mid = tsMs + 30_000L;
+        try (Cursor c = db.rawQuery(
+                "SELECT lat, lon, speed_kmh FROM trip_point WHERE ts_ms BETWEEN ? AND ? "
+                + "ORDER BY ABS(ts_ms - ?) ASC LIMIT 1",
+                new String[]{String.valueOf(mid - TICKET_PLACE_GAP_MS),
+                    String.valueOf(mid + TICKET_PLACE_GAP_MS), String.valueOf(mid)})) {
+            if (!c.moveToFirst()) return null;
+            return new double[]{c.getDouble(0), c.getDouble(1), c.isNull(2) ? Double.NaN : c.getDouble(2)};
+        } catch (Throwable t) {
+            Log.w(CarAccess.TAG, "diary ticket place failed: " + t);
+            return null;
+        }
+    }
+
+    /** A new ticket. Its place is where the car was at the hour on the notice
+     * (from the saved route), never where the car is when the entry is typed:
+     * a ticket is logged days later, at home. No hour or no route: no place. */
+    public static void insertTicket(Context ctx, long tsMs, Integer minuteOfDay, Double odoKm,
+                                    Double cost, String note, Runnable onDone) {
+        if (ctx == null) return;
+        final Context app = ctx.getApplicationContext();
+        final String uuid = UUID.randomUUID().toString();
+        CarDb.get(app).write(() -> {
+            try {
+                double[] p = minuteOfDay != null ? routePointAt(CarDb.get(app).db(), tsMs) : null;
+                Double speed = (p != null && !Double.isNaN(p[2])) ? (Double) p[2] : null;
+                insertNow(app, uuid, Category.TRAFFIC_TICKET, STATUS_DONE, tsMs, odoKm, null,
+                    p != null ? (Double) p[0] : null, p != null ? (Double) p[1] : null,
+                    cost, null, note, null, null, null, buildTicketMeta(minuteOfDay, speed));
+                publishChanged();
+                if (onDone != null) onDone.run();
+            } catch (Throwable t) {
+                Log.w(CarAccess.TAG, "diary ticket insert failed: " + t);
+            }
+        });
+    }
+
+    /** After an edit of a ticket: looks its place up again for the (new) hour. */
+    public static void relocateTicket(Context ctx, long id, long tsMs, Integer minuteOfDay, Runnable onDone) {
+        if (ctx == null || id <= 0) return;
+        final Context app = ctx.getApplicationContext();
+        CarDb.get(app).write(() -> {
+            try {
+                SQLiteDatabase db = CarDb.get(app).db();
+                double[] p = minuteOfDay != null ? routePointAt(db, tsMs) : null;
+                Double speed = (p != null && !Double.isNaN(p[2])) ? (Double) p[2] : null;
+                ContentValues v = new ContentValues();
+                if (p != null) { v.put("lat", p[0]); v.put("lon", p[1]); }
+                else { v.putNull("lat"); v.putNull("lon"); }
+                String meta = buildTicketMeta(minuteOfDay, speed);
+                if (meta != null) v.put("meta_json", meta); else v.putNull("meta_json");
+                db.update("diary_event", v, "id = ?", new String[]{String.valueOf(id)});
+                publishChanged();
+                if (onDone != null) onDone.run();
+            } catch (Throwable t) {
+                Log.w(CarAccess.TAG, "diary ticket place update failed: " + t);
+            }
+        });
+    }
+
     public static String buildCoolantMeta(boolean topUp) {
         return topUp ? "{\"topUp\":true}" : "{\"topUp\":false}";
     }

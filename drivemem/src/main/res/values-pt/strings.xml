@@ -813,6 +813,7 @@
     <string name="diary_cat_monthly_parking">Estacionamento mensal</string>
     <string name="diary_cat_parking">Estacionamento</string>
     <string name="diary_cat_toll">Pedágio</string>
+    <string name="diary_ticket_time">Hora da infração</string>
     <string name="diary_cat_noise">Ruído</string>
     <string name="diary_cat_incident">Incidente</string>
     <string name="diary_cat_other">Outro</string>

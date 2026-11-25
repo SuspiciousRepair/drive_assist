@@ -828,6 +828,7 @@
     <string name="diary_cat_monthly_parking">Monthly parking</string>
     <string name="diary_cat_parking">Parking</string>
     <string name="diary_cat_toll">Toll</string>
+    <string name="diary_ticket_time">Time on the notice</string>
     <string name="diary_cat_noise">Noise</string>
     <string name="diary_cat_incident">Incident</string>
     <string name="diary_cat_other">Other</string>

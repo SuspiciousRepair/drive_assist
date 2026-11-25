@@ -204,6 +204,10 @@ public final class DiaryEntryDialog {
         private String insurer, policyNo, assistPhone;
         private EditText insurerInput, policyInput, phoneInput;
 
+        // Traffic ticket: the hour on the notice, as a minute of the day (null = not given).
+        private Integer ticketMinute;
+        private EditText ticketHourInput, ticketMinInput;
+
         // Coolant mode (default Top-up so topping off doesn't reset the 4-year / 80k flush clock)
         private boolean coolantTopUp = true;
 
@@ -246,6 +250,7 @@ public final class DiaryEntryDialog {
                 this.selectedDate = Instant.ofEpochMilli(editing.tsMs)
                     .atZone(ZoneId.systemDefault()).toLocalDate();
                 this.originalDate = this.selectedDate;
+                this.ticketMinute = CarDiary.parseTicketMinute(editing.metaJson);
                 this.showingClasses = false;
                 if (editing.odoKm != null && editing.odoKm > 0) {
                     this.resolvedOdoKm = editing.odoKm;
@@ -509,12 +514,20 @@ public final class DiaryEntryDialog {
             } else {
                 buildItemsList();
             }
-            // On the list of classes no item is picked: the form (and its Save)
-            // is not shown, only the empty pane.
-            if (paneBox != null) {
-                for (int i = 0; i < paneBox.getChildCount(); i++) {
-                    paneBox.getChildAt(i).setVisibility(showingClasses ? View.INVISIBLE : View.VISIBLE);
-                }
+            syncPaneVisibility();
+        }
+
+        /** On the list of classes no item is picked: the form (title, date,
+         * fields, Save) is not shown, only the empty pane. With an item picked,
+         * the date bar is still hidden for a jolt incident (it has its own time).
+         * One place sets these, so no later rebuild shows a part again. */
+        private void syncPaneVisibility() {
+            if (paneBox == null) return;
+            boolean joltIncident = jolt != null && selectedCat == CarDiary.Category.INCIDENT;
+            for (int i = 0; i < paneBox.getChildCount(); i++) {
+                View v = paneBox.getChildAt(i);
+                if (showingClasses) v.setVisibility(View.INVISIBLE);
+                else v.setVisibility(v == dateSeg && joltIncident ? View.GONE : View.VISIBLE);
             }
         }
 
@@ -1062,12 +1075,16 @@ public final class DiaryEntryDialog {
             // A jolt has its own time: the entry and its clip use it, so there
             // is no date to pick while the category is Incident.
             boolean joltIncident = jolt != null && selectedCat == CarDiary.Category.INCIDENT;
-            if (dateSeg != null) dateSeg.setVisibility(joltIncident ? View.GONE : View.VISIBLE);
+            syncPaneVisibility();
             if (joltIncident && !selectedDate.equals(joltDate())) applyDate(joltDate());
 
             stashCoverageInputs();
+            stashTicketInputs();
             adaptiveBox.removeAllViews();
-            if (hasCoverage(selectedCat)) {
+            if (selectedCat == CarDiary.Category.TRAFFIC_TICKET) {
+                adaptiveBox.setVisibility(View.VISIBLE);
+                buildTicketControls();
+            } else if (hasCoverage(selectedCat)) {
                 adaptiveBox.setVisibility(View.VISIBLE);
                 buildCoverageControls();
             } else if (selectedCat == CarDiary.Category.TIRE_PRESSURE) {
@@ -1330,6 +1347,69 @@ public final class DiaryEntryDialog {
                 ? validUntil : selectedDate.plusYears(1);
         }
 
+        /** The box is rebuilt often: keep the hour that was typed. */
+        private void stashTicketInputs() {
+            if (ticketHourInput != null) {
+                ticketMinute = CarDiary.clockMinute(ticketHourInput.getText().toString(),
+                    ticketMinInput != null ? ticketMinInput.getText().toString() : null);
+            }
+            ticketHourInput = ticketMinInput = null;
+        }
+
+        /** "Time on the notice" + [hh] : [mm]. With it the entry gets the
+         * place where the car was (from the saved route). */
+        private void buildTicketControls() {
+            LinearLayout row = new LinearLayout(c);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+
+            TextView lbl = new TextView(c);
+            lbl.setText(c.getString(R.string.diary_ticket_time));
+            lbl.setTextColor(Style.TEXT);
+            lbl.setTextSize(18f);
+            row.addView(lbl, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+            LinearLayout well = new LinearLayout(c);
+            well.setOrientation(LinearLayout.HORIZONTAL);
+            well.setGravity(Gravity.CENTER);
+            well.setBackground(roundedRect(wellFill(), borderColor(), 1, 18));
+            well.setPadding(Style.dp(c, 18), Style.dp(c, 8), Style.dp(c, 18), Style.dp(c, 8));
+            well.setMinimumHeight(Style.dp(c, TOUCH_DP));
+
+            ticketHourInput = clockInput("hh", ticketMinute != null ? ticketMinute / 60 : null);
+            ticketMinInput = clockInput("mm", ticketMinute != null ? ticketMinute % 60 : null);
+            final EditText minIn = ticketMinInput;
+            // Two digits of the hour: go on to the minutes.
+            ticketHourInput.addTextChangedListener(new android.text.TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence t, int a, int b, int d) {}
+                @Override public void onTextChanged(CharSequence t, int a, int b, int d) {}
+                @Override public void afterTextChanged(android.text.Editable e) {
+                    if (e.length() == 2 && minIn.getText().length() == 0) minIn.requestFocus();
+                }
+            });
+            well.addView(ticketHourInput, new LinearLayout.LayoutParams(
+                Style.dp(c, 56), ViewGroup.LayoutParams.WRAP_CONTENT));
+            TextView colon = new TextView(c);
+            colon.setText(":");
+            colon.setTextColor(Style.TEXT_DIM);
+            colon.setTextSize(22f);
+            colon.setPadding(Style.dp(c, 6), 0, Style.dp(c, 6), 0);
+            well.addView(colon);
+            well.addView(ticketMinInput, new LinearLayout.LayoutParams(
+                Style.dp(c, 56), ViewGroup.LayoutParams.WRAP_CONTENT));
+            row.addView(well, new LinearLayout.LayoutParams(
+                Style.dp(c, 220), ViewGroup.LayoutParams.WRAP_CONTENT));
+            adaptiveBox.addView(row);
+        }
+
+        private EditText clockInput(String hint, Integer value) {
+            EditText e = bareInput(InputType.TYPE_CLASS_NUMBER, hint, 22f, true);
+            e.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(2)});
+            e.setGravity(Gravity.CENTER);
+            if (value != null) e.setText(String.format(Locale.US, "%02d", value));
+            return e;
+        }
+
         /** The box is rebuilt often: keep what was typed. */
         private void stashCoverageInputs() {
             if (insurerInput != null) insurer = insurerInput.getText().toString().trim();
@@ -1511,8 +1591,15 @@ public final class DiaryEntryDialog {
             final String note = rawNote.isEmpty() ? null : rawNote;
 
             final boolean isToday = selectedDate.equals(LocalDate.now());
+            stashTicketInputs();
+            final Integer ticketMin = selectedCat == CarDiary.Category.TRAFFIC_TICKET ? ticketMinute : null;
             final long tsMs;
-            if (editing != null && selectedDate.equals(originalDate)) {
+            if (ticketMin != null) {
+                // The hour on the notice: the entry is at that minute, and its
+                // place is looked up there (CarDiary.insertTicket).
+                tsMs = selectedDate.atTime(ticketMin / 60, ticketMin % 60).atZone(ZoneId.systemDefault())
+                    .toInstant().toEpochMilli();
+            } else if (editing != null && selectedDate.equals(originalDate)) {
                 tsMs = editing.tsMs;
             } else if (jolt != null && selectedCat == CarDiary.Category.INCIDENT) {
                 // An incident logged from a jolt is the jolt: same time, and the
@@ -1558,7 +1645,14 @@ public final class DiaryEntryDialog {
                     meta = editing.metaJson;
                 }
                 String title = (editing.category == cat) ? editing.title : null;
-                CarDiary.update(app, editing.id, cat, status, tsMs, odo, cost, title, note, tags, meta, onSaved);
+                if (cat == CarDiary.Category.TRAFFIC_TICKET) {
+                    // Same writer thread, in order: the fields, then the place for the hour.
+                    CarDiary.update(app, editing.id, cat, status, tsMs, odo, cost, title, note, tags,
+                        CarDiary.buildTicketMeta(ticketMin, null), null);
+                    CarDiary.relocateTicket(app, editing.id, tsMs, ticketMin, onSaved);
+                } else {
+                    CarDiary.update(app, editing.id, cat, status, tsMs, odo, cost, title, note, tags, meta, onSaved);
+                }
             } else if (cat == CarDiary.Category.TIRE_PRESSURE) {
                 final int[] snap = {psi[0], psi[1], psi[2], psi[3]};
                 Runnable commit = () -> {
@@ -1570,6 +1664,8 @@ public final class DiaryEntryDialog {
                 };
                 // inferColdTires reads the database: diary worker thread, not the hub thread.
                 CarDiary.runAsync(commit);
+            } else if (cat == CarDiary.Category.TRAFFIC_TICKET) {
+                CarDiary.insertTicket(app, tsMs, ticketMin, odo, cost, note, onSaved);
             } else if (cat == CarDiary.Category.INCIDENT) {
                 Double lat = jolt != null ? jolt.lat : null;
                 Double lon = jolt != null ? jolt.lon : null;

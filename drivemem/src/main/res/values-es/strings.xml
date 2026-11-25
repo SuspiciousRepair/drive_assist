@@ -800,6 +800,7 @@
     <string name="diary_cat_monthly_parking">Estacionamiento mensual</string>
     <string name="diary_cat_parking">Estacionamiento</string>
     <string name="diary_cat_toll">Peaje</string>
+    <string name="diary_ticket_time">Hora de la infracción</string>
     <string name="diary_cat_noise">Ruido</string>
     <string name="diary_cat_incident">Incidente</string>
     <string name="diary_cat_other">Otro</string>

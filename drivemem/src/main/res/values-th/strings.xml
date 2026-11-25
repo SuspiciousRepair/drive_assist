@@ -817,6 +817,7 @@
     <string name="diary_cat_monthly_parking">ค่าจอดรถรายเดือน</string>
     <string name="diary_cat_parking">ค่าจอดรถ</string>
     <string name="diary_cat_toll">ค่าทางด่วน</string>
+    <string name="diary_ticket_time">เวลาในใบสั่ง</string>
     <string name="diary_cat_noise">เสียงผิดปกติ</string>
     <string name="diary_cat_incident">เหตุการณ์</string>
     <string name="diary_cat_other">อื่นๆ</string>

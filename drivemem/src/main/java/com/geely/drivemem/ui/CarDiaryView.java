@@ -1281,6 +1281,15 @@ public final class CarDiaryView extends LinearLayout {
                 }
             }
         }
+        if (e.category == CarDiary.Category.TRAFFIC_TICKET) {
+            // The hour on the notice and, when the route gave the place, the car's speed there.
+            Integer min = CarDiary.parseTicketMinute(e.metaJson);
+            Integer kmh = CarDiary.parseTicketSpeed(e.metaJson);
+            if (min != null) sb.append(String.format(Locale.US, "%02d:%02d", min / 60, min % 60));
+            if (min != null && kmh != null) {
+                sb.append(" · ").append(Style.valueWithUnit(String.valueOf(kmh), null, "km/h", Style.UNIT_SCALE_ROW));
+            }
+        }
         if (e.category != null && e.category.coverageDays >= 365) {
             // Insurance, tax and licensing: who, until when, and the number to call.
             String provider = CarDiary.parseMetaText(e.metaJson, CarDiary.META_PROVIDER);
