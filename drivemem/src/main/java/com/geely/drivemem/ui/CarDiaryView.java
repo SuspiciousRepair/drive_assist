@@ -422,7 +422,7 @@ public final class CarDiaryView extends LinearLayout {
 
         trendView = new Aux12vTrendView(c);
         LinearLayout.LayoutParams tvLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 190));
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 222));
         tvLp.topMargin = Style.dp(c, 10);
         healthCard.addView(trendView, tvLp);
 
@@ -473,7 +473,7 @@ public final class CarDiaryView extends LinearLayout {
                 renderSchedule(due, full, avgDailyKm, cfg);
                 renderHvHealth(hv);
                 render12vBadge(s12);
-                trendView.setData(s12.morningTrend, s12.replacedAtMs);
+                trendView.setData(s12.morningTrend, s12.sidePoints, s12.replacedAtMs);
                 if (onAttentionChanged != null) onAttentionChanged.run();
             });
         });

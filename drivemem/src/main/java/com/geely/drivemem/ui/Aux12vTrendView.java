@@ -21,6 +21,11 @@ import java.util.Locale;
 
 /** Minimal 60-day 12V morning resting voltage trend chart for Car Diary.
  *
+ * Parked readings that are not rest are small dots in their own colour: purple
+ * for a waking car (the voltage dips under load), grey for the minutes after
+ * charging (it reads high). They are not on the line, so a low dot is seen as
+ * a different kind of reading, not as a weak battery. A legend names the three.
+ *
  * Draws one smooth accent line with a soft area wash, one dashed amber
  * healthy-limit line (12.25 V), an optional vertical marker if the 12V battery
  * was replaced during the window, and a bold endpoint figure with a smaller
@@ -31,7 +36,10 @@ public final class Aux12vTrendView extends View {
     private static final double Y_MAX = 13.1;
 
     private List<Aux12vMonitor.TrendPoint> points = Collections.emptyList();
+    private List<Aux12vMonitor.TrendPoint> side = Collections.emptyList();
     private Long replacedAtMs;
+    private final Paint sidePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint legendPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final SimpleDateFormat dayFmt = new SimpleDateFormat("d MMM", Locale.getDefault());
 
     private final Paint gridPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -88,13 +96,19 @@ public final class Aux12vTrendView extends View {
         endUnitPaint.setColor(Style.TEXT_DIM);
         endUnitPaint.setTextSize(Style.dp(c, 22) * Style.UNIT_SCALE_ROW);
 
+        sidePaint.setStyle(Paint.Style.FILL);
+        legendPaint.setColor(Style.TEXT_DIM);
+        legendPaint.setTextSize(Style.dp(c, 18));
+
         emptyPaint.setColor(Style.TEXT_DIM);
         emptyPaint.setTextSize(Style.dp(c, 18));
         emptyPaint.setTextAlign(Paint.Align.CENTER);
     }
 
-    public void setData(List<Aux12vMonitor.TrendPoint> pts, Long replacedMs) {
+    public void setData(List<Aux12vMonitor.TrendPoint> pts, List<Aux12vMonitor.TrendPoint> sidePts,
+                        Long replacedMs) {
         this.points = (pts != null) ? pts : Collections.emptyList();
+        this.side = (sidePts != null) ? sidePts : Collections.emptyList();
         this.replacedAtMs = replacedMs;
         initPaints(getContext());
         invalidate();
@@ -110,7 +124,9 @@ public final class Aux12vTrendView extends View {
 
         float padL = Style.dp(c, 46);
         float padR = Style.dp(c, 92);   // room for the end figure ("12.6 V") right of the last point
-        float padT = Style.dp(c, 14);
+        float legendH = Style.dp(c, 32);
+        float padT = Style.dp(c, 14) + legendH;
+        drawLegend(canvas, c, padL);
         float padB = Style.dp(c, 30);
         float plotW = Math.max(1f, w - padL - padR);
         float plotH = Math.max(1f, h - padT - padB);
@@ -137,7 +153,18 @@ public final class Aux12vTrendView extends View {
 
         long tMin = points.get(0).tsMs;
         long tMax = points.get(points.size() - 1).tsMs;
+        for (Aux12vMonitor.TrendPoint p : side) {
+            tMin = Math.min(tMin, p.tsMs);
+            tMax = Math.max(tMax, p.tsMs);
+        }
         long span = Math.max(1L, tMax - tMin);
+
+        // Side points first, under the rest line.
+        for (Aux12vMonitor.TrendPoint p : side) {
+            sidePaint.setColor(sideColor(p.phase));
+            canvas.drawCircle(padL + (float) ((p.tsMs - tMin) * plotW / (double) span),
+                yOf(p.voltageV, padT, plotH), Style.dp(c, 4), sidePaint);
+        }
 
         // Optional vertical marker when 12V battery was replaced within the window
         if (replacedAtMs != null && replacedAtMs >= tMin && replacedAtMs <= tMax && points.size() > 1) {
@@ -146,7 +173,8 @@ public final class Aux12vTrendView extends View {
         }
 
         if (points.size() == 1) {
-            float cx = padL + plotW;
+            float cx = side.isEmpty() ? padL + plotW
+                : padL + (float) ((points.get(0).tsMs - tMin) * plotW / (double) span);
             float cy = yOf(points.get(0).voltageV, padT, plotH);
             drawEndpoint(canvas, c, cx, cy, points.get(0).voltageV);
             axisPaint.setTextAlign(Paint.Align.RIGHT);
@@ -192,6 +220,26 @@ public final class Aux12vTrendView extends View {
         canvas.drawText(dayFmt.format(new Date(tMin + span / 2L)), padL + plotW / 2f, labelY, axisPaint);
         axisPaint.setTextAlign(Paint.Align.RIGHT);
         canvas.drawText(dayFmt.format(new Date(tMax)), padL + plotW, labelY, axisPaint);
+    }
+
+    private static int sideColor(String phase) {
+        return Aux12vMonitor.PHASE_WAKE_LOAD.equals(phase) ? Style.PURPLE : Style.TEXT_DIM;
+    }
+
+    private void drawLegend(Canvas canvas, Context c, float x0) {
+        float y = Style.dp(c, 20);
+        float r = Style.dp(c, 5);
+        float x = x0;
+        int[] cols = {Style.ACCENT, Style.PURPLE, Style.TEXT_DIM};
+        int[] labels = {R.string.diary_12v_leg_rest, R.string.diary_12v_leg_wake, R.string.diary_12v_leg_settle};
+        legendPaint.setTextAlign(Paint.Align.LEFT);
+        for (int i = 0; i < cols.length; i++) {
+            sidePaint.setColor(cols[i]);
+            canvas.drawCircle(x + r, y - r, r, sidePaint);
+            String t = c.getString(labels[i]);
+            canvas.drawText(t, x + r * 2 + Style.dp(c, 8), y, legendPaint);
+            x += r * 2 + Style.dp(c, 8) + legendPaint.measureText(t) + Style.dp(c, 24);
+        }
     }
 
     private void drawEndpoint(Canvas canvas, Context c, float x, float y, double v) {

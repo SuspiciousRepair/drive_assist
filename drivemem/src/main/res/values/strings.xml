@@ -785,6 +785,9 @@
     <string name="diary_list_title">Car Diary</string>
     <string name="diary_schedule_title">Care Schedule</string>
     <string name="diary_12v_no_trend">Collecting morning 12V readings…</string>
+    <string name="diary_12v_leg_rest">At rest</string>
+    <string name="diary_12v_leg_wake">Waking up</string>
+    <string name="diary_12v_leg_settle">After charging</string>
     <string name="diary_12v_good">Good · morning</string>
     <string name="diary_12v_watch">Watch · morning</string>
     <string name="diary_12v_weak">Weak · check soon</string>

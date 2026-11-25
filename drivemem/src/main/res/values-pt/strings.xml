@@ -770,6 +770,9 @@
     <string name="diary_list_title">Diário do Carro</string>
     <string name="diary_schedule_title">Manutenção</string>
     <string name="diary_12v_no_trend">Coletando leituras matinais de 12V…</string>
+    <string name="diary_12v_leg_rest">Em repouso</string>
+    <string name="diary_12v_leg_wake">Acordando</string>
+    <string name="diary_12v_leg_settle">Após recarga</string>
     <string name="diary_12v_good">Boa · manhã</string>
     <string name="diary_12v_watch">Atenção · manhã</string>
     <string name="diary_12v_weak">Fraca · verificar logo</string>

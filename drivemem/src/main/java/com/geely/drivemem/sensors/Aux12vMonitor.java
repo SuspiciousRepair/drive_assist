@@ -99,9 +99,13 @@ public final class Aux12vMonitor {
     public static final class TrendPoint {
         public final long tsMs;
         public final double voltageV;
-        public TrendPoint(long tsMs, double voltageV) {
+        /** Null on the rest line; SETTLING or WAKE_LOAD on a side point. */
+        public final String phase;
+        public TrendPoint(long tsMs, double voltageV) { this(tsMs, voltageV, null); }
+        public TrendPoint(long tsMs, double voltageV, String phase) {
             this.tsMs = tsMs;
             this.voltageV = voltageV;
+            this.phase = phase;
         }
     }
 
@@ -114,6 +118,9 @@ public final class Aux12vMonitor {
         public final Double deltaV;
         public final List<TrendPoint> morningTrend;
         public final Long replacedAtMs;
+        /** Parked readings that are not rest (SETTLING, WAKE_LOAD) in the
+         * trend window, for the chart only. No health rule reads them. */
+        public List<TrendPoint> sidePoints = Collections.emptyList();
 
         public Summary(Health health, Double latestRestingV, Double latestReadyV,
                        Double baselineV, Double deltaV, List<TrendPoint> morningTrend,
@@ -547,6 +554,7 @@ public final class Aux12vMonitor {
 
         List<Sample> resting = new ArrayList<>();
         List<Sample> wakeSags = new ArrayList<>();
+        List<TrendPoint> side = new ArrayList<>();
         Double latestReady = null;
         boolean warnFault = false;
         long dcdcBadSinceMs = -1L;
@@ -576,6 +584,10 @@ public final class Aux12vMonitor {
                 resting.add(s);
             } else if (PHASE_RESTING.equals(s.phase) && !Double.isNaN(s.voltageV)) {
                 resting.add(s);
+            } else if ((PHASE_SETTLING.equals(s.phase) || PHASE_WAKE_LOAD.equals(s.phase))
+                    && !Double.isNaN(s.voltageV)
+                    && s.tsMs >= nowMs - TREND_WINDOW_DAYS * 86_400_000L) {
+                side.add(new TrendPoint(s.tsMs, s.voltageV, s.phase));
             }
         }
         // One low reading while the converter ramps up is not a fault: it must hold.
@@ -650,7 +662,9 @@ public final class Aux12vMonitor {
             health = weak ? Health.WEAK : (watch ? Health.WATCH : Health.GOOD);
         }
 
-        return new Summary(health, latestResting, latestReady, baseline, delta, trend, batteryReplacedAtMs);
+        Summary out = new Summary(health, latestResting, latestReady, baseline, delta, trend, batteryReplacedAtMs);
+        out.sidePoints = side;
+        return out;
     }
 
     private static boolean isChargingNow() {

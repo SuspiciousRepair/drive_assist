@@ -221,4 +221,19 @@ public class Aux12vMonitorTest {
         org.junit.Assert.assertArrayEquals(once, Aux12vMonitor.relabelPhases(ts, once));
         assertEquals(Aux12vMonitor.PHASE_WAKE_LOAD, once[3]);
     }
+
+    // The chart gets the non-rest parked readings apart; health reads rest only.
+    @Test public void sidePointsAreKeptApartFromRest() {
+        long now = 100L * 86_400_000L, h = 3600_000L;
+        java.util.List<Aux12vMonitor.Sample> all = new java.util.ArrayList<>();
+        all.add(new Aux12vMonitor.Sample(now - 9 * h, 12.7, R, null, null));
+        all.add(new Aux12vMonitor.Sample(now - 2 * h, 13.2, Aux12vMonitor.PHASE_SETTLING, null, null));
+        all.add(new Aux12vMonitor.Sample(now - h, 11.9, Aux12vMonitor.PHASE_WAKE_LOAD, null, null));
+        Aux12vMonitor.Summary s = Aux12vMonitor.evaluate(all, null, now, java.time.ZoneId.of("UTC"));
+        assertEquals(Aux12vMonitor.Health.GOOD, s.health);
+        assertEquals(12.7, s.latestRestingV, 1e-9);
+        assertEquals(1, s.morningTrend.size());
+        assertEquals(2, s.sidePoints.size());
+        assertEquals(Aux12vMonitor.PHASE_WAKE_LOAD, s.sidePoints.get(1).phase);
+    }
 }

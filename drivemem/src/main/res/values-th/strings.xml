@@ -774,6 +774,9 @@
     <string name="diary_list_title">สมุดบันทึกรถ</string>
     <string name="diary_schedule_title">กำหนดดูแลรักษา</string>
     <string name="diary_12v_no_trend">กำลังเก็บค่า 12V ช่วงเช้า…</string>
+    <string name="diary_12v_leg_rest">พัก</string>
+    <string name="diary_12v_leg_wake">กำลังตื่น</string>
+    <string name="diary_12v_leg_settle">หลังชาร์จ</string>
     <string name="diary_12v_good">ดี · ช่วงเช้า</string>
     <string name="diary_12v_watch">เฝ้าระวัง · ช่วงเช้า</string>
     <string name="diary_12v_weak">อ่อน · ควรตรวจเช็ค</string>
