@@ -326,7 +326,7 @@ Network ADB disconnects automatically after 15 minutes, or Dashcam background of
 
 #### Solutions
 1. **Configure Privileged Wi-Fi SSID**:
-   Assign your home Wi-Fi SSID as the trusted network. When connected to this SSID, ModeHelper keeps ADB open indefinitely and acquires a partial wakelock:
+   Assign your home Wi-Fi SSID as the trusted network. When connected to this SSID, ModeHelper keeps ADB open indefinitely. It also keeps the head unit awake, but only while the car's Parking Mode is on, for the duration you picked in the car:
    ```bash
    adb shell am broadcast -a com.geely.modehelper.SET_TRUSTED_WIFI --es ssid "YourHomeWifiName"
    ```

@@ -45,6 +45,10 @@ public final class RestorePolicyTest {
               "a sleep of the gap length counts as a wake");
         check(!RestorePolicy.sleptBetween(1_000, 1_200), "a few ms of jitter is not a wake");
         check(!RestorePolicy.sleptBetween(5_000, 5_000), "no sleep: no wake");
+        check(RestorePolicy.screenTurnedOn(false, true), "screen off to on re-arms the restore");
+        check(!RestorePolicy.screenTurnedOn(null, true), "first reading is not an edge");
+        check(!RestorePolicy.screenTurnedOn(true, true), "screen stays on: no edge");
+        check(!RestorePolicy.screenTurnedOn(true, false), "screen goes off: no edge");
         System.out.println("RestorePolicyTest: OK");
     }
 }

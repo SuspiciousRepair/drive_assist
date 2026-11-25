@@ -109,4 +109,48 @@ public class CsvExportTest {
             java.util.Locale.setDefault(saved);
         }
     }
+
+    @Test public void diaryCsvQuotesNotesAndOrdersChronologically() {
+        com.geely.drivemem.state.CarDiary.Entry older = new com.geely.drivemem.state.CarDiary.Entry(
+            1, "u1", T0, com.geely.drivemem.state.CarDiary.KIND_CARE,
+            com.geely.drivemem.state.CarDiary.Category.INSURANCE,
+            com.geely.drivemem.state.CarDiary.STATUS_DONE,
+            6128.5, 24.0, null, null, 3600.0, "Seguro anual", "Porto, 12x", null, null, null, null, 1);
+        com.geely.drivemem.state.CarDiary.Entry newer = new com.geely.drivemem.state.CarDiary.Entry(
+            2, "u2", T0 + 60 * MIN, com.geely.drivemem.state.CarDiary.KIND_INCIDENT,
+            com.geely.drivemem.state.CarDiary.Category.INCIDENT,
+            com.geely.drivemem.state.CarDiary.STATUS_OPEN,
+            6150.0, null, -23.550520, -46.633308, null, null, "Pothole", null, "incident_abc.mp4", null, null, 1);
+        String[] l = lines(CsvExport.diaryCsv(Arrays.asList(newer, older), SP));
+        assertEquals(CsvExport.DIARY_HEADER, l[0]);
+        assertEquals("1,2026-11-14 10:00,bureaucracy,insurance,Seguro anual,done,6128.5,3600.00,\"Porto, 12x\",,24.0,,,,1", l[1]);
+        assertEquals("2,2026-11-14 11:00,notes,incident,,open,6150.0,,Pothole,,,-23.550520,-46.633308,incident_abc.mp4,1", l[2]);
+    }
+
+    @Test public void textGuardsSpreadsheetFormulasButNumbersStayNumbers() {
+        assertEquals("'=1+1", CsvExport.text("=1+1"));
+        assertEquals("'+55 11", CsvExport.text("+55 11"));
+        assertEquals("'-x", CsvExport.text("-x"));
+        assertEquals("'@cmd", CsvExport.text("@cmd"));
+        assertEquals("'\t=1", CsvExport.text("\t=1"));
+        assertEquals("'\r=1", CsvExport.text("\r=1"));
+        assertEquals("a=b", CsvExport.text("a=b"));
+        assertEquals("", CsvExport.text(null));
+        // Numeric columns do not go through text(): a negative stays a number.
+        assertEquals("-23.550520", CsvExport.field(CsvExport.num(-23.55052, 6)));
+    }
+
+    @Test public void diaryCsvKeepsFormulaQuotesAndNewlineAsText() {
+        com.geely.drivemem.state.CarDiary.Entry e = new com.geely.drivemem.state.CarDiary.Entry(
+            3, "u3", T0, com.geely.drivemem.state.CarDiary.KIND_CARE,
+            com.geely.drivemem.state.CarDiary.Category.OTHER,
+            com.geely.drivemem.state.CarDiary.STATUS_DONE,
+            null, null, -23.550520, -46.633308, null,
+            "=SUM(A1)", "He said \"hi\"\nline2", "-a", null, null, null, 1);
+        String csv = CsvExport.diaryCsv(Collections.singletonList(e), SP);
+        String[] l = lines(csv);
+        assertEquals(3, l.length); // header, one row (its newline is inside quotes), end
+        assertEquals("3,2026-11-14 10:00,notes,other,'=SUM(A1),done,,,"
+            + "\"He said \"\"hi\"\"\nline2\",'-a,,-23.550520,-46.633308,,1", l[1]);
+    }
 }

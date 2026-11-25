@@ -91,6 +91,35 @@ map of every move, a timeline, the dashcam clips from that time, and the numbers
 (moves, time moving and parked, distance, top speed and power, battery and
 temperature low to high).
 
+## Car diary: maintenance, costs and incidents
+
+The **Car diary** (the third icon on the stats screen) keeps what you do to
+the car and what it costs:
+
+- **Entries**: tires, service and fluids, electrical parts, looks and body,
+  fees and insurance, accessories, parking, tolls and tickets. Each entry
+  takes a date, the odometer (filled in from the date), a cost and a note.
+- **Next maintenance**: each scheduled item shows when it is due, by distance,
+  by time, or both. The intervals are in **Config → Maintenance**: change one
+  with the arrows, tap the value to type any figure, and add a schedule to an
+  item that has none. A changed row shows a reset icon.
+- **Cost of ownership**: what the car cost in the chosen period, split in four
+  groups. Tap the card to see it as money, per km, or in percent.
+- **Battery health**: the main battery (state of health needs an OBD2 dongle)
+  and a 60-day chart of the 12 V battery at rest. Readings taken while the car
+  wakes or just after a recharge are shown in other colours and do not count
+  against the battery.
+- **Impacts**: the car's motion sensor notes a hard bump while driving. In
+  Park the diary asks whether to keep it. A kept impact has the place on the
+  map and, on a car with the dashcam, a 5-second clip. Set the sensitivity,
+  or turn it off, in **Config → Maintenance**.
+- **Tickets**: type the hour from the notice and the diary finds the place on
+  that day's saved route.
+- **Export**: the diary as CSV, with its clips, to a USB stick or to your
+  phone.
+
+The diary stays in the car and is part of the backup.
+
 ## Charging and cost
 
 ![Charging stats](screenshots/charging-statistics-live.png)

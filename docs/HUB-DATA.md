@@ -17,7 +17,8 @@ Property IDs and scales of the car's own (VHAL) properties are in
   suspends instead of shutting down; while it is suspended, nothing below
   updates, and every value keeps its last state until the next wake.
 - On the trusted home Wi-Fi, modehelper's `WifiGuardReceiver` holds a wake
-  lock, so the head unit stays awake there.
+  lock while the car's Parking Mode is on, so the head unit stays awake
+  there for the duration picked in the car. With Parking Mode off it sleeps.
 - A value that is not available reads `NOT_AVAILABLE` in the hub. Consumers
   must handle that; it is not zero.
 
@@ -32,6 +33,7 @@ Property IDs and scales of the car's own (VHAL) properties are in
 | `car.drive_mode`, `car.regen_mode` | drive mode, regen level | on change |
 | `car.avas_mode` | AVAS (pedestrian warning sound): 0 off, 1.. sound type. Reported by modehelper (`AvasState`): Drive Assist may not read it (`CAR_CONTROL_AUDIO_VOLUME`) | on change, read every 4 s by modehelper; on request |
 | `car.door_pos`, `car.window_pos` | doors, windows (per area) | on change |
+| `car.door_lock` | door locks (per area): 1 locked, 0 unlocked (`DOOR_LOCK`, 641736874) | on change |
 | `car.hvac_recirc`, `car.hvac_direction`, `car.hvac_rear_defrost` | climate state | on change |
 | `car.hvac_fan` | climate fan level, 0 (climate off) to 8 (`HVAC_FAN`, 356517120) | on change |
 | `car.aeb` | AEB (automatic emergency braking) on/off (`557858874`), true/false. Config → Drive's switch reads it | on change |
@@ -48,6 +50,8 @@ Property IDs and scales of the car's own (VHAL) properties are in
 | `car.carplay_connected` | CarPlay link (from `CarplayState`) | every 4 s |
 | `car.tire_warn_fl`, `car.tire_warn_fr`, `car.tire_warn_rl`, `car.tire_warn_rr` | soft-tyre warning per wheel (`TireWarning`), raw value: 0 = no warning. **No pressures**: this car's warning is indirect (ITPMS_TYRE_WARN, wheel speeds), the pressure properties are "not supported". The value of a real warning is not yet seen; anything not 0 counts as a warning | every 10 s |
 | `car.tire_warn` | 1 when any wheel warns, else 0 (derived) | when a wheel changes |
+| `car.aux_12v_v` | auxiliary 12V battery rail voltage, V (`BODY_BATTERY_U_BATT_INFO`, `557875206`, `raw × 0.1 V`, 0.1 V steps). Works without OBD2 or CAN (`Aux12vHub`) | every 10 s |
+| `car.aux_12v_low` | factory low-12V battery flag (`VPOWERINFO_BATTERY_LOW`, `557883432`), 1 when active else 0 (`Aux12vHub`; `PEPS_WARNING_BATTERY_SAVING` `557887632` excluded because it fires during normal 13.9 V operation) | every 15 s |
 
 ### `telemetry.tick`: the 30-second snapshot
 
@@ -131,6 +135,16 @@ listener, so the GPS is not held on in a parked car, and the key holds the
 last known fix until the car leaves Park. Only GPS fixes become the live
 fix; a network fix never replaces one.
 
+### Motion sensor (`ImuHub`), only while out of Park with CAN live
+
+| Key | What it is | Update |
+|---|---|---|
+| `imu.vert_g`, `imu.long_g`, `imu.lat_g` | largest acceleration of the last second, up/down, forward/back and left/right, in g, 0.1 g steps. From the head unit's accelerometer, turned into car axes by `ImuFilter`. 0 when the stream stops | every 1 s, on change |
+
+It needs the CAN speed (`CanEnergyReader`), so it is off without "Exact
+energy": the car's own speed can be 30 s old, and the bump detection for the
+diary would take a door slam at a stop light for a bump.
+
 ### Sessions (built on the hub thread from `telemetry.tick`)
 
 | Key | What | Update |
@@ -145,7 +159,8 @@ replays the trip's rows once, then adds one tick at a time.
 ### Events
 
 `trip.completed`, `charge.completed`, `charge.cost_updated`,
-`charge.dismissed`, `parking.changed`, `valet.changed`, `valet.progress`.
+`charge.dismissed`, `parking.changed`, `valet.changed`, `valet.progress`,
+`diary.changed`.
 
 ## 3. Which value exists in which setup
 
@@ -175,6 +190,10 @@ except the SoC-based driving energy, which is marked "estimated".
   twice. When CAN is live but has no power value, the dongle's samples count.
   CAN samples also carry the drive and climate values held at that moment,
   for the trip's energy split.
+- `ImuHub` reads the accelerometer at 16 Hz on its own thread, because the
+  hub cannot take that rate. `ImuFilter`, the bump detection for the diary
+  and the art read that stream, with the CAN speed of the same moment. The
+  hub gets the 1 Hz `imu.*` keys in addition.
 - `AbrpUploader` reads `EnergyIntegrator.meanPowerKw`, the mean battery
   power over the last 6 s of those samples, because the hub keeps only the
   latest value. It is from the same source as `energy.power_kw` (the mean
@@ -192,5 +211,6 @@ except the SoC-based driving energy, which is marked "estimated".
 | `files/obd2-events.log` | why the dongle gave nothing: connect failures, link lost, rounds with no answer (with the dongle's raw answer) | on each change; a repeat at most once a minute (1 MB, then restarts) |
 | `files/abrp-attempt.log` | every ABRP send and its payload | while ABRP is on (5 MB, then restarts) |
 | `files/can-events.log` | "Exact energy" (CAN): the app's link to the CAN reader, modehelper's reports (started and why, failed), and each trip with no split and why (for example "app restarted 18 min into the trip") | on each change, with "Exact energy" on; the same line at most once per 10 min (1 MB, then restarts) |
+| `files/car-events.log` | when the car was locked and unlocked (`LockEventLog`), from `car.door_lock` | one line per change of the whole car (1 MB, then restarts) |
 
 `files/` is `Android/data/com.geely.drivemem/files/` on the car's storage.

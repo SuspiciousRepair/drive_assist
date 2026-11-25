@@ -39,7 +39,7 @@ public class CarDbSqliteTest {
         String[] tables = {
             "telemetry_sample", "charge_session", "park_session", "trip",
             "trip_energy_segment", "comfort_event", "battery_health_reading",
-            "valet_session", "charge_stop_event", "daily_stat"
+            "valet_session", "charge_stop_event", "diary_event", "aux_12v_reading", "daily_stat"
         };
 
         for (String table : tables) {

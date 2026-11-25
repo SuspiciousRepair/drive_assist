@@ -199,7 +199,7 @@ property write: the platform-signed helper can do it, the normal app can't.
 | `557883730` | `int` | 0 | RW | Interior illumination on door open: `1` = ON, `0` = OFF | ✅ |
 | `557885462` | `int` | 0 | RW | Low Beam Headlight Height: `0` = Level 0; Levels 1..5 encoded as `0x2b020200 + level` | ✅ |
 | `557884456` | `int` | 0 | RW | Intelligent High Beam switch: `2` = ON, `1` = OFF | ✅ |
-| `557875206` | `int` | 0 | RW | Intelligent High Beam status echo: `139` = ON, `140` = OFF | ✅ |
+| `557875206` | `int` | 0 | R | `BODY_BATTERY_U_BATT_INFO` (`0x21408006`): auxiliary 12V rail voltage in tenths of a volt (`raw × 0.1 V`; e.g., `128` = `12.8 V` parked, `139`–`140` = `13.9–14.0 V` in READY; previously mislabeled as high-beam echo during a READY-state toggle diff) | ✅ |
 | `557883682` | `int` | 0 | RW | Follow Me Home delay: `0` = Off, `537134849` = 30s, `537134850` = 60s, `537134851` = 90s | ✅ |
 
 ### Cabin light modes (measured 2026-11-14)

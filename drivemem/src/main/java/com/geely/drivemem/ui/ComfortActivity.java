@@ -99,15 +99,16 @@ public class ComfortActivity extends Activity {
     // control surface — see statusSidebar()/refreshStatusSidebar().
     private static final int MODE_CARDS = 0;
     private static final int MODE_DRIVING_STATS = 1;
-    private static final int MODE_CHARGE_STATS = 2;
+    private static final int MODE_DIARY = 3;
     private int mainViewMode = MODE_CARDS;
 
     private android.widget.ImageView haStatusIcon, abrpStatusIcon, obd2StatusIcon;
-    private android.widget.ImageView cardsDockIcon, statsDockIcon, chargeDockIcon;
+    private android.widget.ImageView cardsDockIcon, statsDockIcon, diaryDockIcon;
+    private View diaryBadgeDot;
     private DailyStatsView dailyStatsView;
     private FrameLayout statsContainer;
-    private ChargeStatsView chargeStatsView;
-    private FrameLayout chargeStatsContainer;
+    private CarDiaryView carDiaryView;
+    private FrameLayout diaryContainer;
     private FrameLayout konamiZone;
     // purge: one button, both directions. The Purge object holds where each pane
     // was before it moved, so closing puts them back rather than shutting them.
@@ -368,19 +369,21 @@ public class ComfortActivity extends Activity {
         screen.addView(statsContainer, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        // Charging Statistics view on home screen (swappable with band cards)
-        chargeStatsContainer = new FrameLayout(this);
-        Style.setDriverPadding(chargeStatsContainer, sidebarClearance, padTop + Style.statusBarHeight(this), padH, padV);
-        android.widget.ScrollView chargeStatsScroll = new android.widget.ScrollView(this);
-        chargeStatsScroll.setLayoutParams(new FrameLayout.LayoutParams(
+        // Car Diary & Battery Health view on home screen (swappable with band cards)
+        diaryContainer = new FrameLayout(this);
+        Style.setDriverPadding(diaryContainer, sidebarClearance, padTop + Style.statusBarHeight(this), padH, padV);
+        android.widget.ScrollView diaryScroll = new android.widget.ScrollView(this);
+        diaryScroll.setLayoutParams(new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        chargeStatsScroll.setVerticalScrollBarEnabled(false);
-        chargeStatsScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        chargeStatsView = new ChargeStatsView(this, null);
-        chargeStatsScroll.addView(chargeStatsView);
-        chargeStatsContainer.addView(chargeStatsScroll);
-        chargeStatsContainer.setVisibility(View.GONE);
-        screen.addView(chargeStatsContainer, new FrameLayout.LayoutParams(
+        diaryScroll.setVerticalScrollBarEnabled(false);
+        diaryScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        // No badge callback: the badge follows CarDiary.EVENT_CHANGED itself
+        // (diaryBusListener), so the screen's own load need not trigger it.
+        carDiaryView = new CarDiaryView(this, null);
+        diaryScroll.addView(carDiaryView);
+        diaryContainer.addView(diaryScroll);
+        diaryContainer.setVisibility(View.GONE);
+        screen.addView(diaryContainer, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         // Status sidebar: a fixed strip pinned to the driver's edge, OUTSIDE
@@ -730,16 +733,35 @@ public class ComfortActivity extends Activity {
         View spacerTop = new View(this);
         bar.addView(spacerTop, new LinearLayout.LayoutParams(0, 0, 1f));
 
-        // CarPlay-style middle dock with larger icons almost as wide as the bar (84dp)
+        // CarPlay-style middle dock with 3 focused icons: Home · Stats · Maintenance & Health
         cardsDockIcon = createDockButton(R.drawable.ic_cards_view, () -> setMainViewMode(MODE_CARDS));
         statsDockIcon = createDockButton(R.drawable.ic_chart_bar, () -> setMainViewMode(MODE_DRIVING_STATS));
-        chargeDockIcon = createDockButton(R.drawable.ic_ev_station, () -> setMainViewMode(MODE_CHARGE_STATS));
+        diaryDockIcon = createDockButton(R.drawable.ic_diary, () -> setMainViewMode(MODE_DIARY));
+
+        // Wrap diary dock button with an iOS-style notification dot overlay
+        FrameLayout diaryWrap = new FrameLayout(this);
+        int dockSize = Style.dp(this, 62);
+        LinearLayout.LayoutParams dwLp = new LinearLayout.LayoutParams(dockSize, dockSize);
+        dwLp.gravity = Gravity.CENTER_HORIZONTAL;
+        diaryDockIcon.setLayoutParams(new FrameLayout.LayoutParams(dockSize, dockSize));
+        diaryWrap.addView(diaryDockIcon);
+        diaryBadgeDot = new View(this);
+        android.graphics.drawable.GradientDrawable dotBg = new android.graphics.drawable.GradientDrawable();
+        dotBg.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        dotBg.setColor(Style.WARN);
+        diaryBadgeDot.setBackground(dotBg);
+        int dotPx = Style.dp(this, 10);
+        FrameLayout.LayoutParams dotLp = new FrameLayout.LayoutParams(dotPx, dotPx, Gravity.TOP | Gravity.END);
+        dotLp.topMargin = Style.dp(this, 6);
+        dotLp.rightMargin = Style.dp(this, 6);
+        diaryBadgeDot.setVisibility(View.GONE);
+        diaryWrap.addView(diaryBadgeDot, dotLp);
 
         bar.addView(cardsDockIcon);
-        Style.gap(bar, this, 14);
+        Style.gap(bar, this, 16);
         bar.addView(statsDockIcon);
-        Style.gap(bar, this, 14);
-        bar.addView(chargeDockIcon);
+        Style.gap(bar, this, 16);
+        bar.addView(diaryWrap, dwLp);
 
         // Flexible space pushing settings cog to the bottom
         View spacerBottom = new View(this);
@@ -774,34 +796,78 @@ public class ComfortActivity extends Activity {
         if (mainViewMode == MODE_DRIVING_STATS) {
             band.setVisibility(View.GONE);
             statsContainer.setVisibility(View.VISIBLE);
-            chargeStatsContainer.setVisibility(View.GONE);
+            if (diaryContainer != null) diaryContainer.setVisibility(View.GONE);
             if (konamiZone != null) konamiZone.setVisibility(View.GONE);
             if (dailyStatsView != null) dailyStatsView.refresh();
-        } else if (mainViewMode == MODE_CHARGE_STATS) {
+        } else if (mainViewMode == MODE_DIARY) {
             band.setVisibility(View.GONE);
             statsContainer.setVisibility(View.GONE);
-            chargeStatsContainer.setVisibility(View.VISIBLE);
+            if (diaryContainer != null) diaryContainer.setVisibility(View.VISIBLE);
             if (konamiZone != null) konamiZone.setVisibility(View.GONE);
-            if (chargeStatsView != null) chargeStatsView.showCurrent();
+            // CarDiaryView reloads by itself when it becomes visible.
         } else {
             statsContainer.setVisibility(View.GONE);
-            chargeStatsContainer.setVisibility(View.GONE);
+            if (diaryContainer != null) diaryContainer.setVisibility(View.GONE);
             band.setVisibility(View.VISIBLE);
             if (konamiZone != null) konamiZone.setVisibility(View.VISIBLE);
         }
         updateDockButtons();
+        recomputeDiaryBadge();
     }
 
     private void updateDockButtons() {
-        if (cardsDockIcon == null || statsDockIcon == null || chargeDockIcon == null) return;
+        if (cardsDockIcon == null || statsDockIcon == null) return;
         cardsDockIcon.setBackground(Style.card(mainViewMode == MODE_CARDS ? Style.CARD_ON : 0x00000000, this, 18));
         cardsDockIcon.setColorFilter(mainViewMode == MODE_CARDS ? Style.onFill(Style.CARD_ON) : Style.TEXT_DIM);
 
         statsDockIcon.setBackground(Style.card(mainViewMode == MODE_DRIVING_STATS ? Style.CARD_ON : 0x00000000, this, 18));
         statsDockIcon.setColorFilter(mainViewMode == MODE_DRIVING_STATS ? Style.onFill(Style.CARD_ON) : Style.TEXT_DIM);
 
-        chargeDockIcon.setBackground(Style.card(mainViewMode == MODE_CHARGE_STATS ? Style.CARD_ON : 0x00000000, this, 18));
-        chargeDockIcon.setColorFilter(mainViewMode == MODE_CHARGE_STATS ? Style.onFill(Style.CARD_ON) : Style.TEXT_DIM);
+        if (diaryDockIcon != null) {
+            diaryDockIcon.setBackground(Style.card(mainViewMode == MODE_DIARY ? Style.CARD_ON : 0x00000000, this, 18));
+            diaryDockIcon.setColorFilter(mainViewMode == MODE_DIARY ? Style.onFill(Style.CARD_ON) : Style.TEXT_DIM);
+        }
+    }
+
+    // Diary dock badge. The answer is cached; it is worked out again only on
+    // resume, on a tab change and when the diary changes (diaryBusListener),
+    // never on the 10 s status poll, and always on the diary worker thread
+    // (CarDiary.runAsync), never on the hub thread: it reads the database.
+    private boolean diaryBadgeShown;
+    private boolean diaryBadgeBusy, diaryBadgeAgain;
+    private final EntityBus.Listener diaryBusListener = (key, reading) -> ui.post(this::recomputeDiaryBadge);
+
+    /** Shows the cached answer. Cheap; safe to call from any refresh. */
+    private void applyDiaryBadge() {
+        if (diaryBadgeDot != null) diaryBadgeDot.setVisibility(diaryBadgeShown ? View.VISIBLE : View.GONE);
+    }
+
+    /** Works the badge out again, off the hub and UI threads. Calls made while
+     * one is running are folded into a single run after it. UI thread only. */
+    private void recomputeDiaryBadge() {
+        applyDiaryBadge();
+        if (diaryBadgeDot == null) return;
+        if (diaryBadgeBusy) { diaryBadgeAgain = true; return; }
+        diaryBadgeBusy = true;
+        final Context app = getApplicationContext();
+        com.geely.drivemem.state.CarDiary.runAsync(() -> {
+            boolean show = diaryBadgeShown;
+            try {
+                show = com.geely.drivemem.state.CarDiary.hasAttentionDot(app);
+            } catch (Throwable ignored) {
+                // Keep the last answer.
+            }
+            final boolean result = show;
+            ui.post(() -> {
+                diaryBadgeBusy = false;
+                diaryBadgeShown = result;
+                applyDiaryBadge();
+                if (diaryBadgeAgain) {
+                    diaryBadgeAgain = false;
+                    recomputeDiaryBadge();
+                }
+            });
+        });
     }
 
     private android.widget.ImageView statusIcon(int drawableRes) {
@@ -849,6 +915,7 @@ public class ComfortActivity extends Activity {
         if (obd2On) obd2StatusIcon.setColorFilter(com.geely.drivemem.sensors.ObdHub.connected(CarActor.get(this)) ? Style.ACCENT : Style.TEXT_DIM);
 
         updateDockButtons();
+        applyDiaryBadge();
     }
 
     // Gate availability: available() (HA's zone call — "is the car home")
@@ -3020,6 +3087,20 @@ public class ComfortActivity extends Activity {
         if (canDrivePosted.compareAndSet(false, true)) ui.post(applyCanDrive);
     };
 
+    // Head-unit IMU -> art (Noturno suspension bounce & cornering roll), 16 Hz
+    // while driving. Same single-Runnable coalesce pattern as CAN speed/drive.
+    private volatile float imuAxG, imuAyG, imuAzG;
+    private final java.util.concurrent.atomic.AtomicBoolean imuPosted =
+        new java.util.concurrent.atomic.AtomicBoolean();
+    private final Runnable applyImu = () -> {
+        imuPosted.set(false);
+        if (art != null) art.setImu(imuAxG, imuAyG, imuAzG);
+    };
+    private final com.geely.drivemem.sensors.ImuHub.Listener imuListener = (ax, ay, az) -> {
+        imuAxG = ax; imuAyG = ay; imuAzG = az;
+        if (imuPosted.compareAndSet(false, true)) ui.post(applyImu);
+    };
+
     // brake pedal -> art (brake lamps). Injected by the CAN reader the moment
     // it changes, so this is the one art input that is not 1 s late.
     private final EntityBus.Listener brakeListener = (key, reading) -> {
@@ -3047,6 +3128,7 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe(CanHub.BRAKE, brakeListener);
         CanEnergyReader.setSpeedListener(canSpeedListener);
         CanEnergyReader.setDriveListener(canDriveListener);
+        com.geely.drivemem.sensors.ImuHub.setListener(imuListener);
         if (art != null) art.setBraking(isPressed(a.get(CanHub.BRAKE)));   // no replay on the bus
         EntityBus.subscribe("car.window_pos", windowPosListener);
         EntityBus.subscribe("car.hvac_recirc", hvacRecircListener);
@@ -3084,6 +3166,7 @@ public class ComfortActivity extends Activity {
         EntityBus.unsubscribe(CanHub.BRAKE, brakeListener);
         CanEnergyReader.clearSpeedListener(canSpeedListener);
         CanEnergyReader.clearDriveListener(canDriveListener);
+        com.geely.drivemem.sensors.ImuHub.clearListener(imuListener);
         quickButtons.stop();
         EntityBus.unsubscribe("car.window_pos", windowPosListener);
         EntityBus.unsubscribe("car.hvac_recirc", hvacRecircListener);
@@ -3207,6 +3290,8 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe("parking.changed", journeyBusListener);
         EntityBus.subscribe(ParkingState.TRAIL_KEY, journeyBusListener);
         EntityBus.subscribe(TripSession.LIVE_KEY, journeyBusListener);
+        EntityBus.subscribe(com.geely.drivemem.state.CarDiary.EVENT_CHANGED, diaryBusListener);
+        recomputeDiaryBadge();
         // Same "did it actually change while this screen was away" re-check
         // as the gate and music cards just above, and the same reason: a
         // park↔drive edge (and therefore Turbo's own visibility) can happen
@@ -3275,6 +3360,7 @@ public class ComfortActivity extends Activity {
         EntityBus.unsubscribe("parking.changed", journeyBusListener);
         EntityBus.unsubscribe(ParkingState.TRAIL_KEY, journeyBusListener);
         EntityBus.unsubscribe(TripSession.LIVE_KEY, journeyBusListener);
+        EntityBus.unsubscribe(com.geely.drivemem.state.CarDiary.EVENT_CHANGED, diaryBusListener);
         try { unregisterReceiver(updateReceiver); } catch (Throwable ignored) {}
         if (activeUpdateDialog != null && activeUpdateDialog.isShowing()) {
             try { activeUpdateDialog.dismiss(); } catch (Throwable ignored) {}

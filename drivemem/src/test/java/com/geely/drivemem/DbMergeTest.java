@@ -35,6 +35,8 @@ public class DbMergeTest {
         "CREATE TABLE %s.charge_stop_event (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER NOT NULL, occurred_ms INTEGER NOT NULL, UNIQUE(session_id, occurred_ms))",
         "CREATE TABLE %s.valet_session (id INTEGER PRIMARY KEY AUTOINCREMENT, start_ms INTEGER NOT NULL, end_ms INTEGER, start_odo_km REAL, end_odo_km REAL)",
         "CREATE TABLE %s.trip_point (id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER, ts_ms INTEGER NOT NULL, lat REAL NOT NULL, lon REAL NOT NULL)",
+        "CREATE TABLE %s.diary_event (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT NOT NULL UNIQUE, ts_ms INTEGER NOT NULL, kind TEXT NOT NULL, category TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'DONE', parent_id INTEGER)",
+        "CREATE TABLE %s.aux_12v_reading (id INTEGER PRIMARY KEY AUTOINCREMENT, ts_ms INTEGER NOT NULL, voltage_v REAL, phase TEXT NOT NULL, source TEXT NOT NULL)",
         "CREATE TABLE %s.daily_stat (date TEXT PRIMARY KEY, first_odo_km REAL NOT NULL, last_odo_km REAL NOT NULL)",
     };
     private static final String[] OLD = {
@@ -44,6 +46,8 @@ public class DbMergeTest {
         "CREATE TABLE %s.charge_stop_event (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER NOT NULL, occurred_ms INTEGER NOT NULL, UNIQUE(session_id, occurred_ms))",
         "CREATE TABLE %s.valet_session (id INTEGER PRIMARY KEY AUTOINCREMENT, start_ms INTEGER NOT NULL, end_ms INTEGER, start_odo_km REAL, end_odo_km REAL)",
         "CREATE TABLE %s.trip_point (id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER, ts_ms INTEGER NOT NULL, lat REAL NOT NULL, lon REAL NOT NULL)",
+        "CREATE TABLE %s.diary_event (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT NOT NULL UNIQUE, ts_ms INTEGER NOT NULL, kind TEXT NOT NULL, category TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'DONE', parent_id INTEGER)",
+        "CREATE TABLE %s.aux_12v_reading (id INTEGER PRIMARY KEY AUTOINCREMENT, ts_ms INTEGER NOT NULL, voltage_v REAL, phase TEXT NOT NULL, source TEXT NOT NULL)",
         "CREATE TABLE %s.daily_stat (date TEXT PRIMARY KEY, last_odo_km REAL NOT NULL, first_odo_km REAL NOT NULL)",
     };
 
@@ -187,5 +191,45 @@ public class DbMergeTest {
         assertEquals(7, q("SELECT start_sample_id FROM main.trip WHERE id = 4"));
         x("INSERT INTO main.telemetry_sample (ts_ms) VALUES (300)");
         assertEquals(10, q("SELECT id FROM main.telemetry_sample WHERE ts_ms = 300"));
+    }
+
+    /** Diary recurrence children follow their parent_id across a backup merge,
+     * and aux_12v_reading rows merge without losing either side. */
+    @Test public void diaryEventsAndSelfReferencesFollowOnMerge() throws Exception {
+        fill();
+        x("INSERT INTO old.diary_event (id, uuid, ts_ms, kind, category, status, parent_id) VALUES "
+            + "(1,'u-old-1',120,'NOISE','NOISE','OPEN',NULL),"
+            + "(2,'u-old-2',150,'NOISE','NOISE','DONE',1)");
+        x("INSERT INTO main.diary_event (id, uuid, ts_ms, kind, category, status, parent_id) VALUES "
+            + "(1,'u-live-1',1020,'NOISE','NOISE','OPEN',NULL),"
+            + "(2,'u-live-2',1050,'NOISE','NOISE','DONE',1)");
+        x("INSERT INTO old.aux_12v_reading (id, ts_ms, voltage_v, phase, source) VALUES (1,120,12.6,'RESTING','vhal')");
+        x("INSERT INTO main.aux_12v_reading (id, ts_ms, voltage_v, phase, source) VALUES (1,1020,12.2,'RESTING','vhal')");
+
+        DbMerge.Result r = DbMerge.merge(sql);
+
+        assertEquals(2L, (long) r.offsets.get("diary_event"));
+        assertEquals(4, q("SELECT COUNT(*) FROM main.diary_event"));
+        assertEquals(1, q("SELECT parent_id FROM main.diary_event WHERE uuid = 'u-old-2'"));
+        assertEquals(3, q("SELECT id FROM main.diary_event WHERE uuid = 'u-live-1'"));
+        assertEquals(3, q("SELECT parent_id FROM main.diary_event WHERE uuid = 'u-live-2'"));
+        assertEquals(2, q("SELECT COUNT(*) FROM main.aux_12v_reading"));
+    }
+
+    /** The same diary entry on both sides (a backup restored onto a car that
+     * still has the entry): the restore must not fail on diary_event.uuid. */
+    @Test public void sameDiaryUuidOnBothSidesDoesNotFailTheRestore() throws Exception {
+        fill();
+        x("INSERT INTO old.diary_event (id, uuid, ts_ms, kind, category, status, parent_id) VALUES "
+            + "(1,'u-same',120,'CARE','SERVICE','DONE',NULL),"
+            + "(2,'u-old-only',150,'CARE','WIPERS','DONE',NULL)");
+        x("INSERT INTO main.diary_event (id, uuid, ts_ms, kind, category, status, parent_id) VALUES "
+            + "(1,'u-same',120,'CARE','SERVICE','DONE',NULL),"
+            + "(2,'u-live-only',1050,'CARE','TIRES','DONE',NULL)");
+
+        DbMerge.merge(sql);
+
+        assertEquals(1, q("SELECT COUNT(*) FROM main.diary_event WHERE uuid = 'u-same'"));
+        assertEquals(3, q("SELECT COUNT(*) FROM main.diary_event"));
     }
 }

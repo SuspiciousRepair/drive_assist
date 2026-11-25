@@ -22,7 +22,7 @@ public final class StatsCalendar {
 
     private StatsCalendar() {}
 
-    public enum Grain { DAY, WEEK, MONTH }
+    public enum Grain { DAY, WEEK, MONTH, YEAR }
 
     /** One calendar day of the navigator. */
     public static final class Cell {
@@ -68,17 +68,20 @@ public final class StatsCalendar {
             }
             case MONTH:
                 return new LocalDate[]{d.withDayOfMonth(1), d.with(TemporalAdjusters.lastDayOfMonth())};
+            case YEAR:
+                return new LocalDate[]{d.withDayOfYear(1), d.with(TemporalAdjusters.lastDayOfYear())};
             default:
                 return new LocalDate[]{d, d};
         }
     }
 
-    /** One arrow press: a day, a week or a month. Month keeps the day of
-     * month where it can (Jan 31 + 1 month = Feb 28, java.time clamps). */
+    /** One arrow press: a day, a week, a month, or a year. Month/Year keep the
+     * day where they can (Jan 31 + 1 month = Feb 28, java.time clamps). */
     public static LocalDate step(LocalDate d, Grain grain, int dir) {
         switch (grain) {
             case WEEK: return d.plusWeeks(dir);
             case MONTH: return d.plusMonths(dir);
+            case YEAR: return d.plusYears(dir);
             default: return d.plusDays(dir);
         }
     }

@@ -367,6 +367,27 @@ public final class DailyStatsProvider {
         return out;
     }
 
+    /** Every date in the calendar year containing dateStr up to Dec 31 (or today
+     * if it is the current year), oldest first. */
+    public static List<String> yearDates(String dateStr) {
+        java.time.LocalDate d = java.time.LocalDate.parse(dateStr);
+        java.time.LocalDate start = d.withDayOfYear(1);
+        java.time.LocalDate end = d.with(java.time.temporal.TemporalAdjusters.lastDayOfYear());
+        java.time.LocalDate today = java.time.LocalDate.parse(todayDateStr());
+        if (end.isAfter(today)) end = today;
+        if (end.isBefore(start)) end = start;
+        List<String> out = new ArrayList<>();
+        for (java.time.LocalDate cur = start; !cur.isAfter(end); cur = cur.plusDays(1)) {
+            out.add(cur.toString());
+        }
+        return out;
+    }
+
+    public static String yearLabel(String anyDateInYear) {
+        return anyDateInYear != null && anyDateInYear.length() >= 4
+            ? anyDateInYear.substring(0, 4) : "";
+    }
+
     private static Calendar dayCalendar(String dateStr) {
         Calendar cal = Calendar.getInstance();
         cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0);
@@ -452,6 +473,12 @@ public final class DailyStatsProvider {
             out.add(buildPeriodOverview(ctx, monthDates(d), monthLabel(d)));
         }
         return out;
+    }
+
+    /** The calendar year containing anchorDate. */
+    public static PeriodOverview yearOverview(Context ctx, String anchorDate) {
+        List<String> dates = yearDates(anchorDate);
+        return buildPeriodOverview(ctx, dates, yearLabel(anchorDate));
     }
 
     private static PeriodOverview buildPeriodOverview(Context ctx, List<String> dates, String label) {
@@ -548,7 +575,7 @@ public final class DailyStatsProvider {
      * anchor date and gets back everything it needs to render, instead of
      * building date ranges or picking between per-day/per-period query
      * overloads itself. */
-    public enum Granularity { DAY, WEEK, MONTH }
+    public enum Granularity { DAY, WEEK, MONTH, YEAR }
 
     /** Everything the stats screen needs to render one period's detail cards
      * and charts, for any {@link Granularity}: the summed totals, the day(s)
@@ -584,6 +611,7 @@ public final class DailyStatsProvider {
         switch (granularity) {
             case WEEK: return weekDates(anchorDate);
             case MONTH: return monthDates(anchorDate);
+            case YEAR: return yearDates(anchorDate);
             default: return java.util.Collections.singletonList(anchorDate);
         }
     }
@@ -592,6 +620,7 @@ public final class DailyStatsProvider {
         switch (granularity) {
             case WEEK: return weekLabel(dates);
             case MONTH: return monthLabel(anchorDate);
+            case YEAR: return yearLabel(anchorDate);
             default: return formatDisplayDate(anchorDate);
         }
     }

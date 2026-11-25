@@ -18,6 +18,8 @@ work look pending.
 - [OBD2 ECU discovery](active/OBD2-ECU-DISCOVERY-PLAN.md)
 - [Home screen as a dashboard](active/HOME-DASHBOARD-ROADMAP.md)
 - [Integrations as data](active/INTEGRATIONS-DSL-ROADMAP.md)
+- [LLM integration (BYOK assistant and AI tasks)](active/LLM-INTEGRATION-ROADMAP.md)
+- [Road Score and Driver Score (head-unit IMU)](active/ROAD-AND-DRIVER-SCORE-ROADMAP.md)
 - [Private web statistics sharing](active/PRIVATE-WEB-STATS-SHARE-ROADMAP.md)
 - [Car diary and maintenance log](active/car-diary-maintenance-log.md)
 - ["Hey Geely" voice assistant](active/VOICE-ASSISTANT-ROADMAP.md)

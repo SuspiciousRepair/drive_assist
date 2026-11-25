@@ -93,6 +93,36 @@ de detalhe: um mapa de cada trecho, uma linha do tempo, os clipes da dashcam
 daquele período e os números (trechos, tempo em movimento e parado, distância,
 velocidade e potência máximas, bateria e temperatura).
 
+## Diário do carro: manutenção, custos e incidentes
+
+O **Diário do carro** (o terceiro ícone na tela de estatísticas) guarda o que
+você faz no carro e quanto custa:
+
+- **Registros**: pneus, revisão e fluidos, elétrica, estética e carroceria,
+  taxas e seguro, acessórios, estacionamento, pedágio e multas. Cada registro
+  leva data, hodômetro (preenchido pela data), custo e nota.
+- **Próxima manutenção**: cada item com agenda mostra quando vence, por
+  distância, por tempo, ou os dois. Os intervalos ficam em **Config →
+  Manutenção**: mude com as setas, toque no valor para digitar qualquer número,
+  e adicione uma agenda a um item que não tem. Uma linha alterada mostra um
+  ícone para voltar ao padrão.
+- **Custo total**: quanto o carro custou no período escolhido, em quatro
+  grupos. Toque no cartão para ver em dinheiro, por km ou em porcentagem.
+- **Saúde das baterias**: a bateria principal (o estado de saúde precisa de um
+  dongle OBD2) e um gráfico de 60 dias da bateria 12 V em repouso. Leituras
+  feitas enquanto o carro acorda ou logo após uma recarga aparecem em outra
+  cor e não contam contra a bateria.
+- **Impactos**: o sensor de movimento do carro anota uma pancada forte durante
+  a condução. Em P, o diário pergunta se você quer guardar. Um impacto guardado
+  tem o lugar no mapa e, em carro com dashcam, um clipe de 5 segundos. Ajuste a
+  sensibilidade, ou desligue, em **Config → Manutenção**.
+- **Multas**: digite a hora do auto de infração e o diário acha o lugar na rota
+  gravada daquele dia.
+- **Exportar**: o diário em CSV, com os clipes, para um pen drive ou para o
+  celular.
+
+O diário fica no carro e faz parte do backup.
+
 ## Recargas e custo
 
 ![Estatísticas de recarga](screenshots/charging-statistics-live.png)

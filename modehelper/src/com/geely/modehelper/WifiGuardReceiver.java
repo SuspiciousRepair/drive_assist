@@ -11,9 +11,13 @@ import android.os.SystemClock;
 import android.util.Log;
 
 // While connected to the trusted home network (SSID "car"), adb stays open
-// indefinitely and a partial wakelock prevents suspension. When the network
-// changes or is lost, both are immediately torn down. This is a dev convenience
-// for safe testing at home, with the same tight closure as timer-based windows.
+// indefinitely. When the network changes or is lost, it is immediately torn
+// down. This is a dev convenience for safe testing at home, with the same tight
+// closure as timer-based windows.
+//
+// A partial wakelock also prevents suspension there, but only while the car's
+// own Parking Mode is on (StayAwakePolicy): the car ends that mode by itself,
+// so the head unit is not held awake all night on the 12 V battery.
 //
 // Not event-driven: Android blocks implicit broadcasts (like WIFI_STATE_CHANGE)
 // from manifest-registered receivers on background apps (API 26+). Instead, a
@@ -30,6 +34,36 @@ public class WifiGuardReceiver extends BroadcastReceiver {
 
     private static volatile boolean active = false;
     private static PowerManager.WakeLock wakeLock;
+    /** The car's Parking Mode as the service last read it; null until then. */
+    private static volatile Integer parkModeRaw;
+
+    /** Called by ModeHelperService on each poll tick. A change takes or
+     * releases the wakelock at once, not on the next 2-minute check. */
+    static void onParkMode(Context ctx, Integer raw) {
+        boolean was = parkModeRaw != null && parkModeRaw != 0;
+        boolean now = raw != null && raw != 0;
+        parkModeRaw = raw;
+        if (was != now && active) syncWakeLock(ctx.getApplicationContext());
+    }
+
+    private static synchronized void syncWakeLock(Context ctx) {
+        boolean want = StayAwakePolicy.holdWakeLock(active, parkModeRaw);
+        try {
+            if (want) {
+                PowerManager pm = (PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+                if (wakeLock == null && pm != null) {
+                    wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "modehelper:home-wifi");
+                }
+                if (wakeLock != null && !wakeLock.isHeld()) {
+                    wakeLock.acquire();
+                    Log.i(TAG, "wifiguard: Parking Mode on — wakelock held");
+                }
+            } else if (wakeLock != null && wakeLock.isHeld()) {
+                wakeLock.release();
+                Log.i(TAG, "wifiguard: wakelock released");
+            }
+        } catch (Throwable t) { Log.w(TAG, "wifiguard: wakelock: " + t); }
+    }
 
     @Override public void onReceive(Context ctx, Intent intent) {
         final Context app = ctx.getApplicationContext();
@@ -118,23 +152,17 @@ public class WifiGuardReceiver extends BroadcastReceiver {
         catch (Throwable t) { Log.w(TAG, "wifiguard: wakelock release: " + t); }
     }
 
-    /** Activates indefinite adb and wakelock while on trusted WiFi. Must be called
+    /** Activates indefinite adb (and the wakelock, while Parking Mode is on) on trusted WiFi. Must be called
      * on every tick (not just the first), because other adb operations reset the
      * timer; skipping reassertion would allow the timer to expire mid-session despite
      * being on the trusted network. Calling is a cheap no-op when already active. */
     private static synchronized void activate(Context ctx) {
         boolean wasActive = active;
         active = true;
-        try {
-            PowerManager pm = (PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
-            if (wakeLock == null && pm != null) {
-                wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "modehelper:home-wifi");
-            }
-            if (wakeLock != null && !wakeLock.isHeld()) wakeLock.acquire();
-        } catch (Throwable t) { Log.w(TAG, "wifiguard: wakelock acquire: " + t); }
+        syncWakeLock(ctx);
         AdbControl.setIndefinite(ctx, true);
         if (!wasActive)
-            Log.i(TAG, "wifiguard: on trusted WiFi (\"" + getTrustedSsid(ctx) + "\") — adb + wakelock indefinite");
+            Log.i(TAG, "wifiguard: on trusted WiFi (\"" + getTrustedSsid(ctx) + "\") — adb indefinite");
     }
 
     /** Disables indefinite adb and releases the wakelock. */

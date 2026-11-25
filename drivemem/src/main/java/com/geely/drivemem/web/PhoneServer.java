@@ -7,11 +7,13 @@ import android.util.Log;
 import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.services.TelemetryService;
+import com.geely.drivemem.state.CarDiary;
 import com.geely.drivemem.state.CarState;
 import com.geely.drivemem.util.AppBackup;
 import com.geely.drivemem.util.BackupCrypto;
 import com.geely.drivemem.util.Clips;
 import com.geely.drivemem.util.CsvExport;
+import com.geely.drivemem.util.DiaryClipTrimmer;
 import com.geely.drivemem.util.GpxExport;
 import com.geely.drivemem.util.Prefs;
 
@@ -187,13 +189,29 @@ public final class PhoneServer {
                 return;
             case "/trips.csv":
             case "/charges.csv": {
-                // One at a time: write() overwrites the same two files, so a
+                // One at a time: write() overwrites the same files, so a
                 // second download must not rewrite them under the first.
                 synchronized (CsvExport.class) {
-                    File[] csv = CsvExport.write(app);   // {charges, trips}
+                    File[] csv = CsvExport.write(app);   // {charges, trips, diary}
                     File f = "/trips.csv".equals(r.path) ? csv[1] : csv[0];
                     Http.file(out, f, "text/csv; charset=utf-8", f.getName());
                 }
+                return;
+            }
+            case "/diary":
+                Http.html(out, 200, PhonePages.diary(app, CarDiary.readEntries(app)));
+                return;
+            case "/diary.csv": {
+                synchronized (CsvExport.class) {
+                    File f = CsvExport.writeDiary(app);
+                    Http.file(out, f, "text/csv; charset=utf-8", f.getName());
+                }
+                return;
+            }
+            case "/diary-clip": {
+                File clip = DiaryClipTrimmer.resolveClip(app, r.query.get("f"));
+                if (clip == null || !clip.exists()) { Http.send(out, 404, "text/plain", new byte[0]); return; }
+                Http.file(out, clip, "video/mp4", clip.getName());
                 return;
             }
             case "/routes": {
