@@ -156,40 +156,36 @@ public final class CarDiaryView extends LinearLayout {
     private void buildSkeleton() {
         Context c = getContext();
 
-        // 1. Top card, full width: the cost of use is the main figure of the page
-        topSummaryCard = new LinearLayout(c);
-        topSummaryCard.setOrientation(LinearLayout.HORIZONTAL);
-        topSummaryCard.setGravity(Gravity.CENTER_VERTICAL);
-        topSummaryCard.setBackground(Style.card(Style.cardFillColor(), c));
-        int sp = Style.dp(c, 20);
-        topSummaryCard.setPadding(Style.dp(c, 28), sp, Style.dp(c, 28), sp);
-        addView(topSummaryCard, new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        // 2. Optional pending IMU jolt banner
+        // 1. Optional pending IMU jolt banner
         pendingBannerHost = new LinearLayout(c);
         pendingBannerHost.setOrientation(LinearLayout.VERTICAL);
         pendingBannerHost.setVisibility(View.GONE);
         LinearLayout.LayoutParams pLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        pLp.topMargin = Style.dp(c, Style.CARD_GAP_DP);
+        pLp.bottomMargin = Style.dp(c, Style.CARD_GAP_DP);
         addView(pendingBannerHost, pLp);
 
-        // 3. Two-column body (52% TCO + Diary list | 48% Maintenance + Unified Battery Health)
+        // 2. Two-column body (52% Cost + Diary list | 48% Maintenance + Unified Battery Health)
         LinearLayout grid = new LinearLayout(c);
         grid.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout.LayoutParams gLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        gLp.topMargin = Style.dp(c, Style.COLUMN_GAP_DP);
         addView(grid, gLp);
 
         int cp = Style.dp(c, 20);
 
-        // ---- Left column (52%): Car Diary list ----
+        // ---- Left column (52%): Cost of use (the main figure of the page) + Car Diary list ----
         LinearLayout leftCol = new LinearLayout(c);
         leftCol.setOrientation(LinearLayout.VERTICAL);
         leftCol.setLayoutParams(new LinearLayout.LayoutParams(
             0, ViewGroup.LayoutParams.WRAP_CONTENT, 52f));
+
+        topSummaryCard = new LinearLayout(c);
+        topSummaryCard.setOrientation(LinearLayout.VERTICAL);
+        topSummaryCard.setBackground(Style.card(Style.cardFillColor(), c));
+        topSummaryCard.setPadding(Style.dp(c, 24), cp, Style.dp(c, 24), cp);
+        leftCol.addView(topSummaryCard, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         LinearLayout diaryCard = new LinearLayout(c);
         diaryCard.setOrientation(LinearLayout.VERTICAL);
@@ -197,6 +193,7 @@ public final class CarDiaryView extends LinearLayout {
         diaryCard.setPadding(cp, cp, cp, cp);
         LinearLayout.LayoutParams dcLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        dcLp.topMargin = Style.dp(c, Style.CARD_GAP_DP);
 
         LinearLayout listHead = new LinearLayout(c);
         listHead.setOrientation(LinearLayout.VERTICAL);
@@ -462,54 +459,24 @@ public final class CarDiaryView extends LinearLayout {
         });
     }
 
-    // ---- Top card: cost per km (hero) | total + cost buckets over the share bar ----
+    // ---- Cost card (head of the left column): cost per km (hero) + total, share bar, buckets ----
 
     private void renderSummary(CarDiary.TcoSummary tco) {
         Context c = getContext();
         topSummaryCard.removeAllViews();
 
-        // Left: the hero figure
-        LinearLayout hero = new LinearLayout(c);
-        hero.setOrientation(LinearLayout.VERTICAL);
-        hero.setPadding(0, 0, Style.dp(c, 32), 0);
-
+        LinearLayout head = new LinearLayout(c);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
         TextView title = new TextView(c);
         title.setText(c.getString(R.string.diary_tco_title));
-        title.setTextColor(Style.TEXT_DIM);
-        title.setTextSize(18f);
+        title.setTextColor(Style.TEXT);
+        title.setTextSize(21f);
         title.setTypeface(null, Typeface.BOLD);
         title.setSingleLine(true);
-        hero.addView(title);
-
-        if (!tco.hasCosts()) {
-            TextView empty = new TextView(c);
-            empty.setText(c.getString(R.string.diary_tco_empty));
-            empty.setTextColor(Style.TEXT_DIM);
-            empty.setTextSize(18f);
-            empty.setPadding(0, Style.dp(c, 8), 0, 0);
-            hero.addView(empty);
-            topSummaryCard.addView(hero, new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            return;
-        }
-
-        TextView perKmTv = new TextView(c);
-        if (tco.costPerKm > 0) {
-            SpannableStringBuilder sb = new SpannableStringBuilder(
-                Style.moneyWithUnit(tco.costPerKm, Style.TEXT, Style.UNIT_SCALE_HERO));
-            Style.appendUnit(sb, " / km", Style.UNIT_SCALE_HERO);
-            perKmTv.setText(sb);
-        } else {
-            perKmTv.setText(Style.moneyWithUnit(tco.totalCost, Style.TEXT, Style.UNIT_SCALE_HERO));
-        }
-        perKmTv.setTextSize(52f);
-        perKmTv.setTypeface(null, Typeface.BOLD);
-        perKmTv.setSingleLine(true);
-        perKmTv.setIncludeFontPadding(false);
-        perKmTv.setPadding(0, Style.dp(c, 6), 0, 0);
-        hero.addView(perKmTv);
-
-        if (tco.trackedKm >= 1.0) {
+        title.setEllipsize(TextUtils.TruncateAt.END);
+        head.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        if (tco.hasCosts() && tco.trackedKm >= 1.0) {
             TextView kmTag = new TextView(c);
             SpannableStringBuilder kmStr = new SpannableStringBuilder();
             if (activePeriodFilter.kind != CarDiary.PeriodFilter.Kind.ALL) {
@@ -521,15 +488,56 @@ public final class CarDiaryView extends LinearLayout {
             kmTag.setTextColor(Style.TEXT_DIM);
             kmTag.setTextSize(18f);
             kmTag.setSingleLine(true);
-            kmTag.setPadding(0, Style.dp(c, 6), 0, 0);
-            hero.addView(kmTag);
+            kmTag.setPadding(Style.dp(c, 12), 0, 0, 0);
+            head.addView(kmTag);
         }
-        topSummaryCard.addView(hero, new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        topSummaryCard.addView(head);
 
-        topSummaryCard.addView(verticalDivider(c));
+        if (!tco.hasCosts()) {
+            TextView empty = new TextView(c);
+            empty.setText(c.getString(R.string.diary_tco_empty));
+            empty.setTextColor(Style.TEXT_DIM);
+            empty.setTextSize(18f);
+            empty.setPadding(0, Style.dp(c, 8), 0, 0);
+            topSummaryCard.addView(empty);
+            return;
+        }
 
-        // Right: total and the cost buckets, over the share bar
+        // Hero row: cost per km (left) + total (right), on one baseline
+        LinearLayout heroRow = new LinearLayout(c);
+        heroRow.setOrientation(LinearLayout.HORIZONTAL);
+        heroRow.setBaselineAligned(true);
+        LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        hlp.topMargin = Style.dp(c, 6);
+
+        TextView perKmTv = new TextView(c);
+        if (tco.costPerKm > 0) {
+            SpannableStringBuilder sb = new SpannableStringBuilder(
+                Style.moneyWithUnit(tco.costPerKm, Style.TEXT, Style.UNIT_SCALE_HERO));
+            Style.appendUnit(sb, " / km", Style.UNIT_SCALE_HERO);
+            perKmTv.setText(sb);
+        } else {
+            perKmTv.setText(Style.moneyWithUnit(tco.totalCost, Style.TEXT, Style.UNIT_SCALE_HERO));
+        }
+        perKmTv.setTextSize(48f);
+        perKmTv.setTypeface(null, Typeface.BOLD);
+        perKmTv.setSingleLine(true);
+        heroRow.addView(perKmTv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        if (tco.costPerKm > 0) {
+            TextView totalTv = new TextView(c);
+            SpannableStringBuilder totSb = new SpannableStringBuilder();
+            Style.appendUnit(totSb, c.getString(R.string.diary_tco_total) + "  ", Style.UNIT_SCALE_ROW);
+            totSb.append(Style.moneyWithUnit(tco.totalCost, Style.TEXT, Style.UNIT_SCALE_ROW));
+            totalTv.setText(totSb);
+            totalTv.setTextSize(26f);
+            totalTv.setTypeface(null, Typeface.BOLD);
+            totalTv.setSingleLine(true);
+            heroRow.addView(totalTv);
+        }
+        topSummaryCard.addView(heroRow, hlp);
+
         float eShare = (float) Math.max(0.0, Math.min(1.0, tco.chargeShare));
         float mShare = (float) Math.max(0.0, Math.min(1.0, tco.maintenanceShare));
         float bShare = (float) Math.max(0.0, Math.min(1.0, tco.bureaucracyShare));
@@ -540,30 +548,11 @@ public final class CarDiaryView extends LinearLayout {
         int pB = hasB ? Math.round(bShare * 100f) : 0;
         int pM = Math.max(0, 100 - pE - pB);
 
-        LinearLayout right = new LinearLayout(c);
-        right.setOrientation(LinearLayout.VERTICAL);
-        right.setPadding(Style.dp(c, 32), 0, 0, 0);
-
-        LinearLayout figs = new LinearLayout(c);
-        figs.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams figLp = new LinearLayout.LayoutParams(
-            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        figs.addView(costFigure(c, 0, c.getString(R.string.diary_tco_total), tco.totalCost, -1), figLp);
-        figs.addView(costFigure(c, Style.ACCENT, c.getString(R.string.diary_tco_energy),
-            tco.chargeCost, pE), figLp);
-        figs.addView(costFigure(c, Style.WARN, c.getString(R.string.diary_tco_maintenance),
-            tco.maintenanceCost, pM), figLp);
-        if (tco.bureaucracyCost > 0.005) {
-            figs.addView(costFigure(c, Style.PURPLE, c.getString(R.string.diary_tco_bureaucracy),
-                tco.bureaucracyCost, pB), figLp);
-        }
-        right.addView(figs);
-
         LinearLayout bar = new LinearLayout(c);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 14));
-        blp.topMargin = Style.dp(c, 14);
+        blp.topMargin = Style.dp(c, 10);
         if (hasE) {
             bar.addView(barSeg(c, Style.ACCENT, true, !hasM && !hasB),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, eShare));
@@ -576,10 +565,25 @@ public final class CarDiaryView extends LinearLayout {
             bar.addView(barSeg(c, Style.PURPLE, !hasE && !hasM, true),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, bShare));
         }
-        right.addView(bar, blp);
+        topSummaryCard.addView(bar, blp);
 
-        topSummaryCard.addView(right, new LinearLayout.LayoutParams(
-            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        // One column per cost bucket, under the bar
+        LinearLayout figs = new LinearLayout(c);
+        figs.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams figLp = new LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        figs.addView(costFigure(c, Style.ACCENT, c.getString(R.string.diary_tco_energy),
+            tco.chargeCost, pE), figLp);
+        figs.addView(costFigure(c, Style.WARN, c.getString(R.string.diary_tco_maintenance),
+            tco.maintenanceCost, pM), figLp);
+        if (tco.bureaucracyCost > 0.005) {
+            figs.addView(costFigure(c, Style.PURPLE, c.getString(R.string.diary_tco_bureaucracy),
+                tco.bureaucracyCost, pB), figLp);
+        }
+        LinearLayout.LayoutParams fgLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        fgLp.topMargin = Style.dp(c, 12);
+        topSummaryCard.addView(figs, fgLp);
     }
 
     /** One cost bucket: "● Energy" (dim) over "R$ 432,01 73%". No dot when dotColor is 0,
@@ -607,20 +611,12 @@ public final class CarDiaryView extends LinearLayout {
             Style.appendUnit(vs, "%", Style.UNIT_SCALE_ROW);
         }
         v.setText(vs);
-        v.setTextSize(26f);
+        v.setTextSize(22f);
         v.setTypeface(null, Typeface.BOLD);
         v.setSingleLine(true);
-        v.setPadding(0, Style.dp(c, 4), 0, 0);
+        v.setPadding(0, Style.dp(c, 2), 0, 0);
         col.addView(v);
         return col;
-    }
-
-    private View verticalDivider(Context c) {
-        View v = new View(c);
-        v.setBackgroundColor(Style.tileStrokeColor());
-        v.setLayoutParams(new LinearLayout.LayoutParams(
-            Style.dp(c, 1), ViewGroup.LayoutParams.MATCH_PARENT));
-        return v;
     }
 
     private View barSeg(Context c, int color, boolean leftR, boolean rightR) {
