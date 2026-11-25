@@ -98,7 +98,9 @@ public final class CarDiary {
     /** Second-level subcategories (intervals aligned with Geely Brasil official EX2 schedule). */
     public enum Category {
         // Tires (owner-care intervals)
-        TIRE_PRESSURE(Group.TIRES, KIND_CARE, R.string.diary_cat_tire_pressure, 1_500.0, 1, true),
+        // By time only. It had a hidden 1,500 km rule too, which no setting showed:
+        // the schedule said "in 593 km" for an item set to 30 days.
+        TIRE_PRESSURE(Group.TIRES, KIND_CARE, R.string.diary_cat_tire_pressure, null, 1, true),
         TIRE_ROTATION(Group.TIRES, KIND_CARE, R.string.diary_cat_tire_rotation, 10_000.0, null, true),
         TIRE_BALANCING(Group.TIRES, KIND_CARE, R.string.diary_cat_tire_balancing, 10_000.0, null, true),
         TIRE_ALIGNMENT(Group.TIRES, KIND_CARE, R.string.diary_cat_tire_alignment, 10_000.0, 12, true),
@@ -370,7 +372,7 @@ public final class CarDiary {
 
         public Double kmInterval(Category cat) {
             switch (cat) {
-                case TIRE_PRESSURE: return tirePressureDays > 0 ? cat.kmInterval : null;
+                case TIRE_PRESSURE: return null;   // by days only
                 case TIRE_ROTATION: return tireRotationKm > 0 ? (double) tireRotationKm : null;
                 case SERVICE: return serviceKm > 0 ? (double) serviceKm : null;
                 case CABIN_FILTER: return cabinFilterKm > 0 ? (double) cabinFilterKm : null;
