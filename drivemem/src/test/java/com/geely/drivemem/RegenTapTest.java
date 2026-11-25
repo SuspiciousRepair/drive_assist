@@ -59,6 +59,12 @@ public class RegenTapTest {
         assertEquals(com.geely.drivemem.R.drawable.ic_regen_unknown, RegenTap.icon(0));
     }
 
+    @Test public void fallbackPrefersActiveBoostBaselineOverSavedFallback() {
+        assertEquals(Modes.REGEN_LOW, RegenTap.fallbackLevel(Modes.REGEN_LOW, Modes.REGEN_MID));
+        assertEquals(Modes.REGEN_MID, RegenTap.fallbackLevel(0, Modes.REGEN_MID));
+        assertEquals(Modes.REGEN_LOW, RegenTap.fallbackLevel(12345, Modes.REGEN_LOW));
+    }
+
     @Test public void light() {
         assertFalse(RegenTap.lit(Modes.REGEN_LOW, false));
         assertTrue(RegenTap.lit(Modes.REGEN_HIGH, false));

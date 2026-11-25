@@ -41,10 +41,14 @@ ser lida de longe.
 
 ![Modo de condução e regeneração](screenshots/settings-overview-live.png)
 
-Escolha o modo de condução e o nível de regeneração que você prefere. O Drive
-Assist os reaplica quando o carro acorda ou é ligado, para você não repetir o
-ajuste a cada viagem. Modo de condução e regeneração são reaplicados só em P. Cada ajuste tem uma chave **Restaurar ao ligar** (ligada por padrão);
-desligue para um ajuste que você prefere mudar na tela do próprio carro.
+O Drive Assist lembra o modo de condução e o nível de regeneração em que o
+carro está — seja ajustado na tela do próprio carro, no Drive Assist ou no
+botão de ciclo de regeneração — e os reaplica em P quando o carro liga, para
+que sobrevivam a cada desligamento. Impulsos temporários (Turbo e a alternância
+de regeneração forte) continuam temporários. O silenciamento do AVAS e o AEB
+são controlados explicitamente pelo Drive Assist (desligar o AEB na tela do
+carro continua temporário; desligá-lo no Drive Assist mantém desligado ao
+reiniciar).
 
 Os ajustes ficam em **Config**: Portas, Climatização, Modo de condução, Elementos
 (o que aparece na tela inicial), Aparência (temas, dia/noite automático e **Lado

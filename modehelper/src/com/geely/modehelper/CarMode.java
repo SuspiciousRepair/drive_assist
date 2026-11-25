@@ -19,6 +19,14 @@ public class CarMode {
     static final int DRIVE_ECO = 570491137, DRIVE_COMFORT = 570491138, DRIVE_SPORT = 570491139;
     static final int REGEN_LOW = 537003265, REGEN_MID = 537003266, REGEN_HIGH = 537003267;
 
+    static boolean validDrive(Integer v) {
+        return v != null && (v == DRIVE_ECO || v == DRIVE_COMFORT || v == DRIVE_SPORT);
+    }
+
+    static boolean validRegen(Integer v) {
+        return v != null && (v == REGEN_LOW || v == REGEN_MID || v == REGEN_HIGH);
+    }
+
     // AEB (Autonomous Emergency Braking) master switch, boolean, area 0. See
     // docs/field-catalog.md §6 — confirmed via directed diff on the OEM ADAS
     // screen and cross-checked against a decompiled reference app.
