@@ -48,7 +48,7 @@ import java.util.Locale;
  *   TCO (2/4), Next maintenance (1/4), and Open notes (1/4).
  * - Optional pending IMU jolt banner (Log incident / Dismiss).
  * - Two-column body:
- *   - Left (52%): "Car Diary · recent first" with class filters, selectable 2-line rows,
+ *   - Left (52%): "Car Diary · recent first" with group and period dropdowns, selectable 2-line rows,
  *     Map / Edit buttons, and Delete icon button.
  *   - Right (48%): Maintenance schedule (Magic Sort + Settings shortcut) stacked above
  *     unified Battery Health card (HV Traction 60-day longevity + 12V current reading & 60-day trend). */
@@ -66,7 +66,8 @@ public final class CarDiaryView extends LinearLayout {
     /** Unit of the cost buckets (CarDiary.TcoSummary.UNIT_*); kept in Prefs. */
     private int costUnit;
     private TextView periodPillLabel;
-    private LinearLayout filterBar;
+    private TextView groupDropLabel;
+    private ImageView groupDropIcon;
     private LinearLayout entriesList;
     private LinearLayout scheduleList;
     private LinearLayout hvHealthBox;
@@ -216,12 +217,37 @@ public final class CarDiaryView extends LinearLayout {
         listTitle.setSingleLine(true);
         titleRow.addView(listTitle, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        // Period dropdown pill (All time / 30d / 90d / Year)
+        // Group dropdown (All / Tires / Service / ...): icon + name + chevron, no button box
+        LinearLayout groupDrop = new LinearLayout(c);
+        groupDrop.setOrientation(LinearLayout.HORIZONTAL);
+        groupDrop.setGravity(Gravity.CENTER_VERTICAL);
+        groupDrop.setPadding(Style.dp(c, 10), 0, Style.dp(c, 10), 0);
+        groupDropIcon = new ImageView(c);
+        LinearLayout.LayoutParams gIcLp = new LinearLayout.LayoutParams(Style.dp(c, 24), Style.dp(c, 24));
+        gIcLp.rightMargin = Style.dp(c, 8);
+        groupDrop.addView(groupDropIcon, gIcLp);
+        groupDropLabel = new TextView(c);
+        groupDropLabel.setTextColor(Style.TEXT);
+        groupDropLabel.setTextSize(18f);
+        groupDropLabel.setTypeface(null, Typeface.BOLD);
+        groupDropLabel.setSingleLine(true);
+        groupDrop.addView(groupDropLabel);
+        ImageView gChev = new ImageView(c);
+        gChev.setImageResource(R.drawable.ic_chevron_right);
+        gChev.setColorFilter(Style.TEXT_DIM, PorterDuff.Mode.SRC_IN);
+        gChev.setRotation(90f);
+        LinearLayout.LayoutParams gChevLp = new LinearLayout.LayoutParams(Style.dp(c, 18), Style.dp(c, 18));
+        gChevLp.leftMargin = Style.dp(c, 8);
+        groupDrop.addView(gChev, gChevLp);
+        groupDrop.setOnClickListener(v -> showGroupMenu(groupDrop));
+        titleRow.addView(groupDrop, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, Style.dp(c, TOUCH_DP)));
+
+        // Period dropdown (All time / 30d / 90d / Year): name + chevron, no button box
         LinearLayout periodPill = new LinearLayout(c);
         periodPill.setOrientation(LinearLayout.HORIZONTAL);
         periodPill.setGravity(Gravity.CENTER_VERTICAL);
-        periodPill.setBackground(Style.tile(c));
-        periodPill.setPadding(Style.dp(c, 18), 0, Style.dp(c, 14), 0);
+        periodPill.setPadding(Style.dp(c, 10), 0, Style.dp(c, 10), 0);
 
         periodPillLabel = new TextView(c);
         periodPillLabel.setText(periodLabel(c, activePeriodFilter));
@@ -241,14 +267,13 @@ public final class CarDiaryView extends LinearLayout {
         periodPill.setOnClickListener(v -> showPeriodMenu(periodPill));
         LinearLayout.LayoutParams ppLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, Style.dp(c, TOUCH_DP));
-        ppLp.leftMargin = Style.dp(c, 10);
+        ppLp.leftMargin = Style.dp(c, 4);
         titleRow.addView(periodPill, ppLp);
 
         // Export button (USB CSV+clips / Phone QR)
         ImageView exportBtn = new ImageView(c);
         exportBtn.setImageResource(R.drawable.ic_export);
         exportBtn.setColorFilter(Style.TEXT_DIM, PorterDuff.Mode.SRC_IN);
-        exportBtn.setBackground(Style.tile(c));
         int ep = Style.dp(c, 16);
         exportBtn.setPadding(ep, ep, ep, ep);
         LinearLayout.LayoutParams exLp = new LinearLayout.LayoutParams(Style.dp(c, TOUCH_DP), Style.dp(c, TOUCH_DP));
@@ -275,15 +300,6 @@ public final class CarDiaryView extends LinearLayout {
 
         listHead.addView(titleRow);
 
-        filterBar = new LinearLayout(c);
-        filterBar.setOrientation(LinearLayout.HORIZONTAL);
-        android.widget.HorizontalScrollView fScroll = new android.widget.HorizontalScrollView(c);
-        fScroll.setHorizontalScrollBarEnabled(false);
-        fScroll.addView(filterBar);
-        LinearLayout.LayoutParams fLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        fLp.topMargin = Style.dp(c, 12);
-        listHead.addView(fScroll, fLp);
         diaryCard.addView(listHead);
 
         entriesList = new LinearLayout(c);
@@ -319,7 +335,6 @@ public final class CarDiaryView extends LinearLayout {
         ImageView tuneBtn = new ImageView(c);
         tuneBtn.setImageResource(R.drawable.ic_tune);
         tuneBtn.setColorFilter(Style.TEXT_DIM, PorterDuff.Mode.SRC_IN);
-        tuneBtn.setBackground(Style.tile(c));
         int tp = Style.dp(c, 16);
         tuneBtn.setPadding(tp, tp, tp, tp);
         int tsz = Style.dp(c, TOUCH_DP);
@@ -759,39 +774,69 @@ public final class CarDiaryView extends LinearLayout {
 
     // ---- Diary Filters & Entries List (with Edit button + Delete trash icon) ----
 
+    /** Shows the active group in the dropdown of the title row. */
     private void rebuildFilters() {
         Context c = getContext();
-        filterBar.removeAllViews();
-        addFilterPill(c.getString(R.string.diary_filter_all), null);
-        for (CarDiary.Group g : CarDiary.Group.values()) {
-            addFilterPill(c.getString(g.labelRes), g);
+        CarDiary.Group g = activeGroupFilter;
+        groupDropLabel.setText(c.getString(g == null ? R.string.diary_filter_all : g.labelRes));
+        if (g == null) {
+            groupDropIcon.setVisibility(View.GONE);
+        } else {
+            groupDropIcon.setVisibility(View.VISIBLE);
+            groupDropIcon.setImageResource(g.iconRes);
+            groupDropIcon.setColorFilter(Style.TEXT_DIM, PorterDuff.Mode.SRC_IN);
         }
     }
 
-    private void addFilterPill(String label, CarDiary.Group g) {
+    private void showGroupMenu(View anchor) {
         Context c = getContext();
-        boolean active = (g == activeGroupFilter);
-        TextView b = new TextView(c);
-        b.setText(label);
-        b.setTextSize(18f);
-        b.setTextColor(active ? Style.TEXT : Style.TEXT_DIM);
-        b.setTypeface(null, active ? Typeface.BOLD : Typeface.NORMAL);
-        b.setBackground(active ? Style.card(Style.CARD_HI, c, 20) : null);
-        b.setGravity(Gravity.CENTER);
-        b.setSingleLine(true);
-        b.setMinimumHeight(Style.dp(c, TOUCH_DP));
-        int h = Style.dp(c, 20);
-        b.setPadding(h, 0, h, 0);
-        b.setOnClickListener(view -> {
-            if (activeGroupFilter == g) return;
-            activeGroupFilter = g;
-            rebuildFilters();
-            renderEntries();
-        });
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        if (filterBar.getChildCount() > 0) lp.leftMargin = Style.dp(c, 6);
-        filterBar.addView(b, lp);
+        LinearLayout menu = new LinearLayout(c);
+        menu.setOrientation(LinearLayout.VERTICAL);
+        menu.setBackground(Style.card(Style.CARD, c));
+        int pad = Style.dp(c, 6);
+        menu.setPadding(pad, pad, pad, pad);
+
+        PopupWindow popup = new PopupWindow(menu,
+            Style.dp(c, 340), ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        popup.setOutsideTouchable(true);
+        popup.setElevation(Style.dp(c, 8));
+        trackPopup(popup);
+
+        List<CarDiary.Group> options = new ArrayList<>();
+        options.add(null);   // All
+        for (CarDiary.Group g : CarDiary.Group.values()) options.add(g);
+        for (CarDiary.Group opt : options) {
+            boolean current = opt == activeGroupFilter;
+            LinearLayout row = new LinearLayout(c);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            int rpad = Style.dp(c, 18);
+            row.setPadding(rpad, rpad, rpad, rpad);
+            ImageView ic = new ImageView(c);
+            if (opt != null) {
+                ic.setImageResource(opt.iconRes);
+                ic.setColorFilter(current ? Style.ACCENT : Style.TEXT_DIM, PorterDuff.Mode.SRC_IN);
+            }
+            LinearLayout.LayoutParams icLp = new LinearLayout.LayoutParams(Style.dp(c, 24), Style.dp(c, 24));
+            icLp.rightMargin = Style.dp(c, 14);
+            row.addView(ic, icLp);
+            TextView t = new TextView(c);
+            t.setText(c.getString(opt == null ? R.string.diary_filter_all : opt.labelRes));
+            t.setTextSize(18f);
+            t.setTypeface(null, current ? Typeface.BOLD : Typeface.NORMAL);
+            t.setTextColor(current ? Style.ACCENT : Style.TEXT);
+            row.addView(t);
+            row.setOnClickListener(v -> {
+                popup.dismiss();
+                if (opt != activeGroupFilter) {
+                    activeGroupFilter = opt;
+                    rebuildFilters();
+                    renderEntries();
+                }
+            });
+            menu.addView(row);
+        }
+        popup.showAsDropDown(anchor, 0, Style.dp(c, 8));
     }
 
     private void renderEntries() {
