@@ -35,4 +35,19 @@ public class DiaryIntervalStepTest {
         assertEquals(3, TelemetryDiarySection.neighbour(SERVICE, 20_000, 24, true, 1));
         assertEquals(1, TelemetryDiarySection.neighbour(SERVICE, 20_000, 24, true, -1));
     }
+
+    // The detail window: slider units and limits.
+    @Test public void sliderCoversTheUsualRangeAndASavedValueAboveIt() {
+        assertEquals(100, TelemetryDiarySection.sliderMax(2, 40_000));    // km, in thousands
+        assertEquals(150, TelemetryDiarySection.sliderMax(2, 150_000));
+        assertEquals(90, TelemetryDiarySection.sliderMax(0, 30));         // days
+        assertEquals(60, TelemetryDiarySection.sliderMax(1, 48));         // months
+    }
+
+    @Test public void aNudgeIsOneUnitAndStaysInside() {
+        assertEquals(41_000, TelemetryDiarySection.step(2, 40_000, 1, 100));
+        assertEquals(1_000, TelemetryDiarySection.step(2, 1_000, -1, 100));
+        assertEquals(90, TelemetryDiarySection.step(0, 90, 1, 90));
+        assertEquals(29, TelemetryDiarySection.step(0, 30, -1, 90));
+    }
 }

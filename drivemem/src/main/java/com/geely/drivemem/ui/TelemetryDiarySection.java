@@ -66,13 +66,15 @@ public final class TelemetryDiarySection extends LinearLayout {
 
         LinearLayout tireCard = ConfigCards.card(c, c.getString(R.string.diary_grp_tires));
         ConfigCards.add(leftCol, tireCard);
-        tireCard.addView(intervalRow(new Row(c.getString(R.string.diary_cat_tire_pressure), K_DAYS,
+        Row pressure = new Row(c.getString(R.string.diary_cat_tire_pressure), K_DAYS,
             new int[][]{{0, 0}, {15, 0}, {30, 0}, {60, 0}},
             Prefs.DIARY_DEF_TIRE_PRESSURE_DAYS, 0, Prefs.getDiaryTirePressureDays(c), 0,
-            (a, m) -> Prefs.setDiaryTirePressureDays(c, a))));
-        tireCard.addView(Style.toggleRow(c, c.getString(R.string.cfg_diary_cold_snap),
+            (a, m) -> Prefs.setDiaryTirePressureDays(c, a));
+        // The cold-snap nudge belongs to this item: it is in its detail window.
+        pressure.extra = () -> Style.toggleRow(c, c.getString(R.string.cfg_diary_cold_snap),
             Prefs.getDiaryTireColdSnap(c),
-            on -> { Prefs.setDiaryTireColdSnap(c, on); notifyChange(); }));
+            on -> { Prefs.setDiaryTireColdSnap(c, on); CarDiary.notifyChanged(); });
+        tireCard.addView(intervalRow(pressure));
         tireCard.addView(intervalRow(new Row(c.getString(R.string.diary_cat_tire_rotation), K_KM,
             new int[][]{{0, 0}, {5_000, 0}, {10_000, 0}, {15_000, 0}},
             Prefs.DIARY_DEF_TIRE_ROTATION_KM, 0, Prefs.getDiaryTireRotationKm(c), 0,
@@ -120,9 +122,9 @@ public final class TelemetryDiarySection extends LinearLayout {
         String[] sKeys = {ImuHub.JOLT_OFF, ImuHub.JOLT_LOW, ImuHub.JOLT_MEDIUM, ImuHub.JOLT_HIGH};
         CharSequence[] sLabels = {
             off,
-            c.getString(R.string.cfg_diary_jolt_low),
-            c.getString(R.string.cfg_diary_jolt_medium),
-            c.getString(R.string.cfg_diary_jolt_high)
+            nameFigure(c.getString(R.string.cfg_diary_jolt_low)),
+            nameFigure(c.getString(R.string.cfg_diary_jolt_medium)),
+            nameFigure(c.getString(R.string.cfg_diary_jolt_high))
         };
         joltCard.addView(stringPillRow(sLabels, sKeys, curSens, key -> {
             Prefs.setDiaryJoltSensitivity(c, key);
@@ -203,6 +205,14 @@ public final class TelemetryDiarySection extends LinearLayout {
         return sb;
     }
 
+    /** "Medium (0.85 g)" -> "Medium" + a smaller, dimmer "0.85 g", so four
+     * pills fit the card without clipping. */
+    static CharSequence nameFigure(String label) {
+        int open = label.indexOf(" (");
+        if (open < 0 || !label.endsWith(")")) return label;
+        return numUnit(label.substring(0, open), label.substring(open + 2, label.length() - 1));
+    }
+
     /** Marks the unit part of a pill title; carries no look of its own. */
     private static final class UnitMark {}
 
@@ -228,10 +238,13 @@ public final class TelemetryDiarySection extends LinearLayout {
 
     /** a = days, months or km (by kind); b = months, for K_KM_MONTHS only. 0 = Off. */
     private interface Setter { void set(int a, int b); }
+    private interface Extra { View build(); }
 
     private static final class Row {
         final String label; final int kind; final int[][] presets;
         final int defA, defB, curA, curB; final Setter set;
+        /** A setting that belongs to this item, shown in its detail window. */
+        Extra extra;
         Row(String label, int kind, int[][] presets, int defA, int defB, int curA, int curB, Setter set) {
             this.label = label; this.kind = kind; this.presets = presets;
             this.defA = defA; this.defB = defB; this.curA = curA; this.curB = curB; this.set = set;
@@ -348,7 +361,8 @@ public final class TelemetryDiarySection extends LinearLayout {
         return a;
     }
 
-    /** Steppers for any value, no keyboard. Small step and big step per unit. */
+    /** Any value, no keyboard: per quantity a big figure and a slider, with a
+     * minus and a plus for the last step (hold to repeat). */
     private void showCustomDialog(Row r) {
         Context c = activity;
         android.app.Dialog dialog = new android.app.Dialog(c);
@@ -365,8 +379,16 @@ public final class TelemetryDiarySection extends LinearLayout {
         if (r.kind == K_KM_MONTHS && val[1] <= 0) val[1] = r.defB;
 
         int firstKind = (r.kind == K_KM_MONTHS) ? K_KM : r.kind;
-        root.addView(stepper(val, 0, firstKind));
-        if (r.kind == K_KM_MONTHS) root.addView(stepper(val, 1, K_MONTHS));
+        root.addView(quantity(val, 0, firstKind));
+        if (r.kind == K_KM_MONTHS) root.addView(quantity(val, 1, K_MONTHS));
+
+        if (r.extra != null) {
+            View extra = r.extra.build();
+            LinearLayout.LayoutParams elp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            elp.topMargin = Style.dp(c, 20);
+            root.addView(extra, elp);
+        }
 
         LinearLayout btns = new LinearLayout(c);
         btns.setOrientation(HORIZONTAL);
@@ -383,65 +405,112 @@ public final class TelemetryDiarySection extends LinearLayout {
         btns.addView(save, slp);
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        blp.topMargin = Style.dp(c, 24);
+        blp.topMargin = Style.dp(c, 28);
         root.addView(btns, blp);
 
+        // The toggle in the detail window saves at once: show it on the page too.
+        dialog.setOnDismissListener(d -> { if (r.extra != null) rebuild(); });
         dialog.setContentView(root);
         android.view.Window window = dialog.getWindow();
-        if (window != null) window.setLayout(Style.dp(c, 760), ViewGroup.LayoutParams.WRAP_CONTENT);
+        if (window != null) window.setLayout(Style.dp(c, 680), ViewGroup.LayoutParams.WRAP_CONTENT);
         dialog.show();
-        if (window != null) window.setLayout(Style.dp(c, 760), ViewGroup.LayoutParams.WRAP_CONTENT);
+        if (window != null) window.setLayout(Style.dp(c, 680), ViewGroup.LayoutParams.WRAP_CONTENT);
     }
 
-    /** Pure: one stepper press. Days 1..365, months 1..120, km 1,000..200,000. */
-    static int step(int kind, int value, int delta) {
-        int min = kind == K_KM ? 1_000 : 1;
-        int max = kind == K_KM ? 200_000 : (kind == K_MONTHS ? 120 : 365);
-        return Math.max(min, Math.min(max, value + delta));
+    /** Slider units: days, months, or thousands of km. */
+    static int unitOf(int kind) { return kind == K_KM ? 1_000 : 1; }
+
+    /** The top of the slider: 90 days, 60 months, 100,000 km; more when the
+     * saved value is already above it. */
+    static int sliderMax(int kind, int value) {
+        int max = kind == K_KM ? 100 : (kind == K_MONTHS ? 60 : 90);
+        return Math.max(max, value / unitOf(kind));
     }
 
-    /** [--] [-]  value  [+] [++] for val[idx]. */
-    private View stepper(int[] val, int idx, int kind) {
+    /** Pure: a value moved by delta slider units, kept inside 1..max. */
+    static int step(int kind, int value, int delta, int max) {
+        int u = unitOf(kind);
+        return Math.max(1, Math.min(max, value / u + delta)) * u;
+    }
+
+    /** One quantity: the figure, and under it [-] slider [+]. */
+    private View quantity(int[] val, int idx, int kind) {
         Context c = activity;
-        final int small = kind == K_KM ? 1_000 : 1;
-        final int big = kind == K_KM ? 5_000 : (kind == K_MONTHS ? 6 : 5);
-        LinearLayout row = new LinearLayout(c);
-        row.setOrientation(HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
+        final int u = unitOf(kind);
+        final int max = sliderMax(kind, val[idx]);
+        LinearLayout box = new LinearLayout(c);
+        box.setOrientation(VERTICAL);
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        rlp.topMargin = Style.dp(c, 20);
-        row.setLayoutParams(rlp);
+        blp.topMargin = Style.dp(c, 20);
+        box.setLayoutParams(blp);
 
         final TextView num = new TextView(c);
-        num.setTextSize(32f);
+        num.setTextSize(40f);
         num.setTypeface(null, Typeface.BOLD);
         num.setTextColor(Style.TEXT);
         num.setGravity(Gravity.CENTER);
-        final Runnable show = () -> num.setText(styleUnits(
-            valueTitle(kind, val[idx], 0), Style.TEXT, Style.cardFillColor()));
-        show.run();
+        box.addView(num);
 
-        int[] deltas = {-big, -small, small, big};
-        String[] names = {"\u2212" + stepName(kind, big), "\u2212" + stepName(kind, small),
-            "+" + stepName(kind, small), "+" + stepName(kind, big)};
-        for (int i = 0; i < 4; i++) {
-            if (i == 2) row.addView(num, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            final int dlt = deltas[i];
-            TextView b = buildPill(names[i], false, () -> {
-                val[idx] = step(kind, val[idx], dlt);
+        final android.widget.SeekBar bar = new android.widget.SeekBar(c);
+        bar.setMax(max - 1);
+        android.content.res.ColorStateList accent = android.content.res.ColorStateList.valueOf(Style.ACCENT);
+        bar.setProgressTintList(accent);
+        bar.setThumbTintList(accent);
+        bar.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(Style.TEXT_DIM));
+        bar.setMinimumHeight(Style.dp(c, 60));
+
+        final Runnable show = () -> {
+            num.setText(styleUnits(valueTitle(kind, val[idx], 0), Style.TEXT, Style.cardFillColor()));
+            if (bar.getProgress() != val[idx] / u - 1) bar.setProgress(val[idx] / u - 1);
+        };
+        bar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(android.widget.SeekBar sb, int progress, boolean fromUser) {
+                if (!fromUser) return;
+                val[idx] = (progress + 1) * u;
                 show.run();
-            });
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Style.dp(c, 96), ViewGroup.LayoutParams.WRAP_CONTENT);
-            if (i == 1 || i == 3) lp.leftMargin = Style.dp(c, 8);
-            row.addView(b, lp);
-        }
-        return row;
+            }
+            @Override public void onStartTrackingTouch(android.widget.SeekBar sb) {}
+            @Override public void onStopTrackingTouch(android.widget.SeekBar sb) {}
+        });
+
+        LinearLayout line = new LinearLayout(c);
+        line.setOrientation(HORIZONTAL);
+        line.setGravity(Gravity.CENTER_VERTICAL);
+        line.addView(nudge("\u2212", () -> { val[idx] = step(kind, val[idx], -1, max); show.run(); }));
+        line.addView(bar, new LinearLayout.LayoutParams(0, Style.dp(c, 60), 1f));
+        line.addView(nudge("+", () -> { val[idx] = step(kind, val[idx], 1, max); show.run(); }));
+        box.addView(line);
+        show.run();
+        return box;
     }
 
-    /** "5" for days and months, "5" (thousand) for km: the unit is in the value. */
-    private static String stepName(int kind, int step) {
-        return String.valueOf(kind == K_KM ? step / 1000 : step);
+    /** A plain minus or plus, no box. One step per tap; hold to repeat. */
+    private View nudge(String sign, Runnable act) {
+        Context c = activity;
+        TextView t = new TextView(c);
+        t.setText(sign);
+        t.setTextSize(34f);
+        t.setTextColor(Style.TEXT);
+        t.setGravity(Gravity.CENTER);
+        t.setIncludeFontPadding(false);
+        t.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(c, 64), Style.dp(c, 60)));
+        final Runnable[] repeat = new Runnable[1];
+        repeat[0] = () -> { act.run(); t.postDelayed(repeat[0], 70); };
+        t.setOnTouchListener((v, e) -> {
+            switch (e.getActionMasked()) {
+                case android.view.MotionEvent.ACTION_DOWN:
+                    act.run();
+                    t.postDelayed(repeat[0], 450);
+                    return true;
+                case android.view.MotionEvent.ACTION_UP:
+                case android.view.MotionEvent.ACTION_CANCEL:
+                    t.removeCallbacks(repeat[0]);
+                    return true;
+                default: return true;
+            }
+        });
+        return t;
     }
 
     private interface StrChoice { void onPick(String v); }
