@@ -110,6 +110,23 @@ public class ModeHelperService extends Service {
         lastVehicleState = vs;
     }
 
+    // Last screen state, for its off-to-on edge (RestorePolicy.screenTurnedOn).
+    private Boolean lastScreenOn;
+
+    private void watchScreen() {
+        boolean on;
+        try {
+            android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE);
+            if (pm == null) return;
+            on = pm.isInteractive();
+        } catch (Throwable t) { return; }
+        if (RestorePolicy.screenTurnedOn(lastScreenOn, on)) {
+            armModeRestore();
+            Log.i(TAG, "modes: screen on, drive/regen restore armed");
+        }
+        lastScreenOn = on;
+    }
+
     @Override public int onStartCommand(Intent i, int flags, int startId) {
         startAsForeground();
         if (i != null && ACTION_DASHCAM.equals(i.getAction())) {
@@ -347,6 +364,7 @@ public class ModeHelperService extends Service {
                     if (RestorePolicy.sleptBetween(lastSleepMs, slept)) openRestoreWindow("slept");
                     lastSleepMs = slept;
                     watchVehicleState();
+                    watchScreen();
                     boolean window = RestorePolicy.inWindow(
                         android.os.SystemClock.elapsedRealtime(), restoreUntil);
                     enforceModes(parked);
