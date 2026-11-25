@@ -71,6 +71,9 @@ public class CarAccess {
     // Door and window position properties. 1 = open, 2 = closed.
     public static final int DOOR_POS   = 373295872;   // 0x16400B00
     public static final int WINDOW_POS = 322964416;   // 0x13400BC0
+    /** Door locks, per door area: 1 locked, 0 unlocked (docs/field-catalog.md).
+     * The AOSP DOOR_LOCK (371198722) is inert on this car. */
+    public static final int DOOR_LOCK  = 641736874;   // 0x264020AA
     public static final int DOOR_OPEN = 1, DOOR_CLOSED = 2;
 
     // called by the loops: reads failing in a row == dead connection

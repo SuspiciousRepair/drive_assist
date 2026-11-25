@@ -33,6 +33,7 @@ Property IDs and scales of the car's own (VHAL) properties are in
 | `car.drive_mode`, `car.regen_mode` | drive mode, regen level | on change |
 | `car.avas_mode` | AVAS (pedestrian warning sound): 0 off, 1.. sound type. Reported by modehelper (`AvasState`): Drive Assist may not read it (`CAR_CONTROL_AUDIO_VOLUME`) | on change, read every 4 s by modehelper; on request |
 | `car.door_pos`, `car.window_pos` | doors, windows (per area) | on change |
+| `car.door_lock` | door locks (per area): 1 locked, 0 unlocked (`DOOR_LOCK`, 641736874) | on change |
 | `car.hvac_recirc`, `car.hvac_direction`, `car.hvac_rear_defrost` | climate state | on change |
 | `car.hvac_fan` | climate fan level, 0 (climate off) to 8 (`HVAC_FAN`, 356517120) | on change |
 | `car.aeb` | AEB (automatic emergency braking) on/off (`557858874`), true/false. Config → Drive's switch reads it | on change |
@@ -210,5 +211,6 @@ except the SoC-based driving energy, which is marked "estimated".
 | `files/obd2-events.log` | why the dongle gave nothing: connect failures, link lost, rounds with no answer (with the dongle's raw answer) | on each change; a repeat at most once a minute (1 MB, then restarts) |
 | `files/abrp-attempt.log` | every ABRP send and its payload | while ABRP is on (5 MB, then restarts) |
 | `files/can-events.log` | "Exact energy" (CAN): the app's link to the CAN reader, modehelper's reports (started and why, failed), and each trip with no split and why (for example "app restarted 18 min into the trip") | on each change, with "Exact energy" on; the same line at most once per 10 min (1 MB, then restarts) |
+| `files/car-events.log` | when the car was locked and unlocked (`LockEventLog`), from `car.door_lock` | one line per change of the whole car (1 MB, then restarts) |
 
 `files/` is `Android/data/com.geely.drivemem/files/` on the car's storage.
