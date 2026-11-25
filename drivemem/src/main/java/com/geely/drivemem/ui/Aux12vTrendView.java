@@ -223,7 +223,9 @@ public final class Aux12vTrendView extends View {
     }
 
     private static int sideColor(String phase) {
-        return Aux12vMonitor.PHASE_WAKE_LOAD.equals(phase) ? Style.PURPLE : Style.TEXT_DIM;
+        // Settling points are many and say little: half as strong.
+        return Aux12vMonitor.PHASE_WAKE_LOAD.equals(phase)
+            ? Style.PURPLE : (Style.TEXT_DIM & 0x00FFFFFF) | 0x80000000;
     }
 
     private void drawLegend(Canvas canvas, Context c, float x0) {
@@ -247,7 +249,9 @@ public final class Aux12vTrendView extends View {
         canvas.drawCircle(x, y, r + Style.dp(c, 1), dotRingPaint);
         canvas.drawCircle(x, y, r, dotPaint);
         String num = String.format(Locale.US, "%.1f", v);
-        float tx = x + Style.dp(c, 12);
+        // The figure goes in the right margin, level with the point: side
+        // points can lie right of the last rest point, and it must not sit on them.
+        float tx = Math.max(x, getWidth() - Style.dp(c, 92)) + Style.dp(c, 12);
         float ty = y + Style.dp(c, 7);
         canvas.drawText(num, tx, ty, endNumPaint);
         float nw = endNumPaint.measureText(num);

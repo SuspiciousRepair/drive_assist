@@ -313,62 +313,62 @@ public final class Prefs {
     }
 
     // --- Diary & Maintenance Schedule (0 = Off) ---
-    public static int getDiaryBalanceDays(Context ctx) { return file(ctx).getInt("diary_balance_days", 30); }
+    // Factory defaults (Geely Brasil EX2 schedule). The getters and the settings
+    // page ("back to factory default", per row) read these, so they cannot differ.
+    public static final int DIARY_DEF_BALANCE_DAYS = 30;
+    public static final int DIARY_DEF_TIRE_PRESSURE_DAYS = 30;
+    public static final int DIARY_DEF_TIRE_ROTATION_KM = 10_000;
+    public static final int DIARY_DEF_SERVICE_KM = 20_000;
+    public static final int DIARY_DEF_SERVICE_MONTHS = 12;
+    public static final int DIARY_DEF_CABIN_FILTER_KM = 20_000;
+    public static final int DIARY_DEF_CABIN_FILTER_MONTHS = 12;
+    public static final int DIARY_DEF_BRAKE_FLUID_KM = 40_000;
+    public static final int DIARY_DEF_BRAKE_FLUID_MONTHS = 24;
+    public static final int DIARY_DEF_COOLANT_KM = 80_000;
+    public static final int DIARY_DEF_COOLANT_MONTHS = 48;
+    public static final int DIARY_DEF_GEAR_OIL_KM = 80_000;
+    public static final int DIARY_DEF_GEAR_OIL_MONTHS = 48;
+    public static final int DIARY_DEF_WIPERS_MONTHS = 12;
+    public static final int DIARY_DEF_BATTERY_12V_MONTHS = 48;
+    public static int getDiaryBalanceDays(Context ctx) { return file(ctx).getInt("diary_balance_days", DIARY_DEF_BALANCE_DAYS); }
     public static void setDiaryBalanceDays(Context ctx, int days) { file(ctx).edit().putInt("diary_balance_days", days).apply(); }
-    public static int getDiaryTirePressureDays(Context ctx) { return file(ctx).getInt("diary_tire_pressure_days", 30); }
+    public static int getDiaryTirePressureDays(Context ctx) { return file(ctx).getInt("diary_tire_pressure_days", DIARY_DEF_TIRE_PRESSURE_DAYS); }
     public static void setDiaryTirePressureDays(Context ctx, int days) { file(ctx).edit().putInt("diary_tire_pressure_days", days).apply(); }
     public static boolean getDiaryTireColdSnap(Context ctx) { return file(ctx).getBoolean("diary_tire_cold_snap", true); }
     public static void setDiaryTireColdSnap(Context ctx, boolean on) { file(ctx).edit().putBoolean("diary_tire_cold_snap", on).apply(); }
-    public static int getDiaryTireRotationKm(Context ctx) { return file(ctx).getInt("diary_tire_rotation_km", 10_000); }
+    public static int getDiaryTireRotationKm(Context ctx) { return file(ctx).getInt("diary_tire_rotation_km", DIARY_DEF_TIRE_ROTATION_KM); }
     public static void setDiaryTireRotationKm(Context ctx, int km) { file(ctx).edit().putInt("diary_tire_rotation_km", km).apply(); }
-    public static int getDiaryServiceKm(Context ctx) { return file(ctx).getInt("diary_service_km", 20_000); }
-    public static int getDiaryServiceMonths(Context ctx) { return file(ctx).getInt("diary_service_months", 12); }
+    public static int getDiaryServiceKm(Context ctx) { return file(ctx).getInt("diary_service_km", DIARY_DEF_SERVICE_KM); }
+    public static int getDiaryServiceMonths(Context ctx) { return file(ctx).getInt("diary_service_months", DIARY_DEF_SERVICE_MONTHS); }
     public static void setDiaryServiceInterval(Context ctx, int km, int months) {
         file(ctx).edit().putInt("diary_service_km", km).putInt("diary_service_months", months).apply();
     }
-    public static int getDiaryCabinFilterKm(Context ctx) { return file(ctx).getInt("diary_cabin_filter_km", 20_000); }
-    public static int getDiaryCabinFilterMonths(Context ctx) { return file(ctx).getInt("diary_cabin_filter_months", 12); }
+    public static int getDiaryCabinFilterKm(Context ctx) { return file(ctx).getInt("diary_cabin_filter_km", DIARY_DEF_CABIN_FILTER_KM); }
+    public static int getDiaryCabinFilterMonths(Context ctx) { return file(ctx).getInt("diary_cabin_filter_months", DIARY_DEF_CABIN_FILTER_MONTHS); }
     public static void setDiaryCabinFilterInterval(Context ctx, int km, int months) {
         file(ctx).edit().putInt("diary_cabin_filter_km", km).putInt("diary_cabin_filter_months", months).apply();
     }
-    public static int getDiaryBrakeFluidKm(Context ctx) { return file(ctx).getInt("diary_brake_fluid_km", 40_000); }
-    public static int getDiaryBrakeFluidMonths(Context ctx) { return file(ctx).getInt("diary_brake_fluid_months", 24); }
+    public static int getDiaryBrakeFluidKm(Context ctx) { return file(ctx).getInt("diary_brake_fluid_km", DIARY_DEF_BRAKE_FLUID_KM); }
+    public static int getDiaryBrakeFluidMonths(Context ctx) { return file(ctx).getInt("diary_brake_fluid_months", DIARY_DEF_BRAKE_FLUID_MONTHS); }
     public static void setDiaryBrakeFluidInterval(Context ctx, int km, int months) {
         file(ctx).edit().putInt("diary_brake_fluid_km", km).putInt("diary_brake_fluid_months", months).apply();
     }
-    public static int getDiaryCoolantKm(Context ctx) { return file(ctx).getInt("diary_coolant_km", 80_000); }
-    public static int getDiaryCoolantMonths(Context ctx) { return file(ctx).getInt("diary_coolant_months", 48); }
+    public static int getDiaryCoolantKm(Context ctx) { return file(ctx).getInt("diary_coolant_km", DIARY_DEF_COOLANT_KM); }
+    public static int getDiaryCoolantMonths(Context ctx) { return file(ctx).getInt("diary_coolant_months", DIARY_DEF_COOLANT_MONTHS); }
     public static void setDiaryCoolantInterval(Context ctx, int km, int months) {
         file(ctx).edit().putInt("diary_coolant_km", km).putInt("diary_coolant_months", months).apply();
     }
-    public static int getDiaryGearOilKm(Context ctx) { return file(ctx).getInt("diary_gear_oil_km", 80_000); }
-    public static int getDiaryGearOilMonths(Context ctx) { return file(ctx).getInt("diary_gear_oil_months", 48); }
+    public static int getDiaryGearOilKm(Context ctx) { return file(ctx).getInt("diary_gear_oil_km", DIARY_DEF_GEAR_OIL_KM); }
+    public static int getDiaryGearOilMonths(Context ctx) { return file(ctx).getInt("diary_gear_oil_months", DIARY_DEF_GEAR_OIL_MONTHS); }
     public static void setDiaryGearOilInterval(Context ctx, int km, int months) {
         file(ctx).edit().putInt("diary_gear_oil_km", km).putInt("diary_gear_oil_months", months).apply();
     }
-    public static int getDiaryWipersMonths(Context ctx) { return file(ctx).getInt("diary_wipers_months", 12); }
+    public static int getDiaryWipersMonths(Context ctx) { return file(ctx).getInt("diary_wipers_months", DIARY_DEF_WIPERS_MONTHS); }
     public static void setDiaryWipersMonths(Context ctx, int months) { file(ctx).edit().putInt("diary_wipers_months", months).apply(); }
-    public static int getDiaryBattery12vMonths(Context ctx) { return file(ctx).getInt("diary_battery_12v_months", 48); }
+    public static int getDiaryBattery12vMonths(Context ctx) { return file(ctx).getInt("diary_battery_12v_months", DIARY_DEF_BATTERY_12V_MONTHS); }
     public static void setDiaryBattery12vMonths(Context ctx, int months) { file(ctx).edit().putInt("diary_battery_12v_months", months).apply(); }
     public static String getDiaryJoltSensitivity(Context ctx) { return file(ctx).getString("diary_jolt_sensitivity", "medium"); }
     public static void setDiaryJoltSensitivity(Context ctx, String level) { file(ctx).edit().putString("diary_jolt_sensitivity", level).apply(); }
-    public static void resetDiaryDefaults(Context ctx) {
-        file(ctx).edit()
-            .remove("diary_balance_days")
-            .remove("diary_tire_pressure_days")
-            .remove("diary_tire_cold_snap")
-            .remove("diary_tire_rotation_km")
-            .remove("diary_service_km").remove("diary_service_months")
-            .remove("diary_cabin_filter_km").remove("diary_cabin_filter_months")
-            .remove("diary_brake_fluid_km").remove("diary_brake_fluid_months")
-            .remove("diary_coolant_km").remove("diary_coolant_months")
-            .remove("diary_gear_oil_km").remove("diary_gear_oil_months")
-            .remove("diary_wipers_months")
-            .remove("diary_battery_12v_months")
-            .remove("diary_jolt_sensitivity")
-            .apply();
-    }
-
     // --- Auto update check throttle ---
     public static long getAutoUpdateLastCheckMs(Context ctx) { return file(ctx).getLong("auto_update_last_check_ms", 0); }
     public static void setAutoUpdateLastCheckMs(Context ctx, long v) { file(ctx).edit().putLong("auto_update_last_check_ms", v).apply(); }

@@ -14,7 +14,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.geely.drivemem.R;
 import com.geely.drivemem.sensors.ImuHub;
@@ -24,9 +23,11 @@ import com.geely.drivemem.util.Style;
 
 /** Settings -> Maintenance & Diary (SEC_DIARY).
  *
- * Zero-keyboard preset pills for every tracked care interval (including Off),
- * cold-snap tire pressure nudge, accelerometer jolt sensitivity and EX2 defaults
- * reset. */
+ * The care intervals are in groups (Battery, Tires, Service & fluids), one
+ * card each. A row has its preset pills (including Off), a pencil for any other
+ * value (steppers, no keyboard) and, when the value is not the factory one,
+ * an icon that puts that row back. Plus the cold-snap tire pressure nudge and
+ * the accelerometer jolt sensitivity. */
 public final class TelemetryDiarySection extends LinearLayout {
 
     private final Activity activity;
@@ -46,122 +47,72 @@ public final class TelemetryDiarySection extends LinearLayout {
         LinearLayout rightCol = ConfigCards.column(c);
         addView(ConfigCards.columns(c, leftCol, rightCol));
 
-        // ---- Left column: Maintenance intervals ----
-        LinearLayout schedCard = ConfigCards.card(c, c.getString(R.string.cfg_diary_schedule_title));
-        ConfigCards.add(leftCol, schedCard);
-        schedCard.addView(ConfigCards.hint(c, c.getString(R.string.cfg_diary_schedule_hint)));
-
         CharSequence off = c.getString(R.string.cfg_diary_off);
 
-        // 100% LFP balancing
-        int bal = Prefs.getDiaryBalanceDays(c);
-        schedCard.addView(presetRow(c.getString(R.string.diary_cat_balance_100),
-            new CharSequence[]{off, d(7), d(15), d(30), d(60)},
-            new int[]{0, 7, 15, 30, 60}, bal,
-            v -> { Prefs.setDiaryBalanceDays(c, v); notifyChange(); }));
+        // ---- Left column: Battery, Tires, Jolt detection ----
+        LinearLayout batCard = ConfigCards.card(c, c.getString(R.string.cfg_diary_grp_battery));
+        ConfigCards.add(leftCol, batCard);
+        batCard.addView(ConfigCards.hint(c, c.getString(R.string.cfg_diary_schedule_hint)));
 
-        // Tire pressure + cold-snap toggle
-        int tp = Prefs.getDiaryTirePressureDays(c);
-        schedCard.addView(presetRow(c.getString(R.string.diary_cat_tire_pressure),
-            new CharSequence[]{off, d(15), d(30), d(60)},
-            new int[]{0, 15, 30, 60}, tp,
-            v -> { Prefs.setDiaryTirePressureDays(c, v); notifyChange(); }));
+        batCard.addView(intervalRow(new Row(c.getString(R.string.diary_cat_balance_100), K_DAYS,
+            new int[][]{{0, 0}, {7, 0}, {15, 0}, {30, 0}, {60, 0}},
+            Prefs.DIARY_DEF_BALANCE_DAYS, 0, Prefs.getDiaryBalanceDays(c), 0,
+            (a, m) -> Prefs.setDiaryBalanceDays(c, a))));
+        batCard.addView(intervalRow(new Row(c.getString(R.string.diary_cat_battery_12v), K_MONTHS,
+            new int[][]{{0, 0}, {24, 0}, {36, 0}, {48, 0}},
+            Prefs.DIARY_DEF_BATTERY_12V_MONTHS, 0, Prefs.getDiaryBattery12vMonths(c), 0,
+            (a, m) -> Prefs.setDiaryBattery12vMonths(c, a))));
 
-        schedCard.addView(Style.toggleRow(c, c.getString(R.string.cfg_diary_cold_snap),
+        LinearLayout tireCard = ConfigCards.card(c, c.getString(R.string.diary_grp_tires));
+        ConfigCards.add(leftCol, tireCard);
+        tireCard.addView(intervalRow(new Row(c.getString(R.string.diary_cat_tire_pressure), K_DAYS,
+            new int[][]{{0, 0}, {15, 0}, {30, 0}, {60, 0}},
+            Prefs.DIARY_DEF_TIRE_PRESSURE_DAYS, 0, Prefs.getDiaryTirePressureDays(c), 0,
+            (a, m) -> Prefs.setDiaryTirePressureDays(c, a))));
+        tireCard.addView(Style.toggleRow(c, c.getString(R.string.cfg_diary_cold_snap),
             Prefs.getDiaryTireColdSnap(c),
             on -> { Prefs.setDiaryTireColdSnap(c, on); notifyChange(); }));
+        tireCard.addView(intervalRow(new Row(c.getString(R.string.diary_cat_tire_rotation), K_KM,
+            new int[][]{{0, 0}, {5_000, 0}, {10_000, 0}, {15_000, 0}},
+            Prefs.DIARY_DEF_TIRE_ROTATION_KM, 0, Prefs.getDiaryTireRotationKm(c), 0,
+            (a, m) -> Prefs.setDiaryTireRotationKm(c, a))));
 
-        // Tire rotation
-        int rot = Prefs.getDiaryTireRotationKm(c);
-        schedCard.addView(presetRow(c.getString(R.string.diary_cat_tire_rotation),
-            new CharSequence[]{off, kKm(5), kKm(10), kKm(15)},
-            new int[]{0, 5_000, 10_000, 15_000}, rot,
-            v -> { Prefs.setDiaryTireRotationKm(c, v); notifyChange(); }));
+        // ---- Right column: Service & fluids ----
+        LinearLayout srvCard = ConfigCards.card(c, c.getString(R.string.cfg_diary_grp_service));
+        ConfigCards.add(rightCol, srvCard);
+        srvCard.addView(intervalRow(new Row(c.getString(R.string.diary_cat_service), K_KM_MONTHS,
+            new int[][]{{0, 0}, {10_000, 12}, {20_000, 12}, {30_000, 24}},
+            Prefs.DIARY_DEF_SERVICE_KM, Prefs.DIARY_DEF_SERVICE_MONTHS,
+            Prefs.getDiaryServiceKm(c), Prefs.getDiaryServiceMonths(c),
+            (a, m) -> Prefs.setDiaryServiceInterval(c, a, m))));
+        srvCard.addView(intervalRow(new Row(c.getString(R.string.diary_cat_cabin_filter), K_KM_MONTHS,
+            new int[][]{{0, 0}, {10_000, 12}, {20_000, 12}, {30_000, 24}},
+            Prefs.DIARY_DEF_CABIN_FILTER_KM, Prefs.DIARY_DEF_CABIN_FILTER_MONTHS,
+            Prefs.getDiaryCabinFilterKm(c), Prefs.getDiaryCabinFilterMonths(c),
+            (a, m) -> Prefs.setDiaryCabinFilterInterval(c, a, m))));
+        srvCard.addView(intervalRow(new Row(c.getString(R.string.diary_cat_brake_fluid), K_KM_MONTHS,
+            new int[][]{{0, 0}, {20_000, 12}, {40_000, 24}, {60_000, 36}},
+            Prefs.DIARY_DEF_BRAKE_FLUID_KM, Prefs.DIARY_DEF_BRAKE_FLUID_MONTHS,
+            Prefs.getDiaryBrakeFluidKm(c), Prefs.getDiaryBrakeFluidMonths(c),
+            (a, m) -> Prefs.setDiaryBrakeFluidInterval(c, a, m))));
+        srvCard.addView(intervalRow(new Row(c.getString(R.string.diary_cat_coolant), K_KM_MONTHS,
+            new int[][]{{0, 0}, {40_000, 24}, {80_000, 48}},
+            Prefs.DIARY_DEF_COOLANT_KM, Prefs.DIARY_DEF_COOLANT_MONTHS,
+            Prefs.getDiaryCoolantKm(c), Prefs.getDiaryCoolantMonths(c),
+            (a, m) -> Prefs.setDiaryCoolantInterval(c, a, m))));
+        srvCard.addView(intervalRow(new Row(c.getString(R.string.diary_cat_gear_oil), K_KM_MONTHS,
+            new int[][]{{0, 0}, {40_000, 24}, {80_000, 48}},
+            Prefs.DIARY_DEF_GEAR_OIL_KM, Prefs.DIARY_DEF_GEAR_OIL_MONTHS,
+            Prefs.getDiaryGearOilKm(c), Prefs.getDiaryGearOilMonths(c),
+            (a, m) -> Prefs.setDiaryGearOilInterval(c, a, m))));
+        srvCard.addView(intervalRow(new Row(c.getString(R.string.diary_cat_wipers), K_MONTHS,
+            new int[][]{{0, 0}, {6, 0}, {12, 0}, {24, 0}},
+            Prefs.DIARY_DEF_WIPERS_MONTHS, 0, Prefs.getDiaryWipersMonths(c), 0,
+            (a, m) -> Prefs.setDiaryWipersMonths(c, a))));
 
-        // Scheduled service (km + months paired)
-        int srvKm = Prefs.getDiaryServiceKm(c);
-        schedCard.addView(presetRow(c.getString(R.string.diary_cat_service),
-            new CharSequence[]{off, kmM(10, 12), kmM(20, 12), kmM(30, 24)},
-            new int[]{0, 10_000, 20_000, 30_000}, srvKm,
-            v -> {
-                int m = v == 0 ? 0 : (v >= 30_000 ? 24 : 12);
-                Prefs.setDiaryServiceInterval(c, v, m);
-                notifyChange();
-            }));
-
-        // Cabin filter
-        int cabKm = Prefs.getDiaryCabinFilterKm(c);
-        schedCard.addView(presetRow(c.getString(R.string.diary_cat_cabin_filter),
-            new CharSequence[]{off, kmM(10, 12), kmM(20, 12), kmM(30, 24)},
-            new int[]{0, 10_000, 20_000, 30_000}, cabKm,
-            v -> {
-                int m = v == 0 ? 0 : (v >= 30_000 ? 24 : 12);
-                Prefs.setDiaryCabinFilterInterval(c, v, m);
-                notifyChange();
-            }));
-
-        // Brake fluid
-        int bfKm = Prefs.getDiaryBrakeFluidKm(c);
-        schedCard.addView(presetRow(c.getString(R.string.diary_cat_brake_fluid),
-            new CharSequence[]{off, kmM(20, 12), kmM(40, 24), kmM(60, 36)},
-            new int[]{0, 20_000, 40_000, 60_000}, bfKm,
-            v -> {
-                int m = v == 0 ? 0 : (v == 20_000 ? 12 : (v == 60_000 ? 36 : 24));
-                Prefs.setDiaryBrakeFluidInterval(c, v, m);
-                notifyChange();
-            }));
-
-        // Coolant
-        int coolKm = Prefs.getDiaryCoolantKm(c);
-        schedCard.addView(presetRow(c.getString(R.string.diary_cat_coolant),
-            new CharSequence[]{off, kmM(40, 24), kmM(80, 48)},
-            new int[]{0, 40_000, 80_000}, coolKm,
-            v -> {
-                int m = v == 0 ? 0 : (v == 40_000 ? 24 : 48);
-                Prefs.setDiaryCoolantInterval(c, v, m);
-                notifyChange();
-            }));
-
-        // Gear oil
-        int gearKm = Prefs.getDiaryGearOilKm(c);
-        schedCard.addView(presetRow(c.getString(R.string.diary_cat_gear_oil),
-            new CharSequence[]{off, kmM(40, 24), kmM(80, 48)},
-            new int[]{0, 40_000, 80_000}, gearKm,
-            v -> {
-                int m = v == 0 ? 0 : (v == 40_000 ? 24 : 48);
-                Prefs.setDiaryGearOilInterval(c, v, m);
-                notifyChange();
-            }));
-
-        // Wipers
-        int wipM = Prefs.getDiaryWipersMonths(c);
-        schedCard.addView(presetRow(c.getString(R.string.diary_cat_wipers),
-            new CharSequence[]{off, mo(6), mo(12), mo(24)},
-            new int[]{0, 6, 12, 24}, wipM,
-            v -> { Prefs.setDiaryWipersMonths(c, v); notifyChange(); }));
-
-        // 12V battery age reminder
-        int b12M = Prefs.getDiaryBattery12vMonths(c);
-        schedCard.addView(presetRow(c.getString(R.string.diary_cat_battery_12v),
-            new CharSequence[]{off, mo(24), mo(36), mo(48)},
-            new int[]{0, 24, 36, 48}, b12M,
-            v -> { Prefs.setDiaryBattery12vMonths(c, v); notifyChange(); }));
-
-        // Reset button
-        TextView resetBtn = Style.cardButton(c, c.getString(R.string.cfg_diary_reset_btn), false, () -> {
-            Prefs.resetDiaryDefaults(c);
-            CarDiary.notifyChanged();
-            Toast.makeText(c, c.getString(R.string.cfg_diary_reset_done), Toast.LENGTH_SHORT).show();
-            rebuild();
-        });
-        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        rlp.topMargin = Style.dp(c, 18);
-        schedCard.addView(resetBtn, rlp);
-
-        // ---- Right column: Jolt detection ----
+        // ---- Left column, last: Jolt detection ----
         LinearLayout joltCard = ConfigCards.card(c, c.getString(R.string.cfg_diary_jolt_title));
-        ConfigCards.add(rightCol, joltCard);
+        ConfigCards.add(leftCol, joltCard);
         joltCard.addView(ConfigCards.hint(c, c.getString(R.string.cfg_diary_jolt_hint)));
 
         String curSens = Prefs.getDiaryJoltSensitivity(c);
@@ -270,41 +221,212 @@ public final class TelemetryDiarySection extends LinearLayout {
         return sb;
     }
 
-    private interface IntChoice { void onPick(int v); }
-    private interface StrChoice { void onPick(String v); }
+    // ---- Interval rows: presets, any other value, back to factory per row ----
 
-    private View presetRow(String label, CharSequence[] titles, int[] values, int current, IntChoice onPick) {
+    private static final int K_DAYS = 0, K_MONTHS = 1, K_KM = 2, K_KM_MONTHS = 3;
+
+    /** a = days, months or km (by kind); b = months, for K_KM_MONTHS only. 0 = Off. */
+    private interface Setter { void set(int a, int b); }
+
+    private static final class Row {
+        final String label; final int kind; final int[][] presets;
+        final int defA, defB, curA, curB; final Setter set;
+        Row(String label, int kind, int[][] presets, int defA, int defB, int curA, int curB, Setter set) {
+            this.label = label; this.kind = kind; this.presets = presets;
+            this.defA = defA; this.defB = defB; this.curA = curA; this.curB = curB; this.set = set;
+        }
+        boolean is(int a, int b) { return curA == a && (kind != K_KM_MONTHS || a == 0 || curB == b); }
+        boolean isPreset() {
+            for (int[] p : presets) if (is(p[0], p[1])) return true;
+            return false;
+        }
+    }
+
+    private CharSequence valueTitle(int kind, int a, int b) {
+        if (a == 0) return activity.getString(R.string.cfg_diary_off);
+        switch (kind) {
+            case K_DAYS: return d(a);
+            case K_MONTHS: return mo(a);
+            case K_KM: return kKm(a / 1000);
+            default: return kmM(a / 1000, b);
+        }
+    }
+
+    private void apply(Row r, int a, int b) {
+        r.set.set(a, a == 0 ? 0 : b);
+        notifyChange();
+    }
+
+    private View intervalRow(Row r) {
         Context c = activity;
         LinearLayout wrap = new LinearLayout(c);
         wrap.setOrientation(VERTICAL);
         LinearLayout.LayoutParams wlp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        wlp.topMargin = Style.dp(c, 12);
+        wlp.topMargin = Style.dp(c, 6);
         wrap.setLayoutParams(wlp);
 
+        // Head: name, the value when it is not a preset, and the row's reset icon.
+        LinearLayout head = new LinearLayout(c);
+        head.setOrientation(HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
         TextView lbl = new TextView(c);
-        lbl.setText(label);
+        lbl.setText(r.label);
         lbl.setTextColor(Style.TEXT);
         lbl.setTextSize(18f);
         lbl.setTypeface(null, Typeface.BOLD);
-        wrap.addView(lbl);
+        head.addView(lbl, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        boolean custom = !r.isPreset();
+        if (custom) {
+            TextView val = new TextView(c);
+            val.setText(styleUnits(valueTitle(r.kind, r.curA, r.curB), Style.ACCENT, Style.cardFillColor()));
+            val.setTextColor(Style.ACCENT);
+            val.setTextSize(18f);
+            val.setTypeface(null, Typeface.BOLD);
+            head.addView(val);
+        }
+        android.widget.ImageView reset = new android.widget.ImageView(c);
+        reset.setImageResource(R.drawable.ic_sync_reset);
+        reset.setColorFilter(Style.TEXT_DIM, android.graphics.PorterDuff.Mode.SRC_IN);
+        reset.setContentDescription(c.getString(R.string.cfg_diary_row_reset));
+        int rp = Style.dp(c, 10);
+        reset.setPadding(Style.dp(c, 18), rp, Style.dp(c, 18), rp);
+        reset.setVisibility(r.is(r.defA, r.defB) ? INVISIBLE : VISIBLE);   // keeps the row height
+        reset.setOnClickListener(v -> apply(r, r.defA, r.defB));
+        head.addView(reset, new LinearLayout.LayoutParams(Style.dp(c, 60), Style.dp(c, 44)));
+        wrap.addView(head);
 
         LinearLayout pills = new LinearLayout(c);
         pills.setOrientation(HORIZONTAL);
-        LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        plp.topMargin = Style.dp(c, 8);
-        for (int i = 0; i < titles.length; i++) {
-            final int val = values[i];
-            boolean sel = (val == current);
-            TextView pill = buildPill(titles[i], sel, () -> onPick.onPick(val));
+        for (int i = 0; i < r.presets.length; i++) {
+            final int a = r.presets[i][0], b = r.presets[i][1];
+            TextView pill = buildPill(valueTitle(r.kind, a, b), r.is(a, b), () -> apply(r, a, b));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             if (i > 0) lp.leftMargin = Style.dp(c, 8);
             pills.addView(pill, lp);
         }
-        wrap.addView(pills, plp);
+        // Any other value: a pencil pill, filled when the value is not a preset.
+        android.widget.ImageView pen = new android.widget.ImageView(c);
+        pen.setImageResource(R.drawable.ic_edit_outline);
+        pen.setColorFilter(custom ? Style.onFill(Style.ACCENT) : Style.TEXT_DIM,
+            android.graphics.PorterDuff.Mode.SRC_IN);
+        pen.setContentDescription(c.getString(R.string.cfg_diary_custom));
+        int pp = Style.dp(c, 17);
+        pen.setPadding(pp, pp, pp, pp);
+        GradientDrawable pbg = new GradientDrawable();
+        pbg.setCornerRadius(Style.dp(c, 14));
+        if (custom) {
+            pbg.setColor(Style.ACCENT);
+        } else {
+            pbg.setColor(Style.CARD_HI);
+            pbg.setStroke(Style.dp(c, 1), Style.tileStrokeColor());
+        }
+        pen.setBackground(pbg);
+        pen.setOnClickListener(v -> showCustomDialog(r));
+        LinearLayout.LayoutParams penLp = new LinearLayout.LayoutParams(Style.dp(c, 60), Style.dp(c, 60));
+        penLp.leftMargin = Style.dp(c, 8);
+        pills.addView(pen, penLp);
+        wrap.addView(pills);
         return wrap;
     }
+
+    /** Steppers for any value, no keyboard. Small step and big step per unit. */
+    private void showCustomDialog(Row r) {
+        Context c = activity;
+        android.app.Dialog dialog = new android.app.Dialog(c);
+        dialog.setCanceledOnTouchOutside(true);
+        LinearLayout root = new LinearLayout(c);
+        root.setOrientation(VERTICAL);
+        int pad = Style.dp(c, 32);
+        root.setPadding(pad, pad, pad, pad);
+        root.setBackground(Style.card(Style.cardFillColor(), c));
+        root.addView(Style.title(c, r.label));
+
+        // Start from the current value, or from the factory one when the row is Off.
+        final int[] val = {r.curA > 0 ? r.curA : r.defA, r.curA > 0 ? r.curB : r.defB};
+        if (r.kind == K_KM_MONTHS && val[1] <= 0) val[1] = r.defB;
+
+        int firstKind = (r.kind == K_KM_MONTHS) ? K_KM : r.kind;
+        root.addView(stepper(val, 0, firstKind));
+        if (r.kind == K_KM_MONTHS) root.addView(stepper(val, 1, K_MONTHS));
+
+        LinearLayout btns = new LinearLayout(c);
+        btns.setOrientation(HORIZONTAL);
+        btns.setGravity(Gravity.END);
+        TextView cancel = Style.cardButton(c, c.getString(R.string.cfg_diary_cancel), false, dialog::dismiss);
+        TextView save = Style.cardButton(c, c.getString(R.string.diary_btn_save), true, () -> {
+            dialog.dismiss();
+            apply(r, val[0], val[1]);
+        });
+        btns.addView(cancel);
+        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        slp.leftMargin = Style.dp(c, 12);
+        btns.addView(save, slp);
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        blp.topMargin = Style.dp(c, 24);
+        root.addView(btns, blp);
+
+        dialog.setContentView(root);
+        android.view.Window window = dialog.getWindow();
+        if (window != null) window.setLayout(Style.dp(c, 760), ViewGroup.LayoutParams.WRAP_CONTENT);
+        dialog.show();
+        if (window != null) window.setLayout(Style.dp(c, 760), ViewGroup.LayoutParams.WRAP_CONTENT);
+    }
+
+    /** Pure: one stepper press. Days 1..365, months 1..120, km 1,000..200,000. */
+    static int step(int kind, int value, int delta) {
+        int min = kind == K_KM ? 1_000 : 1;
+        int max = kind == K_KM ? 200_000 : (kind == K_MONTHS ? 120 : 365);
+        return Math.max(min, Math.min(max, value + delta));
+    }
+
+    /** [--] [-]  value  [+] [++] for val[idx]. */
+    private View stepper(int[] val, int idx, int kind) {
+        Context c = activity;
+        final int small = kind == K_KM ? 1_000 : 1;
+        final int big = kind == K_KM ? 5_000 : (kind == K_MONTHS ? 6 : 5);
+        LinearLayout row = new LinearLayout(c);
+        row.setOrientation(HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        rlp.topMargin = Style.dp(c, 20);
+        row.setLayoutParams(rlp);
+
+        final TextView num = new TextView(c);
+        num.setTextSize(32f);
+        num.setTypeface(null, Typeface.BOLD);
+        num.setTextColor(Style.TEXT);
+        num.setGravity(Gravity.CENTER);
+        final Runnable show = () -> num.setText(styleUnits(
+            valueTitle(kind, val[idx], 0), Style.TEXT, Style.cardFillColor()));
+        show.run();
+
+        int[] deltas = {-big, -small, small, big};
+        String[] names = {"\u2212" + stepName(kind, big), "\u2212" + stepName(kind, small),
+            "+" + stepName(kind, small), "+" + stepName(kind, big)};
+        for (int i = 0; i < 4; i++) {
+            if (i == 2) row.addView(num, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            final int dlt = deltas[i];
+            TextView b = buildPill(names[i], false, () -> {
+                val[idx] = step(kind, val[idx], dlt);
+                show.run();
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Style.dp(c, 96), ViewGroup.LayoutParams.WRAP_CONTENT);
+            if (i == 1 || i == 3) lp.leftMargin = Style.dp(c, 8);
+            row.addView(b, lp);
+        }
+        return row;
+    }
+
+    /** "5" for days and months, "5" (thousand) for km: the unit is in the value. */
+    private static String stepName(int kind, int step) {
+        return String.valueOf(kind == K_KM ? step / 1000 : step);
+    }
+
+    private interface StrChoice { void onPick(String v); }
 
     private View stringPillRow(CharSequence[] titles, String[] keys, String current, StrChoice onPick) {
         Context c = activity;

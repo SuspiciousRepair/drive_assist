@@ -903,8 +903,11 @@
     <string name="cfg_diary_unit_months">m</string>
     <string name="cfg_diary_unit_thousand_km">mil km</string>
     <string name="cfg_diary_cold_snap">Aviso de presión por ola de frío (-10 °C)</string>
-    <string name="cfg_diary_reset_btn">Restaurar valores EX2</string>
-    <string name="cfg_diary_reset_done">Intervalos predeterminados del Geely EX2 restaurados</string>
+    <string name="cfg_diary_grp_battery">Batería</string>
+    <string name="cfg_diary_grp_service">Revisión y fluidos</string>
+    <string name="cfg_diary_custom">Otro valor</string>
+    <string name="cfg_diary_row_reset">Volver al valor de fábrica</string>
+    <string name="cfg_diary_cancel">Cancelar</string>
     <string name="cfg_diary_jolt_title">Detección de impactos</string>
     <string name="cfg_diary_jolt_hint">Por encima de 10 km/h, un golpe fuerte sugiere un registro de incidente con clip.</string>
     <string name="cfg_diary_jolt_low">Baja (1,1 g)</string>

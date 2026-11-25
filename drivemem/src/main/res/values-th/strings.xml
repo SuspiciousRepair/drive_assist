@@ -920,8 +920,11 @@
     <string name="cfg_diary_unit_months">เดือน</string>
     <string name="cfg_diary_unit_thousand_km">พัน กม.</string>
     <string name="cfg_diary_cold_snap">เตือนตรวจลมยางเมื่ออุณหภูมิลด (-10 °C)</string>
-    <string name="cfg_diary_reset_btn">คืนค่าเริ่มต้น EX2</string>
-    <string name="cfg_diary_reset_done">คืนค่าระยะเริ่มต้นของ Geely EX2 แล้ว</string>
+    <string name="cfg_diary_grp_battery">แบตเตอรี่</string>
+    <string name="cfg_diary_grp_service">บริการและของเหลว</string>
+    <string name="cfg_diary_custom">ค่าอื่น</string>
+    <string name="cfg_diary_row_reset">กลับเป็นค่าโรงงาน</string>
+    <string name="cfg_diary_cancel">ยกเลิก</string>
     <string name="cfg_diary_jolt_title">ตรวจจับแรงกระแทก</string>
     <string name="cfg_diary_jolt_hint">เมื่อขับเกิน 10 km/h แรงกระแทกแรงจะแนะนำให้บันทึกเหตุการณ์พร้อมคลิป</string>
     <string name="cfg_diary_jolt_low">ต่ำ (1.1 g)</string>

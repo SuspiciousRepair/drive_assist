@@ -931,8 +931,11 @@
     <string name="cfg_diary_unit_months">mo</string>
     <string name="cfg_diary_unit_thousand_km">k km</string>
     <string name="cfg_diary_cold_snap">Cold-snap tire pressure nudge (-10 °C)</string>
-    <string name="cfg_diary_reset_btn">Reset to EX2 defaults</string>
-    <string name="cfg_diary_reset_done">Restored Geely EX2 default intervals</string>
+    <string name="cfg_diary_grp_battery">Battery</string>
+    <string name="cfg_diary_grp_service">Service &amp; fluids</string>
+    <string name="cfg_diary_custom">Other value</string>
+    <string name="cfg_diary_row_reset">Back to factory default</string>
+    <string name="cfg_diary_cancel">Cancel</string>
     <string name="cfg_diary_jolt_title">Impact &amp; jolt detection</string>
     <string name="cfg_diary_jolt_hint">Above 10 km/h, a hard jolt queues an incident note with an optional dashcam clip.</string>
     <string name="cfg_diary_jolt_low">Low (1.1 g)</string>
