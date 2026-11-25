@@ -1315,6 +1315,9 @@ public final class DiaryEntryDialog {
                 adaptiveBox.addView(jRow);
             }
 
+            // A car with no dashcam has no file to cut the clip from: no switch.
+            if (noDashcam(c)) return;
+
             // Full-width recessed well toggle: Save 5s dashcam clip
             LinearLayout clipWell = new LinearLayout(c);
             clipWell.setOrientation(LinearLayout.HORIZONTAL);
@@ -1335,6 +1338,10 @@ public final class DiaryEntryDialog {
             sw.setOnToggle(on -> saveClip = on);
             clipWell.addView(sw);
             adaptiveBox.addView(clipWell);
+        }
+
+        private static boolean noDashcam(Context c) {
+            return com.geely.drivemem.util.CarCaps.blocksDashcam(com.geely.drivemem.util.CarCaps.read(c));
         }
 
         /** Yearly cover with its own end date: insurance, tax and licensing. */
@@ -1670,7 +1677,7 @@ public final class DiaryEntryDialog {
                 Double lat = jolt != null ? jolt.lat : null;
                 Double lon = jolt != null ? jolt.lon : null;
                 String meta = jolt != null ? CarDiary.buildJoltMeta(jolt.maxG(), jolt.speedKmh) : null;
-                boolean captureClip = (jolt != null && saveClip);
+                boolean captureClip = (jolt != null && saveClip && !noDashcam(app));
                 if (jolt != null) {
                     com.geely.drivemem.sensors.JoltFeedback.record(app, jolt, true);
                 }
