@@ -91,6 +91,14 @@ public final class ImuHub {
 
     private ImuHub() {}
 
+    /** True when the head unit has the motion sensor the impact detection
+     * reads. Screens hide the impact settings without it. */
+    public static boolean hasSensor(Context ctx) {
+        if (ctx == null) return false;
+        SensorManager sm = (SensorManager) ctx.getSystemService(Context.SENSOR_SERVICE);
+        return sm != null && sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) != null;
+    }
+
     /** Idempotent; called once from DriveMemApplication.onCreate(). */
     public static synchronized void ensureStarted(Context ctx) {
         if (started || ctx == null) return;

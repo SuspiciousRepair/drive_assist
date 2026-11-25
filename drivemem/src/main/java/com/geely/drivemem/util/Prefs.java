@@ -370,6 +370,13 @@ public final class Prefs {
     /** Schedules the owner added, and overrides of built-in ones: see CarDiary.parseExtras. */
     public static String getDiaryExtraSchedules(Context ctx) { return file(ctx).getString("diary_extra_sched", ""); }
     public static void setDiaryExtraSchedules(Context ctx, String v) { file(ctx).edit().putString("diary_extra_sched", v).apply(); }
+    /** The day the owner got the car, as an epoch day; -1 = not set. First-time
+     * maintenance counts its months from it (CarDiary.computeDueStatuses). */
+    public static long getDiaryPickupDay(Context ctx) { return file(ctx).getLong("diary_pickup_day", -1L); }
+    public static void setDiaryPickupDay(Context ctx, long epochDay) { file(ctx).edit().putLong("diary_pickup_day", epochDay).apply(); }
+    /** The odometer on that day (a used car); 0 for a new car. */
+    public static int getDiaryPickupKm(Context ctx) { return file(ctx).getInt("diary_pickup_km", 0); }
+    public static void setDiaryPickupKm(Context ctx, int km) { file(ctx).edit().putInt("diary_pickup_km", Math.max(0, km)).apply(); }
     public static String getDiaryJoltSensitivity(Context ctx) { return file(ctx).getString("diary_jolt_sensitivity", "medium"); }
     public static void setDiaryJoltSensitivity(Context ctx, String level) { file(ctx).edit().putString("diary_jolt_sensitivity", level).apply(); }
     // --- Auto update check throttle ---

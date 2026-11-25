@@ -211,6 +211,12 @@ public final class DiaryEntryDialog {
         // Coolant mode (default Top-up so topping off doesn't reset the 4-year / 80k flush clock)
         private boolean coolantTopUp = true;
 
+        // "Postponed": the shop looked at the item and said to wait until a km or a day.
+        private boolean postponed;
+        private Integer postponeKm;
+        private LocalDate postponeDate;
+        private EditText postponeKmInput;
+
         // UI references
         private LinearLayout leftHeaderHost;
         private LinearLayout leftListHost;
@@ -264,6 +270,13 @@ public final class DiaryEntryDialog {
                 originalCold = CarDiary.parseCold(editing.metaJson);
                 Boolean topUp = CarDiary.parseTopUp(editing.metaJson);
                 if (topUp != null) coolantTopUp = topUp;
+                if (CarDiary.isPostponed(editing.metaJson)) {
+                    postponed = true;
+                    Double pk = CarDiary.parsePostponedKm(editing.metaJson);
+                    if (pk != null) postponeKm = (int) Math.round(pk);
+                    Long pd = CarDiary.parsePostponedDay(editing.metaJson);
+                    if (pd != null) postponeDate = LocalDate.ofEpochDay(pd);
+                }
                 bundled.addAll(CarDiary.parseBundled(editing.metaJson));
                 Long until = CarDiary.parseValidUntilMs(editing.metaJson);
                 if (until != null) {
@@ -833,187 +846,12 @@ public final class DiaryEntryDialog {
          * (the end date of an insurance policy). */
         private void openCalendar(LocalDate calSelected, boolean allowFuture,
                                   java.util.function.Consumer<LocalDate> onPick) {
-            final LocalDate today = LocalDate.now();
-            final YearMonth currentYm = YearMonth.from(today);
-            final YearMonth[] shown = {YearMonth.from(calSelected)};
-
-            LinearLayout card = new LinearLayout(c);
-            card.setOrientation(LinearLayout.VERTICAL);
-            card.setBackground(roundedRect(Style.CARD, strongBorderColor(), 1, 24));
-            int p = Style.dp(c, 22);
-            card.setPadding(p, p, p, p);
-
-            // Header: [<]  Month YYYY  [>]
-            LinearLayout head = new LinearLayout(c);
-            head.setOrientation(LinearLayout.HORIZONTAL);
-            head.setGravity(Gravity.CENTER_VERTICAL);
-
-            TextView prevBtn = calNavBtn("‹");
-            TextView monthTitle = new TextView(c);
-            monthTitle.setTextColor(Style.TEXT);
-            monthTitle.setTextSize(22f);
-            monthTitle.setTypeface(null, Typeface.BOLD);
-            monthTitle.setGravity(Gravity.CENTER);
-            TextView nextBtn = calNavBtn("›");
-
-            head.addView(prevBtn);
-            head.addView(monthTitle, new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            head.addView(nextBtn);
-            card.addView(head);
-
-            // Weekday row (Sun .. Sat)
-            LinearLayout wdRow = new LinearLayout(c);
-            wdRow.setOrientation(LinearLayout.HORIZONTAL);
-            LinearLayout.LayoutParams wlp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            wlp.topMargin = Style.dp(c, 16);
-            wlp.bottomMargin = Style.dp(c, 6);
-            Locale loc = Locale.getDefault();
-            DayOfWeek[] order = {
-                DayOfWeek.SUNDAY, DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
-                DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY
-            };
-            for (DayOfWeek dow : order) {
-                TextView w = new TextView(c);
-                w.setText(dow.getDisplayName(TextStyle.SHORT, loc));
-                w.setTextColor(Style.TEXT_DIM);
-                w.setTextSize(18f);
-                w.setTypeface(null, Typeface.BOLD);
-                w.setGravity(Gravity.CENTER);
-                wdRow.addView(w, new LinearLayout.LayoutParams(
-                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            }
-            card.addView(wdRow, wlp);
-
-            // 6x7 day grid container
-            LinearLayout gridHost = new LinearLayout(c);
-            gridHost.setOrientation(LinearLayout.VERTICAL);
-            card.addView(gridHost, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-            // Footer: Today (left) + Cancel (right)
-            LinearLayout foot = new LinearLayout(c);
-            foot.setOrientation(LinearLayout.HORIZONTAL);
-            foot.setGravity(Gravity.CENTER_VERTICAL);
-            LinearLayout.LayoutParams flp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            flp.topMargin = Style.dp(c, 14);
-
             if (calDialog != null) {
                 try { calDialog.dismiss(); } catch (Throwable ignored) {}
             }
-            AlertDialog calDlg = new AlertDialog.Builder(c).create();
-            calDlg.setView(card, 0, 0, 0, 0);
+            AlertDialog calDlg = DiaryCalendar.open(c, calSelected, allowFuture, onPick);
             calDialog = calDlg;
             calDlg.setOnDismissListener(d -> { if (calDialog == calDlg) calDialog = null; });
-
-            TextView todayBtn = Style.cardButton(c, c.getString(R.string.diary_date_today), false, () -> {
-                onPick.accept(today);
-                calDlg.dismiss();
-            });
-            foot.addView(todayBtn);
-            foot.addView(new View(c), new LinearLayout.LayoutParams(0, 1, 1f));
-            TextView closeBtn = Style.cardButton(c, c.getString(android.R.string.cancel), false, calDlg::dismiss);
-            foot.addView(closeBtn);
-            card.addView(foot, flp);
-
-            Runnable renderMonth = () -> {
-                YearMonth ym = shown[0];
-                String raw = monthYearFmt.format(ym.atDay(1));
-                String cap = raw.isEmpty() ? raw
-                    : raw.substring(0, 1).toUpperCase(loc) + raw.substring(1);
-                monthTitle.setText(cap);
-
-                boolean canNext = ym.isBefore(currentYm);
-                nextBtn.setEnabled(canNext);
-                nextBtn.setAlpha(canNext ? 1f : 0.28f);
-
-                gridHost.removeAllViews();
-                LocalDate first = ym.atDay(1);
-                int leadBlanks = first.getDayOfWeek().getValue() % 7; // Sunday=0..Saturday=6
-                int daysInMonth = ym.lengthOfMonth();
-                int rows = (leadBlanks + daysInMonth + 6) / 7;
-
-                for (int r = 0; r < rows; r++) {
-                    LinearLayout row = new LinearLayout(c);
-                    row.setOrientation(LinearLayout.HORIZONTAL);
-                    for (int col = 0; col < 7; col++) {
-                        int dayNum = r * 7 + col - leadBlanks + 1;
-                        TextView cell = new TextView(c);
-                        cell.setGravity(Gravity.CENTER);
-                        cell.setTextSize(18f);
-                        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(
-                            0, Style.dp(c, 58), 1f);
-                        clp.setMargins(Style.dp(c, 3), Style.dp(c, 3), Style.dp(c, 3), Style.dp(c, 3));
-
-                        if (dayNum < 1 || dayNum > daysInMonth) {
-                            cell.setText("");
-                        } else {
-                            LocalDate d = ym.atDay(dayNum);
-                            boolean future = !allowFuture && d.isAfter(today);
-                            boolean isSel = d.equals(calSelected);
-                            boolean isTod = d.equals(today);
-                            cell.setText(String.valueOf(dayNum));
-                            if (future) {
-                                cell.setTextColor(withAlpha(Style.TEXT_DIM, 0.30f));
-                            } else if (isSel) {
-                                cell.setTextColor(Style.onFill(Style.ACCENT));
-                                cell.setTypeface(null, Typeface.BOLD);
-                                cell.setBackground(roundedRect(Style.ACCENT, 0, 0, 14));
-                            } else if (isTod) {
-                                cell.setTextColor(Style.TEXT);
-                                cell.setTypeface(null, Typeface.BOLD);
-                                cell.setBackground(roundedRect(Color.TRANSPARENT, Style.ACCENT, 2, 14));
-                            } else {
-                                cell.setTextColor(Style.TEXT);
-                                cell.setBackground(roundedRect(Style.CARD_HI, 0, 0, 14));
-                            }
-                            if (!future) {
-                                cell.setOnClickListener(v -> {
-                                    onPick.accept(d);
-                                    calDlg.dismiss();
-                                });
-                            }
-                        }
-                        row.addView(cell, clp);
-                    }
-                    gridHost.addView(row);
-                }
-            };
-
-            prevBtn.setOnClickListener(v -> {
-                shown[0] = shown[0].minusMonths(1);
-                renderMonth.run();
-            });
-            nextBtn.setOnClickListener(v -> {
-                if (allowFuture || shown[0].isBefore(currentYm)) {
-                    shown[0] = shown[0].plusMonths(1);
-                    renderMonth.run();
-                }
-            });
-            renderMonth.run();
-
-            Window win = calDlg.getWindow();
-            if (win != null) {
-                win.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-            }
-            calDlg.show();
-            if (win != null) {
-                win.setLayout(Style.dp(c, 560), ViewGroup.LayoutParams.WRAP_CONTENT);
-            }
-        }
-
-        private TextView calNavBtn(String glyph) {
-            TextView b = new TextView(c);
-            b.setText(glyph);
-            b.setTextColor(Style.TEXT);
-            b.setTextSize(26f);
-            b.setGravity(Gravity.CENTER);
-            b.setBackground(roundedRect(Style.CARD_HI, strongBorderColor(), 1, 99));
-            int sz = Style.dp(c, TOUCH_DP);
-            b.setLayoutParams(new LinearLayout.LayoutParams(sz, sz));
-            return b;
         }
 
         /** Sets the odometer for selectedDate. The value of the old date is
@@ -1080,7 +918,10 @@ public final class DiaryEntryDialog {
 
             stashCoverageInputs();
             stashTicketInputs();
+            stashPostponeInput();
             adaptiveBox.removeAllViews();
+            boolean canPostpone = canPostpone(selectedCat);
+            if (canPostpone) buildPostponeControls();
             if (selectedCat == CarDiary.Category.TRAFFIC_TICKET) {
                 adaptiveBox.setVisibility(View.VISIBLE);
                 buildTicketControls();
@@ -1101,10 +942,119 @@ public final class DiaryEntryDialog {
                 buildServiceBundles();
             } else if (selectedCat == CarDiary.Category.COOLANT) {
                 adaptiveBox.setVisibility(View.VISIBLE);
-                buildCoolantControls();
+                // Top-up or change is a question for a done job only.
+                if (!postponed) buildCoolantControls();
             } else {
-                adaptiveBox.setVisibility(View.GONE);
+                adaptiveBox.setVisibility(canPostpone ? View.VISIBLE : View.GONE);
             }
+        }
+
+        /** An item with a schedule can be postponed. Not the service visit
+         * itself, and not tire pressure (nothing to wait for). */
+        private boolean canPostpone(CarDiary.Category cat) {
+            if (cat == null || cat == CarDiary.Category.SERVICE
+                    || cat == CarDiary.Category.TIRE_PRESSURE || hasCoverage(cat)) return false;
+            CarDiary.ScheduleConfig cfg = CarDiary.ScheduleConfig.fromPrefs(c);
+            return cfg.kmInterval(cat) != null || cfg.dayInterval(cat) != null;
+        }
+
+        /** True when the item is due by distance: it is postponed to a km, else to a day. */
+        private boolean postponeByKm() {
+            return CarDiary.ScheduleConfig.fromPrefs(c).kmInterval(selectedCat) != null;
+        }
+
+        private void stashPostponeInput() {
+            if (postponeKmInput != null) {
+                String t = postponeKmInput.getText().toString().replaceAll("[^0-9]", "");
+                try { postponeKm = t.isEmpty() ? null : Integer.valueOf(t); }
+                catch (NumberFormatException e) { postponeKm = null; }
+            }
+            postponeKmInput = null;
+        }
+
+        /** [Done | Postponed], and for Postponed the point to wait for:
+         * "Until  [30000] km" or "Until  [12 May 27]". */
+        private void buildPostponeControls() {
+            LinearLayout seg = new LinearLayout(c);
+            seg.setOrientation(LinearLayout.HORIZONTAL);
+            seg.setBackground(roundedRect(wellFill(), borderColor(), 1, 99));
+            int sp = Style.dp(c, 4);
+            seg.setPadding(sp, sp, sp, sp);
+            seg.addView(segBtn(c.getString(R.string.diary_postpone_done), !postponed, () -> {
+                postponed = false;
+                rebuildAdaptive();
+            }));
+            seg.addView(segBtn(c.getString(R.string.diary_postpone_later), postponed, () -> {
+                postponed = true;
+                rebuildAdaptive();
+            }));
+            LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            slp.bottomMargin = Style.dp(c, 12);
+            adaptiveBox.addView(seg, slp);
+            if (!postponed) return;
+
+            LinearLayout row = new LinearLayout(c);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            TextView lbl = new TextView(c);
+            lbl.setText(c.getString(R.string.diary_postpone_until));
+            lbl.setTextColor(Style.TEXT);
+            lbl.setTextSize(18f);
+            row.addView(lbl, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+            LinearLayout well = new LinearLayout(c);
+            well.setOrientation(LinearLayout.HORIZONTAL);
+            well.setGravity(Gravity.CENTER);
+            well.setBackground(roundedRect(wellFill(), borderColor(), 1, 18));
+            well.setPadding(Style.dp(c, 18), Style.dp(c, 8), Style.dp(c, 18), Style.dp(c, 8));
+            well.setMinimumHeight(Style.dp(c, TOUCH_DP));
+            if (postponeByKm()) {
+                // First value: 10,000 km on from the odometer of the entry, in round thousands.
+                if (postponeKm == null && resolvedOdoKm != null) {
+                    postponeKm = (int) (Math.ceil((resolvedOdoKm + 10_000.0) / 1_000.0) * 1_000.0);
+                }
+                postponeKmInput = bareInput(InputType.TYPE_CLASS_NUMBER, "", 22f, true);
+                postponeKmInput.setFilters(new android.text.InputFilter[]{
+                    new android.text.InputFilter.LengthFilter(6)});
+                postponeKmInput.setGravity(Gravity.CENTER);
+                if (postponeKm != null) postponeKmInput.setText(String.valueOf(postponeKm));
+                well.addView(postponeKmInput, new LinearLayout.LayoutParams(
+                    Style.dp(c, 120), ViewGroup.LayoutParams.WRAP_CONTENT));
+                TextView unit = new TextView(c);
+                unit.setText("km");
+                unit.setTextColor(Style.TEXT_DIM);
+                unit.setTextSize(18f);
+                unit.setPadding(Style.dp(c, 6), 0, 0, 0);
+                well.addView(unit);
+            } else {
+                if (postponeDate == null) postponeDate = selectedDate.plusMonths(6);
+                TextView day = new TextView(c);
+                day.setText(postponeDate.format(java.time.format.DateTimeFormatter
+                    .ofLocalizedDate(java.time.format.FormatStyle.MEDIUM)));
+                day.setTextColor(Style.TEXT);
+                day.setTextSize(22f);
+                day.setTypeface(null, Typeface.BOLD);
+                well.addView(day);
+                well.setOnClickListener(v -> openCalendar(postponeDate, true, d -> {
+                    postponeDate = d;
+                    rebuildAdaptive();
+                }));
+            }
+            LinearLayout.LayoutParams wlp = new LinearLayout.LayoutParams(
+                Style.dp(c, 220), ViewGroup.LayoutParams.WRAP_CONTENT);
+            row.addView(well, wlp);
+            adaptiveBox.addView(row);
+        }
+
+        /** The meta of a postponed entry, or null when the entry is a done job
+         * (or has no point to wait for yet). */
+        private String postponeMeta(CarDiary.Category cat) {
+            if (!postponed || !canPostpone(cat)) return null;
+            stashPostponeInput();
+            return postponeByKm()
+                ? CarDiary.buildPostponedMeta(postponeKm, null)
+                : CarDiary.buildPostponedMeta(null, postponeDate != null ? postponeDate.toEpochDay() : null);
         }
 
         private void buildTirePressureControls() {
@@ -1591,6 +1541,12 @@ public final class DiaryEntryDialog {
             // The odometer for the picked date is still being read: Save is
             // greyed out until it lands (see setOdoPending).
             if (odoPending) return;
+            // Postponed with no km to wait for: nothing to record yet.
+            if (postponed && canPostpone(selectedCat) && postponeMeta(selectedCat) == null) {
+                rebuildAdaptive();
+                if (postponeKmInput != null) postponeKmInput.requestFocus();
+                return;
+            }
             final Double odo = resolvedOdoKm;
             long cents = ChargeCostDialog.centsFromText(costInput.getText().toString());
             final Double cost = cents > 0 ? (cents / 100.0) : null;
@@ -1640,7 +1596,10 @@ public final class DiaryEntryDialog {
                         ? CarDiary.STATUS_OPEN : CarDiary.STATUS_DONE;
                 }
                 String meta = null;
-                if (hasCoverage(cat)) {
+                String pmeta = postponeMeta(cat);
+                if (pmeta != null) {
+                    meta = pmeta;
+                } else if (hasCoverage(cat)) {
                     meta = coverageMeta();
                 } else if (cat == CarDiary.Category.TIRE_PRESSURE) {
                     meta = CarDiary.buildTirePressureMeta(psi[0], psi[1], psi[2], psi[3], originalCold);
@@ -1686,7 +1645,10 @@ public final class DiaryEntryDialog {
                     null, note, tags, meta, jolt != null ? jolt.id : null, onSaved);
             } else {
                 String meta = null;
-                if (hasCoverage(cat)) {
+                String pmeta = postponeMeta(cat);
+                if (pmeta != null) {
+                    meta = pmeta;
+                } else if (hasCoverage(cat)) {
                     meta = coverageMeta();
                 } else if (cat == CarDiary.Category.SERVICE && !bundled.isEmpty()) {
                     meta = CarDiary.buildServiceBundledMeta(new ArrayList<>(bundled));

@@ -106,6 +106,12 @@ você faz no carro e quanto custa:
   Manutenção**: mude com as setas, toque no valor para digitar qualquer número,
   e adicione uma agenda a um item que não tem. Uma linha alterada mostra um
   ícone para voltar ao padrão.
+  Informe a **data de retirada** em **Meu carro** (e o hodômetro naquele dia,
+  para um usado): a primeira revisão passa a contar os 12 meses a partir dela.
+- **Adiado**: quando a oficina olha uma peça que está vencendo e diz para
+  esperar, adicione um registro daquele item e escolha **Adiado**, com o
+  hodômetro (ou o dia) até quando esperar. O item volta a vencer naquele ponto;
+  não conta como trocado.
 - **Custo total**: quanto o carro custou no período escolhido, em quatro
   grupos. Toque no cartão para ver em dinheiro, por km ou em porcentagem.
 - **Saúde das baterias**: a bateria principal (o estado de saúde precisa de um

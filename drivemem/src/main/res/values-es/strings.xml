@@ -949,4 +949,12 @@
     <string name="stats_map_routes_latest">Últimas %1$d rutas</string>
     <string name="stats_map_charges_title">Lugares de carga</string>
     <string name="stats_map_routes_none">No hay rutas registradas en este período.</string>
+    <string name="cfg_diary_car_title">Mi coche</string>
+    <string name="cfg_diary_pickup_date">Fecha de entrega</string>
+    <string name="cfg_diary_pickup_km">Km en la entrega</string>
+    <string name="cfg_diary_set">Definir</string>
+    <string name="diary_postpone_done">Hecho</string>
+    <string name="diary_postpone_later">Aplazado</string>
+    <string name="diary_postpone_until">Hasta</string>
+    <string name="diary_postponed_until">Aplazado hasta %1$s</string>
 </resources>

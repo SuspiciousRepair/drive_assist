@@ -1306,6 +1306,10 @@ public final class CarDiaryView extends LinearLayout {
                 sb.append("\u260E ").append(phone);
             }
         }
+        if (CarDiary.isPostponed(e.metaJson)) {
+            if (sb.length() > 0) sb.append(" · ");
+            sb.append(postponedText(c, e));
+        }
         if (e.category == CarDiary.Category.COOLANT) {
             Boolean topUp = CarDiary.parseTopUp(e.metaJson);
             if (topUp != null) {
@@ -1386,7 +1390,9 @@ public final class CarDiaryView extends LinearLayout {
                 : ((d.overdue || d.dueSoon) ? Style.WARN : Style.ACCENT);
             CharSequence sub;
             Double cfgKm = cfg != null ? cfg.kmInterval(d.category) : d.category.kmInterval;
-            if (d.lastEntry != null) {
+            if (d.postponedBy != null) {
+                sub = postponedText(c, d.postponedBy);
+            } else if (d.lastEntry != null) {
                 sub = c.getString(R.string.diary_last_prefix, fmt.format(new Date(d.lastEntry.tsMs)));
             } else if (d.kmRemaining != null && cfgKm != null) {
                 sub = fill(c.getString(R.string.diary_at_km_prefix, MARK_1), km(cfgKm, null));
@@ -1525,8 +1531,8 @@ public final class CarDiaryView extends LinearLayout {
                 pct(String.valueOf(ch.lowest.min), null)));
             badge.setTextColor(ch.lowest.min < 10 ? Style.DANGER : Style.TEXT_DIM);
         } else {
-            badge.setText("—");
-            badge.setTextColor(Style.TEXT_DIM);
+            // Neither figure yet (SoH needs an OBD2 dongle): no empty badge.
+            badge.setVisibility(View.GONE);
         }
         subRow.addView(badge);
         hvHealthBox.addView(subRow);
@@ -1560,8 +1566,12 @@ public final class CarDiaryView extends LinearLayout {
         leftLp.rightMargin = Style.dp(c, 10);
         LinearLayout.LayoutParams rightLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
 
+        // With no temperature reading in the period (battery by OBD2, else
+        // outside), the tile is left out and the first takes the row.
+        boolean hasTemp = t.n > 0;
+        if (!hasTemp) leftLp.rightMargin = 0;
         row1.addView(hvTile(c, c.getString(R.string.diary_hv_time_100), stayVal, Style.TEXT), leftLp);
-        row1.addView(hvTile(c, c.getString(R.string.diary_hv_peak_temp), peakVal, peakCol), rightLp);
+        if (hasTemp) row1.addView(hvTile(c, c.getString(R.string.diary_hv_peak_temp), peakVal, peakCol), rightLp);
         hvHealthBox.addView(row1, r1Lp);
 
         LinearLayout row2 = new LinearLayout(c);
@@ -1675,6 +1685,18 @@ public final class CarDiaryView extends LinearLayout {
         text.append(" · ").append(healthSubLabel(c, s12));
         aux12vBadge.setText(text);
         aux12vBadge.setTextColor(s12.health == Aux12vMonitor.Health.GOOD ? Style.GOOD : healthColor(s12.health));
+    }
+
+    /** "Postponed until 30,000 km" or "Postponed until 12 May 27". */
+    private CharSequence postponedText(Context c, CarDiary.Entry e) {
+        Double untilKm = CarDiary.parsePostponedKm(e.metaJson);
+        if (untilKm != null) {
+            return fill(c.getString(R.string.diary_postponed_until, MARK_1), km(untilKm, null));
+        }
+        Long day = CarDiary.parsePostponedDay(e.metaJson);
+        String when = day == null ? "" : java.time.LocalDate.ofEpochDay(day).format(
+            java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM));
+        return c.getString(R.string.diary_postponed_until, when);
     }
 
     private View hvTile(Context c, String label, CharSequence value, int valColor) {
