@@ -105,6 +105,10 @@ the car and what it costs:
   item that has none. A changed row shows a reset icon.
   Set the **pick-up date** under **My car** (and the odometer then, for a used
   car): the first service then counts its 12 months from that day.
+- **Postponed**: when the shop looks at a part that is due and says to wait,
+  add an entry for that item and pick **Postponed**, with the odometer (or the
+  day) to wait for. The item is due again at that point; it is not counted as
+  changed.
 - **Cost of ownership**: what the car cost in the chosen period, split in four
   groups. Tap the card to see it as money, per km, or in percent.
 - **Battery health**: the main battery (state of health needs an OBD2 dongle)

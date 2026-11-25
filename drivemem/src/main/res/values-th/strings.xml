@@ -970,4 +970,8 @@
     <string name="cfg_diary_pickup_date">วันรับรถ</string>
     <string name="cfg_diary_pickup_km">เลขไมล์ตอนรับรถ</string>
     <string name="cfg_diary_set">ตั้งค่า</string>
+    <string name="diary_postpone_done">ทำแล้ว</string>
+    <string name="diary_postpone_later">เลื่อน</string>
+    <string name="diary_postpone_until">จนถึง</string>
+    <string name="diary_postponed_until">เลื่อนถึง %1$s</string>
 </resources>

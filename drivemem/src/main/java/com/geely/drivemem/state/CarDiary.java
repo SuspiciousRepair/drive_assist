@@ -297,6 +297,9 @@ public final class CarDiary {
          * schedule card also before its first entry. */
         public boolean ownerScheduled;
 
+        /** The "postponed" entry that sets this due point, or null. */
+        public Entry postponedBy;
+
         public DueStatus(Category category, Entry lastEntry, Double kmSinceLast, Double kmRemaining,
                          Integer daysSinceLast, Integer daysRemaining,
                          boolean overdue, boolean dueSoon, boolean coldSnapNudge) {
@@ -1627,11 +1630,18 @@ public final class CarDiary {
                                                      ScheduleConfig config) {
         ScheduleConfig cfg = config != null ? config : ScheduleConfig.defaults();
         Map<Category, Entry> latestByCat = new HashMap<>();
+        Map<Category, Entry> postponedByCat = new HashMap<>();
         if (entries != null) {
             for (Entry e : entries) {
                 if (e.parentId != null) continue;
                 // A coolant top-up logs fluid added without resetting the 80k / 48 mo flush clock.
                 if (e.category == Category.COOLANT && isTopUp(e.metaJson)) continue;
+                // "Looked at, wait until ...": not a change, so the item's own
+                // clock does not start again. It moves the due point instead.
+                if (isPostponed(e.metaJson)) {
+                    considerLatest(postponedByCat, e.category, e);
+                    continue;
+                }
                 considerLatest(latestByCat, e.category, e);
                 if (e.category == Category.SERVICE) {
                     for (Category bundled : parseBundled(e.metaJson)) {
@@ -1712,10 +1722,69 @@ public final class CarDiary {
             out.add(new DueStatus(cat, last, kmSince, kmRem, daysSince, daysRem,
                 overdue, soonKm || soonTime || coldSnap, coldSnap));
         }
-        for (DueStatus d : out) {
+        for (int i = 0; i < out.size(); i++) {
+            DueStatus d = out.get(i);
+            Entry p = postponedByCat.get(d.category);
+            // A change entered after the postponement ends it.
+            if (p != null && (d.lastEntry == null || d.lastEntry.tsMs < p.tsMs)) {
+                d = postponed(d, p, currentOdoKm, nowMs,
+                    cfg.kmInterval(d.category), cfg.dayInterval(d.category));
+                out.set(i, d);
+            }
             d.ownerScheduled = cfg.extras.containsKey(d.category) && !d.category.hasInterval();
         }
         return out;
+    }
+
+    /** Pure: the due status of an item the shop postponed. The due point is
+     * the odometer or the day in the entry, in place of "last change + interval". */
+    static DueStatus postponed(DueStatus base, Entry p, Double currentOdoKm, long nowMs,
+                               Double kmLimit, Integer dayLimit) {
+        Double untilKm = parsePostponedKm(p.metaJson);
+        Long untilDay = parsePostponedDay(p.metaJson);
+        Double kmRem = (untilKm != null && currentOdoKm != null) ? (untilKm - currentOdoKm) : null;
+        Integer daysRem = null;
+        if (untilDay != null) {
+            long untilMs = java.time.LocalDate.ofEpochDay(untilDay)
+                .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+            daysRem = (int) Math.ceil((untilMs - nowMs) / MS_PER_DAY);
+        }
+        if (kmRem == null && daysRem == null) return base;   // nothing to count yet
+        boolean overdue = (kmRem != null && kmRem <= 0.0) || (daysRem != null && daysRem <= 0);
+        double soonKm = kmLimit != null ? kmLimit * 0.10 : 1_000.0;
+        int soonDays = dayLimit != null ? Math.max(3, (int) Math.round(dayLimit * 0.10)) : 14;
+        boolean soon = !overdue && ((kmRem != null && kmRem <= soonKm)
+            || (daysRem != null && daysRem <= soonDays));
+        DueStatus d = new DueStatus(base.category, base.lastEntry, base.kmSinceLast, kmRem,
+            base.daysSinceLast, daysRem, overdue, soon, false);
+        d.postponedBy = p;
+        return d;
+    }
+
+    /** Meta of a "postponed" entry: {"postponeKm":30000} and/or {"postponeDay":20600}. */
+    public static String buildPostponedMeta(Integer untilKm, Long untilEpochDay) {
+        if (untilKm == null && untilEpochDay == null) return null;
+        StringBuilder sb = new StringBuilder("{");
+        if (untilKm != null) sb.append("\"postponeKm\":").append(untilKm);
+        if (untilEpochDay != null) {
+            if (sb.length() > 1) sb.append(',');
+            sb.append("\"postponeDay\":").append(untilEpochDay);
+        }
+        return sb.append('}').toString();
+    }
+
+    public static boolean isPostponed(String metaJson) {
+        return metaJson != null && (metaJson.contains("\"postponeKm\":")
+            || metaJson.contains("\"postponeDay\":"));
+    }
+
+    public static Double parsePostponedKm(String metaJson) {
+        Long v = metaLong(metaJson, "postponeKm");
+        return v != null ? v.doubleValue() : null;
+    }
+
+    public static Long parsePostponedDay(String metaJson) {
+        return metaLong(metaJson, "postponeDay");
     }
 
     /** Magic-sort key: estimated days until due, combining both time and distance

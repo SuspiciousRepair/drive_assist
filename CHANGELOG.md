@@ -22,6 +22,10 @@
   the day you got the car (and its odometer then, for a used car). An item
   with no entry yet, such as the first service, then counts its months from
   that day and not only the distance.
+- **Car diary: postpone an item.** When the shop looks at a part that is due
+  and says to wait, add an entry for that item and pick **Postponed** with
+  the odometer (or the day) to wait for. The diary keeps the note, stays
+  quiet until then, and does not count the part as changed.
 - **Car diary: a ticket finds its place.** Type the hour on the notice and
   the diary takes the place and speed from that day's saved route.
 - **Right-hand drive (RHD) layout.** Detected automatically from the car's

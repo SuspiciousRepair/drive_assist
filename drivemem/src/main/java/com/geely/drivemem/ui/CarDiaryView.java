@@ -1306,6 +1306,10 @@ public final class CarDiaryView extends LinearLayout {
                 sb.append("\u260E ").append(phone);
             }
         }
+        if (CarDiary.isPostponed(e.metaJson)) {
+            if (sb.length() > 0) sb.append(" · ");
+            sb.append(postponedText(c, e));
+        }
         if (e.category == CarDiary.Category.COOLANT) {
             Boolean topUp = CarDiary.parseTopUp(e.metaJson);
             if (topUp != null) {
@@ -1386,7 +1390,9 @@ public final class CarDiaryView extends LinearLayout {
                 : ((d.overdue || d.dueSoon) ? Style.WARN : Style.ACCENT);
             CharSequence sub;
             Double cfgKm = cfg != null ? cfg.kmInterval(d.category) : d.category.kmInterval;
-            if (d.lastEntry != null) {
+            if (d.postponedBy != null) {
+                sub = postponedText(c, d.postponedBy);
+            } else if (d.lastEntry != null) {
                 sub = c.getString(R.string.diary_last_prefix, fmt.format(new Date(d.lastEntry.tsMs)));
             } else if (d.kmRemaining != null && cfgKm != null) {
                 sub = fill(c.getString(R.string.diary_at_km_prefix, MARK_1), km(cfgKm, null));
@@ -1679,6 +1685,18 @@ public final class CarDiaryView extends LinearLayout {
         text.append(" · ").append(healthSubLabel(c, s12));
         aux12vBadge.setText(text);
         aux12vBadge.setTextColor(s12.health == Aux12vMonitor.Health.GOOD ? Style.GOOD : healthColor(s12.health));
+    }
+
+    /** "Postponed until 30,000 km" or "Postponed until 12 May 27". */
+    private CharSequence postponedText(Context c, CarDiary.Entry e) {
+        Double untilKm = CarDiary.parsePostponedKm(e.metaJson);
+        if (untilKm != null) {
+            return fill(c.getString(R.string.diary_postponed_until, MARK_1), km(untilKm, null));
+        }
+        Long day = CarDiary.parsePostponedDay(e.metaJson);
+        String when = day == null ? "" : java.time.LocalDate.ofEpochDay(day).format(
+            java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM));
+        return c.getString(R.string.diary_postponed_until, when);
     }
 
     private View hvTile(Context c, String label, CharSequence value, int valColor) {

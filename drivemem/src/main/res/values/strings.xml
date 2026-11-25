@@ -981,4 +981,8 @@
     <string name="cfg_diary_pickup_date">Pick-up date</string>
     <string name="cfg_diary_pickup_km">Odometer at pick-up</string>
     <string name="cfg_diary_set">Set</string>
+    <string name="diary_postpone_done">Done</string>
+    <string name="diary_postpone_later">Postponed</string>
+    <string name="diary_postpone_until">Until</string>
+    <string name="diary_postponed_until">Postponed until %1$s</string>
 </resources>

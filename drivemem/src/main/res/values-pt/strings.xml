@@ -966,4 +966,8 @@
     <string name="cfg_diary_pickup_date">Data de retirada</string>
     <string name="cfg_diary_pickup_km">Km na retirada</string>
     <string name="cfg_diary_set">Definir</string>
+    <string name="diary_postpone_done">Feito</string>
+    <string name="diary_postpone_later">Adiado</string>
+    <string name="diary_postpone_until">Até</string>
+    <string name="diary_postponed_until">Adiado até %1$s</string>
 </resources>

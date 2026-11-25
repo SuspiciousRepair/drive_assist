@@ -607,4 +607,63 @@ public class CarDiaryTest {
         org.junit.Assert.assertNull(service.daysRemaining);
         org.junit.Assert.assertFalse(service.overdue);
     }
+
+    private static CarDiary.Entry entryAt(long id, CarDiary.Category cat, long tsMs, Double odo, String meta) {
+        return new CarDiary.Entry(id, "u" + id, tsMs, cat.kind, cat, CarDiary.STATUS_DONE, odo, null,
+            null, null, null, null, null, null, null, null, meta, 0);
+    }
+
+    @Test
+    public void postponedEntryMovesTheDuePointAndKeepsTheOldChange() {
+        long now = 1_800_000_000_000L;
+        long day = 24L * 3600_000L;
+        CarDiary.ScheduleConfig cfg = CarDiary.ScheduleConfig.defaults();
+        // Brake fluid changed long ago: late by time (24 months) at 20,000 km.
+        CarDiary.Entry change = entryAt(1, CarDiary.Category.BRAKE_FLUID, now - 800 * day, 500.0, null);
+        List<CarDiary.Entry> entries = new java.util.ArrayList<>();
+        entries.add(change);
+        CarDiary.DueStatus d = statusOf(CarDiary.computeDueStatuses(entries, 20_000.0, now, 22.0, cfg),
+            CarDiary.Category.BRAKE_FLUID);
+        org.junit.Assert.assertTrue(d.overdue);
+
+        // The shop looks at it: "wait until 30,000 km".
+        String meta = CarDiary.buildPostponedMeta(30_000, null);
+        org.junit.Assert.assertTrue(CarDiary.isPostponed(meta));
+        entries.add(entryAt(2, CarDiary.Category.BRAKE_FLUID, now - 2 * day, 20_000.0, meta));
+        d = statusOf(CarDiary.computeDueStatuses(entries, 20_000.0, now, 22.0, cfg),
+            CarDiary.Category.BRAKE_FLUID);
+        org.junit.Assert.assertFalse(d.overdue);
+        org.junit.Assert.assertEquals(10_000.0, d.kmRemaining, 0.01);
+        org.junit.Assert.assertNull(d.daysRemaining);          // the time rule waits too
+        org.junit.Assert.assertSame(change, d.lastEntry);       // the fluid is still the old one
+        org.junit.Assert.assertNotNull(d.postponedBy);
+
+        // At 30,000 km it is due again.
+        d = statusOf(CarDiary.computeDueStatuses(entries, 30_050.0, now, 22.0, cfg),
+            CarDiary.Category.BRAKE_FLUID);
+        org.junit.Assert.assertTrue(d.overdue);
+
+        // A real change after it ends the postponement.
+        entries.add(entryAt(3, CarDiary.Category.BRAKE_FLUID, now - day, 20_100.0, null));
+        d = statusOf(CarDiary.computeDueStatuses(entries, 20_200.0, now, 22.0, cfg),
+            CarDiary.Category.BRAKE_FLUID);
+        org.junit.Assert.assertNull(d.postponedBy);
+        org.junit.Assert.assertEquals(39_900.0, d.kmRemaining, 0.01);
+    }
+
+    @Test
+    public void postponedToADayForATimeOnlyItem() {
+        long now = 1_800_000_000_000L;
+        long today = java.time.Instant.ofEpochMilli(now).atZone(java.time.ZoneId.systemDefault())
+            .toLocalDate().toEpochDay();
+        String meta = CarDiary.buildPostponedMeta(null, today + 90);
+        org.junit.Assert.assertEquals(Long.valueOf(today + 90), CarDiary.parsePostponedDay(meta));
+        org.junit.Assert.assertNull(CarDiary.parsePostponedKm(meta));
+        List<CarDiary.Entry> entries = new java.util.ArrayList<>();
+        entries.add(entryAt(1, CarDiary.Category.WIPERS, now - 1000, null, meta));
+        CarDiary.DueStatus d = statusOf(CarDiary.computeDueStatuses(entries, 20_000.0, now, 22.0,
+            CarDiary.ScheduleConfig.defaults()), CarDiary.Category.WIPERS);
+        org.junit.Assert.assertFalse(d.overdue);
+        org.junit.Assert.assertTrue(d.daysRemaining >= 89 && d.daysRemaining <= 90);
+    }
 }
