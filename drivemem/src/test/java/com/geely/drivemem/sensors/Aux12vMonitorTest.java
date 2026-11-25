@@ -172,4 +172,53 @@ public class Aux12vMonitorTest {
         assertFalse(Aux12vMonitor.noteCovers("free text", Aux12vMonitor.Health.WATCH));
         assertFalse(Aux12vMonitor.noteCovers(null, Aux12vMonitor.Health.WATCH));
     }
+
+    // ---- A reading is labelled by its neighbours; none is dropped ----
+
+    private static final String R = Aux12vMonitor.PHASE_RESTING, D = Aux12vMonitor.PHASE_DCDC;
+
+    // 2026-11-25, remote A/C then the owner opens the car.
+    @Test public void relabelNamesSettlingAndWakeLoad() {
+        long m = 60_000L;
+        long[] ts = {0, 30 * m, 30 * m + 18_000, 34 * m, 43 * m, 47 * m + 25_000, 47 * m + 47_000};
+        String[] ph = {R, D, R, R, R, R, D};
+        String[] out = Aux12vMonitor.relabelPhases(ts, ph);
+        assertEquals(R, out[0]);                               // true rest
+        assertEquals(D, out[1]);
+        assertEquals(Aux12vMonitor.PHASE_SETTLING, out[2]);    // 13.2 V, 18 s after the DC-DC
+        assertEquals(Aux12vMonitor.PHASE_SETTLING, out[3]);    // 12.8 V
+        assertEquals(Aux12vMonitor.PHASE_SETTLING, out[4]);    // 12.6 V, 13 min after
+        assertEquals(Aux12vMonitor.PHASE_SETTLING, out[5]);    // still inside 20 min
+        assertEquals(D, out[6]);
+    }
+
+    @Test public void restingJustBeforeTheDcdcIsWakeLoad() {
+        long h = 3600_000L;
+        long[] ts = {0, 8 * h, 8 * h + 22_000};
+        String[] out = Aux12vMonitor.relabelPhases(ts, new String[]{R, R, D});
+        assertEquals(R, out[0]);
+        assertEquals(Aux12vMonitor.PHASE_WAKE_LOAD, out[1]);
+    }
+
+    @Test public void restingLongBeforeTheDcdcStaysResting() {
+        long[] ts = {0, 5 * 60_000L};
+        assertEquals(R, Aux12vMonitor.relabelPhases(ts, new String[]{R, D})[0]);
+    }
+
+    @Test public void restingAfterTheSettleTimeIsRestAgain() {
+        long m = 60_000L;
+        long[] ts = {0, m, 30 * m};
+        String[] out = Aux12vMonitor.relabelPhases(ts, new String[]{D, R, R});
+        assertEquals(Aux12vMonitor.PHASE_SETTLING, out[1]);
+        assertEquals(R, out[2]);
+    }
+
+    // A second pass over already labelled rows gives the same labels.
+    @Test public void relabelIsStable() {
+        long m = 60_000L;
+        long[] ts = {0, m, 5 * m, 40 * m, 40 * m + 20_000};
+        String[] once = Aux12vMonitor.relabelPhases(ts, new String[]{D, R, R, R, D});
+        org.junit.Assert.assertArrayEquals(once, Aux12vMonitor.relabelPhases(ts, once));
+        assertEquals(Aux12vMonitor.PHASE_WAKE_LOAD, once[3]);
+    }
 }

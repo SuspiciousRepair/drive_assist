@@ -38,6 +38,13 @@ public final class Aux12vMonitor {
     public static final String PHASE_RESTING = "RESTING";
     public static final String PHASE_DCDC = "DCDC_CHARGING";
     public static final String PHASE_WARN = "WARN";
+    /** Parked, just after the DC-DC stopped: the battery still holds surface
+     * charge and reads high (13.2 V, then 12.8 V, on 2026-11-25). Not rest. */
+    public static final String PHASE_SETTLING = "SETTLING";
+    /** Parked, the car is waking (unlock, door, remote start) and the DC-DC is
+     * not on yet: the voltage dips under the load (12.2 V, then 13.7 V 22 s
+     * later, on 2026-11-25). Not rest. */
+    public static final String PHASE_WAKE_LOAD = "WAKE_LOAD";
 
     public static final String SOURCE_VHAL = "vhal";
 
@@ -62,6 +69,10 @@ public final class Aux12vMonitor {
      * comes a second time. After this delay the held value is read again. */
     static final long CONFIRM_DELAY_MS = 12_000L;
     static final long WAKE_WINDOW_MS = 30_000L;
+    /** How long after the DC-DC stops a parked reading is still SETTLING. */
+    static final long SETTLE_MS = 20L * 60_000L;
+    /** A parked reading this close before the DC-DC starts is WAKE_LOAD. */
+    static final long WAKE_LOAD_MS = 60_000L;
     static final long STEADY_STORE_INTERVAL_MS = 4L * 3600_000L;
     static final long TREND_WINDOW_DAYS = 60L;
 
@@ -172,6 +183,12 @@ public final class Aux12vMonitor {
         subscribed = true;
         final Context app = ctx.getApplicationContext();
 
+        // Label the readings stored before SETTLING and WAKE_LOAD existed.
+        CarDb.get(app).write(() -> {
+            try { relabel(CarDb.get(app).db(), 0L); }
+            catch (Throwable t) { Log.w(CarAccess.TAG, "aux12v relabel failed: " + t); }
+        });
+
         EntityBus.subscribe(Aux12vHub.VOLTAGE, (key, r) -> {
             if (r == null || r.status != CarActor.Reading.Status.OK || !(r.value instanceof Number)) return;
             onVoltage(app, ((Number) r.value).doubleValue(), System.currentTimeMillis(), sleptSinceLastMs());
@@ -243,6 +260,7 @@ public final class Aux12vMonitor {
                 if (pHours != null) cv.put("parked_hours", pHours);
                 cv.put("source", SOURCE_VHAL);
                 db.insert("aux_12v_reading", null, cv);
+                relabel(db, nowMs - 6L * 3600_000L);
                 maybeAutoLogHealthTransition(ctx, nowMs);
             } catch (Throwable t) {
                 Log.w(CarAccess.TAG, "aux12v store failed: " + t);
@@ -340,6 +358,60 @@ public final class Aux12vMonitor {
         if (sp > 0) head = head.substring(0, sp);
         try { return Health.valueOf(head).ordinal() >= h.ordinal(); }
         catch (IllegalArgumentException e) { return false; }
+    }
+
+    /** Pure: the phase of each reading, seen in its sequence. One reading alone
+     * cannot say whether a parked battery is at rest; its neighbours can.
+     * Every reading is kept and none is dropped: only the label changes, so
+     * the health rules use true rest and the rest stays readable.
+     *
+     * - RESTING/SETTLING right after a DC-DC reading, and for SETTLE_MS after
+     *   that first one: SETTLING (surface charge).
+     * - RESTING/WAKE_LOAD followed by a DC-DC reading within WAKE_LOAD_MS, and
+     *   not settling: WAKE_LOAD (the car is waking, load before the DC-DC).
+     * - Everything else keeps its phase. A label never goes back to RESTING
+     *   on a later pass, so a pass over a part of the history is safe.
+     *
+     * @param tsMs ascending. @return the new phases, same order. */
+    static String[] relabelPhases(long[] tsMs, String[] phase) {
+        String[] out = phase.clone();
+        long settleStart = Long.MIN_VALUE;
+        for (int i = 0; i < out.length; i++) {
+            boolean restLike = PHASE_RESTING.equals(phase[i]) || PHASE_SETTLING.equals(phase[i])
+                || PHASE_WAKE_LOAD.equals(phase[i]);
+            if (!restLike) continue;
+            if (i > 0 && PHASE_DCDC.equals(phase[i - 1])) settleStart = tsMs[i];
+            boolean settling = settleStart != Long.MIN_VALUE && tsMs[i] - settleStart <= SETTLE_MS;
+            boolean dcdcNext = i + 1 < out.length && PHASE_DCDC.equals(phase[i + 1])
+                && tsMs[i + 1] - tsMs[i] <= WAKE_LOAD_MS;
+            if (settling) out[i] = PHASE_SETTLING;
+            else if (dcdcNext) out[i] = PHASE_WAKE_LOAD;
+        }
+        return out;
+    }
+
+    /** Applies relabelPhases to the stored readings from sinceMs on, and
+     * writes back the labels that changed. Runs on the DB writer thread. */
+    private static void relabel(SQLiteDatabase db, long sinceMs) {
+        List<long[]> rows = new ArrayList<>();
+        List<String> ph = new ArrayList<>();
+        try (Cursor c = db.rawQuery("SELECT id, ts_ms, phase FROM aux_12v_reading "
+                + "WHERE ts_ms >= ? ORDER BY ts_ms ASC, id ASC", new String[]{String.valueOf(sinceMs)})) {
+            while (c.moveToNext()) {
+                rows.add(new long[]{c.getLong(0), c.getLong(1)});
+                ph.add(c.getString(2));
+            }
+        }
+        long[] ts = new long[rows.size()];
+        for (int i = 0; i < ts.length; i++) ts[i] = rows.get(i)[1];
+        String[] before = ph.toArray(new String[0]);
+        String[] after = relabelPhases(ts, before);
+        for (int i = 0; i < after.length; i++) {
+            if (after[i].equals(before[i])) continue;
+            ContentValues cv = new ContentValues();
+            cv.put("phase", after[i]);
+            db.update("aux_12v_reading", cv, "id = ?", new String[]{String.valueOf(rows.get(i)[0])});
+        }
     }
 
     /** Pure phase classifier. While parked & AC charging, the EX2 cycles DC-DC on and off
