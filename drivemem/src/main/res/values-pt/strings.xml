@@ -775,9 +775,6 @@
     <string name="diary_12v_weak">Fraca · verificar logo</string>
     <string name="diary_12v_fault">Falha · verificar já</string>
     <string name="diary_12v_waiting">Aguardando dados</string>
-    <string name="diary_sum_next_due">Próxima manutenção</string>
-    <string name="diary_all_clear">Tudo em dia</string>
-    <string name="diary_nothing_due">Nada pendente</string>
     <string name="diary_filter_all">Todos</string>
     <string name="diary_empty">Nenhum registro ainda. Toque em + Registrar para anotar manutenções, ruídos ou incidentes.</string>
     <string name="diary_grp_tires">Pneus</string>

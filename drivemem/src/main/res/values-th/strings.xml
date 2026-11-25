@@ -779,9 +779,6 @@
     <string name="diary_12v_weak">อ่อน · ควรตรวจเช็ค</string>
     <string name="diary_12v_fault">ผิดปกติ · ตรวจทันที</string>
     <string name="diary_12v_waiting">รอข้อมูล</string>
-    <string name="diary_sum_next_due">ครบกำหนดถัดไป</string>
-    <string name="diary_all_clear">เรียบร้อยทั้งหมด</string>
-    <string name="diary_nothing_due">ไม่มีรายการครบกำหนด</string>
     <string name="diary_filter_all">ทั้งหมด</string>
     <string name="diary_empty">ยังไม่มีบันทึก แตะ + บันทึก เพื่อจดการบำรุงรักษา เสียงผิดปกติ หรือเหตุการณ์</string>
     <string name="diary_grp_tires">ยาง</string>

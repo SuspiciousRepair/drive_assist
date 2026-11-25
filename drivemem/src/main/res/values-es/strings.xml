@@ -762,9 +762,6 @@
     <string name="diary_12v_weak">Débil · revisar pronto</string>
     <string name="diary_12v_fault">Fallo · revisar ahora</string>
     <string name="diary_12v_waiting">Esperando datos</string>
-    <string name="diary_sum_next_due">Próximo</string>
-    <string name="diary_all_clear">Todo al día</string>
-    <string name="diary_nothing_due">Nada pendiente</string>
     <string name="diary_filter_all">Todos</string>
     <string name="diary_empty">Sin registros aún. Pulsa + Añadir registro para anotar mantenimientos, ruidos o incidentes.</string>
     <string name="diary_grp_tires">Neumáticos</string>
