@@ -24,9 +24,10 @@ import com.geely.drivemem.util.Style;
 /** Settings -> Maintenance & Diary (SEC_DIARY).
  *
  * The care intervals are in groups (Battery, Tires, Service & fluids), one
- * card each. A row has its preset pills (including Off), a pencil for any other
- * value (steppers, no keyboard) and, when the value is not the factory one,
- * an icon that puts that row back. Plus the cold-snap tire pressure nudge and
+ * card each. A row is one line: the name, the chosen value, and an arrow on
+ * each side of it that walks the presets (Off first). A tap on the value sets
+ * any other value (steppers, no keyboard). When the value is not the factory
+ * one, an icon puts that row back. Plus the cold-snap tire pressure nudge and
  * the accelerometer jolt sensitivity. */
 public final class TelemetryDiarySection extends LinearLayout {
 
@@ -236,10 +237,6 @@ public final class TelemetryDiarySection extends LinearLayout {
             this.defA = defA; this.defB = defB; this.curA = curA; this.curB = curB; this.set = set;
         }
         boolean is(int a, int b) { return curA == a && (kind != K_KM_MONTHS || a == 0 || curB == b); }
-        boolean isPreset() {
-            for (int[] p : presets) if (is(p[0], p[1])) return true;
-            return false;
-        }
     }
 
     private CharSequence valueTitle(int kind, int a, int b) {
@@ -257,77 +254,98 @@ public final class TelemetryDiarySection extends LinearLayout {
         notifyChange();
     }
 
+    /** Pure: the preset a tap on the left (dir -1) or right (dir +1) arrow goes
+     * to, or -1 at the end. From a value that is not a preset, it goes to the
+     * nearest preset on that side. Presets are in rising order, Off first. */
+    static int neighbour(int[][] presets, int curA, int curB, boolean pairs, int dir) {
+        for (int i = 0; i < presets.length; i++) {
+            boolean same = presets[i][0] == curA && (!pairs || curA == 0 || presets[i][1] == curB);
+            if (same) {
+                int n = i + dir;
+                return n >= 0 && n < presets.length ? n : -1;
+            }
+        }
+        if (dir > 0) {
+            for (int i = 0; i < presets.length; i++) if (presets[i][0] > curA) return i;
+        } else {
+            for (int i = presets.length - 1; i >= 0; i--) if (presets[i][0] < curA) return i;
+        }
+        return -1;
+    }
+
+    /** One line per item, all columns aligned: name, the row's reset icon
+     * (only when the value is not the factory one), left arrow, the value,
+     * right arrow. The arrows walk the presets; a tap on the value opens the
+     * steppers for any other value. */
     private View intervalRow(Row r) {
         Context c = activity;
-        LinearLayout wrap = new LinearLayout(c);
-        wrap.setOrientation(VERTICAL);
+        LinearLayout row = new LinearLayout(c);
+        row.setOrientation(HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams wlp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 60));
         wlp.topMargin = Style.dp(c, 6);
-        wrap.setLayoutParams(wlp);
+        row.setLayoutParams(wlp);
 
-        // Head: name, the value when it is not a preset, and the row's reset icon.
-        LinearLayout head = new LinearLayout(c);
-        head.setOrientation(HORIZONTAL);
-        head.setGravity(Gravity.CENTER_VERTICAL);
         TextView lbl = new TextView(c);
         lbl.setText(r.label);
         lbl.setTextColor(Style.TEXT);
-        lbl.setTextSize(18f);
-        lbl.setTypeface(null, Typeface.BOLD);
-        head.addView(lbl, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        boolean custom = !r.isPreset();
-        if (custom) {
-            TextView val = new TextView(c);
-            val.setText(styleUnits(valueTitle(r.kind, r.curA, r.curB), Style.ACCENT, Style.cardFillColor()));
-            val.setTextColor(Style.ACCENT);
-            val.setTextSize(18f);
-            val.setTypeface(null, Typeface.BOLD);
-            head.addView(val);
-        }
+        lbl.setTextSize(20f);
+        lbl.setSingleLine(true);
+        row.addView(lbl, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
         android.widget.ImageView reset = new android.widget.ImageView(c);
         reset.setImageResource(R.drawable.ic_sync_reset);
         reset.setColorFilter(Style.TEXT_DIM, android.graphics.PorterDuff.Mode.SRC_IN);
         reset.setContentDescription(c.getString(R.string.cfg_diary_row_reset));
-        int rp = Style.dp(c, 10);
-        reset.setPadding(Style.dp(c, 18), rp, Style.dp(c, 18), rp);
-        reset.setVisibility(r.is(r.defA, r.defB) ? INVISIBLE : VISIBLE);   // keeps the row height
+        int rp = Style.dp(c, 18);
+        reset.setPadding(rp, rp, rp, rp);
+        reset.setVisibility(r.is(r.defA, r.defB) ? INVISIBLE : VISIBLE);   // keeps the columns aligned
         reset.setOnClickListener(v -> apply(r, r.defA, r.defB));
-        head.addView(reset, new LinearLayout.LayoutParams(Style.dp(c, 60), Style.dp(c, 44)));
-        wrap.addView(head);
+        row.addView(reset, new LinearLayout.LayoutParams(Style.dp(c, 60), Style.dp(c, 60)));
 
-        LinearLayout pills = new LinearLayout(c);
-        pills.setOrientation(HORIZONTAL);
-        for (int i = 0; i < r.presets.length; i++) {
-            final int a = r.presets[i][0], b = r.presets[i][1];
-            TextView pill = buildPill(valueTitle(r.kind, a, b), r.is(a, b), () -> apply(r, a, b));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            if (i > 0) lp.leftMargin = Style.dp(c, 8);
-            pills.addView(pill, lp);
-        }
-        // Any other value: a pencil pill, filled when the value is not a preset.
-        android.widget.ImageView pen = new android.widget.ImageView(c);
-        pen.setImageResource(R.drawable.ic_edit_outline);
-        pen.setColorFilter(custom ? Style.onFill(Style.ACCENT) : Style.TEXT_DIM,
-            android.graphics.PorterDuff.Mode.SRC_IN);
-        pen.setContentDescription(c.getString(R.string.cfg_diary_custom));
-        int pp = Style.dp(c, 17);
-        pen.setPadding(pp, pp, pp, pp);
-        GradientDrawable pbg = new GradientDrawable();
-        pbg.setCornerRadius(Style.dp(c, 14));
-        if (custom) {
-            pbg.setColor(Style.ACCENT);
+        boolean pairs = r.kind == K_KM_MONTHS;
+        row.addView(arrow(r, neighbour(r.presets, r.curA, r.curB, pairs, -1), true));
+
+        TextView val = new TextView(c);
+        boolean isOff = r.curA == 0;
+        int fg = isOff ? Style.TEXT_DIM : Style.TEXT;
+        val.setText(styleUnits(valueTitle(r.kind, r.curA, r.curB), fg, Style.CARD_HI));
+        val.setTextColor(fg);
+        val.setTextSize(20f);
+        val.setTypeface(null, isOff ? Typeface.NORMAL : Typeface.BOLD);
+        val.setGravity(Gravity.CENTER);
+        val.setSingleLine(true);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(Style.dp(c, 14));
+        bg.setColor(Style.CARD_HI);
+        bg.setStroke(Style.dp(c, 1), Style.tileStrokeColor());
+        val.setBackground(bg);
+        val.setContentDescription(c.getString(R.string.cfg_diary_custom));
+        val.setOnClickListener(v -> showCustomDialog(r));
+        row.addView(val, new LinearLayout.LayoutParams(Style.dp(c, 220), Style.dp(c, 52)));
+
+        row.addView(arrow(r, neighbour(r.presets, r.curA, r.curB, pairs, 1), false));
+        return row;
+    }
+
+    /** A plain chevron, no box. Dim and without action at the end of the presets. */
+    private View arrow(Row r, int target, boolean left) {
+        Context c = activity;
+        android.widget.ImageView a = new android.widget.ImageView(c);
+        a.setImageResource(R.drawable.ic_chevron_right);
+        if (left) a.setRotation(180f);
+        int p = Style.dp(c, 16);
+        a.setPadding(p, p, p, p);
+        if (target >= 0) {
+            a.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
+            final int ta = r.presets[target][0], tb = r.presets[target][1];
+            a.setOnClickListener(v -> apply(r, ta, tb));
         } else {
-            pbg.setColor(Style.CARD_HI);
-            pbg.setStroke(Style.dp(c, 1), Style.tileStrokeColor());
+            a.setColorFilter((Style.TEXT_DIM & 0x00FFFFFF) | 0x40000000, android.graphics.PorterDuff.Mode.SRC_IN);
         }
-        pen.setBackground(pbg);
-        pen.setOnClickListener(v -> showCustomDialog(r));
-        LinearLayout.LayoutParams penLp = new LinearLayout.LayoutParams(Style.dp(c, 60), Style.dp(c, 60));
-        penLp.leftMargin = Style.dp(c, 8);
-        pills.addView(pen, penLp);
-        wrap.addView(pills);
-        return wrap;
+        a.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(c, 60), Style.dp(c, 60)));
+        return a;
     }
 
     /** Steppers for any value, no keyboard. Small step and big step per unit. */
