@@ -125,6 +125,8 @@ public final class TelemetryDiarySection extends LinearLayout {
         // ---- Right column: Jolt detection ----
         LinearLayout joltCard = ConfigCards.card(c, c.getString(R.string.cfg_diary_jolt_title));
         ConfigCards.add(rightCol, joltCard);
+        // No motion sensor, no impact detection: the card would set nothing.
+        if (!ImuHub.hasSensor(c)) joltCard.setVisibility(View.GONE);
         joltCard.addView(ConfigCards.hint(c, c.getString(R.string.cfg_diary_jolt_hint)));
 
         String curSens = Prefs.getDiaryJoltSensitivity(c);

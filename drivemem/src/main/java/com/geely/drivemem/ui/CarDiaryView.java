@@ -1525,8 +1525,8 @@ public final class CarDiaryView extends LinearLayout {
                 pct(String.valueOf(ch.lowest.min), null)));
             badge.setTextColor(ch.lowest.min < 10 ? Style.DANGER : Style.TEXT_DIM);
         } else {
-            badge.setText("—");
-            badge.setTextColor(Style.TEXT_DIM);
+            // Neither figure yet (SoH needs an OBD2 dongle): no empty badge.
+            badge.setVisibility(View.GONE);
         }
         subRow.addView(badge);
         hvHealthBox.addView(subRow);
@@ -1560,8 +1560,12 @@ public final class CarDiaryView extends LinearLayout {
         leftLp.rightMargin = Style.dp(c, 10);
         LinearLayout.LayoutParams rightLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
 
+        // With no temperature reading in the period (battery by OBD2, else
+        // outside), the tile is left out and the first takes the row.
+        boolean hasTemp = t.n > 0;
+        if (!hasTemp) leftLp.rightMargin = 0;
         row1.addView(hvTile(c, c.getString(R.string.diary_hv_time_100), stayVal, Style.TEXT), leftLp);
-        row1.addView(hvTile(c, c.getString(R.string.diary_hv_peak_temp), peakVal, peakCol), rightLp);
+        if (hasTemp) row1.addView(hvTile(c, c.getString(R.string.diary_hv_peak_temp), peakVal, peakCol), rightLp);
         hvHealthBox.addView(row1, r1Lp);
 
         LinearLayout row2 = new LinearLayout(c);
