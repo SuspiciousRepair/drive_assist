@@ -62,6 +62,9 @@ public final class CarDiaryView extends LinearLayout {
 
     private LinearLayout topSummaryCard;
     private LinearLayout pendingBannerHost;
+    private static final String PREF_COST_UNIT = "diary_cost_unit";
+    /** Unit of the cost buckets (CarDiary.TcoSummary.UNIT_*); kept in Prefs. */
+    private int costUnit;
     private TextView periodPillLabel;
     private LinearLayout filterBar;
     private LinearLayout entriesList;
@@ -155,6 +158,8 @@ public final class CarDiaryView extends LinearLayout {
 
     private void buildSkeleton() {
         Context c = getContext();
+
+        costUnit = com.geely.drivemem.util.Prefs.file(c).getInt(PREF_COST_UNIT, CarDiary.TcoSummary.UNIT_MONEY);
 
         // 1. Optional pending IMU jolt banner
         pendingBannerHost = new LinearLayout(c);
@@ -574,38 +579,61 @@ public final class CarDiaryView extends LinearLayout {
         }
         topSummaryCard.addView(bar, blp);
 
-        // One column per cost bucket, under the bar
+        // One column per cost bucket, under the bar. A tap on the card goes to the
+        // next unit (R$, R$ per km, %), the same way the energy flow chart does.
+        int unit = CarDiary.TcoSummary.shownUnit(costUnit, tco.trackedKm);
         LinearLayout figs = new LinearLayout(c);
         figs.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout.LayoutParams figLp = new LinearLayout.LayoutParams(
             0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         figs.addView(costFigure(c, Style.ACCENT, c.getString(R.string.diary_tco_energy),
-            tco.chargeCost, pE), figLp);
+            costValue(tco.chargeCost, pE, unit, tco.trackedKm)), figLp);
         figs.addView(costFigure(c, Style.WARN, c.getString(R.string.diary_tco_maintenance),
-            tco.maintenanceCost, pM), figLp);
+            costValue(tco.maintenanceCost, pM, unit, tco.trackedKm)), figLp);
         if (tco.roadCost > 0.005) {
             figs.addView(costFigure(c, Style.GOOD, c.getString(R.string.diary_tco_road),
-                tco.roadCost, pR), figLp);
+                costValue(tco.roadCost, pR, unit, tco.trackedKm)), figLp);
         }
         if (tco.bureaucracyCost > 0.005) {
             figs.addView(costFigure(c, Style.PURPLE, c.getString(R.string.diary_tco_bureaucracy),
-                tco.bureaucracyCost, pB), figLp);
+                costValue(tco.bureaucracyCost, pB, unit, tco.trackedKm)), figLp);
         }
         LinearLayout.LayoutParams fgLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         fgLp.topMargin = Style.dp(c, 12);
         topSummaryCard.addView(figs, fgLp);
+
+        topSummaryCard.setOnClickListener(v -> {
+            costUnit = CarDiary.TcoSummary.nextUnit(
+                CarDiary.TcoSummary.shownUnit(costUnit, tco.trackedKm), tco.trackedKm);
+            com.geely.drivemem.util.Prefs.file(getContext()).edit().putInt(PREF_COST_UNIT, costUnit).apply();
+            renderSummary(tco);
+        });
     }
 
-    /** One cost bucket: "● Energy" (dim) over "R$ 432,01 73%". No dot when dotColor is 0,
-     * no share when pct is negative. */
-    private LinearLayout costFigure(Context c, int dotColor, String label, double amount, int pct) {
+    /** One bucket's number in a unit: "R$ 432,01", "R$ 0,15 / km" or "73%". */
+    private static CharSequence costValue(double amount, int pct, int unit, double km) {
+        SpannableStringBuilder sb = new SpannableStringBuilder();
+        if (unit == CarDiary.TcoSummary.UNIT_PCT) {
+            sb.append(Style.valueWithUnit(String.valueOf(pct), Style.TEXT, null, Style.UNIT_SCALE_ROW));
+            Style.appendUnit(sb, "%", Style.UNIT_SCALE_ROW);
+        } else if (unit == CarDiary.TcoSummary.UNIT_PER_KM) {
+            sb.append(Style.moneyWithUnit(amount / km, Style.TEXT, Style.UNIT_SCALE_ROW));
+            Style.appendUnit(sb, " / km", Style.UNIT_SCALE_ROW);
+        } else {
+            sb.append(Style.moneyWithUnit(amount, Style.TEXT, Style.UNIT_SCALE_ROW));
+        }
+        return sb;
+    }
+
+    /** One cost bucket: "● Energy" (dim) over its number. */
+    private LinearLayout costFigure(Context c, int dotColor, String label, CharSequence value) {
         LinearLayout col = new LinearLayout(c);
         col.setOrientation(LinearLayout.VERTICAL);
 
         TextView l = new TextView(c);
         SpannableStringBuilder ls = new SpannableStringBuilder();
-        if (dotColor != 0) appendDot(ls, dotColor, label); else ls.append(label);
+        appendDot(ls, dotColor, label);
         l.setText(ls);
         l.setTextColor(Style.TEXT_DIM);
         l.setTextSize(18f);
@@ -614,15 +642,8 @@ public final class CarDiaryView extends LinearLayout {
         col.addView(l);
 
         TextView v = new TextView(c);
-        SpannableStringBuilder vs = new SpannableStringBuilder(
-            Style.moneyWithUnit(amount, Style.TEXT, Style.UNIT_SCALE_ROW));
-        if (pct >= 0) {
-            vs.append("  ");
-            vs.append(Style.valueWithUnit(String.valueOf(pct), Style.TEXT_DIM, null, Style.UNIT_SCALE_ROW));
-            Style.appendUnit(vs, "%", Style.UNIT_SCALE_ROW);
-        }
-        v.setText(vs);
-        v.setTextSize(22f);
+        v.setText(value);
+        v.setTextSize(24f);
         v.setTypeface(null, Typeface.BOLD);
         v.setSingleLine(true);
         v.setPadding(0, Style.dp(c, 2), 0, 0);

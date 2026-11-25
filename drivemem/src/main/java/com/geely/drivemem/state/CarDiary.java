@@ -503,6 +503,22 @@ public final class CarDiary {
         }
 
         public boolean hasCosts() { return totalCost > 0.005; }
+
+        /** Units the cost card shows its buckets in; a tap goes to the next one. */
+        public static final int UNIT_MONEY = 0, UNIT_PER_KM = 1, UNIT_PCT = 2;
+
+        /** The unit after this one. Cost per km is skipped when there is no distance. */
+        public static int nextUnit(int unit, double km) {
+            int n = (unit + 1) % 3;
+            if (n == UNIT_PER_KM && !(km >= 1.0)) n = UNIT_PCT;
+            return n;
+        }
+
+        /** The unit drawn: cost per km falls back to money when there is no distance. */
+        public static int shownUnit(int unit, double km) {
+            if (unit < UNIT_MONEY || unit > UNIT_PCT) return UNIT_MONEY;
+            return unit == UNIT_PER_KM && !(km >= 1.0) ? UNIT_MONEY : unit;
+        }
     }
 
     /** Computes an entry's cost contribution over [winStartMs, winEndMs).

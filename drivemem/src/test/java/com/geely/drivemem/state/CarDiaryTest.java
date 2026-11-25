@@ -321,6 +321,19 @@ public class CarDiaryTest {
     }
 
     @Test
+    public void costUnitCycleSkipsPerKmWithoutDistance() {
+        int money = CarDiary.TcoSummary.UNIT_MONEY, perKm = CarDiary.TcoSummary.UNIT_PER_KM,
+            pct = CarDiary.TcoSummary.UNIT_PCT;
+        assertEquals(perKm, CarDiary.TcoSummary.nextUnit(money, 100.0));
+        assertEquals(pct, CarDiary.TcoSummary.nextUnit(perKm, 100.0));
+        assertEquals(money, CarDiary.TcoSummary.nextUnit(pct, 100.0));
+        assertEquals(pct, CarDiary.TcoSummary.nextUnit(money, 0.0));
+        assertEquals(money, CarDiary.TcoSummary.shownUnit(perKm, 0.0));
+        assertEquals(perKm, CarDiary.TcoSummary.shownUnit(perKm, 100.0));
+        assertEquals(money, CarDiary.TcoSummary.shownUnit(7, 100.0));
+    }
+
+    @Test
     public void bureaucracyCategoriesProrateAnnualAndMonthlyCostsInTco() {
         assertTrue(CarDiary.Category.forGroup(CarDiary.Group.COSMETIC).contains(CarDiary.Category.ACCESSORIES));
         assertTrue(CarDiary.Category.forGroup(CarDiary.Group.BUREAUCRACY).contains(CarDiary.Category.INSURANCE));
