@@ -10,7 +10,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 /** Covers the per-pane target feature: a single raw WINDOW_POS value
  * doesn't open every pane the same real amount (different regulator/gearing
@@ -101,5 +103,52 @@ public class PurgeTest {
 
         assertEquals(3, moved);
         assertNull(car.readIntRaw(CarAccess.WINDOW_POS, Purge.AREAS[2]));
+    }
+
+    private static Map<Integer, Integer> allAt(int target) {
+        Map<Integer, Integer> targets = new LinkedHashMap<>();
+        for (int area : Purge.AREAS) targets.put(area, target);
+        return targets;
+    }
+
+    // #208: with every target at 10 (below the door-crack margin of 14) the
+    // button read "all shut" after opening, tried to open again and never
+    // closed the windows.
+    @Test public void lowTargetsCountAsOpenSoTheButtonCanCloseThem() {
+        Map<Integer, Integer> targets = allAt(10);
+        assertEquals(4, purge.open(car, targets));
+
+        assertEquals(Boolean.TRUE, purge.anyOpen(car, targets));
+        assertEquals(4, purge.close(car));
+        for (int area : Purge.AREAS)
+            assertEquals(Integer.valueOf(0), car.readIntRaw(CarAccess.WINDOW_POS, area));
+        assertEquals(Boolean.FALSE, purge.anyOpen(car, targets));
+    }
+
+    @Test public void doorCrackStillDoesNotCountWithALargerTarget() {
+        // The door feature cracks a pane to 10; with the default target (50)
+        // that is not "open" for this button, same as before.
+        car.seedIntRaw(CarAccess.WINDOW_POS, Purge.AREAS[0], DoorWindow.CRACK);
+        assertEquals(Boolean.FALSE, purge.anyOpen(car, allAt(Purge.OPEN)));
+        car.seedIntRaw(CarAccess.WINDOW_POS, Purge.AREAS[0], DoorWindow.MORE_THAN_CRACK);
+        assertEquals(Boolean.TRUE, purge.anyOpen(car, allAt(Purge.OPEN)));
+    }
+
+    @Test public void aShutPaneIsNeverOpenEvenWithATargetOfZero() {
+        assertFalse(Purge.isOpen(Purge.AREAS[0], 0, allAt(0)));
+        assertTrue(Purge.isOpen(Purge.AREAS[0], 1, allAt(0)));
+        assertEquals(1, Purge.openAt(0));
+        assertEquals(10, Purge.openAt(10));
+        assertEquals(Purge.OPEN_AT_LEAST, Purge.openAt(100));
+    }
+
+    @Test public void paneWithoutATargetUsesTheDefault() {
+        Map<Integer, Integer> none = new LinkedHashMap<>();
+        assertFalse(Purge.isOpen(Purge.AREAS[0], 10, none));
+        assertTrue(Purge.isOpen(Purge.AREAS[0], 14, none));
+    }
+
+    @Test public void unreadableWindowsGiveNull() {
+        assertNull(purge.anyOpen(new FakeCarAccess(), allAt(10)));
     }
 }

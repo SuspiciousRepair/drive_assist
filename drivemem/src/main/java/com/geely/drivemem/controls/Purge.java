@@ -58,25 +58,42 @@ public final class Purge {
         return targets;
     }
 
-    // Threshold for counting a pane as open. Uses DoorWindow.MORE_THAN_CRACK to
-    // align with door-crack behavior (position 10); panes below this are not
-    // considered open by the purge action.
+    // Door-crack margin: DoorWindow cracks a pane to 10 and counts anything
+    // under 14 as its own crack (the glass may still be moving when the door
+    // latches). It is only a ceiling here, see openAt().
     public static final int OPEN_AT_LEAST = DoorWindow.MORE_THAN_CRACK;
+
+    /** Position from which a pane counts as open for this button, given the
+     * pane's own open target. A pane opened to its target always counts, even
+     * a target below the door-crack margin: with every target at 10 the
+     * button used to read "all shut" and never closed them (#208). With a
+     * larger target the door margin (14) still applies, so a door crack at
+     * 10 does not flip the button. Never below 1: a shut pane is not open. */
+    public static int openAt(int target) {
+        return Math.max(1, Math.min(OPEN_AT_LEAST, target));
+    }
+
+    /** Whether one pane at {@code pos} counts as open, using its own target
+     * from {@code targets} (OPEN when the pane has none). */
+    public static boolean isOpen(int area, int pos, Map<Integer, Integer> targets) {
+        Integer t = targets.get(area);
+        return pos >= openAt(t != null ? t : OPEN);
+    }
 
     // Where each pane was before we moved it. Only panes WE moved are in here,
     // which is what makes "only close what we opened" true.
     private final Map<Integer, Integer> before = new LinkedHashMap<>();
 
     /** Returns null if windows cannot be read (distinct from shut), true if any
-     * window is open, false if all read windows are closed. */
-    public Boolean anyOpen(CarAccess car) {
+     * window is open (see isOpen()), false if all read windows are closed. */
+    public Boolean anyOpen(CarAccess car, Map<Integer, Integer> targets) {
         if (!car.isReady()) return null;
         boolean readAny = false, open = false;
         for (int area : AREAS) {
             Integer pos = car.readIntRaw(CarAccess.WINDOW_POS, area);
             if (pos == null) continue;
             readAny = true;
-            if (pos >= OPEN_AT_LEAST) open = true;
+            if (isOpen(area, pos, targets)) open = true;
         }
         return readAny ? open : null;
     }
