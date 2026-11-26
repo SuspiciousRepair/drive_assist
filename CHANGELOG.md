@@ -66,6 +66,10 @@
   background, so the Settings page cannot be read behind it.
 
 ### Fixed
+- **The crack-windows button closes windows set to open only a little.**
+  With a window's target below 14 (of 100) in Config > Doors, the button did
+  not see it as open, so the next press tried to open it again instead of
+  closing it (#208).
 - **Drive mode and regeneration come back after a remote A/C start.** When
   the car was woken from the phone app with nobody inside, the restore gave
   up before you got in. It now tries again when the screen comes on.
