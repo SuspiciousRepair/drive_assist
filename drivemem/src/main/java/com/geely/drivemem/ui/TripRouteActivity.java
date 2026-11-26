@@ -41,6 +41,8 @@ public class TripRouteActivity extends Activity {
     public static final String EXTRA_ASCENT = "ascent_m";
     public static final String EXTRA_DESCENT = "descent_m";
     public static final String EXTRA_ESTIMATED = "estimated";
+    public static final String EXTRA_ODO_START = "odo_start_km";
+    public static final String EXTRA_ODO_END = "odo_end_km";
 
     /** The intent that opens the route of one finished trip. */
     static android.content.Intent intent(android.content.Context c, DailyStatsProvider.DriveSession t) {
@@ -57,6 +59,8 @@ public class TripRouteActivity extends Activity {
             .putExtra(EXTRA_EFF, t.efficiencyKwh100km)
             .putExtra(EXTRA_ASCENT, t.ascentDPlusM)
             .putExtra(EXTRA_DESCENT, t.descentDMinusM)
+            .putExtra(EXTRA_ODO_START, t.odoStartKm)
+            .putExtra(EXTRA_ODO_END, t.odoEndKm)
             .putExtra(EXTRA_ESTIMATED, t.energySource == EnergySource.ESTIMATED
                     || t.energySource == EnergySource.MIXED);
     }
@@ -326,6 +330,12 @@ public class TripRouteActivity extends Activity {
         boolean hasPoints = d != null && d.lat.length >= 2;
 
         stat(R.string.route_stat_distance, String.format(Locale.US, "%.1f km", km), null);
+        // Start → end, as the car's panel shows it (issue #210).
+        String odo = SessionText.odometerSpan(in.getDoubleExtra(EXTRA_ODO_START, -1),
+            in.getDoubleExtra(EXTRA_ODO_END, -1));
+        if (odo != null) {
+            stat(R.string.stat_odometer, Style.valueWithUnit(odo, null, "km", Style.UNIT_SCALE_ROW), null);
+        }
 
         long total = endMs > startMs ? endMs - startMs : 0;
         String timeSub = null;
@@ -758,7 +768,7 @@ public class TripRouteActivity extends Activity {
     }
 
     // One number: a small dim label, the value, and an optional dim line under it.
-    private void stat(int label, String value, String sub) {
+    private void stat(int label, CharSequence value, String sub) {
         TextView l = new TextView(this);
         l.setText(label);
         l.setTextColor(Style.TEXT_DIM);

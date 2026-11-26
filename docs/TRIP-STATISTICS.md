@@ -61,11 +61,15 @@ Inspired by A Better Routeplanner's daily diary, the selected day's activities a
   - Distance (km) and SoC change (`100% ➔ 64%`).
   - Altimetry breakdown (`▲ +680 m  ▼ -210 m`).
   - True Efficiency (`Wh/km`) and energy regenerated (`kWh`).
+  - Odometer at the start and the end (`Odometer 12,345 → 12,398 km`), on the
+    title line. The route screen shows it too, under Distance.
 - 🔌 **Recargas (Charges)**:
   - Start & completion time, duration.
   - Energy added in `+kWh`.
   - SoC change (`28% ➔ 80%`).
   - Charging speed (`kW avg`) with AC mains vs DC Fast Charge detection (peak `charge_v >= 300V`).
+  - Odometer at plug-in (`Odometer 12,398 km`), on the title line. The
+    charge's page shows it too, just before Cost.
 - 🅿️ **Parked gaps** between two sessions: tap one to set what the stop cost
   (`parking_cost`, a car park or paid street parking). A priced gap shows its
   place and price; a gap of 15 min or more shows a quiet `+ R$`.

@@ -63,7 +63,7 @@ public class CsvExportTest {
             120.4, 98.6, 0.8, 5.3, 4.5, 14.4, EnergySource.MEASURED);
         String[] l = lines(CsvExport.tripsCsv(Collections.singletonList(t), NONE, SP));
         assertEquals(CsvExport.TRIPS_HEADER, l[0]);
-        assertEquals("9,2026-11-14 10:00,2026-11-14 10:42,42,31.2,80,72,4.50,5.30,0.80,144,measured,120,99,,,,", l[1]);
+        assertEquals("9,2026-11-14 10:00,2026-11-14 10:42,42,31.2,80,72,4.50,5.30,0.80,144,measured,120,99,,,,,,", l[1]);
     }
 
     // A trip still being driven has end 0; a trip with no energy data
@@ -73,7 +73,7 @@ public class CsvExportTest {
         DriveSession noData = new DriveSession(2, T0, T0 + 10 * MIN, 5.0, -1, -1, 0, 0, 0, 0, 0, 0, EnergySource.NO_DATA);
         String[] l = lines(CsvExport.tripsCsv(Arrays.asList(open, noData), NONE, SP));
         assertEquals(3, l.length);
-        assertEquals("2,2026-11-14 10:00,2026-11-14 10:10,10,5.0,,,,,,,no_data,0,0,,,,", l[1]);
+        assertEquals("2,2026-11-14 10:00,2026-11-14 10:10,10,5.0,,,,,,,no_data,0,0,,,,,,", l[1]);
     }
 
     @Test public void placesGoInTheLastColumns() {
@@ -89,7 +89,24 @@ public class CsvExportTest {
         java.util.Map<Long, double[]> ends = new java.util.HashMap<>();
         ends.put(9L, new double[]{-10.5, -50.25, -10.6, -50.3});
         String trip = lines(CsvExport.tripsCsv(Collections.singletonList(t), ends, SP))[1];
-        assertEquals(true, trip.endsWith(",120,99,-10.500000,-50.250000,-10.600000,-50.300000"));
+        assertEquals(true, trip.endsWith(",120,99,-10.500000,-50.250000,-10.600000,-50.300000,,"));
+    }
+
+    // Issue #210: the odometer at the start and the end, after every older
+    // column, so a sheet that reads those by position still works.
+    @Test public void tripOdometerGoesInTheLastTwoColumns() {
+        assertEquals(true, CsvExport.TRIPS_HEADER.endsWith(",end_lon,odometer_start_km,odometer_end_km"));
+        DriveSession t = new DriveSession(9, T0, T0 + 42 * MIN, 52.7, 80, 68,
+            0, 0, 0, 0, 0, 0, EnergySource.MEASURED);
+        t.odoStartKm = 12345.4;
+        t.odoEndKm = 12398.1;
+        String trip = lines(CsvExport.tripsCsv(Collections.singletonList(t), NONE, SP))[1];
+        assertEquals(true, trip.endsWith(",12345.4,12398.1"));
+
+        // Unknown (never read, or the -1 default) stays empty, not "0".
+        t.odoStartKm = -1;
+        trip = lines(CsvExport.tripsCsv(Collections.singletonList(t), NONE, SP))[1];
+        assertEquals(true, trip.endsWith(",,12398.1"));
     }
 
     @Test public void fieldQuoting() {

@@ -47,7 +47,7 @@ public final class CsvExport {
         + "energy_kwh,avg_power_kw,max_voltage_v,odometer_km,cost,cost_per_kwh,lat,lon";
     static final String TRIPS_HEADER = "id,start,end,duration_min,distance_km,soc_start_pct,soc_end_pct,"
         + "energy_net_kwh,energy_spent_kwh,energy_regen_kwh,efficiency_wh_km,energy_source,"
-        + "ascent_m,descent_m,start_lat,start_lon,end_lat,end_lon";
+        + "ascent_m,descent_m,start_lat,start_lon,end_lat,end_lon,odometer_start_km,odometer_end_km";
     static final String DIARY_HEADER = "id,date,group,category,title,status,odometer_km,cost,"
         + "note,tags,outside_temp_c,lat,lon,clip_file,occurrences";
 
@@ -333,7 +333,11 @@ public final class CsvExport {
                 e != null ? num(e[0], 6) : "",
                 e != null ? num(e[1], 6) : "",
                 e != null ? num(e[2], 6) : "",
-                e != null ? num(e[3], 6) : "");
+                e != null ? num(e[3], 6) : "",
+                // Last, so a sheet that reads the older columns by position
+                // still works (issue #210).
+                t.odoStartKm > 0 ? num(t.odoStartKm, 1) : "",
+                t.odoEndKm > 0 ? num(t.odoEndKm, 1) : "");
         }
         return sb.toString();
     }

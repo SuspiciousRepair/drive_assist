@@ -572,6 +572,8 @@
     <string name="routes_all_open">เปิดทริปนี้</string>
     <string name="routes_all_hint">แตะเส้นทางหรือทริปเพื่อเลือก</string>
     <string name="route_stat_distance">ระยะทาง</string>
+    <string name="stat_odometer">เลขไมล์</string>
+    <string name="session_odometer">เลขไมล์ %1$s</string>
     <string name="route_stat_time">เวลา</string>
     <string name="route_stat_time_split">ขณะวิ่ง %1$s · จอด %2$s</string>
     <string name="route_stat_speed">ความเร็ว</string>

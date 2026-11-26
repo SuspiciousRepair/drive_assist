@@ -583,6 +583,8 @@
     <string name="routes_all_open">Open this trip</string>
     <string name="routes_all_hint">Touch a route or a trip to select it.</string>
     <string name="route_stat_distance">Distance</string>
+    <string name="stat_odometer">Odometer</string>
+    <string name="session_odometer">Odometer %1$s</string>
     <string name="route_stat_time">Time</string>
     <string name="route_stat_time_split">Moving %1$s · stopped %2$s</string>
     <string name="route_stat_speed">Speed</string>

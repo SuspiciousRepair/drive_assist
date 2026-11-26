@@ -80,6 +80,9 @@ public final class DailyStatsProvider {
         public int tollCount;
         public double tollCost;
         public int tollUnpriced;
+        /** The odometer (km) at the trip's start and end, -1 when unknown.
+         * Set after construction, like split (issue #210). */
+        public double odoStartKm = -1, odoEndKm = -1;
 
         public DriveSession(long tripId, long startMs, long endMs, double distanceKm,
                             int socStart, int socEnd, double ascentDPlusM, double descentDMinusM,
@@ -116,6 +119,9 @@ public final class DailyStatsProvider {
         public final double avgPowerKw;
         public final boolean isDcfc;
         public final Double cost;
+        /** The odometer (km) at plug-in, -1 when unknown. Set after
+         * construction (issue #210). */
+        public double odoKm = -1;
 
         public ChargeSessionItem(long chargeId, long startMs, long endMs, int socStart, int socEnd,
                                  double kwh, double avgPowerKw, boolean isDcfc) {
@@ -1329,6 +1335,8 @@ public final class DailyStatsProvider {
         // endMs = 0 indicates active session ("em andamento")
         DriveSession ds = new DriveSession(0, startMs, 0, distanceKm, socStart, socEnd,
                 ascent, descent, regen, spent, net, eff, activeEnergy.energySource());
+        ds.odoStartKm = odoStart;
+        ds.odoEndKm = odoEnd;
         // Where the energy went so far: the live trip split, the same numbers
         // the trip will save when it ends, scaled to this net like a saved one.
         EnergyIntegrator.TripSnapshot live = EnergyIntegrator.currentTrip();
@@ -1409,6 +1417,8 @@ public final class DailyStatsProvider {
                     : DrivingConsumption.efficiencyKwh100km(distanceKm, tripSpent, regen);
                 DriveSession ds = new DriveSession(id, startMs, endMs, distanceKm, socStart, socEnd,
                         ascent, descent, regen, tripSpent, tripNet, eff, tripSource);
+                ds.odoStartKm = odoStart;
+                ds.odoEndKm = odoEnd;
                 if (!tc.isNull(14) && tripSource != EnergySource.ESTIMATED) {
                     ds.split = EnergySplit.of(tripNet, tc.getDouble(14), d(tc, 15), d(tc, 16), d(tc, 17),
                         d(tc, 18), d(tc, 19));
@@ -1513,7 +1523,7 @@ public final class DailyStatsProvider {
             : new String[]{boundStart, boundEnd};
         Cursor cc = db.rawQuery(
             "SELECT c.id, c.start_ms, c.end_ms, c.soc_start, c.soc_end, c.kwh, c.avg_power_w, "
-          + "       c.max_charge_v, c.cost FROM charge_session c "
+          + "       c.max_charge_v, c.cost, c.odo_start_km FROM charge_session c "
           + "LEFT JOIN telemetry_sample s1 ON c.start_sample_id = s1.id "
           + "WHERE c.start_ms >= ? AND c.start_ms < ?" + activeFilter
           + "ORDER BY c.start_ms ASC", ccArgs);
@@ -1529,7 +1539,9 @@ public final class DailyStatsProvider {
                 Float v = cc.isNull(7) ? null : cc.getFloat(7);
                 boolean isDcfc = v != null && com.geely.drivemem.state.ChargeSession.isDcfc(v);
                 Double cost = cc.isNull(8) ? null : cc.getDouble(8);
-                out.add(new ChargeSessionItem(id, startMs, endMs, socStart, socEnd, kwh, avgPowerKw, isDcfc, cost));
+                ChargeSessionItem item = new ChargeSessionItem(id, startMs, endMs, socStart, socEnd, kwh, avgPowerKw, isDcfc, cost);
+                item.odoKm = cc.isNull(9) ? -1 : cc.getDouble(9);
+                out.add(item);
             }
         } finally { cc.close(); }
 
@@ -1547,7 +1559,9 @@ public final class DailyStatsProvider {
                 v = (Float) vR.value;
             }
             boolean isDcfc = v != null && com.geely.drivemem.state.ChargeSession.isDcfc(v);
-            out.add(new ChargeSessionItem(0, startMs, 0, socStart, socEnd, kwh, avgPowerKw, isDcfc));
+            ChargeSessionItem item = new ChargeSessionItem(0, startMs, 0, socStart, socEnd, kwh, avgPowerKw, isDcfc);
+            item.odoKm = com.geely.drivemem.state.ChargeSession.currentOdoStart();
+            out.add(item);
         }
 
         // Sort interleaved sessions chronologically

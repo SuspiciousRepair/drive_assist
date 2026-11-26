@@ -1476,6 +1476,13 @@ public class DailyStatsView extends LinearLayout {
 
     private LinearLayout titleRow(int iconRes, int iconColor, DailyStatsProvider.DaySession s,
                                   long dayStartMs, CharSequence hero) {
+        return titleRow(iconRes, iconColor, s, dayStartMs, hero, null);
+    }
+
+    /** odo: the odometer text ("12,345 → 12,398"), shown dim after the
+     * duration; null leaves it out. */
+    private LinearLayout titleRow(int iconRes, int iconColor, DailyStatsProvider.DaySession s,
+                                  long dayStartMs, CharSequence hero, String odo) {
         Context c = getContext();
         LinearLayout line1 = new LinearLayout(c);
         line1.setOrientation(LinearLayout.HORIZONTAL);
@@ -1494,6 +1501,7 @@ public class DailyStatsView extends LinearLayout {
         long durMs = (live ? System.currentTimeMillis() : s.endMs) - s.startMs;
         SpannableStringBuilder time = new SpannableStringBuilder(range);
         appendUnit(time, "  ·  " + SessionText.duration(durMs), 0.92f);
+        if (odo != null) appendUnit(time, "  ·  " + c.getString(R.string.session_odometer, odo + " km"), 0.92f);
 
         TextView timeView = new TextView(c);
         timeView.setTextColor(Style.TEXT);
@@ -1619,7 +1627,8 @@ public class DailyStatsView extends LinearLayout {
 
     private void buildDriveSessionCard(LinearLayout card, DailyStatsProvider.DriveSession t, long dayStartMs) {
         Context c = getContext();
-        LinearLayout title = titleRow(R.drawable.ic_car, Style.TEXT_DIM, t, dayStartMs, number(t.distanceKm, "km"));
+        LinearLayout title = titleRow(R.drawable.ic_car, Style.TEXT_DIM, t, dayStartMs, number(t.distanceKm, "km"),
+            SessionText.odometerSpan(t.odoStartKm, t.odoEndKm));
         if (t.tollCount > 0) {
             TextView pill = new TextView(c);
             SpannableStringBuilder sb = new SpannableStringBuilder();
