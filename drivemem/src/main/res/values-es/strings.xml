@@ -759,6 +759,9 @@
     <string name="caps_cameras_unknown">Cámaras 360: aún no leídas. La dashcam sigue apagada hasta que el coche responda.</string>
     <string name="caps_readings">Tipo %1$s · Variante %2$s · AVM %3$s · RVC %4$s · DVR %5$s · AEB %6$s · AMB %7$s · RHD %8$s</string>
     <string name="caps_report">Si esto es incorrecto, envía estas líneas en una issue de GitHub.</string>
+    <string name="phone_version_header">Versión de la app</string>
+    <string name="phone_version_hint">Toca el texto para seleccionarlo todo y luego cópialo.</string>
+    <string name="phone_version_no_helper">ModeHelper: no instalado</string>
     <!-- Car Diary & 12V Health -->
     <string name="diary_add_btn">+ Añadir registro</string>
     <string name="diary_add_title">Nuevo registro</string>

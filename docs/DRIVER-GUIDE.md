@@ -249,8 +249,10 @@ same values on every car.
 ## More you can do
 
 - **Phone access**: scan a QR code on the car screen to get a page on your phone
-  for backups, clips, trip files, and toll and parking prices. It runs only in
-  Park, on the local network.
+  for backups, clips, trip files, and toll and parking prices. At the bottom,
+  **App version** shows the installed Drive Assist and ModeHelper versions
+  (or "ModeHelper: not installed"): tap the text to select it, then copy it. It runs only in Park, on the
+  local network.
 - **Backup and restore**: save your settings, trips and certificates to a USB
   stick and to the car, locked with a password you choose.
 - **Darkest mode**: at night, after a minute of driving with no touch, the

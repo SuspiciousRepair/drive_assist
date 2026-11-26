@@ -21,6 +21,10 @@
   chart where the toll was and tap **+ Add a missed toll**. Later trips in the
   same direction find it too. Each toll now also shows as a mark on the
   height chart.
+- **Phone access: app version.** The phone page shows the installed Drive
+  Assist and ModeHelper versions at the bottom, or says that ModeHelper is
+  not installed. One tap selects the text, so
+  you can copy it into a message or an issue.
 - **Phone access: tolls and parking.** Edit toll booth prices (also both
   directions, or off) and parking costs with the phone keyboard, and
   download both as CSV.
