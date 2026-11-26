@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [v0.11.4] — 2026-11-27
+
+### Fixed
+- **The crack-windows button closes windows set to open only a little.**
+  With a window's target below 14 (of 100) in Config > Doors, the button did
+  not see it as open, so the next press tried to open it again instead of
+  closing it (#208).
+
 ## [v0.11.3] — 2026-11-23
 
 ### Added

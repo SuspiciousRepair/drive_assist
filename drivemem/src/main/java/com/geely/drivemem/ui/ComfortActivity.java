@@ -615,7 +615,7 @@ public class ComfortActivity extends Activity {
                 // WHICH WAY THE BUTTON ACTS IS READ, NOT REMEMBERED. A hand can
                 // move a window, and the car shuts them all on lock, so a stored
                 // flag would be wrong exactly when it mattered.
-                final Boolean was = purge.anyOpen(pc);
+                final Boolean was = purge.anyOpen(pc, Purge.targetsFromPrefs(Prefs.file(this)));
                 final int moved = (was == null) ? 0
                                 : was ? purge.close(pc) : purge.open(pc, Purge.targetsFromPrefs(Prefs.file(this)));
                 ui.post(() -> {
@@ -2470,7 +2470,7 @@ public class ComfortActivity extends Activity {
             if (rc != null) { final boolean frc = rc; ui.post(() -> setRecirc(frc)); }
             // Same authority argument as recirculation: a window moved on the
             // native panel, or shut by the car on lock, has to move this label.
-            Boolean po = purge.anyOpen(c);
+            Boolean po = purge.anyOpen(c, Purge.targetsFromPrefs(Prefs.file(this)));
             if (po != null) { final boolean fpo = po; ui.post(() -> setPurge(fpo)); }
             Boolean pwr = c.readHvacFlag(CarAccess.HVAC_POWER_ON);
             Integer dir = c.readIntRaw(EffortTable.DIR_PROP, 0);
@@ -2954,14 +2954,16 @@ public class ComfortActivity extends Activity {
     // Pushed the instant a pane's own position changes (car.window_pos,
     // armed in CarActor.armDiscreteWatches) — value is {area, position},
     // same shape as car.door_pos. Recomputes "any window still open" from
-    // real per-area readings, same threshold Purge itself uses.
+    // real per-area readings, same rule Purge itself uses (Purge.isOpen).
     private final EntityBus.Listener windowPosListener = (key, reading) -> {
         if (reading.status != CarActor.Reading.Status.OK) return;
         int[] av = (int[]) reading.value;
         ui.post(() -> {
             windowPos.put(av[0], av[1]);
             boolean open = false;
-            for (int v : windowPos.values()) if (v >= Purge.OPEN_AT_LEAST) { open = true; break; }
+            java.util.Map<Integer, Integer> targets = Purge.targetsFromPrefs(Prefs.file(this));
+            for (java.util.Map.Entry<Integer, Integer> e : windowPos.entrySet())
+                if (Purge.isOpen(e.getKey(), e.getValue(), targets)) { open = true; break; }
             setPurge(open);
         });
     };
@@ -3297,7 +3299,8 @@ public class ComfortActivity extends Activity {
     private void refreshPurge() {
         if (purgeBtn == null) return;
         CarActor.get(this).runOnCarThread(() -> {
-            Boolean open = purge.anyOpen(CarActor.get(this).rawAccess());
+            Boolean open = purge.anyOpen(CarActor.get(this).rawAccess(),
+                    Purge.targetsFromPrefs(Prefs.file(this)));
             if (open == null) return;        // asleep or unreadable: leave the label alone
             ui.post(() -> setPurge(open));
         });
