@@ -40,6 +40,8 @@ import javax.microedition.khronos.opengles.GL10;
  * fisheye-to-rectilinear conversion via OpenGL shader. */
 public class ClipPlayerActivity extends Activity {
     public static final String EXTRA_PATH = "path";
+    /** Optional start offset in milliseconds (e.g. 3 s before a Valet bump strike). */
+    public static final String EXTRA_SEEK_MS = "seek_ms";
 
     // Which quadrant each camera is: top-left/right are sides, bottom-left
     // is front, bottom-right is rear.
@@ -436,6 +438,9 @@ public class ClipPlayerActivity extends Activity {
                     mp.setSurface(s);
                     mp.setDataSource(path);
                     mp.setOnPreparedListener(m -> {
+                        int seekMs = Math.max(0, getIntent().getIntExtra(EXTRA_SEEK_MS, 0));
+                        int dur = m.getDuration();
+                        if (seekMs > 0 && (dur <= 0 || seekMs < dur)) m.seekTo(seekMs);
                         m.start();
                         tick();
                         if (controller != null) { controller.setEnabled(true); controller.show(4000); }

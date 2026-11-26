@@ -767,6 +767,7 @@ public class ComfortActivity extends Activity {
         View spacerBottom = new View(this);
         bar.addView(spacerBottom, new LinearLayout.LayoutParams(0, 0, 1f));
 
+        // Config asks for the PIN itself when it opens (TelemetryActivity.checkGate).
         bar.addView(Style.cogButton(this,
             () -> startActivity(new Intent(this, TelemetryActivity.class))));
 
@@ -791,6 +792,7 @@ public class ComfortActivity extends Activity {
     }
 
     private void setMainViewMode(int mode) {
+        if (ValetSession.isActive(this) && mode != MODE_CARDS) return;
         if (mainViewMode == mode) return;
         mainViewMode = mode;
         if (mainViewMode == MODE_DRIVING_STATS) {
@@ -817,6 +819,11 @@ public class ComfortActivity extends Activity {
 
     private void updateDockButtons() {
         if (cardsDockIcon == null || statsDockIcon == null) return;
+        int dockVis = ComfortCardVisibility.showDockStats(ValetSession.isActive(this)) ? View.VISIBLE : View.GONE;
+        statsDockIcon.setVisibility(dockVis);
+        if (diaryDockIcon != null && diaryDockIcon.getParent() instanceof View) {
+            ((View) diaryDockIcon.getParent()).setVisibility(dockVis);
+        }
         cardsDockIcon.setBackground(Style.card(mainViewMode == MODE_CARDS ? Style.CARD_ON : 0x00000000, this, 18));
         cardsDockIcon.setColorFilter(mainViewMode == MODE_CARDS ? Style.onFill(Style.CARD_ON) : Style.TEXT_DIM);
 
@@ -925,7 +932,8 @@ public class ComfortActivity extends Activity {
     // verify (Wi-Fi dropped after HA last said yes) must hide the card.
     // See gateVisible().
     private boolean gateVisible() {
-        return ComfortCardVisibility.showGateCard(GateState.available(), GateState.connected());
+        return ComfortCardVisibility.showGateCard(GateState.available(), GateState.connected(),
+            ValetSession.isActive(this));
     }
 
 
@@ -976,7 +984,8 @@ public class ComfortActivity extends Activity {
         // whatever CarState already knows at build time; the listener (see
         // below) keeps it in sync as gear actually changes. All buttons
         // share this one rule.
-        t.setVisibility(ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, CarState.isParked()) ? View.VISIBLE : View.GONE);
+        t.setVisibility(ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, CarState.isParked(),
+            ValetSession.isActive(this)) ? View.VISIBLE : View.GONE);
         turboCardView = t;
         quickButtons.refresh();
         return t;
@@ -2018,8 +2027,19 @@ public class ComfortActivity extends Activity {
         // easy to forget Valet is on and pull away, and making the owner
         // wait for a stop light isn't worth the drive going untracked.
         tripValetStop.setOnClickListener(v -> {
-            if (ValetSession.isActive(this)) ValetSession.stop(this);
-            refreshJourneyCard();
+            if (!ValetSession.isActive(this)) {
+                refreshJourneyCard();
+                return;
+            }
+            Runnable endValet = () -> {
+                if (ValetSession.isActive(this)) ValetSession.stop(this);
+                refreshJourneyCard();
+            };
+            if (com.geely.drivemem.util.SecurityLock.needsUnlockForValet(this)) {
+                PinDialog.requireUnlock(this, R.string.sec_unlock_valet, endValet);
+            } else {
+                endValet.run();
+            }
         });
         right.addView(tripValetStop, new android.widget.FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -2620,7 +2640,7 @@ public class ComfortActivity extends Activity {
     // already says everything: nothing is loaded worth showing a card for.
     private final MusicState.Listener musicListener = (playing, title, artist, artUrl) ->
         ui.post(() -> {
-            boolean available = ComfortCardVisibility.showMusicCard(title);
+            boolean available = ComfortCardVisibility.showMusicCard(title, ValetSession.isActive(this));
             if (musicCard != null) musicCard.setVisibility(available ? View.VISIBLE : View.GONE);
             if (available) {
                 showMusicText(title, artist);
@@ -2679,9 +2699,41 @@ public class ComfortActivity extends Activity {
     };
     private final EntityBus.Listener chargeBusListener = (key, reading) -> ui.post(this::checkRetainedCharge);
     private final EntityBus.Listener journeyBusListener = (key, reading) -> ui.post(() -> {
-        if ("valet.changed".equals(key)) checkRetainedCharge();
+        if ("valet.changed".equals(key)) {
+            applyValetLockdown();
+            return;
+        }
         refreshJourneyCard();
     });
+
+    /** In Valet Mode, hide every card except Climate + Valet and block Stats/Config. */
+    private void applyValetLockdown() {
+        boolean valet = ValetSession.isActive(this);
+        if (valet && mainViewMode != MODE_CARDS) setMainViewMode(MODE_CARDS);
+        updateDockButtons();
+        boolean gateNow = gateVisible();
+        if (gateCard != null) {
+            gateCard.setVisibility(gateNow ? View.VISIBLE : View.GONE);
+            if (gateNow) gateCard.refreshStatus();
+        }
+        lastGateAvailable = gateNow;
+        if (turboCardView != null) {
+            boolean turboNow = ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, CarState.isParked(), valet);
+            turboCardView.setVisibility(turboNow ? View.VISIBLE : View.GONE);
+            lastTurboVisible = turboNow;
+        }
+        boolean musicNow = ComfortCardVisibility.showMusicCard(MusicState.title(), valet);
+        if (musicCard != null) musicCard.setVisibility(musicNow ? View.VISIBLE : View.GONE);
+        if (musicNow) {
+            showMusicText(MusicState.title(), MusicState.artist());
+            showMusicArt();
+        }
+        lastMusicAvailable = musicNow;
+        showPanel(PanelState.get());
+        checkRetainedCharge();
+        refreshJourneyCard();
+        if (columns != null) repackColumns();
+    }
 
     private Updater.UpdateInfo pendingUpdate = null;
     private android.app.AlertDialog activeUpdateDialog = null;
@@ -2725,15 +2777,15 @@ public class ComfortActivity extends Activity {
     // re-derive both from their own current state whenever gear changes,
     // since a gear change and a charging/turbo change are independent events.
     private final CarState.Listener carStateListener = parked -> ui.post(() -> {
+        boolean valet = ValetSession.isActive(this);
         if (turboCardView != null) {
-            boolean visible = ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, parked);
+            boolean visible = ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, parked, valet);
             if ((turboCardView.getVisibility() == View.VISIBLE) != visible) {
                 turboCardView.setVisibility(visible ? View.VISIBLE : View.GONE);
                 lastTurboVisible = visible;
                 if (columns != null) repackColumns();
             }
         }
-        boolean valet = ValetSession.isActive(this);
         if (ComfortCardVisibility.showActiveCharging(parked, ChargeSession.isCharging(), valet)) {
             showCharging(ChargeSession.currentSocStart(), ChargeSession.currentSocEnd(),
                 ChargeSession.currentStartWallMs(), System.currentTimeMillis());
@@ -2958,7 +3010,8 @@ public class ComfortActivity extends Activity {
         // show only if there IS content AND it was NOT dismissed (a local
         // comparison, without depending on the broker to clear it). Different
         // content => it comes back.
-        boolean has = ComfortCardVisibility.showPanelCard(empty, s.hashCode() == dismissedHash);
+        boolean has = ComfortCardVisibility.showPanelCard(empty, s.hashCode() == dismissedHash,
+            ValetSession.isActive(this));
         if (has) {
             // THE CARD ALREADY UP DOES NOT ARRIVE AGAIN — HA republishing an
             // unchanged payload (or this screen resuming) must not reload it.
@@ -3261,7 +3314,7 @@ public class ComfortActivity extends Activity {
         MusicState.setListener(musicListener);
         // Same "changed while paused" re-check as the gate, and the same
         // reason: a track can start or end while the screen is off.
-        boolean nowMusicAvailable = ComfortCardVisibility.showMusicCard(MusicState.title());
+        boolean nowMusicAvailable = ComfortCardVisibility.showMusicCard(MusicState.title(), ValetSession.isActive(this));
         if (musicCard != null) musicCard.setVisibility(nowMusicAvailable ? View.VISIBLE : View.GONE);
         lyricsEnabled = Prefs.getLyricsSearch(this);   // may have changed in Config
         lyricsOpen = Prefs.getLyricsOpen(this);
@@ -3302,14 +3355,15 @@ public class ComfortActivity extends Activity {
         // it (reported 2026-09-21: parked -> opened Config -> car started
         // driving -> back to Home, Portão/Turbo had no gap between them).
         if (turboCardView != null) {
-            boolean turboVisible = ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, CarState.isParked());
+            boolean turboVisible = ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, CarState.isParked(),
+                ValetSession.isActive(this));
             if (turboVisible != lastTurboVisible) {
                 lastTurboVisible = turboVisible;
                 turboCardView.setVisibility(turboVisible ? View.VISIBLE : View.GONE);
                 if (columns != null) repackColumns();
             }
         }
-        refreshJourneyCard();
+        applyValetLockdown();
         // Phone music: the links to the car's players stay up while the app
         // runs, not only on this screen. A new link knows nothing of a player
         // that already went quiet (CarPlay after the cable is pulled), so

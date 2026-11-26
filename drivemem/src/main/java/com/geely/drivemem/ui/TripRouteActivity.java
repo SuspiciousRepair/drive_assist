@@ -68,6 +68,9 @@ public class TripRouteActivity extends Activity {
     private ElevationView profile;
     private TextView note;
     private LinearLayout stats;
+    private TextView tollsToggle;
+    private boolean showTollsOnMap = true;
+    private int tollPinCount = 0;
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -94,9 +97,22 @@ public class TripRouteActivity extends Activity {
         TextView t = Style.title(this, getString(R.string.route_title) + "  ·  " + when);
         t.setTextSize(22);
         LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         tlp.leftMargin = Style.dp(this, 14);
         head.addView(t, tlp);
+
+        tollsToggle = new TextView(this);
+        tollsToggle.setTextSize(17);
+        tollsToggle.setTypeface(null, android.graphics.Typeface.BOLD);
+        int th = Style.dp(this, 16), tv = Style.dp(this, 8);
+        tollsToggle.setPadding(th, tv, th, tv);
+        tollsToggle.setVisibility(View.GONE);
+        tollsToggle.setOnClickListener(v -> {
+            showTollsOnMap = !showTollsOnMap;
+            route.setShowTolls(showTollsOnMap);
+            refreshTollsToggle();
+        });
+        head.addView(tollsToggle);
         root.addView(head);
 
         LinearLayout body = new LinearLayout(this);
@@ -123,15 +139,19 @@ public class TripRouteActivity extends Activity {
         left.addView(profile, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 230)));
         left.addView(legend());
 
-        // The numbers (right in LHD, left in RHD).
+        // The numbers (right in LHD, left in RHD), scrollable so Sankey + Scores never clip.
+        android.widget.ScrollView statsScroll = new android.widget.ScrollView(this);
+        statsScroll.setVerticalScrollBarEnabled(false);
+        statsScroll.setBackground(Style.tile(this));
+        statsScroll.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(this, 460),
+            ViewGroup.LayoutParams.MATCH_PARENT));
         stats = new LinearLayout(this);
         stats.setOrientation(LinearLayout.VERTICAL);
         int sp = Style.dp(this, 20);
         stats.setPadding(sp, sp, sp, sp);
-        stats.setBackground(Style.tile(this));
-        stats.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(this, 460),
-            ViewGroup.LayoutParams.MATCH_PARENT));
-        Style.addMirrored(body, 20, left, stats);
+        statsScroll.addView(stats, new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        Style.addMirrored(body, 20, left, statsScroll);
         showStats(null);
 
         setContentView(root);
@@ -172,6 +192,8 @@ public class TripRouteActivity extends Activity {
         /** The trip's raw split columns (CarDb.TRIP_SPLIT_COLUMNS), or null
          * when CAN did not measure the trip. */
         double[] split;
+        Integer roadScore, driverScore, roadBumps, hardBrakes, hardAccels, hardCorners;
+        java.util.List<com.geely.drivemem.state.TollTracker.Passage> tolls = new java.util.ArrayList<>();
     }
 
     private void load(long tripId, long startMs, long endMs) {
@@ -207,12 +229,21 @@ public class TripRouteActivity extends Activity {
                 } catch (Throwable e) { android.util.Log.w("DriveMem", "trip charges: " + e); }
             }
             Cursor sc = CarDb.get(this).db().rawQuery(
-                "SELECT can_net_kwh, drive_spent_kwh, drive_regen_kwh, climate_raw_kwh, climate_on_s, fan_kwh "
-              + "FROM trip WHERE id = ? AND can_net_kwh IS NOT NULL", new String[]{String.valueOf(tripId)});
+                "SELECT can_net_kwh, drive_spent_kwh, drive_regen_kwh, climate_raw_kwh, climate_on_s, fan_kwh, "
+              + "road_score, driver_score, road_bumps, hard_brakes, hard_accels, hard_corners "
+              + "FROM trip WHERE id = ?", new String[]{String.valueOf(tripId)});
             try {
                 if (sc.moveToFirst()) {
-                    d.split = new double[6];
-                    for (int i = 0; i < 6; i++) d.split[i] = sc.isNull(i) ? 0 : sc.getDouble(i);
+                    if (!sc.isNull(0)) {
+                        d.split = new double[6];
+                        for (int i = 0; i < 6; i++) d.split[i] = sc.isNull(i) ? 0 : sc.getDouble(i);
+                    }
+                    if (!sc.isNull(6)) d.roadScore = sc.getInt(6);
+                    if (!sc.isNull(7)) d.driverScore = sc.getInt(7);
+                    if (!sc.isNull(8)) d.roadBumps = sc.getInt(8);
+                    if (!sc.isNull(9)) d.hardBrakes = sc.getInt(9);
+                    if (!sc.isNull(10)) d.hardAccels = sc.getInt(10);
+                    if (!sc.isNull(11)) d.hardCorners = sc.getInt(11);
                 }
             } finally { sc.close(); }
             if (endMs > startMs) {
@@ -224,6 +255,7 @@ public class TripRouteActivity extends Activity {
                     if (tc.moveToFirst() && !tc.isNull(0)) { d.tempMin = tc.getDouble(0); d.tempMax = tc.getDouble(1); }
                 } finally { tc.close(); }
             }
+            d.tolls = com.geely.drivemem.state.TollTracker.forTrip(this, tripId);
         } catch (Throwable e) {
             android.util.Log.w("DriveMem", "trip route: " + e);
         }
@@ -238,6 +270,24 @@ public class TripRouteActivity extends Activity {
             note.setVisibility(View.VISIBLE);
         } else {
             route.setChargeSpots(d.spots);
+            tollPinCount = d.tolls.size();
+            if (!d.tolls.isEmpty()) {
+                int tn = d.tolls.size();
+                double[] tLat = new double[tn], tLon = new double[tn];
+                String[] tLbl = new String[tn];
+                for (int i = 0; i < tn; i++) {
+                    com.geely.drivemem.state.TollTracker.Passage p = d.tolls.get(i);
+                    tLat[i] = p.lat; tLon[i] = p.lon;
+                    tLbl[i] = p.cost != null
+                        ? com.geely.drivemem.util.Prefs.currencySymbol() + String.format(Locale.getDefault(), "%.2f", p.cost)
+                        : "?";
+                }
+                route.setTollPins(tLat, tLon, tLbl);
+                route.setShowTolls(showTollsOnMap);
+            } else {
+                route.setTollPins(null, null, null);
+            }
+            refreshTollsToggle();
             route.setRoute(d.lat, d.lon, d.speed);
             double[] alt = TripRouteStats.fillGaps(d.alt);
             if (alt != null) {
@@ -326,6 +376,213 @@ public class TripRouteActivity extends Activity {
                 ? String.format(Locale.US, "%.0f °C", d.tempMin)
                 : String.format(Locale.US, "%.0f – %.0f °C", d.tempMin, d.tempMax), null);
         }
+        if (d != null && (d.driverScore != null || d.roadScore != null)) {
+            scoreStat(d);
+        }
+        if (d != null && !d.tolls.isEmpty()) {
+            tollsStat(d);
+        }
+    }
+
+    /** Chronological list of toll crossings on this trip (tappable in Park to edit/dismiss). */
+    private void tollsStat(Loaded d) {
+        double sum = 0;
+        int unpriced = 0;
+        for (com.geely.drivemem.state.TollTracker.Passage p : d.tolls) {
+            if (p.cost != null) sum += p.cost;
+            else unpriced++;
+        }
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        head.setPadding(0, Style.dp(this, 14), 0, Style.dp(this, 4));
+        TextView lbl = new TextView(this);
+        lbl.setText(getString(R.string.toll_section_header, d.tolls.size()));
+        lbl.setTextColor(Style.TEXT_DIM);
+        lbl.setTextSize(17);
+        head.addView(lbl, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView tot = new TextView(this);
+        if (sum > 0) {
+            android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder(
+                Style.moneyWithUnit(sum, Style.TEXT, Style.UNIT_SCALE_ROW));
+            if (unpriced > 0) sb.append(" + ?");
+            tot.setText(sb);
+        } else {
+            tot.setText("?");
+        }
+        tot.setTextColor(Style.TEXT);
+        tot.setTextSize(21);
+        tot.setTypeface(null, android.graphics.Typeface.BOLD);
+        head.addView(tot);
+        stats.addView(head);
+
+        final long tripId = getIntent().getLongExtra(EXTRA_TRIP_ID, -1);
+        final long startMs = getIntent().getLongExtra(EXTRA_START_MS, 0);
+        final long endMs = getIntent().getLongExtra(EXTRA_END_MS, 0);
+        for (com.geely.drivemem.state.TollTracker.Passage p : d.tolls) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setBackground(Style.card(Style.CARD_HI, this, 12));
+            int rp = Style.dp(this, 12);
+            row.setPadding(rp, rp, rp, rp);
+
+            LinearLayout col = new LinearLayout(this);
+            col.setOrientation(LinearLayout.VERTICAL);
+            TextView name = new TextView(this);
+            name.setText(p.boothName);
+            name.setTextColor(Style.TEXT);
+            name.setTextSize(18);
+            name.setTypeface(null, android.graphics.Typeface.BOLD);
+            col.addView(name);
+            String kind = com.geely.drivemem.sensors.TollMatcher.KIND_FREE_FLOW.equals(p.boothKind)
+                ? getString(R.string.toll_kind_free_flow) : getString(R.string.toll_kind_plaza);
+            TextView meta = new TextView(this);
+            meta.setText(SessionText.clock(p.tsMs) + "  ·  " + kind);
+            meta.setTextColor(Style.TEXT_DIM);
+            meta.setTextSize(15);
+            col.addView(meta);
+            row.addView(col, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+            TextView price = new TextView(this);
+            if (p.cost != null) {
+                price.setText(Style.moneyWithUnit(p.cost, Style.TEXT, Style.UNIT_SCALE_ROW));
+                price.setTextColor(Style.TEXT);
+            } else {
+                price.setText(R.string.toll_set_price);
+                price.setTextColor(Style.ACCENT);
+            }
+            price.setTextSize(20);
+            price.setTypeface(null, android.graphics.Typeface.BOLD);
+            row.addView(price);
+
+            row.setOnClickListener(v -> {
+                int nearest = nearestPointIndex(d.ts, p.tsMs);
+                if (nearest >= 0) route.setMarker(nearest);
+                TollPassageDialog.show(this, p, d.ts, d.lat, d.lon, d.speed, () ->
+                    new Thread(() -> load(tripId, startMs, endMs), "trip-route-reload").start());
+            });
+            LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            rlp.topMargin = Style.dp(this, 8);
+            stats.addView(row, rlp);
+        }
+    }
+
+    private void refreshTollsToggle() {
+        if (tollsToggle == null) return;
+        if (tollPinCount <= 0) {
+            tollsToggle.setVisibility(View.GONE);
+            return;
+        }
+        tollsToggle.setVisibility(View.VISIBLE);
+        tollsToggle.setText(getString(
+            showTollsOnMap ? R.string.toll_map_show : R.string.toll_map_hide, tollPinCount));
+        tollsToggle.setBackground(Style.card(showTollsOnMap ? Style.ACCENT : Style.CARD_HI, this, 16));
+        tollsToggle.setTextColor(showTollsOnMap ? Style.onFill(Style.ACCENT) : Style.TEXT);
+    }
+
+    private static int nearestPointIndex(long[] ts, long targetMs) {
+        if (ts == null || ts.length == 0) return -1;
+        int best = 0;
+        long bestDiff = Math.abs(ts[0] - targetMs);
+        for (int i = 1; i < ts.length; i++) {
+            long d = Math.abs(ts[i] - targetMs);
+            if (d < bestDiff) { bestDiff = d; best = i; }
+        }
+        return best;
+    }
+
+    /** Driver & Road scores side by side, color-coded, with event summary & (i) info. */
+    private void scoreStat(Loaded d) {
+        LinearLayout block = new LinearLayout(this);
+        block.setOrientation(LinearLayout.VERTICAL);
+        TextView l = new TextView(this);
+        l.setText(R.string.route_stat_scores);
+        l.setTextColor(Style.TEXT_DIM);
+        l.setTextSize(17);
+        l.setPadding(0, Style.dp(this, 10), 0, 0);
+        android.graphics.drawable.Drawable icon = getDrawable(R.drawable.ic_info_outline).mutate();
+        icon.setTint(Style.TEXT_DIM);
+        int size = Style.dp(this, 20);
+        icon.setBounds(0, 0, size, size);
+        l.setCompoundDrawablesRelative(null, null, icon, null);
+        l.setCompoundDrawablePadding(Style.dp(this, 8));
+        block.addView(l);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        if (d.driverScore != null) {
+            row.addView(scorePart(d.driverScore, R.string.route_stat_driver_score));
+        }
+        if (d.roadScore != null) {
+            View roadView = scorePart(d.roadScore, R.string.route_stat_road_score);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            if (d.driverScore != null) lp.leftMargin = Style.dp(this, 48);
+            row.addView(roadView, lp);
+        }
+        block.addView(row);
+
+        String events = formatScoreEvents(this, d.roadBumps, d.hardBrakes, d.hardAccels, d.hardCorners);
+        if (events != null) {
+            TextView sub = new TextView(this);
+            sub.setText(events);
+            sub.setTextColor(Style.TEXT_DIM);
+            sub.setTextSize(16);
+            sub.setPadding(0, Style.dp(this, 4), 0, 0);
+            block.addView(sub);
+        }
+        block.setOnClickListener(v -> ChargeStatsView.showInfo(this,
+            getString(R.string.route_stat_scores), getString(R.string.route_stat_scores_info)));
+        stats.addView(block);
+    }
+
+    private View scorePart(int score, int name) {
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        TextView v = new TextView(this);
+        v.setText(scoreSpan(score));
+        v.setTextColor(scoreColor(score));
+        v.setTextSize(26);
+        v.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        col.addView(v);
+        TextView n = new TextView(this);
+        n.setText(name);
+        n.setTextColor(Style.TEXT_DIM);
+        n.setTextSize(16);
+        col.addView(n);
+        return col;
+    }
+
+    static android.text.SpannableString scoreSpan(int score) {
+        String num = String.valueOf(score);
+        android.text.SpannableString s = new android.text.SpannableString(num + " /100");
+        s.setSpan(new android.text.style.RelativeSizeSpan(0.60f), num.length(), s.length(), 0);
+        s.setSpan(new android.text.style.ForegroundColorSpan(Style.TEXT_DIM), num.length(), s.length(), 0);
+        return s;
+    }
+
+    static int scoreColor(int score) {
+        if (score >= 80) return Style.GOOD;
+        if (score >= 60) return Style.WARN;
+        return Style.DANGER;
+    }
+
+    static String formatScoreEvents(android.content.Context ctx,
+                                    Integer bumps, Integer brakes, Integer accels, Integer corners) {
+        java.util.List<String> parts = new java.util.ArrayList<>();
+        if (bumps != null && bumps > 0) parts.add(ctx.getString(R.string.route_score_bumps, bumps));
+        if (brakes != null && brakes > 0) parts.add(ctx.getString(R.string.route_score_brakes, brakes));
+        if (accels != null && accels > 0) parts.add(ctx.getString(R.string.route_score_accels, accels));
+        if (corners != null && corners > 0) parts.add(ctx.getString(R.string.route_score_corners, corners));
+        if (parts.isEmpty()) return ctx.getString(R.string.route_score_smooth);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < parts.size(); i++) {
+            if (i > 0) sb.append(" · ");
+            sb.append(parts.get(i));
+        }
+        return sb.toString();
     }
 
     /** Speed: two numbers side by side, each with its name small and dim

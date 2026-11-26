@@ -19,6 +19,10 @@ public class PhoneRestoreKeysTest {
         "adb_a_switch_added_next_year",
         Prefs.KEY_PHONE_MODE, Prefs.KEY_PHONE_TOKEN,
         "commands_enabled",
+        Prefs.KEY_SECURITY_PIN_HASH, Prefs.KEY_SECURITY_PIN_SALT,
+        Prefs.KEY_SECURITY_LOCK_VALET, Prefs.KEY_SECURITY_LOCK_SETTINGS,
+        Prefs.KEY_SECURITY_BT_MAC, Prefs.KEY_SECURITY_TRUST_CARPLAY,
+        "security_future_flag",
         // never in any restore (Prefs.isBackedUp): the key that locks the backups
         AppBackup.PREF_KEY, AppBackup.PREF_SALT,
     };

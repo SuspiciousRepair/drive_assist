@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Toll booth + raised barrier arm -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M3,19h18v2H3v-2zM5,11h5v8H5v-8zM6.5,12.5v2.5h2v-2.5h-2zM4,9.5L7.5,7l3.5,2.5V10H4v-0.5zM11,13.5l8.8,-5.1 1,1.7L12,15.2V13.5z" />
+</vector>

@@ -391,6 +391,108 @@ public final class Prefs {
         file(ctx).edit().putInt(modehelper ? "update_later_vc_modehelper" : "update_later_vc", versionCode).apply();
     }
 
+    // --- Security (util/SecurityLock.java, ui/TelemetrySecuritySection.java) ---
+    public static final String KEY_SECURITY_PIN_HASH = "security_pin_hash";
+    public static final String KEY_SECURITY_PIN_SALT = "security_pin_salt";
+    public static final String KEY_SECURITY_LOCK_VALET = "security_lock_valet";
+    public static final String KEY_SECURITY_LOCK_SETTINGS = "security_lock_settings";
+    public static final String KEY_SECURITY_BT_MAC = "security_bt_mac";
+    public static final String KEY_SECURITY_BT_NAME = "security_bt_name";
+    public static final String KEY_SECURITY_BEACON_UUID = "security_beacon_uuid";
+    public static final String KEY_SECURITY_BEACON_NAME = "security_beacon_name";
+    public static final String KEY_SECURITY_TRUST_CARPLAY = "security_trust_carplay";
+    public static final String KEY_SECURITY_CARPLAY_SERIAL = "security_carplay_serial";
+    public static final String KEY_SECURITY_TRUST_WIFI = "security_trust_wifi";
+    public static final String KEY_SECURITY_WIFI_SSIDS = "security_wifi_ssids";
+    public static final String KEY_SECURITY_AUTO_END_VALET = "security_auto_end_valet";
+    public static final String KEY_SECURITY_HOME_LAT = "security_home_lat";
+    public static final String KEY_SECURITY_HOME_LON = "security_home_lon";
+    public static final String KEY_SECURITY_LOCKOUT_UNTIL = "security_lockout_until";
+
+    public static String getSecurityPinHash(Context ctx) { return file(ctx).getString(KEY_SECURITY_PIN_HASH, ""); }
+    public static String getSecurityPinSalt(Context ctx) { return file(ctx).getString(KEY_SECURITY_PIN_SALT, ""); }
+    public static void setSecurityPin(Context ctx, String salt, String hash) {
+        file(ctx).edit().putString(KEY_SECURITY_PIN_SALT, salt).putString(KEY_SECURITY_PIN_HASH, hash).commit();
+    }
+    public static void clearSecurityPin(Context ctx) {
+        file(ctx).edit()
+            .remove(KEY_SECURITY_PIN_SALT)
+            .remove(KEY_SECURITY_PIN_HASH)
+            .remove(KEY_SECURITY_LOCKOUT_UNTIL)
+            .commit();
+    }
+    public static boolean getSecurityLockValet(Context ctx) { return file(ctx).getBoolean(KEY_SECURITY_LOCK_VALET, true); }
+    public static void setSecurityLockValet(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_SECURITY_LOCK_VALET, v).apply(); }
+    public static boolean getSecurityLockSettings(Context ctx) { return file(ctx).getBoolean(KEY_SECURITY_LOCK_SETTINGS, true); }
+    public static void setSecurityLockSettings(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_SECURITY_LOCK_SETTINGS, v).apply(); }
+    public static String getSecurityBtMac(Context ctx) { return file(ctx).getString(KEY_SECURITY_BT_MAC, ""); }
+    public static String getSecurityBtName(Context ctx) { return file(ctx).getString(KEY_SECURITY_BT_NAME, ""); }
+    public static void setSecurityBtDevice(Context ctx, String mac, String name) {
+        if (mac == null || mac.isEmpty()) {
+            file(ctx).edit().remove(KEY_SECURITY_BT_MAC).remove(KEY_SECURITY_BT_NAME).apply();
+        } else {
+            file(ctx).edit().putString(KEY_SECURITY_BT_MAC, mac.toUpperCase(java.util.Locale.US))
+                .putString(KEY_SECURITY_BT_NAME, name != null ? name : mac).apply();
+        }
+    }
+    public static boolean getSecurityTrustCarplay(Context ctx) { return file(ctx).getBoolean(KEY_SECURITY_TRUST_CARPLAY, false); }
+    public static void setSecurityTrustCarplay(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_SECURITY_TRUST_CARPLAY, v).apply(); }
+    /** USB serial of the owner's iPhone, remembered when the cable trust is
+     * switched on. Only that iPhone unlocks; any other Apple device does not. */
+    public static String getSecurityCarplaySerial(Context ctx) { return file(ctx).getString(KEY_SECURITY_CARPLAY_SERIAL, ""); }
+    public static void setSecurityCarplaySerial(Context ctx, String serial) {
+        if (serial == null || serial.trim().isEmpty()) file(ctx).edit().remove(KEY_SECURITY_CARPLAY_SERIAL).apply();
+        else file(ctx).edit().putString(KEY_SECURITY_CARPLAY_SERIAL, serial.trim()).apply();
+    }
+    public static String getSecurityBeaconUuid(Context ctx) { return file(ctx).getString(KEY_SECURITY_BEACON_UUID, ""); }
+    public static String getSecurityBeaconName(Context ctx) { return file(ctx).getString(KEY_SECURITY_BEACON_NAME, ""); }
+    public static void setSecurityBeacon(Context ctx, String uuid, String name) {
+        if (uuid == null || uuid.trim().isEmpty()) {
+            file(ctx).edit().remove(KEY_SECURITY_BEACON_UUID).remove(KEY_SECURITY_BEACON_NAME).apply();
+        } else {
+            String u = uuid.trim().toLowerCase(java.util.Locale.US);
+            file(ctx).edit().putString(KEY_SECURITY_BEACON_UUID, u)
+                .putString(KEY_SECURITY_BEACON_NAME, name != null && !name.trim().isEmpty() ? name.trim() : u).apply();
+        }
+    }
+    public static boolean getSecurityTrustWifi(Context ctx) { return file(ctx).getBoolean(KEY_SECURITY_TRUST_WIFI, true); }
+    public static void setSecurityTrustWifi(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_SECURITY_TRUST_WIFI, v).apply(); }
+    public static String getSecurityWifiSsidsRaw(Context ctx) { return file(ctx).getString(KEY_SECURITY_WIFI_SSIDS, ""); }
+    public static void setSecurityWifiSsidsRaw(Context ctx, String raw) {
+        if (raw == null || raw.trim().isEmpty()) file(ctx).edit().remove(KEY_SECURITY_WIFI_SSIDS).apply();
+        else file(ctx).edit().putString(KEY_SECURITY_WIFI_SSIDS, raw.trim()).apply();
+    }
+    public static boolean getSecurityAutoEndValet(Context ctx) { return file(ctx).getBoolean(KEY_SECURITY_AUTO_END_VALET, true); }
+    public static void setSecurityAutoEndValet(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_SECURITY_AUTO_END_VALET, v).apply(); }
+    public static boolean hasSecurityHome(Context ctx) {
+        SharedPreferences p = file(ctx);
+        return p.contains(KEY_SECURITY_HOME_LAT) && p.contains(KEY_SECURITY_HOME_LON);
+    }
+    public static double getSecurityHomeLat(Context ctx) { return Double.longBitsToDouble(file(ctx).getLong(KEY_SECURITY_HOME_LAT, 0L)); }
+    public static double getSecurityHomeLon(Context ctx) { return Double.longBitsToDouble(file(ctx).getLong(KEY_SECURITY_HOME_LON, 0L)); }
+    public static void setSecurityHome(Context ctx, double lat, double lon) {
+        file(ctx).edit()
+            .putLong(KEY_SECURITY_HOME_LAT, Double.doubleToRawLongBits(lat))
+            .putLong(KEY_SECURITY_HOME_LON, Double.doubleToRawLongBits(lon))
+            .apply();
+    }
+    public static void clearSecurityHome(Context ctx) {
+        file(ctx).edit().remove(KEY_SECURITY_HOME_LAT).remove(KEY_SECURITY_HOME_LON).apply();
+    }
+    public static long getSecurityLockoutUntil(Context ctx) { return file(ctx).getLong(KEY_SECURITY_LOCKOUT_UNTIL, 0L); }
+    public static void setSecurityLockoutUntil(Context ctx, long ms) { file(ctx).edit().putLong(KEY_SECURITY_LOCKOUT_UNTIL, ms).apply(); }
+
+    // --- OpenStreetMap (opt-in map backgrounds & automatic tolls) ---
+    public static final String KEY_OSM_MAPS_ENABLED = "osm_maps_enabled";
+    public static final String KEY_TOLLS_ENABLED = "tolls_enabled";
+    public static final String KEY_TOLL_LAST_SCANNED_TRIP = "toll_last_scanned_trip";
+    public static boolean getOsmMapsEnabled(Context ctx) { return file(ctx).getBoolean(KEY_OSM_MAPS_ENABLED, false); }
+    public static void setOsmMapsEnabled(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_OSM_MAPS_ENABLED, v).apply(); }
+    public static boolean getTollsEnabled(Context ctx) { return file(ctx).getBoolean(KEY_TOLLS_ENABLED, false); }
+    public static void setTollsEnabled(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_TOLLS_ENABLED, v).apply(); }
+    public static long getTollLastScannedTrip(Context ctx) { return file(ctx).getLong(KEY_TOLL_LAST_SCANNED_TRIP, 0L); }
+    public static void setTollLastScannedTrip(Context ctx, long id) { file(ctx).edit().putLong(KEY_TOLL_LAST_SCANNED_TRIP, id).apply(); }
+
     // --- One-time migration/rollup guards ---
     public static boolean getDbMigratedV1(Context ctx) { return file(ctx).getBoolean("db_migrated_v1", false); }
     public static void setDbMigratedV1(Context ctx) { file(ctx).edit().putBoolean("db_migrated_v1", true).apply(); }
@@ -417,6 +519,10 @@ public final class Prefs {
         "panel_dismissed",
         "drive_card_dismissed_trip",             // no longer written (the drive card's × is gone); an old install may hold it
         KEY_PHONE_TOKEN,                         // a credential: phones scan again after a restore
+        KEY_SECURITY_PIN_HASH, KEY_SECURITY_PIN_SALT,
+        KEY_SECURITY_HOME_LAT, KEY_SECURITY_HOME_LON,
+        KEY_SECURITY_LOCKOUT_UNTIL,
+        KEY_TOLL_LAST_SCANNED_TRIP,
         "can_explore_until"));                   // CAN explorer timer (tools)
     private static final String[] NOT_BACKED_UP_PREFIXES = {
         "trip_open_", "charge_open_", "valet_", "parking_",
@@ -456,6 +562,7 @@ public final class Prefs {
     private static final String[] NOT_FROM_PHONE_PREFIXES = {
         "adb_",
         "phone_access_",
+        "security_",
     };
 
     /** True when a restore that comes from a phone may set this key: a key a

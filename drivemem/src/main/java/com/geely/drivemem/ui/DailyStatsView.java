@@ -102,6 +102,7 @@ public class DailyStatsView extends LinearLayout {
         EntityBus.subscribe("telemetry.tick", tickListener);
         EntityBus.subscribe("charge.cost_updated", chargeListener);
         EntityBus.subscribe("charge.completed", chargeListener);
+        EntityBus.subscribe("toll.changed", chargeListener);
     }
 
     @Override
@@ -110,6 +111,7 @@ public class DailyStatsView extends LinearLayout {
         EntityBus.unsubscribe("telemetry.tick", tickListener);
         EntityBus.unsubscribe("charge.cost_updated", chargeListener);
         EntityBus.unsubscribe("charge.completed", chargeListener);
+        EntityBus.unsubscribe("toll.changed", chargeListener);
     }
 
     public DailyStatsView(Context context) {
@@ -1493,18 +1495,63 @@ public class DailyStatsView extends LinearLayout {
     }
 
     private void buildValetSessionCard(LinearLayout card, DailyStatsProvider.ValetSessionItem v, long dayStartMs) {
-        card.addView(titleRow(R.drawable.ic_shield_car, Style.PURPLE, v, dayStartMs, number(v.distanceKm, "km")));
+        LinearLayout title = titleRow(R.drawable.ic_shield_car, Style.PURPLE, v, dayStartMs, number(v.distanceKm, "km"));
+        // Quiet notification dot on the header when anything notable happened
+        // (speed > 20 km/h, low driver score, or bumps/harsh events) — zero extra text clutter.
+        int alert = ValetDetail.attentionLevel(v.maxSpeedKmh, v.driverScore,
+            v.roadBumps, v.hardBrakes, v.hardAccels, v.hardCorners);
+        if (alert > 0) {
+            Context c = getContext();
+            View dot = new View(c);
+            android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+            g.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            g.setColor(alert >= 2 ? Style.DANGER : Style.WARN);
+            dot.setBackground(g);
+            int sz = Style.dp(c, 10);
+            LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(sz, sz);
+            dlp.leftMargin = Style.dp(c, 10);
+            title.addView(dot, 2, dlp);
+        }
+        card.addView(title);
+        Integer spdColor = ValetDetail.fast(v.maxSpeedKmh) ? Style.DANGER : null;
         card.addView(statsRow(
             stat(R.string.session_stat_battery, socValue(v.startSoc, v.endSoc), null),
             stat(R.string.session_stat_max_speed, valueWithUnit(
-                String.format(Locale.US, "%.0f", v.maxSpeedKmh), null, "km/h", ROW_UNIT_SCALE), null),
+                String.format(Locale.US, "%.0f", v.maxSpeedKmh), spdColor, "km/h", ROW_UNIT_SCALE), null),
             stat(R.string.session_stat_max_power, v.maxPowerKw == null ? "—" : number(v.maxPowerKw, "kW"), null)));
         card.setOnClickListener(x -> getContext().startActivity(ValetDetailActivity.intent(getContext(), v)));
     }
 
     private void buildDriveSessionCard(LinearLayout card, DailyStatsProvider.DriveSession t, long dayStartMs) {
         Context c = getContext();
-        card.addView(titleRow(R.drawable.ic_car, Style.TEXT_DIM, t, dayStartMs, number(t.distanceKm, "km")));
+        LinearLayout title = titleRow(R.drawable.ic_car, Style.TEXT_DIM, t, dayStartMs, number(t.distanceKm, "km"));
+        if (t.tollCount > 0) {
+            TextView pill = new TextView(c);
+            SpannableStringBuilder sb = new SpannableStringBuilder();
+            sb.append(t.tollCount + " · ");
+            if (t.tollCost > 0) {
+                sb.append(Style.moneyWithUnit(t.tollCost, Style.TEXT, ROW_UNIT_SCALE));
+                if (t.tollUnpriced > 0) sb.append(" + ?");
+            } else {
+                sb.append("?");
+            }
+            pill.setText(sb);
+            pill.setTextColor(Style.TEXT);
+            pill.setTextSize(18f);
+            pill.setTypeface(null, Typeface.BOLD);
+            int ph = Style.dp(c, 12), pv = Style.dp(c, 5);
+            pill.setPadding(ph, pv, ph, pv);
+            android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+            bg.setCornerRadius(Style.dp(c, 12));
+            bg.setColor(Style.CARD_HI);
+            bg.setStroke(Style.dp(c, 2), (Style.TEXT_DIM & 0x00FFFFFF) | 0x66000000);
+            pill.setBackground(bg);
+            LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            plp.rightMargin = Style.dp(c, 12);
+            title.addView(pill, Math.max(0, title.getChildCount() - 1), plp);
+        }
+        card.addView(title);
 
         CharSequence eff = t.efficiencyKwh100km > 0
             ? valueWithUnit(EnergyUnits.number(t.efficiencyKwh100km), null, EnergyUnits.WH_PER_KM, ROW_UNIT_SCALE)

@@ -25,16 +25,24 @@ public final class ComfortCardVisibility {
      * must hide the card.
      */
     public static boolean showGateCard(boolean available, boolean connected) {
-        return available && connected;
+        return showGateCard(available, connected, false);
+    }
+
+    /** Hidden while Valet Mode is active (only Climate + Valet card remain). */
+    public static boolean showGateCard(boolean available, boolean connected, boolean valetActive) {
+        return !valetActive && available && connected;
     }
 
     /**
      * Turbo card (and Strong Regen alongside it) only means anything while driving.
-     * Hidden while parked. Visibility depends on config: turbo card feature must be
-     * enabled in settings. Only applies when enabled; when disabled, card doesn't exist.
+     * Hidden while parked or while Valet Mode is active.
      */
     public static boolean showTurboCard(boolean turboEnabledAtBuild, boolean parked) {
-        return turboEnabledAtBuild && !parked;
+        return showTurboCard(turboEnabledAtBuild, parked, false);
+    }
+
+    public static boolean showTurboCard(boolean turboEnabledAtBuild, boolean parked, boolean valetActive) {
+        return !valetActive && turboEnabledAtBuild && !parked;
     }
 
     /**
@@ -56,7 +64,11 @@ public final class ComfortCardVisibility {
      * Starts GONE — nothing to show until a real title arrives.
      */
     public static boolean showMusicCard(String title) {
-        return title != null && !title.isEmpty();
+        return showMusicCard(title, false);
+    }
+
+    public static boolean showMusicCard(String title, boolean valetActive) {
+        return !valetActive && title != null && !title.isEmpty();
     }
 
     /**
@@ -169,6 +181,15 @@ public final class ComfortCardVisibility {
      * Dismissal is local only, stored in SharedPreferences, doesn't depend on broker.
      */
     public static boolean showPanelCard(boolean isEmpty, boolean isDismissed) {
-        return !isEmpty && !isDismissed;
+        return showPanelCard(isEmpty, isDismissed, false);
+    }
+
+    public static boolean showPanelCard(boolean isEmpty, boolean isDismissed, boolean valetActive) {
+        return !valetActive && !isEmpty && !isDismissed;
+    }
+
+    /** Dock tabs for Stats and Charging history are hidden during Valet Mode. */
+    public static boolean showDockStats(boolean valetActive) {
+        return !valetActive;
     }
 }

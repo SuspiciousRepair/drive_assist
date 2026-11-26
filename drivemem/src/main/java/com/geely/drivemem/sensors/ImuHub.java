@@ -13,6 +13,7 @@ import android.util.Log;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.state.CarDiary;
 import com.geely.drivemem.state.CarState;
+import com.geely.drivemem.state.ValetSession;
 
 /** Low-cost head-unit accelerometer hub (IHU629G).
  *
@@ -76,6 +77,14 @@ public final class ImuHub {
 
     private static final ImuFilter FILTER = new ImuFilter();
     private static final ImuSummaryLog LOG = new ImuSummaryLog();
+    private static final DriveScorer TRIP_SCORER = new DriveScorer();
+    private static final DriveScorer VALET_SCORER = new DriveScorer();
+
+    // Per-route-point (~5 s / 25 m) vertical roughness accumulator.
+    private static final Object SEG_LOCK = new Object();
+    private static double segSumSqZ;
+    private static float segPeakAbsZ;
+    private static int segCount;
 
     private static volatile Context app;
     private static volatile Listener liveListener;
@@ -156,6 +165,53 @@ public final class ImuHub {
         }
     }
 
+    /** Resets trip scoring & route-segment accumulators when a new trip opens. */
+    public static void startTrip() {
+        TRIP_SCORER.reset();
+        resetRouteSegment();
+    }
+
+    /** Finalizes and resets the open trip's Road & Driver scores (null if too short). */
+    public static DriveScorer.Snapshot endTrip(double distanceKm) {
+        resetRouteSegment();
+        return TRIP_SCORER.finish(distanceKm, DriveScorer.TRIP_MIN_MOVING_S);
+    }
+
+    /** Resets the Valet interval's Driver score accumulator. */
+    public static void startValet() {
+        VALET_SCORER.reset();
+    }
+
+    /** Non-destructive checkpoint of the active Valet interval's score (null if too short). */
+    public static DriveScorer.Snapshot snapshotValet(double distanceKm) {
+        return VALET_SCORER.snapshot(distanceKm, DriveScorer.VALET_MIN_MOVING_S);
+    }
+
+    /** Finalizes and resets the Valet interval's score (null if too short). */
+    public static DriveScorer.Snapshot endValet(double distanceKm) {
+        return VALET_SCORER.finish(distanceKm, DriveScorer.VALET_MIN_MOVING_S);
+    }
+
+    /** Drains {rmsZ, peakAbsZ} in m/s^2 accumulated since the last route point, or null. */
+    public static float[] drainRouteSegment() {
+        synchronized (SEG_LOCK) {
+            if (segCount < 5) {
+                segSumSqZ = 0; segPeakAbsZ = 0f; segCount = 0;
+                return null;
+            }
+            float rms = (float) Math.sqrt(segSumSqZ / segCount);
+            float peak = segPeakAbsZ;
+            segSumSqZ = 0; segPeakAbsZ = 0f; segCount = 0;
+            return new float[]{rms, peak};
+        }
+    }
+
+    private static void resetRouteSegment() {
+        synchronized (SEG_LOCK) {
+            segSumSqZ = 0; segPeakAbsZ = 0f; segCount = 0;
+        }
+    }
+
     private static void syncRegistration(boolean wantActive) {
         if (sensorManager == null || accel == null || handler == null) return;
         int wantBatchUs = (liveListener != null) ? 0 : BG_BATCH_US;
@@ -197,6 +253,16 @@ public final class ImuHub {
             FILTER.onSpeedKmh(speedKmh, e.timestamp);
             FILTER.onAccel(e.values[0], e.values[1], e.values[2], e.timestamp, speedKmh);
 
+            if (speedKmh >= DriveScorer.MIN_SPEED_KMH) {
+                float az = FILTER.az();
+                float absAz = Math.abs(az);
+                synchronized (SEG_LOCK) {
+                    segSumSqZ += (double) az * az;
+                    if (absAz > segPeakAbsZ) segPeakAbsZ = absAz;
+                    segCount++;
+                }
+            }
+
             Listener l = liveListener;
             if (l != null) {
                 l.onImu(FILTER.axG(), FILTER.ayG(), FILTER.azG());
@@ -224,6 +290,12 @@ public final class ImuHub {
         Float driveKw = CanEnergyReader.liveDriveKw();
         publish(s.peakZ / ImuFilter.G, s.peakX / ImuFilter.G, s.peakY / ImuFilter.G);
         Integer brake = readCachedBrake();
+        if (speedKmh != null) {
+            TRIP_SCORER.addSecond(s, speedKmh, driveKw, brake);
+            if (ValetSession.isActive(c)) {
+                VALET_SCORER.addSecond(s, speedKmh, driveKw, brake);
+            }
+        }
         LocationHub.Fix fix = LocationHub.get(c);
         LOG.write(c, nowMs, s, speedKmh, driveKw, brake, fix);
         if (shouldTriggerJolt(s, speedKmh, com.geely.drivemem.util.Prefs.getDiaryJoltSensitivity(c))) {

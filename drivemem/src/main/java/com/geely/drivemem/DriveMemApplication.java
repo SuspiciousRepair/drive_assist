@@ -84,6 +84,8 @@ public final class DriveMemApplication extends Application {
         com.geely.drivemem.sensors.DashBrake.ensureSubscribed(this);
         AbrpUploader.ensureSubscribed(this);
         CarplayState.ensureSubscribed(this);
+        com.geely.drivemem.util.SecurityLock.ensureSubscribed(this);
+        com.geely.drivemem.state.TollTracker.ensureSubscribed(this);
     }
 
     /** True for the app's main process (no ":suffix"). An unknown name counts
