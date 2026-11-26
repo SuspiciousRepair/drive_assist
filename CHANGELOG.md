@@ -75,6 +75,12 @@
   background, so the Settings page cannot be read behind it.
 
 ### Fixed
+- **Old trips no longer turn into 0 km.** A trip reads its distance,
+  odometer, battery and energy from the 30 s readings, and readings older
+  than 90 days were deleted. From about 90 days after recording started, old
+  trips would have shown 0 km and 0 kWh. Now only the parked readings between
+  trips are cleaned up after 90 days; the readings of trips, charges and Valet
+  stays are kept, so old charges also keep their detail charts.
 - **The crack-windows button closes windows set to open only a little.**
   With a window's target below 14 (of 100) in Config > Doors, the button did
   not see it as open, so the next press tried to open it again instead of
