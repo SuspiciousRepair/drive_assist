@@ -8,6 +8,7 @@ import com.geely.drivemem.sensors.DailyStatsProvider;
 import com.geely.drivemem.sensors.EnergySource;
 import com.geely.drivemem.sensors.StatsCalendar;
 import com.geely.drivemem.state.ChargeSession;
+import com.geely.drivemem.state.ParkingCost;
 import com.geely.drivemem.util.CsvExport;
 import com.geely.drivemem.util.EnergyUnits;
 import com.geely.drivemem.util.Style;
@@ -55,7 +56,8 @@ public class DailyStatsView extends LinearLayout {
     private final Runnable onBack;
 
     private enum Period { DAY, WEEK, MONTH, YEAR }
-    private enum SessionFilter { ALL, TRIPS, CHARGES, VALET }
+    /** PARKING: parked stops between sessions (and what they cost) plus Valet stays. */
+    private enum SessionFilter { ALL, TRIPS, CHARGES, PARKING }
 
     private Period period = Period.DAY;
     private SessionFilter sessionFilter = SessionFilter.ALL;
@@ -73,9 +75,6 @@ public class DailyStatsView extends LinearLayout {
     private LinearLayout chargingCard;
     private LinearLayout sessionsFilterBar;
     private LinearLayout sessionsContainer;
-    private TextView sessionsSummary;
-    private TextView mapHeaderTitle;
-    private TextView mapActionPill;
     private RouteView contextMap;
     private TextView mapEmptyState;
     private View dashboardRowView, bottomRowView;
@@ -103,6 +102,7 @@ public class DailyStatsView extends LinearLayout {
         EntityBus.subscribe("charge.cost_updated", chargeListener);
         EntityBus.subscribe("charge.completed", chargeListener);
         EntityBus.subscribe("toll.changed", chargeListener);
+        EntityBus.subscribe(ParkingCost.CHANGED, chargeListener);
     }
 
     @Override
@@ -112,6 +112,7 @@ public class DailyStatsView extends LinearLayout {
         EntityBus.unsubscribe("charge.cost_updated", chargeListener);
         EntityBus.unsubscribe("charge.completed", chargeListener);
         EntityBus.unsubscribe("toll.changed", chargeListener);
+        EntityBus.unsubscribe(ParkingCost.CHANGED, chargeListener);
     }
 
     public DailyStatsView(Context context) {
@@ -267,11 +268,8 @@ public class DailyStatsView extends LinearLayout {
         sessionsCard.setBackground(Style.card(Style.cardFillColor(), c));
         sessionsCard.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 52f));
 
-        sessionsSummary = sectionSummary(c);
-        sessionsSummary.setTextColor(Style.TEXT_DIM);
-        sessionsSummary.setTextSize(18f);
-        sessionsSummary.setTypeface(null, Typeface.BOLD);
-        sessionsCard.addView(sectionHeading(c, c.getString(R.string.stats_sessions_title), sessionsSummary));
+        // The counts are on the filter buttons only, not repeated in the heading.
+        sessionsCard.addView(sectionHeading(c, c.getString(R.string.stats_sessions_title), null));
 
         sessionsFilterBar = new LinearLayout(c);
         sessionsFilterBar.setOrientation(LinearLayout.HORIZONTAL);
@@ -293,39 +291,8 @@ public class DailyStatsView extends LinearLayout {
         mapCard.setBackground(Style.card(Style.cardFillColor(), c));
         mapCard.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 48f));
 
-        LinearLayout mapHead = new LinearLayout(c);
-        mapHead.setOrientation(LinearLayout.HORIZONTAL);
-        mapHead.setGravity(Gravity.CENTER_VERTICAL);
-        mapHeaderTitle = new TextView(c);
-        mapHeaderTitle.setText(c.getString(R.string.stats_map_routes_title));
-        mapHeaderTitle.setTextColor(Style.TEXT);
-        mapHeaderTitle.setTextSize(18f);
-        mapHeaderTitle.setTypeface(null, Typeface.BOLD);
-        mapHeaderTitle.setSingleLine(true);
-        mapHeaderTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        mapHead.addView(mapHeaderTitle, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-        mapActionPill = new TextView(c);
-        mapActionPill.setText(c.getString(R.string.routes_all_title));
-        mapActionPill.setTextColor(Style.onFill(Style.CARD));
-        mapActionPill.setTextSize(18f);
-        mapActionPill.setTypeface(null, Typeface.BOLD);
-        mapActionPill.setBackground(Style.card(Style.CARD, c));
-        android.graphics.drawable.Drawable mapIcon = c.getDrawable(R.drawable.ic_map).mutate();
-        int iconPx = Style.dp(c, 22);
-        mapIcon.setBounds(0, 0, iconPx, iconPx);
-        mapIcon.setTint(Style.onFill(Style.CARD));
-        mapActionPill.setCompoundDrawables(mapIcon, null, null, null);
-        mapActionPill.setCompoundDrawablePadding(Style.dp(c, 8));
-        mapActionPill.setGravity(Gravity.CENTER_VERTICAL);
-        mapActionPill.setSingleLine(true);
-        mapActionPill.setMinimumHeight(Style.dp(c, 60));
-        mapActionPill.setPadding(Style.dp(c, 18), 0, Style.dp(c, 18), 0);
-        mapActionPill.setOnClickListener(v -> openAllRoutes());
-        mapHead.addView(mapActionPill);
-        mapCard.addView(mapHead);
-        Style.gap(mapCard, c, 12);
-
+        // No title or button: the map says what it is, and a tap on it opens
+        // every route of the period on screen (AllRoutesActivity).
         FrameLayout mapFrame = new FrameLayout(c);
         contextMap = new RouteView(c);
         contextMap.setOnClickListener(v -> {
@@ -391,6 +358,8 @@ public class DailyStatsView extends LinearLayout {
         RouteSet routeSet;                          // period's trip routes for contextual map
         List<ChargeSpots.Spot> routeChargeSpots = Collections.emptyList();
         List<ChargeSpots.Place> chargePlaces = Collections.emptyList();
+        /** Parking costs that start in this period (gaps and Valet stays). */
+        List<ParkingCost.Row> parking = Collections.emptyList();
 
         DailyStatsProvider.DayOverview totals() { return po != null ? po.totals : ov; }
     }
@@ -479,6 +448,8 @@ public class DailyStatsView extends LinearLayout {
         // Trip routes in this period (bounded by period window, capped to the latest
         // ROUTE_CAP trips for a fast Year draw; the map title says so when the cap is hit)
         l.routeSet = loadPeriodRoutes(c, fromMs, toMs);
+        // Two days back: a Valet stay listed here may have started the day before.
+        l.parking = ParkingCost.between(c, fromMs - 2 * 86_400_000L, toMs);
         return l;
     }
 
@@ -671,7 +642,7 @@ public class DailyStatsView extends LinearLayout {
         renderConsumptionCard(totals);
         renderChargingCard(l.chargeSummary, totals);
 
-        rebuildSessionFilterBar(totals);
+        rebuildSessionFilterBar(l);
         renderFilteredSessions(l);
         renderContextualMap(l);
     }
@@ -834,27 +805,91 @@ public class DailyStatsView extends LinearLayout {
 
     // ---- Session Filter Pills & Unified Timeline ----
 
-    private void rebuildSessionFilterBar(DailyStatsProvider.DayOverview totals) {
+    private void rebuildSessionFilterBar(Loaded l) {
         Context c = getContext();
-        int trips = 0, charges = 0, valets = 0;
+        DailyStatsProvider.DayOverview totals = l.totals();
+        int trips = 0, charges = 0;
         for (DailyStatsProvider.DaySession s : totals.sessions) {
-            if (s.isValet()) valets++;
-            else if (s.isTrip()) trips++;
+            if (s.isValet()) continue;
+            if (s.isTrip()) trips++;
             else charges++;
         }
-        if (sessionFilter == SessionFilter.VALET && valets == 0) {
+        int stops = 0;
+        for (DailyStatsProvider.DayOverview day : periodDays(l)) stops += parkingStops(day.sessions, l.parking).size();
+        if (sessionFilter == SessionFilter.PARKING && stops == 0) {
             sessionFilter = SessionFilter.ALL;
         }
-        sessionsSummary.setText(trips + " " + c.getString(trips == 1 ? R.string.stats_unit_trip : R.string.stats_unit_trips)
-            + " · " + charges + " " + c.getString(charges == 1 ? R.string.stats_unit_charge : R.string.stats_unit_charges));
 
         sessionsFilterBar.removeAllViews();
         addSessionFilterPill(c.getString(R.string.stats_filter_all), SessionFilter.ALL);
         addSessionFilterPill(c.getString(R.string.stats_filter_trips) + (trips > 0 ? " (" + trips + ")" : ""), SessionFilter.TRIPS);
         addSessionFilterPill(c.getString(R.string.stats_filter_charges) + (charges > 0 ? " (" + charges + ")" : ""), SessionFilter.CHARGES);
-        if (valets > 0) {
-            addSessionFilterPill(c.getString(R.string.stats_filter_valet) + " (" + valets + ")", SessionFilter.VALET);
+        if (stops > 0) {
+            addSessionFilterPill(c.getString(R.string.stats_filter_parking) + " (" + stops + ")", SessionFilter.PARKING);
         }
+    }
+
+    /** The days of the loaded period, oldest first (one for the Day view). */
+    private static List<DailyStatsProvider.DayOverview> periodDays(Loaded l) {
+        return l.po != null ? l.po.days : Collections.singletonList(l.ov);
+    }
+
+    /** One day's parked stops, newest first: a long[]{start, end} for each
+     * gap between two sessions that is priced or at least
+     * GAP_PRICE_HINT_MS long, and each Valet stay. */
+    static List<Object> parkingStops(List<DailyStatsProvider.DaySession> sessions, List<ParkingCost.Row> parking) {
+        List<Object> out = new ArrayList<>();
+        if (sessions == null || sessions.isEmpty()) return out;
+        List<DailyStatsProvider.DaySession> s = new ArrayList<>(sessions);
+        s.sort((a, b) -> Long.compare(a.startMs, b.startMs));
+        for (int i = 0; i + 1 < s.size(); i++) {
+            long gs = s.get(i).endMs, ge = s.get(i + 1).startMs;
+            if (gs <= 0 || ge <= gs) continue;
+            if (ge - gs >= GAP_PRICE_HINT_MS || ParkingCost.matchGap(parking, gs, ge) != null) {
+                out.add(new long[]{gs, ge});
+            }
+        }
+        for (DailyStatsProvider.DaySession x : s) if (x.isValet()) out.add(x);
+        out.sort((a, b) -> Long.compare(stopStart(b), stopStart(a)));
+        return out;
+    }
+
+    private static long stopStart(Object o) {
+        return o instanceof long[] ? ((long[]) o)[0] : ((DailyStatsProvider.DaySession) o).startMs;
+    }
+
+    /** The Parking filter: every parked stop and Valet stay, newest first,
+     * under a day header on the longer periods. */
+    private void renderParking(Loaded l) {
+        Context c = getContext();
+        List<DailyStatsProvider.DayOverview> days = new ArrayList<>(periodDays(l));
+        Collections.reverse(days);
+        List<java.util.function.Supplier<View>> items = new ArrayList<>();
+        for (DailyStatsProvider.DayOverview day : days) {
+            List<Object> stops = parkingStops(day.sessions, l.parking);
+            if (stops.isEmpty()) continue;
+            long dayStartMs = parseDayMs(day.date);
+            if (l.po != null) items.add(() -> periodDayHeader(day));
+            for (Object o : stops) {
+                items.add(() -> {
+                    View v = o instanceof long[]
+                        ? buildGapRow(((long[]) o)[0], ((long[]) o)[1], l.parking, dayStartMs)
+                        : buildSessionCard((DailyStatsProvider.DaySession) o, dayStartMs);
+                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                    lp.topMargin = Style.dp(c, 6);
+                    v.setLayoutParams(lp);
+                    return v;
+                });
+            }
+        }
+        if (items.isEmpty()) {
+            TextView empty = Style.label(c, c.getString(R.string.stats_parking_none));
+            empty.setPadding(0, Style.dp(c, 20), 0, Style.dp(c, 20));
+            sessionsContainer.addView(empty);
+            return;
+        }
+        addChunked(items);
     }
 
     private void addSessionFilterPill(String label, SessionFilter f) {
@@ -875,7 +910,7 @@ public class DailyStatsView extends LinearLayout {
             if (sessionFilter == f) return;
             sessionFilter = f;
             if (currentLoaded != null) {
-                rebuildSessionFilterBar(currentLoaded.totals());
+                rebuildSessionFilterBar(currentLoaded);
                 renderFilteredSessions(currentLoaded);
                 renderContextualMap(currentLoaded);
             }
@@ -890,7 +925,7 @@ public class DailyStatsView extends LinearLayout {
         switch (sessionFilter) {
             case TRIPS: return s.isTrip() && !s.isValet();
             case CHARGES: return !s.isTrip() && !s.isValet();
-            case VALET: return s.isValet();
+            case PARKING: return s.isValet();
             default: return true;
         }
     }
@@ -901,6 +936,7 @@ public class DailyStatsView extends LinearLayout {
         chargeRowViews.clear();
         chargeRowIsDc.clear();
         sessionsGen++;
+        if (sessionFilter == SessionFilter.PARKING) { renderParking(l); return; }
 
         if (l.po == null) {
             List<DailyStatsProvider.DaySession> filtered = new ArrayList<>();
@@ -924,8 +960,7 @@ public class DailyStatsView extends LinearLayout {
                 if (i < filtered.size() - 1) {
                     Style.gap(sessionsContainer, c, 4);
                     if (sessionFilter == SessionFilter.ALL) {
-                        long gapMs = s.startMs - filtered.get(i + 1).endMs;
-                        View gapRow = buildGapRow(gapMs);
+                        View gapRow = buildGapRow(filtered.get(i + 1).endMs, s.startMs, l.parking, -1);
                         if (gapRow != null) sessionsContainer.addView(gapRow);
                     }
                     Style.gap(sessionsContainer, c, 4);
@@ -951,7 +986,7 @@ public class DailyStatsView extends LinearLayout {
                 switch (sessionFilter) {
                     case TRIPS: show = drove; break;
                     case CHARGES: show = charged; break;
-                    case VALET: show = false; break;
+                    case PARKING: show = false; break;
                     default: show = drove || charged; break;
                 }
                 if (!show) continue;
@@ -1015,8 +1050,6 @@ public class DailyStatsView extends LinearLayout {
     private void renderContextualMap(Loaded l) {
         Context c = getContext();
         if (sessionFilter == SessionFilter.CHARGES) {
-            mapHeaderTitle.setText(c.getString(R.string.stats_map_charges_title));
-            mapActionPill.setVisibility(View.GONE);
             contextMap.clearRoutes();
             contextMap.setMinSpanM(3000);
             contextMap.setOnSpotPick(idx -> {
@@ -1040,14 +1073,7 @@ public class DailyStatsView extends LinearLayout {
                 }
             }
         } else {
-            // Month / Year draw at most ROUTE_CAP trips: say so instead of
-            // passing the latest ones off as the whole period.
-            boolean capped = l.routeSet != null && l.routeSet.starts != null
-                && l.routeSet.starts.length >= ROUTE_CAP;
-            mapHeaderTitle.setText(capped
-                ? c.getString(R.string.stats_map_routes_latest, ROUTE_CAP)
-                : c.getString(R.string.stats_map_routes_title));
-            mapActionPill.setVisibility(View.VISIBLE);
+            // Month / Year draw at most ROUTE_CAP trips here; the tap opens all of them.
             contextMap.setOnSpotPick(null);
             contextMap.setMinSpanM(200);
             if (l.routeSet == null || l.routeSet.lat.length == 0) {
@@ -1154,19 +1180,13 @@ public class DailyStatsView extends LinearLayout {
                          : String.format(Locale.getDefault(), "%.1f", km);
     }
 
+    /** Every route of the period on screen (day, week, month or year). */
     private void openAllRoutes() {
-        android.content.Intent i = new android.content.Intent(getContext(), AllRoutesActivity.class);
-        if (period == Period.DAY && selected != null) {
-            i.putExtra(AllRoutesActivity.EXTRA_DAY, selected.toString());
-        }
-        getContext().startActivity(i);
-    }
-
-    private TextView sectionSummary(Context c) {
-        TextView item = new TextView(c);
-        item.setTextColor(Style.TEXT_DIM);
-        item.setTextSize(13.5f);
-        return item;
+        if (selected == null) return;
+        LocalDate[] span = StatsCalendar.period(selected, grain());
+        getContext().startActivity(new android.content.Intent(getContext(), AllRoutesActivity.class)
+            .putExtra(AllRoutesActivity.EXTRA_FROM, span[0].toString())
+            .putExtra(AllRoutesActivity.EXTRA_TO, span[1].toString()));
     }
 
     private View sectionHeading(Context c, String title, TextView summary) {
@@ -1324,21 +1344,38 @@ public class DailyStatsView extends LinearLayout {
         Style.appendUnit(sb, text, scale);
     }
 
-    private View buildGapRow(long gapMs) {
-        if (gapMs <= 0) return null;
+    /** Parked longer than this shows a quiet "+ R$" to set what it cost;
+     * shorter stops stay silent unless priced (still tappable). */
+    private static final long GAP_PRICE_HINT_MS = 15 * 60_000L;
+
+    /** "Parked 2h 15m" between two sessions. A tap sets what the stop cost
+     * (ParkingCostDialog); a priced stop adds its place and a cost pill.
+     * dayStartMs >= 0 (the Parking filter, where the row stands alone): the
+     * row also says when, "21:05 – 21:24". */
+    private View buildGapRow(long gapStartMs, long gapEndMs, List<ParkingCost.Row> parking, long dayStartMs) {
+        long gapMs = gapEndMs - gapStartMs;
+        if (gapMs <= 0 || gapStartMs <= 0) return null;
         Context c = getContext();
+        ParkingCost.Row priced = ParkingCost.matchGap(parking, gapStartMs, gapEndMs);
 
         LinearLayout row = new LinearLayout(c);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setLayoutParams(new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        row.setMinimumHeight(Style.dp(c, 44));
         int pad = Style.dp(c, 12);
-        row.setPadding(pad, Style.dp(c, 2), pad, Style.dp(c, 2));
+        if (dayStartMs >= 0) {
+            // Standing alone in the Parking filter: a tile like the Valet cards.
+            row.setBackground(Style.tile(c));
+            row.setPadding(pad, pad, pad, pad);
+        } else {
+            row.setPadding(pad, Style.dp(c, 2), pad, Style.dp(c, 2));
+        }
 
         ImageView icon = new ImageView(c);
         icon.setImageResource(R.drawable.ic_parking);
-        icon.setColorFilter(Style.TEXT_DIM, PorterDuff.Mode.SRC_IN);
+        icon.setColorFilter(priced != null ? Style.ACCENT : Style.TEXT_DIM, PorterDuff.Mode.SRC_IN);
         LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(Style.dp(c, 16), Style.dp(c, 16));
         ilp.rightMargin = Style.dp(c, 8);
         icon.setLayoutParams(ilp);
@@ -1347,8 +1384,43 @@ public class DailyStatsView extends LinearLayout {
         TextView tv = new TextView(c);
         tv.setTextColor(Style.TEXT_DIM);
         tv.setTextSize(16f);
-        tv.setText(c.getString(R.string.session_parked, SessionText.duration(gapMs)));
-        row.addView(tv);
+        tv.setSingleLine(true);
+        tv.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        String text = c.getString(R.string.session_parked, SessionText.duration(gapMs));
+        if (dayStartMs >= 0) {
+            text = SessionText.range(gapStartMs, gapEndMs, dayStartMs, c.getString(R.string.session_yesterday))
+                + "  ·  " + text;
+        }
+        if (priced != null && priced.placeName != null && !priced.placeName.isEmpty()) {
+            text += "  ·  " + priced.placeName;
+        }
+        tv.setText(text);
+        row.addView(tv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        if (priced != null) {
+            TextView pill = new TextView(c);
+            pill.setText(Style.moneyWithUnit(priced.cost, Style.ACCENT, ROW_UNIT_SCALE));
+            pill.setTextSize(18f);
+            pill.setTypeface(null, Typeface.BOLD);
+            int ph = Style.dp(c, 12), pv = Style.dp(c, 4);
+            pill.setPadding(ph, pv, ph, pv);
+            GradientDrawable bg = new GradientDrawable();
+            bg.setCornerRadius(Style.dp(c, 12));
+            bg.setColor(Style.CARD_HI);
+            pill.setBackground(bg);
+            row.addView(pill);
+        } else if (gapMs >= GAP_PRICE_HINT_MS) {
+            TextView add = new TextView(c);
+            SpannableStringBuilder sb = new SpannableStringBuilder("+ ");
+            appendUnit(sb, com.geely.drivemem.util.Prefs.currencySymbol(), 1f);
+            add.setText(sb);
+            add.setTextColor(Style.TEXT_DIM);
+            add.setTextSize(17f);
+            add.setPadding(Style.dp(c, 12), 0, 0, 0);
+            row.addView(add);
+        }
+        row.setOnClickListener(v -> ParkingCostDialog.open(getContext(),
+            gapStartMs, gapEndMs, null, priced, null));
         return row;
     }
 
@@ -1518,8 +1590,31 @@ public class DailyStatsView extends LinearLayout {
             stat(R.string.session_stat_battery, socValue(v.startSoc, v.endSoc), null),
             stat(R.string.session_stat_max_speed, valueWithUnit(
                 String.format(Locale.US, "%.0f", v.maxSpeedKmh), spdColor, "km/h", ROW_UNIT_SCALE), null),
-            stat(R.string.session_stat_max_power, v.maxPowerKw == null ? "—" : number(v.maxPowerKw, "kW"), null)));
+            stat(R.string.session_stat_max_power, v.maxPowerKw == null ? "—" : number(v.maxPowerKw, "kW"), null),
+            valetCostStat(v)));
         card.setOnClickListener(x -> getContext().startActivity(ValetDetailActivity.intent(getContext(), v)));
+    }
+
+    /** The Valet card's 4th column, under the charge card's Cost: what the
+     * Valet stay cost, or a dim "Tap to add". A live stay has no cost yet. */
+    private View valetCostStat(DailyStatsProvider.ValetSessionItem v) {
+        if (v.endMs <= 0 || v.valetId <= 0) return null;
+        Context c = getContext();
+        ParkingCost.Row row = ParkingCost.matchValet(
+            currentLoaded != null ? currentLoaded.parking : null, v.valetId);
+        CharSequence value;
+        if (row != null) {
+            value = Style.moneyWithUnit(row.cost, Style.ACCENT, ROW_UNIT_SCALE);
+        } else {
+            SpannableStringBuilder tap = new SpannableStringBuilder(c.getString(R.string.session_cost_tap));
+            tap.setSpan(new ForegroundColorSpan(Style.TEXT_DIM), 0, tap.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            tap.setSpan(new android.text.style.StyleSpan(Typeface.NORMAL), 0, tap.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            value = tap;
+        }
+        View cell = stat(R.string.session_stat_cost, value, null);
+        cell.setOnClickListener(x -> ParkingCostDialog.open(c, v.startMs, v.endMs, v.valetId, row, null));
+        return cell;
     }
 
     private void buildDriveSessionCard(LinearLayout card, DailyStatsProvider.DriveSession t, long dayStartMs) {

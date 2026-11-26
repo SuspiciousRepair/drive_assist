@@ -153,4 +153,26 @@ public class CsvExportTest {
         assertEquals("3,2026-11-14 10:00,notes,other,'=SUM(A1),done,,,"
             + "\"He said \"\"hi\"\"\nline2\",'-a,,-23.550520,-46.633308,,1", l[1]);
     }
+
+    @Test public void tollRowsKeepAnUnpricedPassageEmpty() {
+        com.geely.drivemem.state.TollTracker.Passage priced = new com.geely.drivemem.state.TollTracker.Passage(
+            4, 9L, 2L, T0, 30.5, -40.5, 88.0, "Praça Exemplo", "FREE_FLOW", 6.4, "auto_live");
+        com.geely.drivemem.state.TollTracker.Passage open = new com.geely.drivemem.state.TollTracker.Passage(
+            5, null, null, T0 + MIN, 30.5, -40.5, null, "=cmd", "PLAZA", null, "user");
+        String[] l = lines(CsvExport.tollsCsv(Arrays.asList(priced, open), SP));
+        assertEquals(CsvExport.TOLLS_HEADER, l[0]);
+        assertEquals("4,2026-11-14 10:00,9,Praça Exemplo,free_flow,6.40,auto_live,88,30.500000,-40.500000", l[1]);
+        assertEquals("5,2026-11-14 10:01,,'=cmd,plaza,,user,,30.500000,-40.500000", l[2]);
+    }
+
+    @Test public void parkingRowsCarryKindPlaceAndValet() {
+        com.geely.drivemem.state.ParkingCost.Row lot = new com.geely.drivemem.state.ParkingCost.Row(
+            1, T0, T0 + 95 * MIN, null, 25.0, "Shopping, Piso 2", "lot", 30.5, -40.5);
+        com.geely.drivemem.state.ParkingCost.Row valet = new com.geely.drivemem.state.ParkingCost.Row(
+            2, T0, null, 3L, 40.0, null, "lot", null, null);
+        String[] l = lines(CsvExport.parkingCsv(Arrays.asList(lot, valet), SP));
+        assertEquals(CsvExport.PARKING_HEADER, l[0]);
+        assertEquals("1,2026-11-14 10:00,2026-11-14 11:35,95,lot,\"Shopping, Piso 2\",25.00,,,30.500000,-40.500000", l[1]);
+        assertEquals("2,2026-11-14 10:00,,,lot,,40.00,yes,,,", l[2]);
+    }
 }

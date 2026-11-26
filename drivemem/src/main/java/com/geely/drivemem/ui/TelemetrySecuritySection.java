@@ -217,7 +217,7 @@ public final class TelemetrySecuritySection extends LinearLayout {
             on -> {
                 if (on) {
                     // Remember THIS iPhone: any other Apple device on the cable must not unlock.
-                    java.util.Set<String> serials = com.geely.drivemem.state.CarplayState.appleUsbSerials(activity);
+                    java.util.Set<String> serials = com.geely.drivemem.state.CarplayState.cableIphones(activity);
                     if (serials.size() != 1) {
                         Toast.makeText(activity, R.string.sec_carplay_plug_first, Toast.LENGTH_LONG).show();
                         rebuild();

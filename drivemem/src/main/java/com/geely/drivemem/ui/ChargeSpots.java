@@ -95,6 +95,15 @@ final class ChargeSpots {
         return out;
     }
 
+    /** The charges that started in [fromMs, toMs): a map of a period shows
+     * only the charges of that period. */
+    static List<Charge> between(List<Charge> all, long fromMs, long toMs) {
+        List<Charge> out = new ArrayList<>();
+        if (all == null) return out;
+        for (Charge c : all) if (c.startMs >= fromMs && c.startMs < toMs) out.add(c);
+        return out;
+    }
+
     /** Metres between two places (equirectangular: fine at these distances). */
     static double distanceM(double lat1, double lon1, double lat2, double lon2) {
         double k = Math.cos(Math.toRadians((lat1 + lat2) / 2));
@@ -161,27 +170,6 @@ final class ChargeSpots {
     static int placeOf(List<Place> places, long id) {
         for (int i = 0; i < places.size(); i++) if (places.get(i).ids.contains(id)) return i;
         return -1;
-    }
-
-    /** The spots inside the box around the given route points, widened by
-     * marginM on every side. One day of All routes uses this: the spots count
-     * in the fit, so one far charge from another month made a day of city
-     * trips a dot. An empty route keeps no spot. */
-    static List<Spot> inBox(List<Spot> spots, double[] lat, double[] lon, double marginM) {
-        List<Spot> out = new ArrayList<>();
-        if (lat.length == 0) return out;
-        double lo0 = lat[0], hi0 = lat[0], lo1 = lon[0], hi1 = lon[0];
-        for (int i = 1; i < lat.length; i++) {
-            lo0 = Math.min(lo0, lat[i]); hi0 = Math.max(hi0, lat[i]);
-            lo1 = Math.min(lo1, lon[i]); hi1 = Math.max(hi1, lon[i]);
-        }
-        double dLat = marginM / 111_195.0;
-        double dLon = dLat / Math.max(0.01, Math.cos(Math.toRadians((lo0 + hi0) / 2)));
-        for (Spot sp : spots) {
-            if (sp.lat >= lo0 - dLat && sp.lat <= hi0 + dLat
-                    && sp.lon >= lo1 - dLon && sp.lon <= hi1 + dLon) out.add(sp);
-        }
-        return out;
     }
 
     /** The charges that belong on one trip's map, with no other trip around. */

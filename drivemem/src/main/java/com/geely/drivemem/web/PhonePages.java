@@ -55,7 +55,10 @@ final class PhonePages {
         + "color:var(--text);font:15px ui-monospace,monospace}"
         + "ul{list-style:none;padding:0;margin:0}li{display:flex;justify-content:space-between;gap:12px;"
         + "align-items:center;padding:10px 0;border-top:1px solid var(--line)}li:first-child{border-top:0}"
-        + ".ok{color:#1a7f37;font-weight:600}a{color:var(--accent)}";
+        + ".ok{color:#1a7f37;font-weight:600}a{color:var(--accent)}"
+        + "input[type=checkbox]{width:auto;margin:0 8px 0 0}label.check{display:flex;align-items:center;font-weight:400}"
+        + "select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);"
+        + "color:var(--text);font:inherit}button.quiet{background:transparent;color:var(--accent);border:1px solid var(--line)}";
 
     private static String page(Context c, String title, String body) {
         return page(c, title, body, 0);
@@ -107,6 +110,14 @@ final class PhonePages {
          .append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.phone_diary_hint))).append("</p>")
          .append("<a class=\"btn\" href=\"/diary\">").append(Http.esc(c.getString(R.string.phone_diary_open))).append("</a>")
          .append("<a class=\"btn\" href=\"/diary.csv\">").append(Http.esc(c.getString(R.string.phone_diary_csv))).append("</a>")
+         .append("</div>");
+
+        b.append("<div class=\"card\"><h2>").append(Http.esc(c.getString(R.string.phone_costs))).append("</h2>")
+         .append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.phone_costs_hint))).append("</p>")
+         .append("<a class=\"btn\" href=\"/tolls\">").append(Http.esc(c.getString(R.string.phone_tolls_title))).append("</a>")
+         .append("<a class=\"btn\" href=\"/costs\">").append(Http.esc(c.getString(R.string.parking_title))).append("</a>")
+         .append("<a class=\"btn\" href=\"/tolls.csv\">").append(Http.esc(c.getString(R.string.phone_tolls_csv))).append("</a>")
+         .append("<a class=\"btn\" href=\"/parking.csv\">").append(Http.esc(c.getString(R.string.phone_parking_csv))).append("</a>")
          .append("</div>");
 
         b.append("<div class=\"card\"><h2>").append(Http.esc(c.getString(R.string.phone_routes))).append("</h2>")
@@ -239,6 +250,108 @@ final class PhonePages {
             b.append("</ul>");
         }
         b.append("</div>");
+        return page(c, title, b.toString());
+    }
+
+    /** A price for an input field: "12,50" in the car's locale, empty when unset. */
+    static String moneyField(Double v) {
+        if (v == null || v <= 0) return "";
+        return String.format(java.util.Locale.getDefault(), "%.2f", v);
+    }
+
+    private static String savedCard(Context c) {
+        return "<div class=\"card\"><p class=\"ok\">" + Http.esc(c.getString(R.string.phone_saved)) + "</p></div>";
+    }
+
+    /** The toll booths this car crossed (or the owner priced, pinned or
+     * turned off): one small form each for the price, both directions, and
+     * on/off. */
+    static String tolls(Context c, List<com.geely.drivemem.state.TollTracker.BoothRow> booths, boolean saved) {
+        StringBuilder b = new StringBuilder(back(c));
+        String title = c.getString(R.string.phone_tolls_title);
+        b.append("<h1>").append(Http.esc(title)).append("</h1>");
+        if (saved) b.append(savedCard(c));
+        b.append("<div class=\"card\"><p class=\"dim\">").append(Http.esc(c.getString(R.string.phone_tolls_hint)))
+         .append("</p><a class=\"btn\" href=\"/tolls.csv\">").append(Http.esc(c.getString(R.string.phone_tolls_csv)))
+         .append("</a></div>");
+        if (booths.isEmpty()) {
+            b.append("<div class=\"card\"><p>").append(Http.esc(c.getString(R.string.phone_no_tolls))).append("</p></div>");
+            return page(c, title, b.toString());
+        }
+        for (com.geely.drivemem.state.TollTracker.BoothRow t : booths) {
+            String kind = c.getString(com.geely.drivemem.sensors.TollMatcher.KIND_FREE_FLOW.equals(t.kind)
+                ? R.string.toll_kind_free_flow : R.string.toll_kind_plaza);
+            StringBuilder meta = new StringBuilder(kind).append(" · ")
+                .append(c.getString(R.string.phone_toll_passages, t.passages));
+            if (t.catalogPrice != null && t.catalogPrice > 0) {
+                meta.append(" · ").append(c.getString(R.string.phone_toll_osm_price, Prefs.formatMoney(t.catalogPrice)));
+            }
+            if (t.bearingDeg == null) meta.append(" · ").append(c.getString(R.string.phone_toll_both_ways));
+            b.append("<form class=\"card\" method=\"post\" action=\"/tolls\" autocomplete=\"off\">")
+             .append("<h2>").append(Http.esc(t.name)).append("</h2>")
+             .append("<p class=\"dim\">").append(Http.esc(meta.toString())).append("</p>")
+             .append("<input type=\"hidden\" name=\"id\" value=\"").append(t.id).append("\">")
+             .append("<label for=\"p").append(t.id).append("\">").append(Http.esc(c.getString(R.string.phone_price,
+                 Prefs.currencySymbol()))).append("</label>")
+             .append("<input id=\"p").append(t.id).append("\" name=\"price\" inputmode=\"decimal\" value=\"")
+             .append(Http.esc(moneyField(t.userPrice))).append("\" placeholder=\"")
+             .append(Http.esc(moneyField(t.catalogPrice))).append("\">");
+            if (t.bearingDeg != null) {
+                b.append("<label class=\"check\"><input type=\"checkbox\" name=\"any\" value=\"1\">")
+                 .append(Http.esc(c.getString(R.string.phone_toll_any_dir))).append("</label>");
+            }
+            b.append("<label class=\"check\"><input type=\"checkbox\" name=\"on\" value=\"1\"")
+             .append(t.enabled ? " checked" : "").append(">")
+             .append(Http.esc(c.getString(R.string.phone_toll_enabled))).append("</label>")
+             .append("<button type=\"submit\">").append(Http.esc(c.getString(R.string.phone_save))).append("</button></form>");
+        }
+        return page(c, title, b.toString());
+    }
+
+    /** Parking costs, newest first: price, place and kind, or delete. */
+    static String costs(Context c, List<com.geely.drivemem.state.ParkingCost.Row> rows, boolean saved) {
+        StringBuilder b = new StringBuilder(back(c));
+        String title = c.getString(R.string.parking_title);
+        b.append("<h1>").append(Http.esc(title)).append("</h1>");
+        if (saved) b.append(savedCard(c));
+        b.append("<div class=\"card\"><a class=\"btn\" href=\"/parking.csv\">")
+         .append(Http.esc(c.getString(R.string.phone_parking_csv))).append("</a></div>");
+        if (rows.isEmpty()) {
+            b.append("<div class=\"card\"><p>").append(Http.esc(c.getString(R.string.phone_no_parking))).append("</p></div>");
+            return page(c, title, b.toString());
+        }
+        DateFormat fmt = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
+        DateFormat timeFmt = DateFormat.getTimeInstance(DateFormat.SHORT);
+        java.util.List<com.geely.drivemem.state.ParkingCost.Row> sorted = new java.util.ArrayList<>(rows);
+        sorted.sort((x, y) -> Long.compare(y.startMs, x.startMs));
+        for (com.geely.drivemem.state.ParkingCost.Row r : sorted) {
+            String when = fmt.format(new Date(r.startMs))
+                + (r.endMs != null && r.endMs > r.startMs ? " – " + timeFmt.format(new Date(r.endMs)) : "");
+            String what = r.valetId != null ? c.getString(R.string.parking_valet_title)
+                : c.getString(r.isStreet() ? R.string.parking_kind_street : R.string.parking_kind_lot);
+            b.append("<form class=\"card\" method=\"post\" action=\"/costs\" autocomplete=\"off\">")
+             .append("<h2>").append(Http.esc(when)).append("</h2>")
+             .append("<p class=\"dim\">").append(Http.esc(what)).append("</p>")
+             .append("<input type=\"hidden\" name=\"id\" value=\"").append(r.id).append("\">")
+             .append("<label for=\"n").append(r.id).append("\">").append(Http.esc(c.getString(R.string.parking_place_hint)))
+             .append("</label><input id=\"n").append(r.id).append("\" name=\"name\" maxlength=\"80\" value=\"")
+             .append(Http.esc(r.placeName == null ? "" : r.placeName)).append("\">")
+             .append("<label for=\"p").append(r.id).append("\">").append(Http.esc(c.getString(R.string.phone_price,
+                 Prefs.currencySymbol()))).append("</label>")
+             .append("<input id=\"p").append(r.id).append("\" name=\"price\" inputmode=\"decimal\" value=\"")
+             .append(Http.esc(moneyField(r.cost))).append("\">");
+            if (r.valetId == null) {
+                b.append("<label for=\"k").append(r.id).append("\">").append(Http.esc(c.getString(R.string.phone_parking_kind)))
+                 .append("</label><select id=\"k").append(r.id).append("\" name=\"kind\">")
+                 .append("<option value=\"lot\"").append(r.isStreet() ? "" : " selected").append(">")
+                 .append(Http.esc(c.getString(R.string.parking_kind_lot))).append("</option>")
+                 .append("<option value=\"street\"").append(r.isStreet() ? " selected" : "").append(">")
+                 .append(Http.esc(c.getString(R.string.parking_kind_street))).append("</option></select>");
+            }
+            b.append("<button type=\"submit\">").append(Http.esc(c.getString(R.string.phone_save))).append("</button>")
+             .append("<button class=\"quiet\" type=\"submit\" name=\"del\" value=\"1\">")
+             .append(Http.esc(c.getString(R.string.parking_btn_clear))).append("</button></form>");
+        }
         return page(c, title, b.toString());
     }
 

@@ -87,7 +87,8 @@ vez que um lugar aparece; depois fica guardado no carro, então uma viagem que
 termina na garagem ainda mostra o mapa. Abaixo da rota está o relevo da viagem, e
 os números dela.
 
-Toque na contagem de viagens para ver **todas as rotas em uma imagem**. As rotas
+Toque no mapa ao lado das sessões para ver **todas as rotas em uma imagem**,
+do dia, semana, mês ou ano que você está vendo. As rotas
 são gravadas em **Config → Sistema** (ligado por padrão) e ficam no carro. Dá
 para exportar como **GPX** (um arquivo por dia) e a lista como **CSV**, para um
 pen drive ou para o celular.
@@ -148,6 +149,43 @@ Um cartão de **saúde da bateria** mostra os kWh por recarga, as horas que a
 bateria passou abaixo de 10% e 20%, e — com um dongle OBD2 — a saúde da bateria.
 Sem o dongle, a tela de recarga ainda mostra a temperatura externa durante a
 recarga.
+
+## Pedágios e estacionamento
+
+Ligue **Detectar pedágios via OpenStreetMap** em **Config → Integrações →
+OpenStreetMap** (desligado de fábrica). O carro passa a marcar cada praça de pedágio e
+pórtico Free Flow por onde passa. Ele baixa os pedágios de áreas largas
+(cerca de 55 km), nunca a sua rota.
+
+- **Na tela da viagem**, cada pedágio é um pino no mapa e uma marca no
+  gráfico de altura. Toque num pedágio para informar o preço. Deixe
+  **Lembrar valor para esta praça** ligado, e as próximas viagens por ela
+  já levam esse preço.
+- **Um pedágio que faltou**: toque no gráfico de altura onde estava o
+  pedágio e depois em **+ Pedágio que faltou**. Escolha praça ou Free Flow e
+  digite o preço. As próximas viagens no mesmo sentido já o encontram.
+- **Estacionamento**: na página de estatísticas, toque numa linha
+  **Estacionado** para digitar quanto custou aquela parada. Escolha
+  **Estacionamento** ou **Rua** e, se quiser, dê um nome ao local. Na próxima
+  vez que parar ali, o nome e os últimos preços já aparecem como botões de um
+  toque. Paradas de 15 minutos ou mais mostram um discreto **+ R$**.
+  Quando o lugar do carro é conhecido e os mapas do OpenStreetMap estão
+  ligados, a janela mostra onde o carro ficou.
+- **Filtro Estacionamento**: ao lado de Viagens e Recargas, **Estacionamento**
+  mostra só as paradas (de 15 minutos ou mais, ou com preço) e o Manobrista.
+  Cada botão de filtro mostra quantos há.
+- **No cartão Estacionado** da tela inicial, toque em **+ R$** para digitar o
+  preço logo depois de pagar no caixa.
+- **Manobrista**: o cartão e a tela do Manobrista têm um **Custo** para
+  informar. Ao encerrar o Manobrista em P num lugar onde você já pagou
+  manobrista antes, o preço pede só um toque.
+- A tela da viagem mostra o **estacionamento na chegada** e os **pedágios +
+  estacionamento** da viagem. O **custo de propriedade** do Diário do carro
+  conta pedágios e estacionamento no grupo da estrada.
+
+No celular (**Acesso pelo celular**), **Pedágios e estacionamento** lista as
+praças e os custos de estacionamento para editar com o teclado do celular, e
+baixa os dois em CSV.
 
 ## Traga seus serviços
 
@@ -218,8 +256,8 @@ gravação variam por região.
 ## Mais coisas que dá para fazer
 
 - **Acesso pelo celular**: leia um QR code na tela do carro para abrir uma página
-  no celular com backups, clipes e arquivos de viagem. Funciona só em P, na rede
-  local.
+  no celular com backups, clipes, arquivos de viagem e preços de pedágio e
+  estacionamento. Funciona só em P, na rede local.
 - **Backup e restauração**: salva seus ajustes, viagens e certificados em um pen
   drive e no carro, com uma senha que você escolhe.
 - **Modo mais escuro**: à noite, após um minuto dirigindo sem tocar na tela, a

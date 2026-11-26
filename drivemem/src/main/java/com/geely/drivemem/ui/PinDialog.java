@@ -28,7 +28,14 @@ public final class PinDialog {
     /** Same, and runs {@code onCancelled} when the user closes the keypad
      * without unlocking (Cancel, Back, or a tap outside). */
     public static void requireUnlock(Context ctx, int titleRes, Runnable onUnlocked, Runnable onCancelled) {
-        showKeypad(ctx, ctx.getString(titleRes), null, true, (dialog, pin, status) -> {
+        requireUnlock(ctx, titleRes, onUnlocked, onCancelled, false);
+    }
+
+    /** Same; cover = true puts a solid screen background behind the keypad,
+     * so the page it guards (Settings) cannot be read around it. */
+    public static void requireUnlock(Context ctx, int titleRes, Runnable onUnlocked, Runnable onCancelled,
+                                     boolean cover) {
+        showKeypad(ctx, ctx.getString(titleRes), null, true, cover, (dialog, pin, status) -> {
             long now = System.currentTimeMillis();
             int wait = SecurityLock.lockoutRemainingSec(ctx, now);
             if (wait > 0) {
@@ -53,14 +60,14 @@ public final class PinDialog {
     /** Two-step flow to set a new 4-6 digit PIN (enter -> confirm). */
     public static void showSetPin(Context ctx, Runnable onChanged) {
         showKeypad(ctx, ctx.getString(R.string.sec_pin_enter_new),
-            ctx.getString(R.string.sec_pin_length_hint), false, (d1, firstPin, st1) -> {
+            ctx.getString(R.string.sec_pin_length_hint), false, false, (d1, firstPin, st1) -> {
                 if (!SecurityLock.isValidPin(firstPin)) {
                     st1.setText(ctx.getString(R.string.sec_pin_length_hint));
                     st1.setTextColor(Style.WARN);
                     return false;
                 }
                 d1.dismiss();
-                showKeypad(ctx, ctx.getString(R.string.sec_pin_confirm), null, false, (d2, secondPin, st2) -> {
+                showKeypad(ctx, ctx.getString(R.string.sec_pin_confirm), null, false, false, (d2, secondPin, st2) -> {
                     if (!firstPin.equals(secondPin)) {
                         st2.setText(ctx.getString(R.string.sec_pin_mismatch));
                         st2.setTextColor(Style.DANGER);
@@ -90,7 +97,7 @@ public final class PinDialog {
     }
 
     private static void showKeypad(Context ctx, String titleText, String initialHint,
-                                   boolean allowForgot, OnSubmit onSubmit, Runnable onHomeReset,
+                                   boolean allowForgot, boolean cover, OnSubmit onSubmit, Runnable onHomeReset,
                                    Runnable onCancelled) {
         final StringBuilder buf = new StringBuilder();
 
@@ -128,7 +135,17 @@ public final class PinDialog {
         if (initialHint != null) status.setText(initialHint);
         card.addView(status);
 
-        AlertDialog dialog = new AlertDialog.Builder(ctx).setView(card).create();
+        View root = card;
+        if (cover) {
+            android.widget.FrameLayout screen = new android.widget.FrameLayout(ctx);
+            screen.setBackground(Style.screenBg());
+            // A tap beside the keypad does nothing (it does not close it).
+            screen.setClickable(true);
+            screen.addView(card, new android.widget.FrameLayout.LayoutParams(
+                Style.dp(ctx, 440), ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+            root = screen;
+        }
+        AlertDialog dialog = new AlertDialog.Builder(ctx).setView(root).create();
         // cancel() (Cancel, Back, tap outside) is the only way out that is not
         // a success: success paths call dismiss(), which never fires this.
         if (onCancelled != null) dialog.setOnCancelListener(d -> onCancelled.run());
@@ -227,5 +244,9 @@ public final class PinDialog {
         card.addView(foot, flp);
 
         dialog.show();
+        if (cover && dialog.getWindow() != null) {
+            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+            dialog.getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        }
     }
 }

@@ -24,11 +24,14 @@ public class ElevationView extends View {
 
     private double[] km = new double[0], alt = new double[0], speed = new double[0];
     private int marked = -1;
+    /** Point indexes of the trip's toll passages: a thin mark each. */
+    private int[] ticks = new int[0];
     private OnPick onPick;
     private final Paint fill = new Paint();
     private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mark = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint tick = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     // Built by rebuild(); screen pixels.
     private float[] xs = new float[0], ys = new float[0];
@@ -49,6 +52,10 @@ public class ElevationView extends View {
         text.setTextSize(Style.dp(c, 18));
         mark.setColor(Style.TEXT);
         mark.setStrokeWidth(Style.dp(c, 2));
+        tick.setColor((Style.ACCENT & 0x00FFFFFF) | 0xB0000000);
+        tick.setStrokeWidth(Style.dp(c, 2));
+        tick.setPathEffect(new android.graphics.DashPathEffect(
+            new float[]{Style.dp(c, 6), Style.dp(c, 5)}, 0));
     }
 
     /** km from the start, smoothed height in m, speed km/h; one per point. */
@@ -60,6 +67,17 @@ public class ElevationView extends View {
     }
 
     public void setOnPick(OnPick p) { onPick = p; }
+
+    /** Marks a toll plaza or Free Flow gantry at each point index (one per
+     * passage), so a slow-down on the profile lines up with its toll.
+     * Indexes outside the profile are skipped. */
+    public void setTicks(int[] pointIndexes) {
+        ticks = pointIndexes == null ? new int[0] : pointIndexes.clone();
+        invalidate();
+    }
+
+    /** The point the finger last picked, or -1. */
+    public int marked() { return marked; }
 
     @Override public boolean onTouchEvent(MotionEvent e) {
         if (km.length < 2) return false;
@@ -167,6 +185,9 @@ public class ElevationView extends View {
         for (int j = 0; j < fillPaths.length; j++) {
             fill.setColor(fillColors[j]);
             c.drawPath(fillPaths[j], fill);
+        }
+        for (int t : ticks) {
+            if (t >= 0 && t < n) c.drawLine(xs[t], top, xs[t], bottom, tick);
         }
         c.drawPath(topPath, line);
 

@@ -611,7 +611,7 @@ public class TelemetryActivity extends Activity {
                 gateAsking = true;
                 PinDialog.requireUnlock(this, R.string.sec_unlock_settings,
                     () -> { gateAsking = false; markUnlocked(com.geely.drivemem.state.ValetSession.isActive(this)); },
-                    () -> { gateAsking = false; finish(); });
+                    () -> { gateAsking = false; finish(); }, true);
         }
     }
 

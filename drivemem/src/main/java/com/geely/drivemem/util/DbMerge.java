@@ -35,7 +35,7 @@ public final class DbMerge {
         "telemetry_sample", "trip", "charge_session", "park_session",
         "comfort_event", "battery_health_reading", "charge_stop_event",
         "valet_session", "trip_energy_segment", "trip_point",
-        "diary_event", "aux_12v_reading", "toll_booth", "toll_passage"};
+        "diary_event", "aux_12v_reading", "toll_booth", "toll_passage", "parking_cost"};
 
     /** column -> table it points at, per table. */
     static final Map<String, Map<String, String>> REFS = new LinkedHashMap<>();
@@ -62,6 +62,9 @@ public final class DbMerge {
         toll.put("trip_id", "trip");
         toll.put("booth_id", "toll_booth");
         REFS.put("toll_passage", toll);
+        Map<String, String> parking = new LinkedHashMap<>();
+        parking.put("valet_id", "valet_session");
+        REFS.put("parking_cost", parking);
     }
 
     /** What happened, per table. offsets: how far each table's live ids moved,
@@ -130,7 +133,7 @@ public final class DbMerge {
                 mergeDiary(db, cl, r);
                 continue;
             }
-            if (("toll_booth".equals(t) || "toll_passage".equals(t))
+            if (("toll_booth".equals(t) || "toll_passage".equals(t) || "parking_cost".equals(t))
                     && db.columns("main", t).contains("uuid")
                     && db.columns("old", t).contains("uuid")) {
                 mergeUniqueUuid(db, t, cl, r);
@@ -183,7 +186,8 @@ public final class DbMerge {
     }
 
     /** Tables with UNIQUE(uuid) (and optional UNIQUE(source, external_id) on toll_booth):
-     * keep the live row on conflict so user prices and dismissed flags survive restores. */
+     * keep the live row on conflict so user prices, dismissed flags and
+     * parking edits survive restores. */
     private static void mergeUniqueUuid(Sql db, String table, String cl, Result r) throws Exception {
         long beforeCount = db.queryLong("SELECT COUNT(*) FROM main." + table);
         db.exec("INSERT OR IGNORE INTO main." + table + " (" + cl + ") SELECT " + cl + " FROM old." + table);

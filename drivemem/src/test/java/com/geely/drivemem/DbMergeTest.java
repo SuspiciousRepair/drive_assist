@@ -57,6 +57,13 @@ public class DbMergeTest {
         x("ATTACH DATABASE '" + tmp.newFile("old.db").getPath() + "' AS old");
         for (String s : LIVE) x(String.format(s, "main"));
         for (String s : OLD) x(String.format(s, "old"));
+        // Uuid tables, from the app's own DDL, on both sides.
+        for (String ddl : new String[]{com.geely.drivemem.car.CarDb.TOLL_BOOTH_DDL,
+                com.geely.drivemem.car.CarDb.TOLL_PASSAGE_DDL, com.geely.drivemem.car.CarDb.PARKING_COST_DDL}) {
+            for (String schema : new String[]{"main", "old"}) {
+                x(ddl.replace("CREATE TABLE IF NOT EXISTS ", "CREATE TABLE IF NOT EXISTS " + schema + "."));
+            }
+        }
         sql = new DbMerge.Sql() {
             @Override public void exec(String s, Object... a) throws Exception {
                 try (PreparedStatement p = c.prepareStatement(s)) { bind(p, a); p.executeUpdate(); }
@@ -231,5 +238,44 @@ public class DbMergeTest {
 
         assertEquals(1, q("SELECT COUNT(*) FROM main.diary_event WHERE uuid = 'u-same'"));
         assertEquals(3, q("SELECT COUNT(*) FROM main.diary_event"));
+    }
+
+    /** Live toll prices, dismissed passages and parking edits survive a
+     * restore of an older backup, and a live parking row keeps pointing at
+     * its own Valet stay after the Valet ids move. */
+    @Test public void tollAndParkingOverridesSurviveAndValetLinksFollow() throws Exception {
+        fill();
+        x("INSERT INTO old.valet_session (id, start_ms, end_ms) VALUES (1,120,180)");
+        x("INSERT INTO main.valet_session (id, start_ms, end_ms) VALUES (1,1020,1080)");
+        // The same booth and passage on both sides: the backup has no price,
+        // the live row has the owner's price and a dismissed passage.
+        x("INSERT INTO old.toll_booth (id, uuid, source, external_id, name, lat, lon, updated_ms) "
+            + "VALUES (1,'b-1','osm','node/1','Plaza',1,1,100)");
+        x("INSERT INTO main.toll_booth (id, uuid, source, external_id, name, lat, lon, user_price, updated_ms) "
+            + "VALUES (1,'b-1','osm','node/1','Plaza',1,1,12.5,1000)");
+        x("INSERT INTO old.toll_passage (id, uuid, booth_id, ts_ms, lat, lon, booth_name, dismissed, source) "
+            + "VALUES (1,'p-1',1,150,1,1,'Plaza',0,'auto')");
+        x("INSERT INTO main.toll_passage (id, uuid, booth_id, ts_ms, lat, lon, booth_name, dismissed, source) "
+            + "VALUES (1,'p-1',1,150,1,1,'Plaza',1,'auto')");
+        // Parking: one stop on both sides (edited on the car), one Valet
+        // stay in each, and one stop only in the backup.
+        x("INSERT INTO old.parking_cost (id, uuid, start_ms, cost, kind, updated_ms) VALUES (1,'k-same',140,20,'lot',140)");
+        x("INSERT INTO old.parking_cost (id, uuid, start_ms, valet_id, cost, kind, updated_ms) VALUES (2,'k-old-valet',120,1,40,'lot',120)");
+        x("INSERT INTO old.parking_cost (id, uuid, start_ms, cost, kind, updated_ms) VALUES (3,'k-old',160,5,'street',160)");
+        x("INSERT INTO main.parking_cost (id, uuid, start_ms, cost, place_name, kind, updated_ms) VALUES (1,'k-same',140,30,'Mall','lot',1000)");
+        x("INSERT INTO main.parking_cost (id, uuid, start_ms, valet_id, cost, kind, updated_ms) VALUES (2,'k-live-valet',1020,1,50,'lot',1020)");
+
+        DbMerge.merge(sql);
+
+        assertEquals(1, q("SELECT COUNT(*) FROM main.toll_booth"));
+        assertEquals(1250, q("SELECT CAST(user_price * 100 AS INTEGER) FROM main.toll_booth WHERE uuid = 'b-1'"));
+        assertEquals(1, q("SELECT dismissed FROM main.toll_passage WHERE uuid = 'p-1'"));
+        assertEquals(4, q("SELECT COUNT(*) FROM main.parking_cost"));
+        assertEquals(30, q("SELECT cost FROM main.parking_cost WHERE uuid = 'k-same'"));
+        // Live Valet stay moved from id 1 to 2; its parking row moved with it.
+        assertEquals(1020, q("SELECT v.start_ms FROM main.parking_cost p JOIN main.valet_session v "
+            + "ON v.id = p.valet_id WHERE p.uuid = 'k-live-valet'"));
+        assertEquals(120, q("SELECT v.start_ms FROM main.parking_cost p JOIN main.valet_session v "
+            + "ON v.id = p.valet_id WHERE p.uuid = 'k-old-valet'"));
     }
 }

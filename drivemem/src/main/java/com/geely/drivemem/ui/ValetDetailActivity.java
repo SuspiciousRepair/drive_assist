@@ -68,6 +68,8 @@ public class ValetDetailActivity extends Activity {
         double[] bumpPeak = new double[0];
         List<Clips.Clip> clips = new ArrayList<>();
         List<Bitmap> thumbs = new ArrayList<>();
+        /** What this Valet stay cost, or null. */
+        com.geely.drivemem.state.ParkingCost.Row parking;
     }
 
     @Override protected void onCreate(Bundle b) {
@@ -232,6 +234,7 @@ public class ValetDetailActivity extends Activity {
             try {
                 if (tc.moveToFirst() && !tc.isNull(0)) { d.tempMin = tc.getDouble(0); d.tempMax = tc.getDouble(1); }
             } finally { tc.close(); }
+            d.parking = com.geely.drivemem.state.ParkingCost.forValet(this, id);
         } catch (Throwable e) {
             android.util.Log.w("DriveMem", "valet detail: " + e);
         }
@@ -390,6 +393,7 @@ public class ValetDetailActivity extends Activity {
                 : Style.valueWithUnit(String.valueOf(d.startSoc), Style.TEXT, "%", Style.UNIT_SCALE_ROW);
             statSpan(R.string.session_stat_battery, soc, null, Style.TEXT);
         }
+        costStat(d, km);
         if (d.tempMin != null) {
             String tNum = Math.round(d.tempMin) == Math.round(d.tempMax)
                 ? String.format(Locale.US, "%.0f", d.tempMin)
@@ -556,6 +560,36 @@ public class ValetDetailActivity extends Activity {
         lp.topMargin = Style.dp(this, topDp);
         lp.bottomMargin = Style.dp(this, bottomDp);
         parent.addView(line, lp);
+    }
+
+    /** The Valet stay's cost (or a dim "Tap to add"); a tap edits it. A
+     * stay still running has no cost yet. */
+    private void costStat(Loaded d, double km) {
+        if (d.open) return;
+        final long id = getIntent().getLongExtra(EXTRA_VALET_ID, -1);
+        if (id <= 0) return;
+        CharSequence value;
+        if (d.parking != null) {
+            value = Style.moneyWithUnit(d.parking.cost, Style.ACCENT, Style.UNIT_SCALE_ROW);
+        } else {
+            android.text.SpannableString tap = new android.text.SpannableString(getString(R.string.session_cost_tap));
+            tap.setSpan(new android.text.style.ForegroundColorSpan(Style.TEXT_DIM), 0, tap.length(), 0);
+            tap.setSpan(new android.text.style.StyleSpan(Typeface.NORMAL), 0, tap.length(), 0);
+            tap.setSpan(new android.text.style.RelativeSizeSpan(0.75f), 0, tap.length(), 0);
+            value = tap;
+        }
+        int from = stats.getChildCount();
+        statSpan(R.string.session_stat_cost, value, null, Style.TEXT);
+        Runnable reloadCost = () -> new Thread(() -> {
+            d.parking = com.geely.drivemem.state.ParkingCost.forValet(this, id);
+            runOnUiThread(() -> { if (!isFinishing()) showStats(d, km); });
+        }, "valet-cost").start();
+        View.OnClickListener edit = v -> ParkingCostDialog.open(this, d.vs, d.ve, id, d.parking, reloadCost);
+        for (int i = from; i < stats.getChildCount(); i++) {
+            View v = stats.getChildAt(i);
+            v.setMinimumHeight(Style.dp(this, 22));
+            v.setOnClickListener(edit);
+        }
     }
 
     private void statSpan(int label, CharSequence value, String sub, int color) {

@@ -66,6 +66,11 @@ Inspired by A Better Routeplanner's daily diary, the selected day's activities a
   - Energy added in `+kWh`.
   - SoC change (`28% ➔ 80%`).
   - Charging speed (`kW avg`) with AC mains vs DC Fast Charge detection (peak `charge_v >= 300V`).
+- 🅿️ **Parked gaps** between two sessions: tap one to set what the stop cost
+  (`parking_cost`, a car park or paid street parking). A priced gap shows its
+  place and price; a gap of 15 min or more shows a quiet `+ R$`.
+- **Filters**: All, Trips, Charges, and Parking (parked stops of 15 min or
+  more or priced, plus Valet stays). The counts are on the filter buttons.
 
 ### 4. Home Screen View Switcher
 - A dedicated statistics icon in the left status rail of `ComfortActivity` allows swapping the home screen between the standard comfort card grid and the new statistics screen with a single tap.
@@ -81,16 +86,21 @@ On the statistics page, tap a finished trip (in **P**) to open its route:
 - **Speed colours.** Each part has the colour of its speed. The buckets and
   colours are the same as on the statistics page: 0–40, 40–80, 80–120 and
   120+ km/h. The scale is fixed, so two trips compare at a glance.
-- **All routes in one picture.** The **All routes** button on the statistics
-  page (in **P**) draws every recorded route together, with the same speed
+- **All routes in one picture.** A tap on the map beside the sessions on
+  the statistics page draws every route of the period on screen (day, week,
+  month or year) together, with the same speed
   colours, and lists the trips. Under the picture, the height profile of
   every trip shown, one after the other. **Previous** / **Next** step
-  through the days that have a route; **Show all** shows every trip again.
+  through the days that have a route; **Show all** shows the whole week, month or year again (all trips when it was opened from one day).
   Touch a route or a trip in the list to select it: it is drawn thick over
   the others and the profile shows that trip only. **Open this trip** shows
   its own route screen.
 - **Height profile.** Under the route, the GPS height along the trip, in the
-  same speed colours. Touch it to mark that place on the route.
+  same speed colours. Touch it to mark that place on the route. A dashed mark
+  shows each toll passage.
+- **Tolls and parking.** The trip's tolls (tap one to set its price), **+ Add
+  a missed toll** at the place marked on the height profile, the parking paid
+  on arrival (or **+ Add parking**), and the trip's tolls + parking.
 - **Trip numbers.** Distance, moving and stopped time, average and top speed,
   energy, Wh/km, battery start and end, climb and descent, lowest and
   highest point, outside temperature.

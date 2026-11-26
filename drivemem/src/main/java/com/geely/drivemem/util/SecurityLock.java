@@ -436,8 +436,8 @@ public final class SecurityLock {
         if (Prefs.getSecurityTrustCarplay(ctx)) {
             // Only the owner's own iPhone, by its USB serial: any iPhone a
             // valet plugs in is an Apple USB device too.
-            String serial = Prefs.getSecurityCarplaySerial(ctx);
-            if (!serial.isEmpty() && CarplayState.appleUsbSerials(ctx).contains(serial)) {
+            String serial = CarplayState.cleanSerial(Prefs.getSecurityCarplaySerial(ctx));
+            if (!serial.isEmpty() && CarplayState.cableIphones(ctx).contains(serial)) {
                 return "iPhone";
             }
         }

@@ -22,6 +22,7 @@ work look pending.
 - [Road Score and Driver Score (head-unit IMU)](active/ROAD-AND-DRIVER-SCORE-ROADMAP.md)
 - [Private web statistics sharing](active/PRIVATE-WEB-STATS-SHARE-ROADMAP.md)
 - [Car diary and maintenance log](active/car-diary-maintenance-log.md)
+- [Parking prices and automatic toll logging](active/PARKING-AND-TOLLS-ROADMAP.md)
 - ["Hey Geely" voice assistant](active/VOICE-ASSISTANT-ROADMAP.md)
 - [Settings PIN](active/SETTINGS-PIN-ROADMAP.md)
 

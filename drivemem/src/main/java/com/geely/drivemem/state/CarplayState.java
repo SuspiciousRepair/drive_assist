@@ -47,6 +47,17 @@ public final class CarplayState {
     private static volatile boolean connected = false;
     private static volatile Context appCtx = null;
 
+    /** CarPlay must start this soon after the iPhone appeared on USB for
+     * that iPhone to own the session. */
+    static final long CABLE_TO_SESSION_MS = 15_000L;
+    /** Serial of the Apple device seen last on USB, and when (elapsed ms). */
+    private static volatile String lastCableSerial = null;
+    private static volatile long lastCableAtMs = 0;
+    /** The iPhone of the CarPlay session now running over the cable; null
+     * when none (no session, wireless CarPlay, or the app started after the
+     * plug: the iPhone is then not known until it is plugged in again). */
+    private static volatile String sessionSerial = null;
+
     private CarplayState() {}
 
     public static boolean connected() { return isConnected(appCtx); }
@@ -87,6 +98,43 @@ public final class CarplayState {
         return false;
     }
 
+    /** A USB serial as compared: letters, digits and '-' only, upper case.
+     * The head unit reads the iPhone's serial with junk bytes after it. */
+    public static String cleanSerial(String raw) {
+        if (raw == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < raw.length(); i++) {
+            char ch = raw.charAt(i);
+            if ((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || ch == '-') {
+                sb.append(Character.toUpperCase(ch));
+            }
+        }
+        return sb.toString();
+    }
+
+    /** The serial a CarPlay session that started at connectedAtMs belongs
+     * to: the Apple device plugged in at most CABLE_TO_SESSION_MS before it,
+     * else null. */
+    static String sessionOwner(String cableSerial, long cableAtMs, long connectedAtMs) {
+        if (cableSerial == null || cableSerial.isEmpty() || cableAtMs <= 0) return null;
+        long d = connectedAtMs - cableAtMs;
+        return d >= 0 && d <= CABLE_TO_SESSION_MS ? cableSerial : null;
+    }
+
+    /** The iPhones on the cable now: an Apple device still on the USB list,
+     * plus the iPhone of the wired CarPlay session. On this head unit the
+     * iPhone leaves the USB list 0.2 s after it is plugged in (it moves
+     * behind the car's USB/CarPlay bridge chip), so the session is the one
+     * that counts. Serials are cleaned (cleanSerial). */
+    public static java.util.Set<String> cableIphones(Context ctx) {
+        java.util.Set<String> out = new java.util.HashSet<>();
+        for (String s : appleUsbSerials(ctx)) out.add(cleanSerial(s));
+        String sess = sessionSerial;
+        if (connected && sess != null) out.add(sess);
+        out.remove("");
+        return out;
+    }
+
     /** USB serial numbers of the attached Apple devices (an iPhone reports
      * its own unique id). The Security lock trusts only the owner's one. */
     public static java.util.Set<String> appleUsbSerials(Context ctx) {
@@ -118,15 +166,32 @@ public final class CarplayState {
                     String n = intent.getStringExtra("notification");
                     if ("connected".equals(n)) {
                         connected = true;
-                        Log.i(TAG, "carplay: connected");
+                        sessionSerial = sessionOwner(lastCableSerial, lastCableAtMs,
+                            android.os.SystemClock.elapsedRealtime());
+                        Log.i(TAG, "carplay: connected" + (sessionSerial != null ? " (cable)" : ""));
                         h.postDelayed(() -> reenableBluetoothIfOff(h), REENABLE_DELAY_MS);
                     } else if ("disconnected".equals(n)) {
                         connected = false;
+                        sessionSerial = null;
                         Log.i(TAG, "carplay: disconnected");
                     }
                 }
             }, new IntentFilter(ACTION));
         } catch (Throwable t) { Log.w(TAG, "carplay: register: " + t); }
+        try {
+            // The only moment the iPhone's own serial is on the USB list.
+            app.registerReceiver(new BroadcastReceiver() {
+                @Override public void onReceive(Context c, Intent intent) {
+                    UsbDevice d = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+                    if (d == null || d.getVendorId() != USB_VENDOR_APPLE) return;
+                    String sn;
+                    try { sn = cleanSerial(d.getSerialNumber()); } catch (Throwable t) { sn = ""; }
+                    if (sn.isEmpty()) return;
+                    lastCableSerial = sn;
+                    lastCableAtMs = android.os.SystemClock.elapsedRealtime();
+                }
+            }, new IntentFilter(UsbManager.ACTION_USB_DEVICE_ATTACHED));
+        } catch (Throwable t) { Log.w(TAG, "carplay: usb register: " + t); }
     }
 
     private static void reenableBluetoothIfOff(Handler h) {
