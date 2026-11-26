@@ -58,7 +58,9 @@ final class PhonePages {
         + ".ok{color:#1a7f37;font-weight:600}a{color:var(--accent)}"
         + "input[type=checkbox]{width:auto;margin:0 8px 0 0}label.check{display:flex;align-items:center;font-weight:400}"
         + "select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);"
-        + "color:var(--text);font:inherit}button.quiet{background:transparent;color:var(--accent);border:1px solid var(--line)}";
+        + "color:var(--text);font:inherit}button.quiet{background:transparent;color:var(--accent);border:1px solid var(--line)}"
+        + "pre.sel{margin:4px 0;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);"
+        + "font:15px ui-monospace,monospace;white-space:pre-wrap;word-break:break-all;-webkit-user-select:all;user-select:all}";
 
     private static String page(Context c, String title, String body) {
         return page(c, title, body, 0);
@@ -150,7 +152,36 @@ final class PhonePages {
          .append("<a class=\"btn\" href=\"/settings\">").append(Http.esc(c.getString(R.string.phone_settings_open))).append("</a></div>");
 
         b.append(carCaps(c, caps));
+        b.append(versionCard(c));
         return page(c, title, b.toString());
+    }
+
+    /** The installed versions, as one block the owner can select with one
+     * tap and paste into an issue or a chat. No copy button: the page is
+     * plain HTTP, where a phone's browser does not give a page the
+     * clipboard, and the pages carry no script. */
+    static String versionCard(Context c) {
+        String helperVn = null;
+        long helperVc = -1;
+        try {
+            android.content.pm.PackageInfo pi = c.getPackageManager()
+                .getPackageInfo(com.geely.drivemem.net.Updater.HELPER_PKG, 0);
+            helperVn = pi.versionName;
+            helperVc = pi.versionCode;
+        } catch (Throwable ignored) {}   // not installed: the block says so
+        return "<div class=\"card\"><h2>" + Http.esc(c.getString(R.string.phone_version_header)) + "</h2>"
+            + "<pre class=\"sel\">" + Http.esc(versionText(
+                com.geely.drivemem.BuildConfig.VERSION_NAME, com.geely.drivemem.BuildConfig.VERSION_CODE,
+                helperVn, helperVc, c.getString(R.string.phone_version_no_helper))) + "</pre>"
+            + "<p class=\"dim\">" + Http.esc(c.getString(R.string.phone_version_hint)) + "</p></div>";
+    }
+
+    /** Pure: the lines of the version block. helperVn null = ModeHelper is
+     * not installed, and the second line says so: without it the app cannot
+     * update itself or run its car controls, so a report must show it. */
+    static String versionText(String appVn, long appVc, String helperVn, long helperVc, String noHelper) {
+        return "Drive Assist " + appVn + " (" + appVc + ")\n"
+            + (helperVn != null ? "ModeHelper " + helperVn + " (" + helperVc + ")" : noHelper);
     }
 
     /** The System page's "Car equipment" card, as text the owner can copy
