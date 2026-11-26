@@ -189,7 +189,9 @@ public final class TelemetrySystemSection extends LinearLayout {
         ConfigCards.add(right, canCard);
 
         // ---- Trip routes (issue #19) ----
-        // On by default (owner, 2026-11-15). The points stay in car.db.
+        // On by default (owner, 2026-11-15). The points stay strictly local in
+        // car.db; OpenStreetMap map backgrounds and toll detection live under
+        // Config -> Integrations -> OpenStreetMap as opt-in features.
         LinearLayout routesCard = ConfigCards.card(activity, activity.getString(R.string.routes_header));
         routesCard.addView(Style.toggleRow(activity, activity.getString(R.string.routes_enable_label),
             com.geely.drivemem.util.Prefs.getRecordRoutes(activity),
@@ -198,23 +200,6 @@ public final class TelemetrySystemSection extends LinearLayout {
                 com.geely.drivemem.sensors.GpsOwner.ensure(activity);
             }));
         routesCard.addView(ConfigCards.hint(activity, activity.getString(R.string.routes_hint)));
-        // The saved map tiles (TileCache): its size, and a way to clear it.
-        TextView mapSize = ConfigCards.hint(activity, "");
-        routesCard.addView(mapSize);
-        Runnable refreshMapSize = () -> new Thread(() -> {
-            long b = TileCache.get(activity).diskBytes();
-            String mb = String.format(java.util.Locale.getDefault(), "%.1f", b / (1024.0 * 1024.0));
-            activity.runOnUiThread(() -> mapSize.setText(activity.getString(R.string.routes_map_size, mb)));
-        }, "map-size").start();
-        refreshMapSize.run();
-        LinearLayout mapRow = new LinearLayout(activity);
-        mapRow.setOrientation(LinearLayout.HORIZONTAL);
-        mapRow.addView(button(activity, activity.getString(R.string.routes_map_clear), 0xFF3A5A7A,
-            () -> TileCache.get(activity).clear(() -> {
-                Toast.makeText(activity, activity.getString(R.string.routes_map_cleared), Toast.LENGTH_SHORT).show();
-                refreshMapSize.run();
-            })));
-        routesCard.addView(mapRow);
         ConfigCards.add(right, routesCard);
 
         // ---- Car equipment: what the car reports, for an issue ----

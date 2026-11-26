@@ -58,6 +58,7 @@ public final class MapPreload {
     /** A route point of the open trip. Hub thread; cheap: a box update,
      * and once a minute the tile maths and a hand-off to the tile thread. */
     public static void onPoint(Context ctx, double lat, double lon, long now) {
+        if (!Prefs.getOsmMapsEnabled(ctx)) return;
         if (!any) {
             minLat = maxLat = lat; minLon = maxLon = lon; any = true;
             retryPending(ctx);   // the car is moving, so likely online again
@@ -79,6 +80,7 @@ public final class MapPreload {
     /** The trip was saved as tripId: fetch its final map, and keep it
      * pending until every tile is on the disk. Any thread. */
     public static void onTripSaved(Context ctx, long tripId) {
+        if (!Prefs.getOsmMapsEnabled(ctx)) return;
         double[] box = null;
         try {
             Cursor c = CarDb.get(ctx).db().rawQuery(
@@ -106,12 +108,14 @@ public final class MapPreload {
 
     /** Tries every pending trip map again. Any thread. */
     static void retryPending(Context ctx) {
+        if (!Prefs.getOsmMapsEnabled(ctx)) return;
         List<String> p;
         synchronized (MapPreload.class) { p = pending(ctx); }
         for (String entry : p) fetchPending(ctx, entry);
     }
 
     private static void fetchPending(Context ctx, String entry) {
+        if (!Prefs.getOsmMapsEnabled(ctx)) return;
         double[] b = parseBox(entry);
         if (b == null) { done(ctx, entry); return; }
         int[] size = size(ctx);

@@ -109,6 +109,7 @@ public final class CarDiaryView extends LinearLayout {
         EntityBus.subscribe(CarDiary.EVENT_CHANGED, diaryListener);
         EntityBus.subscribe("charge.cost_updated", diaryListener);
         EntityBus.subscribe("charge.completed", diaryListener);
+        EntityBus.subscribe("toll.changed", diaryListener);
         refresh();
     }
 
@@ -126,6 +127,7 @@ public final class CarDiaryView extends LinearLayout {
         EntityBus.unsubscribe(CarDiary.EVENT_CHANGED, diaryListener);
         EntityBus.unsubscribe("charge.cost_updated", diaryListener);
         EntityBus.unsubscribe("charge.completed", diaryListener);
+        EntityBus.unsubscribe("toll.changed", diaryListener);
         refreshQueued = false;
         dismissOpenWindows();
     }

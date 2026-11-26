@@ -81,6 +81,11 @@ public final class RoutePoints {
             v.put("spent_kwh", ts.spentKwh);
             v.put("regen_kwh", ts.regenKwh);
         }
+        float[] road = com.geely.drivemem.sensors.ImuHub.drainRouteSegment();
+        if (road != null) {
+            v.put("road_rms_z", road[0]);
+            v.put("road_peak_z", road[1]);
+        }
         return v;
     }
 

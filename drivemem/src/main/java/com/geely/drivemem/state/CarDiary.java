@@ -675,6 +675,9 @@ public final class CarDiary {
     static final String TCO_CHARGE_COST_SQL =
         "SELECT COALESCE(SUM(cost), 0) FROM charge_session "
         + "WHERE cost > 0 AND start_ms >= ? AND start_ms <= ?";
+    static final String TCO_TOLL_COST_SQL =
+        "SELECT COALESCE(SUM(cost), 0) FROM toll_passage "
+        + "WHERE dismissed = 0 AND cost > 0 AND ts_ms >= ? AND ts_ms <= ?";
     static final String TCO_ODO_SQL =
         "SELECT MIN(CASE WHEN first_odo_km > 0 THEN first_odo_km END), "
         + "MAX(CASE WHEN last_odo_km > 0 THEN last_odo_km END), "
@@ -692,7 +695,16 @@ public final class CarDiary {
     public static TcoSummary computeTco(double chargeCost, List<Entry> entries, double trackedKm,
                                         long periodStartMs, long periodEndInclMs,
                                         long winStartMs, long winEndMs, boolean allTime) {
-        double maint = 0.0, road = 0.0, bureau = 0.0;
+        return computeTco(chargeCost, 0.0, entries, trackedKm, periodStartMs, periodEndInclMs,
+            winStartMs, winEndMs, allTime);
+    }
+
+    /** Same, plus automatic toll passage costs folded into {@code road} (without
+     * cluttering Car Diary's manual event list with every toll crossing). */
+    public static TcoSummary computeTco(double chargeCost, double autoTollCost, List<Entry> entries,
+                                        double trackedKm, long periodStartMs, long periodEndInclMs,
+                                        long winStartMs, long winEndMs, boolean allTime) {
+        double maint = 0.0, road = Math.max(0.0, autoTollCost), bureau = 0.0;
         boolean prorated = false;
         if (entries != null) {
             for (Entry e : entries) {
@@ -1544,7 +1556,7 @@ public final class CarDiary {
         boolean allTime = pf.kind == PeriodFilter.Kind.ALL;
         java.time.ZoneId zone = java.time.ZoneId.systemDefault();
         long[] bounds = pf.boundsMs(nowMs, zone);
-        double chargeCost = 0, trackedKm = 0;
+        double chargeCost = 0, tollCost = 0, trackedKm = 0;
         long periodEndIncl = inclusiveEndMs(bounds, nowMs);
         long winEndMs = bounds[1];
         String firstDateIso = null;
@@ -1555,10 +1567,18 @@ public final class CarDiary {
                         "SELECT COALESCE(SUM(cost), 0) FROM charge_session WHERE cost > 0", null)) {
                     if (c.moveToFirst()) chargeCost = c.getDouble(0);
                 }
+                try (Cursor c = db.rawQuery(
+                        "SELECT COALESCE(SUM(cost), 0) FROM toll_passage WHERE dismissed = 0 AND cost > 0", null)) {
+                    if (c.moveToFirst()) tollCost = c.getDouble(0);
+                }
             } else {
                 try (Cursor c = db.rawQuery(TCO_CHARGE_COST_SQL,
                         new String[]{String.valueOf(bounds[0]), String.valueOf(periodEndIncl)})) {
                     if (c.moveToFirst()) chargeCost = c.getDouble(0);
+                }
+                try (Cursor c = db.rawQuery(TCO_TOLL_COST_SQL,
+                        new String[]{String.valueOf(bounds[0]), String.valueOf(periodEndIncl)})) {
+                    if (c.moveToFirst()) tollCost = c.getDouble(0);
                 }
             }
 
@@ -1584,7 +1604,7 @@ public final class CarDiary {
         // tested against the real period bounds, the ones the charge costs use.
         long prorateStartMs = prorationStartMs(bounds[0], winEndMs, firstDateIso, allTime, zone);
         List<Entry> list = entries != null ? entries : readEntries(ctx);
-        return computeTco(chargeCost, list, trackedKm, bounds[0], periodEndIncl,
+        return computeTco(chargeCost, tollCost, list, trackedKm, bounds[0], periodEndIncl,
             prorateStartMs, winEndMs, allTime);
     }
 

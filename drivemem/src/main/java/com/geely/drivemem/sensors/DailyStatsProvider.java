@@ -76,6 +76,10 @@ public final class DailyStatsProvider {
          * energyKwh; null when CAN did not measure the trip. Set after
          * construction by queryTrips, like DayOverview's extras. */
         public EnergySplit split;
+        /** Automatic/manual toll passages on this trip (0 on ordinary trips). */
+        public int tollCount;
+        public double tollCost;
+        public int tollUnpriced;
 
         public DriveSession(long tripId, long startMs, long endMs, double distanceKm,
                             int socStart, int socEnd, double ascentDPlusM, double descentDMinusM,
@@ -148,11 +152,23 @@ public final class DailyStatsProvider {
         public final double distanceKm, maxSpeedKmh;
         public final Double maxPowerKw;
         public final int startSoc, endSoc;
+        public final Integer driverScore, roadScore, roadBumps, hardBrakes, hardAccels, hardCorners;
+
         public ValetSessionItem(long valetId, long startMs, long endMs, double distanceKm,
                                 double maxSpeedKmh, Double maxPowerKw, int startSoc, int endSoc) {
+            this(valetId, startMs, endMs, distanceKm, maxSpeedKmh, maxPowerKw, startSoc, endSoc,
+                null, null, null, null, null, null);
+        }
+
+        public ValetSessionItem(long valetId, long startMs, long endMs, double distanceKm,
+                                double maxSpeedKmh, Double maxPowerKw, int startSoc, int endSoc,
+                                Integer driverScore, Integer roadScore, Integer roadBumps,
+                                Integer hardBrakes, Integer hardAccels, Integer hardCorners) {
             super(startMs, endMs);
             this.valetId = valetId; this.distanceKm = distanceKm; this.maxSpeedKmh = maxSpeedKmh;
             this.maxPowerKw = maxPowerKw; this.startSoc = startSoc; this.endSoc = endSoc;
+            this.driverScore = driverScore; this.roadScore = roadScore; this.roadBumps = roadBumps;
+            this.hardBrakes = hardBrakes; this.hardAccels = hardAccels; this.hardCorners = hardCorners;
         }
         @Override public boolean isTrip() { return false; }
         @Override public boolean isValet() { return true; }
@@ -1400,6 +1416,26 @@ public final class DailyStatsProvider {
                 out.add(ds);
             }
         } finally { tc.close(); }
+        if (!out.isEmpty()) {
+            List<Long> tids = new ArrayList<>(out.size());
+            for (Object o : out) {
+                if (o instanceof DriveSession && ((DriveSession) o).tripId > 0) {
+                    tids.add(((DriveSession) o).tripId);
+                }
+            }
+            java.util.Map<Long, com.geely.drivemem.state.TollTracker.TripSummary> tolls =
+                com.geely.drivemem.state.TollTracker.summariesForTrips(db, tids);
+            for (Object o : out) {
+                if (!(o instanceof DriveSession)) continue;
+                DriveSession ds = (DriveSession) o;
+                com.geely.drivemem.state.TollTracker.TripSummary ts = tolls.get(ds.tripId);
+                if (ts != null) {
+                    ds.tollCount = ts.count;
+                    ds.tollCost = ts.totalCost;
+                    ds.tollUnpriced = ts.unpricedCount;
+                }
+            }
+        }
     }
 
     private static double d(Cursor c, int i) { return c.isNull(i) ? 0 : c.getDouble(i); }
@@ -1449,7 +1485,8 @@ public final class DailyStatsProvider {
         // this day's exclusive end; date(end_ms)>=dateStr is end_ms at/after
         // this day's start. Same overlap test, index-friendly form.
         Cursor vc = db.rawQuery(
-            "SELECT id, start_ms, end_ms, start_odo_km, end_odo_km, max_speed_kmh, max_power_kw, start_soc, end_soc "
+            "SELECT id, start_ms, end_ms, start_odo_km, end_odo_km, max_speed_kmh, max_power_kw, start_soc, end_soc, "
+          + "driver_score, road_score, road_bumps, hard_brakes, hard_accels, hard_corners "
           + "FROM valet_session WHERE start_ms < ? "
           + "AND (end_ms IS NULL OR end_ms >= ?) ORDER BY start_ms ASC",
             new String[]{boundEnd, boundStart});
@@ -1460,7 +1497,10 @@ public final class DailyStatsProvider {
                 double distance = startOdo >= 0 && endOdo >= startOdo ? endOdo - startOdo : 0;
                 out.add(new ValetSessionItem(vc.getLong(0), vc.getLong(1), vc.isNull(2) ? 0 : vc.getLong(2), distance,
                     vc.isNull(5) ? 0 : vc.getDouble(5), vc.isNull(6) ? null : vc.getDouble(6),
-                    vc.isNull(7) ? -1 : vc.getInt(7), vc.isNull(8) ? -1 : vc.getInt(8)));
+                    vc.isNull(7) ? -1 : vc.getInt(7), vc.isNull(8) ? -1 : vc.getInt(8),
+                    vc.isNull(9) ? null : vc.getInt(9), vc.isNull(10) ? null : vc.getInt(10),
+                    vc.isNull(11) ? null : vc.getInt(11), vc.isNull(12) ? null : vc.getInt(12),
+                    vc.isNull(13) ? null : vc.getInt(13), vc.isNull(14) ? null : vc.getInt(14)));
             }
         } finally { vc.close(); }
 

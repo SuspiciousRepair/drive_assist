@@ -52,7 +52,18 @@ public class RouteView extends View {
     private final Paint pinText = new Paint(Paint.ANTI_ALIAS_FLAG);
     private double[] spXm = new double[0], spYm = new double[0];   // metres, same frame as xs/ys
     private float[] spX = new float[0], spY = new float[0];
-    private final android.graphics.drawable.Drawable acIcon, dcIcon;
+    private final android.graphics.drawable.Drawable acIcon, dcIcon, bumpIcon;
+    // Bump strike markers (ValetDetailActivity): amber rings drawn on the route, tappable.
+    private double[] bumpLat = new double[0], bumpLon = new double[0];
+    private double[] bumpXm = new double[0], bumpYm = new double[0];
+    private float[] bumpX = new float[0], bumpY = new float[0];
+    private OnSpotPick onBumpPick;
+    // Toll passage pins (TripRouteActivity): compact amber tags along the route.
+    private double[] tollLat = new double[0], tollLon = new double[0];
+    private double[] tollXm = new double[0], tollYm = new double[0];
+    private float[] tollX = new float[0], tollY = new float[0];
+    private String[] tollLabels = new String[0];
+    private boolean showTolls = true;
     /** First point of each trip; one trip is {0}. */
     private int[] starts = {0};
     /** Many trips in one picture: thin lines, a trip can be selected. */
@@ -114,6 +125,8 @@ public class RouteView extends View {
         acIcon.setTint(Style.ACCENT);
         dcIcon = c.getDrawable(com.geely.drivemem.R.drawable.ic_ev_plug_ccs2).mutate();
         dcIcon.setTint(Style.GOOD);
+        bumpIcon = c.getDrawable(com.geely.drivemem.R.drawable.ic_score_bump).mutate();
+        bumpIcon.setTint(Style.WARN);
 
         pinText.setTextAlign(Paint.Align.CENTER);
         pinText.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
@@ -193,21 +206,60 @@ public class RouteView extends View {
 
     void setOnSpotPick(OnSpotPick l) { onSpotPick = l; }
 
+    /** Bump strike locations on the route (amber rings with bump icon, tappable). */
+    void setBumpMarkers(double[] lat, double[] lon) {
+        bumpLat = lat != null ? lat : new double[0];
+        bumpLon = lon != null ? lon : new double[0];
+        project();
+        rebuild();
+        invalidate();
+    }
+
+    void setOnBumpPick(OnSpotPick l) { onBumpPick = l; }
+
+    /** Toll crossing markers along the trip route (high-contrast pill labels). */
+    void setTollPins(double[] lat, double[] lon, String[] labels) {
+        tollLat = lat != null ? lat : new double[0];
+        tollLon = lon != null ? lon : new double[0];
+        tollLabels = labels != null ? labels : new String[0];
+        project();
+        rebuild();
+        invalidate();
+    }
+
+    /** Shows or hides toll pins on the map without rebuilding route geometry. */
+    void setShowTolls(boolean show) {
+        if (showTolls == show) return;
+        showTolls = show;
+        invalidate();
+    }
+
     /** The least width the map shows, in metres (200 for a route). */
     void setMinSpanM(double m) { minSpanM = m; }
 
-    /** Route points and spots in one frame (one centre). */
+    /** Route points, spots, bump and toll markers in one frame (one centre). */
     private void project() {
         int n = rLat.length, m = spotLat.length;
-        double[] lat = new double[n + m], lon = new double[n + m];
+        int k = Math.min(bumpLat.length, bumpLon.length);
+        int tl = Math.min(tollLat.length, tollLon.length);
+        double[] lat = new double[n + m + k + tl], lon = new double[n + m + k + tl];
         System.arraycopy(rLat, 0, lat, 0, n); System.arraycopy(spotLat, 0, lat, n, m);
+        System.arraycopy(bumpLat, 0, lat, n + m, k);
+        System.arraycopy(tollLat, 0, lat, n + m + k, tl);
         System.arraycopy(rLon, 0, lon, 0, n); System.arraycopy(spotLon, 0, lon, n, m);
-        double[] centre = RouteGeometry.centre(lat, lon);
+        System.arraycopy(bumpLon, 0, lon, n + m, k);
+        System.arraycopy(tollLon, 0, lon, n + m + k, tl);
+        double[] centre = RouteGeometry.centre(
+            java.util.Arrays.copyOf(lat, n + m), java.util.Arrays.copyOf(lon, n + m));
         cLat = centre[0]; cLon = centre[1];
         double[][] xy = RouteGeometry.project(lat, lon, cLat, cLon);
         xs = java.util.Arrays.copyOf(xy[0], n); ys = java.util.Arrays.copyOf(xy[1], n);
         spXm = java.util.Arrays.copyOfRange(xy[0], n, n + m);
         spYm = java.util.Arrays.copyOfRange(xy[1], n, n + m);
+        bumpXm = java.util.Arrays.copyOfRange(xy[0], n + m, n + m + k);
+        bumpYm = java.util.Arrays.copyOfRange(xy[1], n + m, n + m + k);
+        tollXm = java.util.Arrays.copyOfRange(xy[0], n + m + k, n + m + k + tl);
+        tollYm = java.util.Arrays.copyOfRange(xy[1], n + m + k, n + m + k + tl);
     }
 
     private static Path[] newPaths() {
@@ -285,6 +337,13 @@ public class RouteView extends View {
                 float lift = Style.dp(getContext(), 34);
                 for (int i = 0; i < hy.length; i++) hy[i] = spY[i] - lift;
                 onSpotPick.onSpotPick(RouteGeometry.nearest(spX, hy, e.getX(), e.getY(), getWidth() / 12f));
+            }
+            return true;
+        }
+        if (onBumpPick != null && bumpX.length > 0) {
+            if (e.getAction() == android.view.MotionEvent.ACTION_UP) {
+                int hit = RouteGeometry.nearest(bumpX, bumpY, e.getX(), e.getY(), Style.dp(getContext(), 44));
+                if (hit >= 0) onBumpPick.onSpotPick(hit);
             }
             return true;
         }
@@ -378,6 +437,8 @@ public class RouteView extends View {
         markA = markB = -1;
         sx = new float[n]; sy = new float[n];
         spX = new float[spXm.length]; spY = new float[spYm.length];
+        bumpX = new float[bumpXm.length]; bumpY = new float[bumpYm.length];
+        tollX = new float[tollXm.length]; tollY = new float[tollYm.length];
         barPx = 0; barLabel = null;
         tiles = java.util.Collections.emptyList();
         if ((n == 0 && spXm.length == 0) || w <= 0 || h <= 0) return;
@@ -388,6 +449,8 @@ public class RouteView extends View {
         RouteGeometry.Fit f = RouteGeometry.fit(fx, fy, w, h, pad, minSpanM);
         for (int i = 0; i < n; i++) { sx[i] = f.x(xs[i]); sy[i] = f.y(ys[i]); }
         for (int i = 0; i < spX.length; i++) { spX[i] = f.x(spXm[i]); spY[i] = f.y(spYm[i]); }
+        for (int i = 0; i < bumpX.length; i++) { bumpX[i] = f.x(bumpXm[i]); bumpY[i] = f.y(bumpYm[i]); }
+        for (int i = 0; i < tollX.length; i++) { tollX[i] = f.x(tollXm[i]); tollY[i] = f.y(tollYm[i]); }
         tiles = MapTiles.cover(cLat, cLon, f.x(0), f.y(0), f.pxPerM, w, h);
 
         if (many) {
@@ -437,14 +500,17 @@ public class RouteView extends View {
         if (n == 0 && spX.length == 0) return;
         Context ctx = getContext();
 
-        // The map first, under everything. A tile that is not here yet is
-        // asked for, and the view redraws when it arrives.
-        for (MapTiles.Tile t : tiles) {
-            android.graphics.Bitmap b = tileCache.get(t.z, t.x, t.y, tileArrived);
-            if (b == null) continue;
-            // Half a pixel more on each side, so no seam shows between tiles.
-            tileRect.set(t.left - 0.5f, t.top - 0.5f, t.left + t.size + 0.5f, t.top + t.size + 0.5f);
-            c.drawBitmap(b, null, tileRect, tilePaint);
+        // The map first, under everything (opt-in via OpenStreetMap integration).
+        // A tile that is not here yet is asked for, and the view redraws when it arrives.
+        boolean mapsEnabled = com.geely.drivemem.util.Prefs.getOsmMapsEnabled(ctx);
+        if (mapsEnabled) {
+            for (MapTiles.Tile t : tiles) {
+                android.graphics.Bitmap b = tileCache.get(t.z, t.x, t.y, tileArrived);
+                if (b == null) continue;
+                // Half a pixel more on each side, so no seam shows between tiles.
+                tileRect.set(t.left - 0.5f, t.top - 0.5f, t.left + t.size + 0.5f, t.top + t.size + 0.5f);
+                c.drawBitmap(b, null, tileRect, tilePaint);
+            }
         }
 
         if (many) {
@@ -490,6 +556,53 @@ public class RouteView extends View {
             drawPin(c, spX[selSpot], spY[selSpot], spotDc[selSpot], spotLabel[selSpot], true);
         }
 
+        // Bump strike pins (Valet Detail): amber rings with the bump icon.
+        if (bumpX.length > 0) {
+            float br = Style.dp(ctx, 19);
+            float bsw = 4.5f * ctx.getResources().getDisplayMetrics().density;
+            int bir = Style.dp(ctx, 11);
+            for (int i = 0; i < bumpX.length; i++) {
+                float bx = bumpX[i], by = bumpY[i];
+                dot.setStyle(Paint.Style.FILL);
+                dot.setColor(Style.BG_BOTTOM);
+                c.drawCircle(bx, by, br, dot);
+                dot.setStyle(Paint.Style.STROKE);
+                dot.setStrokeWidth(bsw);
+                dot.setColor(Style.WARN);
+                c.drawCircle(bx, by, br, dot);
+                bumpIcon.setBounds((int) bx - bir, (int) by - bir, (int) bx + bir, (int) by + bir);
+                bumpIcon.draw(c);
+            }
+        }
+
+        // Toll crossing pins (Trip Detail): high-contrast dark pill with crisp white text.
+        if (showTolls && tollX.length > 0) {
+            float pr = Style.dp(ctx, 18);
+            float tsw = Style.dp(ctx, 3);
+            text.setTextSize(Style.dp(ctx, 19));
+            text.setFakeBoldText(true);
+            text.setTextAlign(Paint.Align.CENTER);
+            Paint.FontMetrics fm = text.getFontMetrics();
+            float tyOff = -(fm.ascent + fm.descent) / 2f;
+            for (int i = 0; i < tollX.length; i++) {
+                float tx = tollX[i], ty = tollY[i];
+                String lbl = i < tollLabels.length && tollLabels[i] != null ? tollLabels[i] : "?";
+                float tw = text.measureText(lbl) + Style.dp(ctx, 20);
+                float halfW = Math.max(pr, tw / 2f);
+                android.graphics.RectF pill = new android.graphics.RectF(tx - halfW, ty - pr, tx + halfW, ty + pr);
+                dot.setStyle(Paint.Style.FILL);
+                dot.setColor(0xEE111827);
+                c.drawRoundRect(pill, pr, pr, dot);
+                dot.setStyle(Paint.Style.STROKE);
+                dot.setStrokeWidth(tsw);
+                dot.setColor(0xFFF3F4F6);
+                c.drawRoundRect(pill, pr, pr, dot);
+                text.setColor(0xFFFFFFFF);
+                c.drawText(lbl, tx, ty + tyOff, text);
+            }
+            text.setFakeBoldText(false);
+        }
+
         if (marker >= 0 && marker < n) {
             float mx = sx[marker], my = sy[marker];
             dot.setStyle(Paint.Style.FILL);
@@ -516,7 +629,7 @@ public class RouteView extends View {
 
         // The map's credit, bottom right: the OpenStreetMap licence asks
         // for it wherever its map is shown.
-        if (!tiles.isEmpty()) {
+        if (mapsEnabled && !tiles.isEmpty()) {
             String s = "© OpenStreetMap";
             float m = Style.dp(ctx, 6);
             float tw = credit.measureText(s);

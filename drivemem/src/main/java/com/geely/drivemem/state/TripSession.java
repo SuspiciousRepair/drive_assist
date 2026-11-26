@@ -199,6 +199,7 @@ public final class TripSession {
             && rawSocR.value instanceof Number) ? ((Number) rawSocR.value).doubleValue() : Double.NaN;
         currentSocRaw = startSocRaw;
         EnergyIntegrator.startTrip();
+        com.geely.drivemem.sensors.ImuHub.startTrip();
         liveEnergy = new DrivingConsumption();
         if (ctx != null) {
             persistOpenTrip(ctx);
@@ -328,6 +329,8 @@ public final class TripSession {
 
         double distanceKm = (currentOdoKm >= startOdoKm && startOdoKm >= 0) ? (currentOdoKm - startOdoKm) : 0;
         boolean qualified = isQualified(distanceKm, drivingDurationMs);
+        final com.geely.drivemem.sensors.DriveScorer.Snapshot imuScore =
+            com.geely.drivemem.sensors.ImuHub.endTrip(distanceKm);
 
         if (qualified) {
             if (startSampleId >= 0 && ctx != null) {
@@ -364,6 +367,14 @@ public final class TripSession {
                     v.put("climate_on_s", ts.climateOnSeconds);
                     v.put("fan_kwh", ts.fanKwh);
                 }
+                if (imuScore != null) {
+                    v.put("road_score", imuScore.roadScore);
+                    v.put("driver_score", imuScore.driverScore);
+                    v.put("road_bumps", imuScore.roadBumps);
+                    v.put("hard_brakes", imuScore.hardBrakes);
+                    v.put("hard_accels", imuScore.hardAccels);
+                    v.put("hard_corners", imuScore.hardCorners);
+                }
                 CarDb.get(ctx).write(() -> {
                     try {
                         long tripId = CarDb.get(ctx).db().insert("trip", null, v);
@@ -374,6 +385,7 @@ public final class TripSession {
                             CarDb.get(ctx).db().execSQL(CarDb.CLAIM_TRIP_POINTS_SQL,
                                 new Object[]{tripId, startMs0, endMs});
                             CarDb.get(ctx).db().execSQL(CarDb.DROP_LOOSE_TRIP_POINTS_SQL, new Object[]{endMs});
+                            TollTracker.onTripFinalized(ctx, tripId, startMs0, endMs);
                             com.geely.drivemem.ui.MapPreload.onTripSaved(ctx, tripId);
                         } catch (Throwable t) { Log.w(TAG, "trip points: " + t); }
                     } catch (Throwable t) {

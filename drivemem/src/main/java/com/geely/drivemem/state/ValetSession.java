@@ -3,15 +3,23 @@ package com.geely.drivemem.state;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.media.AudioManager;
+import android.util.Log;
 
+import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.car.CarDb;
 import com.geely.drivemem.car.EntityBus;
+import com.geely.drivemem.util.Prefs;
+import com.geely.drivemem.util.SecurityLock;
 
+import java.util.HashMap;
 import java.util.Map;
 
-/** Explicit, persistent Valet interval. It ends only when the owner requests it. */
+/** Explicit, persistent Valet interval. Ends when the owner requests it or
+ * automatically when the trusted phone returns (ValetAutoEnd). */
 public final class ValetSession {
+    private static final String TAG = "DriveMem";
     private static final String PREFS = "drivemem";
     private static final String ACTIVE = "valet_active";
     private static final String START = "valet_start_ms";
@@ -22,8 +30,11 @@ public final class ValetSession {
     private static final String MAX_SPEED = "valet_max_speed";
     private static final String MAX_POWER = "valet_max_power";
     private static final String ROW_ID = "valet_row_id";
+    private static final String SAVED_MUSIC_VOL = "valet_saved_music_vol";
     private static final String VALET_MARKER = "dashcam/valet.active";
     private static volatile boolean subscribed;
+    private static final ValetAutoEnd autoEnd = new ValetAutoEnd();
+    private static final Map<Integer, Boolean> doorWasOpen = new HashMap<>();
 
     public static final class Snapshot {
         public final boolean active;
@@ -43,10 +54,39 @@ public final class ValetSession {
         if (subscribed) return;
         subscribed = true;
         Context app = context.getApplicationContext();
+        if (isActive(app)) {
+            autoEnd.reset(System.currentTimeMillis(), SecurityLock.refreshTrustedPresenceNow(app));
+        }
+        EntityBus.subscribe("car.door_pos", (key, reading) -> {
+            if (reading.status != CarActor.Reading.Status.OK || !(reading.value instanceof int[])) return;
+            int[] av = (int[]) reading.value;
+            if (av.length < 2) return;
+            int area = av[0], pos = av[1];
+            if (pos != CarAccess.DOOR_OPEN && pos != CarAccess.DOOR_CLOSED) return;
+            boolean open = (pos == CarAccess.DOOR_OPEN);
+            Boolean prev;
+            synchronized (doorWasOpen) { prev = doorWasOpen.put(area, open); }
+            if (prev != null && !prev && open && isActive(app)) {
+                autoEnd.onDoorOpened(System.currentTimeMillis());
+            }
+        });
         EntityBus.subscribe("telemetry.tick", (key, reading) -> {
             if (reading.status != CarActor.Reading.Status.OK || !isActive(app)) return;
             @SuppressWarnings("unchecked") Map<String, Object> data = (Map<String, Object>) reading.value;
             update(app, data);
+            if (Prefs.getSecurityAutoEndValet(app) && SecurityLock.hasTrustedPhoneConfigured(app)) {
+                Number odo = number(data.get("odometer"));
+                Number speed = number(data.get("speed"));
+                // Cached: this runs on the hub thread, and a fresh check means
+                // USB, Wi-Fi and Bluetooth binder calls on every tick.
+                if (autoEnd.onTick(System.currentTimeMillis(),
+                        SecurityLock.trustedPresenceCached(app),
+                        odo == null ? null : odo.doubleValue(),
+                        speed == null ? null : speed.doubleValue())) {
+                    Log.i(TAG, "valet: auto-ending (trusted phone returned)");
+                    stop(app);
+                }
+            }
         });
     }
 
@@ -73,6 +113,9 @@ public final class ValetSession {
         if (soc != null) e.putInt(START_SOC, soc.intValue()).putInt(LAST_SOC, soc.intValue());
         else e.remove(START_SOC).remove(LAST_SOC);
         e.apply();
+        com.geely.drivemem.sensors.ImuHub.startValet();
+        autoEnd.reset(startMs, SecurityLock.refreshTrustedPresenceNow(c));
+        muteMusicForValet(c);
         setDashcamMarker(c, true, rowId);
         EntityBus.publish("valet.changed", CarActor.Reading.ok(true));
         return true;
@@ -109,10 +152,22 @@ public final class ValetSession {
         if (endSoc >= 0) v.put("end_soc", endSoc);
         v.put("max_speed_kmh", s.maxSpeedKmh);
         if (hasPower) v.put("max_power_kw", maxPower);
+        com.geely.drivemem.sensors.DriveScorer.Snapshot imuScore =
+            com.geely.drivemem.sensors.ImuHub.endValet(s.distanceKm);
+        if (imuScore != null) {
+            v.put("road_score", imuScore.roadScore);
+            v.put("driver_score", imuScore.driverScore);
+            v.put("road_bumps", imuScore.roadBumps);
+            v.put("hard_brakes", imuScore.hardBrakes);
+            v.put("hard_accels", imuScore.hardAccels);
+            v.put("hard_corners", imuScore.hardCorners);
+        }
         long rowId = p.getLong(ROW_ID, -1);
         if (rowId <= 0 || CarDb.get(c).db().update("valet_session", v, "id = ?",
                 new String[]{String.valueOf(rowId)}) != 1) return false;
         p.edit().putBoolean(ACTIVE, false).remove(ROW_ID).apply();
+        autoEnd.clear();
+        restoreMusicAfterValet(c);
         setDashcamMarker(c, false, rowId);
         EntityBus.publish("valet.changed", CarActor.Reading.ok(false));
         return true;
@@ -141,6 +196,17 @@ public final class ValetSession {
             checkpoint.put("max_speed_kmh", Math.max(p.getFloat(MAX_SPEED, 0), speed == null ? 0 : speed.floatValue()));
             if (p.contains(MAX_POWER) || (power != null && power.floatValue() > 0))
                 checkpoint.put("max_power_kw", Math.max(p.getFloat(MAX_POWER, 0), power == null ? 0 : power.floatValue()));
+            double dist = p.contains(START_ODO) && odo != null ? Math.max(0, odo.doubleValue() - p.getFloat(START_ODO, 0)) : 0;
+            com.geely.drivemem.sensors.DriveScorer.Snapshot imuScore =
+                com.geely.drivemem.sensors.ImuHub.snapshotValet(dist);
+            if (imuScore != null) {
+                checkpoint.put("road_score", imuScore.roadScore);
+                checkpoint.put("driver_score", imuScore.driverScore);
+                checkpoint.put("road_bumps", imuScore.roadBumps);
+                checkpoint.put("hard_brakes", imuScore.hardBrakes);
+                checkpoint.put("hard_accels", imuScore.hardAccels);
+                checkpoint.put("hard_corners", imuScore.hardCorners);
+            }
             CarDb.get(c).db().update("valet_session", checkpoint, "id = ?", new String[]{String.valueOf(rowId)});
         }
         EntityBus.publish("valet.progress", CarActor.Reading.ok(snapshot(c)));
@@ -164,6 +230,38 @@ public final class ValetSession {
         return r.status == CarActor.Reading.Status.OK ? number(r.value) : null;
     }
     private static Number number(Object o) { return o instanceof Number ? (Number) o : null; }
+    private static void muteMusicForValet(Context c) {
+        try {
+            AudioManager am = (AudioManager) c.getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
+            if (am != null) {
+                SharedPreferences p = prefs(c);
+                if (!p.contains(SAVED_MUSIC_VOL)) {
+                    p.edit().putInt(SAVED_MUSIC_VOL, am.getStreamVolume(AudioManager.STREAM_MUSIC)).apply();
+                }
+                am.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "valet: mute music: " + t);
+        }
+    }
+
+    private static void restoreMusicAfterValet(Context c) {
+        try {
+            SharedPreferences p = prefs(c);
+            if (!p.contains(SAVED_MUSIC_VOL)) return;
+            int saved = p.getInt(SAVED_MUSIC_VOL, -1);
+            p.edit().remove(SAVED_MUSIC_VOL).apply();
+            if (saved < 0) return;
+            AudioManager am = (AudioManager) c.getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
+            if (am != null) {
+                int max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+                am.setStreamVolume(AudioManager.STREAM_MUSIC, Math.max(0, Math.min(saved, max)), 0);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "valet: restore music: " + t);
+        }
+    }
+
     private static void setDashcamMarker(Context c, boolean active, long rowId) {
         try {
             java.io.File base = c.getExternalFilesDir(null);

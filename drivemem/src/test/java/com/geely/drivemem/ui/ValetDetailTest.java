@@ -4,6 +4,8 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class ValetDetailTest {
@@ -47,5 +49,34 @@ public class ValetDetailTest {
     @Test public void topSpeedIsRedAbove20() {
         assertFalse(ValetDetail.fast(20));
         assertTrue(ValetDetail.fast(40.7));
+    }
+
+    @Test public void attentionLevelDistinguishesCleanCautionAndAlert() {
+        // Clean: <= 20 km/h, good score, zero events
+        assertEquals(0, ValetDetail.attentionLevel(12.0, 94, 0, 0, 0, 0));
+        assertEquals(0, ValetDetail.attentionLevel(0.0, null, null, null, null, null));
+        // Caution (amber): any harsh event or driver score < 80
+        assertEquals(1, ValetDetail.attentionLevel(15.0, 88, 1, 0, 0, 0));
+        assertEquals(1, ValetDetail.attentionLevel(15.0, 74, 0, 0, 0, 0));
+        // Alert (red): speed > 20 km/h or driver score < 60
+        assertEquals(2, ValetDetail.attentionLevel(28.5, 92, 0, 0, 0, 0));
+        assertEquals(2, ValetDetail.attentionLevel(14.0, 52, 0, 2, 0, 0));
+    }
+
+    @Test public void findClipForTimeSeeksThreeSecondsBeforeHit() {
+        long[] starts = {100 * M, 102 * M};
+        int[] secs = {60, 60};
+        // 20 s into clip 0 -> seek to 17 s
+        int[] hit = ValetDetail.findClipForTime(100 * M + 20_000L, starts, secs);
+        assertNotNull(hit);
+        assertEquals(0, hit[0]);
+        assertEquals(17_000, hit[1]);
+        // 1 s into clip 1 -> clamped to 0 ms
+        int[] early = ValetDetail.findClipForTime(102 * M + 1_000L, starts, secs);
+        assertNotNull(early);
+        assertEquals(1, early[0]);
+        assertEquals(0, early[1]);
+        // Gap between clips -> null
+        assertNull(ValetDetail.findClipForTime(101 * M + 30_000L, starts, secs));
     }
 }

@@ -34,6 +34,7 @@ public class IntegrationsTest {
         assertNotNull(Integrations.forSection(TelemetryActivity.SEC_MQTT));
         assertNotNull(Integrations.forSection(TelemetryActivity.SEC_OBD));
         assertNotNull(Integrations.forSection(TelemetryActivity.SEC_ABRP));
+        assertNotNull(Integrations.forSection(TelemetryActivity.SEC_TOLLS));
     }
 
     @Test public void musicHasOneTileAndSpotifyNone() {
