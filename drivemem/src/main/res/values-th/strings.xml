@@ -576,6 +576,16 @@
     <string name="session_odometer">เลขไมล์ %1$s</string>
     <string name="route_stat_time">เวลา</string>
     <string name="route_stat_time_split">ขณะวิ่ง %1$s · จอด %2$s</string>
+    <string name="route_stat_time_split_parked">ขณะวิ่ง %1$s · หยุด %2$s · จอด %3$s</string>
+    <string name="trip_split">แยก</string>
+    <string name="trip_split_pick">เลือกจุดที่จะแยก</string>
+    <string name="trip_split_cancel">ยกเลิก</string>
+    <string name="trip_split_here">แยกตรงนี้</string>
+    <string name="trip_split_hint">ลากบนกราฟความสูง จุดตัดจะไปที่จุดหยุดที่ใกล้ที่สุด</string>
+    <string name="trip_split_part">ทริป %1$d</string>
+    <string name="trip_split_stop_note">จุดหยุด %1$s ระหว่างทั้งสองจะแสดงเป็นจอด</string>
+    <string name="trip_undo_join">เลิกรวม</string>
+    <string name="trip_undo_split">เลิกแยก</string>
     <string name="route_stat_speed">ความเร็ว</string>
     <string name="route_stat_speed_avg">เฉลี่ย</string>
     <string name="route_stat_speed_top">สูงสุด</string>
@@ -614,6 +624,7 @@
     <string name="session_since">ตั้งแต่ %1$s</string>
     <string name="session_yesterday">เมื่อวาน</string>
     <string name="session_parked">จอด %1$s</string>
+    <string name="session_trips_chip">%1$d ทริป</string>
     <string name="session_stat_battery">แบตเตอรี่</string>
     <string name="session_stat_efficiency">ประสิทธิภาพ</string>
     <string name="session_stat_net_energy">พลังงานสุทธิ</string>
@@ -968,6 +979,11 @@
     <string name="stats_filter_trips">ทริป</string>
     <string name="stats_filter_charges">การชาร์จ</string>
     <string name="stats_filter_parking">จอดรถ</string>
+    <string name="stats_join_start">รวมทริป</string>
+    <string name="stats_join_pick">แตะทริปแรกและทริปสุดท้าย</string>
+    <string name="stats_join_summary">รวม %1$d ทริป</string>
+    <string name="stats_join_blocked">มี Valet หรือทริปที่ยังวิ่งอยู่ตรงกลาง</string>
+    <string name="stats_join_button">รวม</string>
     <string name="stats_parking_none">ไม่มีการจอด 15 นาทีขึ้นไปในช่วงนี้</string>
     <string name="stats_trips_none">ไม่มีทริปที่บันทึกในช่วงนี้</string>
     <string name="stats_sessions_none">ไม่มีทริปหรือการชาร์จในช่วงนี้</string>

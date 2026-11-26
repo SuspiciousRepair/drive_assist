@@ -32,7 +32,7 @@ public final class CarDb extends SQLiteOpenHelper {
     // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
     // every write failed until this was bumped past 14. See the v15 entry in
     // onUpgrade below for what v15 itself actually does.
-    private static final int VERSION = 38;
+    private static final int VERSION = 39;
 
     /** SQL predicate for telemetry rows representing driving: gear is not Park (4),
      * or if gear is missing, car is not charging. */
@@ -202,6 +202,7 @@ public final class CarDb extends SQLiteOpenHelper {
         createAux12vReading(db);
         createTollTables(db);
         createParkingCost(db);
+        createTripEdit(db);
 
         createDailyStat(db);
     }
@@ -360,6 +361,26 @@ public final class CarDb extends SQLiteOpenHelper {
         db.execSQL(PARKING_COST_DDL);
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_parking_cost_time ON parking_cost(start_ms, end_ms)");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_parking_cost_valet ON parking_cost(valet_id)");
+    }
+
+    /** Trips joined or split by hand (issue #210). The trip rows never
+     * change: a row here only says how to SHOW them, and deleting it undoes
+     * it. kind 'join': every trip that starts in [start_ms, end_ms] shows as
+     * one trip (the first trip's start to the last trip's end). kind 'cut':
+     * trip_id shows as two parts, the first ending at start_ms and the second
+     * starting at end_ms (the same moment, or the two ends of a stop). */
+    public static final String TRIP_EDIT_DDL = "CREATE TABLE IF NOT EXISTS trip_edit ("
+        + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        + "kind TEXT NOT NULL,"
+        + "trip_id INTEGER,"
+        + "start_ms INTEGER NOT NULL,"
+        + "end_ms INTEGER NOT NULL,"
+        + "created_ms INTEGER NOT NULL)";
+
+    private static void createTripEdit(SQLiteDatabase db) {
+        db.execSQL(TRIP_EDIT_DDL);
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_trip_edit_time ON trip_edit(kind, start_ms)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_trip_edit_trip ON trip_edit(trip_id)");
     }
 
     /** Drops unclaimed points before a time: a trip too short to keep, or
@@ -722,6 +743,8 @@ public final class CarDb extends SQLiteOpenHelper {
         }
         // v38: what parking cost (a car park, paid street parking, or Valet).
         if (oldVersion < 38) createParkingCost(db);
+        // v39: trips joined or split by hand (issue #210).
+        if (oldVersion < 39) createTripEdit(db);
     }
 
     private static void addColumnsIfMissing(SQLiteDatabase db, String table, String columnDefs) {

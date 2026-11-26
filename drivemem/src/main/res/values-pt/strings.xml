@@ -572,6 +572,16 @@
     <string name="session_odometer">Hodômetro %1$s</string>
     <string name="route_stat_time">Tempo</string>
     <string name="route_stat_time_split">Em movimento %1$s · parado %2$s</string>
+    <string name="route_stat_time_split_parked">Em movimento %1$s · parado %2$s · estacionado %3$s</string>
+    <string name="trip_split">Dividir</string>
+    <string name="trip_split_pick">Escolha onde dividir</string>
+    <string name="trip_split_cancel">Cancelar</string>
+    <string name="trip_split_here">Dividir aqui</string>
+    <string name="trip_split_hint">Arraste no gráfico de altura. O corte vai para a parada mais próxima.</string>
+    <string name="trip_split_part">Viagem %1$d</string>
+    <string name="trip_split_stop_note">A parada de %1$s entre elas aparece como estacionado.</string>
+    <string name="trip_undo_join">Desfazer junção</string>
+    <string name="trip_undo_split">Desfazer divisão</string>
     <string name="route_stat_speed">Velocidade</string>
     <string name="route_stat_speed_avg">média</string>
     <string name="route_stat_speed_top">máxima</string>
@@ -610,6 +620,7 @@
     <string name="session_since">desde %1$s</string>
     <string name="session_yesterday">ontem</string>
     <string name="session_parked">Estacionado %1$s</string>
+    <string name="session_trips_chip">%1$d viagens</string>
     <string name="session_stat_battery">Bateria</string>
     <string name="session_stat_efficiency">Eficiência</string>
     <string name="session_stat_net_energy">Energia líquida</string>
@@ -964,6 +975,11 @@
     <string name="stats_filter_trips">Viagens</string>
     <string name="stats_filter_charges">Recargas</string>
     <string name="stats_filter_parking">Estacionamento</string>
+    <string name="stats_join_start">Juntar viagens</string>
+    <string name="stats_join_pick">Toque na primeira e na última viagem</string>
+    <string name="stats_join_summary">Juntar %1$d viagens</string>
+    <string name="stats_join_blocked">Há um Valet ou uma viagem em andamento no meio</string>
+    <string name="stats_join_button">Juntar</string>
     <string name="stats_parking_none">Nenhuma parada de 15 minutos ou mais neste período.</string>
     <string name="stats_trips_none">Nenhuma viagem registrada neste período.</string>
     <string name="stats_sessions_none">Nenhuma viagem ou recarga registrada neste período.</string>

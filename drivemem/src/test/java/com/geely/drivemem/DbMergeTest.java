@@ -278,4 +278,31 @@ public class DbMergeTest {
         assertEquals(120, q("SELECT v.start_ms FROM main.parking_cost p JOIN main.valet_session v "
             + "ON v.id = p.valet_id WHERE p.uuid = 'k-old-valet'"));
     }
+    /** A split (trip_edit) follows its trip to the trip's new id, both when
+     * the backup has the table and when it is older than it (issue #210). */
+    @Test public void tripEditsFollowTheirTrip() throws Exception {
+        fill();
+        x(com.geely.drivemem.car.CarDb.TRIP_EDIT_DDL.replace("CREATE TABLE IF NOT EXISTS ", "CREATE TABLE IF NOT EXISTS main."));
+        x("INSERT INTO main.trip_edit (id, kind, trip_id, start_ms, end_ms, created_ms) VALUES (1,'cut',1,1050,1060,1)");
+
+        DbMerge.merge(sql);   // the backup has no trip_edit table
+
+        assertEquals(1000, q("SELECT t.start_ms FROM main.trip_edit e JOIN main.trip t ON t.id = e.trip_id"));
+    }
+
+    @Test public void tripEditsFromBothSidesKeepTheirTrips() throws Exception {
+        fill();
+        for (String schema : new String[]{"main", "old"}) {
+            x(com.geely.drivemem.car.CarDb.TRIP_EDIT_DDL.replace("CREATE TABLE IF NOT EXISTS ",
+                "CREATE TABLE IF NOT EXISTS " + schema + "."));
+        }
+        x("INSERT INTO old.trip_edit (id, kind, trip_id, start_ms, end_ms, created_ms) VALUES (1,'cut',1,200,200,1)");
+        x("INSERT INTO main.trip_edit (id, kind, trip_id, start_ms, end_ms, created_ms) VALUES (1,'cut',1,1050,1060,1)");
+
+        DbMerge.merge(sql);
+
+        assertEquals(2, q("SELECT COUNT(*) FROM main.trip_edit"));
+        assertEquals(100, q("SELECT t.start_ms FROM main.trip_edit e JOIN main.trip t ON t.id = e.trip_id WHERE e.start_ms = 200"));
+        assertEquals(1000, q("SELECT t.start_ms FROM main.trip_edit e JOIN main.trip t ON t.id = e.trip_id WHERE e.start_ms = 1050"));
+    }
 }

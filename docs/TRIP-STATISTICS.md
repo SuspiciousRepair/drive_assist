@@ -75,6 +75,16 @@ Inspired by A Better Routeplanner's daily diary, the selected day's activities a
   place and price; a gap of 15 min or more shows a quiet `+ R$`.
 - **Filters**: All, Trips, Charges, and Parking (parked stops of 15 min or
   more or priced, plus Valet stays). The counts are on the filter buttons.
+- 🔗 **Join trips** (Day view, issue #210): the link icon on the Sessions card
+  opens pick mode. Each session is one line with a rail on the left; tap the
+  first and the last trip. The ends get arrows pointing in, and a blue line
+  covers every row between them (trips, parked gaps, charges). **Join** is off
+  while a Valet stay or a running session is in the range. A joined card has
+  a "N trips" chip; its numbers are the sums of its trips (km, energy, climb,
+  tolls), battery and odometer run from the first start to the last end. The
+  parked gaps and charges inside it are listed in the card (a gap can still be
+  priced there) and leave the main list. The Parking filter still lists those
+  gaps.
 
 ### 4. Home Screen View Switcher
 - A dedicated statistics icon in the left status rail of `ComfortActivity` allows swapping the home screen between the standard comfort card grid and the new statistics screen with a single tap.
@@ -100,8 +110,23 @@ On the statistics page, tap a finished trip (in **P**) to open its route:
   the others and the profile shows that trip only. **Open this trip** shows
   its own route screen.
 - **Height profile.** Under the route, the GPS height along the trip, in the
-  same speed colours. Touch it to mark that place on the route. A dashed mark
-  shows each toll passage.
+  same speed colours. Touch it to mark that place on the route. Dashed lines
+  with a label on top mark each toll passage, each stop of 2 min or more
+  inside the trip, and, on a joined trip, the parking (`P 16m`) or the charge
+  between its trips.
+- **Split and undo** (issue #210). **Split** opens split mode: drag on the
+  height chart (it snaps to a stop within 0.5 km; with no heights the chart is
+  shown flat), see the two new trips on the right, then **Split here**. A
+  part's numbers come from the 30 s samples at the cut (odometer, battery) and
+  inside it (energy, climb); the last part gets the rest, so the parts add up
+  to the trip. CAN's energy split and the tolls follow each part; the IMU
+  scores are the whole trip's, so a part shows none. **Undo split** puts the
+  trip back whole; **Undo join** shows a joined trip's trips again.
+- **How it is stored.** The `trip` rows never change. `trip_edit` (`car.db`
+  v39) holds one row per join (a time window: every trip that starts and ends
+  in it shows as one) or per cut (a trip id and the cut's two ends, the same
+  moment or the two ends of a stop). Undo deletes the row. The CSV and GPX
+  exports and All routes use the trips as recorded.
 - **Tolls and parking.** The trip's tolls (tap one to set its price), **+ Add
   a missed toll** at the place marked on the height profile, the parking paid
   on arrival (or **+ Add parking**), and the trip's tolls + parking.

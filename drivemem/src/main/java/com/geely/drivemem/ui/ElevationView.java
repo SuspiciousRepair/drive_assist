@@ -24,14 +24,24 @@ public class ElevationView extends View {
 
     private double[] km = new double[0], alt = new double[0], speed = new double[0];
     private int marked = -1;
-    /** Point indexes of the trip's toll passages: a thin mark each. */
-    private int[] ticks = new int[0];
+
+    /** What a vertical event line marks (issue #210). */
+    public static final int EVENT_STOP = 0, EVENT_PARK = 1, EVENT_CHARGE = 2, EVENT_TOLL = 3;
+    /** Point index, kind and label of each event line: tolls, stops, the
+     * parking between joined trips and charges on the way. */
+    private int[] evIdx = new int[0], evKind = new int[0];
+    private String[] evLabel = new String[0];
+    /** Split mode: the two parts are tinted, cut at points cutA..cutB. */
+    private int cutA = -1, cutB = -1;
     private OnPick onPick;
     private final Paint fill = new Paint();
     private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mark = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint tick = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint chip = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint chipText = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint tint = new Paint();
 
     // Built by rebuild(); screen pixels.
     private float[] xs = new float[0], ys = new float[0];
@@ -56,6 +66,9 @@ public class ElevationView extends View {
         tick.setStrokeWidth(Style.dp(c, 2));
         tick.setPathEffect(new android.graphics.DashPathEffect(
             new float[]{Style.dp(c, 6), Style.dp(c, 5)}, 0));
+        chipText.setTextSize(Style.dp(c, 17));
+        chipText.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        chipText.setTextAlign(Paint.Align.LEFT);
     }
 
     /** km from the start, smoothed height in m, speed km/h; one per point. */
@@ -68,16 +81,38 @@ public class ElevationView extends View {
 
     public void setOnPick(OnPick p) { onPick = p; }
 
-    /** Marks a toll plaza or Free Flow gantry at each point index (one per
-     * passage), so a slow-down on the profile lines up with its toll.
-     * Indexes outside the profile are skipped. */
-    public void setTicks(int[] pointIndexes) {
-        ticks = pointIndexes == null ? new int[0] : pointIndexes.clone();
+    /** A vertical line with a label on top at each point index: a toll
+     * plaza or Free Flow gantry (so a slow-down lines up with its toll), a
+     * stop, the parking between joined trips, a charge on the way.
+     * Indexes outside the profile are skipped. Labels may be null. */
+    public void setEvents(int[] pointIndexes, int[] kinds, String[] labels) {
+        int n = pointIndexes == null ? 0 : pointIndexes.length;
+        evIdx = n == 0 ? new int[0] : pointIndexes.clone();
+        evKind = new int[n];
+        evLabel = new String[n];
+        for (int i = 0; i < n; i++) {
+            evKind[i] = kinds != null && i < kinds.length ? kinds[i] : EVENT_TOLL;
+            evLabel[i] = labels != null && i < labels.length ? labels[i] : null;
+        }
+        rebuild();
         invalidate();
     }
 
     /** The point the finger last picked, or -1. */
     public int marked() { return marked; }
+
+    /** Moves the mark to point i (the split picker snapping to a stop). */
+    public void setMarked(int i) {
+        marked = i;
+        invalidate();
+    }
+
+    /** Split mode: tints the part before point a and the part after point
+     * b. -1 clears it. */
+    public void setCut(int a, int b) {
+        cutA = a; cutB = b;
+        invalidate();
+    }
 
     @Override public boolean onTouchEvent(MotionEvent e) {
         if (km.length < 2) return false;
@@ -118,7 +153,8 @@ public class ElevationView extends View {
         if (n < 2 || getWidth() <= 0 || getHeight() <= 0) return;
         Context ctx = getContext();
         float l = left(), r = getWidth() - right();
-        top = Style.dp(ctx, 12); bottom = getHeight() - Style.dp(ctx, 26);
+        // Room for the event labels above the chart when there are any.
+        top = Style.dp(ctx, evIdx.length > 0 ? 50 : 12); bottom = getHeight() - Style.dp(ctx, 26);
         double[] range = range(TripRouteStats.min(alt), TripRouteStats.max(alt));
         double lo = range[0], hi = range[1];
         double tot = total();
@@ -176,6 +212,71 @@ public class ElevationView extends View {
         return new double[]{bottom, top};
     }
 
+    /** The event lines, dashed, each in its kind's colour, with a small
+     * label on top. A label that would overlap the one before it is left
+     * out; its line stays. */
+    private void drawEvents(Canvas c, int n) {
+        Context ctx = getContext();
+        float labelRight = -1;
+        float h = Style.dp(ctx, 32), padX = Style.dp(ctx, 8), icon = Style.dp(ctx, 20), gap = Style.dp(ctx, 4);
+        Integer[] order = new Integer[evIdx.length];
+        for (int i = 0; i < order.length; i++) order[i] = i;
+        java.util.Arrays.sort(order, (a, b) -> Integer.compare(evIdx[a], evIdx[b]));
+        for (int k : order) {
+            int i = evIdx[k];
+            if (i < 0 || i >= n) continue;
+            int color = eventColor(evKind[k]);
+            tick.setColor(evKind[k] == EVENT_TOLL ? (color & 0x00FFFFFF) | 0xB0000000 : color);
+            c.drawLine(xs[i], top, xs[i], bottom, tick);
+
+            String label = evLabel[k];
+            int iconRes = eventIcon(evKind[k]);
+            float textW = label == null ? 0 : chipText.measureText(label);
+            float w = padX * 2 + (iconRes != 0 ? icon : 0) + (iconRes != 0 && label != null ? gap : 0) + textW;
+            float left = Math.max(0, Math.min(getWidth() - w, xs[i] - w / 2));
+            if (left < labelRight + gap) continue;
+            labelRight = left + w;
+            float y0 = Style.dp(ctx, 6);
+            chip.setColor(color);
+            c.drawRoundRect(left, y0, left + w, y0 + h, Style.dp(ctx, 8), Style.dp(ctx, 8), chip);
+            int fg = Style.onFill(color);
+            float x = left + padX;
+            if (iconRes != 0) {
+                android.graphics.drawable.Drawable d = ctx.getDrawable(iconRes);
+                if (d != null) {
+                    d = d.mutate();
+                    d.setTint(fg);
+                    int iy = (int) (y0 + (h - icon) / 2);
+                    d.setBounds((int) x, iy, (int) (x + icon), (int) (iy + icon));
+                    d.draw(c);
+                }
+                x += icon + gap;
+            }
+            if (label != null) {
+                chipText.setColor(fg);
+                c.drawText(label, x, y0 + h / 2 - (chipText.ascent() + chipText.descent()) / 2, chipText);
+            }
+        }
+    }
+
+    private static int eventColor(int kind) {
+        switch (kind) {
+            case EVENT_PARK: return Style.TEXT;
+            case EVENT_CHARGE: return Style.GOOD;
+            case EVENT_TOLL: return Style.ACCENT;
+            default: return Style.CARD_HI;
+        }
+    }
+
+    private static int eventIcon(int kind) {
+        switch (kind) {
+            case EVENT_PARK: return com.geely.drivemem.R.drawable.ic_parking;
+            case EVENT_CHARGE: return com.geely.drivemem.R.drawable.ic_flash;
+            case EVENT_TOLL: return com.geely.drivemem.R.drawable.ic_toll;
+            default: return 0;
+        }
+    }
+
     @Override protected void onDraw(Canvas c) {
         int n = xs.length;
         if (n < 2) return;
@@ -186,9 +287,13 @@ public class ElevationView extends View {
             fill.setColor(fillColors[j]);
             c.drawPath(fillPaths[j], fill);
         }
-        for (int t : ticks) {
-            if (t >= 0 && t < n) c.drawLine(xs[t], top, xs[t], bottom, tick);
+        if (cutA > 0 && cutA < n && cutB >= cutA && cutB < n) {
+            tint.setColor((Style.ACCENT & 0x00FFFFFF) | 0x40000000);
+            c.drawRect(l, top, xs[cutA], bottom, tint);
+            tint.setColor((Style.HEAT & 0x00FFFFFF) | 0x40000000);
+            c.drawRect(xs[cutB], top, r, bottom, tint);
         }
+        drawEvents(c, n);
         c.drawPath(topPath, line);
 
         // Height labels on the left (top and bottom of the drawn range),
@@ -201,6 +306,7 @@ public class ElevationView extends View {
         c.drawText("0", l, getHeight() - Style.dp(ctx, 4), text);
 
         if (marked >= 0 && marked < n) {
+            mark.setStrokeWidth(Style.dp(ctx, cutA >= 0 ? 5 : 2));
             c.drawLine(xs[marked], top, xs[marked], bottom, mark);
             text.setTextAlign(Paint.Align.CENTER);
             text.setColor(Style.TEXT);

@@ -83,6 +83,16 @@ public final class DailyStatsProvider {
         /** The odometer (km) at the trip's start and end, -1 when unknown.
          * Set after construction, like split (issue #210). */
         public double odoStartKm = -1, odoEndKm = -1;
+        /** Joined by hand (issue #210): the trips inside, oldest first, and
+         * the trip_edit row that joined them (Undo join). Null and 0 for a
+         * trip shown as recorded. */
+        public List<DriveSession> members;
+        public long joinId;
+        /** Split by hand (issue #210): the recorded trip this is one part
+         * of (Undo split), else 0. tripId is that trip too. */
+        public long cutTripId;
+
+        public boolean isJoined() { return members != null && members.size() > 1; }
 
         public DriveSession(long tripId, long startMs, long endMs, double distanceKm,
                             int socStart, int socEnd, double ascentDPlusM, double descentDMinusM,
@@ -1358,12 +1368,179 @@ public final class DailyStatsProvider {
      * UI thread. */
     public static List<DriveSession> readAllTrips(Context ctx) {
         List<DriveSession> out = new ArrayList<>();
-        queryTrips(CarDb.get(ctx).db(), 0, Long.MAX_VALUE, out);
+        queryRawTrips(CarDb.get(ctx).db(), 0, Long.MAX_VALUE, out);
         return out;
     }
 
-    // Completed and open trips that START in [fromMs, toMs), oldest first.
+    /** One finished trip as the stats page shows it: joined, a split part,
+     * or as recorded. Null when no shown trip starts at startMs. For the
+     * trip page after an edit. */
+    public static DriveSession shownTripAt(Context ctx, long startMs) {
+        List<DriveSession> out = new ArrayList<>();
+        queryTrips(CarDb.get(ctx).db(), startMs, startMs + 1, out);
+        return out.isEmpty() ? null : out.get(0);
+    }
+
+    /** The trips that START in [fromMs, toMs), oldest first, as the stats
+     * page shows them: with the hand-made joins and splits of trip_edit
+     * (issue #210, TripEdits). The trip rows are read from a wider window
+     * when a join or a split reaches outside this one, so a trip joined
+     * across midnight shows once, on the day it starts. */
     private static void queryTrips(SQLiteDatabase db, long fromMs, long toMs, List<? super DriveSession> out) {
+        List<TripEdits.Join> joins = new ArrayList<>();
+        long qFrom = fromMs, qTo = toMs;
+        try (Cursor jc = db.rawQuery("SELECT id, start_ms, end_ms FROM trip_edit "
+                + "WHERE kind = ? AND start_ms < ? AND end_ms >= ?",
+                new String[]{TripEdits.KIND_JOIN, String.valueOf(toMs), String.valueOf(fromMs)})) {
+            while (jc.moveToNext()) {
+                TripEdits.Join j = new TripEdits.Join(jc.getLong(0), jc.getLong(1), jc.getLong(2));
+                joins.add(j);
+                qFrom = Math.min(qFrom, j.startMs);
+                qTo = Math.max(qTo, j.endMs == Long.MAX_VALUE ? j.endMs : j.endMs + 1);
+            }
+        } catch (Throwable e) {
+            // No trip_edit table (a db not yet upgraded): trips as recorded.
+            joins.clear();
+        }
+        // A part that starts in the window can belong to a trip that started
+        // before it.
+        try (Cursor cc = db.rawQuery("SELECT MIN(t.start_ms) FROM trip_edit e JOIN trip t ON t.id = e.trip_id "
+                + "WHERE e.kind = ? AND e.end_ms >= ? AND e.end_ms < ?",
+                new String[]{TripEdits.KIND_CUT, String.valueOf(qFrom), String.valueOf(qTo)})) {
+            if (cc.moveToFirst() && !cc.isNull(0)) qFrom = Math.min(qFrom, cc.getLong(0));
+        } catch (Throwable ignored) {}
+
+        List<DriveSession> raw = new ArrayList<>();
+        queryRawTrips(db, qFrom, qTo, raw);
+
+        java.util.Map<Long, List<long[]>> cuts = new java.util.HashMap<>();
+        if (!raw.isEmpty()) {
+            try (Cursor cc = db.rawQuery("SELECT trip_id, start_ms, end_ms FROM trip_edit "
+                    + "WHERE kind = ? AND start_ms >= ? AND start_ms < ?",
+                    new String[]{TripEdits.KIND_CUT, String.valueOf(raw.get(0).startMs), String.valueOf(qTo)})) {
+                while (cc.moveToNext()) {
+                    cuts.computeIfAbsent(cc.getLong(0), k -> new ArrayList<>())
+                        .add(new long[]{cc.getLong(1), cc.getLong(2)});
+                }
+            } catch (Throwable ignored) {}
+        }
+        List<DriveSession> shown = new ArrayList<>();
+        for (DriveSession t : raw) {
+            List<long[]> tc = cuts.get(t.tripId);
+            if (tc == null || t.endMs <= t.startMs) { shown.add(t); continue; }
+            List<long[]> w = TripEdits.windows(t.startMs, t.endMs, tc);
+            if (w.size() < 2) { shown.add(t); continue; }
+            shown.addAll(cutParts(db, t, w));
+        }
+        shown = TripEdits.applyJoins(shown, joins);
+        for (DriveSession t : shown) {
+            if (t.startMs >= fromMs && t.startMs < toMs) out.add(t);
+        }
+    }
+
+    /** The parts of one recorded trip split at windows (TripEdits.windows).
+     * Odometer and battery come from the 30 s samples at each part's ends;
+     * energy and climb from the samples inside each part, except the last
+     * part, which gets what is left. So the parts always add up to the
+     * trip. CAN's split and the tolls follow each part's share. */
+    private static List<DriveSession> cutParts(SQLiteDatabase db, DriveSession t, List<long[]> w) {
+        List<DriveSession> out = new ArrayList<>();
+        boolean est = t.energySource == EnergySource.ESTIMATED;
+        double kmLeft = t.distanceKm, spentLeft = t.spentKwh, regenLeft = t.regenKwh, netLeft = t.energyKwh;
+        double upLeft = t.ascentDPlusM, downLeft = t.descentDMinusM;
+        for (int i = 0; i < w.size(); i++) {
+            long s = w.get(i)[0], e = w.get(i)[1];
+            boolean firstPart = i == 0, lastPart = i == w.size() - 1;
+            double odoS = firstPart ? t.odoStartKm : sampleAt(db, "odo_km", s, true);
+            double odoE = lastPart ? t.odoEndKm : sampleAt(db, "odo_km", e, false);
+            int socS = firstPart ? t.socStart : (int) Math.round(sampleAt(db, "battery_pct", s, true));
+            int socE = lastPart ? t.socEnd : (int) Math.round(sampleAt(db, "battery_pct", e, false));
+            double km, spent, regen, net, up, down;
+            if (lastPart) {
+                km = Math.max(0, kmLeft); spent = Math.max(0, spentLeft); regen = Math.max(0, regenLeft);
+                net = netLeft; up = Math.max(0, upLeft); down = Math.max(0, downLeft);
+            } else {
+                km = odoS > 0 && odoE >= odoS ? odoE - odoS : 0;
+                if (est) {
+                    double f = t.distanceKm > 0 ? km / t.distanceKm : 0;
+                    spent = 0; regen = 0; net = t.energyKwh * f;
+                } else {
+                    DrivingConsumption energy = queryDrivingConsumption(db, "ts_ms BETWEEN ? AND ?",
+                        new String[]{String.valueOf(s), String.valueOf(e)});
+                    spent = energy.totalSpent; regen = energy.totalRegen; net = spent - regen;
+                }
+                double[] ad = climb(db, s, e, t.startMs);
+                up = ad[0]; down = ad[1];
+                kmLeft -= km; spentLeft -= spent; regenLeft -= regen; netLeft -= net;
+                upLeft -= up; downLeft -= down;
+            }
+            double eff = est ? (km > 0.2 ? Math.max(0, net) * 100 / km : 0)
+                             : DrivingConsumption.efficiencyKwh100km(km, spent, regen);
+            DriveSession p = new DriveSession(t.tripId, s, e, km, socS < 0 ? -1 : socS, socE < 0 ? -1 : socE,
+                up, down, regen, spent, net, eff, t.energySource);
+            p.odoStartKm = odoS;
+            p.odoEndKm = odoE;
+            p.cutTripId = t.tripId;
+            if (t.split != null) {
+                double f = Math.abs(t.energyKwh) > 0.01 ? net / t.energyKwh
+                         : t.distanceKm > 0 ? km / t.distanceKm : 0;
+                p.split = t.split.scaled(Math.max(0, f));
+            }
+            int[] tolls = tollsIn(db, t.tripId, s, e);
+            p.tollCount = tolls[0];
+            p.tollUnpriced = tolls[1];
+            p.tollCost = tollCostIn(db, t.tripId, s, e);
+            out.add(p);
+        }
+        return out;
+    }
+
+    /** A sample column at a part's end: the first reading at or after ms
+     * (after = true, a part's start) or the last at or before it; -1 when
+     * none. */
+    private static double sampleAt(SQLiteDatabase db, String col, long ms, boolean after) {
+        String sql = "SELECT " + col + " FROM telemetry_sample WHERE " + col + " IS NOT NULL AND ts_ms "
+            + (after ? ">= ? ORDER BY ts_ms ASC" : "<= ? ORDER BY ts_ms DESC") + " LIMIT 1";
+        try (Cursor c = db.rawQuery(sql, new String[]{String.valueOf(ms)})) {
+            return c.moveToFirst() ? c.getDouble(0) : -1;
+        } catch (Throwable e) { return -1; }
+    }
+
+    /** Climb and descent of [fromMs, toMs], the way TripSession counts a trip. */
+    private static double[] climb(SQLiteDatabase db, long fromMs, long toMs, long tripStartMs) {
+        List<Object[]> rows = new ArrayList<>();
+        try (Cursor c = db.rawQuery("SELECT gear, altitude_m, odo_km, ts_ms FROM telemetry_sample "
+                + "WHERE ts_ms BETWEEN ? AND ? ORDER BY ts_ms",
+                new String[]{String.valueOf(fromMs), String.valueOf(toMs)})) {
+            while (c.moveToNext()) {
+                rows.add(new Object[]{c.isNull(0) ? null : c.getInt(0), c.isNull(1) ? null : c.getDouble(1),
+                    c.isNull(2) ? null : c.getDouble(2), c.getLong(3)});
+            }
+        } catch (Throwable e) { return new double[]{0, 0}; }
+        return com.geely.drivemem.state.TripSession.replayAscentDescent(
+            rows.toArray(new Object[0][]), tripStartMs);
+    }
+
+    /** {count, unpriced} of one trip's toll passages in [fromMs, toMs]. */
+    private static int[] tollsIn(SQLiteDatabase db, long tripId, long fromMs, long toMs) {
+        try (Cursor c = db.rawQuery("SELECT COUNT(*), SUM(CASE WHEN cost IS NULL THEN 1 ELSE 0 END) "
+                + "FROM toll_passage WHERE dismissed = 0 AND trip_id = ? AND ts_ms BETWEEN ? AND ?",
+                new String[]{String.valueOf(tripId), String.valueOf(fromMs), String.valueOf(toMs)})) {
+            return c.moveToFirst() ? new int[]{c.getInt(0), c.isNull(1) ? 0 : c.getInt(1)} : new int[]{0, 0};
+        } catch (Throwable e) { return new int[]{0, 0}; }
+    }
+
+    private static double tollCostIn(SQLiteDatabase db, long tripId, long fromMs, long toMs) {
+        try (Cursor c = db.rawQuery("SELECT COALESCE(SUM(CASE WHEN cost > 0 THEN cost ELSE 0 END), 0) "
+                + "FROM toll_passage WHERE dismissed = 0 AND trip_id = ? AND ts_ms BETWEEN ? AND ?",
+                new String[]{String.valueOf(tripId), String.valueOf(fromMs), String.valueOf(toMs)})) {
+            return c.moveToFirst() ? c.getDouble(0) : 0;
+        } catch (Throwable e) { return 0; }
+    }
+
+    // Completed and open trips that START in [fromMs, toMs), oldest first,
+    // as recorded (no joins or splits).
+    private static void queryRawTrips(SQLiteDatabase db, long fromMs, long toMs, List<? super DriveSession> out) {
         Cursor tc = db.rawQuery(
             "SELECT t.id, t.start_ms, t.end_ms, t.ascent_m, t.descent_m, t.regen_kwh, "
           + "       s1.odo_km, s2.odo_km, s1.battery_pct, s2.battery_pct, "

@@ -91,6 +91,18 @@ them as **GPX** (one file per day) and the trip list as **CSV**, to a USB stick
 or to your phone. Each trip row, on screen and in the CSV, has the odometer at
 the start and the end, ready for an expense app.
 
+**Join and split trips.** A short stop cuts one drive into two trips. To see
+the whole drive as one, tap the **link** icon on the Sessions card, then tap
+the first and the last trip. Everything between them turns blue: the other
+trips, the stops and any charge on the way. Tap **Join**. The joined card shows
+"2 trips" (or more) and lists the stops and charges inside it. To cut a trip in
+two, open it and tap **Split**: drag on the height chart (the cut snaps to a
+nearby stop), check the two new trips on the right, and tap **Split here**.
+**Undo join** and **Undo split** on the trip screen put the trips back as they
+were recorded: nothing is ever deleted. The height chart marks each stop,
+charge and toll with a line. The CSV and GPX exports keep the trips as
+recorded.
+
 If the car was lent out in **Valet** mode, tap its card for a detail screen: a
 map of every move, a timeline, the dashcam clips from that time, and the numbers
 (moves, time moving and parked, distance, top speed and power, battery and

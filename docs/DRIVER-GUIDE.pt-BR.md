@@ -94,6 +94,19 @@ para exportar como **GPX** (um arquivo por dia) e a lista como **CSV**, para um
 pen drive ou para o celular. Cada viagem, na tela e no CSV, traz o hodômetro no
 início e no fim, pronto para um app de despesas.
 
+**Juntar e dividir viagens.** Uma parada curta corta um trajeto em duas
+viagens. Para ver o trajeto inteiro como uma só, toque no ícone de **corrente**
+no cartão Sessões e depois na primeira e na última viagem. Tudo o que fica entre
+elas fica azul: as outras viagens, as paradas e qualquer recarga no caminho.
+Toque em **Juntar**. O cartão juntado mostra "2 viagens" (ou mais) e lista as
+paradas e recargas dentro dele. Para cortar uma viagem em duas, abra a viagem e
+toque em **Dividir**: arraste no gráfico de altura (o corte vai para a parada
+mais próxima), confira as duas viagens novas à direita e toque em **Dividir
+aqui**. **Desfazer junção** e **Desfazer divisão** na tela da viagem voltam as
+viagens como foram gravadas: nada é apagado. O gráfico de altura marca cada
+parada, recarga e pedágio com uma linha. Os arquivos CSV e GPX mantêm as
+viagens como foram gravadas.
+
 Se o carro foi emprestado em modo **Valet**, toque no cartão dele para uma tela
 de detalhe: um mapa de cada trecho, uma linha do tempo, os clipes da dashcam
 daquele período e os números (trechos, tempo em movimento e parado, distância,
