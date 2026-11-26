@@ -138,6 +138,34 @@ public class CarDiarySqlTest {
         assertEquals(50.0, tco.maintenanceCost, 0.01);
     }
 
+    // Road TCO: toll passages (not dismissed) and parking costs in the
+    // period, plus the diary's own road entries.
+    @Test public void roadCostAddsTollsAndParkingInThePeriod() throws Exception {
+        long now = at(2026, 11, 24, 12);
+        long[] bounds = CarDiary.PeriodFilter.DAYS_30.boundsMs(now, UTC);
+        long endIncl = CarDiary.inclusiveEndMs(bounds, now);
+        long in = now - 2 * DAY, before = bounds[0] - DAY;
+        x("INSERT INTO toll_passage (uuid, ts_ms, lat, lon, booth_name, cost, dismissed, source) VALUES "
+            + "('t1', " + in + ", 0, 0, 'A', 12.5, 0, 'auto'), "
+            + "('t2', " + in + ", 0, 0, 'B', 99, 1, 'auto'), "
+            + "('t3', " + before + ", 0, 0, 'C', 7, 0, 'auto')");
+        x("INSERT INTO parking_cost (uuid, start_ms, cost, kind, updated_ms) VALUES "
+            + "('k1', " + in + ", 25, 'lot', " + in + "), "
+            + "('k2', " + in + ", 40, 'lot', " + in + "), "
+            + "('k3', " + before + ", 15, 'street', " + before + ")");
+        String[] win = {String.valueOf(bounds[0]), String.valueOf(endIncl)};
+        double tolls = (Double) row(CarDiary.TCO_TOLL_COST_SQL, win)[0][0];
+        double parking = (Double) row(CarDiary.TCO_PARKING_COST_SQL, win)[0][0];
+        assertEquals(12.5, tolls, 0.001);
+        assertEquals(65.0, parking, 0.001);
+
+        CarDiary.Entry ticket = cost(1, CarDiary.Category.TRAFFIC_TICKET, in, 100.0);
+        CarDiary.TcoSummary tco = CarDiary.computeTco(50.0, tolls + parking, Collections.singletonList(ticket),
+            500.0, bounds[0], endIncl, bounds[0], bounds[1], false);
+        assertEquals(177.5, tco.roadCost, 0.01);
+        assertEquals(227.5, tco.totalCost, 0.01);
+    }
+
     @Test public void periodThatEndsNowKeepsNowAndToday() {
         long now = at(2026, 11, 24, 12);
         long[] bounds = CarDiary.PeriodFilter.DAYS_30.boundsMs(now, UTC);

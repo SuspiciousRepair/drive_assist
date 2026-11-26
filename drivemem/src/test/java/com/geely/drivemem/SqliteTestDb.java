@@ -126,6 +126,7 @@ public final class SqliteTestDb {
             com.geely.drivemem.car.CarDb.TOLL_BOOTH_DDL,
             com.geely.drivemem.car.CarDb.TOLL_PASSAGE_DDL,
             com.geely.drivemem.car.CarDb.TOLL_REGION_DDL,
+            com.geely.drivemem.car.CarDb.PARKING_COST_DDL,
 
             "CREATE TABLE daily_stat (" +
                 "date TEXT PRIMARY KEY," +

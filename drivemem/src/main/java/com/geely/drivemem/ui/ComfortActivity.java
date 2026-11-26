@@ -217,6 +217,12 @@ public class ComfortActivity extends Activity {
     private android.widget.ImageView tripIcon, tripLeftIcon, tripRightIcon;
     private EfficiencyBadgeView tripEff;
     private TextView parkedHero, parkedBattery;
+    /** The Parked card's quick parking price: "+ R$", or what this stop cost. */
+    private TextView parkedCost;
+    /** The parked start parkedCostRow was read for (-1: read again). */
+    private long parkedCostFor = -1;
+    private com.geely.drivemem.state.ParkingCost.Row parkedCostRow;
+    private long parkedStopStartMs;
     private TempRangeView parkedTemp;
     private boolean driveCardEnabledAtBuild;
     private boolean lastJourneyAvailable;
@@ -2032,8 +2038,12 @@ public class ComfortActivity extends Activity {
                 return;
             }
             Runnable endValet = () -> {
-                if (ValetSession.isActive(this)) ValetSession.stop(this);
+                long valetRow = ValetSession.activeRowId(this);
+                boolean ended = ValetSession.isActive(this) && ValetSession.stop(this);
                 refreshJourneyCard();
+                if (ended && com.geely.drivemem.state.CarState.isParked()) {
+                    ParkingCostDialog.offerAfterValet(this, valetRow);
+                }
             };
             if (com.geely.drivemem.util.SecurityLock.needsUnlockForValet(this)) {
                 PinDialog.requireUnlock(this, R.string.sec_unlock_valet, endValet);
@@ -2086,6 +2096,25 @@ public class ComfortActivity extends Activity {
         parkedHero.setTypeface(null, android.graphics.Typeface.BOLD);
         parkedHero.setSingleLine(true);
         line1.addView(parkedHero);
+        // Right after paying at the kiosk: one tap, before shifting to D.
+        line1.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
+        parkedCost = new TextView(this);
+        parkedCost.setTextSize(22);
+        parkedCost.setTypeface(null, android.graphics.Typeface.BOLD);
+        parkedCost.setSingleLine(true);
+        parkedCost.setGravity(Gravity.CENTER);
+        parkedCost.setMinHeight(Style.dp(this, 48));
+        parkedCost.setMinWidth(Style.dp(this, 64));
+        parkedCost.setPadding(Style.dp(this, 14), 0, Style.dp(this, 14), 0);
+        parkedCost.setVisibility(View.GONE);
+        parkedCost.setOnClickListener(v -> {
+            if (parkedStopStartMs <= 0) return;
+            ParkingCostDialog.open(this, parkedStopStartMs, null, null, parkedCostRow, () -> {
+                parkedCostFor = -1;
+                refreshJourneyCard();
+            });
+        });
+        line1.addView(parkedCost);
         left.addView(line1);
 
         LinearLayout line2 = new LinearLayout(this);
@@ -2191,8 +2220,10 @@ public class ComfortActivity extends Activity {
             tripLeft.setText(labelled(R.string.session_stat_max_speed,
                 Style.valueWithUnit(String.format(Locale.getDefault(), "%.0f", s.maxSpeedKmh), null, "km/h",
                     Style.UNIT_SCALE_ROW)));
+            // No power reading yet: a dash. The word "Unavailable" did not fit
+            // the card and was cut.
             tripRight.setText(labelled(R.string.session_stat_max_power, s.maxPowerKw == null
-                ? getString(R.string.value_unavailable)
+                ? "—"
                 : Style.valueWithUnit(String.format(Locale.getDefault(), "%.1f", s.maxPowerKw), null, "kW",
                     Style.UNIT_SCALE_ROW)));
         } else if (driving) {
@@ -2235,6 +2266,7 @@ public class ComfortActivity extends Activity {
                 Style.appendUnit(hero, "   " + getString(R.string.session_since, formatClock(s.startMs)), 0.6f);
             }
             parkedHero.setText(hero);
+            updateParkedCost(s.startMs);
             // "44% → 100%" instead of "+56 pp": the two ends say more than the
             // difference, and "pp" is a word few drivers know.
             if (s.startSoc != null && s.currentSoc != null) {
@@ -2254,6 +2286,41 @@ public class ComfortActivity extends Activity {
         }
         if (!lastJourneyAvailable) { lastJourneyAvailable = true; repackColumns(); }
     }
+
+    /** Reads this stop's parking cost once per stop (and after an edit),
+     * off the main thread, then paints the Parked card's price. */
+    private void updateParkedCost(long parkStartMs) {
+        if (parkedCost == null) return;
+        if (parkStartMs <= 0) { parkedCost.setVisibility(View.GONE); return; }
+        if (parkStartMs == parkedCostFor) return;
+        parkedCostFor = parkStartMs;
+        final android.content.Context app = getApplicationContext();
+        new Thread(() -> {
+            long stopStart = com.geely.drivemem.state.ParkingCost.stopStart(app, parkStartMs);
+            com.geely.drivemem.state.ParkingCost.Row row =
+                com.geely.drivemem.state.ParkingCost.forGap(app, stopStart, System.currentTimeMillis());
+            ui.post(() -> {
+                if (parkedCostFor != parkStartMs) return;
+                parkedStopStartMs = stopStart;
+                parkedCostRow = row;
+                if (row != null) {
+                    parkedCost.setText(Style.moneyWithUnit(row.cost, Style.ACCENT, Style.UNIT_SCALE_ROW));
+                    parkedCost.setTextColor(Style.TEXT);
+                } else {
+                    SpannableStringBuilder sb = new SpannableStringBuilder("+ ");
+                    Style.appendUnit(sb, Prefs.currencySymbol(), 1f);
+                    parkedCost.setText(sb);
+                    parkedCost.setTextColor(Style.TEXT_DIM);
+                }
+                parkedCost.setVisibility(View.VISIBLE);
+            });
+        }, "parked-cost").start();
+    }
+
+    private final EntityBus.Listener parkingCostListener = (key, reading) -> ui.post(() -> {
+        parkedCostFor = -1;
+        refreshJourneyCard();
+    });
 
     /** "Vel. máxima 58 km/h": a small dim label, then the value. */
     private CharSequence labelled(int labelRes, CharSequence value) {
@@ -3179,6 +3246,7 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe("telemetry.ambient_brightness", ambientBrightnessListener);
         EntityBus.subscribe("telemetry.speed", speedListener);
         EntityBus.subscribe(CanHub.BRAKE, brakeListener);
+        EntityBus.subscribe(com.geely.drivemem.state.ParkingCost.CHANGED, parkingCostListener);
         CanEnergyReader.setSpeedListener(canSpeedListener);
         CanEnergyReader.setDriveListener(canDriveListener);
         com.geely.drivemem.sensors.ImuHub.setListener(imuListener);
@@ -3217,6 +3285,7 @@ public class ComfortActivity extends Activity {
         EntityBus.unsubscribe("telemetry.ambient_brightness", ambientBrightnessListener);
         EntityBus.unsubscribe("telemetry.speed", speedListener);
         EntityBus.unsubscribe(CanHub.BRAKE, brakeListener);
+        EntityBus.unsubscribe(com.geely.drivemem.state.ParkingCost.CHANGED, parkingCostListener);
         CanEnergyReader.clearSpeedListener(canSpeedListener);
         CanEnergyReader.clearDriveListener(canDriveListener);
         com.geely.drivemem.sensors.ImuHub.clearListener(imuListener);

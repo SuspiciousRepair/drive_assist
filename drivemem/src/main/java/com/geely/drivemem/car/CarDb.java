@@ -32,7 +32,7 @@ public final class CarDb extends SQLiteOpenHelper {
     // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
     // every write failed until this was bumped past 14. See the v15 entry in
     // onUpgrade below for what v15 itself actually does.
-    private static final int VERSION = 37;
+    private static final int VERSION = 38;
 
     /** SQL predicate for telemetry rows representing driving: gear is not Park (4),
      * or if gear is missing, car is not charging. */
@@ -201,6 +201,7 @@ public final class CarDb extends SQLiteOpenHelper {
         createDiaryEvent(db);
         createAux12vReading(db);
         createTollTables(db);
+        createParkingCost(db);
 
         createDailyStat(db);
     }
@@ -334,6 +335,31 @@ public final class CarDb extends SQLiteOpenHelper {
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_toll_passage_trip ON toll_passage(trip_id, ts_ms)");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_toll_passage_ts ON toll_passage(ts_ms)");
         db.execSQL(TOLL_REGION_DDL);
+    }
+
+    /** What one stop cost: a parked gap between two sessions, or one Valet
+     * stay (valet_id). Kept apart from park_session, which splits on every
+     * short shift to P. Never frozen into daily_stat, so a late edit shows on
+     * every period at once. kind: 'lot' (a car park) or 'street' (paid
+     * street parking). lat/lon: where the car was, for the place memory in
+     * state.ParkingCost. */
+    public static final String PARKING_COST_DDL = "CREATE TABLE IF NOT EXISTS parking_cost ("
+        + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        + "uuid TEXT NOT NULL UNIQUE,"
+        + "start_ms INTEGER NOT NULL,"
+        + "end_ms INTEGER,"
+        + "valet_id INTEGER,"
+        + "cost REAL NOT NULL,"
+        + "place_name TEXT,"
+        + "kind TEXT NOT NULL DEFAULT 'lot',"
+        + "note TEXT,"
+        + "lat REAL, lon REAL,"
+        + "updated_ms INTEGER NOT NULL)";
+
+    private static void createParkingCost(SQLiteDatabase db) {
+        db.execSQL(PARKING_COST_DDL);
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_parking_cost_time ON parking_cost(start_ms, end_ms)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_parking_cost_valet ON parking_cost(valet_id)");
     }
 
     /** Drops unclaimed points before a time: a trip too short to keep, or
@@ -694,6 +720,8 @@ public final class CarDb extends SQLiteOpenHelper {
             addColumnsIfMissing(db, "valet_session", VALET_SCORE_COLUMNS_V37);
             createTollTables(db);
         }
+        // v38: what parking cost (a car park, paid street parking, or Valet).
+        if (oldVersion < 38) createParkingCost(db);
     }
 
     private static void addColumnsIfMissing(SQLiteDatabase db, String table, String columnDefs) {

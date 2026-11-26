@@ -88,15 +88,16 @@ public class ChargeSpotsTest {
         assertTrue(s.isEmpty());
     }
 
-    @Test public void oneDayKeepsOnlyTheSpotsNearItsRoutes() {
-        double m = 1 / 111_195.0;   // one metre of latitude
-        double[] lat = {LAT, LAT + 3000 * m}, lon = {LON, LON};
-        ChargeSpots.Spot near = new ChargeSpots.Spot(LAT + 3500 * m, LON, false);   // 500 m past the end
-        ChargeSpots.Spot far = new ChargeSpots.Spot(LAT + 400_000 * m, LON, true);  // 400 km away
-        List<ChargeSpots.Spot> kept = ChargeSpots.inBox(Arrays.asList(near, far), lat, lon, 1000);
+    // A period's map: only the charges that started in it (today's map
+    // must not show, and zoom out to, last weekend's charge at the coast).
+    @Test public void aPeriodKeepsOnlyItsOwnCharges() {
+        ChargeSpots.Charge before = ch(0, 1 * H, 2 * H, false);
+        ChargeSpots.Charge inside = ch(0, 10 * H, 11 * H, true);
+        ChargeSpots.Charge atEnd = ch(0, 24 * H, 25 * H, false);
+        List<ChargeSpots.Charge> kept = ChargeSpots.between(Arrays.asList(before, inside, atEnd), 5 * H, 24 * H);
         assertEquals(1, kept.size());
-        assertSame(near, kept.get(0));
-        assertTrue(ChargeSpots.inBox(Arrays.asList(near), new double[0], new double[0], 1000).isEmpty());
+        assertSame(inside, kept.get(0));
+        assertTrue(ChargeSpots.between(null, 0, 1).isEmpty());
     }
 
     private static ChargeSpots.Placed at(long id, double dLatM, boolean dc) {

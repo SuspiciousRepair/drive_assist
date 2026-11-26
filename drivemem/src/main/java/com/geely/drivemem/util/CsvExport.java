@@ -40,6 +40,8 @@ public final class CsvExport {
     public static final String TRIPS_FILE = "drive_assist_trips.csv";
     public static final String DIARY_FILE = "drive_assist_diary.csv";
     public static final String DIARY_CLIPS_USB_DIR = "Diary Clips";
+    public static final String TOLLS_FILE = "drive_assist_tolls.csv";
+    public static final String PARKING_FILE = "drive_assist_parking.csv";
 
     static final String CHARGES_HEADER = "id,start,end,duration_min,type,soc_start_pct,soc_end_pct,"
         + "energy_kwh,avg_power_kw,max_voltage_v,odometer_km,cost,cost_per_kwh,lat,lon";
@@ -48,6 +50,9 @@ public final class CsvExport {
         + "ascent_m,descent_m,start_lat,start_lon,end_lat,end_lon";
     static final String DIARY_HEADER = "id,date,group,category,title,status,odometer_km,cost,"
         + "note,tags,outside_temp_c,lat,lon,clip_file,occurrences";
+
+    static final String TOLLS_HEADER = "id,time,trip_id,booth,kind,cost,source,speed_kmh,lat,lon";
+    static final String PARKING_HEADER = "id,start,end,duration_min,kind,place,cost,valet,note,lat,lon";
 
     private CsvExport() {}
 
@@ -175,6 +180,70 @@ public final class CsvExport {
         File diary = new File(dir, DIARY_FILE);
         writeFile(diary, diaryCsv(entries, TimeZone.getDefault()));
         return diary;
+    }
+
+    /** drive_assist_tolls.csv in cache/csv/, for the phone page. */
+    public static File writeTolls(Context ctx) throws Exception {
+        File f = new File(csvDir(ctx), TOLLS_FILE);
+        writeFile(f, tollsCsv(com.geely.drivemem.state.TollTracker.allPassages(ctx), TimeZone.getDefault()));
+        return f;
+    }
+
+    /** drive_assist_parking.csv in cache/csv/, for the phone page. */
+    public static File writeParking(Context ctx) throws Exception {
+        File f = new File(csvDir(ctx), PARKING_FILE);
+        writeFile(f, parkingCsv(com.geely.drivemem.state.ParkingCost.all(ctx), TimeZone.getDefault()));
+        return f;
+    }
+
+    private static File csvDir(Context ctx) {
+        File dir = new File(ctx.getCacheDir(), "csv");
+        if (!dir.exists() && !dir.mkdirs()) throw new IllegalStateException("mkdirs " + dir);
+        return dir;
+    }
+
+    /** Toll passages oldest first; an unpriced one has an empty cost. */
+    static String tollsCsv(List<com.geely.drivemem.state.TollTracker.Passage> passages, TimeZone tz) {
+        SimpleDateFormat fmt = dateFormat(tz);
+        StringBuilder sb = new StringBuilder(TOLLS_HEADER).append("\r\n");
+        if (passages == null) return sb.toString();
+        for (com.geely.drivemem.state.TollTracker.Passage p : passages) {
+            row(sb,
+                String.valueOf(p.id),
+                fmt.format(new Date(p.tsMs)),
+                p.tripId != null ? String.valueOf(p.tripId) : "",
+                text(p.boothName),
+                p.boothKind != null ? p.boothKind.toLowerCase(Locale.US) : "",
+                p.cost != null ? num(p.cost, 2) : "",
+                p.source != null ? p.source : "",
+                p.speedKmh != null ? num(p.speedKmh, 0) : "",
+                num(p.lat, 6),
+                num(p.lon, 6));
+        }
+        return sb.toString();
+    }
+
+    /** Parking costs oldest first. valet: "yes" for a Valet stay. */
+    static String parkingCsv(List<com.geely.drivemem.state.ParkingCost.Row> rows, TimeZone tz) {
+        SimpleDateFormat fmt = dateFormat(tz);
+        StringBuilder sb = new StringBuilder(PARKING_HEADER).append("\r\n");
+        if (rows == null) return sb.toString();
+        for (com.geely.drivemem.state.ParkingCost.Row r : rows) {
+            boolean ended = r.endMs != null && r.endMs > r.startMs;
+            row(sb,
+                String.valueOf(r.id),
+                fmt.format(new Date(r.startMs)),
+                ended ? fmt.format(new Date(r.endMs)) : "",
+                ended ? String.valueOf((r.endMs - r.startMs) / 60_000) : "",
+                r.kind,
+                text(r.placeName),
+                num(r.cost, 2),
+                r.valetId != null ? "yes" : "",
+                text(r.note),
+                r.lat != null ? num(r.lat, 6) : "",
+                r.lon != null ? num(r.lon, 6) : "");
+        }
+        return sb.toString();
     }
 
     /** charge id -> {lat, lon}, for the charges that saved a place. */

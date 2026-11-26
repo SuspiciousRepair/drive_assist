@@ -71,6 +71,9 @@ public class TripRouteActivity extends Activity {
     private TextView tollsToggle;
     private boolean showTollsOnMap = true;
     private int tollPinCount = 0;
+    /** The route point last picked on the height chart or a toll row: where
+     * "+ Add toll" pins a missed toll. */
+    private int markedIndex = -1;
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -135,7 +138,7 @@ public class TripRouteActivity extends Activity {
         left.addView(note, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
         profile = new ElevationView(this);
-        profile.setOnPick(i -> route.setMarker(i));
+        profile.setOnPick(i -> { route.setMarker(i); markedIndex = i; });
         left.addView(profile, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 230)));
         left.addView(legend());
 
@@ -194,6 +197,10 @@ public class TripRouteActivity extends Activity {
         double[] split;
         Integer roadScore, driverScore, roadBumps, hardBrakes, hardAccels, hardCorners;
         java.util.List<com.geely.drivemem.state.TollTracker.Passage> tolls = new java.util.ArrayList<>();
+        /** Parking paid right after this trip, or null. */
+        com.geely.drivemem.state.ParkingCost.Row parking;
+        /** Start of the next trip (the end of the stop after this one), or 0. */
+        long nextTripStartMs;
     }
 
     private void load(long tripId, long startMs, long endMs) {
@@ -256,6 +263,10 @@ public class TripRouteActivity extends Activity {
                 } finally { tc.close(); }
             }
             d.tolls = com.geely.drivemem.state.TollTracker.forTrip(this, tripId);
+            if (endMs > 0) {
+                d.parking = com.geely.drivemem.state.ParkingCost.afterTrip(this, endMs);
+                d.nextTripStartMs = com.geely.drivemem.state.ParkingCost.nextTripStart(this, endMs);
+            }
         } catch (Throwable e) {
             android.util.Log.w("DriveMem", "trip route: " + e);
         }
@@ -293,6 +304,9 @@ public class TripRouteActivity extends Activity {
             if (alt != null) {
                 profile.setProfile(TripRouteStats.cumulativeKm(d.lat, d.lon),
                     TripRouteStats.medianSmooth(alt, HEIGHT_SMOOTH), d.speed);
+                int[] ticks = new int[d.tolls.size()];
+                for (int i = 0; i < ticks.length; i++) ticks[i] = nearestPointIndex(d.ts, d.tolls.get(i).tsMs);
+                profile.setTicks(ticks);
             } else {
                 profile.setVisibility(View.GONE);
             }
@@ -382,6 +396,114 @@ public class TripRouteActivity extends Activity {
         if (d != null && !d.tolls.isEmpty()) {
             tollsStat(d);
         }
+        if (d != null && endMs > 0) roadCostsStat(d, hasPoints);
+    }
+
+    private void reload() {
+        final long tripId = getIntent().getLongExtra(EXTRA_TRIP_ID, -1);
+        final long startMs = getIntent().getLongExtra(EXTRA_START_MS, 0);
+        final long endMs = getIntent().getLongExtra(EXTRA_END_MS, 0);
+        new Thread(() -> load(tripId, startMs, endMs), "trip-route-reload").start();
+    }
+
+    /** A quiet action line ("+ Add toll"), a full-width 48 dp touch target. */
+    private TextView actionRow(int text, Runnable onClick) {
+        TextView t = new TextView(this);
+        t.setText(text);
+        t.setTextColor(Style.ACCENT);
+        t.setTextSize(18);
+        t.setGravity(Gravity.CENTER_VERTICAL);
+        t.setMinHeight(Style.dp(this, 48));
+        t.setPadding(0, Style.dp(this, 4), 0, Style.dp(this, 4));
+        t.setOnClickListener(v -> onClick.run());
+        stats.addView(t, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        return t;
+    }
+
+    /** Under the tolls: "+ Add toll" (at the place picked on the height
+     * chart), the parking paid on arrival (or "+ Add parking"), and the trip's
+     * road costs, tolls + parking, when either is above zero. */
+    private void roadCostsStat(Loaded d, boolean hasPoints) {
+        final long tripId = getIntent().getLongExtra(EXTRA_TRIP_ID, -1);
+        final long endMs = getIntent().getLongExtra(EXTRA_END_MS, 0);
+        // The place is picked on the height chart: no chart, no action.
+        if (hasPoints && tripId > 0 && TripRouteStats.fillGaps(d.alt) != null) {
+            actionRow(R.string.toll_add, () -> {
+                if (markedIndex < 0 || markedIndex >= d.lat.length) {
+                    android.widget.Toast.makeText(this, R.string.toll_add_pick_first,
+                        android.widget.Toast.LENGTH_LONG).show();
+                    return;
+                }
+                TollPassageDialog.showAdd(this, tripId, markedIndex, d.ts, d.lat, d.lon, d.speed, this::reload);
+            });
+        }
+
+        final Long stopEnd = d.nextTripStartMs > endMs ? d.nextTripStartMs : null;
+        if (d.parking != null) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setBackground(Style.card(Style.CARD_HI, this, 12));
+            int rp = Style.dp(this, 12);
+            row.setPadding(rp, rp, rp, rp);
+            LinearLayout col = new LinearLayout(this);
+            col.setOrientation(LinearLayout.VERTICAL);
+            TextView name = new TextView(this);
+            name.setText(R.string.trip_dest_parking);
+            name.setTextColor(Style.TEXT);
+            name.setTextSize(18);
+            name.setTypeface(null, android.graphics.Typeface.BOLD);
+            col.addView(name);
+            // The place, else "Street" for paid street parking; a car park
+            // with no name needs no second line.
+            String place = d.parking.placeName != null && !d.parking.placeName.isEmpty()
+                ? d.parking.placeName
+                : d.parking.isStreet() ? getString(R.string.parking_kind_street) : null;
+            if (place != null) {
+                TextView meta = new TextView(this);
+                meta.setText(place);
+                meta.setTextColor(Style.TEXT_DIM);
+                meta.setTextSize(15);
+                col.addView(meta);
+            }
+            row.addView(col, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            TextView price = new TextView(this);
+            price.setText(Style.moneyWithUnit(d.parking.cost, Style.TEXT, Style.UNIT_SCALE_ROW));
+            price.setTextSize(20);
+            price.setTypeface(null, android.graphics.Typeface.BOLD);
+            row.addView(price);
+            final com.geely.drivemem.state.ParkingCost.Row existing = d.parking;
+            row.setOnClickListener(v -> ParkingCostDialog.open(this, existing.startMs, existing.endMs,
+                null, existing, this::reload));
+            LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            rlp.topMargin = Style.dp(this, 12);
+            stats.addView(row, rlp);
+        } else {
+            actionRow(R.string.trip_add_parking, () ->
+                ParkingCostDialog.open(this, endMs, stopEnd, null, null, this::reload));
+        }
+
+        double tolls = 0;
+        for (com.geely.drivemem.state.TollTracker.Passage p : d.tolls) if (p.cost != null && p.cost > 0) tolls += p.cost;
+        double parking = d.parking != null ? d.parking.cost : 0;
+        if (tolls + parking <= 0) return;
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        head.setPadding(0, Style.dp(this, 14), 0, 0);
+        TextView lbl = new TextView(this);
+        lbl.setText(R.string.trip_road_costs);
+        lbl.setTextColor(Style.TEXT_DIM);
+        lbl.setTextSize(17);
+        head.addView(lbl, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView tot = new TextView(this);
+        tot.setText(Style.moneyWithUnit(tolls + parking, Style.TEXT, Style.UNIT_SCALE_ROW));
+        tot.setTextSize(21);
+        tot.setTypeface(null, android.graphics.Typeface.BOLD);
+        head.addView(tot);
+        stats.addView(head);
     }
 
     /** Chronological list of toll crossings on this trip (tappable in Park to edit/dismiss). */
@@ -416,9 +538,6 @@ public class TripRouteActivity extends Activity {
         head.addView(tot);
         stats.addView(head);
 
-        final long tripId = getIntent().getLongExtra(EXTRA_TRIP_ID, -1);
-        final long startMs = getIntent().getLongExtra(EXTRA_START_MS, 0);
-        final long endMs = getIntent().getLongExtra(EXTRA_END_MS, 0);
         for (com.geely.drivemem.state.TollTracker.Passage p : d.tolls) {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
@@ -458,9 +577,8 @@ public class TripRouteActivity extends Activity {
 
             row.setOnClickListener(v -> {
                 int nearest = nearestPointIndex(d.ts, p.tsMs);
-                if (nearest >= 0) route.setMarker(nearest);
-                TollPassageDialog.show(this, p, d.ts, d.lat, d.lon, d.speed, () ->
-                    new Thread(() -> load(tripId, startMs, endMs), "trip-route-reload").start());
+                if (nearest >= 0) { route.setMarker(nearest); markedIndex = nearest; }
+                TollPassageDialog.show(this, p, d.ts, d.lat, d.lon, d.speed, this::reload);
             });
             LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);

@@ -160,7 +160,8 @@ replays the trip's rows once, then adds one tick at a time.
 
 `trip.completed`, `charge.completed`, `charge.cost_updated`,
 `charge.dismissed`, `parking.changed`, `valet.changed`, `valet.progress`,
-`diary.changed`.
+`diary.changed`, `toll.changed` (a toll passage or booth was found or
+edited), `parking_cost.changed` (a parking price was saved or cleared).
 
 ## 3. Which value exists in which setup
 

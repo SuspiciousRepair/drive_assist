@@ -83,7 +83,8 @@ coloured by speed. The map needs the internet the first time a place is shown;
 after that it is kept in the car, so a trip that ends in a garage still shows its
 map. Under the route is the height along the trip, and the trip's numbers.
 
-Tap the trip count to open **all routes in one picture**. Routes are recorded
+Tap the map next to the sessions to open **all routes in one picture**, for the
+day, week, month or year you are looking at. Routes are recorded
 from **Config → System** (on by default) and stay in the car. You can export
 them as **GPX** (one file per day) and the trip list as **CSV**, to a USB stick
 or to your phone.
@@ -142,6 +143,40 @@ of the places where you charge.
 A **battery health** card shows kWh per charge, the hours the battery spent below
 10% and 20%, and — with an OBD2 dongle — the battery's state of health. Without a
 dongle, the charge screen still shows the outside temperature during the charge.
+
+## Tolls and parking
+
+Turn on **Detect tolls via OpenStreetMap** under **Config → Integrations →
+OpenStreetMap** (off by default). The car then marks each toll plaza and Free Flow gantry it
+drives through. It downloads the toll places for wide areas (about 55 km
+across), never your route.
+
+- **On the trip screen**, each toll is a pin on the map and a mark on the
+  height chart. Tap a toll to set its price. Keep **Remember price for this
+  booth** on, and later trips through it take that price.
+- **A toll it missed**: touch the height chart where the toll was, then tap
+  **+ Add a missed toll**. Pick plaza or Free Flow, and type the price. Later
+  trips in the same direction find it.
+- **Parking**: on the stats page, tap a **Parked** line to type what that stop
+  cost. Pick **Car park** or **Street**, and give the place a name if you
+  like. The next time you park there, the name and the last prices are ready
+  as one-tap buttons. Stops of 15 minutes or more show a quiet **+ R$**.
+  When the car's place is known and OpenStreetMap maps are on, the dialog
+  shows where the car was parked.
+- **Parking filter**: next to Trips and Charges, **Parking** lists only the
+  parked stops (15 minutes or more, or priced) and the Valet stays. Each
+  filter button shows how many there are.
+- **On the Parked card** at home, tap **+ R$** to type the price right after
+  you pay at the kiosk.
+- **Valet**: the Valet card and the Valet screen have a **Cost** to set. When
+  you end Valet in Park at a place where you paid for Valet before, the price
+  asks for one tap.
+- The trip screen shows the **parking on arrival** and the trip's **tolls +
+  parking**. The **cost of ownership** in the Car diary counts tolls and
+  parking in its road group.
+
+On your phone (**Phone access**), **Tolls and parking** lists the booths and
+the parking costs to edit with a phone keyboard, and downloads both as CSV.
 
 ## Bring your own services
 
@@ -214,7 +249,8 @@ same values on every car.
 ## More you can do
 
 - **Phone access**: scan a QR code on the car screen to get a page on your phone
-  for backups, clips and trip files. It runs only in Park, on the local network.
+  for backups, clips, trip files, and toll and parking prices. It runs only in
+  Park, on the local network.
 - **Backup and restore**: save your settings, trips and certificates to a USB
   stick and to the car, locked with a password you choose.
 - **Darkest mode**: at night, after a minute of driving with no touch, the

@@ -110,6 +110,7 @@ public final class CarDiaryView extends LinearLayout {
         EntityBus.subscribe("charge.cost_updated", diaryListener);
         EntityBus.subscribe("charge.completed", diaryListener);
         EntityBus.subscribe("toll.changed", diaryListener);
+        EntityBus.subscribe(com.geely.drivemem.state.ParkingCost.CHANGED, diaryListener);
         refresh();
     }
 
@@ -128,6 +129,7 @@ public final class CarDiaryView extends LinearLayout {
         EntityBus.unsubscribe("charge.cost_updated", diaryListener);
         EntityBus.unsubscribe("charge.completed", diaryListener);
         EntityBus.unsubscribe("toll.changed", diaryListener);
+        EntityBus.unsubscribe(com.geely.drivemem.state.ParkingCost.CHANGED, diaryListener);
         refreshQueued = false;
         dismissOpenWindows();
     }

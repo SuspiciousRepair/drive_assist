@@ -3,6 +3,27 @@
 ## [Unreleased]
 
 ### Added
+- **Parking prices.** Tap a **Parked** line on the stats page to type what
+  the stop cost: a car park or paid street parking, with an optional place
+  name. The car remembers the place: the next stop there offers the name and
+  the last two prices as one-tap buttons (street parking takes the prices of
+  street stops nearby). The Valet card and the Valet screen have a **Cost**,
+  and the home Parked card has a **+ R$** button for the stop you are in.
+  The trip screen shows the parking on arrival and the trip's tolls +
+  parking, and the Car diary's cost of ownership counts parking with the
+  tolls in its road group. The price dialog shows where the car was parked
+  when OpenStreetMap maps are on.
+- **Stats: a Parking filter.** Next to Trips and Charges, **Parking** lists
+  the parked stops (15 minutes or more, or priced) and the Valet stays. It
+  replaces the Valet filter. The counts are on the filter buttons only; the
+  "7 trips · 0 charges" line above them is gone.
+- **Tolls: add one the car missed.** On the trip screen, touch the height
+  chart where the toll was and tap **+ Add a missed toll**. Later trips in the
+  same direction find it too. Each toll now also shows as a mark on the
+  height chart.
+- **Phone access: tolls and parking.** Edit toll booth prices (also both
+  directions, or off) and parking costs with the phone keyboard, and
+  download both as CSV.
 - **Car diary.** A new page on the stats screen (third icon) for what you do
   to the car and what it costs: maintenance, tires, fluids, fees and
   insurance, accessories, parking, tolls and tickets. It shows what is due
@@ -36,6 +57,13 @@
   panels on the driver's side while card contents, menus, controls, charts,
   maps, calendars and text stay left-to-right. Backups keep your choice. Not
   yet checked on a real right-hand-drive car.
+
+### Changed
+- **Stats: tap the map for all routes.** The map beside the sessions has no
+  title or button any more. Tap it to see every route of the day, week,
+  month or year you are looking at.
+- **The Settings PIN covers the screen.** The keypad now sits on a plain
+  background, so the Settings page cannot be read behind it.
 
 ### Fixed
 - **Drive mode and regeneration come back after a remote A/C start.** When

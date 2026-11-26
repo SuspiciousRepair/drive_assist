@@ -214,6 +214,9 @@ public final class ValetSession {
 
     public static boolean isActive(Context c) { return prefs(c).getBoolean(ACTIVE, false); }
 
+    /** The open valet_session row, or -1. */
+    public static long activeRowId(Context c) { return isActive(c) ? prefs(c).getLong(ROW_ID, -1) : -1; }
+
     public static Snapshot snapshot(Context c) {
         SharedPreferences p = prefs(c);
         double distance = p.contains(START_ODO) && p.contains(LAST_ODO)

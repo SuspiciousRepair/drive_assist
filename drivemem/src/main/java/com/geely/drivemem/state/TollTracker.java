@@ -436,10 +436,11 @@ public final class TollTracker {
         try {
             for (TollMatcher.Booth b : booths) {
                 Long existingId = null;
+                boolean anyDirection = false;
                 try (Cursor c = db.rawQuery(
-                        "SELECT id FROM toll_booth WHERE source = 'osm' AND external_id = ?",
+                        "SELECT id, bearing_deg IS NULL FROM toll_booth WHERE source = 'osm' AND external_id = ?",
                         new String[]{b.externalId})) {
-                    if (c.moveToFirst()) existingId = c.getLong(0);
+                    if (c.moveToFirst()) { existingId = c.getLong(0); anyDirection = c.getInt(1) != 0; }
                 }
                 ContentValues v = new ContentValues();
                 v.put("name", b.name);
@@ -455,6 +456,13 @@ public final class TollTracker {
                 if (b.checkDate != null) v.put("check_date", b.checkDate); else v.putNull("check_date");
                 v.put("updated_ms", nowMs);
 
+                if (existingId != null && anyDirection) {
+                    // A booth with no direction keeps none: the phone page's
+                    // "count both directions" must survive the next refresh.
+                    // (An OSM edit that adds a direction to such a booth is
+                    // not taken; rare, and safer than undoing the owner's choice.)
+                    v.remove("bearing_deg");
+                }
                 if (existingId != null) {
                     // Never overwrite user_price or enabled flag!
                     db.update("toll_booth", v, "id = ?", new String[]{String.valueOf(existingId)});
@@ -628,6 +636,146 @@ public final class TollTracker {
                 reloadIndex(app);
             }
             EntityBus.publish("toll.changed", CarActor.Reading.ok(passageId));
+            if (onDone != null) onDone.run();
+        });
+    }
+
+    /** Pins a toll the matcher missed (or a brand-new Free Flow gantry) at
+     * one route point of a finished trip: a {@code source = 'user'} booth,
+     * so later trips match it too, and this trip's passage. bearingDeg is the
+     * travel direction there (null: any direction). price &lt;= 0: unpriced.
+     * The OSM fetch only touches {@code source = 'osm'} booths, so a user
+     * booth survives every map refresh. onDone runs on the main thread. */
+    public static void addUserToll(Context ctx, long tripId, long tsMs, double lat, double lon,
+                                   Double speedKmh, Double bearingDeg, String name, String kind,
+                                   double price, Runnable onDone) {
+        Context app = ctx.getApplicationContext();
+        final boolean ff = TollMatcher.KIND_FREE_FLOW.equals(kind);
+        final String k = ff ? TollMatcher.KIND_FREE_FLOW : TollMatcher.KIND_PLAZA;
+        final String n = name == null || name.trim().isEmpty()
+            ? app.getString(ff ? com.geely.drivemem.R.string.toll_kind_free_flow
+                               : com.geely.drivemem.R.string.toll_kind_plaza)
+            : name.trim();
+        CarDb.get(app).write(() -> {
+            try {
+                SQLiteDatabase db = CarDb.get(app).db();
+                long now = System.currentTimeMillis();
+                ContentValues b = new ContentValues();
+                b.put("uuid", UUID.randomUUID().toString());
+                b.put("source", "user");
+                b.put("name", n);
+                b.put("kind", k);
+                b.put("lat", lat);
+                b.put("lon", lon);
+                b.put("radius_m", ff ? TollMatcher.FREE_FLOW_RADIUS_M : TollMatcher.PLAZA_RADIUS_M);
+                if (bearingDeg != null) b.put("bearing_deg", bearingDeg);
+                b.put("bearing_tol_deg", 45.0);
+                if (price > 0) b.put("user_price", price);
+                b.put("enabled", 1);
+                b.put("updated_ms", now);
+                long boothId = db.insert("toll_booth", null, b);
+                ContentValues v = new ContentValues();
+                v.put("uuid", UUID.randomUUID().toString());
+                if (tripId > 0) v.put("trip_id", tripId);
+                if (boothId > 0) v.put("booth_id", boothId);
+                v.put("ts_ms", tsMs);
+                v.put("lat", lat);
+                v.put("lon", lon);
+                if (speedKmh != null) v.put("speed_kmh", speedKmh);
+                v.put("booth_name", n);
+                v.put("booth_kind", k);
+                if (price > 0) v.put("cost", price);
+                v.put("dismissed", 0);
+                v.put("source", "user");
+                db.insert("toll_passage", null, v);
+                reloadIndex(app);
+            } catch (Throwable t) {
+                Log.w(TAG, "tolls: addUserToll: " + t);
+            }
+            EntityBus.publish("toll.changed", CarActor.Reading.ok(System.currentTimeMillis()));
+            if (onDone != null) new android.os.Handler(android.os.Looper.getMainLooper()).post(onDone);
+        });
+    }
+
+    /** One booth as the phone page lists it. bearingDeg null: any direction. */
+    public static final class BoothRow {
+        public long id;
+        public String name, kind, source;
+        public Double userPrice, catalogPrice, bearingDeg;
+        public boolean enabled;
+        public int passages;
+    }
+
+    /** Booths for the phone page: the ones this car crossed, priced, pinned
+     * or turned off (not the whole OSM cache), most crossed first. */
+    public static List<BoothRow> boothsForPhone(Context ctx) {
+        List<BoothRow> out = new ArrayList<>();
+        try (Cursor c = CarDb.get(ctx).db().rawQuery(
+                "SELECT * FROM (SELECT b.id, b.name, b.kind, b.source, b.user_price, b.catalog_price, b.enabled, "
+              + "b.bearing_deg, (SELECT COUNT(*) FROM toll_passage p WHERE p.booth_id = b.id AND p.dismissed = 0) AS n "
+              + "FROM toll_booth b) WHERE n > 0 OR user_price IS NOT NULL OR source = 'user' OR enabled = 0 "
+              + "ORDER BY n DESC, name", null)) {
+            while (c.moveToNext()) {
+                BoothRow b = new BoothRow();
+                b.id = c.getLong(0);
+                b.name = c.getString(1);
+                b.kind = c.getString(2);
+                b.source = c.getString(3);
+                b.userPrice = c.isNull(4) ? null : c.getDouble(4);
+                b.catalogPrice = c.isNull(5) ? null : c.getDouble(5);
+                b.enabled = c.getInt(6) != 0;
+                b.bearingDeg = c.isNull(7) ? null : c.getDouble(7);
+                b.passages = c.getInt(8);
+                out.add(b);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "tolls: boothsForPhone: " + t);
+        }
+        return out;
+    }
+
+    /** Every passage that is not dismissed, oldest first (the CSV export). */
+    public static List<Passage> allPassages(Context ctx) {
+        List<Passage> out = new ArrayList<>();
+        try (Cursor c = CarDb.get(ctx).db().rawQuery(
+                "SELECT id, trip_id, booth_id, ts_ms, lat, lon, speed_kmh, booth_name, booth_kind, cost, source "
+              + "FROM toll_passage WHERE dismissed = 0 ORDER BY ts_ms ASC", null)) {
+            while (c.moveToNext()) {
+                out.add(new Passage(
+                    c.getLong(0), c.isNull(1) ? null : c.getLong(1), c.isNull(2) ? null : c.getLong(2),
+                    c.getLong(3), c.getDouble(4), c.getDouble(5),
+                    c.isNull(6) ? null : c.getDouble(6), c.getString(7), c.getString(8),
+                    c.isNull(9) ? null : c.getDouble(9), c.getString(10)));
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "tolls: allPassages: " + t);
+        }
+        return out;
+    }
+
+    /** The phone page's booth edit: price (null clears it), any-direction, on/off. */
+    public static void updateBooth(Context ctx, long boothId, Double userPrice,
+                                   boolean anyDirection, boolean enabled, Runnable onDone) {
+        Context app = ctx.getApplicationContext();
+        CarDb.get(app).write(() -> {
+            try {
+                ContentValues v = new ContentValues();
+                if (userPrice != null && userPrice > 0) v.put("user_price", userPrice); else v.putNull("user_price");
+                if (anyDirection) v.putNull("bearing_deg");
+                v.put("enabled", enabled ? 1 : 0);
+                v.put("updated_ms", System.currentTimeMillis());
+                SQLiteDatabase db = CarDb.get(app).db();
+                db.update("toll_booth", v, "id = ?", new String[]{String.valueOf(boothId)});
+                // Same as "Remember for this booth": earlier unpriced passages take the price.
+                if (userPrice != null && userPrice > 0) {
+                    db.execSQL("UPDATE toll_passage SET cost = ? WHERE booth_id = ? AND cost IS NULL AND dismissed = 0",
+                        new Object[]{userPrice, boothId});
+                }
+                reloadIndex(app);
+            } catch (Throwable t) {
+                Log.w(TAG, "tolls: updateBooth: " + t);
+            }
+            EntityBus.publish("toll.changed", CarActor.Reading.ok(System.currentTimeMillis()));
             if (onDone != null) onDone.run();
         });
     }
