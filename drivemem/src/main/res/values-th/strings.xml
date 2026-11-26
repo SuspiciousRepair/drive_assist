@@ -581,7 +581,10 @@
     <string name="trip_split_pick">เลือกจุดที่จะแยก</string>
     <string name="trip_split_cancel">ยกเลิก</string>
     <string name="trip_split_here">แยกตรงนี้</string>
-    <string name="trip_split_hint">ลากบนกราฟความสูง จุดตัดจะไปที่การเข้าเกียร์ P ที่ใกล้ที่สุด</string>
+    <string name="trip_split_hint">ใช้ ‹ › หรือลากบนกราฟความสูงเพื่อเลือกจุดที่เข้าเกียร์ P</string>
+    <string name="trip_split_stop_of">จุดจอด P ที่ %1$d จาก %2$d</string>
+    <string name="trip_split_prev">จุดจอด P ก่อนหน้า</string>
+    <string name="trip_split_next">จุดจอด P ถัดไป</string>
     <string name="trip_split_part">ทริป %1$d</string>
     <string name="trip_split_stop_note">จุดหยุด %1$s ระหว่างทั้งสองจะแสดงเป็นจอด</string>
     <string name="trip_undo_join">เลิกรวม</string>

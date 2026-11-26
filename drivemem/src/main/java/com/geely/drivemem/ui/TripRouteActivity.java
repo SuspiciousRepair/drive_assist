@@ -587,13 +587,22 @@ public class TripRouteActivity extends Activity {
         route.setMarker(i);
         markedIndex = i;
         if (!splitMode || loaded == null) return;
-        cutAt = com.geely.drivemem.sensors.TripEdits.snap(i, pointKm, loaded.stops);
-        if (cutAt != null) {
+        com.geely.drivemem.sensors.TripEdits.Stop st =
+            com.geely.drivemem.sensors.TripEdits.snap(i, pointKm, loaded.stops);
+        selectStop(st == null ? -1 : loaded.stops.indexOf(st));
+    }
+
+    /** Split mode: makes shift to P number i (in trip order) the cut, marks
+     * it on the chart and the map, and shows the two parts. */
+    private void selectStop(int i) {
+        if (loaded == null || i < 0 || i >= loaded.stops.size()) {
+            cutAt = null;
+            profile.setCut(-1, -1);
+        } else {
+            cutAt = loaded.stops.get(i);
             profile.setMarked(cutAt.from);
             profile.setCut(cutAt.from, cutAt.to);
             route.setMarker(cutAt.from);
-        } else {
-            profile.setCut(-1, -1);
         }
         showSplitPreview();
         refreshHead();
@@ -669,9 +678,9 @@ public class TripRouteActivity extends Activity {
             profile.setVisibility(View.VISIBLE);
             flatForSplit = true;
         }
-        profile.setCut(-1, -1);
-        showSplitPreview();
-        refreshHead();
+        // The first shift to P is picked at once: the cut and the two parts
+        // show without a touch, and Previous / Next step through the rest.
+        selectStop(0);
     }
 
     private void exitSplit() {
@@ -703,6 +712,7 @@ public class TripRouteActivity extends Activity {
         hint.setPadding(0, 0, 0, Style.dp(this, 14));
         stats.addView(hint);
         if (cutAt == null || loaded == null) return;
+        stopNav(loaded.stops.indexOf(cutAt), loaded.stops.size());
         android.content.Intent in = getIntent();
         long startMs = in.getLongExtra(EXTRA_START_MS, 0), endMs = in.getLongExtra(EXTRA_END_MS, 0);
         double total = pointKm.length > 0 ? pointKm[pointKm.length - 1] : 0;
@@ -716,6 +726,43 @@ public class TripRouteActivity extends Activity {
             stop.setTextSize(17);
             stats.addView(stop);
         }
+    }
+
+    /** "‹  P stop 2 of 3 · 17:30  ›": steps the cut through the trip's
+     * shifts to P. */
+    private void stopNav(int i, int n) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.addView(navButton("‹", R.string.trip_split_prev, i > 0, () -> selectStop(i - 1)));
+        TextView label = new TextView(this);
+        label.setText(getString(R.string.trip_split_stop_of, i + 1, n) + "  ·  "
+            + SessionText.clock(cutAt.startMs) + "  ·  P " + SessionText.shortDuration(cutAt.endMs - cutAt.startMs));
+        label.setTextColor(Style.TEXT);
+        label.setTextSize(18);
+        label.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        label.setGravity(Gravity.CENTER);
+        row.addView(label, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(navButton("›", R.string.trip_split_next, i < n - 1, () -> selectStop(i + 1)));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.bottomMargin = Style.dp(this, 14);
+        stats.addView(row, lp);
+    }
+
+    private TextView navButton(String glyph, int description, boolean enabled, Runnable onClick) {
+        TextView b = new TextView(this);
+        b.setText(glyph);
+        b.setTextSize(30);
+        b.setTextColor(Style.TEXT);
+        b.setGravity(Gravity.CENTER);
+        b.setBackground(Style.card(Style.CARD_HI, this, 14));
+        b.setContentDescription(getString(description));
+        b.setAlpha(enabled ? 1f : 0.3f);
+        b.setEnabled(enabled);
+        b.setOnClickListener(v -> onClick.run());
+        b.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(this, 64), Style.dp(this, 64)));
+        return b;
     }
 
     private void splitPart(int number, int color, long fromMs, long toMs, double km) {

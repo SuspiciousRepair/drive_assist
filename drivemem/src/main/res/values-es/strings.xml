@@ -565,7 +565,10 @@
     <string name="trip_split_pick">Elige dónde dividir</string>
     <string name="trip_split_cancel">Cancelar</string>
     <string name="trip_split_here">Dividir aquí</string>
-    <string name="trip_split_hint">Arrastra en el gráfico de altura. El corte va a la parada en P más cercana.</string>
+    <string name="trip_split_hint">Usa ‹ › o arrastra en el gráfico de altura para elegir una parada en P.</string>
+    <string name="trip_split_stop_of">Parada en P %1$d de %2$d</string>
+    <string name="trip_split_prev">Parada en P anterior</string>
+    <string name="trip_split_next">Siguiente parada en P</string>
     <string name="trip_split_part">Viaje %1$d</string>
     <string name="trip_split_stop_note">La parada de %1$s entre ellos aparece como estacionado.</string>
     <string name="trip_undo_join">Deshacer unión</string>

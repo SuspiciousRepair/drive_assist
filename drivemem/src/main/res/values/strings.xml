@@ -592,7 +592,10 @@
     <string name="trip_split_pick">Pick where to split</string>
     <string name="trip_split_cancel">Cancel</string>
     <string name="trip_split_here">Split here</string>
-    <string name="trip_split_hint">Drag on the height chart. The cut goes to the nearest shift to P.</string>
+    <string name="trip_split_hint">Use ‹ › or drag on the height chart to pick a shift to P.</string>
+    <string name="trip_split_stop_of">P stop %1$d of %2$d</string>
+    <string name="trip_split_prev">Previous shift to P</string>
+    <string name="trip_split_next">Next shift to P</string>
     <string name="trip_split_part">Trip %1$d</string>
     <string name="trip_split_stop_note">The %1$s stop between them shows as parked.</string>
     <string name="trip_undo_join">Undo join</string>

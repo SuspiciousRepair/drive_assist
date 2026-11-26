@@ -116,10 +116,11 @@ On the statistics page, tap a finished trip (in **P**) to open its route:
   the charge between its trips.
 - **Split and undo** (issue #210). A trip splits only at a shift to P inside
   it (a `park_session` row that starts and ends inside the trip; the P that
-  ends a trip runs past it). No such stop, no **Split** button. Split mode:
-  drag on the height chart (the cut goes to the nearest shift to P; with no
-  heights the chart is shown flat), see the two new trips on the right, then
-  **Split here**. The first part ends when the car went into P, the next
+  ends a trip runs past it). No such stop, no **Split** button. Split mode
+  picks the first shift to P at once; **‹ / ›** step through them ("P stop 2
+  of 3 · 17:30 · P 44s"), or drag on the height chart (the cut goes to the
+  nearest one; with no heights the chart is shown flat). The two new trips
+  show on the right before **Split here**. The first part ends when the car went into P, the next
   starts when it left P. A part's odometer and battery come from the 30 s
   samples at the cut, looked for inside the trip only (no reading: the trip
   shows whole); km, energy and climb from inside the part, capped at what is
