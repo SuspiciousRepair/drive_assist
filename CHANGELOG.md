@@ -11,8 +11,8 @@
   picked at once, **‹ ›** step through the others, and the two new trips show
   before you commit. **Undo join** and
   **Undo split** put the trips back: the recorded trips are never changed. The
-  height chart now marks each shift to P, charge and parking with a labelled
-  line, next to the tolls. Exports keep the trips as recorded.
+  height chart labels its toll lines, and a joined trip's stops and charges;
+  the shifts to P show only while splitting. Exports keep the trips as recorded.
 - **Odometer on trips and charges** (#210). Each trip shows the odometer at
   the start and the end, and each charge the odometer at plug-in: on the stats
   lists, the trip's route screen and the charge's page. The trips CSV has two

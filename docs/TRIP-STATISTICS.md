@@ -111,9 +111,9 @@ On the statistics page, tap a finished trip (in **P**) to open its route:
   its own route screen.
 - **Height profile.** Under the route, the GPS height along the trip, in the
   same speed colours. Touch it to mark that place on the route. Dashed lines
-  with a label on top mark each toll passage, each shift to P inside the trip
-  (`park_session`, `P 44s`), and, on a joined trip, the parking (`P 16m`) or
-  the charge between its trips.
+  with a label on top mark each toll passage and, on a joined trip, the
+  parking (`P 16m`) or the charge between its trips. In split mode only, a P
+  line also marks each shift to P inside the trip (`park_session`, `P 44s`).
 - **Split and undo** (issue #210). A trip splits only at a shift to P inside
   it (a `park_session` row that starts and ends inside the trip; the P that
   ends a trip runs past it). No such stop, no **Split** button. Split mode

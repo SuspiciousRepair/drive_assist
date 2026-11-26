@@ -259,6 +259,10 @@ public class TripRouteActivity extends Activity {
         /** The lines on the height chart: point index, kind, label. */
         int[] evIdx = new int[0], evKind = new int[0];
         String[] evLabel = new String[0];
+        /** The same plus a P line at each shift to P: shown in split mode
+         * only, where those are the places to pick. */
+        int[] splitIdx = new int[0], splitKind = new int[0];
+        String[] splitLabel = new String[0];
         /** The shifts to P inside the trip: the only places to split. */
         java.util.List<com.geely.drivemem.sensors.TripEdits.Stop> stops = new java.util.ArrayList<>();
         /** A joined trip: the time parked between its trips. */
@@ -409,10 +413,6 @@ public class TripRouteActivity extends Activity {
             while (c.moveToNext()) parks.add(new long[]{c.getLong(0), c.getLong(1)});
         } catch (Throwable ignored) {}
         d.stops = com.geely.drivemem.sensors.TripEdits.parkStops(parks, windows, d.ts);
-        for (com.geely.drivemem.sensors.TripEdits.Stop st : d.stops) {
-            ev.add(new int[]{st.from, ElevationView.EVENT_PARK});
-            labels.add(SessionText.shortDuration(st.endMs - st.startMs));
-        }
         if (starts != null && ends != null) {
             java.util.List<long[]> charges = new java.util.ArrayList<>();
             try (Cursor c = CarDb.get(this).db().rawQuery(
@@ -440,6 +440,16 @@ public class TripRouteActivity extends Activity {
         d.evIdx = new int[n]; d.evKind = new int[n]; d.evLabel = new String[n];
         for (int i = 0; i < n; i++) {
             d.evIdx[i] = ev.get(i)[0]; d.evKind[i] = ev.get(i)[1]; d.evLabel[i] = labels.get(i);
+        }
+        int m = n + d.stops.size();
+        d.splitIdx = java.util.Arrays.copyOf(d.evIdx, m);
+        d.splitKind = java.util.Arrays.copyOf(d.evKind, m);
+        d.splitLabel = java.util.Arrays.copyOf(d.evLabel, m);
+        for (int i = n; i < m; i++) {
+            com.geely.drivemem.sensors.TripEdits.Stop st = d.stops.get(i - n);
+            d.splitIdx[i] = st.from;
+            d.splitKind[i] = ElevationView.EVENT_PARK;
+            d.splitLabel[i] = SessionText.shortDuration(st.endMs - st.startMs);
         }
     }
 
@@ -674,10 +684,10 @@ public class TripRouteActivity extends Activity {
         // No heights: the chart is shown flat, as the place to pick on.
         if (profile.getVisibility() != View.VISIBLE) {
             profile.setProfile(pointKm, new double[pointKm.length], loaded.speed);
-            profile.setEvents(loaded.evIdx, loaded.evKind, loaded.evLabel);
             profile.setVisibility(View.VISIBLE);
             flatForSplit = true;
         }
+        profile.setEvents(loaded.splitIdx, loaded.splitKind, loaded.splitLabel);
         // The first shift to P is picked at once: the cut and the two parts
         // show without a touch, and Previous / Next step through the rest.
         selectStop(0);
@@ -688,6 +698,7 @@ public class TripRouteActivity extends Activity {
         cutAt = null;
         profile.setCut(-1, -1);
         profile.setMarked(-1);
+        profile.setEvents(loaded.evIdx, loaded.evKind, loaded.evLabel);
         if (flatForSplit) { profile.setVisibility(View.GONE); flatForSplit = false; }
         showStats(loaded);
         refreshHead();

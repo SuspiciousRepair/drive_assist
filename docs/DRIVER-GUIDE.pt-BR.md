@@ -105,7 +105,7 @@ escolhido; **‹** e **›** passam pelos outros (ou arraste no gráfico de altu
 Confira as duas viagens novas à direita e toque em **Dividir aqui**. Uma viagem sem nenhuma parada em P no meio não tem
 Dividir. **Desfazer junção** e **Desfazer divisão** na tela da viagem voltam as
 viagens como foram gravadas: nada é apagado. O gráfico de altura marca cada
-parada em P, recarga e pedágio com uma linha. Os arquivos CSV e GPX mantêm as
+pedágio com uma linha; ao dividir, marca também cada parada em P. Os arquivos CSV e GPX mantêm as
 viagens como foram gravadas.
 
 Se o carro foi emprestado em modo **Valet**, toque no cartão dele para uma tela

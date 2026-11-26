@@ -100,8 +100,8 @@ two, open it and tap **Split**. The first place where you shifted to P is
 picked at once; **‹** and **›** step through the others (or drag on the height
 chart). Check the two new trips on the right and tap **Split here**. A trip with no shift to P inside it has no Split.
 **Undo join** and **Undo split** on the trip screen put the trips back as they
-were recorded: nothing is ever deleted. The height chart marks each shift to
-P, charge and toll with a line. The CSV and GPX exports keep the trips as
+were recorded: nothing is ever deleted. The height chart marks each toll with a
+line; in split mode it also marks each shift to P. The CSV and GPX exports keep the trips as
 recorded.
 
 If the car was lent out in **Valet** mode, tap its card for a detail screen: a
