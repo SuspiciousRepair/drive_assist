@@ -577,7 +577,7 @@
     <string name="trip_split_pick">Escolha onde dividir</string>
     <string name="trip_split_cancel">Cancelar</string>
     <string name="trip_split_here">Dividir aqui</string>
-    <string name="trip_split_hint">Arraste no gráfico de altura. O corte vai para a parada mais próxima.</string>
+    <string name="trip_split_hint">Arraste no gráfico de altura. O corte vai para a parada em P mais próxima.</string>
     <string name="trip_split_part">Viagem %1$d</string>
     <string name="trip_split_stop_note">A parada de %1$s entre elas aparece como estacionado.</string>
     <string name="trip_undo_join">Desfazer junção</string>

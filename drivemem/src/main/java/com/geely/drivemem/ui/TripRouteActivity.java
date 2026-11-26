@@ -56,12 +56,6 @@ public class TripRouteActivity extends Activity {
      * since no one trip row holds it. */
     public static final String EXTRA_SPLIT = "split";
 
-    /** A stop inside a trip this long gets a line on the height chart, and
-     * the split picker snaps to it. */
-    static final long STOP_MIN_MS = 2 * 60_000L;
-    /** The split picker snaps to a stop this close to the finger. */
-    static final double SNAP_KM = 0.5;
-
     /** The intent that opens the route of one finished trip. */
     static android.content.Intent intent(android.content.Context c, DailyStatsProvider.DriveSession t) {
         android.content.Intent in = new android.content.Intent(c, TripRouteActivity.class)
@@ -121,8 +115,8 @@ public class TripRouteActivity extends Activity {
     /** km from the start, per point (the height chart's x). */
     private double[] pointKm = new double[0];
     private boolean splitMode;
-    /** The picked cut: point indexes {a, b}, or null. */
-    private int[] cutAt;
+    /** The picked cut: a shift to P inside the trip, or null. */
+    private com.geely.drivemem.sensors.TripEdits.Stop cutAt;
     /** The chart had no heights and was shown flat for split mode only. */
     private boolean flatForSplit;
 
@@ -265,7 +259,7 @@ public class TripRouteActivity extends Activity {
         /** The lines on the height chart: point index, kind, label. */
         int[] evIdx = new int[0], evKind = new int[0];
         String[] evLabel = new String[0];
-        /** Stops inside the trip, for the split picker. */
+        /** The shifts to P inside the trip: the only places to split. */
         java.util.List<com.geely.drivemem.sensors.TripEdits.Stop> stops = new java.util.ArrayList<>();
         /** A joined trip: the time parked between its trips. */
         long parkedMs;
@@ -399,10 +393,25 @@ public class TripRouteActivity extends Activity {
             ev.add(new int[]{nearestPointIndex(d.ts, p.tsMs), ElevationView.EVENT_TOLL});
             labels.add(null);
         }
-        d.stops = com.geely.drivemem.sensors.TripEdits.stops(d.speed, d.ts, STOP_MIN_MS);
+        // Every shift to P inside the trip (or inside one of a joined
+        // trip's trips): a line, and a place Split can cut.
+        java.util.List<long[]> windows = new java.util.ArrayList<>();
+        if (starts != null && ends != null) {
+            for (int i = 0; i < starts.length && i < ends.length; i++) windows.add(new long[]{starts[i], ends[i]});
+        } else {
+            windows.add(new long[]{startMs, endMs});
+        }
+        java.util.List<long[]> parks = new java.util.ArrayList<>();
+        try (Cursor c = CarDb.get(this).db().rawQuery(
+                "SELECT start_ms, end_ms FROM park_session WHERE start_ms > ? AND start_ms < ? "
+              + "AND end_ms IS NOT NULL ORDER BY start_ms",
+                new String[]{String.valueOf(startMs), String.valueOf(endMs)})) {
+            while (c.moveToNext()) parks.add(new long[]{c.getLong(0), c.getLong(1)});
+        } catch (Throwable ignored) {}
+        d.stops = com.geely.drivemem.sensors.TripEdits.parkStops(parks, windows, d.ts);
         for (com.geely.drivemem.sensors.TripEdits.Stop st : d.stops) {
-            ev.add(new int[]{st.from, ElevationView.EVENT_STOP});
-            labels.add(SessionText.duration(d.ts[st.to] - d.ts[st.from]));
+            ev.add(new int[]{st.from, ElevationView.EVENT_PARK});
+            labels.add(SessionText.shortDuration(st.endMs - st.startMs));
         }
         if (starts != null && ends != null) {
             java.util.List<long[]> charges = new java.util.ArrayList<>();
@@ -420,10 +429,10 @@ public class TripRouteActivity extends Activity {
                 for (long[] x : charges) if (x[0] >= gs && x[0] <= ge) { ch = x; break; }
                 if (ch != null && ch[1] > ch[0]) {
                     ev.add(new int[]{at, ElevationView.EVENT_CHARGE});
-                    labels.add(SessionText.duration(ch[1] - ch[0]));
+                    labels.add(SessionText.shortDuration(ch[1] - ch[0]));
                 } else {
                     ev.add(new int[]{at, ElevationView.EVENT_PARK});
-                    labels.add(SessionText.duration(ge - gs));
+                    labels.add(SessionText.shortDuration(ge - gs));
                 }
             }
         }
@@ -578,11 +587,11 @@ public class TripRouteActivity extends Activity {
         route.setMarker(i);
         markedIndex = i;
         if (!splitMode || loaded == null) return;
-        cutAt = com.geely.drivemem.sensors.TripEdits.snap(i, pointKm, loaded.stops, SNAP_KM);
+        cutAt = com.geely.drivemem.sensors.TripEdits.snap(i, pointKm, loaded.stops);
         if (cutAt != null) {
-            profile.setMarked(cutAt[0]);
-            profile.setCut(cutAt[0], cutAt[1]);
-            route.setMarker(cutAt[0]);
+            profile.setMarked(cutAt.from);
+            profile.setCut(cutAt.from, cutAt.to);
+            route.setMarker(cutAt.from);
         } else {
             profile.setCut(-1, -1);
         }
@@ -599,7 +608,9 @@ public class TripRouteActivity extends Activity {
         long endMs = in.getLongExtra(EXTRA_END_MS, 0);
         long joinId = in.getLongExtra(EXTRA_JOIN_ID, 0);
         long cutTrip = in.getLongExtra(EXTRA_CUT_TRIP, 0);
-        boolean canSplit = endMs > 0 && joinId <= 0 && loaded != null && loaded.lat.length >= 3;
+        // A trip splits only at a shift to P inside it: no such stop, no button.
+        boolean canSplit = endMs > 0 && joinId <= 0 && loaded != null && loaded.lat.length >= 2
+            && !loaded.stops.isEmpty();
         if (splitMode) {
             titleView.setText(R.string.trip_split_pick);
             headButton(0, R.string.trip_split_cancel, false, true, this::exitSplit);
@@ -648,7 +659,7 @@ public class TripRouteActivity extends Activity {
     }
 
     private void enterSplit() {
-        if (loaded == null || loaded.lat.length < 3) return;
+        if (loaded == null || loaded.lat.length < 2 || loaded.stops.isEmpty()) return;
         splitMode = true;
         cutAt = null;
         // No heights: the chart is shown flat, as the place to pick on.
@@ -678,8 +689,7 @@ public class TripRouteActivity extends Activity {
         long cutTrip = getIntent().getLongExtra(EXTRA_CUT_TRIP, 0);
         long trip = cutTrip > 0 ? cutTrip : getIntent().getLongExtra(EXTRA_TRIP_ID, -1);
         if (trip <= 0) return;
-        com.geely.drivemem.state.TripEditStore.cut(this, trip,
-            loaded.ts[cutAt[0]], loaded.ts[cutAt[1]], this::finish);
+        com.geely.drivemem.state.TripEditStore.cut(this, trip, cutAt.startMs, cutAt.endMs, this::finish);
     }
 
     /** The right column in split mode: a hint, then the two trips the cut
@@ -696,12 +706,12 @@ public class TripRouteActivity extends Activity {
         android.content.Intent in = getIntent();
         long startMs = in.getLongExtra(EXTRA_START_MS, 0), endMs = in.getLongExtra(EXTRA_END_MS, 0);
         double total = pointKm.length > 0 ? pointKm[pointKm.length - 1] : 0;
-        long a = loaded.ts[cutAt[0]], b = loaded.ts[cutAt[1]];
-        splitPart(1, Style.ACCENT, startMs, a, pointKm[cutAt[0]]);
-        splitPart(2, Style.HEAT, b, endMs, Math.max(0, total - pointKm[cutAt[1]]));
+        long a = cutAt.startMs, b = cutAt.endMs;
+        splitPart(1, Style.ACCENT, startMs, a, pointKm[cutAt.from]);
+        splitPart(2, Style.HEAT, b, endMs, Math.max(0, total - pointKm[cutAt.to]));
         if (b > a) {
             TextView stop = new TextView(this);
-            stop.setText(getString(R.string.trip_split_stop_note, SessionText.duration(b - a)));
+            stop.setText(getString(R.string.trip_split_stop_note, SessionText.shortDuration(b - a)));
             stop.setTextColor(Style.TEXT_DIM);
             stop.setTextSize(17);
             stats.addView(stop);

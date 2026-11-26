@@ -156,44 +156,69 @@ public final class TripEdits {
         return new long[]{s, e};
     }
 
-    /** One stop inside a trip: a run of points with no speed. */
+    /** One shift to P inside a trip: the only place a trip can be split.
+     * startMs/endMs: the park_session row; from/to: the route points just
+     * before and just after it (the car makes no points while it stands). */
     public static final class Stop {
-        public final int from, to;     // point indexes, inclusive
-        public Stop(int from, int to) { this.from = from; this.to = to; }
+        public final int from, to;
+        public final long startMs, endMs;
+        public Stop(int from, int to, long startMs, long endMs) {
+            this.from = from; this.to = to; this.startMs = startMs; this.endMs = endMs;
+        }
     }
 
-    /** The stops of a trip's points: runs of speed under 1 km/h that last
-     * at least minMs. The split picker snaps to these. */
-    public static List<Stop> stops(double[] speed, long[] ts, long minMs) {
+    /** The shifts to P that lie fully inside one of the trip's windows
+     * (one window, or a joined trip's trips), as stops on its points. The
+     * P that ends a trip runs past its end and is never one. parks and
+     * windows are {start, end} ms; ts: the points' times, ascending. */
+    public static List<Stop> parkStops(List<long[]> parks, List<long[]> windows, long[] ts) {
         List<Stop> out = new ArrayList<>();
-        int n = Math.min(speed.length, ts.length);
-        int i = 0;
-        while (i < n) {
-            if (speed[i] >= 1) { i++; continue; }
-            int j = i;
-            while (j + 1 < n && speed[j + 1] < 1) j++;
-            // Not the very start or end: there is nothing to split off.
-            if (i > 0 && j < n - 1 && ts[j] - ts[i] >= minMs) out.add(new Stop(i, j));
-            i = j + 1;
+        int n = ts.length;
+        if (n < 2 || parks == null || windows == null) return out;
+        for (long[] p : parks) {
+            if (p == null || p.length < 2 || p[1] <= p[0]) continue;
+            boolean inside = false;
+            for (long[] w : windows) if (p[0] > w[0] && p[1] < w[1]) { inside = true; break; }
+            if (!inside) continue;
+            int from = 0, to = n - 1;
+            for (int i = 0; i < n; i++) if (ts[i] <= p[0]) from = i;
+            for (int i = n - 1; i >= 0; i--) if (ts[i] >= p[1]) to = i;
+            if (to < from) to = from;
+            out.add(new Stop(from, to, p[0], p[1]));
         }
         return out;
     }
 
-    /** Where a split lands when the finger is at point index pick: the
-     * nearest stop within maxKm of it (its first and last point), else the
-     * point itself. km: distance from the start, per point. Returns {a, b}
-     * point indexes, a &lt;= b; null when pick is the first or last point
-     * (no empty part). */
-    public static int[] snap(int pick, double[] km, List<Stop> stops, double maxKm) {
-        int n = km.length;
-        if (pick <= 0 || pick >= n - 1) return null;
+    /** The stop nearest to the finger at point index pick (0 km when the
+     * finger is on it). Null when there is no stop. km: distance from the
+     * start, per point. */
+    public static Stop snap(int pick, double[] km, List<Stop> stops) {
+        if (stops == null || stops.isEmpty() || km.length == 0) return null;
+        int i = Math.max(0, Math.min(km.length - 1, pick));
         Stop best = null;
-        double bestD = maxKm;
+        double bestD = Double.MAX_VALUE;
         for (Stop s : stops) {
-            double d = pick < s.from ? km[s.from] - km[pick]
-                     : pick > s.to ? km[pick] - km[s.to] : 0;
-            if (d <= bestD) { bestD = d; best = s; }
+            double d = i < s.from ? km[s.from] - km[i] : i > s.to ? km[i] - km[s.to] : 0;
+            if (d < bestD) { bestD = d; best = s; }
         }
-        return best != null ? new int[]{best.from, best.to} : new int[]{pick, pick};
+        return best;
+    }
+
+    /** How a recorded trip's CAN split and other shared totals are shared
+     * between its parts: each part's own non-negative measure (energy used,
+     * else km) over the whole, capped so the shares never pass 1, and the
+     * last part gets what is left. So the parts always add up to the trip.
+     * own: each part's measure (the last one is not read). */
+    public static double[] shares(double[] own, double whole) {
+        int n = own.length;
+        double[] f = new double[n];
+        double used = 0;
+        for (int i = 0; i < n - 1; i++) {
+            double x = whole > 0 ? Math.max(0, own[i]) / whole : 0;
+            f[i] = Math.min(x, 1 - used);
+            used += f[i];
+        }
+        if (n > 0) f[n - 1] = Math.max(0, 1 - used);
+        return f;
     }
 }

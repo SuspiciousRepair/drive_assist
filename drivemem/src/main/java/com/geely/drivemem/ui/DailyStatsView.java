@@ -1421,7 +1421,7 @@ public class DailyStatsView extends LinearLayout {
         tv.setTextSize(16f);
         tv.setSingleLine(true);
         tv.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        String text = c.getString(R.string.session_parked, SessionText.duration(gapMs));
+        String text = c.getString(R.string.session_parked, SessionText.shortDuration(gapMs));
         if (dayStartMs >= 0) {
             text = SessionText.range(gapStartMs, gapEndMs, dayStartMs, c.getString(R.string.session_yesterday))
                 + "  ·  " + text;
@@ -1782,7 +1782,7 @@ public class DailyStatsView extends LinearLayout {
         TextView tv = new TextView(c);
         tv.setTextColor(Style.TEXT_DIM);
         tv.setTextSize(16f);
-        tv.setText(c.getString(R.string.session_parked, SessionText.duration(ge - gs)));
+        tv.setText(c.getString(R.string.session_parked, SessionText.shortDuration(ge - gs)));
         box.addView(tv);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         lp.topMargin = lp.bottomMargin = Style.dp(c, 3);

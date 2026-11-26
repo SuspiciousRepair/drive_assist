@@ -100,11 +100,12 @@ no cartão Sessões e depois na primeira e na última viagem. Tudo o que fica en
 elas fica azul: as outras viagens, as paradas e qualquer recarga no caminho.
 Toque em **Juntar**. O cartão juntado mostra "2 viagens" (ou mais) e lista as
 paradas e recargas dentro dele. Para cortar uma viagem em duas, abra a viagem e
-toque em **Dividir**: arraste no gráfico de altura (o corte vai para a parada
-mais próxima), confira as duas viagens novas à direita e toque em **Dividir
-aqui**. **Desfazer junção** e **Desfazer divisão** na tela da viagem voltam as
+toque em **Dividir**: arraste no gráfico de altura (o corte vai para o lugar
+mais próximo onde você colocou em P), confira as duas viagens novas à direita
+e toque em **Dividir aqui**. Uma viagem sem nenhuma parada em P no meio não tem
+Dividir. **Desfazer junção** e **Desfazer divisão** na tela da viagem voltam as
 viagens como foram gravadas: nada é apagado. O gráfico de altura marca cada
-parada, recarga e pedágio com uma linha. Os arquivos CSV e GPX mantêm as
+parada em P, recarga e pedágio com uma linha. Os arquivos CSV e GPX mantêm as
 viagens como foram gravadas.
 
 Se o carro foi emprestado em modo **Valet**, toque no cartão dele para uma tela

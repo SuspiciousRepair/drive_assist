@@ -111,21 +111,29 @@ On the statistics page, tap a finished trip (in **P**) to open its route:
   its own route screen.
 - **Height profile.** Under the route, the GPS height along the trip, in the
   same speed colours. Touch it to mark that place on the route. Dashed lines
-  with a label on top mark each toll passage, each stop of 2 min or more
-  inside the trip, and, on a joined trip, the parking (`P 16m`) or the charge
-  between its trips.
-- **Split and undo** (issue #210). **Split** opens split mode: drag on the
-  height chart (it snaps to a stop within 0.5 km; with no heights the chart is
-  shown flat), see the two new trips on the right, then **Split here**. A
-  part's numbers come from the 30 s samples at the cut (odometer, battery) and
-  inside it (energy, climb); the last part gets the rest, so the parts add up
-  to the trip. CAN's energy split and the tolls follow each part; the IMU
-  scores are the whole trip's, so a part shows none. **Undo split** puts the
+  with a label on top mark each toll passage, each shift to P inside the trip
+  (`park_session`, `P 44s`), and, on a joined trip, the parking (`P 16m`) or
+  the charge between its trips.
+- **Split and undo** (issue #210). A trip splits only at a shift to P inside
+  it (a `park_session` row that starts and ends inside the trip; the P that
+  ends a trip runs past it). No such stop, no **Split** button. Split mode:
+  drag on the height chart (the cut goes to the nearest shift to P; with no
+  heights the chart is shown flat), see the two new trips on the right, then
+  **Split here**. The first part ends when the car went into P, the next
+  starts when it left P. A part's odometer and battery come from the 30 s
+  samples at the cut, looked for inside the trip only (no reading: the trip
+  shows whole); km, energy and climb from inside the part, capped at what is
+  left, and the last part gets the rest, so the parts add up to the trip.
+  CAN's energy split follows each part's share of the energy used; a toll
+  goes to one part only. The IMU scores are the whole trip's, so a part shows
+  none. **Undo split** puts the
   trip back whole; **Undo join** shows a joined trip's trips again.
 - **How it is stored.** The `trip` rows never change. `trip_edit` (`car.db`
   v39) holds one row per join (a time window: every trip that starts and ends
   in it shows as one) or per cut (a trip id and the cut's two ends, the same
-  moment or the two ends of a stop). Undo deletes the row. The CSV and GPX
+  moment or the two ends of a stop). Undo deletes the row; **Undo split** also
+  deletes a join that started or ended inside that trip (a part joined with
+  the next trip), so it cannot come back unseen on a later split. The CSV and GPX
   exports and All routes use the trips as recorded.
 - **Tolls and parking.** The trip's tolls (tap one to set its price), **+ Add
   a missed toll** at the place marked on the height profile, the parking paid

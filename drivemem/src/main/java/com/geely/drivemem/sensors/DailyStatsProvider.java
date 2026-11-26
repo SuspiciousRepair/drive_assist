@@ -1372,15 +1372,6 @@ public final class DailyStatsProvider {
         return out;
     }
 
-    /** One finished trip as the stats page shows it: joined, a split part,
-     * or as recorded. Null when no shown trip starts at startMs. For the
-     * trip page after an edit. */
-    public static DriveSession shownTripAt(Context ctx, long startMs) {
-        List<DriveSession> out = new ArrayList<>();
-        queryTrips(CarDb.get(ctx).db(), startMs, startMs + 1, out);
-        return out.isEmpty() ? null : out.get(0);
-    }
-
     /** The trips that START in [fromMs, toMs), oldest first, as the stats
      * page shows them: with the hand-made joins and splits of trip_edit
      * (issue #210, TripEdits). The trip rows are read from a wider window
@@ -1430,7 +1421,8 @@ public final class DailyStatsProvider {
             if (tc == null || t.endMs <= t.startMs) { shown.add(t); continue; }
             List<long[]> w = TripEdits.windows(t.startMs, t.endMs, tc);
             if (w.size() < 2) { shown.add(t); continue; }
-            shown.addAll(cutParts(db, t, w));
+            List<DriveSession> parts = cutParts(db, t, w);
+            if (parts == null) shown.add(t); else shown.addAll(parts);
         }
         shown = TripEdits.applyJoins(shown, joins);
         for (DriveSession t : shown) {
@@ -1438,70 +1430,90 @@ public final class DailyStatsProvider {
         }
     }
 
-    /** The parts of one recorded trip split at windows (TripEdits.windows).
-     * Odometer and battery come from the 30 s samples at each part's ends;
-     * energy and climb from the samples inside each part, except the last
-     * part, which gets what is left. So the parts always add up to the
-     * trip. CAN's split and the tolls follow each part's share. */
+    /** The parts of one recorded trip split at windows (TripEdits.windows),
+     * or null when a reading at a cut is missing (then the trip shows
+     * whole). Odometer and battery come from the 30 s samples at each cut,
+     * looked for inside the trip only; km, energy and climb from the samples
+     * inside each part, capped at what is left, and the last part gets the
+     * rest. So the parts always add up to the trip. CAN's split follows each
+     * part's share of the energy used (TripEdits.shares); a toll goes to the
+     * part it falls in, a stop's tolls to the part before it. */
     private static List<DriveSession> cutParts(SQLiteDatabase db, DriveSession t, List<long[]> w) {
-        List<DriveSession> out = new ArrayList<>();
+        int n = w.size();
         boolean est = t.energySource == EnergySource.ESTIMATED;
-        double kmLeft = t.distanceKm, spentLeft = t.spentKwh, regenLeft = t.regenKwh, netLeft = t.energyKwh;
+        double[] odoS = new double[n], odoE = new double[n];
+        int[] socS = new int[n], socE = new int[n];
+        for (int i = 0; i < n; i++) {
+            odoS[i] = i == 0 ? t.odoStartKm : sampleAt(db, "odo_km", w.get(i)[0], true, t.startMs, t.endMs);
+            odoE[i] = i == n - 1 ? t.odoEndKm : sampleAt(db, "odo_km", w.get(i)[1], false, t.startMs, t.endMs);
+            socS[i] = i == 0 ? t.socStart : (int) Math.round(sampleAt(db, "battery_pct", w.get(i)[0], true, t.startMs, t.endMs));
+            socE[i] = i == n - 1 ? t.socEnd : (int) Math.round(sampleAt(db, "battery_pct", w.get(i)[1], false, t.startMs, t.endMs));
+            if ((i > 0 && !(odoS[i] > 0)) || (i < n - 1 && !(odoE[i] > 0))) return null;
+        }
+        double[] km = new double[n], spent = new double[n], regen = new double[n];
+        double[] up = new double[n], down = new double[n];
+        double kmLeft = t.distanceKm, spentLeft = t.spentKwh, regenLeft = t.regenKwh;
         double upLeft = t.ascentDPlusM, downLeft = t.descentDMinusM;
-        for (int i = 0; i < w.size(); i++) {
+        for (int i = 0; i < n - 1; i++) {
             long s = w.get(i)[0], e = w.get(i)[1];
-            boolean firstPart = i == 0, lastPart = i == w.size() - 1;
-            double odoS = firstPart ? t.odoStartKm : sampleAt(db, "odo_km", s, true);
-            double odoE = lastPart ? t.odoEndKm : sampleAt(db, "odo_km", e, false);
-            int socS = firstPart ? t.socStart : (int) Math.round(sampleAt(db, "battery_pct", s, true));
-            int socE = lastPart ? t.socEnd : (int) Math.round(sampleAt(db, "battery_pct", e, false));
-            double km, spent, regen, net, up, down;
-            if (lastPart) {
-                km = Math.max(0, kmLeft); spent = Math.max(0, spentLeft); regen = Math.max(0, regenLeft);
-                net = netLeft; up = Math.max(0, upLeft); down = Math.max(0, downLeft);
-            } else {
-                km = odoS > 0 && odoE >= odoS ? odoE - odoS : 0;
-                if (est) {
-                    double f = t.distanceKm > 0 ? km / t.distanceKm : 0;
-                    spent = 0; regen = 0; net = t.energyKwh * f;
-                } else {
-                    DrivingConsumption energy = queryDrivingConsumption(db, "ts_ms BETWEEN ? AND ?",
-                        new String[]{String.valueOf(s), String.valueOf(e)});
-                    spent = energy.totalSpent; regen = energy.totalRegen; net = spent - regen;
-                }
-                double[] ad = climb(db, s, e, t.startMs);
-                up = ad[0]; down = ad[1];
-                kmLeft -= km; spentLeft -= spent; regenLeft -= regen; netLeft -= net;
-                upLeft -= up; downLeft -= down;
+            km[i] = Math.min(Math.max(0, odoE[i] - odoS[i]), Math.max(0, kmLeft));
+            if (!est) {
+                DrivingConsumption energy = queryDrivingConsumption(db, "ts_ms BETWEEN ? AND ?",
+                    new String[]{String.valueOf(s), String.valueOf(e)});
+                spent[i] = Math.min(Math.max(0, energy.totalSpent), Math.max(0, spentLeft));
+                regen[i] = Math.min(Math.max(0, energy.totalRegen), Math.max(0, regenLeft));
             }
-            double eff = est ? (km > 0.2 ? Math.max(0, net) * 100 / km : 0)
-                             : DrivingConsumption.efficiencyKwh100km(km, spent, regen);
-            DriveSession p = new DriveSession(t.tripId, s, e, km, socS < 0 ? -1 : socS, socE < 0 ? -1 : socE,
-                up, down, regen, spent, net, eff, t.energySource);
-            p.odoStartKm = odoS;
-            p.odoEndKm = odoE;
+            double[] ad = climb(db, s, e, t.startMs);
+            up[i] = Math.min(ad[0], Math.max(0, upLeft));
+            down[i] = Math.min(ad[1], Math.max(0, downLeft));
+            kmLeft -= km[i]; spentLeft -= spent[i]; regenLeft -= regen[i];
+            upLeft -= up[i]; downLeft -= down[i];
+        }
+        km[n - 1] = Math.max(0, kmLeft);
+        spent[n - 1] = Math.max(0, spentLeft);
+        regen[n - 1] = Math.max(0, regenLeft);
+        up[n - 1] = Math.max(0, upLeft);
+        down[n - 1] = Math.max(0, downLeft);
+
+        // An estimated trip has one net and no spent: shared by km.
+        double[] kmShare = TripEdits.shares(km, t.distanceKm);
+        boolean bySpent = t.spentKwh > 0.01;
+        double[] splitShare = TripEdits.shares(bySpent ? spent : km, bySpent ? t.spentKwh : t.distanceKm);
+
+        List<DriveSession> out = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            long s = w.get(i)[0], e = w.get(i)[1];
+            double net = est ? t.energyKwh * kmShare[i] : spent[i] - regen[i];
+            double eff = est ? (km[i] > 0.2 ? Math.max(0, net) * 100 / km[i] : 0)
+                             : DrivingConsumption.efficiencyKwh100km(km[i], spent[i], regen[i]);
+            DriveSession p = new DriveSession(t.tripId, s, e, km[i], socS[i] < 0 ? -1 : socS[i],
+                socE[i] < 0 ? -1 : socE[i], up[i], down[i], regen[i], spent[i], net, eff, t.energySource);
+            p.odoStartKm = odoS[i];
+            p.odoEndKm = odoE[i];
             p.cutTripId = t.tripId;
-            if (t.split != null) {
-                double f = Math.abs(t.energyKwh) > 0.01 ? net / t.energyKwh
-                         : t.distanceKm > 0 ? km / t.distanceKm : 0;
-                p.split = t.split.scaled(Math.max(0, f));
-            }
-            int[] tolls = tollsIn(db, t.tripId, s, e);
+            if (t.split != null) p.split = t.split.scaled(splitShare[i]);
+            // Half-open, so a toll is never in two parts: up to the next
+            // part's start; the last part to the trip's end.
+            long tollTo = i < n - 1 ? w.get(i + 1)[0] - 1 : t.endMs;
+            long tollFrom = i == 0 ? t.startMs : s;
+            int[] tolls = tollsIn(db, t.tripId, tollFrom, tollTo);
             p.tollCount = tolls[0];
             p.tollUnpriced = tolls[1];
-            p.tollCost = tollCostIn(db, t.tripId, s, e);
+            p.tollCost = tollCostIn(db, t.tripId, tollFrom, tollTo);
             out.add(p);
         }
         return out;
     }
 
-    /** A sample column at a part's end: the first reading at or after ms
-     * (after = true, a part's start) or the last at or before it; -1 when
-     * none. */
-    private static double sampleAt(SQLiteDatabase db, String col, long ms, boolean after) {
-        String sql = "SELECT " + col + " FROM telemetry_sample WHERE " + col + " IS NOT NULL AND ts_ms "
+    /** A sample column at a cut: the first reading at or after ms (after =
+     * true, a part's start) or the last at or before it, looked for in
+     * [lo, hi] only (the trip), so old pruned samples never lend another
+     * day's reading; -1 when none. */
+    private static double sampleAt(SQLiteDatabase db, String col, long ms, boolean after, long lo, long hi) {
+        String sql = "SELECT " + col + " FROM telemetry_sample WHERE " + col + " IS NOT NULL "
+            + "AND ts_ms BETWEEN ? AND ? AND ts_ms "
             + (after ? ">= ? ORDER BY ts_ms ASC" : "<= ? ORDER BY ts_ms DESC") + " LIMIT 1";
-        try (Cursor c = db.rawQuery(sql, new String[]{String.valueOf(ms)})) {
+        try (Cursor c = db.rawQuery(sql, new String[]{String.valueOf(lo), String.valueOf(hi), String.valueOf(ms)})) {
             return c.moveToFirst() ? c.getDouble(0) : -1;
         } catch (Throwable e) { return -1; }
     }
@@ -1635,9 +1647,15 @@ public final class DailyStatsProvider {
     public static double[] splitTotals(List<? extends DaySession> sessions) {
         double out = 0, climate = 0, other = 0, km = 0, battery = 0, regen = 0;
         boolean any = false;
+        List<DriveSession> trips = new ArrayList<>();
         for (DaySession s : sessions) {
             if (!(s instanceof DriveSession)) continue;
             DriveSession t = (DriveSession) s;
+            // A joined trip with a member CAN did not measure has no split
+            // of its own: its measured members still count.
+            if (t.split == null && t.isJoined()) trips.addAll(t.members); else trips.add(t);
+        }
+        for (DriveSession t : trips) {
             if (t.split == null) continue;
             any = true;
             out += t.split.motorOutKwh;

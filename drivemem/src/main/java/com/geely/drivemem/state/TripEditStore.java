@@ -63,12 +63,19 @@ public final class TripEditStore {
         });
     }
 
-    /** Splits recorded trip tripId: the first part ends at aMs, the next
-     * starts at bMs (aMs == bMs while moving, the two ends of a stop). */
+    /** Splits recorded trip tripId at a shift to P: the first part ends
+     * at aMs (into P), the next starts at bMs (out of P). A cut that is not
+     * inside the trip is not saved. */
     public static void cut(Context ctx, long tripId, long aMs, long bMs, Runnable onDone) {
         Context app = ctx.getApplicationContext();
         CarDb.get(app).write(() -> {
             try {
+                long[] trip = tripSpan(CarDb.get(app).db(), tripId);
+                if (trip == null || Math.min(aMs, bMs) <= trip[0] || Math.max(aMs, bMs) >= trip[1]) {
+                    Log.w(TAG, "trip edit: cut outside trip " + tripId);
+                    changed(onDone);
+                    return;
+                }
                 ContentValues v = new ContentValues();
                 v.put("kind", TripEdits.KIND_CUT);
                 v.put("trip_id", tripId);
@@ -89,9 +96,41 @@ public final class TripEditStore {
     }
 
     /** Undo split: every split of recorded trip tripId goes, so it shows
-     * whole again. */
+     * whole again. A join that started or ended at one of its cuts (a part
+     * joined with the next trip) goes too: it would no longer match whole
+     * trips, stay unseen, and come back on the next split. */
     public static void undoCuts(Context ctx, long tripId, Runnable onDone) {
-        delete(ctx, "trip_id = ? AND kind = '" + TripEdits.KIND_CUT + "'", String.valueOf(tripId), onDone);
+        Context app = ctx.getApplicationContext();
+        CarDb.get(app).write(() -> {
+            try {
+                SQLiteDatabase db = CarDb.get(app).db();
+                long[] trip = tripSpan(db, tripId);
+                db.beginTransaction();
+                try {
+                    db.delete("trip_edit", "trip_id = ? AND kind = ?",
+                        new String[]{String.valueOf(tripId), TripEdits.KIND_CUT});
+                    if (trip != null) {
+                        String a = String.valueOf(trip[0]), b = String.valueOf(trip[1]);
+                        db.delete("trip_edit", "kind = ? AND ((start_ms > ? AND start_ms < ?) OR (end_ms > ? AND end_ms < ?))",
+                            new String[]{TripEdits.KIND_JOIN, a, b, a, b});
+                    }
+                    db.setTransactionSuccessful();
+                } finally {
+                    db.endTransaction();
+                }
+            } catch (Throwable t) {
+                Log.w(TAG, "trip edit: undo split: " + t);
+            }
+            changed(onDone);
+        });
+    }
+
+    /** {start, end} ms of a finished recorded trip, or null. */
+    private static long[] tripSpan(SQLiteDatabase db, long tripId) {
+        try (Cursor c = db.rawQuery("SELECT start_ms, end_ms FROM trip WHERE id = ? AND end_ms IS NOT NULL",
+                new String[]{String.valueOf(tripId)})) {
+            return c.moveToFirst() ? new long[]{c.getLong(0), c.getLong(1)} : null;
+        }
     }
 
     private static void delete(Context ctx, String where, String arg, Runnable onDone) {

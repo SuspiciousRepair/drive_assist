@@ -125,22 +125,52 @@ public class TripEditsTest {
             Collections.singletonList(new TripEdits.Join(1, 100, 200))));
     }
 
-    @Test public void stopsAreRunsOfNoSpeedInsideTheTrip() {
-        double[] speed = {0, 0, 30, 0, 0, 0, 40, 0};
-        long[] ts = {0, 60_000, 120_000, 180_000, 240_000, 330_000, 400_000, 500_000};
-        List<TripEdits.Stop> st = TripEdits.stops(speed, ts, 120_000);
-        // The runs at the very start and end are not stops to split at.
+    @Test public void onlyAShiftToPInsideTheTripIsAStop() {
+        long[] ts = {0, 10, 20, 60, 70, 80};
+        List<long[]> parks = Arrays.asList(
+            new long[]{25, 55},     // inside: the car stood between points 2 and 3
+            new long[]{75, 120},    // the P that ends the trip: runs past it
+            new long[]{-5, 5});     // before the trip
+        List<TripEdits.Stop> st = TripEdits.parkStops(parks,
+            Collections.singletonList(new long[]{0, 100}), ts);
         assertEquals(1, st.size());
-        assertEquals(3, st.get(0).from);
-        assertEquals(5, st.get(0).to);
+        assertEquals(2, st.get(0).from);
+        assertEquals(3, st.get(0).to);
+        assertEquals(25, st.get(0).startMs);
+        assertEquals(55, st.get(0).endMs);
     }
 
-    @Test public void snapGoesToANearStopElseStaysPut() {
-        double[] km = {0, 1, 2, 2, 2, 3, 4, 5};
-        List<TripEdits.Stop> st = Collections.singletonList(new TripEdits.Stop(2, 4));
-        assertArrayEquals(new int[]{2, 4}, TripEdits.snap(5, km, st, 1.5));
-        assertArrayEquals(new int[]{6, 6}, TripEdits.snap(6, km, st, 1.5));
-        assertNull(TripEdits.snap(0, km, st, 1.5));
-        assertNull(TripEdits.snap(7, km, st, 1.5));
+    @Test public void aJoinedTripsStopsAreTheOnesInsideItsTrips() {
+        long[] ts = {0, 10, 20, 30, 40};
+        // The gap between the two trips (15..25) is parking, not a split place.
+        List<TripEdits.Stop> st = TripEdits.parkStops(
+            Arrays.asList(new long[]{15, 25}, new long[]{32, 34}),
+            Arrays.asList(new long[]{0, 15}, new long[]{25, 40}), ts);
+        assertEquals(1, st.size());
+        assertEquals(32, st.get(0).startMs);
+    }
+
+    @Test public void snapGoesToTheNearestStop() {
+        double[] km = {0, 1, 2, 3, 4, 5, 6};
+        List<TripEdits.Stop> st = Arrays.asList(new TripEdits.Stop(1, 1, 10, 20), new TripEdits.Stop(5, 5, 50, 60));
+        assertEquals(10, TripEdits.snap(2, km, st).startMs);
+        assertEquals(50, TripEdits.snap(4, km, st).startMs);
+        assertEquals(50, TripEdits.snap(6, km, st).startMs);
+        assertNull(TripEdits.snap(3, km, Collections.emptyList()));
+    }
+
+    @Test public void sharesAddUpToOneAndTheLastPartGetsTheRest() {
+        double[] f = TripEdits.shares(new double[]{3, 0}, 10);
+        assertEquals(0.3, f[0], 1e-9);
+        assertEquals(0.7, f[1], 1e-9);
+        // A first part measured above the whole is capped: never past 100 %.
+        f = TripEdits.shares(new double[]{12, 5, 0}, 10);
+        assertEquals(1.0, f[0], 1e-9);
+        assertEquals(0.0, f[1], 1e-9);
+        assertEquals(0.0, f[2], 1e-9);
+        // Negative or no whole: nothing to share, the last part keeps all.
+        f = TripEdits.shares(new double[]{-2, 0}, 0);
+        assertEquals(0.0, f[0], 1e-9);
+        assertEquals(1.0, f[1], 1e-9);
     }
 }
