@@ -27,7 +27,7 @@ import java.util.Locale;
  * Shared charging-event row used in both the Daily Stats session list and the
  * Charging Stats list (the Home Screen keeps its own compact ChargeSessionCard).
  *
- * Line 1: AC/DC plug icon + time range · duration.
+ * Line 1: AC/DC plug icon + time range · duration · odometer.
  * Line 2: 4 equal columns — Battery | Energy added | Average power | Cost (or ETA when live).
  */
 final class ChargeEventCard {
@@ -42,7 +42,7 @@ final class ChargeEventCard {
         card.setOrientation(LinearLayout.VERTICAL);
         long durMs = Math.max(0L, s.endWallMs - s.startWallMs);
         populate(card, s.isDcfc(), s.hasChargeVoltage(), s.title(), durMs,
-            s.socStart, s.socEnd, s.kwh, s.avgPowerW / 1000.0,
+            SessionText.odometer(s.odoStart), s.socStart, s.socEnd, s.kwh, s.avgPowerW / 1000.0,
             false, null, s.id, s.cost, onOpen, onCost);
         return card;
     }
@@ -59,12 +59,12 @@ final class ChargeEventCard {
             : SessionText.range(ch.startMs, ch.endMs, dayStartMs, yesterday);
         long durMs = Math.max(0L, (live ? System.currentTimeMillis() : ch.endMs) - ch.startMs);
         populate(card, ch.isDcfc, true, range, durMs,
-            ch.socStart, ch.socEnd, ch.kwh, ch.avgPowerKw,
+            SessionText.odometer(ch.odoKm), ch.socStart, ch.socEnd, ch.kwh, ch.avgPowerKw,
             live, liveEta, ch.chargeId, ch.cost, onOpen, onCost);
     }
 
     private static void populate(LinearLayout card, boolean isDcfc, boolean hasVoltage,
-                                 String rangeText, long durationMs,
+                                 String rangeText, long durationMs, String odo,
                                  int socStart, int socEnd, double kwh, double avgPowerKw,
                                  boolean live, CharSequence liveEta,
                                  long chargeId, Double cost,
@@ -75,7 +75,7 @@ final class ChargeEventCard {
         Integer energyColor = hasVoltage ? iconColor : null;
         int iconRes = isDcfc ? R.drawable.ic_ev_plug_ccs2 : R.drawable.ic_power_plug;
 
-        card.addView(titleRow(c, iconRes, iconColor, rangeText, durationMs));
+        card.addView(titleRow(c, iconRes, iconColor, rangeText, durationMs, odo));
 
         View battery = stat(c, R.string.session_stat_battery, socValue(socStart, socEnd), null);
         View energy = stat(c, R.string.session_stat_charged_energy,
@@ -117,7 +117,7 @@ final class ChargeEventCard {
     }
 
     private static LinearLayout titleRow(Context c, int iconRes, int iconColor,
-                                         String rangeText, long durationMs) {
+                                         String rangeText, long durationMs, String odo) {
         LinearLayout line1 = new LinearLayout(c);
         line1.setOrientation(LinearLayout.HORIZONTAL);
         line1.setGravity(Gravity.CENTER_VERTICAL);
@@ -129,6 +129,10 @@ final class ChargeEventCard {
 
         SpannableStringBuilder time = new SpannableStringBuilder(rangeText);
         Style.appendUnit(time, "  ·  " + SessionText.duration(durationMs), 0.92f);
+        // The odometer at plug-in, dim like the duration (issue #210).
+        if (odo != null) {
+            Style.appendUnit(time, "  ·  " + c.getString(R.string.session_odometer, odo + " km"), 0.92f);
+        }
 
         TextView timeView = new TextView(c);
         timeView.setTextColor(Style.TEXT);

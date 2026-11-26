@@ -8,7 +8,8 @@ import java.util.Locale;
  * Pure text helpers for the day's session cards, kept free of Android so the
  * rules are unit-tested: one duration format everywhere ("8h 07m", "44m" --
  * the parked row used to say "8h 07min" while the cards said "44m"), and a
- * start time that says when it belongs to an earlier day.
+ * start time that says when it belongs to an earlier day, and one odometer
+ * format for the rows and the trip and charge pages.
  */
 final class SessionText {
     private SessionText() {}
@@ -47,5 +48,27 @@ final class SessionText {
      */
     static String range(long startMs, long endMs, long dayStartMs, String yesterdayWord) {
         return startLabel(startMs, dayStartMs, yesterdayWord) + " – " + clock(endMs);
+    }
+
+    /**
+     * An odometer reading as the car's own panel shows it: whole km, rounded
+     * down, with the locale's thousands mark ("12,398" / "12.398"). Null when
+     * unknown (0 or less), so the caller leaves the line out (issue #210).
+     */
+    static String odometer(double km) {
+        if (!(km > 0)) return null;
+        return java.text.NumberFormat.getIntegerInstance().format((long) Math.floor(km));
+    }
+
+    /**
+     * A trip's odometer, "12,345 → 12,398", without the unit. Only the end
+     * when the start is unknown, only the start when the end is; null when
+     * both are.
+     */
+    static String odometerSpan(double startKm, double endKm) {
+        String a = odometer(startKm), b = odometer(endKm);
+        if (a == null) return b;
+        if (b == null) return a;
+        return a + " → " + b;
     }
 }

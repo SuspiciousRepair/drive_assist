@@ -53,4 +53,35 @@ public class SessionTextTest {
     @Test public void unknownDayFallsBackToClock() {
         assertEquals("19:51", SessionText.startLabel(at(2026, 11, 13, 19, 51), -1, "ontem"));
     }
+
+    // Issue #210: whole km rounded down, like the car's own panel, with the
+    // locale's thousands mark; unknown (0 or -1) gives null so the line goes.
+    @Test public void odometerIsWholeKmRoundedDown() {
+        java.util.Locale saved = java.util.Locale.getDefault();
+        try {
+            java.util.Locale.setDefault(java.util.Locale.US);
+            assertEquals("12,398", SessionText.odometer(12398.9));
+            assertEquals("87", SessionText.odometer(87.0));
+            assertEquals(null, SessionText.odometer(0));
+            assertEquals(null, SessionText.odometer(-1));
+            assertEquals(null, SessionText.odometer(Double.NaN));
+            java.util.Locale.setDefault(new java.util.Locale("pt", "BR"));
+            assertEquals("12.398", SessionText.odometer(12398.2));
+        } finally {
+            java.util.Locale.setDefault(saved);
+        }
+    }
+
+    @Test public void odometerSpanShowsWhatIsKnown() {
+        java.util.Locale saved = java.util.Locale.getDefault();
+        try {
+            java.util.Locale.setDefault(java.util.Locale.US);
+            assertEquals("12,345 → 12,398", SessionText.odometerSpan(12345.6, 12398.1));
+            assertEquals("12,398", SessionText.odometerSpan(-1, 12398.1));
+            assertEquals("12,345", SessionText.odometerSpan(12345.6, -1));
+            assertEquals(null, SessionText.odometerSpan(-1, -1));
+        } finally {
+            java.util.Locale.setDefault(saved);
+        }
+    }
 }

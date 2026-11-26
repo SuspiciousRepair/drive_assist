@@ -85,13 +85,14 @@ Toque em uma viagem terminada (em P) para ver a **rota** em um mapa do
 OpenStreetMap, colorida pela velocidade. O mapa precisa de internet na primeira
 vez que um lugar aparece; depois fica guardado no carro, então uma viagem que
 termina na garagem ainda mostra o mapa. Abaixo da rota está o relevo da viagem, e
-os números dela.
+os números dela, com o **hodômetro** no início e no fim.
 
 Toque no mapa ao lado das sessões para ver **todas as rotas em uma imagem**,
 do dia, semana, mês ou ano que você está vendo. As rotas
 são gravadas em **Config → Sistema** (ligado por padrão) e ficam no carro. Dá
 para exportar como **GPX** (um arquivo por dia) e a lista como **CSV**, para um
-pen drive ou para o celular.
+pen drive ou para o celular. Cada viagem, na tela e no CSV, traz o hodômetro no
+início e no fim, pronto para um app de despesas.
 
 Se o carro foi emprestado em modo **Valet**, toque no cartão dele para uma tela
 de detalhe: um mapa de cada trecho, uma linha do tempo, os clipes da dashcam
@@ -139,7 +140,7 @@ O diário fica no carro e faz parte do backup.
 ![Estatísticas de recarga](screenshots/charging-statistics-live.png)
 
 As **Estatísticas de recarga** guardam cada recarga — energia, tempo, variação da
-bateria e potência média. Toque em uma recarga (em P) para adicionar ou corrigir
+bateria, potência média e o hodômetro ao conectar. Toque em uma recarga (em P) para adicionar ou corrigir
 o preço; uma recarga gratuita pode ser salva como zero, e isso continua diferente
 de uma recarga sem preço informado. Para trocar o símbolo da moeda (R$ por
 padrão), vá em Config → Elementos → Localização. Há visão de mês e ano, um cartão de

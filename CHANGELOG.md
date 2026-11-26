@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- **Odometer on trips and charges** (#210). Each trip shows the odometer at
+  the start and the end, and each charge the odometer at plug-in: on the stats
+  lists, the trip's route screen and the charge's page. The trips CSV has two
+  new columns at the end, `odometer_start_km` and `odometer_end_km`. Handy for
+  an expense app that logs by odometer.
 - **Parking prices.** Tap a **Parked** line on the stats page to type what
   the stop cost: a car park or paid street parking, with an optional place
   name. The car remembers the place: the next stop there offers the name and

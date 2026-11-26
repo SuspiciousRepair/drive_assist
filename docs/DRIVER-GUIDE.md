@@ -81,13 +81,15 @@ separate, for safety and reliability.
 Tap a finished trip (in Park) to see its **route** on an OpenStreetMap map,
 coloured by speed. The map needs the internet the first time a place is shown;
 after that it is kept in the car, so a trip that ends in a garage still shows its
-map. Under the route is the height along the trip, and the trip's numbers.
+map. Under the route is the height along the trip, and the trip's numbers,
+with the **odometer** at the start and the end.
 
 Tap the map next to the sessions to open **all routes in one picture**, for the
 day, week, month or year you are looking at. Routes are recorded
 from **Config → System** (on by default) and stay in the car. You can export
 them as **GPX** (one file per day) and the trip list as **CSV**, to a USB stick
-or to your phone.
+or to your phone. Each trip row, on screen and in the CSV, has the odometer at
+the start and the end, ready for an expense app.
 
 If the car was lent out in **Valet** mode, tap its card for a detail screen: a
 map of every move, a timeline, the dashcam clips from that time, and the numbers
@@ -133,8 +135,8 @@ The diary stays in the car and is part of the backup.
 
 ![Charging stats](screenshots/charging-statistics-live.png)
 
-**Charging stats** keeps every past charge — energy, time, battery change and
-average power. Tap a charge (in Park) to add or fix its price; a free charge can
+**Charging stats** keeps every past charge — energy, time, battery change,
+average power and the odometer at plug-in. Tap a charge (in Park) to add or fix its price; a free charge can
 be saved as zero, and that stays different from a charge whose price you never
 entered. To change the currency symbol (R$ by default), go to Config → Elements
 → Localization. There is a month and year view, a battery-temperature card, and a map

@@ -568,6 +568,8 @@
     <string name="routes_all_open">Abrir esta viagem</string>
     <string name="routes_all_hint">Toque em uma rota ou em uma viagem para selecionar.</string>
     <string name="route_stat_distance">Distância</string>
+    <string name="stat_odometer">Hodômetro</string>
+    <string name="session_odometer">Hodômetro %1$s</string>
     <string name="route_stat_time">Tempo</string>
     <string name="route_stat_time_split">Em movimento %1$s · parado %2$s</string>
     <string name="route_stat_speed">Velocidade</string>
