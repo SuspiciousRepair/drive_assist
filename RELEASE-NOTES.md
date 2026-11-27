@@ -12,6 +12,29 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.12.0 — 2026-11-27
+
+- New: a new comfort ruler. It has 10 cooling marks and 5 heating marks, and one tap changes one small thing, so the fan no longer jumps.
+- New: trip scores. Each trip gets a driver score and a road score, on the trip screen.
+- New: Car diary. A page for maintenance, costs, impacts and battery health.
+- New: tolls and parking. The car can find tolls with OpenStreetMap, and you can type what a stop cost.
+- New: join and split trips, and the odometer on every trip and charge.
+- New: Valet Mode shows only Climate, and a PIN in Config, Security can guard Valet and Config.
+- New: right-hand drive layout, picked from the car on first start.
+- Changed: the comfort ruler's learn mode and the Climate page in Config are gone. The marks are fixed.
+- Fixed: old trips no longer turn into 0 km after 90 days.
+- Fixed: drive mode and regeneration come back after a remote A/C start.
+
+## v0.11.5 — 2026-11-27
+
+- Fixed: the car's drive mode and regeneration level are remembered and put back in Park at each start, also when you changed them on the car's own screen.
+- Fixed: AVAS mute and AEB set in Drive Assist come back after a start.
+- Changed: the Restore at car start switches are gone from Config, Drive mode. The restore is always on.
+
+## v0.11.4 — 2026-11-27
+
+- Fixed: the window button now closes windows that are set to open only a little, such as 10 %.
+
 ## v0.11.3 — 2026-11-23
 
 - New: fix lyrics that run early or late by tapping the lock icon on the lyrics card and tapping each line as it is sung.

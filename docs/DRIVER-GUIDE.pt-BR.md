@@ -18,8 +18,11 @@ evidências da pesquisa estão na
 A tela inicial foi feita para uso rápido enquanto você dirige:
 
 - o número grande é a temperatura externa;
-- a escala de conforto pede ar mais frio ou mais quente em um toque, em vez de
-  ajustar ventilador, temperatura e A/C um a um;
+- a régua de conforto pede ar mais frio ou mais quente em um toque, em vez de
+  ajustar ventilador, temperatura e A/C um a um. Ela tem 10 marcas para
+  resfriar e 5 para aquecer. Cada toque vai para a próxima marca e muda uma
+  coisa pequena, então o ventilador nunca dá um salto. O primeiro toque é
+  sempre a marca mais suave, e uma marca faz a mesma coisa em qualquer clima;
 - botões grandes fazem resfriar, aquecer, recirculação e abrir um vão nos vidros;
 - durante a recarga, um cartão de recarga fica no lugar do cartão Estacionado.
   Ele mostra o tempo carregando, o tempo até 100%, o nível da bateria, a energia
@@ -87,6 +90,14 @@ vez que um lugar aparece; depois fica guardado no carro, então uma viagem que
 termina na garagem ainda mostra o mapa. Abaixo da rota está o relevo da viagem, e
 os números dela, com o **hodômetro** no início e no fim.
 
+**Notas da viagem.** Junto dos números da viagem há duas notas de 0 a 100,
+medidas pelo sensor de movimento da central. **Condução** é o quanto a condução
+foi suave: freadas fortes, arrancadas, curvas fechadas e o uso da regeneração
+para reduzir. **Piso** é o quanto o piso estava ruim. Uma linha abaixo conta os
+eventos, o mapa marca cada pancada forte e o **(i)** explica as notas. Viagens
+gravadas antes de as notas existirem, e viagens com menos de 20 segundos em
+movimento, não têm nota.
+
 Toque no mapa ao lado das sessões para ver **todas as rotas em uma imagem**,
 do dia, semana, mês ou ano que você está vendo. As rotas
 são gravadas em **Config → Sistema** (ligado por padrão) e ficam no carro. Dá
@@ -111,7 +122,9 @@ viagens como foram gravadas.
 Se o carro foi emprestado em modo **Valet**, toque no cartão dele para uma tela
 de detalhe: um mapa de cada trecho, uma linha do tempo, os clipes da dashcam
 daquele período e os números (trechos, tempo em movimento e parado, distância,
-velocidade e potência máximas, bateria e temperatura).
+velocidade e potência máximas, bateria e temperatura). Ela também traz as notas
+de condução e de piso; toque em uma pancada para abrir o clipe da dashcam
+daquele momento.
 
 ## Diário do carro: manutenção, custos e incidentes
 
@@ -273,6 +286,15 @@ gravação variam por região.
 - **Acesso pelo celular**: leia um QR code na tela do carro para abrir uma página
   no celular com backups, clipes, arquivos de viagem e preços de pedágio e
   estacionamento. Funciona só em P, na rede local.
+- **Modo Valet e o PIN**: com o modo Valet ligado, a tela inicial mostra só o
+  Clima e o cartão do Valet, o volume da música vai a zero e o Config fica
+  fechado (com um PIN definido, o PIN abre). Em **Config → Segurança** você define um PIN de 4 a 6 dígitos e
+  escolhe o que ele protege: encerrar o modo Valet, abrir o Config, ou os dois.
+  Sem PIN definido, nada pede PIN. O PIN não é pedido enquanto o carro vê algo
+  seu: o seu iPhone no cabo USB, um roteador Wi-Fi conhecido, ou um celular ou
+  beacon Bluetooth de confiança. **Esqueceu o PIN?** funciona com um aparelho de
+  confiança por perto, ou com o carro estacionado no lugar seguro que você
+  salvou. O PIN fica só no carro e não entra nos backups.
 - **Backup e restauração**: salva seus ajustes, viagens e certificados em um pen
   drive e no carro, com uma senha que você escolhe.
 - **Modo mais escuro**: à noite, após um minuto dirigindo sem tocar na tela, a

@@ -2,7 +2,37 @@
 
 ## [Unreleased]
 
+## [v0.12.0] — 2026-11-27
+
 ### Added
+- **Trip scores: driver and road.** Each trip now gets two scores from 0 to
+  100, from the head unit's motion sensor. **Driver** is how smooth the drive
+  was: hard brakes, launches, sharp turns, and slowing with regeneration.
+  **Road** is how rough the surface was, with the hard bumps counted. Open a
+  trip from the stats page: the scores are with the trip's numbers, with a
+  line for the events and an **(i)** that explains them. The trip map marks
+  each hard bump. Only trips recorded from this version on have scores, and
+  a trip needs 20 seconds of movement. A Valet stay shows the same scores on
+  its detail screen, and a bump there opens the dashcam clip of that moment.
+- **Valet Mode locks the screen down.** While Valet Mode is on, the home
+  screen shows only Climate and the Valet card, and the music volume goes to
+  zero when it starts. Config is closed until Valet ends; with a PIN set,
+  the PIN opens it.
+- **Config → Security: a PIN.** Set a PIN of 4 to 6 digits and choose what it
+  guards: ending Valet Mode, opening Config, or both. With no PIN set,
+  nothing asks for one. The PIN is not asked while the car sees something of
+  yours: your iPhone on the USB cable, a known Wi-Fi router, or a trusted
+  Bluetooth phone or beacon. Valet can end by itself when that trusted phone
+  comes back. **Forgot PIN?** works with a trusted device near, or when the
+  car is parked at the safe place you saved. The PIN stays on the car: it is
+  not in backups.
+- **Tolls from OpenStreetMap.** Turn on **Detect tolls via OpenStreetMap**
+  under **Config → Integrations → OpenStreetMap** (off by default). The car
+  then marks each toll plaza and Free Flow gantry it drives through, also on
+  trips made before the toll places were downloaded. Tap a toll on the trip
+  screen to set its price; the price is remembered for that booth. Tolls
+  count in the Car diary's cost of ownership. The car downloads the toll
+  places of wide areas (about 55 km across), never your route.
 - **Join and split trips** (#210). A short stop no longer has to cut a drive
   in two. On the stats page, tap the link icon on Sessions, then the first and
   the last trip: everything between them (other trips, stops, a charge on the
@@ -112,16 +142,40 @@
   trips would have shown 0 km and 0 kWh. Now only the parked readings between
   trips are cleaned up after 90 days; the readings of trips, charges and Valet
   stays are kept, so old charges also keep their detail charts.
-- **The crack-windows button closes windows set to open only a little.**
-  With a window's target below 14 (of 100) in Config > Doors, the button did
-  not see it as open, so the next press tried to open it again instead of
-  closing it (#208).
 - **Drive mode and regeneration come back after a remote A/C start.** When
   the car was woken from the phone app with nobody inside, the restore gave
   up before you got in. It now tries again when the screen comes on.
 - **The cameras stay closed when the car is off.** ModeHelper no longer opens
   them when it starts with the car off and the screen off.
 - **Tire pressure is due by time only**, not also every 1,500 km.
+
+## [v0.11.5] — 2026-11-27
+
+### Fixed
+- **Drive mode and regeneration are remembered across a car start (#201).**
+  Drive Assist now remembers the drive mode and the regeneration level the
+  car is set to. It does not matter where you changed them: the car's own
+  screen, Drive Assist, or the Regen cycle button. It puts them back in Park
+  when the car starts. Before, only a choice made in Config was saved, so a
+  mode set in the car came back as the default. Turbo and the Strong-regen
+  toggle stay temporary and are not saved.
+- **AVAS mute and AEB come back at start (#201).** A choice made in Drive
+  Assist is put back after each start. AEB turned off in the car's own
+  screen stays temporary; AEB turned off in Drive Assist stays off until
+  you turn it on there.
+
+### Changed
+- **Config > Drive mode has no "Restore at car start" switches.** The
+  switches under Advanced are gone. The restore is always on for drive mode
+  and regeneration.
+
+## [v0.11.4] — 2026-11-27
+
+### Fixed
+- **The crack-windows button closes windows set to open only a little.**
+  With a window's target below 14 (of 100) in Config > Doors, the button did
+  not see it as open, so the next press tried to open it again instead of
+  closing it (#208).
 
 ## [v0.11.3] — 2026-11-23
 
