@@ -821,6 +821,9 @@ public class Style {
         return effortScale(c, w, h, level, approx, false);
     }
 
+    /** The space between two marks of the bar; the touch on the bar uses it too. */
+    public static final int EFFORT_GAP_DP = 8;
+
     /** Darkens a color to indicate frozen/disabled state. */
     private static int darken(int color) {
         int a = Color.alpha(color);
@@ -833,7 +836,7 @@ public class Style {
     /**
      * Creates the comfort ruler's bar. It shows how much effort is in use,
      * like a level meter:
-     * off = one long grey bar; cooling = 10 marks that fill with the cool
+     * off = 10 grey marks; cooling = 10 marks that fill with the cool
      * colour from right to left (C1 is the mark at the right end); warming =
      * 5 marks that fill with the warm colour from left to right. A state that
      * is not exactly on its mark draws the last filled mark as an outline.
@@ -848,18 +851,12 @@ public class Style {
         float radius = dp(c, 8);
         int grey = defrosting ? darken(CARD_HI) : CARD_HI;
 
-        if (level == 0) {
-            p.setStyle(android.graphics.Paint.Style.FILL);
-            p.setColor(grey);
-            cv.drawRoundRect(new android.graphics.RectF(0, 0, w, h), radius, radius, p);
-            return bmp;
-        }
-
-        boolean cold = level > 0;
+        // Off shows the 10 cool marks, all grey: a finger can go to one of them.
+        boolean cold = level >= 0;
         int marks = cold ? EffortTable.COOL_MAX : EffortTable.WARM_MAX;
         int lit = Math.min(Math.abs(level), marks);
         int side = defrosting ? darken(cold ? COOL : HEAT) : (cold ? COOL : HEAT);
-        float gap = dp(c, 8);
+        float gap = dp(c, EFFORT_GAP_DP);
         float stroke = dp(c, 2);
         float pw = (w - gap * (marks - 1)) / marks;
         for (int i = 0; i < marks; i++) {

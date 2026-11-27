@@ -276,6 +276,42 @@ public class EffortTableTest {
         return EffortTable.label(EffortTable.build(), s);
     }
 
+    // ---- a touch on the bar -------------------------------------------------
+
+    // The bar Style.effortScale() draws: 600 wide, 8 between two marks.
+    private static final float BAR_W = 600f, BAR_GAP = 8f;
+
+    @Test public void aTouchOnTheCoolBarCountsFromTheRightEnd() {
+        assertEquals(10, EffortTable.markAt(1f, BAR_W, BAR_GAP, true));
+        assertEquals(1, EffortTable.markAt(BAR_W - 1f, BAR_W, BAR_GAP, true));
+        // each cool mark is 52.8 wide, 60.8 with its gap; the 4th from the left is C7
+        assertEquals(7, EffortTable.markAt(3 * 60.8f + 20f, BAR_W, BAR_GAP, true));
+    }
+
+    @Test public void aTouchOnTheWarmBarCountsFromTheLeftEnd() {
+        assertEquals(-1, EffortTable.markAt(1f, BAR_W, BAR_GAP, false));
+        assertEquals(-5, EffortTable.markAt(BAR_W - 1f, BAR_W, BAR_GAP, false));
+        assertEquals(-3, EffortTable.markAt(BAR_W / 2f, BAR_W, BAR_GAP, false));
+    }
+
+    @Test public void aFingerPastTheEndGetsTheEndMarkAndNeverOff() {
+        assertEquals(10, EffortTable.markAt(-80f, BAR_W, BAR_GAP, true));
+        assertEquals(1, EffortTable.markAt(BAR_W + 80f, BAR_W, BAR_GAP, true));
+        assertEquals(-1, EffortTable.markAt(-80f, BAR_W, BAR_GAP, false));
+        assertEquals(-5, EffortTable.markAt(BAR_W + 80f, BAR_W, BAR_GAP, false));
+        assertEquals(10, EffortTable.markAt(5f, 0f, BAR_GAP, true));
+    }
+
+    @Test public void everyMarkOfTheBarIsAMarkOfTheList() {
+        Column[] t = EffortTable.build();
+        for (float x = 0; x < BAR_W; x += 7f) {
+            int c = EffortTable.markAt(x, BAR_W, BAR_GAP, true);
+            int w = EffortTable.markAt(x, BAR_W, BAR_GAP, false);
+            assertEquals(c, EffortTable.fit(t, State.of(EffortTable.at(t, c))).level);
+            assertEquals(w, EffortTable.fit(t, State.of(EffortTable.at(t, w))).level);
+        }
+    }
+
     // ---- the log -----------------------------------------------------------
 
     @Test public void theLogLabelKeepsItsShape() {

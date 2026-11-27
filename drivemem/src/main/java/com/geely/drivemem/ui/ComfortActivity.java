@@ -586,16 +586,23 @@ public class ComfortActivity extends Activity {
         outsideLbl.setPadding(Style.dp(this, 16), 0, 0, Style.dp(this, 16));
         tempRow.addView(outsideLbl);
         c.addView(tempRow);
-        Style.gap(c, this, 18);
 
         // The effort scale: drawn into a Bitmap, same idiom as the old ruler —
         // needs the width already measured, redrawn only when something in it
         // actually changed (see redrawScale()).
+        // The bar is 15 high with 18 of air above and below, as before. The
+        // view is taller than the bar: it is the touch area, and nothing of
+        // it shows. It goes 30 up over the foot of the outside reading (not a
+        // touch target) and stops short of the ask tiles below.
         scaleView = new android.widget.ImageView(this);
-        scaleView.setLayoutParams(new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 15)));
+        LinearLayout.LayoutParams scaleLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, SCALE_TOUCH_UP + 18 + SCALE_H + 18));
+        scaleLp.topMargin = -Style.dp(this, SCALE_TOUCH_UP);
+        scaleView.setLayoutParams(scaleLp);
+        scaleView.setPadding(0, Style.dp(this, SCALE_TOUCH_UP + 18), 0, Style.dp(this, 18));
+        scaleView.setScaleType(android.widget.ImageView.ScaleType.FIT_XY);
+        scaleView.setOnTouchListener(this::onScaleTouch);
         c.addView(scaleView);
-        Style.gap(c, this, 18);
 
         // Ask row: glyph only, no text label, no coloured outline — side carries
         // the direction, icons tinted Style.TEXT to match the other buttons in
@@ -2585,12 +2592,57 @@ public class ComfortActivity extends Activity {
     private boolean scaleApprox = false;
     private boolean scaleDefrosting = false;
 
+    private static final int SCALE_H = 15, SCALE_TOUCH_UP = 30;
+    private static final int NO_MARK = Integer.MIN_VALUE;
+    // The mark under the finger while it is on the bar; NO_MARK otherwise.
+    private int scaleFinger = NO_MARK;
+    private boolean scaleFingerCold;
+    private float scaleDownX;
+
+    // A touch on the bar goes to the mark under the finger. The bar follows
+    // the finger while it slides; the ruler gets the mark when the finger
+    // lifts, so one touch is one write to the car. The side (cool or warm) is
+    // the one the bar shows when the finger comes down.
+    private boolean onScaleTouch(View v, android.view.MotionEvent e) {
+        int w = v.getWidth();
+        if (w <= 0) return false;
+        switch (e.getActionMasked()) {
+            case android.view.MotionEvent.ACTION_DOWN:
+                scaleFingerCold = comfortRuler.pointer() >= 0;
+                scaleDownX = e.getX();
+                // fall through
+            case android.view.MotionEvent.ACTION_MOVE:
+                // A slide along the bar is ours; an up-down move stays the
+                // page's (it then cancels this touch and nothing is set).
+                if (Math.abs(e.getX() - scaleDownX)
+                        > android.view.ViewConfiguration.get(this).getScaledTouchSlop())
+                    v.getParent().requestDisallowInterceptTouchEvent(true);
+                scaleFinger = EffortTable.markAt(e.getX(), w,
+                    Style.dp(this, Style.EFFORT_GAP_DP), scaleFingerCold);
+                redrawScale();
+                return true;
+            case android.view.MotionEvent.ACTION_UP:
+                if (scaleFinger != NO_MARK) comfortRuler.set(scaleFinger);
+                // The bar keeps the finger's mark; the ruler's answer
+                // (syncRuler) finds it already drawn.
+                scaleFinger = NO_MARK;
+                return true;
+            case android.view.MotionEvent.ACTION_CANCEL:
+                scaleFinger = NO_MARK;
+                redrawScale();
+                return true;
+            default:
+                return true;
+        }
+    }
+
     private void redrawScale() {
         if (scaleView == null) return;
         int w = scaleView.getWidth();
         if (w <= 0) { LayoutWait.onNextLayout(scaleView, this::redrawScale); return; }
-        int level = comfortRuler.pointer();
-        boolean approx = comfortRuler.approx();
+        boolean finger = scaleFinger != NO_MARK;
+        int level = finger ? scaleFinger : comfortRuler.pointer();
+        boolean approx = !finger && comfortRuler.approx();
         boolean defrosting = comfortRuler.defrosting();
         // Standing still nothing moved: with no change, there is nothing to
         // redraw (the 10 s poll used to allocate a new Bitmap every time for
@@ -2598,7 +2650,7 @@ public class ComfortActivity extends Activity {
         if (level == scalePointer && w == scaleW && approx == scaleApprox
                 && defrosting == scaleDefrosting) return;
         scalePointer = level; scaleW = w; scaleApprox = approx; scaleDefrosting = defrosting;
-        scaleView.setImageBitmap(Style.effortScale(this, w, scaleView.getHeight(), level, approx, defrosting));
+        scaleView.setImageBitmap(Style.effortScale(this, w, Style.dp(this, SCALE_H), level, approx, defrosting));
     }
 
     // held as a field so onDestroy can drop exactly this subscription

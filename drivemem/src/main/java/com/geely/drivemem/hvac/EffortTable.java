@@ -172,6 +172,22 @@ public final class EffortTable {
     /** The full list (C10..0..W5). The marks are immutable; the array is a copy. */
     public static Column[] build() { return TABLE.clone(); }
 
+    /**
+     * The mark under a finger on the bar. {@code x} is the place of the
+     * finger, {@code w} the width of the bar and {@code gap} the space between
+     * two marks, all in pixels. {@code cold} tells which side the bar shows:
+     * 10 cool marks with C1 at the right end, or 5 warm marks with W1 at the
+     * left end. A finger left or right of the bar gets the mark at that end,
+     * so the result is never 0.
+     */
+    public static int markAt(float x, float w, float gap, boolean cold) {
+        int marks = max(cold);
+        float pitch = (w - gap * (marks - 1)) / marks + gap;
+        int i = w > 0 && pitch > 0 ? (int) Math.floor(x / pitch) : 0;
+        i = Math.max(0, Math.min(marks - 1, i));
+        return cold ? marks - i : -(i + 1);
+    }
+
     /** Returns the mark at the given level. */
     public static Column at(Column[] table, int level) { return table[COOL_MAX - level]; }
 
