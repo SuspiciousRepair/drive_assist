@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [v0.11.5] — 2026-11-27
+
+### Fixed
+- **Drive mode and regeneration are remembered across a car start (#201).**
+  Drive Assist now remembers the drive mode and the regeneration level the
+  car is set to. It does not matter where you changed them: the car's own
+  screen, Drive Assist, or the Regen cycle button. It puts them back in Park
+  when the car starts. Before, only a choice made in Config was saved, so a
+  mode set in the car came back as the default. Turbo and the Strong-regen
+  toggle stay temporary and are not saved.
+- **AVAS mute and AEB come back at start (#201).** A choice made in Drive
+  Assist is put back after each start. AEB turned off in the car's own
+  screen stays temporary; AEB turned off in Drive Assist stays off until
+  you turn it on there.
+
+### Changed
+- **Config > Drive mode has no "Restore at car start" switches.** The
+  switches under Advanced are gone. The restore is always on for drive mode
+  and regeneration.
+
 ## [v0.11.4] — 2026-11-27
 
 ### Fixed
