@@ -41,7 +41,7 @@ private addresses, identifiers, phone numbers, or raw cabin speech to Git.
 ## openWakeWord benchmark details
 
 - Official upstream v0.5.1 ONNX models and SHA-256 hashes are pinned in
-  `owwprobe/download-models.sh`.
+  `probes/owwprobe/download-models.sh`.
 - Runtime: ONNX Runtime Android 1.17.3, ARM64, one intra-op and one inter-op
   thread, 50 warm-up frames, then 2,000 measured frames.
 - Synthetic input avoids recording or corpus-dependent variation. Per 80 ms
@@ -49,7 +49,7 @@ private addresses, identifiers, phone numbers, or raw cabin speech to Git.
   16.149 ms. Thread CPU was 32.270 s for 160.0 s of audio-equivalent work.
 - PSS was 51,515 KiB before and 48,248 KiB afterward; treat this as roughly
   50 MiB steady state, not a precise peak measurement.
-- Fixed-TFLite follow-up: `owwprobe/freeze-melspectrogram.py` freezes the
+- Fixed-TFLite follow-up: `probes/owwprobe/freeze-melspectrogram.py` freezes the
   official dynamic mel input to the 1,760-sample streaming shape. Host LiteRT
   output is exactly equal to dynamic-resize output for seeded random input.
   On-car LiteRT 1.4.0 measured 47.622 CPU seconds over 160 seconds of audio
