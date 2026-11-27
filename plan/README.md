@@ -25,6 +25,7 @@ work look pending.
 - [Parking prices and automatic toll logging](active/PARKING-AND-TOLLS-ROADMAP.md)
 - ["Hey Geely" voice assistant](active/VOICE-ASSISTANT-ROADMAP.md)
 - [Settings PIN](active/SETTINGS-PIN-ROADMAP.md)
+- [Comfort ruler v2: one tap, one change](active/COMFORT-RULER-V2.md)
 
 ## Archive
 
