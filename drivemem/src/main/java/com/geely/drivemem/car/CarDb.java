@@ -32,7 +32,7 @@ public final class CarDb extends SQLiteOpenHelper {
     // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
     // every write failed until this was bumped past 14. See the v15 entry in
     // onUpgrade below for what v15 itself actually does.
-    private static final int VERSION = 39;
+    private static final int VERSION = 40;
 
     /** SQL predicate for telemetry rows representing driving: gear is not Park (4),
      * or if gear is missing, car is not charging. */
@@ -187,7 +187,7 @@ public final class CarDb extends SQLiteOpenHelper {
             + "event TEXT NOT NULL,"
             + "pointer INTEGER, out_c REAL, setpoint REAL, fan INTEGER,"
             + "ac INTEGER, recirc INTEGER, power INTEGER,"
-            + "detail TEXT)");
+            + "detail TEXT, " + COMFORT_COLUMNS_V40 + ")");
 
         db.execSQL("CREATE TABLE battery_health_reading ("
             + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -745,7 +745,14 @@ public final class CarDb extends SQLiteOpenHelper {
         if (oldVersion < 38) createParkingCost(db);
         // v39: trips joined or split by hand (issue #210).
         if (oldVersion < 39) createTripEdit(db);
+        // v40: the climate log also saves where the air goes and the rear
+        // window defogger. NULL = not read (and every row before v40).
+        if (oldVersion < 40) addColumnsIfMissing(db, "comfort_event", COMFORT_COLUMNS_V40);
     }
+
+    /** comfort_event, v40: air direction (EffortTable.DIR_*) and the rear
+     *  window defogger (1/0). */
+    static final String COMFORT_COLUMNS_V40 = "direction INTEGER, rear_defrost INTEGER";
 
     private static void addColumnsIfMissing(SQLiteDatabase db, String table, String columnDefs) {
         java.util.Set<String> existing = new java.util.HashSet<>();

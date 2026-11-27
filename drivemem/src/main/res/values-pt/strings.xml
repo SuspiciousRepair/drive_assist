@@ -76,7 +76,6 @@
     <!-- config -->
     <string name="cfg_title">Config</string>
     <string name="cfg_nav_doors">Portas</string>
-    <string name="cfg_nav_climate">Clima</string>
     <string name="cfg_nav_drive">Modo de Condução</string>
     <string name="cfg_nav_bar">Elementos</string>
     <string name="cfg_nav_look">Aparência</string>
@@ -211,29 +210,6 @@
     <string name="cfg_purge_open_rl">Traseiro esquerdo</string>
     <string name="cfg_purge_open_rr">Traseiro direito</string>
     <string name="cfg_actions_header">Ações</string>
-    <string name="cfg_learn_header">Régua do clima</string>
-    <string name="cfg_learn_hint">Modo aprender: quando você muda o clima à mão no painel do carro e mantém por 10 minutos, isso é contado. Uma vez por semana, com o clima desligado, cada nível passa a usar o ajuste que você manteve mais vezes (pelo menos 2). Só para aquela temperatura externa. Desligado: a régua mantém o que aprendeu e para de aprender.</string>
-    <string name="cfg_learn_toggle">Aprender com meus ajustes</string>
-    <string name="cfg_learn_none">Nada aprendido ainda.</string>
-    <string name="cfg_learn_last">Última mudança: %1$s</string>
-    <string name="cfg_learn_week">Esta semana: %1$d ajustes à mão contados. Próxima atualização: %2$s.</string>
-    <string name="cfg_learn_reset">Voltar a régua ao padrão</string>
-    <string name="cfg_learn_reset_title">Voltar a régua do clima ao padrão?</string>
-    <string name="cfg_learn_reset_body">Tudo o que a régua aprendeu é apagado. A régua padrão volta.</string>
-    <string name="cfg_learn_reset_ok">Voltar ao padrão</string>
-    <string name="cfg_learn_item">%1$s · %2$s: %3$s</string>
-    <string name="cfg_learn_band">%1$d–%2$d °C lá fora</string>
-    <string name="cfg_learn_band_above">acima de %1$d °C lá fora</string>
-    <string name="cfg_learn_band_below">abaixo de %1$d °C lá fora</string>
-    <string name="cfg_learn_fan">ventilador %1$d</string>
-    <string name="cfg_learn_sp">%1$s °C</string>
-    <string name="cfg_learn_rec_on">recirculação</string>
-    <string name="cfg_learn_rec_off">ar externo</string>
-    <string name="cfg_learn_dir_face">rosto</string>
-    <string name="cfg_learn_dir_feet">pés</string>
-    <string name="cfg_learn_dir_face_feet">rosto e pés</string>
-    <string name="cfg_learn_dir_glass">para-brisa</string>
-    <string name="cfg_learn_dir_glass_feet">para-brisa e pés</string>
     <string name="cfg_btn_on">Ligar</string>
     <string name="cfg_btn_off">Desligar</string>
     <string name="cfg_btn_test">Testar</string>
@@ -327,7 +303,6 @@
 
     <!-- ruler -->
     <string name="ruler_no_car">sem conexao com o carro</string>
-    <string name="ruler_no_outside_temp">sem temperatura externa</string>
     <string name="ruler_defrosting">descongelando</string>
     <string name="ruler_at_limit">%1$s · no limite</string>
     <string name="ruler_car_refused">o carro nao aceitou %1$d°</string>

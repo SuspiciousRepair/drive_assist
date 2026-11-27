@@ -140,7 +140,7 @@ When connected, Drive Assist automatically creates a device named **`Geely EX2 (
 | `_trip_total` | Trip Total | Trip odometer | `km` |
 | `_corrente_de_carga` | Corrente de Carga | AC charge current reading | `A` |
 | `_tensao_de_carga` | Tensão de Carga | AC/DC charging voltage | `V` |
-| `_conforto` | Conforto | Thermal comfort ruler position (`C5..W5`) | — |
+| `_conforto` | Conforto | Thermal comfort ruler position (`C10..W5`: `pointer` 10 to -5, positive = cooling) | — |
 | `_versao_drive_assist`| Versão | Installed app build version | — |
 | `_atualizacao_drive_assist`| Atualização | Available OTA update status | — |
 

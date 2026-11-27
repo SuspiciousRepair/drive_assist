@@ -25,6 +25,10 @@ public final class ComfortEvents {
         Float outC;
         float setpoint = Float.NaN;
         Boolean ac, recirc, power;
+        /** Where the air goes (EffortTable.DIR_*); null = not read. */
+        Integer direction;
+        /** Rear window defogger; null = not read. */
+        Boolean rearDefrost;
     }
 
     /** Creates a minimal snapshot with only timing and pointer (no car I/O). */
@@ -45,6 +49,8 @@ public final class ComfortEvents {
             s.ac       = car.readHvacFlag(CarAccess.HVAC_AC_ON);
             s.recirc   = car.readHvacFlag(CarAccess.HVAC_RECIRC_ON);
             s.power    = car.readHvacFlag(CarAccess.HVAC_POWER_ON);
+            s.direction   = car.readIntRaw(EffortTable.DIR_PROP, 0);
+            s.rearDefrost = car.readRearDefrost();
         }
         return s;
     }
@@ -67,6 +73,8 @@ public final class ComfortEvents {
                 if (s.ac != null) v.put("ac", s.ac ? 1 : 0);
                 if (s.recirc != null) v.put("recirc", s.recirc ? 1 : 0);
                 if (s.power != null) v.put("power", s.power ? 1 : 0);
+                if (s.direction != null) v.put("direction", s.direction);
+                if (s.rearDefrost != null) v.put("rear_defrost", s.rearDefrost ? 1 : 0);
                 if (detail != null) v.put("detail", detail);
                 CarDb.get(app).db().insert("comfort_event", null, v);
             } catch (Throwable t) {

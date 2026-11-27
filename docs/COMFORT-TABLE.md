@@ -1,149 +1,139 @@
-# HVAC Effort Table Architecture
+# The Comfort Ruler
 
-The **Effort Table** (`EffortTable.java`) defines a fixed, 11-column grid representing vehicle HVAC effort from maximum cooling through off to maximum heating:
+The car has no cabin temperature sensor. So the driver is the sensor: a
+**Cooler** tap means "a little more cooling", a **Warmer** tap means "a little
+less". The ruler is one list of small moves, from quiet to loud
+(`EffortTable.java`):
 
 ```
-C5  C4  C3  C2  C1   0   W1  W2  W3  W4  W5
+C10 C9 C8 C7 C6 C5 C4 C3 C2 C1   0   W1 W2 W3 W4 W5
 ```
-
-The scale is **absolute** — it measures the physical effort the vehicle is expending, rather than a relative delta from initial vehicle startup.
 
 ![Drive Assist Comfort View - Comfort Ruler UI](screenshots/comfort-view.png)
-*Figure 1: Live Comfort Ruler on the Geely EX2 IHU629G touchscreen. The driver interacts with the absolute effort scale (Warmer / Cooler buttons and center ruler), translating thermal comfort into fan, temperature setpoint, and AC compressor commands with dynamic ambient weather sliding.*
+
+The rules:
+
+1. **One mark for each move.** A mark always means the same thing.
+2. **One tap = the next mark.** One setting changes (two at a few steps, see below).
+3. **The first tap from off is always C1 or W1.**
+4. **One list for all weather.** The outside temperature does not change a
+   mark. A list that changes by itself is a surprise.
+5. **Nothing is learned.** The list is fixed.
 
 ---
 
-## 1. Column Model & Levers
+## 1. The cool side: 10 marks
 
-Each column in the table configures five distinct HVAC control levers:
+| Mark | AC | Air | Direction | Fan | Temperature | How it feels |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| C1 | off | fresh | face | 1 | - | outside air, low |
+| C2 | on | fresh | glass | 1 | 24 | gentle, nothing cold on the arm |
+| C3 | on | fresh | glass | 2 | 24 | cool, not chilling |
+| C4 | on | recirculation | glass | 2 | 24 | colder cabin, still indirect |
+| C5 | on | recirculation | glass | 3 | 24 | |
+| C6 | on | recirculation | face | 2 | 24 | direct air, fan one step down |
+| C7 | on | recirculation | face | 3 | 24 | |
+| C8 | on | recirculation | face | 4 | 24 | |
+| C9 | on | recirculation | face | 6 | 22 | colder and loud |
+| C10 | on | recirculation | face | 8 | 17 | all-out |
 
-| Lever | Field / Property | Description |
-| :--- | :--- | :--- |
-| **Power** | `HVAC_POWER_ON` | Binary master power. Level `0` is strictly **OFF**. Levels `C1..C5` and `W1..W5` are **ON**. |
-| **Machine (AC)** | `HVAC_AC_ON` | Engages compressor for cooling or heat pump for heating. False in free ambient columns. |
-| **Setpoint** | `HVAC_TEMPERATURE_SET` | Target cabin temperature (°C). Active when `machine = true`, `NaN` when off. |
-| **Fan Speed** | `HVAC_FAN_SPEED` | Blower intensity across levels 1 to 5: `[1, 2, 3, 6, 8]` cooling (C3 is fan 3 so C2 -> C3 is a small step), `[1, 2, 4, 6, 8]` heating. |
-| **Airflow Direction** | `HVAC_FAN_DIRECTION` | Distribution mask: `DIR_FACE` (1), `DIR_FEET` (2), `DIR_FACE_FEET` (3), `DIR_GLASS` (4), or `DIR_GLASS_FEET` (6). |
-| **Recirculation** | `HVAC_RECIRC_ON` | Cabin air recirculation. Used as an intensity lever on cooling; restricted on heating. |
+* AC to the glass is indirect: the cabin gets cool and no cold air hits the arm.
+  AC to the face is direct.
+* AC with fresh air is gentle: the warm outside air softens the cold. AC with
+  recirculation is strong: the same air is cooled again and again.
+* The set temperature is blunt, so the list uses it late, with the loud fan
+  speeds.
+* The move to the face (C5 -> C6) takes the fan one step down: direct air feels
+  stronger, so the step stays small.
+* Four steps change two settings: C1 -> C2 (AC and direction), C5 -> C6
+  (direction and fan), C8 -> C9 and C9 -> C10 (temperature and fan).
 
-### Pinned Extremes vs. Sliding Middle
-* **Pinned Extremes (`C5`, `W5`, `0`)**:
-  * **`0`**: HVAC powered completely off.
-  * **`C5`**: All-out cooling — maximum fan (8), lowest setpoint (17 °C), recirculation active, air to face.
-  * **`W5`**: All-out heating — maximum fan (8), highest setpoint (32 °C), fresh air, air to face + feet.
-* **Sliding Middle (`C1..C4`, `W1..W4`)**: The boundary between free outside air and compressor/heater engagement shifts dynamically with ambient outside temperature (`outC`).
+**Recirculation and the weather.** C4 turns recirculation on in all weather.
+On a mild day it helps less than on a hot day, but the tap still makes one
+change that the driver can see. The climate log saves recirculation and the
+air direction, so the list can change later with facts.
 
----
+## 2. The warm side: 5 marks
 
-## 2. Weather Sliding & Free Columns
+| Mark | Heat | Air | Direction | Fan | Temperature | How it feels |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| W1 | on | fresh | feet | 1 | 26 | a little warm at the feet |
+| W2 | on | fresh | feet | 2 | 26 | |
+| W3 | on | fresh | feet | 3 | 26 | |
+| W4 | on | fresh | feet | 3 | 28 | warmer air, same noise |
+| W5 | on | fresh | face + feet | 6 | 32 | all-out |
 
-When outside air can comfortably assist, lower effort columns use fresh air without running the compressor (`machine = false`):
+* The heat is `HVAC_AC_ON` too: this is an EV, and the heat pump runs through
+  the same compressor flag.
+* The warm side never uses recirculation: outside air keeps the glass clear.
+* W1 to W4 blow on the feet in all weather. For fog on a cold day, use the
+  car's defrost button.
 
-```
-freeColumns(outC, coldSide)
-```
+## 3. The middle
 
-### Cold Side (`C1..C5`)
-* **Reference**: `FRESH_LIMIT_C = 28.0 °C`. Moving outside air is comfortable on skin up to 28 °C.
-* **Expansion**: Below 28 °C, free ambient columns expand at **1 column per 4 °C drop**:
-  $$\text{Free Columns} = \min\left(3, \left\lfloor\frac{28.0 - \text{outC}}{4.0}\right\rfloor + 1\right)$$
-  * Above 28 °C: 0 free columns (all levels `C1..C5` use the compressor).
-  * 25 °C – 28 °C: 1 free column (`C1` ambient, `C2..C5` compressor).
-  * 21 °C – 24 °C: 2 free columns (`C1..C2` ambient, `C3..C5` compressor).
-  * Below 21 °C: 3 free columns (`C1..C3` ambient, `C4..C5` compressor).
+The machine reverses at 24.5 °C (`MIDDLE_C`). This is a property of the car and
+does not move with the weather. Every setpoint of the list is clear of it: 24
+and lower cools, 26 and higher heats.
 
-### Warm Side (`W1..W5`)
-* **Reference**: `CABIN_TARGET_C = 23.0 °C`. Outside air can only heat if ambient temperature exceeds cabin target.
-* **Expansion**: Above 23 °C, free ambient columns expand at **1 column per 2 °C rise**:
-  $$\text{Free Columns} = \min\left(3, \left\lfloor\frac{\text{outC} - 23.0}{2.0}\right\rfloor + 1\right)$$
+## 4. A tap when the car is not on a mark
 
----
+A change on the car's own climate screen can leave the car between marks.
+`EffortTable.fit()` shows the mark with the fewest settings out of line, and the
+ruler draws it hollow.
 
-## 3. Airflow Direction & Recirculation Strategy
+Every setting has its own place on the list. Then (`EffortTable.step()`):
 
-The airflow path and recirculation state are engineered to maximize passenger comfort and prevent glass fogging:
+* **A tap away from off**: the setting that is furthest behind moves one place
+  forward.
+* **A tap towards off**: the setting that is furthest ahead moves one place
+  back.
+* A value that is on no mark (fan 5, air to the feet while cooling) is put on
+  the list by the first tap.
 
-### Airflow Direction
-* **Cold Side**:
-  * **Free Ambient (`machine = false`)**: Directed to **Face** (`DIR_FACE`). Moving fresh air across skin provides direct cooling sensation.
-  * **First Compressor Step (`level == free + 1`)**: Directed to **Glass / Defrost** (`DIR_GLASS`). The compressor's initial cold output is deflected away from passenger faces while gently chilling cabin air.
-  * **Higher Compressor Steps (`level > free + 1`)**: Directed to **Face** (`DIR_FACE`) for direct cooling.
-* **Warm Side**:
-  * **Thermal Comfort & Defogging Physics (`W2..W4` when $\text{outC} < 23^\circ\text{C}$)**: Directed to **Glass + Feet** (`DIR_GLASS_FEET`, `6`). Warm air flows to footwell vents for lower-body comfort while washing the windshield with a warm air boundary layer to prevent glass fogging from occupant respiration.
-  * **Mild Windshield Warming (`W1` when $\text{outC} < 23^\circ\text{C}$)**: Directed to **Glass** (`DIR_GLASS`), using outside air — see Recirculation Logic below.
-  * **Warm Days ($\text{outC} \ge 23^\circ\text{C}$)**: Directed to **Feet** (`DIR_FEET`) since ambient air is warm and glass fogging does not occur.
-  * **All-Out Heating (`W5`)**: Directed to **Face + Feet** (`DIR_FACE_FEET`) for immediate full-body warmth.
+Nothing else moves, so the fan never jumps. Example (issue #209): fan 1 and the
+AC turned on by hand, air to the face, at 20 °C outside. **Cooler** moves only
+the air to the glass: that is C2. **Warmer** turns only the AC off: that is C1.
 
-### Recirculation Logic
-* **Cooling**: Recirculation is an intensity lever. When ambient outside air is hot ($\text{outC} > 23^\circ\text{C}$) and the compressor is operating past the first step (`level > free + 1`), recirculation engages because cooling already-conditioned cabin air is substantially more effective than cooling hot outside air.
-* **Heating**: Recirculation is disabled across every heating level, with no exception. `W1` used to be an exception, on the reasoning that its gentle output made recirculated air "safe" — backwards in practice: `W1` is the column aimed directly at the windshield (`DIR_GLASS`), which is exactly where recirculated cabin air's occupant-respiration humidity is most likely to condense into fog on contact with cold glass. Outside air, even cold, is what actually clears a windshield — the same reason every real car's defrost mode forces outside air.
+## 5. The bar
 
----
+`Style.effortScale()` draws the bar as a level meter:
 
-## 4. State Fitting Algorithm (`fit`)
+* **Off**: one long grey bar.
+* **Cooling**: 10 marks. They fill with the cool colour from right to left; C1
+  is the mark at the right end.
+* **Warming**: 5 marks. They fill with the warm colour from left to right.
+* **Not on a mark**: the last filled mark is an outline.
+* **Front defrost button on**: the bar is dimmed and the ruler waits.
 
-When physical OEM controls or third-party apps alter HVAC settings, `EffortTable.fit()` maps the vehicle state back to the nearest column:
+## 6. How a tap reaches the car
 
-$$\text{Effort} = \text{AllOut} - \max_{\text{levers}}(\text{steps to reach all-out value})$$
+* A tap changes only the state the ruler wants (`ComfortRuler.tap`, its own
+  thread). A burst of taps becomes one write.
+* The write runs on `CarActor`'s thread, in this order: power, setpoint, AC,
+  recirculation, direction, fan. The setpoint goes first so the machine never
+  runs in the wrong mode. One check 800 ms later writes again what did not
+  hold.
+* The first tap after a quiet minute reads the car first, so a car that woke
+  with its own climate is not treated as "off".
+* Every 30 s the ruler reads the car and follows a hand change.
+* The ruler never changes the car by itself. Only a tap writes to the car.
 
-* **Worst-Case Distance**: Distance is measured as the maximum number of discrete button presses a lever must advance to reach all-out, not the sum across levers.
-* **Fan**: Measured by magnitude — the highest column whose flow requirement is met or exceeded.
-* **Compressor Gating**: Machine state strictly gates valid columns: a compressor-off vehicle cannot map to a compressor-on column, and vice versa.
-* **Approximate State ("C4ish")**: If physical levers are split across recipes (e.g., fan at `C5`, but direction at `C3`), the ruler marks the state as `approx = true`.
-  * The current effort number remains displayed.
-  * The first user tap on **Cool** or **Warm** instantly snaps all physical levers to an exact column recipe.
+## 7. The climate log
 
----
+Every tap, write and check is a `comfort_event` row in `car.db`, and a
+`sample` row every 5 minutes. The `detail` of an `apply` row reads
+`col=C4@24/f2/rec/glass out=30.0`; a `~` after the mark (`C8~@24/f5/rec/face`)
+means the state is not exactly on it. This log is the data the list was built
+from.
 
-## 5. Automatic Re-sliding Guards
+## 8. Where the values come from
 
-As ambient outside temperature changes, `ComfortRuler` re-slides the table to update recipes while keeping the driver's selected effort level (`level`) steady.
+The list is a first version, made from one driver's log (434 ruler changes in
+11 weeks). What the log said about the ruler before it:
 
-To avoid erratic changes, an automatic re-slide only occurs when **all** of the following conditions are met:
+* fan 6 was left within 2 minutes more often than kept;
+* 60 of 90 taps from a hollow mark needed more taps right away;
+* at 20-24 °C outside, the fan-only steps led up, not down;
+* one tap changed 2 or more settings 76 % of the time.
 
-1. **Drift Magnitude**: Outside temperature drifts by $\ge 2.0^\circ\text{C}$ (`DRIFT_C`) from the table's build temperature.
-2. **Sustained Duration**: The temperature shift persists continuously for $\ge 10\text{ minutes}$ (`DRIFT_MS`) to ignore tunnels, stoplights, or brief thermal pockets.
-3. **Quiet Period**: No UI taps have occurred within the last 60 seconds (`QUIET_AFTER_TAP_MS`).
-4. **Exact Column Match**: The vehicle must not be in an approximate state (`approx == false`). If a driver adjusted a lever manually, automatic re-sliding is suspended so it never overrides manual intent.
-
-> [!NOTE]
-> **User Taps Bypass Timers**: When the driver taps **Cool** or **Warm**, the ruler immediately checks if ambient temperature has drifted by $\ge 2.0^\circ\text{C}$ and rebuilds the table instantly, ensuring immediate user actions always reflect current weather.
-
-## 6. The Table File (`ComfortTable`)
-
-The ruler reads its columns from one file, `files/comfort-table.json`. The rules above only make its **defaults**.
-
-* **One set of columns per weather band.** Each side has 4 bands, by its free-column count: cold `28 C and up`, `24-28 C`, `20-24 C`, `below 20 C`; warm `below 23 C`, `23-25 C`, `25-27 C`, `27 C and up`. Inside a band nothing changes with the outside temperature. The rules made each setpoint from the exact temperature, and it moved inside a band, sometimes the wrong way (C4 was 18, 19, 18, 19, 20, 19 °C from 20 to 25 °C outside).
-* **Defaults**: the rules at one temperature inside each band (`ComfortLearn.bandOutC`).
-* **Who writes it**: the app writes the defaults on the first start, and the weekly learning changes one column in place. It can be edited by hand; the ruler does not care who wrote a value. A hand edit counts from the next tap or band change.
-* **A file the ruler cannot use is written again**: missing, not JSON, a missing value, fan outside 1..8, setpoint outside 17..32 °C or on the wrong side of 24.5 °C, AC on a fan-only column (or off on an AC column), or a column that does not read back as itself. The new file is the defaults plus every learned value that still fits.
-* **Software update**: `ComfortTable.VERSION`. Bump it when the defaults change; a file of another version is written again the same way.
-* **Re-slide**: a weather change re-applies the level only when it crosses into another band; inside a band the columns are the same.
-* **In the app backup**, next to the certificates.
-
-```json
-{
-  "version": 1,
-  "cold": [
-    { "outside": "24-28 C", "fan_only_columns": 1,
-      "C1": { "ac": false, "fan": 1, "dir": "face", "rec": false },
-      "C2": { "ac": true, "sp": 24, "fan": 2, "dir": "glass", "rec": false },
-      "...": "C3..C5" },
-    "... 3 more bands"
-  ],
-  "warm": [ "... 4 bands, W1..W5" ]
-}
-```
-
-## 7. Learn Mode (`ComfortLearn`)
-
-On by default. Switch: **Config → Climate → Learn from my changes**. With it off the ruler keeps its table and stops learning. **Reset ruler to default** writes the default table and forgets what was learned.
-
-* **The signal (a "hold")**: a change made by hand on the car's own climate panel, after the ruler set a column exactly, held for 10 minutes with no tap and no suspend in between. The ruler checks every beat (30 s, 10 s with the screen open); a gap over 2 minutes is a suspend and starts the hold again. One hold counts once, however long it lasts.
-* **The column it counts for**: on the fitted side, the column with the fewest different levers (ties go to the column the ruler last set). A different machine (AC) state, or more than 2 different levers, is not a tweak: it is logged as `skip` and not counted. The pinned columns (`0`, `C5`, `W5`) are never counted.
-* **Weekly decision**: the ruler changes once a week, and only while the climate is off, so it never changes during a drive. Per column and lever, the value held most often that week wins, if it was held at least 2 times and more often than any other value. Then the week's holds are cleared. The value goes into the table file's column in place, so a hand edit of another lever in that column stays. Learning the default value again removes it from the record.
-* **Per weather band**: the key is the level plus the free-column count of that side (`3@1` = `C3` at 24–28 °C outside), so a change at 26 °C does not touch `C3` at 30 °C.
-* **Order is kept**: a learned value is used only if the column's fan and setpoint stay between its neighbours, it still fits back to its own level, and no other column stops doing so. Otherwise it is refused.
-* **Levers learned**: fan, setpoint, air direction, recirculation.
-* **Log**: every hold, skip and weekly result is a `comfort_event` row with `event = 'learn'` (detail like `hold C3@1 fan=4 x2`, `skip C3@1 fan=5 sp=22.0 dir=4`, `learn C3@1 fan=4 x2`, `undecided ...`, `refuse ...`).
-* **Storage**: the table is the file (section 6). One text pref, `comfort_learn_book`, holds this week's holds and the record of every learned value, used to try them again when a new table is written. Both are in the app backup. The settings page lists what was learned, the last change date, and this week's count.
+The warm side has little data. Its values are a guess until a cold season.

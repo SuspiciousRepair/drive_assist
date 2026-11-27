@@ -2,367 +2,287 @@ package com.geely.drivemem;
 
 import com.geely.drivemem.hvac.EffortTable;
 import com.geely.drivemem.hvac.EffortTable.Column;
+import com.geely.drivemem.hvac.EffortTable.Fit;
+import com.geely.drivemem.hvac.EffortTable.State;
 
 import org.junit.Test;
 import static org.junit.Assert.*;
 
+/** The comfort ruler's list of marks, the fit and the one-tap rule. */
 public class EffortTableTest {
 
-    // ---- freeColumns() -----------------------------------------------------
+    private static final int FACE = EffortTable.DIR_FACE, GLASS = EffortTable.DIR_GLASS,
+        FEET = EffortTable.DIR_FEET;
 
-    @Test public void freeColumnsColdAtFreshLimitBoundaryIsZero() {
-        assertEquals(0, EffortTable.freeColumns(28f, true));
+    private static State cool(boolean ac, boolean recirc, int dir, int fan, float sp) {
+        return new State(true, ac, sp, fan, dir, recirc);
     }
 
-    @Test public void freeColumnsColdJustBelowLimitIsOne() {
-        assertEquals(1, EffortTable.freeColumns(27.99f, true));
+    private static int settingsChanged(Column a, Column b) {
+        int n = 0;
+        if (a.machine != b.machine) n++;
+        if (a.recirc != b.recirc) n++;
+        if (a.direction != b.direction) n++;
+        if (a.fan != b.fan) n++;
+        if (a.machine && b.machine && a.setpointC != b.setpointC) n++;
+        return n;
     }
 
-    @Test public void freeColumnsColdMidRangeIsTwo() {
-        assertEquals(2, EffortTable.freeColumns(24f, true));
+    // ---- the list ----------------------------------------------------------
+
+    @Test public void theListHasTenCoolAndFiveWarmMarks() {
+        Column[] t = EffortTable.build();
+        assertEquals(16, t.length);
+        assertEquals(10, EffortTable.at(t, 10).level);
+        assertEquals(-5, EffortTable.at(t, -5).level);
+        assertFalse(EffortTable.at(t, 0).power);
     }
 
-    @Test public void freeColumnsColdCapsAtThree() {
-        assertEquals(3, EffortTable.freeColumns(16f, true));
-        assertEquals(3, EffortTable.freeColumns(-40f, true));
+    @Test public void c1IsOutsideAirAndC2TurnsTheAcOnAtTheGlass() {
+        Column c1 = EffortTable.column(1), c2 = EffortTable.column(2);
+        assertFalse(c1.machine);
+        assertEquals(1, c1.fan);
+        assertTrue(c2.machine);
+        assertEquals(1, c2.fan);
+        assertEquals(GLASS, c2.direction);
+        assertFalse(c2.recirc);
+        assertEquals(24f, c2.setpointC, 0f);
     }
 
-    @Test public void freeColumnsWarmAtCabinTargetBoundaryIsZero() {
-        assertEquals(0, EffortTable.freeColumns(23f, false));
+    @Test public void theMoveToTheFaceTakesTheFanOneStepDown() {
+        Column c5 = EffortTable.column(5), c6 = EffortTable.column(6);
+        assertEquals(GLASS, c5.direction);
+        assertEquals(3, c5.fan);
+        assertEquals(FACE, c6.direction);
+        assertEquals(2, c6.fan);
     }
 
-    @Test public void freeColumnsWarmJustAboveTargetIsOne() {
-        assertEquals(1, EffortTable.freeColumns(23.1f, false));
+    @Test public void theEndsAreAllOut() {
+        Column c10 = EffortTable.column(10), w5 = EffortTable.column(-5);
+        assertEquals(8, c10.fan);
+        assertEquals(EffortTable.TEMP_MIN, c10.setpointC, 0f);
+        assertEquals(EffortTable.TEMP_MAX, w5.setpointC, 0f);
+        assertEquals(EffortTable.DIR_FACE_FEET, w5.direction);
     }
 
-    @Test public void freeColumnsWarmCapsAtThree() {
-        assertEquals(3, EffortTable.freeColumns(29f, false));
-        assertEquals(3, EffortTable.freeColumns(90f, false));
-    }
-
-    @Test public void freeColumnsWarmExtremeColdOutsideIsZero() {
-        assertEquals(0, EffortTable.freeColumns(-40f, false));
-    }
-
-    // ---- column() : off column ---------------------------------------------
-
-    @Test public void columnLevelZeroIsOff() {
-        Column c = EffortTable.column(20f, 0);
-        assertFalse(c.power);
-        assertFalse(c.machine);
-        assertTrue(Float.isNaN(c.setpointC));
-        assertEquals(0, c.fan);
-        assertEquals(EffortTable.DIR_GLASS, c.direction);
-        assertFalse(c.recirc);
-        assertFalse(c.cold());
-        assertFalse(c.warm());
-    }
-
-    // ---- column() : cold side ------------------------------------------------
-
-    @Test public void freeColdColumnGoesToFaceNoRecirc() {
-        // outC=16 -> free=3, so level=2 is a free (fan-only) column.
-        Column c = EffortTable.column(16f, 2);
-        assertFalse(c.machine);
-        assertEquals(EffortTable.DIR_FACE, c.direction);
-        assertFalse(c.recirc);
-        assertTrue(c.cold());
-    }
-
-    @Test public void firstMachineColdColumnGoesToGlassNoRecirc() {
-        // outC=16 -> free=3, so level=4 (free+1) is the first machine column.
-        Column c = EffortTable.column(16f, 4);
-        assertTrue(c.machine);
-        assertEquals(EffortTable.DIR_GLASS, c.direction);
-        assertFalse(c.recirc);
-        assertEquals(18f, c.setpointC, 0f);
-    }
-
-    @Test public void harderColdColumnOnHotDayGoesToFaceWithRecirc() {
-        // outC=30 -> free=0, level=5 is far past the first machine column and
-        // outside is hotter than the cabin target: recirc kicks in.
-        Column c = EffortTable.column(30f, 5);
-        assertTrue(c.machine);
-        assertEquals(EffortTable.DIR_FACE, c.direction);
-        assertTrue(c.recirc);
-        assertEquals(17f, c.setpointC, 0f);
-    }
-
-    @Test public void coldRecircFalseWhenOutsideAirIsNotALiability() {
-        // outC=16 -> free=3, level=5 is past the first machine column (free+1=4)
-        // but outside is below CABIN_TARGET_C, so recirc stays off.
-        Column c = EffortTable.column(16f, 5);
-        assertTrue(c.machine);
-        assertEquals(EffortTable.DIR_FACE, c.direction);
-        assertFalse(c.recirc);
-    }
-
-    @Test public void coldFanTableMatchesC1ThroughC5() {
-        int[] expected = {1, 2, 3, 6, 8};
-        for (int level = 1; level <= 5; level++) {
-            assertEquals("C" + level, expected[level - 1], EffortTable.column(26f, level).fan);
+    @Test public void oneTapChangesOneSettingButAtTheKnownSteps() {
+        Column[] t = EffortTable.build();
+        for (int k = 2; k <= EffortTable.COOL_MAX; k++) {
+            int n = settingsChanged(EffortTable.at(t, k - 1), EffortTable.at(t, k));
+            boolean two = k == 2 || k == 6 || k == 9 || k == 10;
+            assertEquals("C" + (k - 1) + " -> C" + k, two ? 2 : 1, n);
+        }
+        for (int k = 2; k <= EffortTable.WARM_MAX; k++) {
+            int n = settingsChanged(EffortTable.at(t, -(k - 1)), EffortTable.at(t, -k));
+            assertEquals("W" + (k - 1) + " -> W" + k, k == 5 ? 3 : 1, n);
         }
     }
 
-    /**
-     * The setting the owner made by hand between C2 and C3 (2026-11-17, 26 C
-     * outside: AC on, 21 C, fan 3, recirc, face) is now C3 itself, and C2 -> C3
-     * no longer doubles the fan.
-     */
-    @Test public void c3IsTheOwnersHandMadeStepAt26C() {
-        Column[] t = EffortTable.build(26f);
-        Column c2 = EffortTable.at(t, 2), c3 = EffortTable.at(t, 3);
-        assertEquals(3, c3.fan);
-        assertEquals(21f, c3.setpointC, 0f);
-        assertTrue(c3.machine);
-        assertTrue(c3.recirc);
-        assertEquals(EffortTable.DIR_FACE, c3.direction);
-        assertEquals(1, c3.fan - c2.fan);
-        assertEquals(3, EffortTable.fit(t, 26f, true, true, 21f, 3, EffortTable.DIR_FACE, true));
-    }
-
-    @Test public void setpointClampGuaranteesDistinctWholeDegreesNearRail() {
-        // outC=-10 -> free=3 (capped), so levels 4 and 5 are the only two
-        // machine columns. Without the "at least n distinct setpoints" clamp,
-        // the naive formula would start the block deep below TEMP_MIN.
-        assertEquals(3, EffortTable.freeColumns(-10f, true));
-        Column c4 = EffortTable.column(-10f, 4);
-        Column c5 = EffortTable.column(-10f, 5);
-        assertEquals(18f, c4.setpointC, 0f);
-        assertEquals(17f, c5.setpointC, 0f);
-        assertEquals(EffortTable.DIR_GLASS, c4.direction);
-        assertEquals(EffortTable.DIR_FACE, c5.direction);
-    }
-
-    // ---- column() : warm side ------------------------------------------------
-
-    @Test public void warmAllOutGoesFaceFeet() {
-        Column c = EffortTable.column(26f, -5);
-        assertEquals(EffortTable.DIR_FACE_FEET, c.direction);
-        assertTrue(c.warm());
-    }
-
-    @Test public void warmFirstColumnGlassNoRecircOnColdDay() {
-        // outC=16 (< CABIN_TARGET_C) -> free=0, so W1 is a machine column.
-        // W1 is aimed at the glass (DIR_GLASS), which is exactly why it must
-        // use outside air, not recirc: recirculated cabin air carries
-        // occupant humidity that fogs cold glass on contact.
-        Column c = EffortTable.column(16f, -1);
-        assertTrue(c.machine);
-        assertEquals(EffortTable.DIR_GLASS, c.direction);
-        assertFalse(c.recirc);
-        assertEquals(25f, c.setpointC, 0f);
-    }
-
-    @Test public void warmFirstColumnFeetNoRecircOnWarmDay() {
-        // outC=30 (>= CABIN_TARGET_C) -> W1 is a free (ambient) column.
-        Column c = EffortTable.column(30f, -1);
-        assertFalse(c.machine);
-        assertEquals(EffortTable.DIR_FEET, c.direction);
-        assertFalse(c.recirc);
-    }
-
-    @Test public void warmMidColumnsGlassFeetOnColdDay() {
-        // outC=16 (< CABIN_TARGET_C) -> Defogging physics dictates Glass + Feet
-        // for intermediate heating levels W2..W4 to prevent windshield condensation.
-        for (int level = -2; level >= -4; level--) {
-            Column c = EffortTable.column(16f, level);
-            assertEquals("W" + (-level), EffortTable.DIR_GLASS_FEET, c.direction);
+    @Test public void everySetpointIsClearOfTheMiddle() {
+        Column[] t = EffortTable.build();
+        for (Column c : t) {
+            if (!c.machine) continue;
+            assertEquals(c.toString(), c.cold(), c.setpointC < EffortTable.MIDDLE_C);
+            assertTrue(c.toString(), Math.abs(c.setpointC - EffortTable.MIDDLE_C) >= 0.5f);
         }
     }
 
-    @Test public void warmMidColumnsFeetOnWarmDay() {
-        // outC=26 (>= CABIN_TARGET_C) -> Outside air is warm, no glass condensation risk.
-        for (int level = -2; level >= -4; level--) {
-            Column c = EffortTable.column(26f, level);
-            assertEquals("W" + (-level), EffortTable.DIR_FEET, c.direction);
+    // ---- one list for all weather ------------------------------------------
+
+    @Test public void c4OnlyTurnsRecirculationOn() {
+        Column c3 = EffortTable.column(3), c4 = EffortTable.column(4);
+        assertFalse(c3.recirc);
+        assertTrue(c4.recirc);
+        assertEquals(1, settingsChanged(c3, c4));
+        for (int k = 4; k <= EffortTable.COOL_MAX; k++) assertTrue("C" + k, EffortTable.column(k).recirc);
+    }
+
+    @Test public void theGentleWarmMarksBlowOnTheFeet() {
+        for (int k = 1; k <= 4; k++) assertEquals(FEET, EffortTable.column(-k).direction);
+        assertEquals(EffortTable.DIR_FACE_FEET, EffortTable.column(-5).direction);
+    }
+
+    @Test public void theWarmSideNeverRecirculates() {
+        for (int k = 1; k <= EffortTable.WARM_MAX; k++) {
+            assertFalse(EffortTable.column(-k).recirc);
+            assertTrue(EffortTable.column(-k).machine);
         }
     }
 
-    @Test public void warmMidColumnsNeverRecirculate() {
-        for (int level = -2; level >= -4; level--) {
-            assertFalse("W" + (-level), EffortTable.column(16f, level).recirc);
-            assertFalse("W" + (-level), EffortTable.column(30f, level).recirc);
+    // ---- the fit -----------------------------------------------------------
+
+    @Test public void everyMarkFitsItself() {
+        Column[] t = EffortTable.build();
+        for (Column c : t) {
+            Fit f = EffortTable.fit(t, State.of(c));
+            assertEquals(c.toString(), c.level, f.level);
+            assertTrue(c.toString(), f.exact);
         }
     }
 
-    @Test public void warmFanTableMatchesW1ThroughW5() {
-        int[] expected = {1, 2, 4, 6, 8};
-        for (int level = 1; level <= 5; level++) {
-            assertEquals("W" + level, expected[level - 1], EffortTable.column(26f, -level).fan);
+    @Test public void offIsZeroWhateverTheOtherSettingsAre() {
+        Fit f = EffortTable.fit(EffortTable.build(), new State(false, true, 17f, 8, FACE, true));
+        assertEquals(0, f.level);
+        assertTrue(f.exact);
+    }
+
+    @Test public void aHandStateIsHollowOnTheNearestMark() {
+        Column[] t = EffortTable.build();
+        // C8 but the fan one step up by hand.
+        Fit f = EffortTable.fit(t, cool(true, true, FACE, 5, 24f));
+        assertFalse(f.exact);
+        assertTrue(f.level >= 6 && f.level <= 8);
+    }
+
+    @Test public void aColdSetpointIsTheCoolSideEvenOnACoolEvening() {
+        // Issue #6: 17 C outside, AC at 18 C is still cooling.
+        Fit f = EffortTable.fit(EffortTable.build(), cool(true, false, FACE, 8, 18f));
+        assertTrue(f.level > 0);
+    }
+
+    @Test public void aWarmSetpointIsTheWarmSide() {
+        Column[] t = EffortTable.build();
+        Fit f = EffortTable.fit(t, new State(true, true, 28f, 3, FEET, false));
+        assertEquals(-4, f.level);
+        assertTrue(f.exact);
+    }
+
+    // ---- the tap: on a mark ------------------------------------------------
+
+    @Test public void fromOffTheFirstTapIsAlwaysTheFirstMark() {
+        Column[] t = EffortTable.build();
+        assertEquals(1, EffortTable.fit(t, EffortTable.step(t, State.OFF, +1)).level);
+        assertEquals(-1, EffortTable.fit(t, EffortTable.step(t, State.OFF, -1)).level);
+    }
+
+    @Test public void tapsWalkTheWholeRulerOneMarkAtATime() {
+        Column[] t = EffortTable.build();
+        State s = State.of(EffortTable.at(t, -5));
+        for (int want = -4; want <= 10; want++) {
+            s = EffortTable.step(t, s, +1);
+            Fit f = EffortTable.fit(t, s);
+            assertEquals(want, f.level);
+            assertTrue(f.exact);
+        }
+        for (int want = 9; want >= -5; want--) {
+            s = EffortTable.step(t, s, -1);
+            assertEquals(want, EffortTable.fit(t, s).level);
         }
     }
 
-    // ---- build() / at() ------------------------------------------------------
-
-    @Test public void buildProducesElevenColumnsColdestFirst() {
-        Column[] t = EffortTable.build(26f);
-        assertEquals(11, t.length);
-        assertEquals(5, t[0].level);
-        assertEquals(0, t[5].level);
-        assertEquals(-5, t[10].level);
+    @Test public void theEndsDoNotMove() {
+        Column[] t = EffortTable.build();
+        State top = State.of(EffortTable.at(t, 10)), bottom = State.of(EffortTable.at(t, -5));
+        assertTrue(EffortTable.step(t, top, +1).same(top));
+        assertTrue(EffortTable.step(t, bottom, -1).same(bottom));
     }
 
-    @Test public void atIndexesBothDirections() {
-        Column[] t = EffortTable.build(26f);
-        assertEquals(3, EffortTable.at(t, 3).level);
-        assertEquals(-3, EffortTable.at(t, -3).level);
-        assertEquals(0, EffortTable.at(t, 0).level);
+    @Test public void theFanNeverMovesMoreThanTwoPlacesInOneTap() {
+        int[] fans = {1, 2, 3, 4, 6, 8};
+        Column[] t = EffortTable.build();
+        State s = State.of(EffortTable.at(t, 1));
+        for (int i = 0; i < 12; i++) {
+            State n = EffortTable.step(t, s, +1);
+            int a = java.util.Arrays.binarySearch(fans, s.fan), b = java.util.Arrays.binarySearch(fans, n.fan);
+            assertTrue(s.fan + " -> " + n.fan, Math.abs(a - b) <= 1);
+            s = n;
+        }
     }
 
-    // ---- fit() -----------------------------------------------------------
+    // ---- the tap: a hand on the car's own climate screen (issue #209) ------
 
-    @Test public void fitPowerOffIsAlwaysZero() {
-        Column[] t = EffortTable.build(26f);
-        assertEquals(0, EffortTable.fit(t, 26f, false, true, 17f, 8,
-            EffortTable.DIR_FACE, true));
+    /** Fan 1 and the AC turned on by hand, air to the face. */
+    private static final State HAND = new State(true, true, 24f, 1, FACE, false);
+
+    @Test public void issue209CoolerDoesNotMakeTheFanJump() {
+        Column[] t = EffortTable.build();
+        assertFalse(EffortTable.fit(t, HAND).exact);
+        State n = EffortTable.step(t, HAND, +1);
+        assertEquals(1, n.fan);
+        assertTrue(n.machine);
+        // Only the air direction moved: this is now C2 exactly.
+        Fit f = EffortTable.fit(t, n);
+        assertEquals(2, f.level);
+        assertTrue(f.exact);
     }
 
-    @Test public void fitExactMatchToTopColdColumn() {
-        Column[] t = EffortTable.build(26f);
-        Column top = EffortTable.at(t, 5); // setpoint 17, fan 8, face, recirc on
-        int level = EffortTable.fit(t, 26f, true, top.machine, top.setpointC, top.fan,
-            top.direction, top.recirc);
-        assertEquals(5, level);
+    @Test public void issue209WarmerDoesNotMakeTheFanJump() {
+        Column[] t = EffortTable.build();
+        State n = EffortTable.step(t, HAND, -1);
+        assertEquals(1, n.fan);
+        assertEquals(FACE, n.direction);
+        // Only the AC went off: this is C1 exactly.
+        Fit f = EffortTable.fit(t, n);
+        assertEquals(1, f.level);
+        assertTrue(f.exact);
     }
 
-    @Test public void fitExactMatchToTopWarmColumn() {
-        Column[] t = EffortTable.build(26f);
-        Column top = EffortTable.at(t, -5); // setpoint 32, fan 8, face+feet
-        int level = EffortTable.fit(t, 26f, true, top.machine, top.setpointC, top.fan,
-            top.direction, top.recirc);
-        assertEquals(-5, level);
+    @Test public void offAMarkOnlyTheSettingBehindMovesForward() {
+        Column[] t = EffortTable.build();
+        // C7 (recirculation, face, fan 3) with the fan turned down to 1 by hand.
+        State hand = cool(true, true, FACE, 1, 24f);
+        State n = EffortTable.step(t, hand, +1);
+        assertEquals(2, n.fan);
+        assertEquals(FACE, n.direction);
+        assertTrue(n.recirc);
+        assertEquals(24f, n.setpointC, 0f);
     }
 
-    @Test public void fitOffCarCappedAtFreeColumnNotHigher() {
-        // outC=20 -> free=3. A car reporting the top column's fan/dir/recirc but
-        // with the machine off must still be capped at the free column (3),
-        // never read as a near-all-out machine level.
-        Column[] t = EffortTable.build(20f);
-        Column top = EffortTable.at(t, 5);
-        int level = EffortTable.fit(t, 20f, true, false, Float.NaN, top.fan,
-            top.direction, top.recirc);
-        assertEquals(3, level);
+    @Test public void offAMarkOnlyTheSettingAheadMovesBack() {
+        Column[] t = EffortTable.build();
+        // C3 (fresh air, glass, fan 2) with the setpoint at 17 by hand.
+        State hand = cool(true, false, GLASS, 2, 17f);
+        State n = EffortTable.step(t, hand, -1);
+        assertEquals(2, n.fan);
+        assertEquals(GLASS, n.direction);
+        assertFalse(n.recirc);
+        assertTrue(n.setpointC > 17f);
     }
 
-    @Test public void fitMachineOffAtZeroFreeColumnsCapsAtZero() {
-        // outC=35 -> free=0, so every cold column requires the machine. A car
-        // whose fan/direction/recirc happen to match the all-out column but
-        // whose machine is off must fit to 0, not to a near-all-out level.
-        Column[] t = EffortTable.build(35f);
-        Column top = EffortTable.at(t, 5);
-        int level = EffortTable.fit(t, 35f, true, false, Float.NaN, top.fan,
-            top.direction, top.recirc);
-        assertEquals(0, level);
+    @Test public void aValueThatIsNotOnTheListIsPutOnItByTheFirstTap() {
+        Column[] t = EffortTable.build();
+        State hand = cool(true, true, FACE, 5, 24f);       // fan 5 is on no mark
+        for (int dir : new int[] {+1, -1}) {
+            State n = EffortTable.step(t, hand, dir);
+            assertTrue("fan " + n.fan, n.fan != 5);
+            assertTrue(EffortTable.fit(t, n).exact);
+        }
     }
 
-    @Test public void fitMachineOnNeverReadsAsFreeColumn() {
-        // outC=20 -> free=3. A machine-on car whose other levers land it at a
-        // raw level inside the free band must be bumped up to free+1.
-        Column[] t = EffortTable.build(20f);
-        int level = EffortTable.fit(t, 20f, true, true, 17f, 2,
-            EffortTable.DIR_FACE, false);
-        assertEquals(4, level);
-    }
-
-    @Test public void fitFanOnlyMismatchCostsOnePress() {
-        Column[] t = EffortTable.build(26f);
-        // Matches the C5 column (setpoint 17, face, recirc on) except fan is
-        // one step short (6, C4's fan, instead of 8).
-        int level = EffortTable.fit(t, 26f, true, true, 17f, 6,
-            EffortTable.DIR_FACE, true);
-        assertEquals(4, level);
-    }
-
-    @Test public void fitUnsupportedDirectionCostsOnePress() {
-        Column[] t = EffortTable.build(26f);
-        int level = EffortTable.fit(t, 26f, true, true, 17f, 8, 999, true);
-        assertEquals(4, level);
-    }
-
-    @Test public void fitRecircMismatchCostsOnlyOnePress() {
-        Column[] t = EffortTable.build(26f);
-        // Recirc spans C3..C5 at this outC, but a mismatch is still one press.
-        int level = EffortTable.fit(t, 26f, true, true, 17f, 8,
-            EffortTable.DIR_FACE, false);
-        assertEquals(4, level);
-    }
-
-    @Test public void fitTakesMaxNotSumAcrossLevers() {
-        Column[] t = EffortTable.build(26f);
-        // Fan one step off AND an unsupported direction at once: still one
-        // press worst-case, not two.
-        int level = EffortTable.fit(t, 26f, true, true, 17f, 6, 999, true);
-        assertEquals(4, level);
-    }
-
-    @Test public void fitNaNSetpointDoesNotCrashWhenMachineOn() {
-        Column[] t = EffortTable.build(26f);
-        int level = EffortTable.fit(t, 26f, true, true, Float.NaN, 8,
-            EffortTable.DIR_FACE, true);
-        assertEquals(5, level);
-    }
-
-    @Test public void fitGlassFeetInfersWarmSideWhenMachineOff() {
-        // When machine is off and direction is glass+feet (6), sideIsCold must return false (warm side)
-        Column[] t = EffortTable.build(16f);
-        int level = EffortTable.fit(t, 16f, true, false, Float.NaN, 2, EffortTable.DIR_GLASS_FEET, false);
-        assertTrue("Expected warm side level <= 0, got: " + level, level <= 0);
-    }
-
-    @Test public void fitExactMatchToMidWarmColumnWithGlassFeet() {
-        // outC=16 -> W3 has fan=4, machine=true, setpoint=27, dir=DIR_GLASS_FEET, recirc=false
-        Column[] t = EffortTable.build(16f);
-        Column w3 = EffortTable.at(t, -3);
-        assertEquals(EffortTable.DIR_GLASS_FEET, w3.direction);
-        int level = EffortTable.fit(t, 16f, true, w3.machine, w3.setpointC, w3.fan,
-            w3.direction, w3.recirc);
-        assertEquals(-3, level);
-    }
-
-    // Issue #6: on a cool evening the C4 setpoint (18 C) is not below the outside
-    // air (18 C), and the side test used to compare the two. A refit then read a
-    // car blowing cold as W1 and relabelled the slider "heating".
-    @Test public void fitColdColumnOnCoolEveningStaysCold() {
-        Column[] t = EffortTable.build(18f);
-        Column c4 = EffortTable.at(t, 4);
-        assertTrue(c4.machine);
-        assertEquals(18f, c4.setpointC, 0.01f);
-        assertEquals(4, EffortTable.fit(t, 18f, true, c4.machine, c4.setpointC, c4.fan,
-            c4.direction, c4.recirc));
-        // A hand on the OEM fan must not change the side either.
-        assertEquals(4, EffortTable.fit(t, 18f, true, c4.machine, c4.setpointC, 8,
-            c4.direction, c4.recirc));
-    }
-
-    @Test public void fitEveryColumnRoundTripsToItsOwnSideAtEveryOutsideTemp() {
-        for (float out = -10f; out <= 45f; out += 1f) {
-            Column[] t = EffortTable.build(out);
-            for (int lv = -EffortTable.MAX_LEVEL; lv <= EffortTable.MAX_LEVEL; lv++) {
-                if (lv == 0) continue;
-                Column c = EffortTable.at(t, lv);
-                int got = EffortTable.fit(t, out, true, c.machine, c.setpointC, c.fan,
-                    c.direction, c.recirc);
-                assertEquals("out=" + out + " col=" + c, lv, got);
+    @Test public void tapsFromAnyHandStateReachAMarkAndNeverCrossTheMiddle() {
+        int[] fans = {1, 2, 3, 4, 5, 6, 7, 8};
+        int[] dirs = {FACE, FEET, EffortTable.DIR_FACE_FEET, GLASS, EffortTable.DIR_GLASS_FEET};
+        float[] temps = {17f, 20f, 22f, 23f, 24f};
+        Column[] t = EffortTable.build();
+        for (int fan : fans) for (int d : dirs) for (float sp : temps)
+        for (int ac = 0; ac < 2; ac++) for (int rec = 0; rec < 2; rec++) for (int dir = -1; dir <= 1; dir += 2) {
+            State s = cool(ac == 1, rec == 1, d, fan, sp);
+            boolean cold0 = EffortTable.fit(t, s).level > 0;
+            boolean exact = false;
+            for (int i = 0; i < 20 && !exact; i++) {
+                State n = EffortTable.step(t, s, dir);
+                Fit f = EffortTable.fit(t, n);
+                exact = f.exact;
+                if (n.power && n.machine && cold0 && dir > 0) {
+                    assertTrue("crossed to heating from " + label(s), n.setpointC < EffortTable.MIDDLE_C);
+                }
+                s = n;
             }
+            assertTrue("never settled", exact);
         }
     }
 
-    // ---- name() / dirName() ------------------------------------------------
-
-    @Test public void nameFormatsLevels() {
-        assertEquals("0", EffortTable.name(0));
-        assertEquals("C3", EffortTable.name(3));
-        assertEquals("W2", EffortTable.name(-2));
+    private static String label(State s) {
+        return EffortTable.label(EffortTable.build(), s);
     }
 
-    @Test public void dirNameFormatsKnownAndUnknownValues() {
-        assertEquals("face", EffortTable.dirName(EffortTable.DIR_FACE));
-        assertEquals("feet", EffortTable.dirName(EffortTable.DIR_FEET));
-        assertEquals("face+feet", EffortTable.dirName(EffortTable.DIR_FACE_FEET));
-        assertEquals("glass", EffortTable.dirName(EffortTable.DIR_GLASS));
-        assertEquals("glass+feet", EffortTable.dirName(EffortTable.DIR_GLASS_FEET));
-        assertEquals("glass+feet", EffortTable.dirName(EffortTable.DIR_DEFROST_FLOOR));
-        assertEquals("dir999", EffortTable.dirName(999));
+    // ---- the log -----------------------------------------------------------
+
+    @Test public void theLogLabelKeepsItsShape() {
+        Column[] t = EffortTable.build();
+        assertEquals("C4@24/f2/rec/glass", EffortTable.label(t, State.of(EffortTable.at(t, 4))));
+        assertEquals("C1@--/f1/face", EffortTable.label(t, State.of(EffortTable.at(t, 1))));
+        assertEquals("0@off", EffortTable.label(t, State.OFF));
+        assertTrue(EffortTable.label(t, cool(true, true, FACE, 5, 24f)).contains("~@24/f5/rec/face"));
     }
 }

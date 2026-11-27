@@ -78,6 +78,27 @@
   yet checked on a real right-hand-drive car.
 
 ### Changed
+- **A new comfort ruler: one tap, one small change** (#209). The ruler was
+  5 cooling steps, and one tap could swap the fan, the temperature and the air
+  direction together: the fan could jump from 1 to 6. Now it is one list of
+  small moves: 10 cooling marks and 5 heating marks. A tap goes to the next
+  mark and changes one setting. Cooling starts gentle: outside air, then the
+  AC at fan 1 with the air on the glass, so no cold air hits your arm. Air to
+  the face and the loud fan speeds come last. Heating starts as a little warm
+  air at the feet. The first tap from off is always the gentlest mark.
+  - **After a change on the car's own climate screen**, a tap moves only the
+    setting that is out of line, one place. It no longer applies a full preset.
+  - **The bar is a level meter**: one grey bar when off; it splits into marks
+    that fill with colour as you tap.
+  - **One list for all weather**: a mark always does the same thing. The
+    ruler no longer changes the climate by itself when the weather changes.
+  - **Learn mode is gone.** The marks are fixed, so the Climate page of the
+    settings is removed. What the old ruler learned is not used.
+  - **Home Assistant / MQTT**: the comfort `pointer` now goes from 10 (most
+    cooling) to -5 (most heating); `cool_max` is 10.
+- **The climate log saves more.** Each row of the climate log now also has
+  where the air goes (face, feet, glass) and the rear window defogger. This
+  is data for a better comfort ruler (#209).
 - **Stats: tap the map for all routes.** The map beside the sessions has no
   title or button any more. Tap it to see every route of the day, week,
   month or year you are looking at.
