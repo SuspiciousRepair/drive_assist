@@ -99,7 +99,7 @@ public final class SqliteTestDb {
                 "event TEXT NOT NULL," +
                 "pointer INTEGER, out_c REAL, setpoint REAL, fan INTEGER," +
                 "ac INTEGER, recirc INTEGER, power INTEGER," +
-                "detail TEXT)",
+                "detail TEXT, direction INTEGER, rear_defrost INTEGER)",
 
             "CREATE TABLE battery_health_reading (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT," +

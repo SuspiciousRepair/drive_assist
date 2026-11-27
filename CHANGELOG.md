@@ -78,6 +78,9 @@
   yet checked on a real right-hand-drive car.
 
 ### Changed
+- **The climate log saves more.** Each row of the climate log now also has
+  where the air goes (face, feet, glass) and the rear window defogger. This
+  is data for a better comfort ruler (#209).
 - **Stats: tap the map for all routes.** The map beside the sessions has no
   title or button any more. Tap it to see every route of the day, week,
   month or year you are looking at.
