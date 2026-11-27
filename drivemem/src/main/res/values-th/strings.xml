@@ -300,7 +300,6 @@
          message covering both named the outside temperature while the real
          problem was a dead binder, and cost an hour aimed at the wrong half. -->
     <string name="ruler_no_car">ไม่ได้เชื่อมต่อกับรถ</string>
-    <string name="ruler_no_outside_temp">ไม่มีอุณหภูมิภายนอก</string>
     <string name="ruler_defrosting">กำลังละลายฝ้า</string>
     <string name="ruler_at_limit">%1$s · ถึงขีดจำกัด</string>
     <string name="ruler_car_refused">รถไม่ยอมรับ %1$d°</string>

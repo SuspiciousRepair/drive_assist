@@ -318,7 +318,6 @@
          message covering both named the outside temperature while the real
          problem was a dead binder, and cost an hour aimed at the wrong half. -->
     <string name="ruler_no_car">not connected to the car</string>
-    <string name="ruler_no_outside_temp">no outside temperature</string>
     <string name="ruler_defrosting">defrosting</string>
     <string name="ruler_at_limit">%1$s · at the limit</string>
     <string name="ruler_car_refused">the car would not accept %1$d°</string>

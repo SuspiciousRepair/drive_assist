@@ -212,7 +212,6 @@
 
     <!-- ruler -->
     <string name="ruler_no_car">sin conexión con el coche</string>
-    <string name="ruler_no_outside_temp">sin temperatura exterior</string>
     <string name="ruler_at_limit">%1$s · al límite</string>
     <string name="ruler_car_refused">el coche no aceptó %1$d°</string>
     <string name="ruler_committed">confort guardado</string>

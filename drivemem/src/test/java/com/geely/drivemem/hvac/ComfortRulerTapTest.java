@@ -39,18 +39,11 @@ public class ComfortRulerTapTest {
      * produced.
      */
     @Test public void carThatWokeRunningFitsItsMark() {
-        EffortTable.Column[] t = EffortTable.build(34f);
+        EffortTable.Column[] t = EffortTable.build();
         EffortTable.State woke = EffortTable.State.of(EffortTable.at(t, 7));
         assertEquals(7, EffortTable.fit(t, woke).level);
         EffortTable.State next = EffortTable.step(t, woke, +1);
         assertEquals(8, EffortTable.fit(t, next).level);
         assertEquals(4, next.fan);
-    }
-
-    @Test public void weatherTakesC4OffTheRulerOnAMildDay() {
-        EffortTable.Column[] mild = EffortTable.build(20f);
-        assertEquals(3, ComfortRuler.weatherMark(mild, 4).level);
-        assertEquals(8, ComfortRuler.weatherMark(mild, 8).level);
-        assertEquals(4, ComfortRuler.weatherMark(EffortTable.build(30f), 4).level);
     }
 }

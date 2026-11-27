@@ -393,7 +393,7 @@ Once installed, Drive Assist integrates naturally into your daily driving routin
 
 * **Single Slider / Dual Tap**: Control cabin thermal comfort with large, driver-friendly touch targets.
 * **One tap, one small change (`C10..0..W5`)**: The ruler has 10 cooling marks and 5 heating marks. Each tap goes to the next mark and changes one setting, so the fan never jumps. The first tap from off is always the gentlest mark.
-* **The weather helps**: Below 24 °C outside, the cooling marks keep fresh air (no recirculation). Below 12 °C outside, the heating marks also blow on the glass to stop fog.
+* **No surprises**: A mark always does the same thing, in all weather. The ruler changes the climate only when you tap.
 * **Quick Toggles**: Tap the windshield purge button to lower windows and flush hot air, or toggle cabin recirculation with a single touch.
 
 ### 2. Drive Mode & Creep Persistence

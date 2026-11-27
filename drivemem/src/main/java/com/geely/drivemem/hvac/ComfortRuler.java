@@ -21,18 +21,13 @@ import android.util.Log;
  */
 // Taps are UI-only (no car I/O), so bursts never wait on the car. The car is
 // read back in the background (doMaintenance) and before the first tap after
-// a quiet spell. A sustained change of the outside temperature (2°C for
-// 10min) re-reads the weather rules; the mark stays, and at most
-// recirculation or the air on the glass changes.
+// a quiet spell. The list of marks is fixed: the weather does not change it.
 public class ComfortRuler {
     static final String TAG = CarAccess.TAG;
 
     // Delay for a single late re-check of apply(). One attempt only, not a loop.
     static final long VERIFY_MS = 800;
 
-    // Re-sliding the table. Both conditions, not either.
-    static final float DRIFT_C  = 2f;
-    static final long  DRIFT_MS = 10 * 60 * 1000L;
     static final long  QUIET_AFTER_TAP_MS = 60 * 1000L;
 
     private final Context ctx;
@@ -55,10 +50,7 @@ public class ComfortRuler {
     private volatile int direction = 0;
 
     private EffortTable.Column[] table;
-    private float tableOutC = Float.NaN;
     private long lastTapMs = 0;
-    // Timestamp when outside temp first drifted beyond deadband; 0 if not drifted
-    private long driftSinceMs = 0;
 
     // Single-slot mailbox for coalescing a burst of taps into one write.
     // applyStale = true means level changed while a write was in flight.
@@ -66,14 +58,8 @@ public class ComfortRuler {
     private volatile boolean applying = false;
 
     // Direct access to CarAccess. MUST be called from CarActor's thread only
-    // (via runOnCarThread()), not from the reducer thread h. The reducer uses
-    // cachedOutsideTempC() instead.
+    // (via runOnCarThread()), not from the reducer thread h.
     private CarAccess car() { return CarActor.get(ctx).rawAccess(); }
-
-    private Float cachedOutsideTempC() {
-        CarActor.Reading r = CarActor.get(ctx).get("telemetry.outside_temp");
-        return (r.status == CarActor.Reading.Status.OK && r.value instanceof Float) ? (Float) r.value : null;
-    }
 
     public ComfortRuler(Context ctx) {
         this.ctx = ctx.getApplicationContext();
@@ -113,20 +99,6 @@ public class ComfortRuler {
     public void tap(int dir) {
         h.post(() -> {
             if (!armed && !arm()) { notifyUi(); return; }
-
-            // A press always uses today's weather. The table is built once at
-            // arm() but outside temp may have drifted significantly (this unit
-            // suspends rather than shutting down). Read-only operation.
-            // Uses cachedOutsideTempC() (not direct car access) since this runs
-            // on the reducer thread, not CarActor's thread.
-            Float outNow = cachedOutsideTempC();
-            if (outNow != null && Math.abs(outNow - tableOutC) >= DRIFT_C) {
-                Log.i(TAG, "ruler: table was built for " + tableOutC + "C, now "
-                         + outNow + "C — rebuilding before the press");
-                table = buildTable(outNow);
-                tableOutC = outNow;
-                driftSinceMs = 0;
-            }
 
             // The FIRST tap after a quiet spell re-reads the car before it moves.
             // When the car wakes it restores its last climate on its own (say
@@ -216,7 +188,7 @@ public class ComfortRuler {
         }
     }
 
-    /** Triggers background maintenance (refit from car state, re-slide if weather drifted). */
+    /** Triggers background maintenance (refit from car state). */
     public void maintenance() { CarActor.get(ctx).runOnCarThread(this::doMaintenance); }
 
     /** Ensures the ruler is initialized and ready for display (read-only). */
@@ -253,19 +225,11 @@ public class ComfortRuler {
             status = ctx.getString(R.string.ruler_no_car);
             return false;
         }
-        Float outC = car().readOutsideTempC();
-        if (outC == null) {
-            status = ctx.getString(R.string.ruler_no_outside_temp);
-            return false;
-        }
-        table = buildTable(outC);
-        tableOutC = outC;
+        table = EffortTable.build();
         armed = true;
         refit();
-        // Initialize silence timer. Needed for drift detection in maintenance().
         lastTapMs = System.currentTimeMillis();
-        driftSinceMs = 0;
-        Log.i(TAG, "ruler: armed out=" + outC + "C at " + EffortTable.name(level)
+        Log.i(TAG, "ruler: armed at " + EffortTable.name(level)
                  + (approx ? "ish" : " exactly"));
         return true;
     }
@@ -328,7 +292,7 @@ public class ComfortRuler {
             parkSetpoint();
             ensureFlag(CarAccess.HVAC_POWER_ON, false);
             ComfortEvents.event(ctx, "apply", ComfortEvents.snap(car(), level),
-                             "col=" + col + " out=" + tableOutC);
+                             "col=" + col);
             CarActor.get(ctx).cancelOnCarThread(verify);
             CarActor.get(ctx).runOnCarThreadDelayed(verify, VERIFY_MS);
             return;
@@ -360,7 +324,7 @@ public class ComfortRuler {
         if (fanNow >= 0 && fanNow != c.fan) car().nudgeFan(c.fan - fanNow);
 
         ComfortEvents.event(ctx, "apply", ComfortEvents.snap(car(), level),
-                         "col=" + col + " out=" + tableOutC);
+                         "col=" + col);
         CarActor.get(ctx).cancelOnCarThread(verify);
         CarActor.get(ctx).runOnCarThreadDelayed(verify, VERIFY_MS);
     }
@@ -431,13 +395,12 @@ public class ComfortRuler {
         car().setHvacFlag(prop, want);
     }
 
-    /** Background maintenance: follow the car, and the weather rules. */
+    /** Background maintenance: follow the car. */
     private void doMaintenance() {
         if (!armed || table == null) return;
         // A tap of ours is waiting or being written: the state is ours, and a
         // read now would see the car half way.
         if (applying || applyStale) return;
-        long now = System.currentTimeMillis();
 
         // Reconcile with car state. If a hand on the OEM panel moved a setting,
         // the display must follow it. Read-only operation.
@@ -449,43 +412,7 @@ public class ComfortRuler {
                      + " -> " + EffortTable.name(level) + (approx ? "~" : ""));
             notifyUi();
         }
-
-        // A setting is out of line: a hand is on the OEM panel. Don't follow
-        // the weather, since that would just undo the manual change.
-        if (approx || defrosting) return;
-
-        Float outC = car().readOutsideTempC();
-        if (outC == null) return;
-
-        boolean far = Math.abs(outC - tableOutC) >= DRIFT_C;
-        if (!far) { driftSinceMs = 0; return; }          // came back; start over
-        if (driftSinceMs == 0) { driftSinceMs = now; return; }
-        if (now - driftSinceMs < DRIFT_MS) return;        // not sustained yet
-        if (now - lastTapMs < QUIET_AFTER_TAP_MS) return; // never mid-complaint
-
-        // Same mark, today's weather rules. Only recirculation (cool side) or
-        // the air on the glass (warm side) can differ.
-        int held = level;
-        table = EffortTable.build(outC);
-        tableOutC = outC;
-        driftSinceMs = 0;
-        EffortTable.State want = EffortTable.State.of(weatherMark(table, held));
-        if (cur == null || want.same(cur)) return;
-        Log.i(TAG, "ruler: weather moved to " + outC + "C — re-applying " + EffortTable.name(held));
-        ComfortEvents.event(ctx, "reslide", ComfortEvents.snap(car(), held), "out=" + outC);
-        show(want);
-        notifyUi();
-        apply(want);
     }
-
-    /** The mark to hold after a weather change: the same one, or the one
-     * before it when the weather took it off the ruler (C4 on a mild day). */
-    static EffortTable.Column weatherMark(EffortTable.Column[] table, int level) {
-        EffortTable.Column c = EffortTable.at(table, level);
-        return c.skipped ? EffortTable.at(table, level - 1) : c;
-    }
-
-    private EffortTable.Column[] buildTable(float outC) { return EffortTable.build(outC); }
 
     private String describe(int lv) {
         if (lv == 0) return ctx.getString(R.string.ruler_steady);

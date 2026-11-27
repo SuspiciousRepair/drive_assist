@@ -303,7 +303,6 @@
 
     <!-- ruler -->
     <string name="ruler_no_car">sem conexao com o carro</string>
-    <string name="ruler_no_outside_temp">sem temperatura externa</string>
     <string name="ruler_defrosting">descongelando</string>
     <string name="ruler_at_limit">%1$s · no limite</string>
     <string name="ruler_car_refused">o carro nao aceitou %1$d°</string>

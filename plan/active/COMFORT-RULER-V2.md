@@ -26,7 +26,7 @@ What one driver's log says (434 ruler changes, 11 weeks):
 1. **One list of small moves**, in order from quiet to loud.
 2. **One mark on the ruler for each move.** A mark always means the same thing.
 3. **One tap = the next mark.** One setting changes, nothing else.
-4. **The weather decides recirculation**, not a tap.
+4. **One list for all weather.** The weather does not change a mark.
 
 ## The cool side: 10 marks
 
@@ -74,12 +74,15 @@ What the log says (state saved every 5 minutes, 148 hours of cooling):
 
 ## Recirculation and the weather
 
-Below about 24 °C outside, recirculation stays off on every mark: mild air
-is free and keeps the glass clear. So the mild-weather
-ruler skips C4: a tap goes from C3 to C5. The bar always has 10 marks. The warm side never uses recirculation, as today.
+Decided 2026-11-27: one list for all weather. C4 turns recirculation on on
+a mild day too. The warm side never uses recirculation, as today.
 
-A band change while driving uses today's guards: 2 °C of drift, held for
-10 minutes, no tap in the last minute.
+Why: an earlier draft kept recirculation off below 24 °C and passed over
+C4. That made a mark mean two things, and the ruler changed the car by
+itself when the weather moved. In the log, the time of day explains the
+wishes better than the outside temperature. A list per weather follows the
+weaker signal and is v1 again. The log now saves recirculation and the air
+direction, so the list can change later with facts.
 
 ## A tap when the car is not on a mark
 
@@ -159,10 +162,9 @@ the feet. Each mark changes one setting, but the last one.
 
 - The warm side never uses recirculation, as today: outside air keeps the
   glass clear.
-- **The weather decides the glass.** When it is cold outside (first guess:
-  below 12 °C), "feet" becomes "glass + feet" on W1 to W4. The warm air on
-  the glass stops fog. It is not a tap, the same as recirculation on the
-  cool side.
+- W1 to W4 blow on the feet in all weather. An earlier draft added the
+  glass below 12 °C. It went away with the other weather logic (see
+  "Recirculation and the weather").
 - Today W1 blows on the glass and W2 to W4 use fans 2, 4 and 6. The new list
   is quieter and starts at the feet.
 - The log has only 23 warm changes. The values are a guess until a cold
@@ -178,7 +180,7 @@ the feet. Each mark changes one setting, but the last one.
 
 | Part | Change |
 | :--- | :--- |
-| `EffortTable` | The rules become the list plus the recirculation rule. `fit()` becomes "place of each setting". The fan-only bands go away. |
+| `EffortTable` | The rules become one fixed list. `fit()` becomes "place of each setting". The fan-only bands go away. |
 | `ComfortRuler` | The tap code uses the two tap rules above. |
 | `Style.comfortRuler()` | New drawing: a grey bar when off, marks that fill with colour when on. |
 | Overlay button, MQTT/HA, ABRP | They read a step from -5 to +5 today. The cool range becomes 1 to 10. The warm range stays 1 to 5. |
@@ -198,8 +200,11 @@ the feet. Each mark changes one setting, but the last one.
    places each; the direction says which one.
 4. **10 cool marks and 5 warm marks.** The bar shows only one side at a
    time, so the uneven count does not show.
-5. **The values in the list** (24 / 22 / 17 °C, fan 1, 2, 3, 4, 6, 8) and the
-   24 °C recirculation limit are a first guess from one log.
+5. **The values in the list** (24 / 22 / 17 °C, fan 1, 2, 3, 4, 6, 8) are a
+   first guess from one log.
+6. **Recirculation on a mild day.** C4 turns it on in all weather. If the
+   log shows that the driver turns it off by hand on mild days, the list
+   changes.
 
 ## Order of work
 

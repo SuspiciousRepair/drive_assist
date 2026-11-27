@@ -4,9 +4,8 @@ package com.geely.drivemem.hvac;
  * The comfort ruler's list of marks: C10 (all-out cooling) through 0 (off) to
  * W5 (all-out heating). A mark is one small move from the mark before it, so
  * one tap changes one setting (two at four steps of the cool side and at W5).
- * A mark always means the same thing. The weather decides only two things,
- * and never by a tap: recirculation on the cool side, and warm air on the
- * glass on the warm side. See COMFORT-TABLE.md.
+ * A mark always means the same thing: the list does not change with the
+ * weather or with use. See COMFORT-TABLE.md.
  *
  * Touches no Android API, so it runs in plain unit tests.
  */
@@ -18,14 +17,6 @@ public final class EffortTable {
     // Where the setpoint is parked while the AC is off, so a later power-on
     // does not start at full effort.
     public static final float CABIN_TARGET_C = 23f;
-
-    // Below this outside temperature recirculation stays off on every cool
-    // mark: mild air is free and keeps the glass clear. C4 (the mark that only
-    // turns recirculation on) is then skipped.
-    public static final float RECIRC_FROM_C = 24f;
-    // Below this outside temperature W1..W4 blow on the glass too: warm air on
-    // the glass stops fog.
-    public static final float GLASS_BELOW_C = 12f;
 
     // Air direction. The area is ignored on this unit and 356517121 is an alias
     // of the same value — see field-catalog.md.
@@ -77,13 +68,11 @@ public final class EffortTable {
         public final boolean recirc;
         /** Power (HVAC_POWER_ON). Only mark 0 is off. */
         public final boolean power;
-        /** True when the weather takes this mark off the ruler (C4 on a mild day). */
-        public final boolean skipped;
 
-        Column(int level, boolean machine, float sp, int fan, int dir, boolean recirc, boolean skipped) {
+        Column(int level, boolean machine, float sp, int fan, int dir, boolean recirc) {
             this.level = level; this.machine = machine; this.setpointC = sp;
             this.fan = fan; this.direction = dir; this.recirc = recirc;
-            this.power = level != 0; this.skipped = skipped;
+            this.power = level != 0;
         }
 
         /** Returns true if this is a cooling mark (level > 0). */
@@ -167,30 +156,21 @@ public final class EffortTable {
 
     // ---------------------------------------------------------------- the list
 
-    /** The mark for the given level in this weather. */
-    public static Column column(float outC, int level) {
-        if (level == 0) return new Column(0, false, Float.NaN, 0, DIR_GLASS, false, false);
-        boolean cold = level > 0;
-        int[] r = cold ? COOL[level - 1] : WARM[-level - 1];
+    private static final Column[] TABLE = new Column[COOL_MAX + WARM_MAX + 1];
+    static { for (int i = 0; i < TABLE.length; i++) TABLE[i] = make(COOL_MAX - i); }
+
+    private static Column make(int level) {
+        if (level == 0) return new Column(0, false, Float.NaN, 0, DIR_GLASS, false);
+        int[] r = level > 0 ? COOL[level - 1] : WARM[-level - 1];
         boolean machine = r[0] == 1;
-        boolean recirc = r[1] == 1;
-        int dir = r[2];
-        boolean skipped = false;
-        if (cold && outC < RECIRC_FROM_C) {
-            // C4 only turns recirculation on. Without it, it is C3 again.
-            skipped = recirc && !(COOL[level - 2][1] == 1);
-            recirc = false;
-        }
-        if (!cold && dir == DIR_FEET && outC < GLASS_BELOW_C) dir = DIR_GLASS_FEET;
-        return new Column(level, machine, machine ? r[4] : Float.NaN, r[3], dir, recirc, skipped);
+        return new Column(level, machine, machine ? r[4] : Float.NaN, r[3], r[2], r[1] == 1);
     }
 
-    /** Builds the full list (C10..0..W5) for the given outside temperature. */
-    public static Column[] build(float outC) {
-        Column[] cols = new Column[COOL_MAX + WARM_MAX + 1];
-        for (int i = 0; i < cols.length; i++) cols[i] = column(outC, COOL_MAX - i);
-        return cols;
-    }
+    /** The mark for the given level. */
+    public static Column column(int level) { return TABLE[COOL_MAX - level]; }
+
+    /** The full list (C10..0..W5). The marks are immutable; the array is a copy. */
+    public static Column[] build() { return TABLE.clone(); }
 
     /** Returns the mark at the given level. */
     public static Column at(Column[] table, int level) { return table[COOL_MAX - level]; }
@@ -239,7 +219,6 @@ public final class EffortTable {
         int best = 1, bestMiss = Integer.MAX_VALUE;
         for (int k = 1; k <= max(cold); k++) {
             Column c = side(table, cold, k);
-            if (c.skipped) continue;
             int m = misses(c, s);
             if (m < bestMiss) { bestMiss = m; best = k; }
         }
@@ -261,7 +240,7 @@ public final class EffortTable {
     /**
      * The state after one tap. {@code dir} +1 = cooler, -1 = warmer.
      *
-     * On a mark: the next mark (a skipped mark is passed over). At the end of
+     * On a mark: the next mark. At the end of
      * the ruler the same state comes back.
      *
      * Not on a mark (a hand on the car's own climate screen): every setting has
@@ -281,7 +260,6 @@ public final class EffortTable {
 
         if (f.exact) {
             int k = here + (away ? 1 : -1);
-            while (k >= 1 && k <= top && side(table, cold, k).skipped) k += away ? 1 : -1;
             if (k > top) return s;
             return k < 1 ? State.OFF : State.of(side(table, cold, k));
         }
@@ -314,7 +292,7 @@ public final class EffortTable {
         int best = 0;
         for (int k = 1; k <= max(cold); k++) {
             Column c = side(table, cold, k);
-            if (c.skipped || !holds(c, s, setting)) continue;
+            if (!holds(c, s, setting)) continue;
             // A running machine's setpoint has no place on a mark without one.
             if (setting == TEMP && s.machine && !c.machine) continue;
             if (best == 0 || Math.abs(k - here) < Math.abs(best - here)) best = k;
@@ -324,7 +302,7 @@ public final class EffortTable {
         float bestD = Float.MAX_VALUE;
         for (int k = 1; k <= max(cold); k++) {
             Column c = side(table, cold, k);
-            if (c.skipped || !c.machine) continue;
+            if (!c.machine) continue;
             float d = Math.abs(c.setpointC - s.setpointC);
             if (d < bestD || (d == bestD && Math.abs(k - here) < Math.abs(best - here))) { bestD = d; best = k; }
         }
@@ -334,7 +312,6 @@ public final class EffortTable {
     /** The state with the settings that mark {@code c} (at place k) pulls
      * along, or null when it pulls none. */
     private static State moved(Column c, State s, int[] place, int k, boolean away, boolean cold) {
-        if (c.skipped) return null;
         boolean machine = s.machine, recirc = s.recirc;
         int fan = s.fan, direction = s.direction;
         float sp = s.setpointC;

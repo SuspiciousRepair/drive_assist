@@ -16,8 +16,8 @@ The rules:
 1. **One mark for each move.** A mark always means the same thing.
 2. **One tap = the next mark.** One setting changes (two at a few steps, see below).
 3. **The first tap from off is always C1 or W1.**
-4. **The weather decides two things**, and never by a tap: recirculation on the
-   cool side, and warm air on the glass on the warm side.
+4. **One list for all weather.** The outside temperature does not change a
+   mark. A list that changes by itself is a surprise.
 5. **Nothing is learned.** The list is fixed.
 
 ---
@@ -48,10 +48,10 @@ The rules:
 * Four steps change two settings: C1 -> C2 (AC and direction), C5 -> C6
   (direction and fan), C8 -> C9 and C9 -> C10 (temperature and fan).
 
-**Recirculation and the weather.** Below 24 °C outside (`RECIRC_FROM_C`),
-recirculation stays off on every mark: mild air is free and keeps the glass
-clear. C4 only turns recirculation on, so a mild day passes over it: a tap
-goes from C3 to C5.
+**Recirculation and the weather.** C4 turns recirculation on in all weather.
+On a mild day it helps less than on a hot day, but the tap still makes one
+change that the driver can see. The climate log saves recirculation and the
+air direction, so the list can change later with facts.
 
 ## 2. The warm side: 5 marks
 
@@ -66,8 +66,8 @@ goes from C3 to C5.
 * The heat is `HVAC_AC_ON` too: this is an EV, and the heat pump runs through
   the same compressor flag.
 * The warm side never uses recirculation: outside air keeps the glass clear.
-* **The glass and the weather.** Below 12 °C outside (`GLASS_BELOW_C`), "feet"
-  becomes "glass + feet" on W1 to W4. Warm air on the glass stops fog.
+* W1 to W4 blow on the feet in all weather. For fog on a cold day, use the
+  car's defrost button.
 
 ## 3. The middle
 
@@ -116,10 +116,7 @@ the air to the glass: that is C2. **Warmer** turns only the AC off: that is C1.
 * The first tap after a quiet minute reads the car first, so a car that woke
   with its own climate is not treated as "off".
 * Every 30 s the ruler reads the car and follows a hand change.
-* **Weather while driving**: the weather rules are read again when the outside
-  temperature has moved 2 °C for 10 minutes and no tap came in the last
-  minute. The mark stays; only recirculation or the air on the glass can
-  change. This does not happen while the car is between marks.
+* The ruler never changes the car by itself. Only a tap writes to the car.
 
 ## 7. The climate log
 

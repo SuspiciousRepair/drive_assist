@@ -90,8 +90,8 @@
     setting that is out of line, one place. It no longer applies a full preset.
   - **The bar is a level meter**: one grey bar when off; it splits into marks
     that fill with colour as you tap.
-  - **The weather**: below 24 °C outside the cooling marks keep fresh air;
-    below 12 °C the heating marks also blow on the glass.
+  - **One list for all weather**: a mark always does the same thing. The
+    ruler no longer changes the climate by itself when the weather changes.
   - **Learn mode is gone.** The marks are fixed, so the Climate page of the
     settings is removed. What the old ruler learned is not used.
   - **Home Assistant / MQTT**: the comfort `pointer` now goes from 10 (most
