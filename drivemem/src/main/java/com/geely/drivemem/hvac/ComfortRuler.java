@@ -141,6 +141,28 @@ public class ComfortRuler {
     }
 
     /**
+     * A touch on the bar: go to this mark at once (C10..C1, W1..W5).
+     * The mark is a full state, so the car is not read first. Like a tap, it
+     * changes only what the ruler wants; the car follows in the background.
+     */
+    public void set(int mark) {
+        h.post(() -> {
+            if (!armed && !arm()) { notifyUi(); return; }
+            int to = Math.max(-EffortTable.WARM_MAX, Math.min(EffortTable.COOL_MAX, mark));
+            defrosting = false;
+            ComfortEvents.event(ctx, "set", ComfortEvents.lite(level),
+                             "to=" + EffortTable.name(to) + (approx ? " approx" : ""));
+            lastTapMs = System.currentTimeMillis();
+            EffortTable.State base = cur != null ? cur : EffortTable.State.OFF;
+            EffortTable.State next = EffortTable.State.of(EffortTable.at(table, to));
+            if (next.same(base)) { notifyUi(); return; }
+            show(next);
+            notifyUi();
+            scheduleApply();
+        });
+    }
+
+    /**
      * True when a tap should re-read the car before moving: the last tap was
      * longer than {@link #QUIET_AFTER_TAP_MS} ago (or there was none) and no
      * write of ours is pending or in flight. Inside a burst the level is ours,
@@ -166,7 +188,7 @@ public class ComfortRuler {
         try { latch.await(2, java.util.concurrent.TimeUnit.SECONDS); } catch (InterruptedException ignored) {}
     }
 
-    /** Posts a drainApply task to CarActor's thread. Called only from tap(). */
+    /** Posts a drainApply task to CarActor's thread. Called from tap() and set(). */
     private void scheduleApply() {
         applyStale = true;
         CarActor.get(ctx).runOnCarThread(this::drainApply);

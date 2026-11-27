@@ -93,8 +93,11 @@
   air at the feet. The first tap from off is always the gentlest mark.
   - **After a change on the car's own climate screen**, a tap moves only the
     setting that is out of line, one place. It no longer applies a full preset.
-  - **The bar is a level meter**: one grey bar when off; it splits into marks
-    that fill with colour as you tap.
+  - **The bar is a level meter**: 10 grey marks when off; they fill with
+    colour as you tap.
+  - **Touch the bar to go to a mark at once.** Touch a mark, or slide a
+    finger along the bar and lift it: from off to C7 is one touch. The touch
+    area is higher than the bar. The two buttons stay for small moves.
   - **One list for all weather**: a mark always does the same thing. The
     ruler no longer changes the climate by itself when the weather changes.
   - **Learn mode is gone.** The marks are fixed, so the Climate page of the

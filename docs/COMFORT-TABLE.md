@@ -98,12 +98,19 @@ the air to the glass: that is C2. **Warmer** turns only the AC off: that is C1.
 
 `Style.effortScale()` draws the bar as a level meter:
 
-* **Off**: one long grey bar.
+* **Off**: the 10 cool marks, all grey.
 * **Cooling**: 10 marks. They fill with the cool colour from right to left; C1
   is the mark at the right end.
 * **Warming**: 5 marks. They fill with the warm colour from left to right.
 * **Not on a mark**: the last filled mark is an outline.
 * **Front defrost button on**: the bar is dimmed and the ruler waits.
+
+A touch on the bar goes to the mark under the finger (`ComfortRuler.set`). The
+bar follows a finger that slides; the car gets the mark when the finger lifts.
+The touch area is higher than the bar and does not show. From off the bar
+gives the cool marks; **Warmer** starts the warm side, and then the bar gives
+the warm marks. `EffortTable.markAt()` turns the place of the finger into a
+mark.
 
 ## 6. How a tap reaches the car
 
