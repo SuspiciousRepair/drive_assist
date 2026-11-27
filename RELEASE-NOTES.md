@@ -12,6 +12,10 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.11.4 — 2026-11-27
+
+- Fixed: the window button now closes windows that are set to open only a little, such as 10 %.
+
 ## v0.11.3 — 2026-11-23
 
 - New: fix lyrics that run early or late by tapping the lock icon on the lyrics card and tapping each line as it is sung.
