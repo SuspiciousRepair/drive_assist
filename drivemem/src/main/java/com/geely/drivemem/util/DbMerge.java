@@ -35,7 +35,7 @@ public final class DbMerge {
         "telemetry_sample", "trip", "charge_session", "park_session",
         "comfort_event", "battery_health_reading", "charge_stop_event",
         "valet_session", "trip_energy_segment", "trip_point",
-        "diary_event", "aux_12v_reading", "toll_booth", "toll_passage", "parking_cost"};
+        "diary_event", "aux_12v_reading", "toll_booth", "toll_passage", "parking_cost", "trip_edit"};
 
     /** column -> table it points at, per table. */
     static final Map<String, Map<String, String>> REFS = new LinkedHashMap<>();
@@ -65,6 +65,9 @@ public final class DbMerge {
         Map<String, String> parking = new LinkedHashMap<>();
         parking.put("valet_id", "valet_session");
         REFS.put("parking_cost", parking);
+        Map<String, String> edit = new LinkedHashMap<>();
+        edit.put("trip_id", "trip");
+        REFS.put("trip_edit", edit);
     }
 
     /** What happened, per table. offsets: how far each table's live ids moved,
@@ -113,11 +116,13 @@ public final class DbMerge {
             db.exec("UPDATE main." + t + " SET id = -(id + ?)", off);
             db.exec("UPDATE main." + t + " SET id = -id");
         }
-        // 2. Live references follow the rows they point at.
+        // 2. Live references follow the rows they point at, also in a live
+        //    table the backup does not have (a backup older than trip_edit:
+        //    its rows stay, but their trip ids moved with the trips).
         for (Map.Entry<String, Map<String, String>> e : REFS.entrySet()) {
             String t = e.getKey();
-            if (!tables.contains(t)) continue;
             List<String> here = db.columns("main", t);
+            if (here.isEmpty()) continue;
             for (Map.Entry<String, String> ref : e.getValue().entrySet()) {
                 Long off = r.offsets.get(ref.getValue());
                 if (!here.contains(ref.getKey()) || off == null || off == 0) continue;

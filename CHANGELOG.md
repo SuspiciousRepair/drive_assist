@@ -3,6 +3,16 @@
 ## [Unreleased]
 
 ### Added
+- **Join and split trips** (#210). A short stop no longer has to cut a drive
+  in two. On the stats page, tap the link icon on Sessions, then the first and
+  the last trip: everything between them (other trips, stops, a charge on the
+  way) turns blue, and **Join** makes one trip of it. On a trip's screen,
+  **Split** cuts it at a place where you shifted to P: the first one is
+  picked at once, **‹ ›** step through the others, and the two new trips show
+  before you commit. **Undo join** and
+  **Undo split** put the trips back: the recorded trips are never changed. The
+  height chart labels its toll lines, and a joined trip's stops and charges;
+  the shifts to P show only while splitting. Exports keep the trips as recorded.
 - **Odometer on trips and charges** (#210). Each trip shows the odometer at
   the start and the end, and each charge the odometer at plug-in: on the stats
   lists, the trip's route screen and the charge's page. The trips CSV has two

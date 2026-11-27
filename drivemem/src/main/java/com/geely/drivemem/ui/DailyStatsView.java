@@ -85,6 +85,16 @@ public class DailyStatsView extends LinearLayout {
     private final Map<Long, Boolean> chargeRowIsDc = new HashMap<>();
     private long selectedChargeId = -1L;
 
+    /** The Sessions card's heading row: the title and the join icon, or in
+     * pick mode the prompt with Cancel and Join (issue #210). */
+    private LinearLayout sessionsHead;
+    /** Pick mode: the first and last trip to join, picked on this date. */
+    private boolean pickMode;
+    private String pickDate;
+    /** The picked trips, by start time: the list is rebuilt on every live
+     * tick, so the objects change. 0 = not picked. */
+    private long pickA, pickB;
+
     private final EntityBus.Listener tickListener = (key, reading) -> post(this::onLiveTick);
 
     /** A charge ended or its cost was edited: reload calendar and current period. */
@@ -103,6 +113,7 @@ public class DailyStatsView extends LinearLayout {
         EntityBus.subscribe("charge.completed", chargeListener);
         EntityBus.subscribe("toll.changed", chargeListener);
         EntityBus.subscribe(ParkingCost.CHANGED, chargeListener);
+        EntityBus.subscribe(com.geely.drivemem.state.TripEditStore.CHANGED, chargeListener);
     }
 
     @Override
@@ -113,6 +124,7 @@ public class DailyStatsView extends LinearLayout {
         EntityBus.unsubscribe("charge.completed", chargeListener);
         EntityBus.unsubscribe("toll.changed", chargeListener);
         EntityBus.unsubscribe(ParkingCost.CHANGED, chargeListener);
+        EntityBus.unsubscribe(com.geely.drivemem.state.TripEditStore.CHANGED, chargeListener);
     }
 
     public DailyStatsView(Context context) {
@@ -269,7 +281,13 @@ public class DailyStatsView extends LinearLayout {
         sessionsCard.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 52f));
 
         // The counts are on the filter buttons only, not repeated in the heading.
-        sessionsCard.addView(sectionHeading(c, c.getString(R.string.stats_sessions_title), null));
+        sessionsHead = new LinearLayout(c);
+        sessionsHead.setOrientation(LinearLayout.HORIZONTAL);
+        sessionsHead.setGravity(Gravity.CENTER_VERTICAL);
+        sessionsHead.setMinimumHeight(Style.dp(c, 60));
+        sessionsCard.addView(sessionsHead, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        renderSessionsHead(null);
 
         sessionsFilterBar = new LinearLayout(c);
         sessionsFilterBar.setOrientation(LinearLayout.HORIZONTAL);
@@ -840,10 +858,24 @@ public class DailyStatsView extends LinearLayout {
     static List<Object> parkingStops(List<DailyStatsProvider.DaySession> sessions, List<ParkingCost.Row> parking) {
         List<Object> out = new ArrayList<>();
         if (sessions == null || sessions.isEmpty()) return out;
-        List<DailyStatsProvider.DaySession> s = new ArrayList<>(sessions);
+        // A joined trip counts as its trips, so the stops between them stay
+        // stops; and a gap runs from the latest end so far, so a charge
+        // inside a joined trip does not open a gap to the next session.
+        List<DailyStatsProvider.DaySession> s = new ArrayList<>();
+        for (DailyStatsProvider.DaySession x : sessions) {
+            if (x instanceof DailyStatsProvider.DriveSession && ((DailyStatsProvider.DriveSession) x).isJoined()) {
+                s.addAll(((DailyStatsProvider.DriveSession) x).members);
+            } else {
+                s.add(x);
+            }
+        }
         s.sort((a, b) -> Long.compare(a.startMs, b.startMs));
+        long lastEnd = 0;
         for (int i = 0; i + 1 < s.size(); i++) {
-            long gs = s.get(i).endMs, ge = s.get(i + 1).startMs;
+            DailyStatsProvider.DaySession cur = s.get(i);
+            if (cur.endMs <= 0) { lastEnd = Long.MAX_VALUE; continue; }
+            lastEnd = Math.max(lastEnd, cur.endMs);
+            long gs = lastEnd, ge = s.get(i + 1).startMs;
             if (gs <= 0 || ge <= gs) continue;
             if (ge - gs >= GAP_PRICE_HINT_MS || ParkingCost.matchGap(parking, gs, ge) != null) {
                 out.add(new long[]{gs, ge});
@@ -936,12 +968,15 @@ public class DailyStatsView extends LinearLayout {
         chargeRowViews.clear();
         chargeRowIsDc.clear();
         sessionsGen++;
+        if (pickMode && (l.po != null || !l.date.equals(pickDate))) pickMode = false;
+        renderSessionsHead(l);
+        if (pickMode) { renderPickList(l); return; }
         if (sessionFilter == SessionFilter.PARKING) { renderParking(l); return; }
 
         if (l.po == null) {
             List<DailyStatsProvider.DaySession> filtered = new ArrayList<>();
             for (DailyStatsProvider.DaySession s : l.ov.sessions) {
-                if (matchesFilter(s)) filtered.add(s);
+                if (matchesFilter(s) && !shownInsideJoined(l.ov.sessions, s)) filtered.add(s);
             }
             if (filtered.isEmpty()) {
                 TextView empty = Style.label(c, emptyFilterMessage(c));
@@ -1005,7 +1040,7 @@ public class DailyStatsView extends LinearLayout {
 
             List<DailyStatsProvider.DaySession> dayFiltered = new ArrayList<>();
             for (DailyStatsProvider.DaySession s : day.sessions) {
-                if (matchesFilter(s)) dayFiltered.add(s);
+                if (matchesFilter(s) && !shownInsideJoined(day.sessions, s)) dayFiltered.add(s);
             }
             if (dayFiltered.isEmpty()) continue;
 
@@ -1386,7 +1421,7 @@ public class DailyStatsView extends LinearLayout {
         tv.setTextSize(16f);
         tv.setSingleLine(true);
         tv.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        String text = c.getString(R.string.session_parked, SessionText.duration(gapMs));
+        String text = c.getString(R.string.session_parked, SessionText.shortDuration(gapMs));
         if (dayStartMs >= 0) {
             text = SessionText.range(gapStartMs, gapEndMs, dayStartMs, c.getString(R.string.session_yesterday))
                 + "  ·  " + text;
@@ -1430,6 +1465,422 @@ public class DailyStatsView extends LinearLayout {
         divider.setLayoutParams(new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, 1)));
         return divider;
+    }
+
+    // ---- Join trips (issue #210) ----
+
+    /** Inside a joined trip's card, in time order: each stop between its
+     * trips (a Parked row, tap to set what it cost) and each charge on the
+     * way, split around the charge. */
+    private void addJoinedInside(LinearLayout card, DailyStatsProvider.DriveSession t, long dayStartMs) {
+        Context c = getContext();
+        List<DailyStatsProvider.ChargeSessionItem> charges = new ArrayList<>();
+        List<ParkingCost.Row> parking = currentLoaded != null ? currentLoaded.parking : null;
+        if (currentLoaded != null) {
+            for (DailyStatsProvider.DayOverview day : periodDays(currentLoaded)) {
+                for (DailyStatsProvider.DaySession x : day.sessions) {
+                    if (x instanceof DailyStatsProvider.ChargeSessionItem && x.endMs > 0
+                            && x.startMs >= t.startMs && x.endMs <= t.endMs) {
+                        charges.add((DailyStatsProvider.ChargeSessionItem) x);
+                    }
+                }
+            }
+        }
+        charges.sort((a, b) -> Long.compare(a.startMs, b.startMs));
+        LinearLayout box = new LinearLayout(c);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(Style.dp(c, 18), Style.dp(c, 8), 0, 0);
+        View div = sessionDivider(c);
+        box.addView(div);
+        for (int i = 0; i + 1 < t.members.size(); i++) {
+            long gs = t.members.get(i).endMs, ge = t.members.get(i + 1).startMs;
+            long from = gs;
+            for (DailyStatsProvider.ChargeSessionItem ch : charges) {
+                if (ch.startMs < gs || ch.endMs > ge) continue;
+                View before = buildGapRow(from, ch.startMs, parking, -1);
+                if (before != null) box.addView(before);
+                LinearLayout line = titleRow(R.drawable.ic_flash, ch.isDcfc ? Style.GOOD : Style.ACCENT, ch, dayStartMs,
+                    Style.valueWithUnit("+" + kwhNum(ch.kwh), ch.isDcfc ? Style.GOOD : Style.ACCENT, "kWh", ROW_UNIT_SCALE));
+                line.setPadding(Style.dp(c, 12), Style.dp(c, 6), Style.dp(c, 12), Style.dp(c, 6));
+                line.setMinimumHeight(Style.dp(c, 44));
+                if (ch.chargeId > 0) {
+                    line.setOnClickListener(v -> c.startActivity(ChargeDetailActivity.intent(c, ch.chargeId)));
+                }
+                box.addView(line);
+                from = ch.endMs;
+            }
+            View after = buildGapRow(from, ge, parking, -1);
+            if (after != null) box.addView(after);
+        }
+        card.addView(box, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+    }
+
+    /** A charge (or any non-trip row) that a joined trip on the same list
+     * covers: it shows inside that trip's card, not as its own row. */
+    static boolean shownInsideJoined(List<DailyStatsProvider.DaySession> sessions, DailyStatsProvider.DaySession s) {
+        if (s.isTrip() || s.endMs <= 0) return false;
+        for (DailyStatsProvider.DaySession x : sessions) {
+            if (x instanceof DailyStatsProvider.DriveSession && ((DailyStatsProvider.DriveSession) x).isJoined()
+                    && s.startMs >= x.startMs && s.endMs <= x.endMs) return true;
+        }
+        return false;
+    }
+
+    /** Finished trips of the Day view that pick mode can join. */
+    private static boolean pickable(DailyStatsProvider.DaySession s) {
+        return s instanceof DailyStatsProvider.DriveSession && !s.isValet() && s.endMs > 0;
+    }
+
+    private static int countPickable(List<DailyStatsProvider.DaySession> sessions) {
+        int n = 0;
+        for (DailyStatsProvider.DaySession s : sessions) if (pickable(s)) n++;
+        return n;
+    }
+
+    /** The heading row: "Sessions" and the join icon (Day view, two trips
+     * or more), or in pick mode the prompt, Cancel and Join. */
+    private void renderSessionsHead(Loaded l) {
+        Context c = getContext();
+        sessionsHead.removeAllViews();
+        if (!pickMode) {
+            TextView heading = new TextView(c);
+            heading.setText(c.getString(R.string.stats_sessions_title));
+            heading.setTextColor(Style.TEXT);
+            heading.setTextSize(17f);
+            heading.setTypeface(null, Typeface.BOLD);
+            sessionsHead.addView(heading, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            if (l != null && l.po == null && countPickable(l.ov.sessions) >= 2) {
+                ImageView join = new ImageView(c);
+                join.setImageResource(R.drawable.ic_link);
+                join.setColorFilter(Style.TEXT, PorterDuff.Mode.SRC_IN);
+                join.setBackground(Style.card(Style.CARD_HI, c, 14));
+                int p = Style.dp(c, 16);
+                join.setPadding(p, p, p, p);
+                join.setContentDescription(c.getString(R.string.stats_join_start));
+                join.setOnClickListener(v -> {
+                    pickMode = true;
+                    pickDate = l.date;
+                    pickA = pickB = 0;
+                    renderFilteredSessions(l);
+                });
+                sessionsHead.addView(join, new LinearLayout.LayoutParams(Style.dp(c, 60), Style.dp(c, 60)));
+            }
+            return;
+        }
+        int[] range = pickRange(l);
+        TextView ask = new TextView(c);
+        ask.setTextColor(Style.TEXT);
+        ask.setTextSize(18f);
+        ask.setTypeface(null, Typeface.BOLD);
+        boolean blocked = false;
+        if (range == null) {
+            ask.setText(c.getString(R.string.stats_join_pick));
+        } else {
+            List<DailyStatsProvider.DaySession> s = l.ov.sessions;
+            int trips = 0;
+            double km = 0;
+            for (int i = range[0]; i <= range[1]; i++) {
+                DailyStatsProvider.DaySession x = s.get(i);
+                if (x.isValet() || x.endMs <= 0) blocked = true;
+                if (pickable(x)) {
+                    DailyStatsProvider.DriveSession t = (DailyStatsProvider.DriveSession) x;
+                    trips += t.isJoined() ? t.members.size() : 1;
+                    km += t.distanceKm;
+                }
+            }
+            SpannableStringBuilder sb = new SpannableStringBuilder(
+                c.getString(blocked ? R.string.stats_join_blocked : R.string.stats_join_summary, trips));
+            if (!blocked) {
+                String yesterday = c.getString(R.string.session_yesterday);
+                long dayStart = parseDayMs(l.ov.date);
+                appendUnit(sb, "  ·  " + SessionText.range(s.get(range[0]).startMs, s.get(range[1]).endMs,
+                    dayStart, yesterday) + "  ·  " + String.format(Locale.US, "%.1f km", km), 0.92f);
+            }
+            ask.setText(sb);
+        }
+        sessionsHead.addView(ask, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        sessionsHead.addView(headButton(c, c.getString(R.string.trip_split_cancel), false, true, () -> {
+            pickMode = false;
+            renderFilteredSessions(l);
+        }));
+        boolean ok = range != null && !blocked;
+        sessionsHead.addView(headButton(c, c.getString(R.string.stats_join_button), true, ok, () -> {
+            List<DailyStatsProvider.DaySession> s = l.ov.sessions;
+            long from = s.get(range[0]).startMs, to = s.get(range[1]).endMs;
+            pickMode = false;
+            com.geely.drivemem.state.TripEditStore.join(getContext(), from, to, null);
+        }));
+    }
+
+    private TextView headButton(Context c, String text, boolean accent, boolean enabled, Runnable onClick) {
+        TextView b = new TextView(c);
+        b.setText(text);
+        b.setTextSize(18f);
+        int fill = accent ? Style.ACCENT : Style.CARD_HI;
+        b.setTextColor(Style.onFill(fill));
+        b.setTypeface(null, accent ? Typeface.BOLD : Typeface.NORMAL);
+        b.setBackground(Style.card(fill, c, 14));
+        b.setGravity(Gravity.CENTER);
+        b.setMinHeight(Style.dp(c, 60));
+        int ph = Style.dp(c, 24);
+        b.setPadding(ph, 0, ph, 0);
+        b.setAlpha(enabled ? 1f : 0.4f);
+        b.setEnabled(enabled);
+        b.setOnClickListener(v -> onClick.run());
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.leftMargin = Style.dp(c, 10);
+        b.setLayoutParams(lp);
+        return b;
+    }
+
+    /** Indexes (oldest first, in l.ov.sessions) of the first and last
+     * picked trip, or null until both are picked. */
+    private int[] pickRange(Loaded l) {
+        if (l == null || l.po != null || pickA == 0 || pickB == 0) return null;
+        int a = pickIndex(l.ov.sessions, pickA), b = pickIndex(l.ov.sessions, pickB);
+        if (a < 0 || b < 0 || a == b) return null;
+        return new int[]{Math.min(a, b), Math.max(a, b)};
+    }
+
+    private static int pickIndex(List<DailyStatsProvider.DaySession> s, long startMs) {
+        for (int i = 0; i < s.size(); i++) if (pickable(s.get(i)) && s.get(i).startMs == startMs) return i;
+        return -1;
+    }
+
+    private boolean isPicked(DailyStatsProvider.DaySession x) {
+        return pickable(x) && (x.startMs == pickA || x.startMs == pickB);
+    }
+
+    /** A tap on a trip in pick mode: the first two taps pick the ends; a
+     * tap on a picked end lets it go; any other tap moves the nearer end. */
+    private void onPickTap(Loaded l, DailyStatsProvider.DriveSession t) {
+        long k = t.startMs;
+        if (k == pickA) pickA = 0;
+        else if (k == pickB) pickB = 0;
+        else if (pickA == 0) pickA = k;
+        else if (pickB == 0) pickB = k;
+        else {
+            List<DailyStatsProvider.DaySession> s = l.ov.sessions;
+            int i = pickIndex(s, k), a = pickIndex(s, pickA), b = pickIndex(s, pickB);
+            if (Math.abs(i - a) <= Math.abs(i - b)) pickA = k; else pickB = k;
+        }
+        if (pickA == 0 && pickB != 0) { pickA = pickB; pickB = 0; }
+        renderFilteredSessions(l);
+    }
+
+    /** Pick mode's list: every session of the day on one line, newest
+     * first, with a rail on the left. Trips get a circle to tap; the two
+     * picked ends get arrows pointing in, and a blue line runs between
+     * them over every row that will be joined. */
+    private void renderPickList(Loaded l) {
+        Context c = getContext();
+        List<DailyStatsProvider.DaySession> s = l.ov.sessions;
+        int[] range = pickRange(l);
+        long dayStartMs = parseDayMs(l.ov.date);
+        int first = range != null ? range[0] : -1, last = range != null ? range[1] : -1;
+        for (int i = s.size() - 1; i >= 0; i--) {
+            DailyStatsProvider.DaySession x = s.get(i);
+            if (shownInsideJoined(s, x)) continue;
+            boolean in = range != null && i >= first && i <= last;
+            int mark;
+            if (isPicked(x)) {
+                // Newest first: the later end is on top and points down.
+                boolean top = range != null ? i == last : true;
+                mark = range == null ? PickRail.MARK_PICKED : top ? PickRail.MARK_DOWN : PickRail.MARK_UP;
+            } else if (pickable(x)) {
+                mark = in ? PickRail.MARK_DOT : PickRail.MARK_RING;
+            } else {
+                mark = in ? PickRail.MARK_DOT : PickRail.MARK_NONE;
+            }
+            int line = !in ? PickRail.LINE_NONE : i == last ? PickRail.LINE_DOWN : i == first ? PickRail.LINE_UP : PickRail.LINE_FULL;
+            sessionsContainer.addView(pickRow(l, x, dayStartMs, mark, line, in, isPicked(x)));
+            if (i > 0) {
+                DailyStatsProvider.DaySession older = s.get(i - 1);
+                long gs = older.endMs, ge = x.startMs;
+                if (gs > 0 && ge > gs && !shownInsideJoined(s, older)) {
+                    boolean gapIn = range != null && i - 1 >= first && i <= last;
+                    sessionsContainer.addView(pickGapRow(gs, ge, gapIn));
+                }
+            }
+        }
+    }
+
+    private View pickRow(Loaded l, DailyStatsProvider.DaySession x, long dayStartMs,
+                         int mark, int line, boolean in, boolean end) {
+        Context c = getContext();
+        LinearLayout row = new LinearLayout(c);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.addView(new PickRail(c, mark, line), new LinearLayout.LayoutParams(
+            Style.dp(c, 56), ViewGroup.LayoutParams.MATCH_PARENT));
+
+        int iconRes, iconColor;
+        CharSequence hero;
+        if (x.isValet()) {
+            iconRes = R.drawable.ic_shield_car; iconColor = Style.PURPLE;
+            hero = number(((DailyStatsProvider.ValetSessionItem) x).distanceKm, "km");
+        } else if (x.isTrip()) {
+            iconRes = R.drawable.ic_car; iconColor = Style.TEXT_DIM;
+            hero = number(((DailyStatsProvider.DriveSession) x).distanceKm, "km");
+        } else {
+            DailyStatsProvider.ChargeSessionItem ch = (DailyStatsProvider.ChargeSessionItem) x;
+            iconRes = R.drawable.ic_flash; iconColor = ch.isDcfc ? Style.GOOD : Style.ACCENT;
+            hero = Style.valueWithUnit("+" + kwhNum(ch.kwh), iconColor, "kWh", ROW_UNIT_SCALE);
+        }
+        LinearLayout line1 = titleRow(iconRes, iconColor, x, dayStartMs, hero);
+        if (x instanceof DailyStatsProvider.DriveSession && ((DailyStatsProvider.DriveSession) x).isJoined()) {
+            line1.addView(tripsChip(c, ((DailyStatsProvider.DriveSession) x).members.size()),
+                Math.max(0, line1.getChildCount() - 1));
+        }
+        int pad = Style.dp(c, 12);
+        line1.setPadding(pad, pad, pad, pad);
+        GradientDrawable bg = Style.tile(c);
+        if (in) {
+            bg.setColor((Style.ACCENT & 0x00FFFFFF) | 0x29000000);
+            bg.setStroke(Style.dp(c, end ? 2 : 1), end ? Style.ACCENT : (Style.ACCENT & 0x00FFFFFF) | 0x73000000);
+        } else if (end) {
+            bg.setStroke(Style.dp(c, 2), Style.ACCENT);
+        }
+        line1.setBackground(bg);
+        if (!pickable(x) && !in) line1.setAlpha(0.5f);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        lp.topMargin = lp.bottomMargin = Style.dp(c, 3);
+        row.addView(line1, lp);
+        if (pickable(x)) {
+            DailyStatsProvider.DriveSession t = (DailyStatsProvider.DriveSession) x;
+            row.setOnClickListener(v -> onPickTap(l, t));
+        }
+        return row;
+    }
+
+    private View pickGapRow(long gs, long ge, boolean in) {
+        Context c = getContext();
+        LinearLayout row = new LinearLayout(c);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.addView(new PickRail(c, PickRail.MARK_NONE, in ? PickRail.LINE_FULL : PickRail.LINE_NONE),
+            new LinearLayout.LayoutParams(Style.dp(c, 56), ViewGroup.LayoutParams.MATCH_PARENT));
+        LinearLayout box = new LinearLayout(c);
+        box.setOrientation(LinearLayout.HORIZONTAL);
+        box.setGravity(Gravity.CENTER_VERTICAL);
+        int pad = Style.dp(c, 12);
+        box.setPadding(pad, Style.dp(c, 6), pad, Style.dp(c, 6));
+        if (in) {
+            GradientDrawable bg = Style.tile(c);
+            bg.setColor((Style.ACCENT & 0x00FFFFFF) | 0x29000000);
+            bg.setStroke(Style.dp(c, 1), (Style.ACCENT & 0x00FFFFFF) | 0x73000000);
+            box.setBackground(bg);
+        } else {
+            box.setAlpha(0.5f);
+        }
+        ImageView icon = new ImageView(c);
+        icon.setImageResource(R.drawable.ic_parking);
+        icon.setColorFilter(Style.TEXT_DIM, PorterDuff.Mode.SRC_IN);
+        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(Style.dp(c, 16), Style.dp(c, 16));
+        ilp.rightMargin = Style.dp(c, 8);
+        box.addView(icon, ilp);
+        TextView tv = new TextView(c);
+        tv.setTextColor(Style.TEXT_DIM);
+        tv.setTextSize(16f);
+        tv.setText(c.getString(R.string.session_parked, SessionText.shortDuration(ge - gs)));
+        box.addView(tv);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        lp.topMargin = lp.bottomMargin = Style.dp(c, 3);
+        row.addView(box, lp);
+        return row;
+    }
+
+    /** "2 trips" with the link icon: the mark of a joined trip. */
+    private static TextView tripsChip(Context c, int trips) {
+        TextView chip = new TextView(c);
+        chip.setText(c.getString(R.string.session_trips_chip, trips));
+        chip.setTextColor(Style.TEXT);
+        chip.setTextSize(16f);
+        chip.setTypeface(null, Typeface.BOLD);
+        android.graphics.drawable.Drawable d = c.getDrawable(R.drawable.ic_link).mutate();
+        int sz = Style.dp(c, 18);
+        d.setBounds(0, 0, sz, sz);
+        d.setTint(Style.TEXT);
+        chip.setCompoundDrawables(d, null, null, null);
+        chip.setCompoundDrawablePadding(Style.dp(c, 6));
+        int ph = Style.dp(c, 12), pv = Style.dp(c, 4);
+        chip.setPadding(ph, pv, ph, pv);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(Style.dp(c, 12));
+        bg.setColor(Style.CARD_HI);
+        chip.setBackground(bg);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.rightMargin = Style.dp(c, 12);
+        chip.setLayoutParams(lp);
+        return chip;
+    }
+
+    /** The left rail of a pick-mode row: a blue line through the rows that
+     * will be joined, and a mark: a circle to tap, an arrow on a picked
+     * end, a dot on a row in between. */
+    static final class PickRail extends View {
+        static final int MARK_NONE = 0, MARK_RING = 1, MARK_DOT = 2, MARK_PICKED = 3, MARK_DOWN = 4, MARK_UP = 5;
+        static final int LINE_NONE = 0, LINE_FULL = 1, LINE_DOWN = 2, LINE_UP = 3;
+        private final int mark, line;
+        private final android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+
+        PickRail(Context c, int mark, int line) {
+            super(c);
+            this.mark = mark;
+            this.line = line;
+        }
+
+        @Override protected void onDraw(android.graphics.Canvas cv) {
+            Context c = getContext();
+            float cx = getWidth() / 2f, cy = getHeight() / 2f;
+            p.setStyle(android.graphics.Paint.Style.FILL);
+            p.setColor(Style.ACCENT);
+            float w = Style.dp(c, 4);
+            if (line == LINE_FULL) cv.drawRect(cx - w / 2, 0, cx + w / 2, getHeight(), p);
+            else if (line == LINE_DOWN) cv.drawRect(cx - w / 2, cy, cx + w / 2, getHeight(), p);
+            else if (line == LINE_UP) cv.drawRect(cx - w / 2, 0, cx + w / 2, cy, p);
+            float r = Style.dp(c, 20);
+            switch (mark) {
+                case MARK_RING:
+                    p.setStyle(android.graphics.Paint.Style.STROKE);
+                    p.setStrokeWidth(Style.dp(c, 3));
+                    p.setColor(Style.TEXT_DIM);
+                    cv.drawCircle(cx, cy, Style.dp(c, 16), p);
+                    break;
+                case MARK_DOT:
+                    cv.drawCircle(cx, cy, Style.dp(c, 8), p);
+                    break;
+                case MARK_PICKED:
+                case MARK_DOWN:
+                case MARK_UP:
+                    cv.drawCircle(cx, cy, r, p);
+                    p.setColor(Style.onFill(Style.ACCENT));
+                    p.setStyle(android.graphics.Paint.Style.STROKE);
+                    p.setStrokeWidth(Style.dp(c, 4));
+                    p.setStrokeCap(android.graphics.Paint.Cap.ROUND);
+                    p.setStrokeJoin(android.graphics.Paint.Join.ROUND);
+                    float a = Style.dp(c, 9);
+                    if (mark == MARK_PICKED) {
+                        android.graphics.Path ck = new android.graphics.Path();
+                        ck.moveTo(cx - a, cy);
+                        ck.lineTo(cx - a / 3, cy + a * 0.7f);
+                        ck.lineTo(cx + a, cy - a * 0.6f);
+                        cv.drawPath(ck, p);
+                    } else {
+                        float dir = mark == MARK_DOWN ? 1 : -1;
+                        cv.drawLine(cx, cy - a * dir, cx, cy + a * dir, p);
+                        android.graphics.Path h = new android.graphics.Path();
+                        h.moveTo(cx - a * 0.7f, cy + a * dir * 0.2f);
+                        h.lineTo(cx, cy + a * dir);
+                        h.lineTo(cx + a * 0.7f, cy + a * dir * 0.2f);
+                        cv.drawPath(h, p);
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
     }
 
     // ---- Session cards ----
@@ -1655,6 +2106,7 @@ public class DailyStatsView extends LinearLayout {
             plp.rightMargin = Style.dp(c, 12);
             title.addView(pill, Math.max(0, title.getChildCount() - 1), plp);
         }
+        if (t.isJoined()) title.addView(tripsChip(c, t.members.size()), Math.max(0, title.getChildCount() - 1));
         card.addView(title);
 
         CharSequence eff = t.efficiencyKwh100km > 0
@@ -1702,6 +2154,7 @@ public class DailyStatsView extends LinearLayout {
             stat(R.string.session_stat_net_energy, net, breakdown),
             stat(R.string.session_stat_efficiency, eff, splitNote),
             stat(R.string.session_stat_elevation, alt, null)));
+        if (t.isJoined()) addJoinedInside(card, t, dayStartMs);
 
         if (t.endMs > 0 && t.tripId > 0) {
             card.setOnClickListener(v -> getContext().startActivity(TripRouteActivity.intent(getContext(), t)));

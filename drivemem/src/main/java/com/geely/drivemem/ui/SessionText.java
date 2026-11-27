@@ -23,6 +23,13 @@ final class SessionText {
         return h > 0 ? String.format(Locale.US, "%dh %02dm", h, m) : m + "m";
     }
 
+    /** Like duration, but "44s" under a minute: a short shift to P (the
+     * place a trip is split) would otherwise read "0m". */
+    static String shortDuration(long ms) {
+        long sec = Math.max(0, ms) / 1000;
+        return sec < 60 ? sec + "s" : duration(ms);
+    }
+
     /** "HH:mm" in the device time zone. */
     static String clock(long ms) {
         return new SimpleDateFormat("HH:mm", Locale.US).format(new Date(ms));

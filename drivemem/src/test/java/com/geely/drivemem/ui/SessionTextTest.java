@@ -33,6 +33,13 @@ public class SessionTextTest {
         assertEquals("0m", SessionText.duration(-5));
     }
 
+    @Test public void shortDurationShowsSecondsUnderAMinute() {
+        assertEquals("44s", SessionText.shortDuration(44_000));
+        assertEquals("0s", SessionText.shortDuration(-5));
+        assertEquals("1m", SessionText.shortDuration(60_000));
+        assertEquals("1h 05m", SessionText.shortDuration(65 * 60_000L));
+    }
+
     @Test public void sameDayStartIsPlainClock() {
         long day = at(2026, 11, 14, 0, 0);
         assertEquals("00:35 – 01:19",
