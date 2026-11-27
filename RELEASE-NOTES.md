@@ -12,6 +12,12 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.11.5 — 2026-11-27
+
+- Fixed: the car's drive mode and regeneration level are remembered and put back in Park at each start, also when you changed them on the car's own screen.
+- Fixed: AVAS mute and AEB set in Drive Assist come back after a start.
+- Changed: the Restore at car start switches are gone from Config, Drive mode. The restore is always on.
+
 ## v0.11.4 — 2026-11-27
 
 - Fixed: the window button now closes windows that are set to open only a little, such as 10 %.

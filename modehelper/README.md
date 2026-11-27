@@ -49,9 +49,9 @@ Drive Assist (`drivemem`) and ModeHelper (`modehelper`) are deliberately separat
 - **Behavior**:
   - Connects to the Car Service via `Car.createCar(..., ServiceConnection)`.
   - Reads gear status (`GEAR_PARK` vs `GEAR_DRIVE`).
-  - While parked (`GEAR_PARK`), checks current drive mode (`PROP_DRIVE = 570491136`) and regen level (`PROP_REGEN = 537003264`) against saved preferences (`SharedPreferences "modehelper"`).
-  - If the car's state has reverted to factory defaults (e.g. after ignition cycle or sleep resume), issues a single write to restore the target mode.
-- **IPC**: Listens for `com.geely.modehelper.SET_MODE` broadcasts from Drive Assist when the driver updates preferences in the UI.
+  - While the car is on (`VEHICLE_STATE_PROP == 4`), records steady changes to drive mode (`PROP_DRIVE = 570491136`) and regen level (`PROP_REGEN = 537003264`) made anywhere in the car (excluding temporary Turbo and Strong-regen toggle boosts), and restores them in Park (`GEAR_PARK`) after wake or car switch-on (`ModeRestore`).
+  - Re-applies explicit Drive Assist AEB and AVAS overrides during the post-start window (`RestorePolicy`) without auto-learning OEM changes.
+- **IPC**: Listens for `com.geely.modehelper.SET_MODE` broadcasts from Drive Assist for immediate mode picks, temporary boost holds (`drive_hold_ms`, `regen_hold`), and explicit AEB/AVAS toggles.
 
 ### 2. Silent Background OTA Updates
 - **Components**: [`Installer.java`](src/com/geely/modehelper/Installer.java), [`InstallReceiver.java`](src/com/geely/modehelper/InstallReceiver.java), [`InstallResultReceiver.java`](src/com/geely/modehelper/InstallResultReceiver.java)

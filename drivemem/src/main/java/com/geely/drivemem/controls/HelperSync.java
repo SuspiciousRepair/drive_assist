@@ -8,16 +8,16 @@ import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.net.Updater;
 import com.geely.drivemem.util.Prefs;
 
-/** Talks to modehelper, which writes saved settings to the car after a wake
- * (issues #12, #13, #16).
+/** Talks to modehelper, which remembers drive/regen state across restarts and
+ * re-applies explicit Drive Assist AEB/AVAS choices (issues #12, #13, #201).
  *
- * {@link #push} syncs only the four "Restore at start" switches — safe on
- * every watchdog tick. It deliberately does NOT send saved values: older
- * versions copied the car's AVAS state into "avas_on" every time the Drive
- * screen opened, so that key holds values nobody chose, and pushing it would
- * start restoring them (review #2). Values reach modehelper only from a user
- * action: a drive/regen pick, or {@link #applyNow} for an AEB/AVAS tap, which
- * modehelper writes at once, whatever the restore switch says. */
+ * {@link #push} syncs only non-mode runtime toggles (CAN energy) — safe on
+ * every watchdog tick. It deliberately does NOT push saved AEB/AVAS values:
+ * older versions copied the car's AVAS state into "avas_on", so that key held
+ * values nobody chose (review #2). Explicit choices reach modehelper on user
+ * actions ({@link #setDrive}, {@link #setRegen}, {@link #applyNow},
+ * {@link #toggleAvas}), and temporary boosts pause auto-learning via
+ * {@link #holdDrive} and {@link #holdRegen}. */
 public final class HelperSync {
     static final String SET_MODE = "com.geely.modehelper.SET_MODE";
 
@@ -25,20 +25,39 @@ public final class HelperSync {
 
     public static void push(Context ctx) {
         Intent i = base();
-        for (String k : new String[]{Prefs.RESTORE_DRIVE, Prefs.RESTORE_REGEN,
-                                     Prefs.RESTORE_AEB, Prefs.RESTORE_AVAS}) {
-            i.putExtra(k, Prefs.getRestore(ctx, k));
-        }
         // "Exact energy": modehelper starts/stops roadcastd. Synced on every
         // watchdog tick, so a helper reinstalled later still learns it.
         i.putExtra(Prefs.KEY_CAN_ENERGY, Prefs.getCanEnergyEnabled(ctx));
         send(ctx, i);
     }
 
+    /** User picked a drive mode in Drive Assist: save it in modehelper at once
+     * and release any active Turbo hold. */
+    public static void setDrive(Context ctx, int mode) {
+        send(ctx, base().putExtra("drive", mode));
+    }
+
+    /** User picked a regen level in Drive Assist (Config or Regen cycle button):
+     * save it in modehelper at once and release any Strong-regen boost hold. */
+    public static void setRegen(Context ctx, int level) {
+        send(ctx, base().putExtra("regen", level));
+    }
+
+    /** Pauses drive-mode auto-learning while a timed Turbo boost is active
+     * (durationMs > 0), or releases the pause immediately (durationMs <= 0). */
+    public static void holdDrive(Context ctx, long durationMs) {
+        send(ctx, base().putExtra("drive_hold_ms", Math.max(0L, durationMs)));
+    }
+
+    /** Pauses regen auto-learning while a Strong-regen toggle boost is active. */
+    public static void holdRegen(Context ctx, boolean hold) {
+        send(ctx, base().putExtra("regen_hold", hold));
+    }
+
     /** User tapped the AEB or AVAS switch: modehelper writes it to the car now
-     * and keeps it as the choice for "Restore at start". Drive Assist keeps no
-     * copy: its old "aeb_on"/"avas_on" went stale whenever the setting changed
-     * anywhere else, and the switches drew from it. */
+     * and keeps it across restarts. Drive Assist keeps no copy: its old
+     * "aeb_on"/"avas_on" went stale whenever the setting changed anywhere
+     * else, and the switches drew from it. */
     public static void applyNow(Context ctx, String key, boolean on) {
         Intent i = base().putExtra("apply_now", true);
         if ("avas".equals(key)) i.putExtra("avas", on ? 1 : 0); else i.putExtra("aeb", on);

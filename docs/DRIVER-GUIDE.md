@@ -41,11 +41,13 @@ easy to read at arm's length.
 
 ![Drive mode and regeneration](screenshots/settings-overview-live.png)
 
-Pick the drive mode and the regeneration level you like. Drive Assist puts them
-back when the car wakes or is switched on, so you do not set them again every
-trip. Drive mode and regeneration are put back only in Park. Each setting
-has a **Restore at start** switch (on by default); turn it off for a setting you
-would rather change in the car's own screen.
+Drive Assist remembers the drive mode and regeneration level the car is set to
+— whether you changed them in the car's own screen, in Drive Assist, or with
+the Regen cycle button — and puts them back in Park when the car starts, so
+they survive a shutdown and power-up cycle. Temporary boosts (Turbo and the
+Strong-regen toggle) stay temporary. AVAS mute and AEB are controlled
+explicitly from Drive Assist (turning AEB off in the car's own screen stays
+temporary; turning it off in Drive Assist keeps it off across restarts).
 
 Settings are grouped in **Config**: Doors, Climate, Driving mode, Elements (what
 shows on the home screen), Appearance (themes and Auto day/night), and System.

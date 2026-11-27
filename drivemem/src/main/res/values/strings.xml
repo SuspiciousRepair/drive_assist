@@ -278,11 +278,9 @@
     <string name="cfg_aeb_label">AEB (automatic emergency braking)</string>
     <string name="cfg_avas_label">AVAS (pedestrian warning sound)</string>
     <string name="cfg_advanced">Advanced</string>
-    <string name="cfg_restore_header">Restore at car start</string>
-    <string name="cfg_restore_hint">Drive Assist puts your saved choice back when the car starts. Drive mode and regeneration come back in Park, until they match or you pick another one in the car. AEB and AVAS come back in the first 15 seconds. After that, changes made in the car or in another app stay for the trip. Turn off a setting that another app already restores.</string>
     <string name="cfg_park_monitor_label">Park monitoring</string>
     <string name="cfg_aeb_confirm_title">Turn off automatic emergency braking?</string>
-    <string name="cfg_aeb_confirm_body">Disables automatic emergency braking. It stays off after a restart while Restore at car start is on for AEB (Advanced, below).</string>
+    <string name="cfg_aeb_confirm_body">Disables automatic emergency braking. It stays off after a restart until you turn it back on here.</string>
     <string name="cfg_aeb_confirm_turn_off">Turn off</string>
     <string name="cfg_car_connect_fail">Could not connect to the car</string>
     <string name="cfg_applied">Applied: %1$s + %2$s</string>

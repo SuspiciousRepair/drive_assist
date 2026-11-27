@@ -21,6 +21,9 @@ import android.os.Looper;
 public final class TurboMode {
     public static final int DEFAULT_DURATION_S = 30;
     private static final long TICK_MS = 100L;
+    /** Extra margin on modehelper's auto-learn hold so a boost never gets
+     * learned as the permanent drive mode before the revert lands. */
+    private static final long HOLD_MARGIN_MS = 15_000L;
 
     public interface Listener { void onTurbo(boolean active, float fraction); }
 
@@ -80,6 +83,7 @@ public final class TurboMode {
             if (active) {
                 startMs = System.currentTimeMillis();
                 fraction = 1f;
+                HelperSync.holdDrive(ctx, durationMs + HOLD_MARGIN_MS);
                 notifyUi();
                 return;
             }
@@ -96,6 +100,7 @@ public final class TurboMode {
                 synchronized (stateLock) {
                     if (!active || boost != generation) return;
                     previousDrive = (cur instanceof Integer) ? (Integer) cur : Prefs.getDriveMode(ctx, Modes.DRIVE_ECO);
+                    HelperSync.holdDrive(ctx, durationMs + HOLD_MARGIN_MS);
                     CarActor.get(ctx).cast("drive_mode", Modes.DRIVE_SPORT);
                     startMs = System.currentTimeMillis();
                     h.post(() -> tick(boost));
@@ -114,6 +119,7 @@ public final class TurboMode {
             active = false;
             fraction = 0f;
             h.removeCallbacksAndMessages(null);
+            HelperSync.holdDrive(ctx, 0L);
             CarActor.get(ctx).cast("drive_mode", mode);
             notifyUi();
         }
@@ -127,6 +133,7 @@ public final class TurboMode {
             long elapsed = System.currentTimeMillis() - startMs;
             if (elapsed >= durationMs) {
                 CarActor.get(ctx).cast("drive_mode", previousDrive);
+                HelperSync.holdDrive(ctx, 0L);
                 active = false;
                 fraction = 0f;
                 notifyUi();

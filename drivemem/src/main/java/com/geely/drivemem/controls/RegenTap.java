@@ -11,16 +11,23 @@ import java.util.function.IntConsumer;
 
 /** The Regen quick button, shared by the home screen's Turbo card and the
  * floating panel, so both follow Config > Drive > "Regen button steps
- * through Low, Medium and High" (issue #15).
+ * through Low, Medium and High" (issues #15, #201).
  *
- * Off (default): Strong regen on/off, back to Config's own regen level.
- * On: Low -> Medium -> High -> Low. Either way the level comes from the hub
- * (car.regen_mode, a push watch), so the tap acts on what the car has now. */
+ * Off (default): Strong regen boost on/off (like TurboMode without a timeout).
+ * Boosting to High remembers the previous level in memory and tells modehelper
+ * not to learn High over the car's remembered regen; tapping again reverts to
+ * that previous level and releases the hold.
+ * On: Low -> Medium -> High -> Low. Each tap is an explicit regen pick, saved
+ * immediately to modehelper so it survives a restart. */
 public final class RegenTap {
     private RegenTap() {}
 
     /** Hub key: the car's regen level, a push watch (CarActor). */
     public static final String KEY = "car.regen_mode";
+
+    /** The non-High level active right before a Strong-regen toggle boost
+     * (0 when no boost is active). */
+    private static volatile int boostedFrom = 0;
 
     /** Takes the level from the hub, writes the next level, and reports it
      * once applied (on the car thread: callers post to their own UI thread).
@@ -28,12 +35,35 @@ public final class RegenTap {
      * write, so a tap never acts on a guess. */
     public static void tap(Context ctx, IntConsumer onApplied) {
         final boolean cycle = Prefs.getRegenCycle(ctx);
-        final int def = Prefs.getRegen(ctx, Modes.REGEN_MID);
         CarActor a = CarActor.get(ctx);
         final int cur = level(a.get(KEY));
         if (!known(cur)) return;
-        final int target = target(cur, cycle, def);
+        final int fallback = fallbackLevel(boostedFrom, Prefs.getRegen(ctx, Modes.REGEN_MID));
+        final int target = target(cur, cycle, fallback);
+        if (cycle) {
+            boostedFrom = 0;
+            Prefs.setRegen(ctx, target);
+            HelperSync.setRegen(ctx, target);
+        } else if (target == Modes.REGEN_HIGH) {
+            boostedFrom = cur;
+            HelperSync.holdRegen(ctx, true);
+        } else {
+            boostedFrom = 0;
+            HelperSync.holdRegen(ctx, false);
+        }
         a.cast("regen_mode", target, r -> { if (r.applied) onApplied.accept(target); });
+    }
+
+    /** Ends any active Strong-regen boost tracking (called on a manual regen
+     * pick in Config so the boost cannot revert over the new choice). */
+    public static void clearBoost() {
+        boostedFrom = 0;
+    }
+
+    /** The baseline level a Strong-regen toggle returns to when leaving High:
+     * the level remembered right before the boost, else the last saved level. */
+    public static int fallbackLevel(int boostedFromLevel, int savedFallback) {
+        return known(boostedFromLevel) ? boostedFromLevel : savedFallback;
     }
 
     /** The car's level as the hub has it now (0 when unknown). */
@@ -54,8 +84,8 @@ public final class RegenTap {
     }
 
     /** The level a tap writes. Toggle mode: High, or back from High to
-     * Config's level. Config's level can be High itself (Config > Drive):
-     * then back to Medium, or the button could never leave High. */
+     * the baseline level. Baseline can be High itself: then back to Medium,
+     * or the button could never leave High. */
     public static int target(int cur, boolean cycle, int configDefault) {
         if (cycle) return Modes.nextRegen(cur);
         if (cur != Modes.REGEN_HIGH) return Modes.REGEN_HIGH;
