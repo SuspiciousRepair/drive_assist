@@ -216,7 +216,7 @@
     <string name="cfg_lock_sound_no_shell">ไม่สามารถเข้าถึงระบบของรถได้ ลองอีกครั้ง</string>
     <string name="cfg_lock_sound_needs_helper">ต้องใช้ ModeHelper เวอร์ชันใหม่กว่า อัปเดตได้ที่ Config &gt; ระบบ</string>
     <string name="cfg_purge_open_header">เป้าหมายปุ่มเปิดกระจกทุกบาน (0–100)</string>
-    <string name="cfg_purge_open_hint">กระจกแต่ละบานจะเปิดลงมากแค่ไหนเมื่อกดปุ่มเปิดกระจกทั้งหมด 0 = ปิดสนิท, 100 = เปิดสุด ตัวเลขเดียวกันไม่ได้เปิดกระจกแต่ละบานในระยะจริงเท่ากัน — ปรับแต่ละบานให้ตรงกับสิ่งที่คุณเห็นจริง</string>
+    <string name="cfg_purge_open_hint">กระจกแต่ละบานจะเปิดลงมากแค่ไหนเมื่อกดปุ่มเปิดกระจกทั้งหมด ปรับทีละ 10: 0 = ปิดไว้, 100 = เปิดสุด ตัวเลขเดียวกันไม่ได้เปิดกระจกแต่ละบานในระยะจริงเท่ากัน — ปรับแต่ละบานให้ตรงกับสิ่งที่คุณเห็นจริง</string>
     <string name="cfg_purge_open_fl">หน้าซ้าย</string>
     <string name="cfg_purge_open_fr">หน้าขวา</string>
     <string name="cfg_purge_open_rl">หลังซ้าย</string>

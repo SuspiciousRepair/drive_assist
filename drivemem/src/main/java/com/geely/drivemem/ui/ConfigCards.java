@@ -1,12 +1,16 @@
 package com.geely.drivemem.ui;
 
 import android.content.Context;
+import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.geely.drivemem.R;
 import com.geely.drivemem.util.Style;
 
 /** The one layout every Config section uses: settings grouped into CARDS, and
@@ -96,6 +100,89 @@ final class ConfigCards {
         t.setPadding(0, 0, 0, Style.dp(c, 6));
         if (text != null) t.setText(text);
         return t;
+    }
+
+    // ---- Stepper row: the one control for "pick a value from a list" ----
+    // name ............ ‹ [ value ] ›     (docs/STYLE-GUIDE.md, "Stepper rows")
+    // First used on Config > Maintenance; Config > Doors uses it too.
+
+    static final int STEP_ROW_DP = 60, VALUE_W_DP = 220, VALUE_H_DP = 52, CHEVRON_DP = 60;
+
+    /** One stepper row: the name on the left, then ‹ value ›. value comes
+     * from valueBox(); a null down/up draws that chevron dim, with no action
+     * (the end of the list). */
+    static LinearLayout stepRow(Context c, CharSequence label, TextView value, Runnable down, Runnable up) {
+        LinearLayout row = new LinearLayout(c);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams wlp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, STEP_ROW_DP));
+        wlp.topMargin = Style.dp(c, 6);
+        row.setLayoutParams(wlp);
+        row.addView(rowLabel(c, label), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(chevron(c, true, down));
+        row.addView(value, new LinearLayout.LayoutParams(Style.dp(c, VALUE_W_DP), Style.dp(c, VALUE_H_DP)));
+        row.addView(chevron(c, false, up));
+        return row;
+    }
+
+    /** The name at the start of a stepper row. */
+    static TextView rowLabel(Context c, CharSequence label) {
+        TextView lbl = new TextView(c);
+        lbl.setText(label);
+        lbl.setTextColor(Style.TEXT);
+        lbl.setTextSize(20f);
+        lbl.setSingleLine(true);
+        return lbl;
+    }
+
+    /** The value box of a stepper row: bold on CARD_HI. off (the value means
+     * "nothing", such as Off or 0) shows it dim and not bold. */
+    static TextView valueBox(Context c, CharSequence text, boolean off) {
+        TextView val = new TextView(c);
+        styleValue(val, text, off);
+        val.setTextSize(20f);
+        val.setGravity(Gravity.CENTER);
+        val.setSingleLine(true);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(Style.dp(c, 14));
+        bg.setColor(Style.CARD_HI);
+        bg.setStroke(Style.dp(c, 1), Style.tileStrokeColor());
+        val.setBackground(bg);
+        return val;
+    }
+
+    /** New text for a value box, after a step. */
+    static void styleValue(TextView val, CharSequence text, boolean off) {
+        val.setText(text);
+        val.setTextColor(off ? Style.TEXT_DIM : Style.TEXT);
+        val.setTypeface(null, off ? Typeface.NORMAL : Typeface.BOLD);
+    }
+
+    /** A plain chevron, no box, in a 60 dp touch target. A null onTap draws
+     * it dim, with no action. */
+    static ImageView chevron(Context c, boolean left, Runnable onTap) {
+        ImageView a = new ImageView(c);
+        a.setImageResource(R.drawable.ic_chevron_right);
+        if (left) a.setRotation(180f);
+        int p = Style.dp(c, 16);
+        a.setPadding(p, p, p, p);
+        setChevron(a, onTap);
+        a.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(c, CHEVRON_DP), Style.dp(c, CHEVRON_DP)));
+        return a;
+    }
+
+    /** Turns a chevron on (with this action) or off (null: dim, no action). */
+    static void setChevron(ImageView a, Runnable onTap) {
+        if (onTap != null) {
+            a.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
+            a.setOnClickListener(v -> onTap.run());
+            a.setClickable(true);
+        } else {
+            a.setColorFilter((Style.TEXT_DIM & 0x00FFFFFF) | 0x40000000, android.graphics.PorterDuff.Mode.SRC_IN);
+            a.setOnClickListener(null);
+            a.setClickable(false);
+        }
     }
 
     // Between the page background and CARD, so a text field (CARD fill)

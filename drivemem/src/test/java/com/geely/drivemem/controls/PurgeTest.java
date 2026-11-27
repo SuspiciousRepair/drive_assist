@@ -151,4 +151,16 @@ public class PurgeTest {
     @Test public void unreadableWindowsGiveNull() {
         assertNull(purge.anyOpen(new FakeCarAccess(), allAt(10)));
     }
+
+    @Test public void targetsSnapToStepsOfTen() {
+        // The glass shows no movement below 10 (#208): a typed 5 opens to 10.
+        assertEquals(10, Purge.snapTarget(5));
+        assertEquals(0, Purge.snapTarget(4));
+        assertEquals(0, Purge.snapTarget(0));
+        assertEquals(20, Purge.snapTarget(15));
+        assertEquals(40, Purge.snapTarget(37));
+        assertEquals(50, Purge.snapTarget(50));
+        assertEquals(100, Purge.snapTarget(250));
+        assertEquals(0, Purge.snapTarget(-3));
+    }
 }

@@ -1,12 +1,11 @@
 package com.geely.drivemem.ui;
 
 import android.app.Activity;
-import android.text.Editable;
 import android.text.InputType;
-import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -63,12 +62,10 @@ public final class TelemetryDoorsSection extends LinearLayout {
         // one shared value.
         LinearLayout purgeCard = ConfigCards.card(activity, activity.getString(R.string.cfg_purge_open_header));
         purgeCard.addView(ConfigCards.hint(activity, activity.getString(R.string.cfg_purge_open_hint)));
-        purgeCard.addView(paneRow(activity,
-            purgeTargetRow(activity, Purge.AREAS[0], activity.getString(R.string.cfg_purge_open_fl)),
-            purgeTargetRow(activity, Purge.AREAS[1], activity.getString(R.string.cfg_purge_open_fr))));
-        purgeCard.addView(paneRow(activity,
-            purgeTargetRow(activity, Purge.AREAS[2], activity.getString(R.string.cfg_purge_open_rl)),
-            purgeTargetRow(activity, Purge.AREAS[3], activity.getString(R.string.cfg_purge_open_rr))));
+        purgeCard.addView(purgeTargetRow(activity, Purge.AREAS[0], activity.getString(R.string.cfg_purge_open_fl)));
+        purgeCard.addView(purgeTargetRow(activity, Purge.AREAS[1], activity.getString(R.string.cfg_purge_open_fr)));
+        purgeCard.addView(purgeTargetRow(activity, Purge.AREAS[2], activity.getString(R.string.cfg_purge_open_rl)));
+        purgeCard.addView(purgeTargetRow(activity, Purge.AREAS[3], activity.getString(R.string.cfg_purge_open_rr)));
         ConfigCards.add(col, purgeCard);
 
         ConfigCards.add(col, lockSoundCard(activity));
@@ -260,58 +257,35 @@ public final class TelemetryDoorsSection extends LinearLayout {
         if (v.supported) v.pick.setAlpha(fartOn ? 0.55f : 1f);
     }
 
-    // Front pane on the left, the other side's pane on the right: one row
-    // per seat row, same as looking down at the car.
-    private static LinearLayout paneRow(Activity activity, LinearLayout left, LinearLayout right) {
-        LinearLayout row = new LinearLayout(activity);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        row.addView(right, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        return row;
-    }
-
-    // Number-only input, saved on every keystroke that parses rather than on
-    // blur (blur unreliably fires with the on-screen number pad here -- the
-    // original "edited it, it reverted" report that taught us that), raw
-    // text never rewritten under the cursor. Clamped to WINDOW_POS's real
-    // 0..100 range at the point of use (Purge.targetsFromPrefs), not here --
-    // this just has to reject non-integer input, not decide what's a sane
-    // window position.
+    // One stepper row per window (ConfigCards.stepRow, the same control as
+    // Config > Maintenance): one tap is one step of 10 (Purge.TARGET_STEP),
+    // from 0 (this window stays shut) to 100. The glass shows no movement
+    // below 10, so a typed 5 did nothing; steps make that value impossible.
+    // An old typed value shows on the step grid (Purge.snapTarget).
     private static LinearLayout purgeTargetRow(Activity activity, int area, String label) {
-        LinearLayout row = new LinearLayout(activity);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, Style.dp(activity, 4), 0, Style.dp(activity, 4));
-
-        TextView lbl = new TextView(activity);
-        lbl.setText(label);
-        lbl.setTextColor(Style.TEXT); lbl.setTextSize(17);
-        LinearLayout.LayoutParams lblLp = new LinearLayout.LayoutParams(
-            Style.dp(activity, 160), ViewGroup.LayoutParams.WRAP_CONTENT);
-        lbl.setLayoutParams(lblLp);
-        row.addView(lbl);
-
-        EditText field = new EditText(activity);
-        field.setText(String.valueOf(Prefs.file(activity).getInt(Purge.prefKey(area), Purge.OPEN)));
-        field.setInputType(InputType.TYPE_CLASS_NUMBER);
-        field.setTextColor(Style.TEXT); field.setTextSize(17);
-        field.setBackground(Style.card(Style.CARD, activity));
-        int fPad = Style.dp(activity, 12);
-        field.setPadding(fPad, fPad, fPad, fPad);
-        LinearLayout.LayoutParams fieldLp = new LinearLayout.LayoutParams(
-            Style.dp(activity, 90), ViewGroup.LayoutParams.WRAP_CONTENT);
-        fieldLp.leftMargin = Style.dp(activity, 10);
-        field.setLayoutParams(fieldLp);
-        row.addView(field);
-
-        field.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
-            @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
-            @Override public void afterTextChanged(Editable s) {
-                try { Prefs.file(activity).edit().putInt(Purge.prefKey(area), Integer.parseInt(s.toString().trim())).apply(); }
-                catch (NumberFormatException ignored) {}
+        final int[] val = {Purge.snapTarget(Prefs.file(activity).getInt(Purge.prefKey(area), Purge.OPEN))};
+        TextView box = ConfigCards.valueBox(activity, "", false);
+        ImageView[] arrows = new ImageView[2];
+        Runnable[] show = new Runnable[1];
+        java.util.function.IntConsumer step = d -> {
+            val[0] = Math.max(0, Math.min(100, val[0] + d * Purge.TARGET_STEP));
+            Prefs.file(activity).edit().putInt(Purge.prefKey(area), val[0]).apply();
+            show[0].run();
+        };
+        Runnable down = () -> step.accept(-1), up = () -> step.accept(1);
+        show[0] = () -> {
+            boolean off = val[0] == 0;
+            ConfigCards.styleValue(box, Style.valueWithUnit(String.valueOf(val[0]),
+                off ? Style.TEXT_DIM : Style.TEXT, "%", Style.UNIT_SCALE_ROW), off);
+            if (arrows[0] != null) {
+                ConfigCards.setChevron(arrows[0], val[0] > 0 ? down : null);
+                ConfigCards.setChevron(arrows[1], val[0] < 100 ? up : null);
             }
-        });
+        };
+        LinearLayout row = ConfigCards.stepRow(activity, label, box, down, up);
+        arrows[0] = (ImageView) row.getChildAt(1);
+        arrows[1] = (ImageView) row.getChildAt(3);
+        show[0].run();
         return row;
     }
 }

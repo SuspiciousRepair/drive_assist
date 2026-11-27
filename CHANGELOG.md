@@ -78,6 +78,11 @@
   yet checked on a real right-hand-drive car.
 
 ### Changed
+- **Window targets go in steps of 10** (#208). In Config > Doors, each
+  window's open target is now set with ‹ and ›, one row per window like
+  Config > Maintenance, from 0 (stays shut) to 100.
+  The glass shows no movement below 10, so a typed 5 did nothing. An old
+  typed value moves to the nearest step: 5 becomes 10.
 - **A new comfort ruler: one tap, one small change** (#209). The ruler was
   5 cooling steps, and one tap could swap the fan, the temperature and the air
   direction together: the fan could jump from 1 to 6. Now it is one list of

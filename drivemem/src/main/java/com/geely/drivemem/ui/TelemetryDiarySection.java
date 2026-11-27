@@ -491,23 +491,12 @@ public final class TelemetryDiarySection extends LinearLayout {
         boolean pairs = r.kind == K_KM_MONTHS;
         row.addView(arrow(r, neighbour(r.presets, r.curA, r.curB, pairs, -1), true));
 
-        TextView val = new TextView(c);
         boolean isOff = r.curA == 0;
         int fg = isOff ? Style.TEXT_DIM : Style.TEXT;
-        val.setText(styleUnits(valueTitle(r.kind, r.curA, r.curB), fg, Style.CARD_HI));
-        val.setTextColor(fg);
-        val.setTextSize(20f);
-        val.setTypeface(null, isOff ? Typeface.NORMAL : Typeface.BOLD);
-        val.setGravity(Gravity.CENTER);
-        val.setSingleLine(true);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadius(Style.dp(c, 14));
-        bg.setColor(Style.CARD_HI);
-        bg.setStroke(Style.dp(c, 1), Style.tileStrokeColor());
-        val.setBackground(bg);
+        TextView val = ConfigCards.valueBox(c, styleUnits(valueTitle(r.kind, r.curA, r.curB), fg, Style.CARD_HI), isOff);
         val.setContentDescription(c.getString(R.string.cfg_diary_custom));
         val.setOnClickListener(v -> showCustomDialog(r));
-        row.addView(val, new LinearLayout.LayoutParams(Style.dp(c, 220), Style.dp(c, 52)));
+        row.addView(val, new LinearLayout.LayoutParams(Style.dp(c, ConfigCards.VALUE_W_DP), Style.dp(c, ConfigCards.VALUE_H_DP)));
 
         row.addView(arrow(r, neighbour(r.presets, r.curA, r.curB, pairs, 1), false));
         return row;
@@ -532,21 +521,10 @@ public final class TelemetryDiarySection extends LinearLayout {
         lbl.setSingleLine(true);
         row.addView(lbl, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView val = new TextView(c);
         boolean unset = value == null;
-        val.setText(unset ? c.getString(R.string.cfg_diary_set) : value);
-        val.setTextColor(unset ? Style.TEXT_DIM : Style.TEXT);
-        val.setTextSize(20f);
-        val.setTypeface(null, unset ? Typeface.NORMAL : Typeface.BOLD);
-        val.setGravity(Gravity.CENTER);
-        val.setSingleLine(true);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadius(Style.dp(c, 14));
-        bg.setColor(Style.CARD_HI);
-        bg.setStroke(Style.dp(c, 1), Style.tileStrokeColor());
-        val.setBackground(bg);
+        TextView val = ConfigCards.valueBox(c, unset ? c.getString(R.string.cfg_diary_set) : value, unset);
         val.setOnClickListener(v -> onTap.run());
-        LinearLayout.LayoutParams vlp = new LinearLayout.LayoutParams(Style.dp(c, 220), Style.dp(c, 52));
+        LinearLayout.LayoutParams vlp = new LinearLayout.LayoutParams(Style.dp(c, ConfigCards.VALUE_W_DP), Style.dp(c, ConfigCards.VALUE_H_DP));
         vlp.rightMargin = Style.dp(c, 60);   // the place of the right arrow in the rows below
         row.addView(val, vlp);
         return row;
@@ -604,21 +582,9 @@ public final class TelemetryDiarySection extends LinearLayout {
 
     /** A plain chevron, no box. Dim and without action at the end of the presets. */
     private View arrow(Row r, int target, boolean left) {
-        Context c = activity;
-        android.widget.ImageView a = new android.widget.ImageView(c);
-        a.setImageResource(R.drawable.ic_chevron_right);
-        if (left) a.setRotation(180f);
-        int p = Style.dp(c, 16);
-        a.setPadding(p, p, p, p);
-        if (target >= 0) {
-            a.setColorFilter(Style.TEXT, android.graphics.PorterDuff.Mode.SRC_IN);
-            final int ta = r.presets[target][0], tb = r.presets[target][1];
-            a.setOnClickListener(v -> apply(r, ta, tb));
-        } else {
-            a.setColorFilter((Style.TEXT_DIM & 0x00FFFFFF) | 0x40000000, android.graphics.PorterDuff.Mode.SRC_IN);
-        }
-        a.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(c, 60), Style.dp(c, 60)));
-        return a;
+        if (target < 0) return ConfigCards.chevron(activity, left, null);
+        final int ta = r.presets[target][0], tb = r.presets[target][1];
+        return ConfigCards.chevron(activity, left, () -> apply(r, ta, tb));
     }
 
     /** Any value: per quantity a big figure and a slider, with a minus and a

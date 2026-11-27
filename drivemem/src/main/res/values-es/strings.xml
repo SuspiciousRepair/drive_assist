@@ -118,7 +118,7 @@
     <string name="cfg_lock_sound_no_shell">No se pudo acceder al sistema del auto. Inténtalo de nuevo.</string>
     <string name="cfg_lock_sound_needs_helper">Necesita un ModeHelper más nuevo. Actualízalo en Config &gt; Sistema.</string>
     <string name="cfg_purge_open_header">Objetivo del botón de abrir todas las ventanillas (0–100)</string>
-    <string name="cfg_purge_open_hint">Cuánto baja cada ventanilla al presionar el botón de ventilar. 0 = cerrada, 100 = completamente abierta. El mismo número no abre cada ventanilla la misma cantidad real — ajusta cada una según lo que realmente veas.</string>
+    <string name="cfg_purge_open_hint">Cuánto baja cada ventanilla al presionar el botón de ventilar. Pasos de 10: 0 = queda cerrada, 100 = completamente abierta. El mismo número no abre cada ventanilla la misma cantidad real — ajusta cada una según lo que realmente veas.</string>
     <string name="cfg_purge_open_fl">Delantera izquierda</string>
     <string name="cfg_purge_open_fr">Delantera derecha</string>
     <string name="cfg_purge_open_rl">Trasera izquierda</string>
