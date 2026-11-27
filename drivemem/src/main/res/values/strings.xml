@@ -216,7 +216,7 @@
     <string name="cfg_lock_sound_no_shell">Could not reach the car\'s system shell. Try again.</string>
     <string name="cfg_lock_sound_needs_helper">Needs a newer ModeHelper. Update it in Config &gt; System.</string>
     <string name="cfg_purge_open_header">Crack-all-windows target (0–100)</string>
-    <string name="cfg_purge_open_hint">How far each window lowers when you press the crack-windows button. 0 = closed, 100 = fully open. The same number doesn\'t move every window the same real amount — tune each one to match what you actually see.</string>
+    <string name="cfg_purge_open_hint">How far each window lowers when you press the crack-windows button. Steps of 10: 0 = stays closed, 100 = fully open. The same number doesn\'t move every window the same real amount — tune each one to match what you actually see.</string>
     <string name="cfg_purge_open_fl">Front left</string>
     <string name="cfg_purge_open_fr">Front right</string>
     <string name="cfg_purge_open_rl">Rear left</string>

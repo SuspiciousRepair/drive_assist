@@ -1,9 +1,7 @@
 package com.geely.drivemem.ui;
 
 import android.app.Activity;
-import android.text.Editable;
 import android.text.InputType;
-import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.EditText;
@@ -270,13 +268,10 @@ public final class TelemetryDoorsSection extends LinearLayout {
         return row;
     }
 
-    // Number-only input, saved on every keystroke that parses rather than on
-    // blur (blur unreliably fires with the on-screen number pad here -- the
-    // original "edited it, it reverted" report that taught us that), raw
-    // text never rewritten under the cursor. Clamped to WINDOW_POS's real
-    // 0..100 range at the point of use (Purge.targetsFromPrefs), not here --
-    // this just has to reject non-integer input, not decide what's a sane
-    // window position.
+    // A minus, the target, a plus: one tap is one step of 10 (Purge.TARGET_STEP),
+    // from 0 (this window stays shut) to 100. The glass shows no movement
+    // below 10, so a typed 5 did nothing; steps make that value impossible.
+    // An old typed value shows on the step grid (Purge.snapTarget).
     private static LinearLayout purgeTargetRow(Activity activity, int area, String label) {
         LinearLayout row = new LinearLayout(activity);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -291,27 +286,37 @@ public final class TelemetryDoorsSection extends LinearLayout {
         lbl.setLayoutParams(lblLp);
         row.addView(lbl);
 
-        EditText field = new EditText(activity);
-        field.setText(String.valueOf(Prefs.file(activity).getInt(Purge.prefKey(area), Purge.OPEN)));
-        field.setInputType(InputType.TYPE_CLASS_NUMBER);
-        field.setTextColor(Style.TEXT); field.setTextSize(17);
-        field.setBackground(Style.card(Style.CARD, activity));
-        int fPad = Style.dp(activity, 12);
-        field.setPadding(fPad, fPad, fPad, fPad);
-        LinearLayout.LayoutParams fieldLp = new LinearLayout.LayoutParams(
-            Style.dp(activity, 90), ViewGroup.LayoutParams.WRAP_CONTENT);
-        fieldLp.leftMargin = Style.dp(activity, 10);
-        field.setLayoutParams(fieldLp);
-        row.addView(field);
+        final int[] val = {Purge.snapTarget(Prefs.file(activity).getInt(Purge.prefKey(area), Purge.OPEN))};
+        TextView num = new TextView(activity);
+        num.setTextColor(Style.TEXT); num.setTextSize(20);
+        num.setGravity(Gravity.CENTER);
+        Runnable show = () -> num.setText(String.valueOf(val[0]));
+        show.run();
 
-        field.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
-            @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
-            @Override public void afterTextChanged(Editable s) {
-                try { Prefs.file(activity).edit().putInt(Purge.prefKey(area), Integer.parseInt(s.toString().trim())).apply(); }
-                catch (NumberFormatException ignored) {}
-            }
-        });
+        row.addView(stepButton(activity, "\u2212", () -> {
+            val[0] = Math.max(0, val[0] - Purge.TARGET_STEP);
+            Prefs.file(activity).edit().putInt(Purge.prefKey(area), val[0]).apply();
+            show.run();
+        }));
+        row.addView(num, new LinearLayout.LayoutParams(Style.dp(activity, 70), ViewGroup.LayoutParams.WRAP_CONTENT));
+        row.addView(stepButton(activity, "+", () -> {
+            val[0] = Math.min(100, val[0] + Purge.TARGET_STEP);
+            Prefs.file(activity).edit().putInt(Purge.prefKey(area), val[0]).apply();
+            show.run();
+        }));
         return row;
+    }
+
+    private static TextView stepButton(Activity activity, String sign, Runnable act) {
+        TextView t = new TextView(activity);
+        t.setText(sign);
+        t.setTextSize(30f);
+        t.setTextColor(Style.TEXT);
+        t.setGravity(Gravity.CENTER);
+        t.setIncludeFontPadding(false);
+        t.setBackground(Style.card(Style.CARD, activity));
+        t.setOnClickListener(v -> act.run());
+        t.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(activity, 64), Style.dp(activity, 56)));
+        return t;
     }
 }
