@@ -33,17 +33,24 @@ public class ComfortRulerTapTest {
     }
 
     /**
-     * The real case, 2026-11-16 14:09: the car woke running C3 (AC on, 20 C,
-     * fan 4, recirc, face) at 34 C outside while the ruler still said 0. A
-     * re-read fits it to C3, so "Cooler" now gives C4 — not C1 (fan 1, 24 C),
-     * which is what the stale 0 produced.
+     * The real case, 2026-11-16 14:09: the car woke with the AC on at 34 C
+     * outside while the ruler still said 0. A re-read finds the car's mark, so
+     * "Cooler" gives the next mark and not C1, which is what the stale 0
+     * produced.
      */
-    @Test public void carThatWokeRunningC3FitsC3() {
+    @Test public void carThatWokeRunningFitsItsMark() {
         EffortTable.Column[] t = EffortTable.build(34f);
-        int level = EffortTable.fit(t, 34f, true, true, 20f, 4, EffortTable.DIR_FACE, true);
-        assertEquals(3, level);
-        EffortTable.Column next = EffortTable.at(t, level + 1);
-        assertTrue(next.fan > 4);
-        assertTrue(next.setpointC < 20f);
+        EffortTable.State woke = EffortTable.State.of(EffortTable.at(t, 7));
+        assertEquals(7, EffortTable.fit(t, woke).level);
+        EffortTable.State next = EffortTable.step(t, woke, +1);
+        assertEquals(8, EffortTable.fit(t, next).level);
+        assertEquals(4, next.fan);
+    }
+
+    @Test public void weatherTakesC4OffTheRulerOnAMildDay() {
+        EffortTable.Column[] mild = EffortTable.build(20f);
+        assertEquals(3, ComfortRuler.weatherMark(mild, 4).level);
+        assertEquals(8, ComfortRuler.weatherMark(mild, 8).level);
+        assertEquals(4, ComfortRuler.weatherMark(EffortTable.build(30f), 4).level);
     }
 }

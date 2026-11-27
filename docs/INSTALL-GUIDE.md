@@ -392,8 +392,8 @@ Once installed, Drive Assist integrates naturally into your daily driving routin
 *Figure 1: Drive Assist Comfort View featuring the Comfort Ruler, real-time charging status, and HVAC toggles on the 1920x1080 display.*
 
 * **Single Slider / Dual Tap**: Control cabin thermal comfort with large, driver-friendly touch targets.
-* **Effort Scale (`C5..0..W5`)**: The ruler spans from maximum cooling (`C5`), through off (`0`), to maximum heating (`W5`).
-* **Dynamic Weather Sliding**: The system continuously tracks outside ambient temperature behind the bumper. In mild weather (e.g. 20°C–24°C), lower cooling columns utilize fresh ambient airflow without engaging the AC compressor, maximizing EV range.
+* **One tap, one small change (`C10..0..W5`)**: The ruler has 10 cooling marks and 5 heating marks. Each tap goes to the next mark and changes one setting, so the fan never jumps. The first tap from off is always the gentlest mark.
+* **The weather helps**: Below 24 °C outside, the cooling marks keep fresh air (no recirculation). Below 12 °C outside, the heating marks also blow on the glass to stop fog.
 * **Quick Toggles**: Tap the windshield purge button to lower windows and flush hot air, or toggle cabin recirculation with a single touch.
 
 ### 2. Drive Mode & Creep Persistence

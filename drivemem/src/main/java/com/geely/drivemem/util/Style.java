@@ -815,7 +815,7 @@ public class Style {
         return iv;
     }
 
-    /** Creates the effort scale (11 pills from C5 to W5) showing HVAC level. */
+    /** Creates the comfort ruler's bar (see {@link #effortScale(Context, int, int, int, boolean, boolean)}). */
     public static android.graphics.Bitmap effortScale(Context c, int w, int h,
             int level, boolean approx) {
         return effortScale(c, w, h, level, approx, false);
@@ -830,65 +830,53 @@ public class Style {
         return Color.argb(a, r, g, b);
     }
 
-    /** Creates the effort scale with optional defrosting (dimmed) state. */
+    /**
+     * Creates the comfort ruler's bar. It shows how much effort is in use,
+     * like a level meter:
+     * off = one long grey bar; cooling = 10 marks that fill with the cool
+     * colour from right to left (C1 is the mark at the right end); warming =
+     * 5 marks that fill with the warm colour from left to right. A state that
+     * is not exactly on its mark draws the last filled mark as an outline.
+     * Defrosting dims the whole bar.
+     */
     public static android.graphics.Bitmap effortScale(Context c, int w, int h,
             int level, boolean approx, boolean defrosting) {
         android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(
             Math.max(w, 1), Math.max(h, 1), android.graphics.Bitmap.Config.ARGB_8888);
         android.graphics.Canvas cv = new android.graphics.Canvas(bmp);
         android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
-
-        int max = EffortTable.MAX_LEVEL;                 // 5, fixed both sides
-        float gap = dp(c, 8);
         float radius = dp(c, 8);
-        boolean off = (level == 0);
-        // The zero pill is fixed 15dp ONLY while a side is lit (it is then just
-        // the divider between them). At level 0 — HVAC off — it takes an equal
-        // flex:1 share like every other pill instead, so "off" reads as one
-        // wide filled bar, not a small dot lost among ten empty ones. Straight
-        // from the mock's own render script, which the README's one-line "fixed
-        // 15x15" undersells.
-        float totalGap = gap * 10;
-        float zeroW = off ? (w - totalGap) / 11f : dp(c, 15);
-        float sideW = off ? zeroW : (w - totalGap - zeroW) / 10f;
-        boolean coldSide = level > 0;                     // which side is "current"
+        int grey = defrosting ? darken(CARD_HI) : CARD_HI;
 
-        float x = 0;
-        for (int i = 0; i < 11; i++) {
-            int n = max - i;                              // C5..C1, 0, W1..W5
-            float pw = (n == 0) ? zeroW : sideW;
+        if (level == 0) {
+            p.setStyle(android.graphics.Paint.Style.FILL);
+            p.setColor(grey);
+            cv.drawRoundRect(new android.graphics.RectF(0, 0, w, h), radius, radius, p);
+            return bmp;
+        }
+
+        boolean cold = level > 0;
+        int marks = cold ? EffortTable.COOL_MAX : EffortTable.WARM_MAX;
+        int lit = Math.min(Math.abs(level), marks);
+        int side = defrosting ? darken(cold ? COOL : HEAT) : (cold ? COOL : HEAT);
+        float gap = dp(c, 8);
+        float stroke = dp(c, 2);
+        float pw = (w - gap * (marks - 1)) / marks;
+        for (int i = 0; i < marks; i++) {
+            // Cooling counts from the right end, warming from the left end.
+            int n = cold ? marks - i : i + 1;
+            float x = i * (pw + gap);
             android.graphics.RectF r = new android.graphics.RectF(x, 0, x + pw, h);
-
-            if (n == 0) {
-                if (level == 0) {
-                    p.setStyle(android.graphics.Paint.Style.FILL);
-                    p.setColor(defrosting ? darken(TEXT) : TEXT);
-                } else {
-                    p.setStyle(android.graphics.Paint.Style.STROKE);
-                    p.setStrokeWidth(dp(c, 2));
-                    p.setColor(defrosting ? darken(CARD_HI) : CARD_HI);
-                }
+            if (approx && n == lit) {
+                p.setStyle(android.graphics.Paint.Style.STROKE);
+                p.setStrokeWidth(stroke);
+                p.setColor(side);
+                r.inset(stroke / 2f, stroke / 2f);
             } else {
-                boolean cold = n > 0;
-                int abs = Math.abs(n);
-                int side = cold ? COOL : HEAT;
-                boolean lit = level != 0 && cold == coldSide && abs <= Math.abs(level);
-                boolean approxNext = approx && level != 0 && cold == coldSide
-                                    && abs == Math.abs(level) + 1;
-                if (lit) {
-                    p.setStyle(android.graphics.Paint.Style.FILL);
-                    p.setColor(defrosting ? darken(side) : side);
-                } else if (approxNext) {
-                    p.setStyle(android.graphics.Paint.Style.STROKE);
-                    p.setStrokeWidth(dp(c, 2));
-                    p.setColor(defrosting ? darken(side) : side);
-                } else {
-                    p.setStyle(android.graphics.Paint.Style.FILL);
-                    p.setColor(defrosting ? darken(CARD_HI) : CARD_HI);
-                }
+                p.setStyle(android.graphics.Paint.Style.FILL);
+                p.setColor(n <= lit ? side : grey);
             }
             cv.drawRoundRect(r, radius, radius, p);
-            x += pw + gap;
         }
         return bmp;
     }

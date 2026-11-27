@@ -1,100 +1,138 @@
 package com.geely.drivemem.hvac;
 
-import com.geely.drivemem.util.Modes;
-
-// A literal per-level table (one static row per -5..5) isn't possible here:
-// fan/setpoint are literal per level (FAN_COLD/FAN_WARM, setpointFor()), but
-// direction and recirc depend on `free` (freeColumns()), which slides with
-// outside temperature — see COMFORT-TABLE.md. So the "table" is this file's
-// rules, not a data grid; `tools/TableDump.java` is the human-readable view
-// (run it: it prints the resolved table for a handful of representative
-// outside temperatures) — it was left broken by the later package split
-// (com.geely.drivemem.EffortTable -> .hvac.EffortTable) and is fixed now.
-
 /**
- * Defines the HVAC effort table: a fixed 11-column grid mapping car HVAC state
- * to effort level (+5 full cooling through 0 off to -5 full heating). Provides
- * methods to construct columns for a given ambient temperature and fit car state
- * to the nearest column. See COMFORT-TABLE.md for design rationale.
+ * The comfort ruler's list of marks: C10 (all-out cooling) through 0 (off) to
+ * W5 (all-out heating). A mark is one small move from the mark before it, so
+ * one tap changes one setting (two at four steps of the cool side and at W5).
+ * A mark always means the same thing. The weather decides only two things,
+ * and never by a tap: recirculation on the cool side, and warm air on the
+ * glass on the warm side. See COMFORT-TABLE.md.
+ *
+ * Touches no Android API, so it runs in plain unit tests.
  */
-// The effort table defines HVAC columns from +5 (full cooling) through 0 (off)
-// to -5 (full heating). POSITIVE means cooling. Ends are pinned (extremes don't
-// vary with weather); the middle slides because outside air can do free work.
-// Columns are declared statically (never enumerated or sorted); a car state fits
-// to a column that exists. The effort number is absolute (immediately readable),
-// not a delta from previous state. Touches no Android API for portability.
-// See COMFORT-TABLE.md for design rationale and tools/TableDump.java for analysis.
 public final class EffortTable {
 
-    public static final int MAX_LEVEL = 5;
+    /** Marks on the cool side (C1..C10) and on the warm side (W1..W5). */
+    public static final int COOL_MAX = 10, WARM_MAX = 5;
     public static final float TEMP_MIN = 17f, TEMP_MAX = 32f;
-    // A comfortable cabin. Only decides how much of the middle is free — how far
-    // outside air alone gets us — never what the human wants.
+    // Where the setpoint is parked while the AC is off, so a later power-on
+    // does not start at full effort.
     public static final float CABIN_TARGET_C = 23f;
 
-    // Cold-side cutoff for free (fan-only) cooling. Distinct from CABIN_TARGET_C
-    // because moving air is comfortable on its own, not only when it's cooler
-    // than the cabin. The warm side has no equivalent (only CABIN_TARGET_C) because
-    // ambient heat requires an actual temperature delta to provide warmth.
-    public static final float FRESH_LIMIT_C = 28f;
+    // Below this outside temperature recirculation stays off on every cool
+    // mark: mild air is free and keeps the glass clear. C4 (the mark that only
+    // turns recirculation on) is then skipped.
+    public static final float RECIRC_FROM_C = 24f;
+    // Below this outside temperature W1..W4 blow on the glass too: warm air on
+    // the glass stops fog.
+    public static final float GLASS_BELOW_C = 12f;
 
     // Air direction. The area is ignored on this unit and 356517121 is an alias
     // of the same value — see field-catalog.md.
     public static final int DIR_PROP = 557846560;
     // The AOSP bitmask. Confirmed in the car; 5 (face+defrost) is REFUSED by
-    // this unit, so it is not in here. 6 (defrost+floor) is valid and used for
-    // thermal comfort and windshield defogging.
+    // this unit, so it is not in here. 6 (defrost+floor) is valid.
     public static final int DIR_FACE = 1, DIR_FEET = 2, DIR_FACE_FEET = 3, DIR_GLASS = 4, DIR_GLASS_FEET = 6;
     public static final int DIR_DEFROST_FLOOR = DIR_GLASS_FEET;
 
-    // Fan speed 8 (maximum), not Modes.FAN_MAX (7). The car reports and accepts
-    // fan 8; Modes.FAN_MAX is the incorrect value elsewhere. Not changed here to
-    // avoid impact on other code that reads the constant.
-    static final int FAN_ALL_OUT = 8;
-    // C3 is fan 3, not 4. With 4, C2 -> C3 doubled the fan in the same tap that
-    // moved the air from the glass to the face (24-27 C outside): the owner
-    // tapped C2<->C3 back and forth 9 times in 5 days, and twice set fan 3
-    // by hand at C3's setpoint and recirc and kept it 20-40 min (2026-11-17).
-    private static final int[] FAN_COLD = {1, 2, 3, 6, 8};   // C1..C5
-    private static final int[] FAN_WARM = {1, 2, 4, 6, 8};   // W1..W5
+    // Where the machine reverses. A property of the CAR, measured, and it does
+    // not move with the weather (historical/COMFORT.md). Every setpoint of the
+    // list is a whole degree clear of it.
+    public static final float MIDDLE_C = (TEMP_MIN + TEMP_MAX) / 2f;   // 24.5
 
-    /** Represents one column of the HVAC effort table with specific settings. */
+    // One row per mark: AC, recirculation, direction, fan, setpoint (0 = none).
+    // The move to the face (C5 -> C6) takes the fan one step down: direct air
+    // feels stronger, so the step stays small. The setpoint is blunt, so it is
+    // used late, with the loud fan speeds.
+    private static final int[][] COOL = {
+        {0, 0, DIR_FACE,  1, 0},     // C1  outside air, low
+        {1, 0, DIR_GLASS, 1, 24},    // C2  gentle, nothing cold on the arm
+        {1, 0, DIR_GLASS, 2, 24},    // C3
+        {1, 1, DIR_GLASS, 2, 24},    // C4  recirculation: colder, still indirect
+        {1, 1, DIR_GLASS, 3, 24},    // C5
+        {1, 1, DIR_FACE,  2, 24},    // C6  direct air, fan one step down
+        {1, 1, DIR_FACE,  3, 24},    // C7
+        {1, 1, DIR_FACE,  4, 24},    // C8
+        {1, 1, DIR_FACE,  6, 22},    // C9  colder and loud
+        {1, 1, DIR_FACE,  8, 17},    // C10 all-out
+    };
+    // The heat is on at every warm mark (an EV: the heat pump runs through the
+    // same compressor flag). Never recirculation: outside air keeps the glass
+    // clear.
+    private static final int[][] WARM = {
+        {1, 0, DIR_FEET,      1, 26},   // W1  a little warm at the feet
+        {1, 0, DIR_FEET,      2, 26},   // W2
+        {1, 0, DIR_FEET,      3, 26},   // W3
+        {1, 0, DIR_FEET,      3, 28},   // W4  warmer air, same noise
+        {1, 0, DIR_FACE_FEET, 6, 32},   // W5  all-out
+    };
+
+    /** One mark of the ruler with its settings. */
     public static final class Column {
-        public final int level;          // +5 = C5 ... 0 ... -5 = W5
-        public final boolean machine;    // HVAC_AC_ON. TRUE ON BOTH SIDES: this is
-                                         // an EV and the heat pump runs through the
-                                         // same compressor.
+        public final int level;          // +10 = C10 ... 0 ... -5 = W5
+        public final boolean machine;    // HVAC_AC_ON. TRUE ON THE WARM SIDE TOO.
         public final float setpointC;    // NaN when the machine is off
         public final int fan;
         public final int direction;
         public final boolean recirc;
-        // True if power is on (HVAC_POWER_ON). Zero level means machine is off,
-        // not "fan 1 at glass" (which is technically feasible but semantically
-        // wrong since "nothing" should not be blowing air). Since nudgeFan() clamps
-        // at Modes.FAN_MIN = 1, distinguishing off state by power rather than fan
-        // speed is necessary.
+        /** Power (HVAC_POWER_ON). Only mark 0 is off. */
         public final boolean power;
+        /** True when the weather takes this mark off the ruler (C4 on a mild day). */
+        public final boolean skipped;
 
-        Column(int level, boolean machine, float sp, int fan, int dir, boolean recirc) {
+        Column(int level, boolean machine, float sp, int fan, int dir, boolean recirc, boolean skipped) {
             this.level = level; this.machine = machine; this.setpointC = sp;
             this.fan = fan; this.direction = dir; this.recirc = recirc;
-            this.power = level != 0;
+            this.power = level != 0; this.skipped = skipped;
         }
 
-        /** Returns true if this is a cooling column (level > 0). */
+        /** Returns true if this is a cooling mark (level > 0). */
         public boolean cold() { return level > 0; }
 
-        /** Returns true if this is a heating column (level < 0). */
+        /** Returns true if this is a heating mark (level < 0). */
         public boolean warm() { return level < 0; }
 
         @Override public String toString() {
             if (!power) return name(level) + "@off";
-            return name(level) + (machine ? "@" + (int) setpointC : "@--")
-                 + "/f" + fan + (recirc ? "/rec" : "") + "/" + dirName(direction);
+            return name(level) + settings(machine, setpointC, fan, direction, recirc);
         }
     }
 
-    /** Returns the string representation of an effort level (e.g., "C3", "W2", "0"). */
+    /** What the car is set to, or what we want it set to. Immutable. */
+    public static final class State {
+        public final boolean power, machine, recirc;
+        public final float setpointC;
+        public final int fan, direction;
+
+        public State(boolean power, boolean machine, float setpointC, int fan, int direction, boolean recirc) {
+            this.power = power; this.machine = machine; this.setpointC = setpointC;
+            this.fan = fan; this.direction = direction; this.recirc = recirc;
+        }
+
+        public static final State OFF = new State(false, false, Float.NaN, 0, 0, false);
+
+        public static State of(Column c) {
+            return c.power ? new State(true, c.machine, c.setpointC, c.fan, c.direction, c.recirc) : OFF;
+        }
+
+        /** Same settings. With the power off nothing else counts. */
+        public boolean same(State o) {
+            if (o == null || power != o.power) return false;
+            if (!power) return true;
+            if (machine != o.machine || recirc != o.recirc || fan != o.fan || direction != o.direction) return false;
+            return !machine || sameTemp(setpointC, o.setpointC);
+        }
+    }
+
+    /** Where a state stands on the ruler. */
+    public static final class Fit {
+        public final int level;
+        /** False when a setting is out of line: the mark is drawn hollow. */
+        public final boolean exact;
+        Fit(int level, boolean exact) { this.level = level; this.exact = exact; }
+    }
+
+    /** Returns the name of a mark (e.g., "C3", "W2", "0"). */
     public static String name(int level) {
         return level == 0 ? "0" : (level > 0 ? "C" + level : "W" + (-level));
     }
@@ -111,233 +149,213 @@ public final class EffortTable {
         }
     }
 
+    private static String settings(boolean machine, float sp, int fan, int dir, boolean recirc) {
+        return (machine && !Float.isNaN(sp) ? "@" + (int) sp : "@--")
+             + "/f" + fan + (recirc ? "/rec" : "") + "/" + dirName(dir);
+    }
+
+    /** A state for the climate log, e.g. "C3@24/f2/glass"; "~" marks a state
+     * that is not exactly on its mark. */
+    public static String label(Column[] table, State s) {
+        if (!s.power) return "0@off";
+        Fit f = fit(table, s);
+        return name(f.level) + (f.exact ? "" : "~")
+             + settings(s.machine, s.setpointC, s.fan, s.direction, s.recirc);
+    }
+
     private EffortTable() {}
 
-    // ---------------------------------------------------------------- the slide
+    // ---------------------------------------------------------------- the list
 
-    /**
-     * Returns the number of free (fan-only, no compressor) columns available given
-     * outside temperature and side. Returns 0 when outside air cannot contribute.
-     * Cold side expands at 1 column per 4°C; warm side at 1 column per 2°C.
-     */
-    public static int freeColumns(float outC, boolean coldSide) {
-        if (coldSide) {
-            float past = FRESH_LIMIT_C - outC;
-            if (past <= 0) return 0;
-            return Math.min(3, (int) Math.floor(past / 4f) + 1);
-        }
-        float past = outC - CABIN_TARGET_C;
-        if (past <= 0) return 0;
-        return Math.min(3, (int) Math.floor(past / 2f) + 1);
-    }
-
-    // Where the machine reverses. A property of the CAR, measured, and it does
-    // not move with the weather (historical/COMFORT.md). The nearest usable stop each side
-    // is a whole degree clear of it, because the setpoint quantises to whole
-    // degrees and landing on the boundary is what flips the machine.
-    public static final float MIDDLE_C = (TEMP_MIN + TEMP_MAX) / 2f;   // 24.5
-    public static final float COLD_NEAREST = 24f, HOT_NEAREST = 25f;
-
-    // Initial setpoint for machine columns. Two constraints: (1) must be past
-    // MIDDLE (24.5 C, fixed) so the machine is in the correct mode; (2) must be
-    // past outside air temperature so the mode makes physical sense. Takes
-    // whichever constraint is more stringent.
-    static float setpointFor(float outC, int level, int free) {
-        boolean coldSide = level > 0;
-        int idx = Math.abs(level) - free;               // 1..n within the machine block
-        int n = MAX_LEVEL - free;                       // how many machine columns
-        float first = coldSide ? Math.min(COLD_NEAREST, outC - 1f)
-                               : Math.max(HOT_NEAREST, outC + 1f);
-        float last  = coldSide ? TEMP_MIN : TEMP_MAX;
-        if (n <= 1) return last;
-        // Ensure at least n distinct whole-degree setpoints so each machine column
-        // produces a different temperature value (no duplicate setpoints).
-        if (coldSide) first = Math.max(first, last + (n - 1));
-        else          first = Math.min(first, last - (n - 1));
-        float sp = first + (last - first) * ((idx - 1) / (float) (n - 1));
-        // truncate rather than round: 29.5 -> 29 keeps the 26 C warm side exactly
-        // as authored, and a cooler heat setpoint errs on the side of not cooking
-        return (int) sp;
-    }
-
-    /** Constructs a Column for the given effort level and outside temperature. */
+    /** The mark for the given level in this weather. */
     public static Column column(float outC, int level) {
-        if (level == 0) {
-            // fan 0, not 1: this column is never WRITTEN lever by lever (apply()
-            // just powers the HVAC off), and 0 is what a switched-off car reads
-            // back — so matches() agrees with it instead of calling every parked
-            // car approximate.
-            return new Column(0, false, Float.NaN, 0, DIR_GLASS, false);
+        if (level == 0) return new Column(0, false, Float.NaN, 0, DIR_GLASS, false, false);
+        boolean cold = level > 0;
+        int[] r = cold ? COOL[level - 1] : WARM[-level - 1];
+        boolean machine = r[0] == 1;
+        boolean recirc = r[1] == 1;
+        int dir = r[2];
+        boolean skipped = false;
+        if (cold && outC < RECIRC_FROM_C) {
+            // C4 only turns recirculation on. Without it, it is C3 again.
+            skipped = recirc && !(COOL[level - 2][1] == 1);
+            recirc = false;
         }
-        boolean coldSide = level > 0;
-        int free = freeColumns(outC, coldSide);
-        boolean machine = Math.abs(level) > free;
-        float sp = machine ? setpointFor(outC, level, free) : Float.NaN;
-        int fan = coldSide ? FAN_COLD[level - 1] : FAN_WARM[-level - 1];
-
-        int dir;
-        if (coldSide) {
-            // Air direction depends on air source, not effort level. Free
-            // (ambient) air goes to the face. Machine's first column goes to the
-            // glass (it's cold enough that a person wouldn't want it direct).
-            // Harder steps go to the face (that's what cooling directly means).
-            dir = !machine ? DIR_FACE
-                : (level == free + 1) ? DIR_GLASS
-                : DIR_FACE;
-        } else {
-            // Thermal comfort & defogging physics:
-            // - All-out (W5) uses face+feet for immediate full-body warmth.
-            // - Gentle warming (W1) on cold days goes to glass (no direct blow).
-            // - Intermediate heating (W2..W4) on cold days (outC < CABIN_TARGET_C)
-            //   uses glass+feet (defrost+floor) to maintain footwell warmth while
-            //   washing the windshield with a warm air boundary layer to prevent
-            //   glass fogging from occupant respiration.
-            // - On warm days (outC >= CABIN_TARGET_C, free heating), feet is used.
-            if (level == -MAX_LEVEL) {
-                dir = DIR_FACE_FEET;
-            } else if (level == -1 && outC < CABIN_TARGET_C) {
-                dir = DIR_GLASS;
-            } else if (outC < CABIN_TARGET_C) {
-                dir = DIR_GLASS_FEET;
-            } else {
-                dir = DIR_FEET;
-            }
-        }
-
-        // Recirculation strategy differs by side. Cold side: enabled where
-        // ambient is a liability (recirc cabin air is easier to cool than outside
-        // air). Warm side: never — recirculated cabin air carries occupant
-        // respiration humidity, which condenses into fog the moment it's blown
-        // on cold glass. That includes W1: it used to be the one exception,
-        // reasoned as "safe because it's gentle" — backwards in practice, since
-        // W1 is the column that's aimed AT the glass (DIR_GLASS above) on a cold
-        // day, exactly where fogging risk matters most. Outside air, even cold,
-        // is what actually clears a windshield — it's what every W2+ column
-        // already did, and what a car's own defrost mode forces for the same
-        // reason.
-        boolean recirc = coldSide && machine && level > free + 1 && outC > CABIN_TARGET_C;
-
-        return new Column(level, machine, sp, fan, dir, recirc);
+        if (!cold && dir == DIR_FEET && outC < GLASS_BELOW_C) dir = DIR_GLASS_FEET;
+        return new Column(level, machine, machine ? r[4] : Float.NaN, r[3], dir, recirc, skipped);
     }
 
-    /** Builds the full 11-column table for the given outside temperature. */
+    /** Builds the full list (C10..0..W5) for the given outside temperature. */
     public static Column[] build(float outC) {
-        Column[] cols = new Column[2 * MAX_LEVEL + 1];
-        for (int i = 0; i < cols.length; i++) cols[i] = column(outC, MAX_LEVEL - i);
+        Column[] cols = new Column[COOL_MAX + WARM_MAX + 1];
+        for (int i = 0; i < cols.length; i++) cols[i] = column(outC, COOL_MAX - i);
         return cols;
     }
 
-    /** Returns the column at the given effort level from the table. */
-    public static Column at(Column[] table, int level) { return table[MAX_LEVEL - level]; }
+    /** Returns the mark at the given level. */
+    public static Column at(Column[] table, int level) { return table[COOL_MAX - level]; }
+
+    private static int max(boolean cold) { return cold ? COOL_MAX : WARM_MAX; }
+
+    /** The mark at distance {@code abs} from zero on one side. */
+    private static Column side(Column[] table, boolean cold, int abs) {
+        return at(table, cold ? abs : -abs);
+    }
 
     // ---------------------------------------------------------------- the fitting
 
+    private static boolean sameTemp(float a, float b) {
+        return !Float.isNaN(a) && !Float.isNaN(b) && Math.abs(a - b) < 0.5f;
+    }
+
+    // The settings of a mark, in the order the car is written.
+    private static final int MACHINE = 0, RECIRC = 1, DIR = 2, FAN = 3, TEMP = 4, SETTINGS = 5;
+
+    /** True when this setting of the state is the one the mark has. */
+    private static boolean holds(Column c, State s, int setting) {
+        switch (setting) {
+            case MACHINE: return c.machine == s.machine;
+            case RECIRC:  return c.recirc == s.recirc;
+            case DIR:     return c.direction == s.direction;
+            case FAN:     return c.fan == s.fan;
+            // The setpoint counts only while the machine runs on both.
+            default:      return !c.machine || !s.machine || sameTemp(c.setpointC, s.setpointC);
+        }
+    }
+
+    private static int misses(Column c, State s) {
+        int n = 0;
+        for (int i = 0; i < SETTINGS; i++) if (!holds(c, s, i)) n++;
+        return n;
+    }
+
     /**
-     * Maps current car HVAC state to the nearest effort level.
-     * Returns the level (-5..5) where the car's state best fits,
-     * measured as maximum lever distance (not sum) to all-out.
+     * Where the state stands: the mark with the fewest settings out of line
+     * (the lower mark on a tie). Exact when none is out of line.
      */
-    public static int fit(Column[] table, float outC, boolean power, boolean machine,
-                          float setpointC, int fan, int direction, boolean recirc) {
-        // Zero level means HVAC is off. This is unambiguous, so it's a direct check.
-        if (!power) return 0;
-
-        boolean coldSide = sideIsCold(outC, machine, setpointC, direction);
-        int allOut = coldSide ? MAX_LEVEL : -MAX_LEVEL;
-        Column top = at(table, allOut);
-
-        int worst = 0;
-        worst = Math.max(worst, fanPresses(table, coldSide, fan));
-        worst = Math.max(worst, presses(table, coldSide, Lever.DIR, direction, top.direction));
-        worst = Math.max(worst, presses(table, coldSide, Lever.RECIRC, recirc ? 1 : 0, top.recirc ? 1 : 0));
-        worst = Math.max(worst, presses(table, coldSide, Lever.MACHINE, machine ? 1 : 0, top.machine ? 1 : 0));
-        if (machine && !Float.isNaN(setpointC)) {
-            worst = Math.max(worst, setpointPresses(table, coldSide, setpointC));
+    public static Fit fit(Column[] table, State s) {
+        if (!s.power) return new Fit(0, true);
+        boolean cold = sideIsCold(s);
+        int best = 1, bestMiss = Integer.MAX_VALUE;
+        for (int k = 1; k <= max(cold); k++) {
+            Column c = side(table, cold, k);
+            if (c.skipped) continue;
+            int m = misses(c, s);
+            if (m < bestMiss) { bestMiss = m; best = k; }
         }
-
-        int level = MAX_LEVEL - worst;
-        if (level < 0) level = 0;
-
-        // The machine (compressor) state gates which columns apply. A machine-on
-        // column cannot describe a machine-off car (and vice versa) regardless of
-        // how close other parameters are. Without this gate, an idle car on a hot
-        // day with no free cold columns would fit to a high cooling level.
-        int free = freeColumns(outC, coldSide);
-        if (!machine && level > free) level = free;        // can only be a free column
-        if (machine && level < free + 1) level = free + 1; // cannot be a free column
-
-        return coldSide ? level : -level;
+        return new Fit(cold ? best : -best, bestMiss == 0);
     }
 
-    private enum Lever { FAN, DIR, RECIRC, MACHINE }
-
-    private static int valueOf(Column c, Lever l) {
-        switch (l) {
-            case FAN:     return c.fan;
-            case DIR:     return c.direction;
-            case RECIRC:  return c.recirc ? 1 : 0;
-            default:      return c.machine ? 1 : 0;
-        }
+    // Which side of the ruler the car is on. With the machine on: the setpoint
+    // against MIDDLE_C, the point where the machine itself reverses. NOT against
+    // the outside temperature: on a cool evening a cold setpoint is not below
+    // the outside air, and that comparison read a car blowing cold as "heating"
+    // (issue #6). With the machine off: the air direction (feet = warm side).
+    private static boolean sideIsCold(State s) {
+        if (s.machine && !Float.isNaN(s.setpointC)) return s.setpointC < MIDDLE_C;
+        return s.direction != DIR_FEET && s.direction != DIR_FACE_FEET && s.direction != DIR_GLASS_FEET;
     }
 
-    // Returns presses needed for this lever to reach all-out. p = furthest
-    // column from all-out still holding current value; m = nearest column to
-    // zero already holding all-out value. An unsupported value (e.g., driver
-    // picked direction not in table) counts as one press. See COMFORT-TABLE.md.
-    private static int presses(Column[] table, boolean coldSide, Lever lever, int cur, int allOutValue) {
-        if (cur == allOutValue) return 0;
-        int p = -1, m = -1;
-        for (int k = 1; k <= MAX_LEVEL; k++) {
-            Column c = at(table, coldSide ? k : -k);
-            int v = valueOf(c, lever);
-            // p is the highest column still holding the current value (where the
-            // lever currently stands). Must take highest, not lowest, to correctly
-            // measure distance when the lever changes partway through a range.
-            if (v == cur) p = k;
-            if (v == allOutValue && m < 0) m = k;
+    // ---------------------------------------------------------------- the tap
+
+    /**
+     * The state after one tap. {@code dir} +1 = cooler, -1 = warmer.
+     *
+     * On a mark: the next mark (a skipped mark is passed over). At the end of
+     * the ruler the same state comes back.
+     *
+     * Not on a mark (a hand on the car's own climate screen): every setting has
+     * its own place on the list. A tap away from zero moves the setting that is
+     * furthest behind one place forward. A tap towards zero moves the setting
+     * that is furthest ahead one place back. Nothing else moves, so the fan
+     * never jumps. A value that is not on the list at all (fan 5, air to the
+     * feet on the cool side) is put on the list by the first tap.
+     */
+    public static State step(Column[] table, State s, int dir) {
+        if (!s.power) return State.of(at(table, dir > 0 ? 1 : -1));
+        Fit f = fit(table, s);
+        boolean cold = f.level > 0;
+        int here = Math.abs(f.level);
+        boolean away = cold == (dir > 0);
+        int top = max(cold);
+
+        if (f.exact) {
+            int k = here + (away ? 1 : -1);
+            while (k >= 1 && k <= top && side(table, cold, k).skipped) k += away ? 1 : -1;
+            if (k > top) return s;
+            return k < 1 ? State.OFF : State.of(side(table, cold, k));
         }
-        if (p < 0) return 1;
-        if (m < 0) return MAX_LEVEL - p;
-        return Math.max(0, m - p);
+
+        // Place of each setting: the mark nearest to "here" that has its value.
+        // 0 = the value is on no mark.
+        int[] place = new int[SETTINGS];
+        for (int i = 0; i < SETTINGS; i++) place[i] = place(table, cold, s, i, here);
+
+        if (away) {
+            int from = top;
+            for (int p : place) if (p > 0) from = Math.min(from, p);
+            for (int k = from + 1; k <= top; k++) {
+                State next = moved(side(table, cold, k), s, place, k, true, cold);
+                if (next != null) return next;
+            }
+            // Nothing is behind: make the mark we stand on exact.
+            return State.of(side(table, cold, here));
+        }
+        int from = 1;
+        for (int p : place) from = Math.max(from, p);
+        for (int k = from - 1; k >= 1; k--) {
+            State next = moved(side(table, cold, k), s, place, k, false, cold);
+            if (next != null) return next;
+        }
+        return State.OFF;
     }
 
-    // Fan is a continuous scale (graded), not discrete positions. Measures
-    // presses by magnitude: where it stands is the highest column whose flow it
-    // meets or beats. Below the lowest column, it's at zero (no flow requirement).
-    private static int fanPresses(Column[] table, boolean coldSide, int fan) {
-        int p = 0;
-        for (int k = 1; k <= MAX_LEVEL; k++) {
-            if (fan >= at(table, coldSide ? k : -k).fan) p = k;
+    private static int place(Column[] table, boolean cold, State s, int setting, int here) {
+        int best = 0;
+        for (int k = 1; k <= max(cold); k++) {
+            Column c = side(table, cold, k);
+            if (c.skipped || !holds(c, s, setting)) continue;
+            // A running machine's setpoint has no place on a mark without one.
+            if (setting == TEMP && s.machine && !c.machine) continue;
+            if (best == 0 || Math.abs(k - here) < Math.abs(best - here)) best = k;
         }
-        return MAX_LEVEL - p;
-    }
-
-    // The setpoint is continuous, so it gets its own: which column's setpoint is
-    // nearest, then the climb from there to the rail.
-    private static int setpointPresses(Column[] table, boolean coldSide, float sp) {
-        int best = -1;
+        if (best != 0 || setting != TEMP) return best;
+        // A setpoint between two marks stands with the nearest one.
         float bestD = Float.MAX_VALUE;
-        for (int k = 1; k <= MAX_LEVEL; k++) {
-            Column c = at(table, coldSide ? k : -k);
-            if (!c.machine) continue;
-            float d = Math.abs(c.setpointC - sp);
-            if (d < bestD) { bestD = d; best = k; }
+        for (int k = 1; k <= max(cold); k++) {
+            Column c = side(table, cold, k);
+            if (c.skipped || !c.machine) continue;
+            float d = Math.abs(c.setpointC - s.setpointC);
+            if (d < bestD || (d == bestD && Math.abs(k - here) < Math.abs(best - here))) { bestD = d; best = k; }
         }
-        return best < 0 ? 0 : MAX_LEVEL - best;
+        return best;
     }
 
-    // Determines which side of the effort table the car belongs to (cold or warm).
-    // With machine on: compare the setpoint to MIDDLE_C, the point where the
-    // machine itself reverses. NOT to the outside temperature: on a cool evening
-    // (outside <= 18 C) the C4/C5 setpoints of 18/17 C are not below the outside
-    // air, so that comparison read a car blowing cold as "heating" (issue #6).
-    // Every machine column is authored a whole degree clear of MIDDLE_C
-    // (COLD_NEAREST / HOT_NEAREST), so this split is exact for the table's own
-    // columns and still right for a hand-set setpoint.
-    // With machine off: infer from air direction (feet = warm side, glass
-    // = cold side).
-    private static boolean sideIsCold(float outC, boolean machine, float sp, int direction) {
-        if (machine && !Float.isNaN(sp)) return sp < MIDDLE_C;
-        return direction != DIR_FEET && direction != DIR_FACE_FEET && direction != DIR_GLASS_FEET;
+    /** The state with the settings that mark {@code c} (at place k) pulls
+     * along, or null when it pulls none. */
+    private static State moved(Column c, State s, int[] place, int k, boolean away, boolean cold) {
+        if (c.skipped) return null;
+        boolean machine = s.machine, recirc = s.recirc;
+        int fan = s.fan, direction = s.direction;
+        float sp = s.setpointC;
+        boolean any = false;
+        for (int i = 0; i < SETTINGS; i++) {
+            boolean pulled = place[i] == 0 || (away ? place[i] < k : place[i] > k);
+            if (!pulled) continue;
+            switch (i) {
+                case MACHINE: if (machine != c.machine) { machine = c.machine; any = true; } break;
+                case RECIRC:  if (recirc != c.recirc) { recirc = c.recirc; any = true; } break;
+                case DIR:     if (direction != c.direction) { direction = c.direction; any = true; } break;
+                case FAN:     if (fan != c.fan) { fan = c.fan; any = true; } break;
+                default:
+                    if (c.machine && s.machine && !sameTemp(sp, c.setpointC)) { sp = c.setpointC; any = true; }
+            }
+        }
+        if (!any) return null;
+        // A machine that runs must stay on its own side of MIDDLE_C, or the tap
+        // would turn cooling into heating.
+        // A machine this tap turns on takes the mark's setpoint.
+        if (machine && c.machine && (!s.machine || Float.isNaN(sp) || (sp < MIDDLE_C) != cold)) sp = c.setpointC;
+        return new State(true, machine, sp, fan, direction, recirc);
     }
 }

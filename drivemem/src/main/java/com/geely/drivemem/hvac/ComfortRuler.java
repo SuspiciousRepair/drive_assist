@@ -5,7 +5,6 @@ import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarActor;
 import com.geely.drivemem.net.MqttReporter;
-import com.geely.drivemem.util.Prefs;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -15,18 +14,16 @@ import android.os.Looper;
 import android.util.Log;
 
 /**
- * Renders the HVAC effort scale (C5..0..W5), mapping car state to effort level
- * based on an absolute measurement (how hard the car is working), not a delta.
- * Lever taps are pure state updates on the ruler's own thread; car I/O
- * (apply, verify, maintenance) runs on CarActor's thread to avoid conflicts.
- * See COMFORT-TABLE.md for design rationale.
+ * The comfort ruler (C10..0..W5): one tap is one small move on the list of
+ * marks (EffortTable). The ruler holds the state it wants the car in; a tap
+ * changes that state on the ruler's own thread, and car I/O (apply, verify,
+ * maintenance) runs on CarActor's thread. See COMFORT-TABLE.md.
  */
-// The effort number is absolute (C5..0..W5), readable instantly without prior
-// interaction. The scale is fixed (±5 always); nothing decays or requires
-// commitment. Taps are UI-only (no car I/O), so bursts never wait on the car.
-// Lever positions are reconciled in the background (doMaintenance) and after
-// each apply(). Outside temperature drift (2°C sustained for 10min) triggers a
-// re-slide, preserving the stated effort level while the recipe adapts.
+// Taps are UI-only (no car I/O), so bursts never wait on the car. The car is
+// read back in the background (doMaintenance) and before the first tap after
+// a quiet spell. A sustained change of the outside temperature (2°C for
+// 10min) re-reads the weather rules; the mark stays, and at most
+// recirculation or the air on the glass changes.
 public class ComfortRuler {
     static final String TAG = CarAccess.TAG;
 
@@ -43,12 +40,15 @@ public class ComfortRuler {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private Runnable onChange;
 
-    private volatile int level = 0;            // +5 = C5 ... 0 ... -5 = W5
+    private volatile int level = 0;            // +10 = C10 ... 0 ... -5 = W5
     private volatile boolean armed = false;
     private volatile String status = "";
-    // True if a lever is still out of line (not exact match to column). See
-    // "C4ish" in COMFORT-TABLE.md. Written only from CarActor's thread.
+    // True if a setting is out of line with the mark (a hand on the car's own
+    // climate screen): the mark is drawn hollow.
     private volatile boolean approx = false;
+    // What the car is set to (after a read) or what we want it set to (after
+    // a tap). null until the first read.
+    private volatile EffortTable.State cur;
     // True if the physical defrost button is active. The scale freezes while
     // defrost is held.
     private volatile boolean defrosting = false;
@@ -59,15 +59,6 @@ public class ComfortRuler {
     private long lastTapMs = 0;
     // Timestamp when outside temp first drifted beyond deadband; 0 if not drifted
     private long driftSinceMs = 0;
-
-    // Learn mode (ComfortLearn). lastState is the last full read (null when the
-    // climate is off or unreadable). seenExact turns true when a refit finds
-    // the car exactly on the column we set, so a later "approx" is a hand on
-    // the panel, not a car that woke up on another day's settings.
-    private final ComfortLearn.Watcher watcher = new ComfortLearn.Watcher();
-    private volatile ComfortLearn.State lastState;
-    private volatile int lastApplied = 0;
-    private volatile boolean seenExact = false;
 
     // Single-slot mailbox for coalescing a burst of taps into one write.
     // applyStale = true means level changed while a write was in flight.
@@ -94,13 +85,13 @@ public class ComfortRuler {
     /** Sets a callback to run on the main thread whenever the ruler state changes. */
     public void setOnChange(Runnable r) { this.onChange = r; }
 
-    /** Returns the current effort level (-5..5). */
+    /** Returns the current mark (-5..10; positive = cooling). */
     public int pointer()  { return level; }
 
     /** Returns the current status message. */
     public String status(){ return status; }
 
-    /** Returns true if a lever is slightly out of line. See "C4ish" in COMFORT-TABLE.md. */
+    /** Returns true if a setting is out of line with the mark. */
     public boolean approx(){ return approx; }
 
     /** Returns true if the physical defrost button is active. */
@@ -112,22 +103,20 @@ public class ComfortRuler {
         return direction;
     }
 
-    /** Returns the maximum cooling level (always 5). */
-    public int coolMax()  { return EffortTable.MAX_LEVEL; }
+    /** Returns the number of cooling marks (always 10). */
+    public int coolMax()  { return EffortTable.COOL_MAX; }
 
-    /** Returns the maximum heating level (always 5). */
-    public int heatMax()  { return EffortTable.MAX_LEVEL; }
+    /** Returns the number of heating marks (always 5). */
+    public int heatMax()  { return EffortTable.WARM_MAX; }
 
-    /** Adjusts the effort level by the given delta (+1 cooler, -1 warmer). */
+    /** One tap: +1 cooler, -1 warmer. */
     public void tap(int dir) {
         h.post(() -> {
             if (!armed && !arm()) { notifyUi(); return; }
 
-            // A press always rebuilds the table for today's weather. The table is
-            // built once at arm() but outside temp may have drifted significantly
-            // (this unit suspends rather than shutting down). Read-only operation.
-            // The 2°C/10min drift guard in doMaintenance() prevents unexpected
-            // changes; a press is user-initiated so it uses current weather.
+            // A press always uses today's weather. The table is built once at
+            // arm() but outside temp may have drifted significantly (this unit
+            // suspends rather than shutting down). Read-only operation.
             // Uses cachedOutsideTempC() (not direct car access) since this runs
             // on the reducer thread, not CarActor's thread.
             Float outNow = cachedOutsideTempC();
@@ -163,27 +152,17 @@ public class ComfortRuler {
                              "dir=" + dir + " quiet=" + quietS + (approx ? " approx" : ""));
             lastTapMs = System.currentTimeMillis();
 
-            // Settling an approximate position: pressing TOWARDS zero does not
-            // move the column, it makes the one we are already at exact. From
-            // "C4ish", Warm gives a full C4 and Cool gives a full C5 — both are
-            // one press, and neither is a surprise.
-            boolean towardZero = (level > 0 && dir < 0) || (level < 0 && dir > 0);
-            int want = (approx && towardZero) ? level : level + dir;
-
-            if (want >  EffortTable.MAX_LEVEL) want =  EffortTable.MAX_LEVEL;
-            if (want < -EffortTable.MAX_LEVEL) want = -EffortTable.MAX_LEVEL;
-
-            if (want == level && !approx) {
+            // One tap is one move on the list (EffortTable.step). On a mark
+            // that is the next mark. Off a mark only the setting furthest
+            // behind (or ahead) moves, so the fan never jumps.
+            EffortTable.State base = cur != null ? cur : EffortTable.State.OFF;
+            EffortTable.State next = EffortTable.step(table, base, dir);
+            if (next.same(base)) {
                 status = ctx.getString(R.string.ruler_at_limit, describe(level));
                 notifyUi();
                 return;
             }
-            level = want;
-            if (table != null) {
-                EffortTable.Column c = EffortTable.at(table, level);
-                direction = c.power ? c.direction : 0;
-            }
-            status = describe(level);
+            show(next);
             notifyUi();          // instant: the dot moves now, not after the car answers
             scheduleApply();     // the car catches up in the background
         });
@@ -229,7 +208,8 @@ public class ComfortRuler {
         try {
             while (applyStale) {
                 applyStale = false;
-                apply(level);
+                EffortTable.State want = cur;
+                if (want != null) apply(want);
             }
         } finally {
             applying = false;
@@ -281,7 +261,6 @@ public class ComfortRuler {
         table = buildTable(outC);
         tableOutC = outC;
         armed = true;
-        seenExact = false;
         refit();
         // Initialize silence timer. Needed for drift detection in maintenance().
         lastTapMs = System.currentTimeMillis();
@@ -291,14 +270,23 @@ public class ComfortRuler {
         return true;
     }
 
-    /** Reads all car HVAC levers and fits them to the current table level. */
+    /** Takes a state as the ruler's own: the mark, hollow or not, and the air direction. */
+    private void show(EffortTable.State s) {
+        EffortTable.Fit f = EffortTable.fit(table, s);
+        cur = s;
+        level = f.level;
+        approx = !f.exact;
+        direction = s.power ? s.direction : 0;
+        status = describe(level);
+    }
+
+    /** Reads the car's climate settings and finds their mark. */
     private void refit() {
         if (table == null) return;
         // Defrost button drives settings the table doesn't describe. Freeze the
         // ruler display until defrost is released.
         Boolean defrost = car().readHvacFlag(CarAccess.HVAC_MAX_DEFROST);
         defrosting = defrost != null && defrost;
-        lastState = null;
         if (defrosting) {
             direction = EffortTable.DIR_GLASS;
             status = ctx.getString(R.string.ruler_defrosting);
@@ -319,57 +307,28 @@ public class ComfortRuler {
         // Treat unreadable power as ON to ensure a running car is describable.
         boolean power   = pwr == null || pwr;
 
-        level  = EffortTable.fit(table, tableOutC, power, machine, sp, fan, dir, recirc);
-        approx = !matches(EffortTable.at(table, level), power, machine, sp, fan, dir, recirc);
-        if (!approx && power && level == lastApplied) seenExact = true;
-        lastState = power ? new ComfortLearn.State(machine, sp, fan, dir, recirc) : null;
-        status = describe(level);
-        direction = power ? dir : 0;
+        show(power ? new EffortTable.State(true, machine, sp, fan, dir, recirc) : EffortTable.State.OFF);
     }
 
-    /** Returns true if the car state matches the given column exactly. */
-    private boolean matches(EffortTable.Column c, boolean power, boolean machine, float sp,
-                            int fan, int dir, boolean recirc) {
-        if (c.power != power) return false;
-        // If off, the other levers don't matter. A parked car may have any lever
-        // values left over; don't mark it approximate on that basis.
-        if (!c.power) return true;
-        if (c.machine != machine) return false;
-        if (c.fan != fan) return false;
-        if (c.direction != dir) return false;
-        if (c.recirc != recirc) return false;
-        if (c.machine && !Float.isNaN(sp) && Math.abs(c.setpointC - sp) >= 0.5f) return false;
-        return true;
-    }
-
-    /** Applies the column for the given effort level to the car. */
-    private void apply(int lv) {
+    /** Writes the wanted state to the car. */
+    private void apply(EffortTable.State c) {
         // ORDER MATTERS: setpoint before compressor (prevents wrong-mode running).
         // Flags use ensureFlag() to read first (they toggle on write, not set).
         if (!armed || !car().isReady() || table == null) return;
-        EffortTable.Column c = EffortTable.at(table, lv);
-        lastApplied = lv;
-        seenExact = false;
+        String col = EffortTable.label(table, c);
 
-        // A press claims the whole column back, whatever it is — including from
+        // A press claims the climate back, whatever it is — including from
         // the physical defrost button. ensureFlag no-ops when it was already
         // off, so this costs nothing on an ordinary tap.
         ensureFlag(CarAccess.HVAC_MAX_DEFROST, false);
 
-        // Column zero turns the machine off. Park the setpoint at a neutral value
+        // Mark zero turns the climate off. Park the setpoint at a neutral value
         // so the compressor doesn't start at full effort if power is restored.
         if (!c.power) {
-            float spOff = car().readSetpoint();
-            if (!Float.isNaN(spOff) && Math.abs(spOff - EffortTable.CABIN_TARGET_C) >= 0.5f) {
-                car().nudgeSetpoint(EffortTable.CABIN_TARGET_C - spOff);
-            }
+            parkSetpoint();
             ensureFlag(CarAccess.HVAC_POWER_ON, false);
-            direction = 0;
-            approx = false;
-            status = describe(lv);
-            notifyUi();
-            ComfortEvents.event(ctx, "apply", ComfortEvents.snap(car(), lv),
-                             "col=" + c + " out=" + tableOutC);
+            ComfortEvents.event(ctx, "apply", ComfortEvents.snap(car(), level),
+                             "col=" + col + " out=" + tableOutC);
             CarActor.get(ctx).cancelOnCarThread(verify);
             CarActor.get(ctx).runOnCarThreadDelayed(verify, VERIFY_MS);
             return;
@@ -387,12 +346,7 @@ public class ComfortRuler {
 
         // Park setpoint at a neutral value so future power-on doesn't default to
         // maximum effort.
-        if (!c.machine) {
-            float sp = car().readSetpoint();
-            if (!Float.isNaN(sp) && Math.abs(sp - EffortTable.CABIN_TARGET_C) >= 0.5f) {
-                car().nudgeSetpoint(EffortTable.CABIN_TARGET_C - sp);
-            }
-        }
+        if (!c.machine) parkSetpoint();
 
         ensureFlag(CarAccess.HVAC_RECIRC_ON, c.recirc);
 
@@ -405,26 +359,28 @@ public class ComfortRuler {
         int fanNow = car().readFan();
         if (fanNow >= 0 && fanNow != c.fan) car().nudgeFan(c.fan - fanNow);
 
-        direction = c.direction;
-        approx = false;
-        status = describe(lv);
-        notifyUi();
-        ComfortEvents.event(ctx, "apply", ComfortEvents.snap(car(), lv),
-                         "col=" + c + " out=" + tableOutC);
-        // Schedule late re-check on CarActor's thread (same as column-zero case).
+        ComfortEvents.event(ctx, "apply", ComfortEvents.snap(car(), level),
+                         "col=" + col + " out=" + tableOutC);
         CarActor.get(ctx).cancelOnCarThread(verify);
         CarActor.get(ctx).runOnCarThreadDelayed(verify, VERIFY_MS);
+    }
+
+    private void parkSetpoint() {
+        float sp = car().readSetpoint();
+        if (!Float.isNaN(sp) && Math.abs(sp - EffortTable.CABIN_TARGET_C) >= 0.5f) {
+            car().nudgeSetpoint(EffortTable.CABIN_TARGET_C - sp);
+        }
     }
 
     /** One-time late re-check after apply(). Verifies critical settings took effect. */
     private final Runnable verify = new Runnable() {
         @Override public void run() {
-            if (!armed || !car().isReady() || table == null) return;
-            EffortTable.Column c = EffortTable.at(table, level);
+            EffortTable.State c = cur;
+            if (!armed || !car().isReady() || table == null || c == null) return;
             StringBuilder again = new StringBuilder();
 
-            // Check power first. On column zero, skip other levers (a stopped
-            // blower shouldn't trigger a fan re-check that restarts it).
+            // Check power first. With the climate off, skip the other settings
+            // (a stopped blower shouldn't trigger a fan re-check that restarts it).
             Boolean pwr = car().readHvacFlag(CarAccess.HVAC_POWER_ON);
             if (pwr != null && pwr != c.power) {
                 car().setHvacFlag(CarAccess.HVAC_POWER_ON, c.power);
@@ -475,27 +431,28 @@ public class ComfortRuler {
         car().setHvacFlag(prop, want);
     }
 
-    /** Background maintenance: reconcile car state and re-slide if weather drifts. */
+    /** Background maintenance: follow the car, and the weather rules. */
     private void doMaintenance() {
         if (!armed || table == null) return;
+        // A tap of ours is waiting or being written: the state is ours, and a
+        // read now would see the car half way.
+        if (applying || applyStale) return;
         long now = System.currentTimeMillis();
 
-        // Reconcile with car state. If a hand on the OEM panel moved a lever,
+        // Reconcile with car state. If a hand on the OEM panel moved a setting,
         // the display must follow it. Read-only operation.
         int was = level;
+        boolean wasApprox = approx;
         refit();
-        if (level != was) {
+        if (level != was || approx != wasApprox) {
             Log.i(TAG, "ruler: the car moved under us, " + EffortTable.name(was)
-                     + " -> " + EffortTable.name(level));
+                     + " -> " + EffortTable.name(level) + (approx ? "~" : ""));
             notifyUi();
         }
 
-        learnStep(now);
-
-        // If a lever is out of line (approx=true), a hand is on the OEM panel.
-        // Don't re-slide, since that would just undo the manual change. Tapping
-        // Cool or Warm settles the approximate position and returns control.
-        if (approx) return;
+        // A setting is out of line: a hand is on the OEM panel. Don't follow
+        // the weather, since that would just undo the manual change.
+        if (approx || defrosting) return;
 
         Float outC = car().readOutsideTempC();
         if (outC == null) return;
@@ -506,100 +463,29 @@ public class ComfortRuler {
         if (now - driftSinceMs < DRIFT_MS) return;        // not sustained yet
         if (now - lastTapMs < QUIET_AFTER_TAP_MS) return; // never mid-complaint
 
-        // Re-build table and re-apply same level. Effort level is preserved;
-        // the recipe adapts as free air takes over from machine.
+        // Same mark, today's weather rules. Only recirculation (cool side) or
+        // the air on the glass (warm side) can differ.
         int held = level;
-        EffortTable.Column[] next = buildTable(outC);
-        boolean same = sameTable(table, next);
-        table = next;
+        table = EffortTable.build(outC);
         tableOutC = outC;
         driftSinceMs = 0;
-        // The table is fixed inside a weather band: same columns, nothing to
-        // write to the car.
-        if (same) return;
+        EffortTable.State want = EffortTable.State.of(weatherMark(table, held));
+        if (cur == null || want.same(cur)) return;
         Log.i(TAG, "ruler: weather moved to " + outC + "C — re-applying " + EffortTable.name(held));
         ComfortEvents.event(ctx, "reslide", ComfortEvents.snap(car(), held), "out=" + outC);
-        apply(held);
+        show(want);
+        notifyUi();
+        apply(want);
     }
 
-    private static boolean sameTable(EffortTable.Column[] a, EffortTable.Column[] b) {
-        if (a == null || b == null || a.length != b.length) return false;
-        for (int i = 0; i < a.length; i++) {
-            if (i == EffortTable.MAX_LEVEL) continue;   // 0 is always "off"
-            if (!a[i].toString().equals(b[i].toString())) return false;
-        }
-        return true;
+    /** The mark to hold after a weather change: the same one, or the one
+     * before it when the weather took it off the ruler (C4 on a mild day). */
+    static EffortTable.Column weatherMark(EffortTable.Column[] table, int level) {
+        EffortTable.Column c = EffortTable.at(table, level);
+        return c.skipped ? EffortTable.at(table, level - 1) : c;
     }
 
-    /** The table for this weather, from the table file (ComfortTableStore).
-     * Learn mode only decides whether the weekly learning writes to it. */
-    private EffortTable.Column[] buildTable(float outC) {
-        return ComfortTableStore.get(ctx).build(outC);
-    }
-
-    /**
-     * Learn mode (ComfortLearn). A hand change on the car's panel, made after
-     * we set a column exactly and held {@link ComfortLearn#HOLD_MS}, is counted
-     * as a hold. The ruler itself changes only in the weekly decision, and only
-     * while the climate is off, so it never moves under a drive. Runs on
-     * CarActor's thread from doMaintenance(), after refit().
-     */
-    private void learnStep(long now) {
-        if (!Prefs.getComfortLearn(ctx)) { watcher.observe(now, null, false); return; }
-
-        if (level == 0 && lastState == null && !defrosting) {
-            ComfortLearn.Book book = ComfortLearn.Book.decode(Prefs.getComfortBook(ctx));
-            long due = book.nextDecisionMs();
-            if (due != 0 && now < due) return;
-            ComfortLearn.Outcome o = ComfortLearn.decide(book, now, ComfortTableStore.get(ctx));
-            Prefs.setComfortBook(ctx, book.encode());
-            if (o.changed) ComfortTableStore.save(ctx, o.table);
-            for (String n : o.notes) {
-                ComfortEvents.event(ctx, "learn", ComfortEvents.snap(car(), level), n);
-            }
-            if (o.changed) {
-                Log.i(TAG, "ruler: weekly learn " + o.notes);
-                table = buildTable(tableOutC);
-                // The car may still hold our old column exactly; against the
-                // new table that reads as a hand change. Only a fresh exact
-                // fit may arm learning again.
-                seenExact = false;
-                notifyUi();
-            }
-            return;
-        }
-
-        boolean eligible = approx && seenExact && !defrosting && level != 0
-            && now - lastTapMs >= QUIET_AFTER_TAP_MS;
-        ComfortLearn.State held = watcher.observe(now, lastState, eligible);
-        if (held == null) return;
-        // While a hand state is in place doMaintenance() does not follow the
-        // weather, so the table can be from another day. A hold is filed under
-        // tableOutC's band; drop it when today is outside that band.
-        Float outNow = car().readOutsideTempC();
-        if (outNow == null || Math.abs(outNow - tableOutC) >= DRIFT_C) {
-            ComfortEvents.event(ctx, "learn", ComfortEvents.snap(car(), level),
-                "skip: table out=" + tableOutC + " now=" + outNow);
-            return;
-        }
-        ComfortLearn.Book book = ComfortLearn.Book.decode(Prefs.getComfortBook(ctx));
-        String note = ComfortLearn.hold(book, table, tableOutC, now, level, lastApplied, held);
-        if (note == null) return;
-        Prefs.setComfortBook(ctx, book.encode());
-        ComfortEvents.event(ctx, "learn", ComfortEvents.snap(car(), level),
-                            note + " dir=" + held.dir + " out=" + tableOutC);
-    }
-
-    /** Rebuilds the table after learn mode was switched or reset. */
-    public void reloadLearned() {
-        CarActor.get(ctx).runOnCarThread(() -> {
-            if (!armed || Float.isNaN(tableOutC)) return;
-            table = buildTable(tableOutC);
-            seenExact = false;   // same reason as the weekly rebuild
-            if (car().isReady()) refit();
-            notifyUi();
-        });
-    }
+    private EffortTable.Column[] buildTable(float outC) { return EffortTable.build(outC); }
 
     private String describe(int lv) {
         if (lv == 0) return ctx.getString(R.string.ruler_steady);
