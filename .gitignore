@@ -62,15 +62,14 @@ local.properties
 keystore.properties
 
 # SysProbe build artefacts — same reasoning as modehelper's platkey/ above.
-sysprobe/obj/
-sysprobe/classes.dex
-sysprobe/platkey/
-sysprobe/*.idsig
-sysprobe/sysprobe.apk
+probes/sysprobe/obj/
+probes/sysprobe/classes.dex
+probes/sysprobe/platkey/
+probes/sysprobe/*.idsig
+probes/sysprobe/sysprobe.apk
 
-# Local only, never committed: the AccelProbe experiment, private notes,
-# and git worktrees made inside this checkout.
-accelprobe/
+# Local only, never committed: private notes, and git worktrees made inside
+# this checkout.
 .local-notes/
 .worktrees/
 

@@ -19,3 +19,4 @@ dependencyResolutionManagement {
 rootProject.name = "drive_assist"
 include ":drivemem"
 include ":owwprobe"
+project(":owwprobe").projectDir = file("probes/owwprobe")

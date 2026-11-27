@@ -1,6 +1,10 @@
 # Car Diary & 12V Health Preview
 
-Status: active design plan (supersedes the earlier v9 maintenance-log-only draft).
+Status (checked against the code 2026-11-27): the diary (Phase 1) and the
+12 V monitor (Phase 2, class `Aux12vMonitor`) are built, and the phone has the
+`/diary` and `/diary.csv` pages. Not found in the code: the dealer sheet
+(`/diary/dealer`) and the MQTT sensors for the diary and the 12 V battery.
+This file supersedes the earlier v9 maintenance-log-only draft.
 
 ## Context
 

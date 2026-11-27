@@ -1,7 +1,10 @@
-# Road Score and Driver Score (head-unit IMU) — plan, not started
+# Road Score and Driver Score (head-unit IMU)
 
-Status: **design / exploration**. Noted 2026-11-23. Nothing below is built or
-committed to a release.
+Status (checked against the code 2026-11-27): Phases 1 and 2 are built
+(#206): `ImuHub`, `ImuFilter`, `DriveScorer`, the scores saved for each trip
+and Valet stay, and shown on the trip and Valet screens. Open: Phase 3
+(roughness map layer, period trends) and Phase 4 (extras). The text below is
+the design as it was noted on 2026-11-23.
 
 Uses the head unit's built-in 3-axis accelerometer — already kept powered on
 since boot by the OEM stack — together with existing CAN speed, motor power,

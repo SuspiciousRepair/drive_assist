@@ -1,7 +1,7 @@
 # Parking Prices & Automatic Toll Passage Logging
 
 Status: Phase 1 (parking prices, `CarDb` v38) and Phase 2 items 1, 2, 3, 5
-and 6 implemented on `feat/parking-and-tolls` (2026-11-26), plus a Parking
+and 6 implemented and merged into `next` (#207, 2026-11-26), plus a Parking
 filter on the stats sessions and a park-location map in the price dialog.
 Phase 2 item 4 (hosted tariff catalog) is DROPPED by the owner (2026-11-26):
 OpenStreetMap prices plus the driver's own corrections are enough. Still
