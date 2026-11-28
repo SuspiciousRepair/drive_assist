@@ -22,7 +22,9 @@ The home screen is made for quick use while you drive:
   setting fan, temperature and A/C one by one. It has 10 cooling marks and 5
   heating marks. Each tap goes to the next mark and changes one small thing,
   so the fan never jumps. The first tap is always the gentlest mark, and a
-  mark does the same thing in all weather.
+  mark does the same thing in all weather. To go far in one move, touch the
+  bar: touch a mark, or slide a finger along the bar and lift it. When the
+  climate is off, the bar shows the 10 cooling marks.
 - Large buttons do cooling, heating, recirculation and a window clear.
 - While the car charges, a charging card takes the place of the Parked card. It
   shows the time charging, the time left to 100%, the battery level, the energy

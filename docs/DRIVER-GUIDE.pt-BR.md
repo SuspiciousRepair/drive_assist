@@ -22,7 +22,10 @@ A tela inicial foi feita para uso rápido enquanto você dirige:
   ajustar ventilador, temperatura e A/C um a um. Ela tem 10 marcas para
   resfriar e 5 para aquecer. Cada toque vai para a próxima marca e muda uma
   coisa pequena, então o ventilador nunca dá um salto. O primeiro toque é
-  sempre a marca mais suave, e uma marca faz a mesma coisa em qualquer clima;
+  sempre a marca mais suave, e uma marca faz a mesma coisa em qualquer clima.
+  Para ir longe de uma vez, toque na barra: toque em uma marca, ou deslize o
+  dedo pela barra e solte. Com o clima desligado, a barra mostra as 10 marcas
+  de resfriar;
 - botões grandes fazem resfriar, aquecer, recirculação e abrir um vão nos vidros;
 - durante a recarga, um cartão de recarga fica no lugar do cartão Estacionado.
   Ele mostra o tempo carregando, o tempo até 100%, o nível da bateria, a energia

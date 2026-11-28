@@ -15,6 +15,7 @@ issue numbers, no markdown emphasis (the update dialog is plain text).
 ## v0.12.0 — 2026-11-27
 
 - New: a new comfort ruler. It has 10 cooling marks and 5 heating marks, and one tap changes one small thing, so the fan no longer jumps.
+- New: touch the comfort ruler's bar to go to a mark at once. Touch a mark, or slide a finger along the bar and lift it.
 - New: trip scores. Each trip gets a driver score and a road score, on the trip screen.
 - New: Car diary. A page for maintenance, costs, impacts and battery health.
 - New: tolls and parking. The car can find tolls with OpenStreetMap, and you can type what a stop cost.
@@ -23,6 +24,7 @@ issue numbers, no markdown emphasis (the update dialog is plain text).
 - New: right-hand drive layout, picked from the car on first start.
 - Changed: the comfort ruler's learn mode and the Climate page in Config are gone. The marks are fixed.
 - Fixed: old trips no longer turn into 0 km after 90 days.
+- Fixed: window open targets in Config, Doors go in steps of 10. A typed 5 did nothing.
 - Fixed: drive mode and regeneration come back after a remote A/C start.
 
 ## v0.11.5 — 2026-11-27
