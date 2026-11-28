@@ -196,11 +196,11 @@ public final class OverlayService extends Service {
         // to clear CarPlay/Android Auto's own icon dock, expanding just ran
         // the panel off the bottom of the screen. Growing upward from a
         // fixed bottom edge has no such ceiling regardless of panel height.
-        lp.gravity = Gravity.BOTTOM | Gravity.START;
+        lp.gravity = overlayGravity(Style.RHD);
         SharedPreferences p = getSharedPreferences(PREFS, MODE_PRIVATE);
-        // Default: left edge, clear of Android Auto/CarPlay's own icon dock
+        // Default: driver edge, clear of Android Auto/CarPlay's own icon dock
         // above it — see setupDragAndTap() for how a person moves it anywhere
-        // after. PREF_Y is now a distance from the BOTTOM edge.
+        // after. PREF_X is distance from the driver edge; PREF_Y from BOTTOM.
         lp.x = p.getInt(PREF_X, Style.dp(this, 8));
         lp.y = p.getInt(PREF_Y, Style.dp(this, 300));
         windowManager.addView(overlayView, lp);
@@ -232,8 +232,28 @@ public final class OverlayService extends Service {
      * overlay comes back, after any change made on them. */
     static boolean rebuildOnForegroundChange(boolean foreground) { return !foreground; }
 
+    /** Window anchor gravity: bottom-left on LHD, bottom-right on RHD. */
+    static int overlayGravity(boolean rhd) {
+        return Gravity.BOTTOM | (rhd ? Gravity.RIGHT : Gravity.LEFT);
+    }
+
+    /** Horizontal window offset update during a drag: positive dx moves away from
+     * LEFT in LHD and toward RIGHT (smaller offset) in RHD. */
+    static int overlayDragX(int startX, int dx, boolean rhd) {
+        return rhd ? (startX - dx) : (startX + dx);
+    }
+
     private void rebuildContent() {
         Style.load(this);
+        if (lp != null) {
+            int wantGravity = overlayGravity(Style.RHD);
+            if (lp.gravity != wantGravity) {
+                lp.gravity = wantGravity;
+                if (overlayView != null && overlayView.isAttachedToWindow() && windowManager != null) {
+                    windowManager.updateViewLayout(overlayView, lp);
+                }
+            }
+        }
         boolean wasExpanded = isExpanded;
         LinearLayout root = (LinearLayout) overlayView;
         root.removeAllViews();
@@ -503,7 +523,7 @@ public final class OverlayService extends Service {
                     int dy = (int) (event.getRawY() - touchRawStartY);
                     if (Math.abs(dx) > MOVE_SLOP_PX || Math.abs(dy) > MOVE_SLOP_PX) dragging = true;
                     if (dragging) {
-                        lp.x = touchStartX + dx;
+                        lp.x = overlayDragX(touchStartX, dx, Style.RHD);
                         // Minus, not plus: lp.y is a distance from the BOTTOM
                         // edge under Gravity.BOTTOM, so a finger moving down
                         // (positive dy) must SHRINK it, not grow it.

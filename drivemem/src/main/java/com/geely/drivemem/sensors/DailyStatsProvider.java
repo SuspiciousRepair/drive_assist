@@ -76,6 +76,23 @@ public final class DailyStatsProvider {
          * energyKwh; null when CAN did not measure the trip. Set after
          * construction by queryTrips, like DayOverview's extras. */
         public EnergySplit split;
+        /** Automatic/manual toll passages on this trip (0 on ordinary trips). */
+        public int tollCount;
+        public double tollCost;
+        public int tollUnpriced;
+        /** The odometer (km) at the trip's start and end, -1 when unknown.
+         * Set after construction, like split (issue #210). */
+        public double odoStartKm = -1, odoEndKm = -1;
+        /** Joined by hand (issue #210): the trips inside, oldest first, and
+         * the trip_edit row that joined them (Undo join). Null and 0 for a
+         * trip shown as recorded. */
+        public List<DriveSession> members;
+        public long joinId;
+        /** Split by hand (issue #210): the recorded trip this is one part
+         * of (Undo split), else 0. tripId is that trip too. */
+        public long cutTripId;
+
+        public boolean isJoined() { return members != null && members.size() > 1; }
 
         public DriveSession(long tripId, long startMs, long endMs, double distanceKm,
                             int socStart, int socEnd, double ascentDPlusM, double descentDMinusM,
@@ -112,6 +129,9 @@ public final class DailyStatsProvider {
         public final double avgPowerKw;
         public final boolean isDcfc;
         public final Double cost;
+        /** The odometer (km) at plug-in, -1 when unknown. Set after
+         * construction (issue #210). */
+        public double odoKm = -1;
 
         public ChargeSessionItem(long chargeId, long startMs, long endMs, int socStart, int socEnd,
                                  double kwh, double avgPowerKw, boolean isDcfc) {
@@ -148,11 +168,23 @@ public final class DailyStatsProvider {
         public final double distanceKm, maxSpeedKmh;
         public final Double maxPowerKw;
         public final int startSoc, endSoc;
+        public final Integer driverScore, roadScore, roadBumps, hardBrakes, hardAccels, hardCorners;
+
         public ValetSessionItem(long valetId, long startMs, long endMs, double distanceKm,
                                 double maxSpeedKmh, Double maxPowerKw, int startSoc, int endSoc) {
+            this(valetId, startMs, endMs, distanceKm, maxSpeedKmh, maxPowerKw, startSoc, endSoc,
+                null, null, null, null, null, null);
+        }
+
+        public ValetSessionItem(long valetId, long startMs, long endMs, double distanceKm,
+                                double maxSpeedKmh, Double maxPowerKw, int startSoc, int endSoc,
+                                Integer driverScore, Integer roadScore, Integer roadBumps,
+                                Integer hardBrakes, Integer hardAccels, Integer hardCorners) {
             super(startMs, endMs);
             this.valetId = valetId; this.distanceKm = distanceKm; this.maxSpeedKmh = maxSpeedKmh;
             this.maxPowerKw = maxPowerKw; this.startSoc = startSoc; this.endSoc = endSoc;
+            this.driverScore = driverScore; this.roadScore = roadScore; this.roadBumps = roadBumps;
+            this.hardBrakes = hardBrakes; this.hardAccels = hardAccels; this.hardCorners = hardCorners;
         }
         @Override public boolean isTrip() { return false; }
         @Override public boolean isValet() { return true; }
@@ -367,6 +399,27 @@ public final class DailyStatsProvider {
         return out;
     }
 
+    /** Every date in the calendar year containing dateStr up to Dec 31 (or today
+     * if it is the current year), oldest first. */
+    public static List<String> yearDates(String dateStr) {
+        java.time.LocalDate d = java.time.LocalDate.parse(dateStr);
+        java.time.LocalDate start = d.withDayOfYear(1);
+        java.time.LocalDate end = d.with(java.time.temporal.TemporalAdjusters.lastDayOfYear());
+        java.time.LocalDate today = java.time.LocalDate.parse(todayDateStr());
+        if (end.isAfter(today)) end = today;
+        if (end.isBefore(start)) end = start;
+        List<String> out = new ArrayList<>();
+        for (java.time.LocalDate cur = start; !cur.isAfter(end); cur = cur.plusDays(1)) {
+            out.add(cur.toString());
+        }
+        return out;
+    }
+
+    public static String yearLabel(String anyDateInYear) {
+        return anyDateInYear != null && anyDateInYear.length() >= 4
+            ? anyDateInYear.substring(0, 4) : "";
+    }
+
     private static Calendar dayCalendar(String dateStr) {
         Calendar cal = Calendar.getInstance();
         cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0);
@@ -452,6 +505,12 @@ public final class DailyStatsProvider {
             out.add(buildPeriodOverview(ctx, monthDates(d), monthLabel(d)));
         }
         return out;
+    }
+
+    /** The calendar year containing anchorDate. */
+    public static PeriodOverview yearOverview(Context ctx, String anchorDate) {
+        List<String> dates = yearDates(anchorDate);
+        return buildPeriodOverview(ctx, dates, yearLabel(anchorDate));
     }
 
     private static PeriodOverview buildPeriodOverview(Context ctx, List<String> dates, String label) {
@@ -548,7 +607,7 @@ public final class DailyStatsProvider {
      * anchor date and gets back everything it needs to render, instead of
      * building date ranges or picking between per-day/per-period query
      * overloads itself. */
-    public enum Granularity { DAY, WEEK, MONTH }
+    public enum Granularity { DAY, WEEK, MONTH, YEAR }
 
     /** Everything the stats screen needs to render one period's detail cards
      * and charts, for any {@link Granularity}: the summed totals, the day(s)
@@ -584,6 +643,7 @@ public final class DailyStatsProvider {
         switch (granularity) {
             case WEEK: return weekDates(anchorDate);
             case MONTH: return monthDates(anchorDate);
+            case YEAR: return yearDates(anchorDate);
             default: return java.util.Collections.singletonList(anchorDate);
         }
     }
@@ -592,6 +652,7 @@ public final class DailyStatsProvider {
         switch (granularity) {
             case WEEK: return weekLabel(dates);
             case MONTH: return monthLabel(anchorDate);
+            case YEAR: return yearLabel(anchorDate);
             default: return formatDisplayDate(anchorDate);
         }
     }
@@ -1284,6 +1345,8 @@ public final class DailyStatsProvider {
         // endMs = 0 indicates active session ("em andamento")
         DriveSession ds = new DriveSession(0, startMs, 0, distanceKm, socStart, socEnd,
                 ascent, descent, regen, spent, net, eff, activeEnergy.energySource());
+        ds.odoStartKm = odoStart;
+        ds.odoEndKm = odoEnd;
         // Where the energy went so far: the live trip split, the same numbers
         // the trip will save when it ends, scaled to this net like a saved one.
         EnergyIntegrator.TripSnapshot live = EnergyIntegrator.currentTrip();
@@ -1305,12 +1368,191 @@ public final class DailyStatsProvider {
      * UI thread. */
     public static List<DriveSession> readAllTrips(Context ctx) {
         List<DriveSession> out = new ArrayList<>();
-        queryTrips(CarDb.get(ctx).db(), 0, Long.MAX_VALUE, out);
+        queryRawTrips(CarDb.get(ctx).db(), 0, Long.MAX_VALUE, out);
         return out;
     }
 
-    // Completed and open trips that START in [fromMs, toMs), oldest first.
+    /** The trips that START in [fromMs, toMs), oldest first, as the stats
+     * page shows them: with the hand-made joins and splits of trip_edit
+     * (issue #210, TripEdits). The trip rows are read from a wider window
+     * when a join or a split reaches outside this one, so a trip joined
+     * across midnight shows once, on the day it starts. */
     private static void queryTrips(SQLiteDatabase db, long fromMs, long toMs, List<? super DriveSession> out) {
+        List<TripEdits.Join> joins = new ArrayList<>();
+        long qFrom = fromMs, qTo = toMs;
+        try (Cursor jc = db.rawQuery("SELECT id, start_ms, end_ms FROM trip_edit "
+                + "WHERE kind = ? AND start_ms < ? AND end_ms >= ?",
+                new String[]{TripEdits.KIND_JOIN, String.valueOf(toMs), String.valueOf(fromMs)})) {
+            while (jc.moveToNext()) {
+                TripEdits.Join j = new TripEdits.Join(jc.getLong(0), jc.getLong(1), jc.getLong(2));
+                joins.add(j);
+                qFrom = Math.min(qFrom, j.startMs);
+                qTo = Math.max(qTo, j.endMs == Long.MAX_VALUE ? j.endMs : j.endMs + 1);
+            }
+        } catch (Throwable e) {
+            // No trip_edit table (a db not yet upgraded): trips as recorded.
+            joins.clear();
+        }
+        // A part that starts in the window can belong to a trip that started
+        // before it.
+        try (Cursor cc = db.rawQuery("SELECT MIN(t.start_ms) FROM trip_edit e JOIN trip t ON t.id = e.trip_id "
+                + "WHERE e.kind = ? AND e.end_ms >= ? AND e.end_ms < ?",
+                new String[]{TripEdits.KIND_CUT, String.valueOf(qFrom), String.valueOf(qTo)})) {
+            if (cc.moveToFirst() && !cc.isNull(0)) qFrom = Math.min(qFrom, cc.getLong(0));
+        } catch (Throwable ignored) {}
+
+        List<DriveSession> raw = new ArrayList<>();
+        queryRawTrips(db, qFrom, qTo, raw);
+
+        java.util.Map<Long, List<long[]>> cuts = new java.util.HashMap<>();
+        if (!raw.isEmpty()) {
+            try (Cursor cc = db.rawQuery("SELECT trip_id, start_ms, end_ms FROM trip_edit "
+                    + "WHERE kind = ? AND start_ms >= ? AND start_ms < ?",
+                    new String[]{TripEdits.KIND_CUT, String.valueOf(raw.get(0).startMs), String.valueOf(qTo)})) {
+                while (cc.moveToNext()) {
+                    cuts.computeIfAbsent(cc.getLong(0), k -> new ArrayList<>())
+                        .add(new long[]{cc.getLong(1), cc.getLong(2)});
+                }
+            } catch (Throwable ignored) {}
+        }
+        List<DriveSession> shown = new ArrayList<>();
+        for (DriveSession t : raw) {
+            List<long[]> tc = cuts.get(t.tripId);
+            if (tc == null || t.endMs <= t.startMs) { shown.add(t); continue; }
+            List<long[]> w = TripEdits.windows(t.startMs, t.endMs, tc);
+            if (w.size() < 2) { shown.add(t); continue; }
+            List<DriveSession> parts = cutParts(db, t, w);
+            if (parts == null) shown.add(t); else shown.addAll(parts);
+        }
+        shown = TripEdits.applyJoins(shown, joins);
+        for (DriveSession t : shown) {
+            if (t.startMs >= fromMs && t.startMs < toMs) out.add(t);
+        }
+    }
+
+    /** The parts of one recorded trip split at windows (TripEdits.windows),
+     * or null when a reading at a cut is missing (then the trip shows
+     * whole). Odometer and battery come from the 30 s samples at each cut,
+     * looked for inside the trip only; km, energy and climb from the samples
+     * inside each part, capped at what is left, and the last part gets the
+     * rest. So the parts always add up to the trip. CAN's split follows each
+     * part's share of the energy used (TripEdits.shares); a toll goes to the
+     * part it falls in, a stop's tolls to the part before it. */
+    private static List<DriveSession> cutParts(SQLiteDatabase db, DriveSession t, List<long[]> w) {
+        int n = w.size();
+        boolean est = t.energySource == EnergySource.ESTIMATED;
+        double[] odoS = new double[n], odoE = new double[n];
+        int[] socS = new int[n], socE = new int[n];
+        for (int i = 0; i < n; i++) {
+            odoS[i] = i == 0 ? t.odoStartKm : sampleAt(db, "odo_km", w.get(i)[0], true, t.startMs, t.endMs);
+            odoE[i] = i == n - 1 ? t.odoEndKm : sampleAt(db, "odo_km", w.get(i)[1], false, t.startMs, t.endMs);
+            socS[i] = i == 0 ? t.socStart : (int) Math.round(sampleAt(db, "battery_pct", w.get(i)[0], true, t.startMs, t.endMs));
+            socE[i] = i == n - 1 ? t.socEnd : (int) Math.round(sampleAt(db, "battery_pct", w.get(i)[1], false, t.startMs, t.endMs));
+            if ((i > 0 && !(odoS[i] > 0)) || (i < n - 1 && !(odoE[i] > 0))) return null;
+        }
+        double[] km = new double[n], spent = new double[n], regen = new double[n];
+        double[] up = new double[n], down = new double[n];
+        double kmLeft = t.distanceKm, spentLeft = t.spentKwh, regenLeft = t.regenKwh;
+        double upLeft = t.ascentDPlusM, downLeft = t.descentDMinusM;
+        for (int i = 0; i < n - 1; i++) {
+            long s = w.get(i)[0], e = w.get(i)[1];
+            km[i] = Math.min(Math.max(0, odoE[i] - odoS[i]), Math.max(0, kmLeft));
+            if (!est) {
+                DrivingConsumption energy = queryDrivingConsumption(db, "ts_ms BETWEEN ? AND ?",
+                    new String[]{String.valueOf(s), String.valueOf(e)});
+                spent[i] = Math.min(Math.max(0, energy.totalSpent), Math.max(0, spentLeft));
+                regen[i] = Math.min(Math.max(0, energy.totalRegen), Math.max(0, regenLeft));
+            }
+            double[] ad = climb(db, s, e, t.startMs);
+            up[i] = Math.min(ad[0], Math.max(0, upLeft));
+            down[i] = Math.min(ad[1], Math.max(0, downLeft));
+            kmLeft -= km[i]; spentLeft -= spent[i]; regenLeft -= regen[i];
+            upLeft -= up[i]; downLeft -= down[i];
+        }
+        km[n - 1] = Math.max(0, kmLeft);
+        spent[n - 1] = Math.max(0, spentLeft);
+        regen[n - 1] = Math.max(0, regenLeft);
+        up[n - 1] = Math.max(0, upLeft);
+        down[n - 1] = Math.max(0, downLeft);
+
+        // An estimated trip has one net and no spent: shared by km.
+        double[] kmShare = TripEdits.shares(km, t.distanceKm);
+        boolean bySpent = t.spentKwh > 0.01;
+        double[] splitShare = TripEdits.shares(bySpent ? spent : km, bySpent ? t.spentKwh : t.distanceKm);
+
+        List<DriveSession> out = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            long s = w.get(i)[0], e = w.get(i)[1];
+            double net = est ? t.energyKwh * kmShare[i] : spent[i] - regen[i];
+            double eff = est ? (km[i] > 0.2 ? Math.max(0, net) * 100 / km[i] : 0)
+                             : DrivingConsumption.efficiencyKwh100km(km[i], spent[i], regen[i]);
+            DriveSession p = new DriveSession(t.tripId, s, e, km[i], socS[i] < 0 ? -1 : socS[i],
+                socE[i] < 0 ? -1 : socE[i], up[i], down[i], regen[i], spent[i], net, eff, t.energySource);
+            p.odoStartKm = odoS[i];
+            p.odoEndKm = odoE[i];
+            p.cutTripId = t.tripId;
+            if (t.split != null) p.split = t.split.scaled(splitShare[i]);
+            // Half-open, so a toll is never in two parts: up to the next
+            // part's start; the last part to the trip's end.
+            long tollTo = i < n - 1 ? w.get(i + 1)[0] - 1 : t.endMs;
+            long tollFrom = i == 0 ? t.startMs : s;
+            int[] tolls = tollsIn(db, t.tripId, tollFrom, tollTo);
+            p.tollCount = tolls[0];
+            p.tollUnpriced = tolls[1];
+            p.tollCost = tollCostIn(db, t.tripId, tollFrom, tollTo);
+            out.add(p);
+        }
+        return out;
+    }
+
+    /** A sample column at a cut: the first reading at or after ms (after =
+     * true, a part's start) or the last at or before it, looked for in
+     * [lo, hi] only (the trip), so old pruned samples never lend another
+     * day's reading; -1 when none. */
+    private static double sampleAt(SQLiteDatabase db, String col, long ms, boolean after, long lo, long hi) {
+        String sql = "SELECT " + col + " FROM telemetry_sample WHERE " + col + " IS NOT NULL "
+            + "AND ts_ms BETWEEN ? AND ? AND ts_ms "
+            + (after ? ">= ? ORDER BY ts_ms ASC" : "<= ? ORDER BY ts_ms DESC") + " LIMIT 1";
+        try (Cursor c = db.rawQuery(sql, new String[]{String.valueOf(lo), String.valueOf(hi), String.valueOf(ms)})) {
+            return c.moveToFirst() ? c.getDouble(0) : -1;
+        } catch (Throwable e) { return -1; }
+    }
+
+    /** Climb and descent of [fromMs, toMs], the way TripSession counts a trip. */
+    private static double[] climb(SQLiteDatabase db, long fromMs, long toMs, long tripStartMs) {
+        List<Object[]> rows = new ArrayList<>();
+        try (Cursor c = db.rawQuery("SELECT gear, altitude_m, odo_km, ts_ms FROM telemetry_sample "
+                + "WHERE ts_ms BETWEEN ? AND ? ORDER BY ts_ms",
+                new String[]{String.valueOf(fromMs), String.valueOf(toMs)})) {
+            while (c.moveToNext()) {
+                rows.add(new Object[]{c.isNull(0) ? null : c.getInt(0), c.isNull(1) ? null : c.getDouble(1),
+                    c.isNull(2) ? null : c.getDouble(2), c.getLong(3)});
+            }
+        } catch (Throwable e) { return new double[]{0, 0}; }
+        return com.geely.drivemem.state.TripSession.replayAscentDescent(
+            rows.toArray(new Object[0][]), tripStartMs);
+    }
+
+    /** {count, unpriced} of one trip's toll passages in [fromMs, toMs]. */
+    private static int[] tollsIn(SQLiteDatabase db, long tripId, long fromMs, long toMs) {
+        try (Cursor c = db.rawQuery("SELECT COUNT(*), SUM(CASE WHEN cost IS NULL THEN 1 ELSE 0 END) "
+                + "FROM toll_passage WHERE dismissed = 0 AND trip_id = ? AND ts_ms BETWEEN ? AND ?",
+                new String[]{String.valueOf(tripId), String.valueOf(fromMs), String.valueOf(toMs)})) {
+            return c.moveToFirst() ? new int[]{c.getInt(0), c.isNull(1) ? 0 : c.getInt(1)} : new int[]{0, 0};
+        } catch (Throwable e) { return new int[]{0, 0}; }
+    }
+
+    private static double tollCostIn(SQLiteDatabase db, long tripId, long fromMs, long toMs) {
+        try (Cursor c = db.rawQuery("SELECT COALESCE(SUM(CASE WHEN cost > 0 THEN cost ELSE 0 END), 0) "
+                + "FROM toll_passage WHERE dismissed = 0 AND trip_id = ? AND ts_ms BETWEEN ? AND ?",
+                new String[]{String.valueOf(tripId), String.valueOf(fromMs), String.valueOf(toMs)})) {
+            return c.moveToFirst() ? c.getDouble(0) : 0;
+        } catch (Throwable e) { return 0; }
+    }
+
+    // Completed and open trips that START in [fromMs, toMs), oldest first,
+    // as recorded (no joins or splits).
+    private static void queryRawTrips(SQLiteDatabase db, long fromMs, long toMs, List<? super DriveSession> out) {
         Cursor tc = db.rawQuery(
             "SELECT t.id, t.start_ms, t.end_ms, t.ascent_m, t.descent_m, t.regen_kwh, "
           + "       s1.odo_km, s2.odo_km, s1.battery_pct, s2.battery_pct, "
@@ -1364,6 +1606,8 @@ public final class DailyStatsProvider {
                     : DrivingConsumption.efficiencyKwh100km(distanceKm, tripSpent, regen);
                 DriveSession ds = new DriveSession(id, startMs, endMs, distanceKm, socStart, socEnd,
                         ascent, descent, regen, tripSpent, tripNet, eff, tripSource);
+                ds.odoStartKm = odoStart;
+                ds.odoEndKm = odoEnd;
                 if (!tc.isNull(14) && tripSource != EnergySource.ESTIMATED) {
                     ds.split = EnergySplit.of(tripNet, tc.getDouble(14), d(tc, 15), d(tc, 16), d(tc, 17),
                         d(tc, 18), d(tc, 19));
@@ -1371,6 +1615,26 @@ public final class DailyStatsProvider {
                 out.add(ds);
             }
         } finally { tc.close(); }
+        if (!out.isEmpty()) {
+            List<Long> tids = new ArrayList<>(out.size());
+            for (Object o : out) {
+                if (o instanceof DriveSession && ((DriveSession) o).tripId > 0) {
+                    tids.add(((DriveSession) o).tripId);
+                }
+            }
+            java.util.Map<Long, com.geely.drivemem.state.TollTracker.TripSummary> tolls =
+                com.geely.drivemem.state.TollTracker.summariesForTrips(db, tids);
+            for (Object o : out) {
+                if (!(o instanceof DriveSession)) continue;
+                DriveSession ds = (DriveSession) o;
+                com.geely.drivemem.state.TollTracker.TripSummary ts = tolls.get(ds.tripId);
+                if (ts != null) {
+                    ds.tollCount = ts.count;
+                    ds.tollCost = ts.totalCost;
+                    ds.tollUnpriced = ts.unpricedCount;
+                }
+            }
+        }
     }
 
     private static double d(Cursor c, int i) { return c.isNull(i) ? 0 : c.getDouble(i); }
@@ -1383,9 +1647,15 @@ public final class DailyStatsProvider {
     public static double[] splitTotals(List<? extends DaySession> sessions) {
         double out = 0, climate = 0, other = 0, km = 0, battery = 0, regen = 0;
         boolean any = false;
+        List<DriveSession> trips = new ArrayList<>();
         for (DaySession s : sessions) {
             if (!(s instanceof DriveSession)) continue;
             DriveSession t = (DriveSession) s;
+            // A joined trip with a member CAN did not measure has no split
+            // of its own: its measured members still count.
+            if (t.split == null && t.isJoined()) trips.addAll(t.members); else trips.add(t);
+        }
+        for (DriveSession t : trips) {
             if (t.split == null) continue;
             any = true;
             out += t.split.motorOutKwh;
@@ -1420,7 +1690,8 @@ public final class DailyStatsProvider {
         // this day's exclusive end; date(end_ms)>=dateStr is end_ms at/after
         // this day's start. Same overlap test, index-friendly form.
         Cursor vc = db.rawQuery(
-            "SELECT id, start_ms, end_ms, start_odo_km, end_odo_km, max_speed_kmh, max_power_kw, start_soc, end_soc "
+            "SELECT id, start_ms, end_ms, start_odo_km, end_odo_km, max_speed_kmh, max_power_kw, start_soc, end_soc, "
+          + "driver_score, road_score, road_bumps, hard_brakes, hard_accels, hard_corners "
           + "FROM valet_session WHERE start_ms < ? "
           + "AND (end_ms IS NULL OR end_ms >= ?) ORDER BY start_ms ASC",
             new String[]{boundEnd, boundStart});
@@ -1431,7 +1702,10 @@ public final class DailyStatsProvider {
                 double distance = startOdo >= 0 && endOdo >= startOdo ? endOdo - startOdo : 0;
                 out.add(new ValetSessionItem(vc.getLong(0), vc.getLong(1), vc.isNull(2) ? 0 : vc.getLong(2), distance,
                     vc.isNull(5) ? 0 : vc.getDouble(5), vc.isNull(6) ? null : vc.getDouble(6),
-                    vc.isNull(7) ? -1 : vc.getInt(7), vc.isNull(8) ? -1 : vc.getInt(8)));
+                    vc.isNull(7) ? -1 : vc.getInt(7), vc.isNull(8) ? -1 : vc.getInt(8),
+                    vc.isNull(9) ? null : vc.getInt(9), vc.isNull(10) ? null : vc.getInt(10),
+                    vc.isNull(11) ? null : vc.getInt(11), vc.isNull(12) ? null : vc.getInt(12),
+                    vc.isNull(13) ? null : vc.getInt(13), vc.isNull(14) ? null : vc.getInt(14)));
             }
         } finally { vc.close(); }
 
@@ -1444,7 +1718,7 @@ public final class DailyStatsProvider {
             : new String[]{boundStart, boundEnd};
         Cursor cc = db.rawQuery(
             "SELECT c.id, c.start_ms, c.end_ms, c.soc_start, c.soc_end, c.kwh, c.avg_power_w, "
-          + "       c.max_charge_v, c.cost FROM charge_session c "
+          + "       c.max_charge_v, c.cost, c.odo_start_km FROM charge_session c "
           + "LEFT JOIN telemetry_sample s1 ON c.start_sample_id = s1.id "
           + "WHERE c.start_ms >= ? AND c.start_ms < ?" + activeFilter
           + "ORDER BY c.start_ms ASC", ccArgs);
@@ -1460,7 +1734,9 @@ public final class DailyStatsProvider {
                 Float v = cc.isNull(7) ? null : cc.getFloat(7);
                 boolean isDcfc = v != null && com.geely.drivemem.state.ChargeSession.isDcfc(v);
                 Double cost = cc.isNull(8) ? null : cc.getDouble(8);
-                out.add(new ChargeSessionItem(id, startMs, endMs, socStart, socEnd, kwh, avgPowerKw, isDcfc, cost));
+                ChargeSessionItem item = new ChargeSessionItem(id, startMs, endMs, socStart, socEnd, kwh, avgPowerKw, isDcfc, cost);
+                item.odoKm = cc.isNull(9) ? -1 : cc.getDouble(9);
+                out.add(item);
             }
         } finally { cc.close(); }
 
@@ -1478,7 +1754,9 @@ public final class DailyStatsProvider {
                 v = (Float) vR.value;
             }
             boolean isDcfc = v != null && com.geely.drivemem.state.ChargeSession.isDcfc(v);
-            out.add(new ChargeSessionItem(0, startMs, 0, socStart, socEnd, kwh, avgPowerKw, isDcfc));
+            ChargeSessionItem item = new ChargeSessionItem(0, startMs, 0, socStart, socEnd, kwh, avgPowerKw, isDcfc);
+            item.odoKm = com.geely.drivemem.state.ChargeSession.currentOdoStart();
+            out.add(item);
         }
 
         // Sort interleaved sessions chronologically

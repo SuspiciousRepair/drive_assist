@@ -80,6 +80,14 @@ final class RestorePolicy {
         return tap || !knownOff(vehicleState);
     }
 
+    /** The screen came on. A remote A/C start turns the car "on" with the
+     * screen off and nobody inside, and the car refuses the drive mode then.
+     * The driver who gets in while it still runs gives no new on signal, so
+     * the screen is the signal that a person is there. */
+    static boolean screenTurnedOn(Boolean before, boolean now) {
+        return before != null && !before && now;
+    }
+
     /** {@code sleepMs} is elapsedRealtime() - uptimeMillis(): time spent in
      * deep sleep since boot. It only grows while the unit is suspended. */
     static boolean sleptBetween(long prevSleepMs, long nowSleepMs) {

@@ -98,12 +98,14 @@ public class SkylineArtView extends ArtView {
         skyline.layout(w, h * (1f - CITY_UNIT_Y));
     }
 
-    // The veil, which hands the left of the screen back to the theme background.
+    // The veil, which hands the driver side of the screen back to the theme background.
     // Column 2 of the new layout is sparser than the old single control column,
-    // so the opaque part reaches further right than Noturno's 0.34.
+    // so the opaque part reaches further across than Noturno's 0.34.
     private void buildVeil() {
         int bgc = Style.BG_BOTTOM;
-        veilSh = new LinearGradient(0, 0, w, 0,
+        float x0 = Style.RHD ? w : 0f;
+        float x1 = Style.RHD ? 0f : w;
+        veilSh = new LinearGradient(x0, 0, x1, 0,
             new int[]{ bgc, bgc, bgc & 0x00FFFFFF },
             new float[]{ 0f, 0.45f, 0.78f }, Shader.TileMode.CLAMP);
     }

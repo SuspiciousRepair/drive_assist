@@ -167,10 +167,8 @@ public class ChargeStatsView extends LinearLayout {
         // the screen (fitList); the map beside it takes the same height.
         listCard.addView(sessionListScroll, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(c, MIN_LIST_DP)));
-        LinearLayout.LayoutParams listLp = new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.WRAP_CONTENT, 45f);
-        listLp.rightMargin = Style.dp(c, 12);
-        overview.addView(listCard, listLp);
+        listCard.setLayoutParams(new LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.WRAP_CONTENT, 45f));
 
         // Where we charged: the period's charge places on the map, the
         // number of charges in each pin. Touch a pin: its newest charge is
@@ -197,8 +195,9 @@ public class ChargeStatsView extends LinearLayout {
         chargeMapNone.setVisibility(View.GONE);
         mapFrame.addView(chargeMapNone, new android.widget.FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        overview.addView(mapFrame, new LinearLayout.LayoutParams(0,
+        mapFrame.setLayoutParams(new LinearLayout.LayoutParams(0,
             ViewGroup.LayoutParams.MATCH_PARENT, 55f));
+        Style.addMirrored(overview, 12, listCard, mapFrame);
         addView(overview);
     }
 

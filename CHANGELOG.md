@@ -2,6 +2,174 @@
 
 ## [Unreleased]
 
+## [v0.12.0] — 2026-11-27
+
+### Added
+- **Trip scores: driver and road.** Each trip now gets two scores from 0 to
+  100, from the head unit's motion sensor. **Driver** is how smooth the drive
+  was: hard brakes, launches, sharp turns, and slowing with regeneration.
+  **Road** is how rough the surface was, with the hard bumps counted. Open a
+  trip from the stats page: the scores are with the trip's numbers, with a
+  line for the events and an **(i)** that explains them. The trip map marks
+  each hard bump. Only trips recorded from this version on have scores, and
+  a trip needs 20 seconds of movement. A Valet stay shows the same scores on
+  its detail screen, and a bump there opens the dashcam clip of that moment.
+- **Valet Mode locks the screen down.** While Valet Mode is on, the home
+  screen shows only Climate and the Valet card, and the music volume goes to
+  zero when it starts. Config is closed until Valet ends; with a PIN set,
+  the PIN opens it.
+- **Config → Security: a PIN.** Set a PIN of 4 to 6 digits and choose what it
+  guards: ending Valet Mode, opening Config, or both. With no PIN set,
+  nothing asks for one. The PIN is not asked while the car sees something of
+  yours: your iPhone on the USB cable, a known Wi-Fi router, or a trusted
+  Bluetooth phone or beacon. Valet can end by itself when that trusted phone
+  comes back. **Forgot PIN?** works with a trusted device near, or when the
+  car is parked at the safe place you saved. The PIN stays on the car: it is
+  not in backups.
+- **Tolls from OpenStreetMap.** Turn on **Detect tolls via OpenStreetMap**
+  under **Config → Integrations → OpenStreetMap** (off by default). The car
+  then marks each toll plaza and Free Flow gantry it drives through, also on
+  trips made before the toll places were downloaded. Tap a toll on the trip
+  screen to set its price; the price is remembered for that booth. Tolls
+  count in the Car diary's cost of ownership. The car downloads the toll
+  places of wide areas (about 55 km across), never your route.
+- **Join and split trips** (#210). A short stop no longer has to cut a drive
+  in two. On the stats page, tap the link icon on Sessions, then the first and
+  the last trip: everything between them (other trips, stops, a charge on the
+  way) turns blue, and **Join** makes one trip of it. On a trip's screen,
+  **Split** cuts it at a place where you shifted to P: the first one is
+  picked at once, **‹ ›** step through the others, and the two new trips show
+  before you commit. **Undo join** and
+  **Undo split** put the trips back: the recorded trips are never changed. The
+  height chart labels its toll lines, and a joined trip's stops and charges;
+  the shifts to P show only while splitting. Exports keep the trips as recorded.
+- **Odometer on trips and charges** (#210). Each trip shows the odometer at
+  the start and the end, and each charge the odometer at plug-in: on the stats
+  lists, the trip's route screen and the charge's page. The trips CSV has two
+  new columns at the end, `odometer_start_km` and `odometer_end_km`. Handy for
+  an expense app that logs by odometer.
+- **Parking prices.** Tap a **Parked** line on the stats page to type what
+  the stop cost: a car park or paid street parking, with an optional place
+  name. The car remembers the place: the next stop there offers the name and
+  the last two prices as one-tap buttons (street parking takes the prices of
+  street stops nearby). The Valet card and the Valet screen have a **Cost**,
+  and the home Parked card has a **+ R$** button for the stop you are in.
+  The trip screen shows the parking on arrival and the trip's tolls +
+  parking, and the Car diary's cost of ownership counts parking with the
+  tolls in its road group. The price dialog shows where the car was parked
+  when OpenStreetMap maps are on.
+- **Stats: a Parking filter.** Next to Trips and Charges, **Parking** lists
+  the parked stops (15 minutes or more, or priced) and the Valet stays. It
+  replaces the Valet filter. The counts are on the filter buttons only; the
+  "7 trips · 0 charges" line above them is gone.
+- **Tolls: add one the car missed.** On the trip screen, touch the height
+  chart where the toll was and tap **+ Add a missed toll**. Later trips in the
+  same direction find it too. Each toll now also shows as a mark on the
+  height chart.
+- **Phone access: app version.** The phone page shows the installed Drive
+  Assist and ModeHelper versions at the bottom, or says that ModeHelper is
+  not installed. One tap selects the text, so
+  you can copy it into a message or an issue.
+- **Phone access: tolls and parking.** Edit toll booth prices (also both
+  directions, or off) and parking costs with the phone keyboard, and
+  download both as CSV.
+- **Car diary.** A new page on the stats screen (third icon) for what you do
+  to the car and what it costs: maintenance, tires, fluids, fees and
+  insurance, accessories, parking, tolls and tickets. It shows what is due
+  next, by distance or time, and the cost of ownership for the period you
+  pick (money, per km or percent). Change the intervals, or give any item
+  its own schedule, under **Config → Maintenance**. Export as CSV to a USB
+  stick or your phone.
+- **Car diary: impacts.** The car's motion sensor notes a hard bump while
+  driving; in Park the diary asks whether to keep it, with the place on the
+  map and, on a car with the dashcam, a 5-second clip. Three sensitivity
+  levels, or off, under **Config → Maintenance**.
+- **Car diary: battery health.** The main battery's numbers and a 60-day
+  chart of the 12 V battery at rest. Readings taken while the car wakes or
+  just after a recharge have their own colour and do not count against the
+  battery.
+- **Car diary: pick-up date.** Under **Config → Maintenance → My car**, set
+  the day you got the car (and its odometer then, for a used car). An item
+  with no entry yet, such as the first service, then counts its months from
+  that day and not only the distance.
+- **Car diary: postpone an item.** When the shop looks at a part that is due
+  and says to wait, add an entry for that item and pick **Postponed** with
+  the odometer (or the day) to wait for. The diary keeps the note, stays
+  quiet until then, and does not count the part as changed.
+- **Car diary: a ticket finds its place.** Type the hour on the notice and
+  the diary takes the place and speed from that day's saved route.
+- **Right-hand drive (RHD) layout.** Detected automatically from the car's
+  steering-wheel side on first start, and changeable anytime under
+  **Config → Appearance → Driver side** (**Left** or **Right**). In
+  right-hand mode, the home sidebar, card columns, full-bleed art, floating
+  overlay, settings sidebar and two-pane layouts mirror to keep primary
+  panels on the driver's side while card contents, menus, controls, charts,
+  maps, calendars and text stay left-to-right. Backups keep your choice. Not
+  yet checked on a real right-hand-drive car.
+
+### Changed
+- **Lyrics give way, and come back when you ask.** The big lyrics card goes
+  back to its normal size when other cards need its room: a second column of
+  cards, or the Home Assistant panel. Tap **Lyrics** again and it grows back
+  over the second and third columns, on top of the cards there; **✕** shows
+  them again. It gives way again when more cards come. Before, the tap only said there
+  was no room.
+- **Trip screen: tidier numbers.** Every unit is smaller and dimmer than its
+  number. The odometer is on the same line as the distance. The toll button
+  is the same size as the buttons beside it, and they no longer touch the map.
+  On the height chart, a charge or a stop keeps its mark when a toll is close to it. The map marks a charge made
+  at a stop inside the trip, such as on a joined trip.
+- **Window targets go in steps of 10** (#208). In Config > Doors, each
+  window's open target is now set with ‹ and ›, one row per window like
+  Config > Maintenance, from 0 (stays shut) to 100.
+  The glass shows no movement below 10, so a typed 5 did nothing. An old
+  typed value moves to the nearest step: 5 becomes 10.
+- **A new comfort ruler: one tap, one small change** (#209). The ruler was
+  5 cooling steps, and one tap could swap the fan, the temperature and the air
+  direction together: the fan could jump from 1 to 6. Now it is one list of
+  small moves: 10 cooling marks and 5 heating marks. A tap goes to the next
+  mark and changes one setting. Cooling starts gentle: outside air, then the
+  AC at fan 1 with the air on the glass, so no cold air hits your arm. Air to
+  the face and the loud fan speeds come last. Heating starts as a little warm
+  air at the feet. The first tap from off is always the gentlest mark.
+  - **After a change on the car's own climate screen**, a tap moves only the
+    setting that is out of line, one place. It no longer applies a full preset.
+  - **The bar is a level meter**: 10 grey marks when off; they fill with
+    colour as you tap.
+  - **Touch the bar to go to a mark at once.** Touch a mark, or slide a
+    finger along the bar and lift it: from off to C7 is one touch. The touch
+    area is higher than the bar. The two buttons stay for small moves.
+  - **One list for all weather**: a mark always does the same thing. The
+    ruler no longer changes the climate by itself when the weather changes.
+  - **Learn mode is gone.** The marks are fixed, so the Climate page of the
+    settings is removed. What the old ruler learned is not used.
+  - **Home Assistant / MQTT**: the comfort `pointer` now goes from 10 (most
+    cooling) to -5 (most heating); `cool_max` is 10.
+- **The climate log saves more.** Each row of the climate log now also has
+  where the air goes (face, feet, glass) and the rear window defogger. This
+  is data for a better comfort ruler (#209).
+- **Stats: tap the map for all routes.** The map beside the sessions has no
+  title or button any more. Tap it to see every route of the day, week,
+  month or year you are looking at.
+- **The Settings PIN covers the screen.** The keypad now sits on a plain
+  background, so the Settings page cannot be read behind it.
+
+### Fixed
+- **Trip screen: a stop's mark on the height chart was a blank white box.**
+  It now shows its parking icon and the time parked.
+- **Old trips no longer turn into 0 km.** A trip reads its distance,
+  odometer, battery and energy from the 30 s readings, and readings older
+  than 90 days were deleted. From about 90 days after recording started, old
+  trips would have shown 0 km and 0 kWh. Now only the parked readings between
+  trips are cleaned up after 90 days; the readings of trips, charges and Valet
+  stays are kept, so old charges also keep their detail charts.
+- **Drive mode and regeneration come back after a remote A/C start.** When
+  the car was woken from the phone app with nobody inside, the restore gave
+  up before you got in. It now tries again when the screen comes on.
+- **The cameras stay closed when the car is off.** ModeHelper no longer opens
+  them when it starts with the car off and the screen off.
+- **Tire pressure is due by time only**, not also every 1,500 km.
+
 ## [v0.11.5] — 2026-11-27
 
 ### Fixed

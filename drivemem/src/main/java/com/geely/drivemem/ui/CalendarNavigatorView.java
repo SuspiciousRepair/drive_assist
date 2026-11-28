@@ -265,17 +265,19 @@ public class CalendarNavigatorView extends View {
         long b = java.time.temporal.ChronoUnit.DAYS.between(gridStart, last);
         float half = (pitch - cell) / 2f;
         // The union of the squares grown by half a gap: one closed shape,
-        // whose corners are then rounded. A hair of overlap so neighbours
-        // merge despite float rounding.
+        // whose corners are then rounded. Full 7-day columns are merged as one
+        // tall rect so Year grain needs ~52 unions instead of 365.
         float eps = 0.01f;
         outline.reset();
         Path one = new Path();
-        for (long i = a; i <= b; i++) {
+        for (long i = a; i <= b; ) {
             int col = (int) (i / 7), rw = (int) (i % 7);
+            int span = (rw == 0 && i + 6 <= b) ? 7 : 1;
             one.reset();
             one.addRect(colX(col) - half - eps, rowY(rw) - half - eps,
-                colX(col) + cell + half + eps, rowY(rw) + cell + half + eps, Path.Direction.CW);
+                colX(col) + cell + half + eps, rowY(rw + span - 1) + cell + half + eps, Path.Direction.CW);
             outline.op(one, Path.Op.UNION);
+            i += span;
         }
         stroke.setColor(selColor());
         stroke.setStrokeWidth(Style.dp(getContext(), 4));

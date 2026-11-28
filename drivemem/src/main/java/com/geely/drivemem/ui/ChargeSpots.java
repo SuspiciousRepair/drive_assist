@@ -95,6 +95,15 @@ final class ChargeSpots {
         return out;
     }
 
+    /** The charges that started in [fromMs, toMs): a map of a period shows
+     * only the charges of that period. */
+    static List<Charge> between(List<Charge> all, long fromMs, long toMs) {
+        List<Charge> out = new ArrayList<>();
+        if (all == null) return out;
+        for (Charge c : all) if (c.startMs >= fromMs && c.startMs < toMs) out.add(c);
+        return out;
+    }
+
     /** Metres between two places (equirectangular: fine at these distances). */
     static double distanceM(double lat1, double lon1, double lat2, double lon2) {
         double k = Math.cos(Math.toRadians((lat1 + lat2) / 2));
@@ -163,27 +172,6 @@ final class ChargeSpots {
         return -1;
     }
 
-    /** The spots inside the box around the given route points, widened by
-     * marginM on every side. One day of All routes uses this: the spots count
-     * in the fit, so one far charge from another month made a day of city
-     * trips a dot. An empty route keeps no spot. */
-    static List<Spot> inBox(List<Spot> spots, double[] lat, double[] lon, double marginM) {
-        List<Spot> out = new ArrayList<>();
-        if (lat.length == 0) return out;
-        double lo0 = lat[0], hi0 = lat[0], lo1 = lon[0], hi1 = lon[0];
-        for (int i = 1; i < lat.length; i++) {
-            lo0 = Math.min(lo0, lat[i]); hi0 = Math.max(hi0, lat[i]);
-            lo1 = Math.min(lo1, lon[i]); hi1 = Math.max(hi1, lon[i]);
-        }
-        double dLat = marginM / 111_195.0;
-        double dLon = dLat / Math.max(0.01, Math.cos(Math.toRadians((lo0 + hi0) / 2)));
-        for (Spot sp : spots) {
-            if (sp.lat >= lo0 - dLat && sp.lat <= hi0 + dLat
-                    && sp.lon >= lo1 - dLon && sp.lon <= hi1 + dLon) out.add(sp);
-        }
-        return out;
-    }
-
     /** The charges that belong on one trip's map, with no other trip around. */
     static List<Spot> forTrip(List<Charge> charges, long tripStartMs, long tripEndMs,
                               double startLat, double startLon, double endLat, double endLon) {
@@ -191,7 +179,7 @@ final class ChargeSpots {
             new ArrayList<Hop>());
     }
 
-    /** The charges that belong on one trip's map: ended at most NEAR_TRIP_MS
+    /** The charges that belong on one trip's map: started inside the trip; ended at most NEAR_TRIP_MS
      * before the trip started, near its first point; or started at most
      * NEAR_TRIP_MS after it ended, near its last point. "Near" is
      * {@link #reachM}: only short moves may come between, and they widen it.
@@ -210,7 +198,10 @@ final class ChargeSpots {
                 double reach = reachM(hops, tripEndMs, c.startMs);
                 after = reach >= 0 && distanceM(c.lat, c.lon, endLat, endLon) <= reach;
             }
-            if (before || after) near.add(c);
+            // A charge inside the trip: at a stop of a joined trip, or of a
+            // trip that was not cut at its stop. The car was there, no check.
+            boolean inside = tripEndMs > 0 && c.startMs >= tripStartMs && c.startMs <= tripEndMs;
+            if (before || after || inside) near.add(c);
         }
         return cluster(near);
     }

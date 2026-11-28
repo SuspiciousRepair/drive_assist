@@ -276,6 +276,8 @@ public final class ChargeSession {
     public static boolean isChargeGraceScheduled() { return chargeGraceRunnable != null; }
     public static long activeRowId() { return currentSessionRowId; }
     public static int currentSocStart() { return socStart; }
+    /** The odometer (km) when the open charge began, -1 when unknown. */
+    public static double currentOdoStart() { return odoStart; }
     public static int currentSocEnd() { return socEnd; }
     public static long currentStartWallMs() { return startWallMs; }
     public static long currentPauseWallMs() { return pauseWallMs; }

@@ -50,6 +50,19 @@ public final class TelemetryLookSection extends LinearLayout {
         ConfigCards.add(left, skyCard);
         LinearLayout themeCard = ConfigCards.card(activity, activity.getString(R.string.cfg_theme_selection_header));
         ConfigCards.add(right, themeCard);
+        LinearLayout driveSideCard = ConfigCards.card(activity, activity.getString(R.string.cfg_drive_side_header));
+        ConfigCards.add(right, driveSideCard);
+
+        LinearLayout driveSideRow = new LinearLayout(activity);
+        driveSideRow.setOrientation(LinearLayout.HORIZONTAL);
+        driveSideRow.addView(driveSideTile(activity, Style.DRIVE_SIDE_LEFT,  activity.getString(R.string.cfg_drive_side_left)));
+        driveSideRow.addView(driveSideTile(activity, Style.DRIVE_SIDE_RIGHT, activity.getString(R.string.cfg_drive_side_right)));
+        driveSideCard.addView(driveSideRow);
+        TextView driveSideNote = new TextView(activity);
+        driveSideNote.setTextColor(Style.TEXT_DIM); driveSideNote.setTextSize(14);
+        driveSideNote.setPadding(0, Style.dp(activity, 10), 0, 0);
+        driveSideNote.setText(activity.getString(R.string.cfg_drive_side_note));
+        driveSideCard.addView(driveSideNote);
 
         // Noturno's own scene (VaporArtView) is a different art path entirely
         // from the skyline (SkylineArtView) every other theme uses -- this
@@ -282,6 +295,22 @@ public final class TelemetryLookSection extends LinearLayout {
         boolean sel = mode.equals(Style.appearance(activity));
         TextView b = Style.cardButton(activity, label, sel, () -> {
             Style.setAppearance(activity, mode);
+            activity.getIntent().putExtra("section", 2); // SEC_LOOK = 2
+            activity.recreate();
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        int m = Style.dp(activity, 5);
+        lp.setMargins(m, Style.dp(activity, 10), m, 0);
+        b.setLayoutParams(lp);
+        return b;
+    }
+
+    private View driveSideTile(Activity activity, String mode, String label) {
+        boolean sel = mode.equals(Style.driveSide(activity));
+        TextView b = Style.cardButton(activity, label, sel, () -> {
+            if (mode.equals(Style.driveSide(activity))) return;
+            Style.setDriveSide(activity, mode);
             activity.getIntent().putExtra("section", 2); // SEC_LOOK = 2
             activity.recreate();
         });

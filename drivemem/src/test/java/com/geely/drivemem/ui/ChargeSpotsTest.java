@@ -88,15 +88,16 @@ public class ChargeSpotsTest {
         assertTrue(s.isEmpty());
     }
 
-    @Test public void oneDayKeepsOnlyTheSpotsNearItsRoutes() {
-        double m = 1 / 111_195.0;   // one metre of latitude
-        double[] lat = {LAT, LAT + 3000 * m}, lon = {LON, LON};
-        ChargeSpots.Spot near = new ChargeSpots.Spot(LAT + 3500 * m, LON, false);   // 500 m past the end
-        ChargeSpots.Spot far = new ChargeSpots.Spot(LAT + 400_000 * m, LON, true);  // 400 km away
-        List<ChargeSpots.Spot> kept = ChargeSpots.inBox(Arrays.asList(near, far), lat, lon, 1000);
+    // A period's map: only the charges that started in it (today's map
+    // must not show, and zoom out to, last weekend's charge at the coast).
+    @Test public void aPeriodKeepsOnlyItsOwnCharges() {
+        ChargeSpots.Charge before = ch(0, 1 * H, 2 * H, false);
+        ChargeSpots.Charge inside = ch(0, 10 * H, 11 * H, true);
+        ChargeSpots.Charge atEnd = ch(0, 24 * H, 25 * H, false);
+        List<ChargeSpots.Charge> kept = ChargeSpots.between(Arrays.asList(before, inside, atEnd), 5 * H, 24 * H);
         assertEquals(1, kept.size());
-        assertSame(near, kept.get(0));
-        assertTrue(ChargeSpots.inBox(Arrays.asList(near), new double[0], new double[0], 1000).isEmpty());
+        assertSame(inside, kept.get(0));
+        assertTrue(ChargeSpots.between(null, 0, 1).isEmpty());
     }
 
     private static ChargeSpots.Placed at(long id, double dLatM, boolean dc) {
@@ -117,5 +118,19 @@ public class ChargeSpotsTest {
         assertEquals(0, ChargeSpots.placeOf(p, 4));
         assertEquals(-1, ChargeSpots.placeOf(p, 99));
         assertTrue(ChargeSpots.places(java.util.Collections.emptyList()).isEmpty());
+    }
+
+    @Test public void aChargeInsideTheTripIsOnItsMap() {
+        // A joined trip: a charge at a stop on the way, far from both ends.
+        long tripStart = 10 * H, tripEnd = 18 * H;
+        List<ChargeSpots.Charge> all = Arrays.asList(
+            ch(90_000, 13 * H, 14 * H, true),              // on the way: yes
+            ch(90_000, tripEnd + 5 * H, tripEnd + 6 * H, true));   // hours after, far: no
+        List<ChargeSpots.Spot> s = ChargeSpots.forTrip(all, tripStart, tripEnd,
+            LAT, LON, LAT + 200_000 / 111_195.0, LON);
+        assertEquals(1, s.size());
+        assertTrue(s.get(0).dc);
+        // A trip that is still open has no end: nothing is "inside" it.
+        assertTrue(ChargeSpots.forTrip(all, tripStart, 0, LAT, LON, LAT, LON).isEmpty());
     }
 }

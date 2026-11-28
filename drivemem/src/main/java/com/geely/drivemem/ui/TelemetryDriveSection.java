@@ -235,7 +235,7 @@ public final class TelemetryDriveSection extends LinearLayout {
         // wired in onCreate), which already puts a (larger) car in this same
         // empty region. A second, smaller one floating on top of it would
         // have doubled up instead of filling anything.
-        addView(left);
+        addView(ConfigCards.columns(activity, 960, left));
 
         highlight();
         refresh();

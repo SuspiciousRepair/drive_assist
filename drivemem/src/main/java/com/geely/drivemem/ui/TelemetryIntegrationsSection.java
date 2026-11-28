@@ -53,20 +53,23 @@ final class TelemetryIntegrationsSection extends LinearLayout {
         intro.setPadding(0, 0, 0, Style.dp(a, 14));
         addView(intro);
 
-        LinearLayout row = null;
-        for (int i = 0; i < Integrations.ALL.size(); i++) {
-            if (i % PER_ROW == 0) {
-                row = new LinearLayout(a);
-                row.setOrientation(HORIZONTAL);
-                LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                if (i > 0) rlp.topMargin = Style.dp(a, Style.CARD_GAP_DP);
-                addView(row, rlp);
+        for (int start = 0; start < Integrations.ALL.size(); start += PER_ROW) {
+            int end = Math.min(start + PER_ROW, Integrations.ALL.size());
+            LinearLayout row = new LinearLayout(a);
+            row.setOrientation(HORIZONTAL);
+            row.setGravity(Style.driverGravity());
+            LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            if (start > 0) rlp.topMargin = Style.dp(a, Style.CARD_GAP_DP);
+            View[] rowTiles = new View[end - start];
+            for (int i = start; i < end; i++) {
+                View tile = tile(a, Integrations.ALL.get(i), onOpen);
+                tile.setLayoutParams(new LinearLayout.LayoutParams(
+                    Style.dp(a, TILE_W_DP), Style.dp(a, TILE_H_DP)));
+                rowTiles[i - start] = tile;
             }
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                Style.dp(a, TILE_W_DP), Style.dp(a, TILE_H_DP));
-            if (i % PER_ROW > 0) lp.leftMargin = Style.dp(a, Style.COLUMN_GAP_DP);
-            row.addView(tile(a, Integrations.ALL.get(i), onOpen), lp);
+            Style.addMirrored(row, Style.COLUMN_GAP_DP, rowTiles);
+            addView(row, rlp);
         }
     }
 

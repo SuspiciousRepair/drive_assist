@@ -4,6 +4,7 @@ import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.car.CarDb;
 import com.geely.drivemem.sensors.DailyStatsProvider;
 import com.geely.drivemem.sensors.DailyStatsProvider.DriveSession;
+import com.geely.drivemem.state.CarDiary;
 import com.geely.drivemem.state.ChargeSession;
 
 import android.content.Context;
@@ -37,12 +38,21 @@ public final class CsvExport {
     static final String TAG = CarAccess.TAG;
     public static final String CHARGES_FILE = "drive_assist_charges.csv";
     public static final String TRIPS_FILE = "drive_assist_trips.csv";
+    public static final String DIARY_FILE = "drive_assist_diary.csv";
+    public static final String DIARY_CLIPS_USB_DIR = "Diary Clips";
+    public static final String TOLLS_FILE = "drive_assist_tolls.csv";
+    public static final String PARKING_FILE = "drive_assist_parking.csv";
 
     static final String CHARGES_HEADER = "id,start,end,duration_min,type,soc_start_pct,soc_end_pct,"
         + "energy_kwh,avg_power_kw,max_voltage_v,odometer_km,cost,cost_per_kwh,lat,lon";
     static final String TRIPS_HEADER = "id,start,end,duration_min,distance_km,soc_start_pct,soc_end_pct,"
         + "energy_net_kwh,energy_spent_kwh,energy_regen_kwh,efficiency_wh_km,energy_source,"
-        + "ascent_m,descent_m,start_lat,start_lon,end_lat,end_lon";
+        + "ascent_m,descent_m,start_lat,start_lon,end_lat,end_lon,odometer_start_km,odometer_end_km";
+    static final String DIARY_HEADER = "id,date,group,category,title,status,odometer_km,cost,"
+        + "note,tags,outside_temp_c,lat,lon,clip_file,occurrences";
+
+    static final String TOLLS_HEADER = "id,time,trip_id,booth,kind,cost,source,speed_kmh,lat,lon";
+    static final String PARKING_HEADER = "id,start,end,duration_min,kind,place,cost,valet,note,lat,lon";
 
     private CsvExport() {}
 
@@ -97,7 +107,53 @@ public final class CsvExport {
         }, "csv-export").start();
     }
 
-    /** The two files {charges, trips}, in the app's cache dir (overwritten
+    /** Fast USB export for the Car Diary screen: writes drive_assist_diary.csv
+     * (filtered if entries != null, or full diary otherwise) and copies any
+     * referenced 5s incident clips to "Drive Assist/Diary Clips/". */
+    public static void exportDiaryToUsb(Context ctx, List<CarDiary.Entry> entries, UsbExport.Callback cb) {
+        Context app = ctx.getApplicationContext();
+        new Thread(() -> {
+            File diaryCsv = null;
+            List<CarDiary.Entry> list = entries != null ? entries : CarDiary.readEntries(app);
+            final int[] copied = {0};
+            final boolean[] ok = {false};
+            final File[] drive = {null};
+            // Same lock as the phone download (web/PhoneServer): both write the same
+            // cache file, and this one may hold a filtered list. Held until the file
+            // is on the drive, so a download cannot rewrite it under the copy.
+            synchronized (CsvExport.class) {
+                try {
+                    diaryCsv = writeDiary(app, list);
+                } catch (Throwable t) {
+                    Log.w(TAG, "csvexport diary: " + t);
+                }
+                if (diaryCsv != null) {
+                    UsbExport.exportNow((o, d, n) -> { ok[0] = o; drive[0] = d; copied[0] = n; }, diaryCsv);
+                }
+            }
+            if (diaryCsv == null) {
+                if (cb != null) cb.onDone(false, null, 0);
+                return;
+            }
+            if (drive[0] != null && ok[0]) {
+                java.util.List<File> clips = new java.util.ArrayList<>();
+                for (CarDiary.Entry e : list) {
+                    if (e.clipName == null) continue;
+                    File cf = DiaryClipTrimmer.resolveClip(app, e.clipName);
+                    if (cf != null && cf.exists()) clips.add(cf);
+                }
+                if (!clips.isEmpty()) {
+                    UsbExport.exportNow(DIARY_CLIPS_USB_DIR, false, (o, d, n) -> {
+                        ok[0] = ok[0] && o;
+                        copied[0] += n;
+                    }, clips.toArray(new File[0]));
+                }
+            }
+            if (cb != null) cb.onDone(ok[0], drive[0], copied[0]);
+        }, "diary-usb-export").start();
+    }
+
+    /** The CSV files {charges, trips, diary}, in the app's cache dir (overwritten
      * every export). Also served to a paired phone (web/PhoneServer). */
     public static File[] write(Context ctx) throws Exception {
         File dir = new File(ctx.getCacheDir(), "csv");
@@ -109,7 +165,85 @@ public final class CsvExport {
         writeFile(charges, chargesCsv(ChargeSession.readLog(ctx), activeChargeId, chargePlaces(db), tz));
         File trips = new File(dir, TRIPS_FILE);
         writeFile(trips, tripsCsv(DailyStatsProvider.readAllTrips(ctx), tripEnds(db), tz));
-        return new File[]{charges, trips};
+        File diary = writeDiary(ctx, CarDiary.readEntries(ctx));
+        return new File[]{charges, trips, diary};
+    }
+
+    /** Writes drive_assist_diary.csv in cache/csv/ for USB or PhoneServer download. */
+    public static File writeDiary(Context ctx) throws Exception {
+        return writeDiary(ctx, CarDiary.readEntries(ctx));
+    }
+
+    public static File writeDiary(Context ctx, List<CarDiary.Entry> entries) throws Exception {
+        File dir = new File(ctx.getCacheDir(), "csv");
+        if (!dir.exists() && !dir.mkdirs()) throw new IllegalStateException("mkdirs " + dir);
+        File diary = new File(dir, DIARY_FILE);
+        writeFile(diary, diaryCsv(entries, TimeZone.getDefault()));
+        return diary;
+    }
+
+    /** drive_assist_tolls.csv in cache/csv/, for the phone page. */
+    public static File writeTolls(Context ctx) throws Exception {
+        File f = new File(csvDir(ctx), TOLLS_FILE);
+        writeFile(f, tollsCsv(com.geely.drivemem.state.TollTracker.allPassages(ctx), TimeZone.getDefault()));
+        return f;
+    }
+
+    /** drive_assist_parking.csv in cache/csv/, for the phone page. */
+    public static File writeParking(Context ctx) throws Exception {
+        File f = new File(csvDir(ctx), PARKING_FILE);
+        writeFile(f, parkingCsv(com.geely.drivemem.state.ParkingCost.all(ctx), TimeZone.getDefault()));
+        return f;
+    }
+
+    private static File csvDir(Context ctx) {
+        File dir = new File(ctx.getCacheDir(), "csv");
+        if (!dir.exists() && !dir.mkdirs()) throw new IllegalStateException("mkdirs " + dir);
+        return dir;
+    }
+
+    /** Toll passages oldest first; an unpriced one has an empty cost. */
+    static String tollsCsv(List<com.geely.drivemem.state.TollTracker.Passage> passages, TimeZone tz) {
+        SimpleDateFormat fmt = dateFormat(tz);
+        StringBuilder sb = new StringBuilder(TOLLS_HEADER).append("\r\n");
+        if (passages == null) return sb.toString();
+        for (com.geely.drivemem.state.TollTracker.Passage p : passages) {
+            row(sb,
+                String.valueOf(p.id),
+                fmt.format(new Date(p.tsMs)),
+                p.tripId != null ? String.valueOf(p.tripId) : "",
+                text(p.boothName),
+                p.boothKind != null ? p.boothKind.toLowerCase(Locale.US) : "",
+                p.cost != null ? num(p.cost, 2) : "",
+                p.source != null ? p.source : "",
+                p.speedKmh != null ? num(p.speedKmh, 0) : "",
+                num(p.lat, 6),
+                num(p.lon, 6));
+        }
+        return sb.toString();
+    }
+
+    /** Parking costs oldest first. valet: "yes" for a Valet stay. */
+    static String parkingCsv(List<com.geely.drivemem.state.ParkingCost.Row> rows, TimeZone tz) {
+        SimpleDateFormat fmt = dateFormat(tz);
+        StringBuilder sb = new StringBuilder(PARKING_HEADER).append("\r\n");
+        if (rows == null) return sb.toString();
+        for (com.geely.drivemem.state.ParkingCost.Row r : rows) {
+            boolean ended = r.endMs != null && r.endMs > r.startMs;
+            row(sb,
+                String.valueOf(r.id),
+                fmt.format(new Date(r.startMs)),
+                ended ? fmt.format(new Date(r.endMs)) : "",
+                ended ? String.valueOf((r.endMs - r.startMs) / 60_000) : "",
+                r.kind,
+                text(r.placeName),
+                num(r.cost, 2),
+                r.valetId != null ? "yes" : "",
+                text(r.note),
+                r.lat != null ? num(r.lat, 6) : "",
+                r.lon != null ? num(r.lon, 6) : "");
+        }
+        return sb.toString();
     }
 
     /** charge id -> {lat, lon}, for the charges that saved a place. */
@@ -199,7 +333,40 @@ public final class CsvExport {
                 e != null ? num(e[0], 6) : "",
                 e != null ? num(e[1], 6) : "",
                 e != null ? num(e[2], 6) : "",
-                e != null ? num(e[3], 6) : "");
+                e != null ? num(e[3], 6) : "",
+                // Last, so a sheet that reads the older columns by position
+                // still works (issue #210).
+                t.odoStartKm > 0 ? num(t.odoStartKm, 1) : "",
+                t.odoEndKm > 0 ? num(t.odoEndKm, 1) : "");
+        }
+        return sb.toString();
+    }
+
+    /** Diary entries in chronological order (oldest first, matching charges/trips). */
+    static String diaryCsv(List<CarDiary.Entry> entries, TimeZone tz) {
+        SimpleDateFormat fmt = dateFormat(tz);
+        StringBuilder sb = new StringBuilder(DIARY_HEADER).append("\r\n");
+        if (entries == null || entries.isEmpty()) return sb.toString();
+        java.util.List<CarDiary.Entry> sorted = new java.util.ArrayList<>(entries);
+        sorted.sort((a, b) -> Long.compare(a.tsMs, b.tsMs));
+        for (CarDiary.Entry e : sorted) {
+            if (e.parentId != null) continue;
+            row(sb,
+                String.valueOf(e.id),
+                fmt.format(new Date(e.tsMs)),
+                e.category != null && e.category.group != null ? e.category.group.name().toLowerCase(Locale.US) : "",
+                e.category != null ? e.category.name().toLowerCase(Locale.US) : "",
+                text(e.title),
+                e.status != null ? e.status.toLowerCase(Locale.US) : "",
+                e.odoKm != null && e.odoKm > 0 ? num(e.odoKm, 1) : "",
+                e.cost != null && e.cost > 0 ? num(e.cost, 2) : "",
+                text(e.note),
+                text(e.tags),
+                e.outsideTempC != null ? num(e.outsideTempC, 1) : "",
+                e.lat != null ? num(e.lat, 6) : "",
+                e.lon != null ? num(e.lon, 6) : "",
+                e.clipName != null ? e.clipName : "",
+                String.valueOf(e.occurrences));
         }
         return sb.toString();
     }
@@ -218,13 +385,23 @@ public final class CsvExport {
         sb.append("\r\n");
     }
 
-    // RFC 4180 quoting. Every value written today is a number, a date or an
-    // enum name, so this never fires — it is here so a future text column
-    // cannot break the file.
+    // RFC 4180 quoting. Numbers, dates and enum names never need it; the diary's
+    // free text (title, note, tags) does, and goes through text() first.
     static String field(String v) {
         if (v == null) return "";
         if (v.indexOf(',') < 0 && v.indexOf('"') < 0 && v.indexOf('\n') < 0 && v.indexOf('\r') < 0) return v;
         return '"' + v.replace("\"", "\"\"") + '"';
+    }
+
+    /** A free-text value (typed by the driver). A spreadsheet runs a cell that
+     * starts with = + - @ (or a tab / CR before one) as a formula, so such a
+     * value gets a leading single quote and stays text. Not for numeric
+     * columns: a negative number must stay a number. Quoting is still field()'s job. */
+    static String text(String v) {
+        if (v == null || v.isEmpty()) return "";
+        char c = v.charAt(0);
+        if (c == '=' || c == '+' || c == '-' || c == '@' || c == '\t' || c == '\r') return "'" + v;
+        return v;
     }
 
     static String num(double v, int decimals) {

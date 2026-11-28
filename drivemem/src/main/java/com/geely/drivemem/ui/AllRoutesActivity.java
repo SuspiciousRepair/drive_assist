@@ -41,6 +41,10 @@ import java.util.Map;
 public class AllRoutesActivity extends Activity {
     /** Optional "yyyy-MM-dd": open on that day instead of all days. */
     public static final String EXTRA_DAY = "day";
+    /** Optional "yyyy-MM-dd" first and last day (both included): only the
+     * routes of that period, as the stats page showed it. */
+    public static final String EXTRA_FROM = "from";
+    public static final String EXTRA_TO = "to";
 
     /** One finished trip with its route. */
     private static final class Item {
@@ -65,10 +69,9 @@ public class AllRoutesActivity extends Activity {
      * The list shows them newest first, so row r is trip size - 1 - r. */
     private final List<Item> shown = new ArrayList<>();
     private RouteSet set;
-    /** Every charge spot; one day shows only those near its routes. */
-    private List<ChargeSpots.Spot> allSpots = new ArrayList<>();
-    /** How far from a day's routes a charge spot still shows. */
-    private static final double DAY_SPOT_MARGIN_M = 1000;
+    /** Every saved charge; the map shows only the ones of the day or
+     * period on screen (a charge from another time is not part of it). */
+    private List<ChargeSpots.Charge> allCharges = new ArrayList<>();
     private int selected = -1;
     /** Profile point -> point of the picture, for the profile on screen. */
     private int[] profPoint = new int[0];
@@ -121,10 +124,10 @@ public class AllRoutesActivity extends Activity {
         body.setOrientation(LinearLayout.HORIZONTAL);
         root.addView(body, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
-        // Left: the picture, the height profile and the speed key.
+        // The picture, the height profile and the speed key.
         LinearLayout left = new LinearLayout(this);
         left.setOrientation(LinearLayout.VERTICAL);
-        body.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        left.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
 
         route = new RouteView(this);
         route.setOnTripPick(trip -> select(trip < shown.size() ? trip : -1, true));
@@ -140,16 +143,15 @@ public class AllRoutesActivity extends Activity {
         left.addView(profile, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 200)));
         left.addView(TripRouteActivity.legend(this));
 
-        // Right: the trips.
+        // The trips list.
         LinearLayout right = new LinearLayout(this);
         right.setOrientation(LinearLayout.VERTICAL);
         int sp = Style.dp(this, 20);
         right.setPadding(sp, sp, sp, sp);
         right.setBackground(Style.tile(this));
-        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(Style.dp(this, 460),
-            ViewGroup.LayoutParams.MATCH_PARENT);
-        rlp.leftMargin = Style.dp(this, 20);
-        body.addView(right, rlp);
+        right.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(this, 460),
+            ViewGroup.LayoutParams.MATCH_PARENT));
+        Style.addMirrored(body, 20, left, right);
 
         TextView hint = new TextView(this);
         hint.setText(R.string.routes_all_hint);
@@ -192,10 +194,10 @@ public class AllRoutesActivity extends Activity {
 
     private void load() {
         List<Item> found = new ArrayList<>();
-        List<ChargeSpots.Spot> spots = new ArrayList<>();
-        try { spots = ChargeSpots.cluster(ChargeSpots.read(this)); }
+        List<ChargeSpots.Charge> charges = new ArrayList<>();
+        try { charges = ChargeSpots.read(this); }
         catch (Throwable e) { android.util.Log.w("DriveMem", "all routes charges: " + e); }
-        final List<ChargeSpots.Spot> spotsF = spots;
+        final List<ChargeSpots.Charge> chargesF = charges;
         try {
             // Finished trips by id. readAllTrips leaves Valet trips out.
             Map<Long, DriveSession> byId = new HashMap<>();
@@ -244,11 +246,12 @@ public class AllRoutesActivity extends Activity {
         } catch (Throwable e) {
             android.util.Log.w("DriveMem", "all routes: " + e);
         }
-        runOnUiThread(() -> { allSpots = spotsF; loaded(found); });
+        runOnUiThread(() -> { allCharges = chargesF; loaded(found); });
     }
 
     private void loaded(List<Item> found) {
         if (isFinishing() || isDestroyed()) return;
+        // Every trip stays loaded, so Previous / Next reach every day.
         all.clear();
         all.addAll(found);
         days.clear();
@@ -256,18 +259,48 @@ public class AllRoutesActivity extends Activity {
             String d = all.get(i).day;
             if (days.isEmpty() || !days.get(days.size() - 1).equals(d)) days.add(d);
         }
-        // -1 (all days) when no day was asked for, or that day has no route.
-        setDay(days.indexOf(getIntent().getStringExtra(EXTRA_DAY)));
+        String from = getIntent().getStringExtra(EXTRA_FROM), to = getIntent().getStringExtra(EXTRA_TO);
+        String day = getIntent().getStringExtra(EXTRA_DAY);
+        if (from != null && from.equals(to)) {
+            // One day from the stats page: open on it; "every day" is all time.
+            day = from;
+        } else {
+            // A week, month or year: "every day" means that period.
+            rangeFrom = from;
+            rangeTo = to;
+        }
+        // -1 (the period, or all time) when no day was asked for, or that day has no route.
+        setDay(day != null ? days.indexOf(day) : -1);
     }
 
-    private void olderDay() { if (dayIdx < days.size() - 1) setDay(dayIdx + 1); }
+    /** "yyyy-MM-dd" first and last day of the period opened from the stats
+     * page, or null: then "every day" is every trip. */
+    private String rangeFrom, rangeTo;
+
+    private boolean inRange(String day) {
+        // "yyyy-MM-dd" sorts as text.
+        return (rangeFrom == null || day.compareTo(rangeFrom) >= 0)
+            && (rangeTo == null || day.compareTo(rangeTo) <= 0);
+    }
+
+    /** From one day: the day before (with a route). From the period: its
+     * newest day. -1 when there is none. */
+    private int olderIndex() {
+        if (dayIdx >= 0) return dayIdx < days.size() - 1 ? dayIdx + 1 : -1;
+        for (int i = 0; i < days.size(); i++) if (inRange(days.get(i))) return i;
+        return -1;
+    }
+
+    private void olderDay() { int i = olderIndex(); if (i >= 0) setDay(i); }
     private void newerDay() { if (dayIdx > 0) setDay(dayIdx - 1); }
 
-    /** Shows one day (index into days) or every day (-1). */
+    /** Shows one day (index into days), or (-1) the period / every day. */
     private void setDay(int idx) {
         dayIdx = idx < 0 || idx >= days.size() ? -1 : idx;
         shown.clear();
-        for (Item it : all) if (dayIdx < 0 || it.day.equals(days.get(dayIdx))) shown.add(it);
+        for (Item it : all) {
+            if (dayIdx >= 0 ? it.day.equals(days.get(dayIdx)) : inRange(it.day)) shown.add(it);
+        }
         List<RouteSet.Trip> trips = new ArrayList<>();
         for (Item it : shown) trips.add(it.pts);
         set = RouteSet.of(trips, TripRouteActivity.HEIGHT_SMOOTH);
@@ -283,13 +316,27 @@ public class AllRoutesActivity extends Activity {
         } else {
             note.setVisibility(View.GONE);
             route.setVisibility(View.VISIBLE);
-            route.setChargeSpots(dayIdx < 0 ? allSpots
-                : ChargeSpots.inBox(allSpots, set.lat, set.lon, DAY_SPOT_MARGIN_M));
+            long[] w = chargeWindow();
+            route.setChargeSpots(ChargeSpots.cluster(ChargeSpots.between(allCharges, w[0], w[1])));
             route.setRoutes(set.lat, set.lon, set.speed, set.starts);
         }
         selected = -2;   // force select() to redraw
         select(-1, false);
         list.setSelection(0);
+    }
+
+    /** [from, to) in ms: the day on screen, else the period asked for by
+     * the stats page (EXTRA_FROM / EXTRA_TO), else all time. */
+    private long[] chargeWindow() {
+        String from = dayIdx >= 0 ? days.get(dayIdx) : rangeFrom;
+        String to = dayIdx >= 0 ? days.get(dayIdx) : rangeTo;
+        java.time.ZoneId z = java.time.ZoneId.systemDefault();
+        long a = Long.MIN_VALUE, b = Long.MAX_VALUE;
+        try {
+            if (from != null) a = java.time.LocalDate.parse(from).atStartOfDay(z).toInstant().toEpochMilli();
+            if (to != null) b = java.time.LocalDate.parse(to).plusDays(1).atStartOfDay(z).toInstant().toEpochMilli();
+        } catch (Throwable ignored) {}
+        return new long[]{a, b};
     }
 
     private void updateDayBar() {
@@ -299,11 +346,11 @@ public class AllRoutesActivity extends Activity {
         } else if (dayIdx >= 0) {
             dayLabel.setText(dayText(days.get(dayIdx)));
         } else {
-            String first = days.get(days.size() - 1), last = days.get(0);
+            String first = rangeFrom != null ? rangeFrom : days.get(days.size() - 1);
+            String last = rangeTo != null ? rangeTo : days.get(0);
             dayLabel.setText(first.equals(last) ? dayText(last) : dayText(first) + " – " + dayText(last));
         }
-        boolean any = !days.isEmpty();
-        enable(prevBtn, any && dayIdx < days.size() - 1);
+        enable(prevBtn, olderIndex() >= 0);
         enable(nextBtn, dayIdx > 0);
         // Only useful on one day: it goes back to every trip.
         allBtn.setVisibility(dayIdx >= 0 ? View.VISIBLE : View.GONE);

@@ -63,7 +63,7 @@ public class CsvExportTest {
             120.4, 98.6, 0.8, 5.3, 4.5, 14.4, EnergySource.MEASURED);
         String[] l = lines(CsvExport.tripsCsv(Collections.singletonList(t), NONE, SP));
         assertEquals(CsvExport.TRIPS_HEADER, l[0]);
-        assertEquals("9,2026-11-14 10:00,2026-11-14 10:42,42,31.2,80,72,4.50,5.30,0.80,144,measured,120,99,,,,", l[1]);
+        assertEquals("9,2026-11-14 10:00,2026-11-14 10:42,42,31.2,80,72,4.50,5.30,0.80,144,measured,120,99,,,,,,", l[1]);
     }
 
     // A trip still being driven has end 0; a trip with no energy data
@@ -73,7 +73,7 @@ public class CsvExportTest {
         DriveSession noData = new DriveSession(2, T0, T0 + 10 * MIN, 5.0, -1, -1, 0, 0, 0, 0, 0, 0, EnergySource.NO_DATA);
         String[] l = lines(CsvExport.tripsCsv(Arrays.asList(open, noData), NONE, SP));
         assertEquals(3, l.length);
-        assertEquals("2,2026-11-14 10:00,2026-11-14 10:10,10,5.0,,,,,,,no_data,0,0,,,,", l[1]);
+        assertEquals("2,2026-11-14 10:00,2026-11-14 10:10,10,5.0,,,,,,,no_data,0,0,,,,,,", l[1]);
     }
 
     @Test public void placesGoInTheLastColumns() {
@@ -89,7 +89,24 @@ public class CsvExportTest {
         java.util.Map<Long, double[]> ends = new java.util.HashMap<>();
         ends.put(9L, new double[]{-10.5, -50.25, -10.6, -50.3});
         String trip = lines(CsvExport.tripsCsv(Collections.singletonList(t), ends, SP))[1];
-        assertEquals(true, trip.endsWith(",120,99,-10.500000,-50.250000,-10.600000,-50.300000"));
+        assertEquals(true, trip.endsWith(",120,99,-10.500000,-50.250000,-10.600000,-50.300000,,"));
+    }
+
+    // Issue #210: the odometer at the start and the end, after every older
+    // column, so a sheet that reads those by position still works.
+    @Test public void tripOdometerGoesInTheLastTwoColumns() {
+        assertEquals(true, CsvExport.TRIPS_HEADER.endsWith(",end_lon,odometer_start_km,odometer_end_km"));
+        DriveSession t = new DriveSession(9, T0, T0 + 42 * MIN, 52.7, 80, 68,
+            0, 0, 0, 0, 0, 0, EnergySource.MEASURED);
+        t.odoStartKm = 12345.4;
+        t.odoEndKm = 12398.1;
+        String trip = lines(CsvExport.tripsCsv(Collections.singletonList(t), NONE, SP))[1];
+        assertEquals(true, trip.endsWith(",12345.4,12398.1"));
+
+        // Unknown (never read, or the -1 default) stays empty, not "0".
+        t.odoStartKm = -1;
+        trip = lines(CsvExport.tripsCsv(Collections.singletonList(t), NONE, SP))[1];
+        assertEquals(true, trip.endsWith(",,12398.1"));
     }
 
     @Test public void fieldQuoting() {
@@ -108,5 +125,71 @@ public class CsvExportTest {
         } finally {
             java.util.Locale.setDefault(saved);
         }
+    }
+
+    @Test public void diaryCsvQuotesNotesAndOrdersChronologically() {
+        com.geely.drivemem.state.CarDiary.Entry older = new com.geely.drivemem.state.CarDiary.Entry(
+            1, "u1", T0, com.geely.drivemem.state.CarDiary.KIND_CARE,
+            com.geely.drivemem.state.CarDiary.Category.INSURANCE,
+            com.geely.drivemem.state.CarDiary.STATUS_DONE,
+            6128.5, 24.0, null, null, 3600.0, "Seguro anual", "Porto, 12x", null, null, null, null, 1);
+        com.geely.drivemem.state.CarDiary.Entry newer = new com.geely.drivemem.state.CarDiary.Entry(
+            2, "u2", T0 + 60 * MIN, com.geely.drivemem.state.CarDiary.KIND_INCIDENT,
+            com.geely.drivemem.state.CarDiary.Category.INCIDENT,
+            com.geely.drivemem.state.CarDiary.STATUS_OPEN,
+            6150.0, null, -23.550520, -46.633308, null, null, "Pothole", null, "incident_abc.mp4", null, null, 1);
+        String[] l = lines(CsvExport.diaryCsv(Arrays.asList(newer, older), SP));
+        assertEquals(CsvExport.DIARY_HEADER, l[0]);
+        assertEquals("1,2026-11-14 10:00,bureaucracy,insurance,Seguro anual,done,6128.5,3600.00,\"Porto, 12x\",,24.0,,,,1", l[1]);
+        assertEquals("2,2026-11-14 11:00,notes,incident,,open,6150.0,,Pothole,,,-23.550520,-46.633308,incident_abc.mp4,1", l[2]);
+    }
+
+    @Test public void textGuardsSpreadsheetFormulasButNumbersStayNumbers() {
+        assertEquals("'=1+1", CsvExport.text("=1+1"));
+        assertEquals("'+55 11", CsvExport.text("+55 11"));
+        assertEquals("'-x", CsvExport.text("-x"));
+        assertEquals("'@cmd", CsvExport.text("@cmd"));
+        assertEquals("'\t=1", CsvExport.text("\t=1"));
+        assertEquals("'\r=1", CsvExport.text("\r=1"));
+        assertEquals("a=b", CsvExport.text("a=b"));
+        assertEquals("", CsvExport.text(null));
+        // Numeric columns do not go through text(): a negative stays a number.
+        assertEquals("-23.550520", CsvExport.field(CsvExport.num(-23.55052, 6)));
+    }
+
+    @Test public void diaryCsvKeepsFormulaQuotesAndNewlineAsText() {
+        com.geely.drivemem.state.CarDiary.Entry e = new com.geely.drivemem.state.CarDiary.Entry(
+            3, "u3", T0, com.geely.drivemem.state.CarDiary.KIND_CARE,
+            com.geely.drivemem.state.CarDiary.Category.OTHER,
+            com.geely.drivemem.state.CarDiary.STATUS_DONE,
+            null, null, -23.550520, -46.633308, null,
+            "=SUM(A1)", "He said \"hi\"\nline2", "-a", null, null, null, 1);
+        String csv = CsvExport.diaryCsv(Collections.singletonList(e), SP);
+        String[] l = lines(csv);
+        assertEquals(3, l.length); // header, one row (its newline is inside quotes), end
+        assertEquals("3,2026-11-14 10:00,notes,other,'=SUM(A1),done,,,"
+            + "\"He said \"\"hi\"\"\nline2\",'-a,,-23.550520,-46.633308,,1", l[1]);
+    }
+
+    @Test public void tollRowsKeepAnUnpricedPassageEmpty() {
+        com.geely.drivemem.state.TollTracker.Passage priced = new com.geely.drivemem.state.TollTracker.Passage(
+            4, 9L, 2L, T0, 30.5, -40.5, 88.0, "Praça Exemplo", "FREE_FLOW", 6.4, "auto_live");
+        com.geely.drivemem.state.TollTracker.Passage open = new com.geely.drivemem.state.TollTracker.Passage(
+            5, null, null, T0 + MIN, 30.5, -40.5, null, "=cmd", "PLAZA", null, "user");
+        String[] l = lines(CsvExport.tollsCsv(Arrays.asList(priced, open), SP));
+        assertEquals(CsvExport.TOLLS_HEADER, l[0]);
+        assertEquals("4,2026-11-14 10:00,9,Praça Exemplo,free_flow,6.40,auto_live,88,30.500000,-40.500000", l[1]);
+        assertEquals("5,2026-11-14 10:01,,'=cmd,plaza,,user,,30.500000,-40.500000", l[2]);
+    }
+
+    @Test public void parkingRowsCarryKindPlaceAndValet() {
+        com.geely.drivemem.state.ParkingCost.Row lot = new com.geely.drivemem.state.ParkingCost.Row(
+            1, T0, T0 + 95 * MIN, null, 25.0, "Shopping, Piso 2", "lot", 30.5, -40.5);
+        com.geely.drivemem.state.ParkingCost.Row valet = new com.geely.drivemem.state.ParkingCost.Row(
+            2, T0, null, 3L, 40.0, null, "lot", null, null);
+        String[] l = lines(CsvExport.parkingCsv(Arrays.asList(lot, valet), SP));
+        assertEquals(CsvExport.PARKING_HEADER, l[0]);
+        assertEquals("1,2026-11-14 10:00,2026-11-14 11:35,95,lot,\"Shopping, Piso 2\",25.00,,,30.500000,-40.500000", l[1]);
+        assertEquals("2,2026-11-14 10:00,,,lot,,40.00,yes,,,", l[2]);
     }
 }

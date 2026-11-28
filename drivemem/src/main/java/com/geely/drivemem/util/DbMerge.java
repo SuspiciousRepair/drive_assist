@@ -34,7 +34,8 @@ public final class DbMerge {
     static final String[] ID_TABLES = {
         "telemetry_sample", "trip", "charge_session", "park_session",
         "comfort_event", "battery_health_reading", "charge_stop_event",
-        "valet_session", "trip_energy_segment", "trip_point"};
+        "valet_session", "trip_energy_segment", "trip_point",
+        "diary_event", "aux_12v_reading", "toll_booth", "toll_passage", "parking_cost", "trip_edit"};
 
     /** column -> table it points at, per table. */
     static final Map<String, Map<String, String>> REFS = new LinkedHashMap<>();
@@ -54,6 +55,19 @@ public final class DbMerge {
         Map<String, String> stop = new LinkedHashMap<>();
         stop.put("session_id", "charge_session");
         REFS.put("charge_stop_event", stop);
+        Map<String, String> diary = new LinkedHashMap<>();
+        diary.put("parent_id", "diary_event");
+        REFS.put("diary_event", diary);
+        Map<String, String> toll = new LinkedHashMap<>();
+        toll.put("trip_id", "trip");
+        toll.put("booth_id", "toll_booth");
+        REFS.put("toll_passage", toll);
+        Map<String, String> parking = new LinkedHashMap<>();
+        parking.put("valet_id", "valet_session");
+        REFS.put("parking_cost", parking);
+        Map<String, String> edit = new LinkedHashMap<>();
+        edit.put("trip_id", "trip");
+        REFS.put("trip_edit", edit);
     }
 
     /** What happened, per table. offsets: how far each table's live ids moved,
@@ -102,11 +116,13 @@ public final class DbMerge {
             db.exec("UPDATE main." + t + " SET id = -(id + ?)", off);
             db.exec("UPDATE main." + t + " SET id = -id");
         }
-        // 2. Live references follow the rows they point at.
+        // 2. Live references follow the rows they point at, also in a live
+        //    table the backup does not have (a backup older than trip_edit:
+        //    its rows stay, but their trip ids moved with the trips).
         for (Map.Entry<String, Map<String, String>> e : REFS.entrySet()) {
             String t = e.getKey();
-            if (!tables.contains(t)) continue;
             List<String> here = db.columns("main", t);
+            if (here.isEmpty()) continue;
             for (Map.Entry<String, String> ref : e.getValue().entrySet()) {
                 Long off = r.offsets.get(ref.getValue());
                 if (!here.contains(ref.getKey()) || off == null || off == 0) continue;
@@ -117,6 +133,17 @@ public final class DbMerge {
         // 3. The backup's rows go in with their ids unchanged.
         for (String t : tables) {
             String cl = commonColumns(db, t);
+            if ("diary_event".equals(t) && db.columns("main", t).contains("uuid")
+                    && db.columns("old", t).contains("uuid")) {
+                mergeDiary(db, cl, r);
+                continue;
+            }
+            if (("toll_booth".equals(t) || "toll_passage".equals(t) || "parking_cost".equals(t))
+                    && db.columns("main", t).contains("uuid")
+                    && db.columns("old", t).contains("uuid")) {
+                mergeUniqueUuid(db, t, cl, r);
+                continue;
+            }
             db.exec("INSERT INTO main." + t + " (" + cl + ") SELECT " + cl + " FROM old." + t);
         }
         if (!db.columns("main", "daily_stat").isEmpty() && !db.columns("old", "daily_stat").isEmpty()) {
@@ -140,6 +167,37 @@ public final class DbMerge {
             }
         }
         return r;
+    }
+
+    /** diary_event has UNIQUE(uuid). An entry that is on both sides (a backup
+     * restored onto a car that still has it) stays once, as the live row, and
+     * the backup's follow-up rows that point at it move to the live row. */
+    private static void mergeDiary(Sql db, String cl, Result r) throws Exception {
+        long off = r.offsets.get("diary_event");
+        String liveUuids = "(SELECT uuid FROM main.diary_event WHERE id > ? AND uuid IS NOT NULL)";
+        long dup = db.queryLong("SELECT COUNT(*) FROM old.diary_event WHERE uuid IN " + liveUuids, off);
+        db.exec("INSERT INTO main.diary_event (" + cl + ") SELECT " + cl
+            + " FROM old.diary_event WHERE uuid IS NULL OR uuid NOT IN "
+            + "(SELECT uuid FROM main.diary_event WHERE uuid IS NOT NULL)");
+        if (dup == 0) return;
+        r.added.put("diary_event", r.added.get("diary_event") - dup);
+        if (!db.columns("main", "diary_event").contains("parent_id")
+                || !db.columns("old", "diary_event").contains("parent_id")) return;
+        db.exec("UPDATE main.diary_event SET parent_id = (SELECT m.id FROM old.diary_event o "
+            + "JOIN main.diary_event m ON m.uuid = o.uuid AND m.id > ? "
+            + "WHERE o.id = main.diary_event.parent_id) "
+            + "WHERE id <= ? AND parent_id IN (SELECT o.id FROM old.diary_event o WHERE o.uuid IN "
+            + liveUuids + ")", off, off, off);
+    }
+
+    /** Tables with UNIQUE(uuid) (and optional UNIQUE(source, external_id) on toll_booth):
+     * keep the live row on conflict so user prices, dismissed flags and
+     * parking edits survive restores. */
+    private static void mergeUniqueUuid(Sql db, String table, String cl, Result r) throws Exception {
+        long beforeCount = db.queryLong("SELECT COUNT(*) FROM main." + table);
+        db.exec("INSERT OR IGNORE INTO main." + table + " (" + cl + ") SELECT " + cl + " FROM old." + table);
+        long afterCount = db.queryLong("SELECT COUNT(*) FROM main." + table);
+        r.added.put(table, afterCount - beforeCount);
     }
 
     private static String commonColumns(Sql db, String t) throws Exception {

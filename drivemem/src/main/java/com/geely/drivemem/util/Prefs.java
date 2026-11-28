@@ -73,16 +73,6 @@ public final class Prefs {
     public static long getRestart(Context ctx, String who, long def) { return file(ctx).getLong("restart_" + who, def); }
     public static void setRestart(Context ctx, String who, long v) { file(ctx).edit().putLong("restart_" + who, v).apply(); }
 
-    // --- Comfort ruler learn mode (hvac.ComfortLearn) ---
-    // On by default (owner's choice, 2026-11-17): it only acts on hand changes
-    // held 10 min, twice. Off means "use the default table"; what was learned
-    // is kept until reset.
-    public static boolean getComfortLearn(Context ctx) { return file(ctx).getBoolean("comfort_learn_on", true); }
-    public static void setComfortLearn(Context ctx, boolean v) { file(ctx).edit().putBoolean("comfort_learn_on", v).apply(); }
-    /** ComfortLearn.Book as text; empty when nothing was learned. */
-    public static String getComfortBook(Context ctx) { return file(ctx).getString("comfort_learn_book", ""); }
-    public static void setComfortBook(Context ctx, String v) { file(ctx).edit().putString("comfort_learn_book", v).apply(); }
-
     // --- Commands / MQTT ---
     public static boolean getCommandsEnabled(Context ctx) { return file(ctx).getBoolean("commands_enabled", true); }
     public static void setCommandsEnabled(Context ctx, boolean v) { file(ctx).edit().putBoolean("commands_enabled", v).apply(); }
@@ -261,9 +251,12 @@ public final class Prefs {
     public static int getTeleIntervalS(Context ctx) { return file(ctx).getInt("tele_interval_s", 10); }
     public static void setTeleIntervalS(Context ctx, int v) { file(ctx).edit().putInt("tele_interval_s", v).apply(); }
 
-    // --- Theme / appearance / currency ---
+    // --- Theme / appearance / driving position / currency ---
     public static String getAppearance(Context ctx, String def) { return file(ctx).getString("appearance", def); }
     public static void setAppearance(Context ctx, String v) { file(ctx).edit().putString("appearance", v).apply(); }
+    public static final String KEY_DRIVE_SIDE = "drive_side";
+    public static String getDriveSide(Context ctx, String def) { return file(ctx).getString(KEY_DRIVE_SIDE, def); }
+    public static void setDriveSide(Context ctx, String v) { file(ctx).edit().putString(KEY_DRIVE_SIDE, v).apply(); }
     public static String getTheme(Context ctx, String def) { return file(ctx).getString("theme", def); }
     public static void setTheme(Context ctx, String v) { file(ctx).edit().putString("theme", v).apply(); }
 
@@ -301,6 +294,73 @@ public final class Prefs {
         return String.format(java.util.Locale.getDefault(), "%s %.2f/kWh", cachedCurrency, amountPerKwh);
     }
 
+    // --- Diary & Maintenance Schedule (0 = Off) ---
+    // Factory defaults (Geely Brasil EX2 schedule). The getters and the settings
+    // page ("back to factory default", per row) read these, so they cannot differ.
+    public static final int DIARY_DEF_BALANCE_DAYS = 30;
+    public static final int DIARY_DEF_TIRE_PRESSURE_DAYS = 30;
+    public static final int DIARY_DEF_TIRE_ROTATION_KM = 10_000;
+    public static final int DIARY_DEF_SERVICE_KM = 20_000;
+    public static final int DIARY_DEF_SERVICE_MONTHS = 12;
+    public static final int DIARY_DEF_CABIN_FILTER_KM = 20_000;
+    public static final int DIARY_DEF_CABIN_FILTER_MONTHS = 12;
+    public static final int DIARY_DEF_BRAKE_FLUID_KM = 40_000;
+    public static final int DIARY_DEF_BRAKE_FLUID_MONTHS = 24;
+    public static final int DIARY_DEF_COOLANT_KM = 80_000;
+    public static final int DIARY_DEF_COOLANT_MONTHS = 48;
+    public static final int DIARY_DEF_GEAR_OIL_KM = 80_000;
+    public static final int DIARY_DEF_GEAR_OIL_MONTHS = 48;
+    public static final int DIARY_DEF_WIPERS_MONTHS = 12;
+    public static final int DIARY_DEF_BATTERY_12V_MONTHS = 48;
+    public static int getDiaryBalanceDays(Context ctx) { return file(ctx).getInt("diary_balance_days", DIARY_DEF_BALANCE_DAYS); }
+    public static void setDiaryBalanceDays(Context ctx, int days) { file(ctx).edit().putInt("diary_balance_days", days).apply(); }
+    public static int getDiaryTirePressureDays(Context ctx) { return file(ctx).getInt("diary_tire_pressure_days", DIARY_DEF_TIRE_PRESSURE_DAYS); }
+    public static void setDiaryTirePressureDays(Context ctx, int days) { file(ctx).edit().putInt("diary_tire_pressure_days", days).apply(); }
+    public static boolean getDiaryTireColdSnap(Context ctx) { return file(ctx).getBoolean("diary_tire_cold_snap", true); }
+    public static void setDiaryTireColdSnap(Context ctx, boolean on) { file(ctx).edit().putBoolean("diary_tire_cold_snap", on).apply(); }
+    public static int getDiaryTireRotationKm(Context ctx) { return file(ctx).getInt("diary_tire_rotation_km", DIARY_DEF_TIRE_ROTATION_KM); }
+    public static void setDiaryTireRotationKm(Context ctx, int km) { file(ctx).edit().putInt("diary_tire_rotation_km", km).apply(); }
+    public static int getDiaryServiceKm(Context ctx) { return file(ctx).getInt("diary_service_km", DIARY_DEF_SERVICE_KM); }
+    public static int getDiaryServiceMonths(Context ctx) { return file(ctx).getInt("diary_service_months", DIARY_DEF_SERVICE_MONTHS); }
+    public static void setDiaryServiceInterval(Context ctx, int km, int months) {
+        file(ctx).edit().putInt("diary_service_km", km).putInt("diary_service_months", months).apply();
+    }
+    public static int getDiaryCabinFilterKm(Context ctx) { return file(ctx).getInt("diary_cabin_filter_km", DIARY_DEF_CABIN_FILTER_KM); }
+    public static int getDiaryCabinFilterMonths(Context ctx) { return file(ctx).getInt("diary_cabin_filter_months", DIARY_DEF_CABIN_FILTER_MONTHS); }
+    public static void setDiaryCabinFilterInterval(Context ctx, int km, int months) {
+        file(ctx).edit().putInt("diary_cabin_filter_km", km).putInt("diary_cabin_filter_months", months).apply();
+    }
+    public static int getDiaryBrakeFluidKm(Context ctx) { return file(ctx).getInt("diary_brake_fluid_km", DIARY_DEF_BRAKE_FLUID_KM); }
+    public static int getDiaryBrakeFluidMonths(Context ctx) { return file(ctx).getInt("diary_brake_fluid_months", DIARY_DEF_BRAKE_FLUID_MONTHS); }
+    public static void setDiaryBrakeFluidInterval(Context ctx, int km, int months) {
+        file(ctx).edit().putInt("diary_brake_fluid_km", km).putInt("diary_brake_fluid_months", months).apply();
+    }
+    public static int getDiaryCoolantKm(Context ctx) { return file(ctx).getInt("diary_coolant_km", DIARY_DEF_COOLANT_KM); }
+    public static int getDiaryCoolantMonths(Context ctx) { return file(ctx).getInt("diary_coolant_months", DIARY_DEF_COOLANT_MONTHS); }
+    public static void setDiaryCoolantInterval(Context ctx, int km, int months) {
+        file(ctx).edit().putInt("diary_coolant_km", km).putInt("diary_coolant_months", months).apply();
+    }
+    public static int getDiaryGearOilKm(Context ctx) { return file(ctx).getInt("diary_gear_oil_km", DIARY_DEF_GEAR_OIL_KM); }
+    public static int getDiaryGearOilMonths(Context ctx) { return file(ctx).getInt("diary_gear_oil_months", DIARY_DEF_GEAR_OIL_MONTHS); }
+    public static void setDiaryGearOilInterval(Context ctx, int km, int months) {
+        file(ctx).edit().putInt("diary_gear_oil_km", km).putInt("diary_gear_oil_months", months).apply();
+    }
+    public static int getDiaryWipersMonths(Context ctx) { return file(ctx).getInt("diary_wipers_months", DIARY_DEF_WIPERS_MONTHS); }
+    public static void setDiaryWipersMonths(Context ctx, int months) { file(ctx).edit().putInt("diary_wipers_months", months).apply(); }
+    public static int getDiaryBattery12vMonths(Context ctx) { return file(ctx).getInt("diary_battery_12v_months", DIARY_DEF_BATTERY_12V_MONTHS); }
+    public static void setDiaryBattery12vMonths(Context ctx, int months) { file(ctx).edit().putInt("diary_battery_12v_months", months).apply(); }
+    /** Schedules the owner added, and overrides of built-in ones: see CarDiary.parseExtras. */
+    public static String getDiaryExtraSchedules(Context ctx) { return file(ctx).getString("diary_extra_sched", ""); }
+    public static void setDiaryExtraSchedules(Context ctx, String v) { file(ctx).edit().putString("diary_extra_sched", v).apply(); }
+    /** The day the owner got the car, as an epoch day; -1 = not set. First-time
+     * maintenance counts its months from it (CarDiary.computeDueStatuses). */
+    public static long getDiaryPickupDay(Context ctx) { return file(ctx).getLong("diary_pickup_day", -1L); }
+    public static void setDiaryPickupDay(Context ctx, long epochDay) { file(ctx).edit().putLong("diary_pickup_day", epochDay).apply(); }
+    /** The odometer on that day (a used car); 0 for a new car. */
+    public static int getDiaryPickupKm(Context ctx) { return file(ctx).getInt("diary_pickup_km", 0); }
+    public static void setDiaryPickupKm(Context ctx, int km) { file(ctx).edit().putInt("diary_pickup_km", Math.max(0, km)).apply(); }
+    public static String getDiaryJoltSensitivity(Context ctx) { return file(ctx).getString("diary_jolt_sensitivity", "medium"); }
+    public static void setDiaryJoltSensitivity(Context ctx, String level) { file(ctx).edit().putString("diary_jolt_sensitivity", level).apply(); }
     // --- Auto update check throttle ---
     public static long getAutoUpdateLastCheckMs(Context ctx) { return file(ctx).getLong("auto_update_last_check_ms", 0); }
     public static void setAutoUpdateLastCheckMs(Context ctx, long v) { file(ctx).edit().putLong("auto_update_last_check_ms", v).apply(); }
@@ -320,6 +380,108 @@ public final class Prefs {
     public static void setUpdateLaterVc(Context ctx, boolean modehelper, int versionCode) {
         file(ctx).edit().putInt(modehelper ? "update_later_vc_modehelper" : "update_later_vc", versionCode).apply();
     }
+
+    // --- Security (util/SecurityLock.java, ui/TelemetrySecuritySection.java) ---
+    public static final String KEY_SECURITY_PIN_HASH = "security_pin_hash";
+    public static final String KEY_SECURITY_PIN_SALT = "security_pin_salt";
+    public static final String KEY_SECURITY_LOCK_VALET = "security_lock_valet";
+    public static final String KEY_SECURITY_LOCK_SETTINGS = "security_lock_settings";
+    public static final String KEY_SECURITY_BT_MAC = "security_bt_mac";
+    public static final String KEY_SECURITY_BT_NAME = "security_bt_name";
+    public static final String KEY_SECURITY_BEACON_UUID = "security_beacon_uuid";
+    public static final String KEY_SECURITY_BEACON_NAME = "security_beacon_name";
+    public static final String KEY_SECURITY_TRUST_CARPLAY = "security_trust_carplay";
+    public static final String KEY_SECURITY_CARPLAY_SERIAL = "security_carplay_serial";
+    public static final String KEY_SECURITY_TRUST_WIFI = "security_trust_wifi";
+    public static final String KEY_SECURITY_WIFI_SSIDS = "security_wifi_ssids";
+    public static final String KEY_SECURITY_AUTO_END_VALET = "security_auto_end_valet";
+    public static final String KEY_SECURITY_HOME_LAT = "security_home_lat";
+    public static final String KEY_SECURITY_HOME_LON = "security_home_lon";
+    public static final String KEY_SECURITY_LOCKOUT_UNTIL = "security_lockout_until";
+
+    public static String getSecurityPinHash(Context ctx) { return file(ctx).getString(KEY_SECURITY_PIN_HASH, ""); }
+    public static String getSecurityPinSalt(Context ctx) { return file(ctx).getString(KEY_SECURITY_PIN_SALT, ""); }
+    public static void setSecurityPin(Context ctx, String salt, String hash) {
+        file(ctx).edit().putString(KEY_SECURITY_PIN_SALT, salt).putString(KEY_SECURITY_PIN_HASH, hash).commit();
+    }
+    public static void clearSecurityPin(Context ctx) {
+        file(ctx).edit()
+            .remove(KEY_SECURITY_PIN_SALT)
+            .remove(KEY_SECURITY_PIN_HASH)
+            .remove(KEY_SECURITY_LOCKOUT_UNTIL)
+            .commit();
+    }
+    public static boolean getSecurityLockValet(Context ctx) { return file(ctx).getBoolean(KEY_SECURITY_LOCK_VALET, true); }
+    public static void setSecurityLockValet(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_SECURITY_LOCK_VALET, v).apply(); }
+    public static boolean getSecurityLockSettings(Context ctx) { return file(ctx).getBoolean(KEY_SECURITY_LOCK_SETTINGS, true); }
+    public static void setSecurityLockSettings(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_SECURITY_LOCK_SETTINGS, v).apply(); }
+    public static String getSecurityBtMac(Context ctx) { return file(ctx).getString(KEY_SECURITY_BT_MAC, ""); }
+    public static String getSecurityBtName(Context ctx) { return file(ctx).getString(KEY_SECURITY_BT_NAME, ""); }
+    public static void setSecurityBtDevice(Context ctx, String mac, String name) {
+        if (mac == null || mac.isEmpty()) {
+            file(ctx).edit().remove(KEY_SECURITY_BT_MAC).remove(KEY_SECURITY_BT_NAME).apply();
+        } else {
+            file(ctx).edit().putString(KEY_SECURITY_BT_MAC, mac.toUpperCase(java.util.Locale.US))
+                .putString(KEY_SECURITY_BT_NAME, name != null ? name : mac).apply();
+        }
+    }
+    public static boolean getSecurityTrustCarplay(Context ctx) { return file(ctx).getBoolean(KEY_SECURITY_TRUST_CARPLAY, false); }
+    public static void setSecurityTrustCarplay(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_SECURITY_TRUST_CARPLAY, v).apply(); }
+    /** USB serial of the owner's iPhone, remembered when the cable trust is
+     * switched on. Only that iPhone unlocks; any other Apple device does not. */
+    public static String getSecurityCarplaySerial(Context ctx) { return file(ctx).getString(KEY_SECURITY_CARPLAY_SERIAL, ""); }
+    public static void setSecurityCarplaySerial(Context ctx, String serial) {
+        if (serial == null || serial.trim().isEmpty()) file(ctx).edit().remove(KEY_SECURITY_CARPLAY_SERIAL).apply();
+        else file(ctx).edit().putString(KEY_SECURITY_CARPLAY_SERIAL, serial.trim()).apply();
+    }
+    public static String getSecurityBeaconUuid(Context ctx) { return file(ctx).getString(KEY_SECURITY_BEACON_UUID, ""); }
+    public static String getSecurityBeaconName(Context ctx) { return file(ctx).getString(KEY_SECURITY_BEACON_NAME, ""); }
+    public static void setSecurityBeacon(Context ctx, String uuid, String name) {
+        if (uuid == null || uuid.trim().isEmpty()) {
+            file(ctx).edit().remove(KEY_SECURITY_BEACON_UUID).remove(KEY_SECURITY_BEACON_NAME).apply();
+        } else {
+            String u = uuid.trim().toLowerCase(java.util.Locale.US);
+            file(ctx).edit().putString(KEY_SECURITY_BEACON_UUID, u)
+                .putString(KEY_SECURITY_BEACON_NAME, name != null && !name.trim().isEmpty() ? name.trim() : u).apply();
+        }
+    }
+    public static boolean getSecurityTrustWifi(Context ctx) { return file(ctx).getBoolean(KEY_SECURITY_TRUST_WIFI, true); }
+    public static void setSecurityTrustWifi(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_SECURITY_TRUST_WIFI, v).apply(); }
+    public static String getSecurityWifiSsidsRaw(Context ctx) { return file(ctx).getString(KEY_SECURITY_WIFI_SSIDS, ""); }
+    public static void setSecurityWifiSsidsRaw(Context ctx, String raw) {
+        if (raw == null || raw.trim().isEmpty()) file(ctx).edit().remove(KEY_SECURITY_WIFI_SSIDS).apply();
+        else file(ctx).edit().putString(KEY_SECURITY_WIFI_SSIDS, raw.trim()).apply();
+    }
+    public static boolean getSecurityAutoEndValet(Context ctx) { return file(ctx).getBoolean(KEY_SECURITY_AUTO_END_VALET, true); }
+    public static void setSecurityAutoEndValet(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_SECURITY_AUTO_END_VALET, v).apply(); }
+    public static boolean hasSecurityHome(Context ctx) {
+        SharedPreferences p = file(ctx);
+        return p.contains(KEY_SECURITY_HOME_LAT) && p.contains(KEY_SECURITY_HOME_LON);
+    }
+    public static double getSecurityHomeLat(Context ctx) { return Double.longBitsToDouble(file(ctx).getLong(KEY_SECURITY_HOME_LAT, 0L)); }
+    public static double getSecurityHomeLon(Context ctx) { return Double.longBitsToDouble(file(ctx).getLong(KEY_SECURITY_HOME_LON, 0L)); }
+    public static void setSecurityHome(Context ctx, double lat, double lon) {
+        file(ctx).edit()
+            .putLong(KEY_SECURITY_HOME_LAT, Double.doubleToRawLongBits(lat))
+            .putLong(KEY_SECURITY_HOME_LON, Double.doubleToRawLongBits(lon))
+            .apply();
+    }
+    public static void clearSecurityHome(Context ctx) {
+        file(ctx).edit().remove(KEY_SECURITY_HOME_LAT).remove(KEY_SECURITY_HOME_LON).apply();
+    }
+    public static long getSecurityLockoutUntil(Context ctx) { return file(ctx).getLong(KEY_SECURITY_LOCKOUT_UNTIL, 0L); }
+    public static void setSecurityLockoutUntil(Context ctx, long ms) { file(ctx).edit().putLong(KEY_SECURITY_LOCKOUT_UNTIL, ms).apply(); }
+
+    // --- OpenStreetMap (opt-in map backgrounds & automatic tolls) ---
+    public static final String KEY_OSM_MAPS_ENABLED = "osm_maps_enabled";
+    public static final String KEY_TOLLS_ENABLED = "tolls_enabled";
+    public static final String KEY_TOLL_LAST_SCANNED_TRIP = "toll_last_scanned_trip";
+    public static boolean getOsmMapsEnabled(Context ctx) { return file(ctx).getBoolean(KEY_OSM_MAPS_ENABLED, false); }
+    public static void setOsmMapsEnabled(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_OSM_MAPS_ENABLED, v).apply(); }
+    public static boolean getTollsEnabled(Context ctx) { return file(ctx).getBoolean(KEY_TOLLS_ENABLED, false); }
+    public static void setTollsEnabled(Context ctx, boolean v) { file(ctx).edit().putBoolean(KEY_TOLLS_ENABLED, v).apply(); }
+    public static long getTollLastScannedTrip(Context ctx) { return file(ctx).getLong(KEY_TOLL_LAST_SCANNED_TRIP, 0L); }
+    public static void setTollLastScannedTrip(Context ctx, long id) { file(ctx).edit().putLong(KEY_TOLL_LAST_SCANNED_TRIP, id).apply(); }
 
     // --- One-time migration/rollup guards ---
     public static boolean getDbMigratedV1(Context ctx) { return file(ctx).getBoolean("db_migrated_v1", false); }
@@ -347,6 +509,10 @@ public final class Prefs {
         "panel_dismissed",
         "drive_card_dismissed_trip",             // no longer written (the drive card's × is gone); an old install may hold it
         KEY_PHONE_TOKEN,                         // a credential: phones scan again after a restore
+        KEY_SECURITY_PIN_HASH, KEY_SECURITY_PIN_SALT,
+        KEY_SECURITY_HOME_LAT, KEY_SECURITY_HOME_LON,
+        KEY_SECURITY_LOCKOUT_UNTIL,
+        KEY_TOLL_LAST_SCANNED_TRIP,
         "can_explore_until"));                   // CAN explorer timer (tools)
     private static final String[] NOT_BACKED_UP_PREFIXES = {
         "trip_open_", "charge_open_", "valet_", "parking_",
@@ -386,6 +552,7 @@ public final class Prefs {
     private static final String[] NOT_FROM_PHONE_PREFIXES = {
         "adb_",
         "phone_access_",
+        "security_",
     };
 
     /** True when a restore that comes from a phone may set this key: a key a

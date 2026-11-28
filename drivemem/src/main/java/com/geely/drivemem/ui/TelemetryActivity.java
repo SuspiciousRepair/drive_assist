@@ -93,12 +93,16 @@ public class TelemetryActivity extends Activity {
     // items; they are the pages those tiles open.
     private static final int SEC_INTEGRATIONS = 11;
     static final int SEC_ABRP = 12;
-    // The comfort ruler's learn mode (ComfortLearn). Appended, same reason as SEC_DOORS.
-    private static final int SEC_CLIMATE = 13;
     // Car app translations (OemTranslations). Appended, same reason as SEC_DOORS.
     static final int SEC_OEM_TEXT = 14;
     // The music card and its lyrics (TelemetryMusicSection). Appended, same reason as SEC_DOORS.
     static final int SEC_MUSIC = 15;
+    // Maintenance schedule, jolt sensitivity, and battery health guide (TelemetryDiarySection).
+    public static final int SEC_DIARY = 16;
+    // Security: PIN lock & Trusted Phone unlock for Valet Mode and Config. Appended.
+    private static final int SEC_SECURITY = 17;
+    // Automatic OSM tolls integration (TelemetryTollsSection). Appended.
+    static final int SEC_TOLLS = 18;
 
     private final List<TextView> navItems = new ArrayList<>();
     private TextView status;                  // recreated by each panel that needs it
@@ -142,6 +146,11 @@ public class TelemetryActivity extends Activity {
         super.onCreate(b);
         Style.load(this);                 // before any View
         section = getIntent().getIntExtra("section", SEC_DRIVE);   // come back to the same section on recreate
+        if (b != null) {                  // a theme change recreates the page: no second PIN
+            gateUnlocked = b.getBoolean("gate_unlocked", false);
+            gateStoppedAt = b.getLong("gate_stopped_at", 0L);
+            gateValetAtUnlock = b.getBoolean("gate_valet", false);
+        }
 
         Style.edgeToEdge(this);
         outer = new LinearLayout(this);
@@ -193,8 +202,8 @@ public class TelemetryActivity extends Activity {
         // web API).
         nav.addView(sideGroupLabel(getString(R.string.cfg_group_car)));
         nav.addView(navItem(getString(R.string.cfg_nav_drive), SEC_DRIVE));
-        nav.addView(navItem(getString(R.string.cfg_nav_climate), SEC_CLIMATE));
         nav.addView(navItem(getString(R.string.cfg_nav_doors), SEC_DOORS));
+        nav.addView(navItem(getString(R.string.cfg_nav_diary), SEC_DIARY));
         nav.addView(navItem(getString(R.string.cfg_nav_clips), SEC_CLIPS));
 
         nav.addView(sideGroupLabel(getString(R.string.cfg_group_display)));
@@ -205,10 +214,10 @@ public class TelemetryActivity extends Activity {
         // are tiles on its page (Integrations.ALL), not sidebar rows.
         nav.addView(sideGroupLabel(getString(R.string.cfg_group_app)));
         nav.addView(navItem(getString(R.string.cfg_nav_integrations), SEC_INTEGRATIONS));
+        nav.addView(navItem(getString(R.string.cfg_nav_security), SEC_SECURITY));
         nav.addView(navItem(getString(R.string.cfg_nav_system), SEC_SYSTEM));
-        outer.addView(side);
 
-        // ---- right-hand panel (scrollable) ----
+        // ---- content panel (scrollable) ----
         ScrollView scroll = new ScrollView(this);
         scroll.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
         content = new LinearLayout(this);
@@ -216,7 +225,7 @@ public class TelemetryActivity extends Activity {
         int cp = Style.dp(this, 22);
         content.setPadding(cp, cp + Style.statusBarHeight(this), cp, cp);
         scroll.addView(content);
-        outer.addView(scroll);
+        Style.addMirrored(outer, 0, side, scroll);
 
         setContentView(outer);
         selectSection(section);
@@ -346,7 +355,6 @@ public class TelemetryActivity extends Activity {
                 content.addView(mqttSection);
                 break;
             case SEC_DOORS: content.addView(new TelemetryDoorsSection(this)); break;
-            case SEC_CLIMATE: content.addView(new TelemetryClimateSection(this)); break;
             case SEC_CLIPS:
                 clipsSection = new TelemetryClipsSection(this, () -> selectSection(SEC_CLIPS));
                 content.addView(clipsSection);
@@ -364,7 +372,10 @@ public class TelemetryActivity extends Activity {
                 content.addView(abrpSection);
                 break;
             case SEC_MUSIC: content.addView(new TelemetryMusicSection(this)); break;
+            case SEC_DIARY: content.addView(new TelemetryDiarySection(this)); break;
             case SEC_OEM_TEXT: content.addView(new TelemetryOemTextSection(this)); break;
+            case SEC_TOLLS: content.addView(new TelemetryTollsSection(this)); break;
+            case SEC_SECURITY: content.addView(new TelemetrySecuritySection(this)); break;
             case SEC_SYSTEM: systemSection = new TelemetrySystemSection(this); content.addView(systemSection); break;
             default:       // SEC_DRIVE, and the landing page
                 driveSection = new TelemetryDriveSection(this);
@@ -541,6 +552,77 @@ public class TelemetryActivity extends Activity {
     }
 
     // Refreshes status lines after returning from external activities
+    // ---- Security gate ----
+    // The page locks itself, so every way in meets the PIN: the cog, the
+    // Diary's shortcut, recents, any future link. A button that asked for the
+    // PIN would leave all the others open.
+    private static final long GATE_RELOCK_MS = 60_000L;
+    private boolean gateUnlocked;
+    private long gateStoppedAt;        // elapsedRealtime of the last onStop while unlocked
+    private boolean gateValetAtUnlock;
+    private boolean gateAsking;
+
+    @Override protected void onStart() {
+        super.onStart();
+        checkGate();
+    }
+
+    @Override protected void onStop() {
+        super.onStop();
+        if (gateUnlocked) gateStoppedAt = android.os.SystemClock.elapsedRealtime();
+    }
+
+    @Override protected void onSaveInstanceState(Bundle out) {
+        super.onSaveInstanceState(out);
+        out.putBoolean("gate_unlocked", gateUnlocked);
+        out.putLong("gate_stopped_at", gateStoppedAt);
+        out.putBoolean("gate_valet", gateValetAtUnlock);
+    }
+
+    private void checkGate() {
+        if (gateAsking) return;
+        boolean valet = com.geely.drivemem.state.ValetSession.isActive(this);
+        if (gateUnlocked) {
+            boolean away = gateStoppedAt > 0
+                && android.os.SystemClock.elapsedRealtime() - gateStoppedAt > GATE_RELOCK_MS;
+            // Valet started since the unlock: the car changed hands, lock again.
+            if (away || (valet && !gateValetAtUnlock)) gateUnlocked = false;
+        }
+        if (gateUnlocked) {
+            showGated(true);
+            return;
+        }
+        switch (com.geely.drivemem.util.SecurityLock.settingsGate(this)) {
+            case OPEN:
+                markUnlocked(valet);
+                return;
+            case BLOCKED:
+                android.widget.Toast.makeText(this, R.string.sec_valet_blocks_settings,
+                    android.widget.Toast.LENGTH_SHORT).show();
+                finish();
+                return;
+            case NEED_PIN:
+            default:
+                showGated(false);
+                gateAsking = true;
+                PinDialog.requireUnlock(this, R.string.sec_unlock_settings,
+                    () -> { gateAsking = false; markUnlocked(com.geely.drivemem.state.ValetSession.isActive(this)); },
+                    () -> { gateAsking = false; finish(); }, true);
+        }
+    }
+
+    private void markUnlocked(boolean valet) {
+        gateUnlocked = true;
+        gateStoppedAt = 0L;
+        gateValetAtUnlock = valet;
+        showGated(true);
+    }
+
+    /** Hides the whole page behind the keypad until the PIN is right. */
+    private void showGated(boolean visible) {
+        getWindow().getDecorView().setVisibility(visible ? View.VISIBLE : View.INVISIBLE);
+    }
+
     @Override protected void onResume() {
         super.onResume();
         if (mqttSection != null) {

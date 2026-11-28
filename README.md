@@ -168,7 +168,7 @@ Full architectural documentation and reverse-engineering guides are located in t
 ## Core Features
 
 1. **Drive Modes & Regeneration**: Configures drive modes (Eco, Comfort, Sport) and regenerative braking levels (Low, Mid, High). On boot, mode reapplication is handled by the privileged helper app [`com.geely.modehelper`](modehelper/README.md).
-2. **Comfort Ruler (Climate Control)**: The car hardware does not expose cabin temperature via VHAL (`HVAC_IN_OUT_TEMP` is `NOT_AVAILABLE`). Climate is controlled using an absolute thermal effort scale (`EffortTable` / `ComfortRuler`, C5..0..W5) targeting setpoints the car holds. The scale steps over 0 (the mode boundary between cooling and heating) to avoid reversing the HVAC state machine at the neutral point. See [COMFORT-TABLE.md](docs/COMFORT-TABLE.md).
+2. **Comfort Ruler (Climate Control)**: The car hardware does not expose cabin temperature via VHAL (`HVAC_IN_OUT_TEMP` is `NOT_AVAILABLE`). The driver is the sensor: the climate is one list of small moves (`EffortTable` / `ComfortRuler`, C10..0..W5), and one tap is one move. The list steps over 0 (the mode boundary between cooling and heating) to avoid reversing the HVAC state machine at the neutral point. See [COMFORT-TABLE.md](docs/COMFORT-TABLE.md).
 3. **Telemetry & MQTT**: Publishes vehicle metrics (battery, odometer, range, speed, gear, climate, charging) to Home Assistant via MQTT with auto-discovery, and handles remote actions (smart gate trigger, climate commands, OTA updates).
 
 ## How It Works

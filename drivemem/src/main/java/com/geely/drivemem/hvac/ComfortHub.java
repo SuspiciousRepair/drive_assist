@@ -47,6 +47,7 @@ public final class ComfortHub {
         if (ruler == null) {
             Context app = c.getApplicationContext();
             ctxRef = app;
+            dropOldRuler(app);
             ruler = new ComfortRuler(app);
             ruler.setOnChange(ComfortHub::fanOut);
             HandlerThread t = new HandlerThread("comfortbeat");
@@ -57,11 +58,24 @@ public final class ComfortHub {
             beat.postDelayed(ensureArmed, 5_000);
             beat.postDelayed(ensureArmed, 15_000);
             DoorWindow.ensureSubscribed(app);
+            com.geely.drivemem.car.LockEventLog.ensureSubscribed(app);
             FrontDefrost.ensureSubscribed(app);
             beat.postDelayed(tick, BEAT_MS);
             Log.i(TAG, "comfort hub: ruler now owned by the process");
         }
         return ruler;
+    }
+
+    /** The first ruler kept a table file and a learn book. The list of marks
+     * is fixed now, so both are removed. */
+    private static void dropOldRuler(Context app) {
+        try {
+            new java.io.File(app.getFilesDir(), "comfort-table.json").delete();
+            android.content.SharedPreferences p = com.geely.drivemem.util.Prefs.file(app);
+            if (p.contains("comfort_learn_book") || p.contains("comfort_learn_on")) {
+                p.edit().remove("comfort_learn_book").remove("comfort_learn_on").apply();
+            }
+        } catch (Throwable t) { Log.w(TAG, "comfort hub: old ruler files: " + t); }
     }
 
     /** Returns the ruler if initialized, or null. Does not create it. */

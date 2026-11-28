@@ -247,6 +247,8 @@ public final class CarActor {
 
         // The car's soft-tyre warning, per wheel (indirect: no pressures).
         TireWarning.register(this);
+        // Auxiliary 12V rail voltage & low-battery warning flags (VHAL).
+        Aux12vHub.register(this);
         } catch (Throwable t) {
             Log.w(CarAccess.TAG, "car actor init failed: " + t, t);
             throw t;
@@ -606,6 +608,7 @@ public final class CarActor {
         watchRawNow("car.regen_mode", Modes.PROP_REGEN, 0);
         watchRawMultiAreaNow("car.door_pos", CarAccess.DOOR_POS);
         watchRawMultiAreaNow("car.window_pos", CarAccess.WINDOW_POS);
+        watchRawMultiAreaNow("car.door_lock", CarAccess.DOOR_LOCK);
         watchRawNow("car.hvac_recirc", CarAccess.HVAC_RECIRC_ON, 75);
         watchRawNow("car.hvac_direction", 557846560, 0);
         watchRawNow("car.hvac_rear_defrost", CarAccess.HVAC_ELECTRIC_DEFROSTER_ON, 2);

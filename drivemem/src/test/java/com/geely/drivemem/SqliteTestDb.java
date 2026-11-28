@@ -84,7 +84,8 @@ public final class SqliteTestDb {
                 "spent_kwh REAL," +
                 "net_kwh REAL," +
                 "energy_source TEXT, estimated_net_kwh REAL," +
-                "can_net_kwh REAL, drive_spent_kwh REAL, drive_regen_kwh REAL, climate_raw_kwh REAL, climate_on_s REAL, fan_kwh REAL)",
+                "can_net_kwh REAL, drive_spent_kwh REAL, drive_regen_kwh REAL, climate_raw_kwh REAL, climate_on_s REAL, fan_kwh REAL, " +
+                com.geely.drivemem.car.CarDb.TRIP_SCORE_COLUMNS_V37 + ")",
 
             "CREATE TABLE trip_energy_segment (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER," +
@@ -98,7 +99,7 @@ public final class SqliteTestDb {
                 "event TEXT NOT NULL," +
                 "pointer INTEGER, out_c REAL, setpoint REAL, fan INTEGER," +
                 "ac INTEGER, recirc INTEGER, power INTEGER," +
-                "detail TEXT)",
+                "detail TEXT, direction INTEGER, rear_defrost INTEGER)",
 
             "CREATE TABLE battery_health_reading (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT," +
@@ -112,12 +113,20 @@ public final class SqliteTestDb {
                 "start_ms INTEGER NOT NULL, end_ms INTEGER," +
                 "start_odo_km REAL, end_odo_km REAL," +
                 "start_soc INTEGER, end_soc INTEGER," +
-                "max_speed_kmh REAL, max_power_kw REAL)",
+                "max_speed_kmh REAL, max_power_kw REAL, " +
+                com.geely.drivemem.car.CarDb.VALET_SCORE_COLUMNS_V37 + ")",
 
             "CREATE TABLE charge_stop_event (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER NOT NULL," +
                 "occurred_ms INTEGER NOT NULL, soc INTEGER, kwh REAL, published INTEGER NOT NULL DEFAULT 0," +
                 "UNIQUE(session_id, occurred_ms))",
+
+            com.geely.drivemem.car.CarDb.DIARY_EVENT_DDL,
+            com.geely.drivemem.car.CarDb.AUX_12V_READING_DDL,
+            com.geely.drivemem.car.CarDb.TOLL_BOOTH_DDL,
+            com.geely.drivemem.car.CarDb.TOLL_PASSAGE_DDL,
+            com.geely.drivemem.car.CarDb.TOLL_REGION_DDL,
+            com.geely.drivemem.car.CarDb.PARKING_COST_DDL,
 
             "CREATE TABLE daily_stat (" +
                 "date TEXT PRIMARY KEY," +

@@ -35,6 +35,8 @@ public class DbMergeTest {
         "CREATE TABLE %s.charge_stop_event (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER NOT NULL, occurred_ms INTEGER NOT NULL, UNIQUE(session_id, occurred_ms))",
         "CREATE TABLE %s.valet_session (id INTEGER PRIMARY KEY AUTOINCREMENT, start_ms INTEGER NOT NULL, end_ms INTEGER, start_odo_km REAL, end_odo_km REAL)",
         "CREATE TABLE %s.trip_point (id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER, ts_ms INTEGER NOT NULL, lat REAL NOT NULL, lon REAL NOT NULL)",
+        "CREATE TABLE %s.diary_event (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT NOT NULL UNIQUE, ts_ms INTEGER NOT NULL, kind TEXT NOT NULL, category TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'DONE', parent_id INTEGER)",
+        "CREATE TABLE %s.aux_12v_reading (id INTEGER PRIMARY KEY AUTOINCREMENT, ts_ms INTEGER NOT NULL, voltage_v REAL, phase TEXT NOT NULL, source TEXT NOT NULL)",
         "CREATE TABLE %s.daily_stat (date TEXT PRIMARY KEY, first_odo_km REAL NOT NULL, last_odo_km REAL NOT NULL)",
     };
     private static final String[] OLD = {
@@ -44,6 +46,8 @@ public class DbMergeTest {
         "CREATE TABLE %s.charge_stop_event (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER NOT NULL, occurred_ms INTEGER NOT NULL, UNIQUE(session_id, occurred_ms))",
         "CREATE TABLE %s.valet_session (id INTEGER PRIMARY KEY AUTOINCREMENT, start_ms INTEGER NOT NULL, end_ms INTEGER, start_odo_km REAL, end_odo_km REAL)",
         "CREATE TABLE %s.trip_point (id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER, ts_ms INTEGER NOT NULL, lat REAL NOT NULL, lon REAL NOT NULL)",
+        "CREATE TABLE %s.diary_event (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT NOT NULL UNIQUE, ts_ms INTEGER NOT NULL, kind TEXT NOT NULL, category TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'DONE', parent_id INTEGER)",
+        "CREATE TABLE %s.aux_12v_reading (id INTEGER PRIMARY KEY AUTOINCREMENT, ts_ms INTEGER NOT NULL, voltage_v REAL, phase TEXT NOT NULL, source TEXT NOT NULL)",
         "CREATE TABLE %s.daily_stat (date TEXT PRIMARY KEY, last_odo_km REAL NOT NULL, first_odo_km REAL NOT NULL)",
     };
 
@@ -53,6 +57,13 @@ public class DbMergeTest {
         x("ATTACH DATABASE '" + tmp.newFile("old.db").getPath() + "' AS old");
         for (String s : LIVE) x(String.format(s, "main"));
         for (String s : OLD) x(String.format(s, "old"));
+        // Uuid tables, from the app's own DDL, on both sides.
+        for (String ddl : new String[]{com.geely.drivemem.car.CarDb.TOLL_BOOTH_DDL,
+                com.geely.drivemem.car.CarDb.TOLL_PASSAGE_DDL, com.geely.drivemem.car.CarDb.PARKING_COST_DDL}) {
+            for (String schema : new String[]{"main", "old"}) {
+                x(ddl.replace("CREATE TABLE IF NOT EXISTS ", "CREATE TABLE IF NOT EXISTS " + schema + "."));
+            }
+        }
         sql = new DbMerge.Sql() {
             @Override public void exec(String s, Object... a) throws Exception {
                 try (PreparedStatement p = c.prepareStatement(s)) { bind(p, a); p.executeUpdate(); }
@@ -187,5 +198,111 @@ public class DbMergeTest {
         assertEquals(7, q("SELECT start_sample_id FROM main.trip WHERE id = 4"));
         x("INSERT INTO main.telemetry_sample (ts_ms) VALUES (300)");
         assertEquals(10, q("SELECT id FROM main.telemetry_sample WHERE ts_ms = 300"));
+    }
+
+    /** Diary recurrence children follow their parent_id across a backup merge,
+     * and aux_12v_reading rows merge without losing either side. */
+    @Test public void diaryEventsAndSelfReferencesFollowOnMerge() throws Exception {
+        fill();
+        x("INSERT INTO old.diary_event (id, uuid, ts_ms, kind, category, status, parent_id) VALUES "
+            + "(1,'u-old-1',120,'NOISE','NOISE','OPEN',NULL),"
+            + "(2,'u-old-2',150,'NOISE','NOISE','DONE',1)");
+        x("INSERT INTO main.diary_event (id, uuid, ts_ms, kind, category, status, parent_id) VALUES "
+            + "(1,'u-live-1',1020,'NOISE','NOISE','OPEN',NULL),"
+            + "(2,'u-live-2',1050,'NOISE','NOISE','DONE',1)");
+        x("INSERT INTO old.aux_12v_reading (id, ts_ms, voltage_v, phase, source) VALUES (1,120,12.6,'RESTING','vhal')");
+        x("INSERT INTO main.aux_12v_reading (id, ts_ms, voltage_v, phase, source) VALUES (1,1020,12.2,'RESTING','vhal')");
+
+        DbMerge.Result r = DbMerge.merge(sql);
+
+        assertEquals(2L, (long) r.offsets.get("diary_event"));
+        assertEquals(4, q("SELECT COUNT(*) FROM main.diary_event"));
+        assertEquals(1, q("SELECT parent_id FROM main.diary_event WHERE uuid = 'u-old-2'"));
+        assertEquals(3, q("SELECT id FROM main.diary_event WHERE uuid = 'u-live-1'"));
+        assertEquals(3, q("SELECT parent_id FROM main.diary_event WHERE uuid = 'u-live-2'"));
+        assertEquals(2, q("SELECT COUNT(*) FROM main.aux_12v_reading"));
+    }
+
+    /** The same diary entry on both sides (a backup restored onto a car that
+     * still has the entry): the restore must not fail on diary_event.uuid. */
+    @Test public void sameDiaryUuidOnBothSidesDoesNotFailTheRestore() throws Exception {
+        fill();
+        x("INSERT INTO old.diary_event (id, uuid, ts_ms, kind, category, status, parent_id) VALUES "
+            + "(1,'u-same',120,'CARE','SERVICE','DONE',NULL),"
+            + "(2,'u-old-only',150,'CARE','WIPERS','DONE',NULL)");
+        x("INSERT INTO main.diary_event (id, uuid, ts_ms, kind, category, status, parent_id) VALUES "
+            + "(1,'u-same',120,'CARE','SERVICE','DONE',NULL),"
+            + "(2,'u-live-only',1050,'CARE','TIRES','DONE',NULL)");
+
+        DbMerge.merge(sql);
+
+        assertEquals(1, q("SELECT COUNT(*) FROM main.diary_event WHERE uuid = 'u-same'"));
+        assertEquals(3, q("SELECT COUNT(*) FROM main.diary_event"));
+    }
+
+    /** Live toll prices, dismissed passages and parking edits survive a
+     * restore of an older backup, and a live parking row keeps pointing at
+     * its own Valet stay after the Valet ids move. */
+    @Test public void tollAndParkingOverridesSurviveAndValetLinksFollow() throws Exception {
+        fill();
+        x("INSERT INTO old.valet_session (id, start_ms, end_ms) VALUES (1,120,180)");
+        x("INSERT INTO main.valet_session (id, start_ms, end_ms) VALUES (1,1020,1080)");
+        // The same booth and passage on both sides: the backup has no price,
+        // the live row has the owner's price and a dismissed passage.
+        x("INSERT INTO old.toll_booth (id, uuid, source, external_id, name, lat, lon, updated_ms) "
+            + "VALUES (1,'b-1','osm','node/1','Plaza',1,1,100)");
+        x("INSERT INTO main.toll_booth (id, uuid, source, external_id, name, lat, lon, user_price, updated_ms) "
+            + "VALUES (1,'b-1','osm','node/1','Plaza',1,1,12.5,1000)");
+        x("INSERT INTO old.toll_passage (id, uuid, booth_id, ts_ms, lat, lon, booth_name, dismissed, source) "
+            + "VALUES (1,'p-1',1,150,1,1,'Plaza',0,'auto')");
+        x("INSERT INTO main.toll_passage (id, uuid, booth_id, ts_ms, lat, lon, booth_name, dismissed, source) "
+            + "VALUES (1,'p-1',1,150,1,1,'Plaza',1,'auto')");
+        // Parking: one stop on both sides (edited on the car), one Valet
+        // stay in each, and one stop only in the backup.
+        x("INSERT INTO old.parking_cost (id, uuid, start_ms, cost, kind, updated_ms) VALUES (1,'k-same',140,20,'lot',140)");
+        x("INSERT INTO old.parking_cost (id, uuid, start_ms, valet_id, cost, kind, updated_ms) VALUES (2,'k-old-valet',120,1,40,'lot',120)");
+        x("INSERT INTO old.parking_cost (id, uuid, start_ms, cost, kind, updated_ms) VALUES (3,'k-old',160,5,'street',160)");
+        x("INSERT INTO main.parking_cost (id, uuid, start_ms, cost, place_name, kind, updated_ms) VALUES (1,'k-same',140,30,'Mall','lot',1000)");
+        x("INSERT INTO main.parking_cost (id, uuid, start_ms, valet_id, cost, kind, updated_ms) VALUES (2,'k-live-valet',1020,1,50,'lot',1020)");
+
+        DbMerge.merge(sql);
+
+        assertEquals(1, q("SELECT COUNT(*) FROM main.toll_booth"));
+        assertEquals(1250, q("SELECT CAST(user_price * 100 AS INTEGER) FROM main.toll_booth WHERE uuid = 'b-1'"));
+        assertEquals(1, q("SELECT dismissed FROM main.toll_passage WHERE uuid = 'p-1'"));
+        assertEquals(4, q("SELECT COUNT(*) FROM main.parking_cost"));
+        assertEquals(30, q("SELECT cost FROM main.parking_cost WHERE uuid = 'k-same'"));
+        // Live Valet stay moved from id 1 to 2; its parking row moved with it.
+        assertEquals(1020, q("SELECT v.start_ms FROM main.parking_cost p JOIN main.valet_session v "
+            + "ON v.id = p.valet_id WHERE p.uuid = 'k-live-valet'"));
+        assertEquals(120, q("SELECT v.start_ms FROM main.parking_cost p JOIN main.valet_session v "
+            + "ON v.id = p.valet_id WHERE p.uuid = 'k-old-valet'"));
+    }
+    /** A split (trip_edit) follows its trip to the trip's new id, both when
+     * the backup has the table and when it is older than it (issue #210). */
+    @Test public void tripEditsFollowTheirTrip() throws Exception {
+        fill();
+        x(com.geely.drivemem.car.CarDb.TRIP_EDIT_DDL.replace("CREATE TABLE IF NOT EXISTS ", "CREATE TABLE IF NOT EXISTS main."));
+        x("INSERT INTO main.trip_edit (id, kind, trip_id, start_ms, end_ms, created_ms) VALUES (1,'cut',1,1050,1060,1)");
+
+        DbMerge.merge(sql);   // the backup has no trip_edit table
+
+        assertEquals(1000, q("SELECT t.start_ms FROM main.trip_edit e JOIN main.trip t ON t.id = e.trip_id"));
+    }
+
+    @Test public void tripEditsFromBothSidesKeepTheirTrips() throws Exception {
+        fill();
+        for (String schema : new String[]{"main", "old"}) {
+            x(com.geely.drivemem.car.CarDb.TRIP_EDIT_DDL.replace("CREATE TABLE IF NOT EXISTS ",
+                "CREATE TABLE IF NOT EXISTS " + schema + "."));
+        }
+        x("INSERT INTO old.trip_edit (id, kind, trip_id, start_ms, end_ms, created_ms) VALUES (1,'cut',1,200,200,1)");
+        x("INSERT INTO main.trip_edit (id, kind, trip_id, start_ms, end_ms, created_ms) VALUES (1,'cut',1,1050,1060,1)");
+
+        DbMerge.merge(sql);
+
+        assertEquals(2, q("SELECT COUNT(*) FROM main.trip_edit"));
+        assertEquals(100, q("SELECT t.start_ms FROM main.trip_edit e JOIN main.trip t ON t.id = e.trip_id WHERE e.start_ms = 200"));
+        assertEquals(1000, q("SELECT t.start_ms FROM main.trip_edit e JOIN main.trip t ON t.id = e.trip_id WHERE e.start_ms = 1050"));
     }
 }

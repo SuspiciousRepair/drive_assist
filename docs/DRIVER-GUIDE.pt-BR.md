@@ -18,8 +18,14 @@ evidências da pesquisa estão na
 A tela inicial foi feita para uso rápido enquanto você dirige:
 
 - o número grande é a temperatura externa;
-- a escala de conforto pede ar mais frio ou mais quente em um toque, em vez de
-  ajustar ventilador, temperatura e A/C um a um;
+- a régua de conforto pede ar mais frio ou mais quente em um toque, em vez de
+  ajustar ventilador, temperatura e A/C um a um. Ela tem 10 marcas para
+  resfriar e 5 para aquecer. Cada toque vai para a próxima marca e muda uma
+  coisa pequena, então o ventilador nunca dá um salto. O primeiro toque é
+  sempre a marca mais suave, e uma marca faz a mesma coisa em qualquer clima.
+  Para ir longe de uma vez, toque na barra: toque em uma marca, ou deslize o
+  dedo pela barra e solte. Com o clima desligado, a barra mostra as 10 marcas
+  de resfriar;
 - botões grandes fazem resfriar, aquecer, recirculação e abrir um vão nos vidros;
 - durante a recarga, um cartão de recarga fica no lugar do cartão Estacionado.
   Ele mostra o tempo carregando, o tempo até 100%, o nível da bateria, a energia
@@ -51,8 +57,12 @@ carro continua temporário; desligá-lo no Drive Assist mantém desligado ao
 reiniciar).
 
 Os ajustes ficam em **Config**: Portas, Climatização, Modo de condução, Elementos
-(o que aparece na tela inicial), Aparência (temas e dia/noite automático) e
-Sistema.
+(o que aparece na tela inicial), Aparência (temas, dia/noite automático e **Lado
+do motorista**: Esquerdo ou Direito, detectado do carro ao iniciar pela primeira
+vez e alterável a qualquer momento — levando barras laterais, colunas de
+cartões, telas divididas, painel flutuante e arte para o lado do motorista em
+carros com volante à direita, mantendo o conteúdo dos cartões da esquerda para
+a direita) e Sistema.
 
 Os ajustes do veículo são aplicados pelo pequeno auxiliar **ModeHelper**,
 instalado junto com o Drive Assist. O painel e o auxiliar privilegiado ficam
@@ -81,24 +91,86 @@ Toque em uma viagem terminada (em P) para ver a **rota** em um mapa do
 OpenStreetMap, colorida pela velocidade. O mapa precisa de internet na primeira
 vez que um lugar aparece; depois fica guardado no carro, então uma viagem que
 termina na garagem ainda mostra o mapa. Abaixo da rota está o relevo da viagem, e
-os números dela.
+os números dela, com o **hodômetro** no início e no fim.
 
-Toque na contagem de viagens para ver **todas as rotas em uma imagem**. As rotas
+**Notas da viagem.** Junto dos números da viagem há duas notas de 0 a 100,
+medidas pelo sensor de movimento da central. **Condução** é o quanto a condução
+foi suave: freadas fortes, arrancadas, curvas fechadas e o uso da regeneração
+para reduzir. **Piso** é o quanto o piso estava ruim. Uma linha abaixo conta os
+eventos, o mapa marca cada pancada forte e o **(i)** explica as notas. Viagens
+gravadas antes de as notas existirem, e viagens com menos de 20 segundos em
+movimento, não têm nota.
+
+Toque no mapa ao lado das sessões para ver **todas as rotas em uma imagem**,
+do dia, semana, mês ou ano que você está vendo. As rotas
 são gravadas em **Config → Sistema** (ligado por padrão) e ficam no carro. Dá
 para exportar como **GPX** (um arquivo por dia) e a lista como **CSV**, para um
-pen drive ou para o celular.
+pen drive ou para o celular. Cada viagem, na tela e no CSV, traz o hodômetro no
+início e no fim, pronto para um app de despesas.
+
+**Juntar e dividir viagens.** Uma parada curta corta um trajeto em duas
+viagens. Para ver o trajeto inteiro como uma só, toque no ícone de **corrente**
+no cartão Sessões e depois na primeira e na última viagem. Tudo o que fica entre
+elas fica azul: as outras viagens, as paradas e qualquer recarga no caminho.
+Toque em **Juntar**. O cartão juntado mostra "2 viagens" (ou mais) e lista as
+paradas e recargas dentro dele. Para cortar uma viagem em duas, abra a viagem e
+toque em **Dividir**. O primeiro lugar onde você colocou em P já vem
+escolhido; **‹** e **›** passam pelos outros (ou arraste no gráfico de altura).
+Confira as duas viagens novas à direita e toque em **Dividir aqui**. Uma viagem sem nenhuma parada em P no meio não tem
+Dividir. **Desfazer junção** e **Desfazer divisão** na tela da viagem voltam as
+viagens como foram gravadas: nada é apagado. O gráfico de altura marca cada
+pedágio com uma linha; ao dividir, marca também cada parada em P. Os arquivos CSV e GPX mantêm as
+viagens como foram gravadas.
 
 Se o carro foi emprestado em modo **Valet**, toque no cartão dele para uma tela
 de detalhe: um mapa de cada trecho, uma linha do tempo, os clipes da dashcam
 daquele período e os números (trechos, tempo em movimento e parado, distância,
-velocidade e potência máximas, bateria e temperatura).
+velocidade e potência máximas, bateria e temperatura). Ela também traz as notas
+de condução e de piso; toque em uma pancada para abrir o clipe da dashcam
+daquele momento.
+
+## Diário do carro: manutenção, custos e incidentes
+
+O **Diário do carro** (o terceiro ícone na tela de estatísticas) guarda o que
+você faz no carro e quanto custa:
+
+- **Registros**: pneus, revisão e fluidos, elétrica, estética e carroceria,
+  taxas e seguro, acessórios, estacionamento, pedágio e multas. Cada registro
+  leva data, hodômetro (preenchido pela data), custo e nota.
+- **Próxima manutenção**: cada item com agenda mostra quando vence, por
+  distância, por tempo, ou os dois. Os intervalos ficam em **Config →
+  Manutenção**: mude com as setas, toque no valor para digitar qualquer número,
+  e adicione uma agenda a um item que não tem. Uma linha alterada mostra um
+  ícone para voltar ao padrão.
+  Informe a **data de retirada** em **Meu carro** (e o hodômetro naquele dia,
+  para um usado): a primeira revisão passa a contar os 12 meses a partir dela.
+- **Adiado**: quando a oficina olha uma peça que está vencendo e diz para
+  esperar, adicione um registro daquele item e escolha **Adiado**, com o
+  hodômetro (ou o dia) até quando esperar. O item volta a vencer naquele ponto;
+  não conta como trocado.
+- **Custo total**: quanto o carro custou no período escolhido, em quatro
+  grupos. Toque no cartão para ver em dinheiro, por km ou em porcentagem.
+- **Saúde das baterias**: a bateria principal (o estado de saúde precisa de um
+  dongle OBD2) e um gráfico de 60 dias da bateria 12 V em repouso. Leituras
+  feitas enquanto o carro acorda ou logo após uma recarga aparecem em outra
+  cor e não contam contra a bateria.
+- **Impactos**: o sensor de movimento do carro anota uma pancada forte durante
+  a condução. Em P, o diário pergunta se você quer guardar. Um impacto guardado
+  tem o lugar no mapa e, em carro com dashcam, um clipe de 5 segundos. Ajuste a
+  sensibilidade, ou desligue, em **Config → Manutenção**.
+- **Multas**: digite a hora do auto de infração e o diário acha o lugar na rota
+  gravada daquele dia.
+- **Exportar**: o diário em CSV, com os clipes, para um pen drive ou para o
+  celular.
+
+O diário fica no carro e faz parte do backup.
 
 ## Recargas e custo
 
 ![Estatísticas de recarga](screenshots/charging-statistics-live.png)
 
 As **Estatísticas de recarga** guardam cada recarga — energia, tempo, variação da
-bateria e potência média. Toque em uma recarga (em P) para adicionar ou corrigir
+bateria, potência média e o hodômetro ao conectar. Toque em uma recarga (em P) para adicionar ou corrigir
 o preço; uma recarga gratuita pode ser salva como zero, e isso continua diferente
 de uma recarga sem preço informado. Para trocar o símbolo da moeda (R$ por
 padrão), vá em Config → Elementos → Localização. Há visão de mês e ano, um cartão de
@@ -108,6 +180,43 @@ Um cartão de **saúde da bateria** mostra os kWh por recarga, as horas que a
 bateria passou abaixo de 10% e 20%, e — com um dongle OBD2 — a saúde da bateria.
 Sem o dongle, a tela de recarga ainda mostra a temperatura externa durante a
 recarga.
+
+## Pedágios e estacionamento
+
+Ligue **Detectar pedágios via OpenStreetMap** em **Config → Integrações →
+OpenStreetMap** (desligado de fábrica). O carro passa a marcar cada praça de pedágio e
+pórtico Free Flow por onde passa. Ele baixa os pedágios de áreas largas
+(cerca de 55 km), nunca a sua rota.
+
+- **Na tela da viagem**, cada pedágio é um pino no mapa e uma marca no
+  gráfico de altura. Toque num pedágio para informar o preço. Deixe
+  **Lembrar valor para esta praça** ligado, e as próximas viagens por ela
+  já levam esse preço.
+- **Um pedágio que faltou**: toque no gráfico de altura onde estava o
+  pedágio e depois em **+ Pedágio que faltou**. Escolha praça ou Free Flow e
+  digite o preço. As próximas viagens no mesmo sentido já o encontram.
+- **Estacionamento**: na página de estatísticas, toque numa linha
+  **Estacionado** para digitar quanto custou aquela parada. Escolha
+  **Estacionamento** ou **Rua** e, se quiser, dê um nome ao local. Na próxima
+  vez que parar ali, o nome e os últimos preços já aparecem como botões de um
+  toque. Paradas de 15 minutos ou mais mostram um discreto **+ R$**.
+  Quando o lugar do carro é conhecido e os mapas do OpenStreetMap estão
+  ligados, a janela mostra onde o carro ficou.
+- **Filtro Estacionamento**: ao lado de Viagens e Recargas, **Estacionamento**
+  mostra só as paradas (de 15 minutos ou mais, ou com preço) e o Manobrista.
+  Cada botão de filtro mostra quantos há.
+- **No cartão Estacionado** da tela inicial, toque em **+ R$** para digitar o
+  preço logo depois de pagar no caixa.
+- **Manobrista**: o cartão e a tela do Manobrista têm um **Custo** para
+  informar. Ao encerrar o Manobrista em P num lugar onde você já pagou
+  manobrista antes, o preço pede só um toque.
+- A tela da viagem mostra o **estacionamento na chegada** e os **pedágios +
+  estacionamento** da viagem. O **custo de propriedade** do Diário do carro
+  conta pedágios e estacionamento no grupo da estrada.
+
+No celular (**Acesso pelo celular**), **Pedágios e estacionamento** lista as
+praças e os custos de estacionamento para editar com o teclado do celular, e
+baixa os dois em CSV.
 
 ## Traga seus serviços
 
@@ -147,8 +256,11 @@ No alto ficam a capa, a música, o artista e o álbum. Embaixo vem a letra da m�
 linha cantada agora em letra grande, a linha anterior e as duas próximas. A
 barra embaixo tem Tocar, Avançar e **✕**, que fecha a letra. O cartão lembra a
 sua última escolha, aberta ou fechada, de uma música para a outra e depois que
-o carro dorme. O cartão fica no tamanho normal quando o painel do Home Assistant
-aparece, ou quando os outros cartões precisam de mais de uma coluna.
+o carro dorme. O cartão volta ao tamanho normal quando o painel do Home Assistant
+aparece, ou quando os outros cartões precisam de mais de uma coluna. Toque em
+**Letra** de novo e ele cresce de volta sobre a segunda e a terceira colunas,
+por cima dos cartões que estão ali. Feche com **✕** para vê-los de novo. Ele
+cede de novo quando chegam mais cartões.
 
 A letra vem do [LRCLIB](https://lrclib.net), um site gratuito de letras. Para
 achá-la, o carro envia para lá os nomes da música, do artista e do álbum, uma
@@ -178,8 +290,17 @@ gravação variam por região.
 ## Mais coisas que dá para fazer
 
 - **Acesso pelo celular**: leia um QR code na tela do carro para abrir uma página
-  no celular com backups, clipes e arquivos de viagem. Funciona só em P, na rede
-  local.
+  no celular com backups, clipes, arquivos de viagem e preços de pedágio e
+  estacionamento. Funciona só em P, na rede local.
+- **Modo Valet e o PIN**: com o modo Valet ligado, a tela inicial mostra só o
+  Clima e o cartão do Valet, o volume da música vai a zero e o Config fica
+  fechado (com um PIN definido, o PIN abre). Em **Config → Segurança** você define um PIN de 4 a 6 dígitos e
+  escolhe o que ele protege: encerrar o modo Valet, abrir o Config, ou os dois.
+  Sem PIN definido, nada pede PIN. O PIN não é pedido enquanto o carro vê algo
+  seu: o seu iPhone no cabo USB, um roteador Wi-Fi conhecido, ou um celular ou
+  beacon Bluetooth de confiança. **Esqueceu o PIN?** funciona com um aparelho de
+  confiança por perto, ou com o carro estacionado no lugar seguro que você
+  salvou. O PIN fica só no carro e não entra nos backups.
 - **Backup e restauração**: salva seus ajustes, viagens e certificados em um pen
   drive e no carro, com uma senha que você escolhe.
 - **Modo mais escuro**: à noite, após um minuto dirigindo sem tocar na tela, a

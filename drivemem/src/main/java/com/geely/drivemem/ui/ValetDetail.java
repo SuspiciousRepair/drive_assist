@@ -14,6 +14,39 @@ final class ValetDetail {
 
     static boolean fast(double kmh) { return kmh > FAST_KMH; }
 
+    /** Quiet badge severity for the Daily Stats Valet card:
+     *  0 = clean (no dot), 1 = caution (amber dot), 2 = alert (red dot). */
+    static int attentionLevel(double maxSpeedKmh, Integer driverScore,
+                              Integer roadBumps, Integer hardBrakes,
+                              Integer hardAccels, Integer hardCorners) {
+        if (fast(maxSpeedKmh) || (driverScore != null && driverScore < 60)) return 2;
+        boolean anyEvent = (roadBumps != null && roadBumps > 0)
+            || (hardBrakes != null && hardBrakes > 0)
+            || (hardAccels != null && hardAccels > 0)
+            || (hardCorners != null && hardCorners > 0);
+        if (anyEvent || (driverScore != null && driverScore < 80)) return 1;
+        return 0;
+    }
+
+    /** Lead-in before a bump event when jumping into a dashcam clip. */
+    static final int CLIP_LEAD_IN_MS = 3_000;
+
+    /** Finds the clip covering {@code eventMs} and computes the seek offset
+     * (3 s lead-in, clamped >= 0). Returns {@code {clipIndex, seekMs}} or null. */
+    static int[] findClipForTime(long eventMs, long[] clipStartsMs, int[] clipSeconds) {
+        if (clipStartsMs == null || clipSeconds == null) return null;
+        int n = Math.min(clipStartsMs.length, clipSeconds.length);
+        for (int i = 0; i < n; i++) {
+            long start = clipStartsMs[i];
+            long len = clipSeconds[i] > 0 ? clipSeconds[i] * 1000L : CLIP_GUESS_MS;
+            if (eventMs >= start && eventMs <= start + len) {
+                int seek = (int) Math.max(0L, Math.min(len, eventMs - start - CLIP_LEAD_IN_MS));
+                return new int[]{i, seek};
+            }
+        }
+        return null;
+    }
+
     /** Time the car moved: the moves (trip rows) clipped to the Valet
      * interval [vs, ve], overlaps counted once. starts/ends in order of start. */
     static long movingMs(long[] starts, long[] ends, long vs, long ve) {

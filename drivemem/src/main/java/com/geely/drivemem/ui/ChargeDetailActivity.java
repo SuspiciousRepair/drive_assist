@@ -68,6 +68,7 @@ public class ChargeDetailActivity extends Activity {
         long id = -1, startMs, endMs, nextTripMs = -1;
         int socStart, socEnd;
         double kwh, avgPowerW = Double.NaN;
+        double odoKm = -1;   // at plug-in; -1 when unknown
         Double cost;
         Double lat, lon;
         long[] ts = new long[0];
@@ -109,7 +110,7 @@ public class ChargeDetailActivity extends Activity {
         int lp = Style.dp(this, 20);
         left.setPadding(lp, lp, lp, lp);
         left.setBackground(Style.tile(this));
-        body.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        left.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
         chart = new ChargeDetailChartView(this);
         left.addView(chart, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         empty = new TextView(this);
@@ -122,10 +123,9 @@ public class ChargeDetailActivity extends Activity {
 
         LinearLayout right = new LinearLayout(this);
         right.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(Style.dp(this, 460),
-            ViewGroup.LayoutParams.MATCH_PARENT);
-        rlp.leftMargin = Style.dp(this, 20);
-        body.addView(right, rlp);
+        right.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(this, 460),
+            ViewGroup.LayoutParams.MATCH_PARENT));
+        Style.addMirrored(body, 20, left, right);
 
         ScrollView scroll = new ScrollView(this);
         scroll.setBackground(Style.tile(this));
@@ -208,6 +208,7 @@ public class ChargeDetailActivity extends Activity {
                 d.socEnd = ChargeSession.currentSocEnd();
                 d.kwh = ChargeSession.currentKwh();
                 d.dc = ChargeSession.currentIsDcfc();
+                d.odoKm = ChargeSession.currentOdoStart();
                 long ms = d.endMs - d.startMs;
                 if (ms > 0) d.avgPowerW = d.kwh * 1000.0 / (ms / 3_600_000.0);
                 if (!d.active && d.id > 0) {   // the cost button shows in the grace too
@@ -224,7 +225,7 @@ public class ChargeDetailActivity extends Activity {
                 }
             } else {
                 Cursor c = db.rawQuery("SELECT start_ms, end_ms, soc_start, soc_end, kwh, avg_power_w, "
-                    + "max_charge_v, cost, lat, lon FROM charge_session WHERE id = ?",
+                    + "max_charge_v, cost, lat, lon, odo_start_km FROM charge_session WHERE id = ?",
                     new String[]{String.valueOf(id)});
                 try {
                     if (!c.moveToFirst()) return d;
@@ -239,6 +240,7 @@ public class ChargeDetailActivity extends Activity {
                     d.dc = !c.isNull(6) && ChargeSession.isDcfc(c.getDouble(6));
                     d.cost = c.isNull(7) ? null : c.getDouble(7);
                     if (!c.isNull(8) && !c.isNull(9)) { d.lat = c.getDouble(8); d.lon = c.getDouble(9); }
+                    if (!c.isNull(10)) d.odoKm = c.getDouble(10);
                 } finally { c.close(); }
                 Cursor t = db.rawQuery("SELECT MIN(start_ms) FROM trip WHERE start_ms >= ?",
                     new String[]{String.valueOf(d.endMs)});
@@ -337,6 +339,12 @@ public class ChargeDetailActivity extends Activity {
         if (ot != null) {
             stat(R.string.route_stat_outside, Style.rangeWithUnit(String.valueOf(Math.round(ot[0])),
                 String.valueOf(Math.round(ot[1])), "°", Style.UNIT_SCALE_ROW), null, Style.TEXT, null);
+        }
+        // Just before Cost: the two numbers an expense log asks for (issue
+        // #210). They share a row when the blocks above are an even count.
+        String odo = SessionText.odometer(d.odoKm);
+        if (odo != null) {
+            stat(R.string.stat_odometer, Style.valueWithUnit(odo, null, "km", Style.UNIT_SCALE_ROW), null, Style.TEXT, null);
         }
         if (!d.active && d.id > 0) {
             boolean hasCost = d.cost != null && d.cost >= 0;

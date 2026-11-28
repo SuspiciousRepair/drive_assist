@@ -8,6 +8,8 @@ import android.os.Looper;
 import android.util.Log;
 import android.util.LruCache;
 
+import com.geely.drivemem.util.Prefs;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -115,6 +117,7 @@ final class TileCache {
                     .build(),
                 new android.net.ConnectivityManager.NetworkCallback() {
                     @Override public void onAvailable(android.net.Network n) {
+                        if (!Prefs.getOsmMapsEnabled(TileCache.this.app)) return;
                         main.post(TileCache.this::retryNow);
                         MapPreload.retryPending(TileCache.this.app);
                     }
@@ -155,6 +158,7 @@ final class TileCache {
 
     /** A network is back: every failed tile may be tried again now. */
     private void retryNow() {
+        if (!Prefs.getOsmMapsEnabled(app)) return;
         if (retryAt.isEmpty()) return;
         retryAt.clear();
         failures.clear();
@@ -166,8 +170,9 @@ final class TileCache {
 
     /** The tile's picture, or null for now: then it is loaded in the
      * background and onReady runs on the main thread when it is here.
-     * Call on the main thread. */
+     * Call on the main thread. Opt-in via Prefs.getOsmMapsEnabled. */
     Bitmap get(int z, int x, int y, Runnable onReady) {
+        if (!Prefs.getOsmMapsEnabled(app)) return null;
         String key = z + "/" + x + "/" + y;
         Bitmap b = mem.get(key);
         if (b != null) return b;
@@ -221,6 +226,7 @@ final class TileCache {
      * onDone (may be null) gets true when every tile is on the disk; it
      * runs on the tile thread. Any thread. */
     void prefetch(java.util.List<MapTiles.Tile> tiles, java.util.function.Consumer<Boolean> onDone) {
+        if (!Prefs.getOsmMapsEnabled(app)) { if (onDone != null) onDone.accept(false); return; }
         if (tiles.isEmpty()) { if (onDone != null) onDone.accept(true); return; }
         net.execute(() -> {
             boolean ok = true;
@@ -269,6 +275,7 @@ final class TileCache {
     }
 
     private byte[] fetch(int z, int x, int y) {
+        if (!Prefs.getOsmMapsEnabled(app)) return null;
         HttpURLConnection c = null;
         try {
             c = (HttpURLConnection) new URL(String.format(java.util.Locale.US, URL_FMT, z, x, y))

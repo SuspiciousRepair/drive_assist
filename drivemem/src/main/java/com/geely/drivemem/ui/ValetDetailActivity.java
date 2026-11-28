@@ -3,6 +3,7 @@ package com.geely.drivemem.ui;
 import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarDb;
 import com.geely.drivemem.sensors.DailyStatsProvider;
+import com.geely.drivemem.sensors.DriveScorer;
 import com.geely.drivemem.util.Clips;
 import com.geely.drivemem.util.Style;
 
@@ -10,6 +11,11 @@ import android.app.Activity;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.graphics.Typeface;
+import android.graphics.drawable.ClipDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.LayerDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -17,7 +23,9 @@ import android.view.ViewGroup;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,17 +33,11 @@ import java.util.Locale;
 
 /** One Valet interval in detail, opened from its card on the stats page.
  *
- * Left: where the car went (every move on one map, a green dot where the
- * first move started and a checkered one where the last ended, so many
- * moves do not crowd the map with marks), a timeline of the whole interval
- * with each move where it happened, and the dashcam clips recorded in that
- * time. Right: the numbers.
- *
- * The moves are the trip rows inside the interval (the same rule as
- * DailyStatsProvider.TRIP_IN_VALET_SQL). Their route points are drawn as
- * one line: the car does not jump, each move starts where the last ended.
- * Gear changes are not shown: the samples only see the gear now and then,
- * so a count of reverses would be a guess. */
+ * Left: route map with amber bump strike pins (tappable to jump into the
+ * dashcam video 3 s before the hit), timeline with matching bump ticks, and
+ * overlapping dashcam clips. Right: Driver & Road scores at the top (neutral
+ * color on Road so bad pavement doesn't look like the valet's fault), four
+ * fixed event slots, then speed/power/moves/time/distance/battery/outside. */
 public class ValetDetailActivity extends Activity {
     public static final String EXTRA_VALET_ID = "valet_id";
 
@@ -58,10 +60,16 @@ public class ValetDetailActivity extends Activity {
         boolean open;
         Double startOdo, endOdo, maxSpeed, maxPower, tempMin, tempMax;
         Integer startSoc, endSoc;
+        Integer roadScore, driverScore, roadBumps, hardBrakes, hardAccels, hardCorners;
         long[] moveStart = new long[0], moveEnd = new long[0];
         double[] lat = new double[0], lon = new double[0], speed = new double[0];
+        double[] bumpLat = new double[0], bumpLon = new double[0];
+        long[] bumpTs = new long[0];
+        double[] bumpPeak = new double[0];
         List<Clips.Clip> clips = new ArrayList<>();
         List<Bitmap> thumbs = new ArrayList<>();
+        /** What this Valet stay cost, or null. */
+        com.geely.drivemem.state.ParkingCost.Row parking;
     }
 
     @Override protected void onCreate(Bundle b) {
@@ -93,7 +101,7 @@ public class ValetDetailActivity extends Activity {
 
         LinearLayout left = new LinearLayout(this);
         left.setOrientation(LinearLayout.VERTICAL);
-        body.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        left.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
 
         route = new RouteView(this);
         left.addView(route, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
@@ -127,15 +135,18 @@ public class ValetDetailActivity extends Activity {
         cl.topMargin = Style.dp(this, 6);
         left.addView(clipScroll, cl);
 
+        ScrollView statsScroll = new ScrollView(this);
+        statsScroll.setVerticalScrollBarEnabled(false);
+        statsScroll.setBackground(Style.tile(this));
+        statsScroll.setLayoutParams(new LinearLayout.LayoutParams(Style.dp(this, 460),
+            ViewGroup.LayoutParams.MATCH_PARENT));
         stats = new LinearLayout(this);
         stats.setOrientation(LinearLayout.VERTICAL);
         int sp = Style.dp(this, 20);
         stats.setPadding(sp, sp, sp, sp);
-        stats.setBackground(Style.tile(this));
-        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(Style.dp(this, 460),
-            ViewGroup.LayoutParams.MATCH_PARENT);
-        slp.leftMargin = Style.dp(this, 20);
-        body.addView(stats, slp);
+        statsScroll.addView(stats, new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        Style.addMirrored(body, 20, left, statsScroll);
 
         setContentView(root);
 
@@ -151,7 +162,8 @@ public class ValetDetailActivity extends Activity {
         try {
             android.database.sqlite.SQLiteDatabase db = CarDb.get(this).db();
             Cursor v = db.rawQuery("SELECT start_ms, end_ms, start_odo_km, end_odo_km, start_soc, end_soc, "
-                + "max_speed_kmh, max_power_kw FROM valet_session WHERE id = ?", new String[]{String.valueOf(id)});
+                + "max_speed_kmh, max_power_kw, road_score, driver_score, road_bumps, hard_brakes, hard_accels, hard_corners "
+                + "FROM valet_session WHERE id = ?", new String[]{String.valueOf(id)});
             try {
                 if (!v.moveToFirst()) return d;
                 d.vs = v.getLong(0);
@@ -163,6 +175,12 @@ public class ValetDetailActivity extends Activity {
                 d.endSoc = v.isNull(5) ? null : v.getInt(5);
                 d.maxSpeed = v.isNull(6) ? null : v.getDouble(6);
                 d.maxPower = v.isNull(7) ? null : v.getDouble(7);
+                d.roadScore = v.isNull(8) ? null : v.getInt(8);
+                d.driverScore = v.isNull(9) ? null : v.getInt(9);
+                d.roadBumps = v.isNull(10) ? null : v.getInt(10);
+                d.hardBrakes = v.isNull(11) ? null : v.getInt(11);
+                d.hardAccels = v.isNull(12) ? null : v.getInt(12);
+                d.hardCorners = v.isNull(13) ? null : v.getInt(13);
             } finally { v.close(); }
 
             String[] win = {String.valueOf(d.vs), String.valueOf(d.ve)};
@@ -182,13 +200,31 @@ public class ValetDetailActivity extends Activity {
             if (!ids.isEmpty()) {
                 StringBuilder in = new StringBuilder();
                 for (Long x : ids) in.append(in.length() == 0 ? "" : ",").append(x);
-                Cursor p = db.rawQuery("SELECT lat, lon, COALESCE(speed_kmh, 0) FROM trip_point WHERE trip_id IN ("
-                    + in + ") ORDER BY ts_ms", null);
+                Cursor p = db.rawQuery(
+                    "SELECT lat, lon, COALESCE(speed_kmh, 0), ts_ms, road_peak_z "
+                  + "FROM trip_point WHERE trip_id IN (" + in + ") ORDER BY ts_ms", null);
                 try {
                     int n = p.getCount();
                     d.lat = new double[n]; d.lon = new double[n]; d.speed = new double[n];
+                    List<Double> bLat = new ArrayList<>(), bLon = new ArrayList<>(), bPeak = new ArrayList<>();
+                    List<Long> bTs = new ArrayList<>();
                     for (int i = 0; p.moveToNext(); i++) {
-                        d.lat[i] = p.getDouble(0); d.lon[i] = p.getDouble(1); d.speed[i] = p.getDouble(2);
+                        double la = p.getDouble(0), lo = p.getDouble(1);
+                        d.lat[i] = la; d.lon[i] = lo; d.speed[i] = p.getDouble(2);
+                        long ts = p.getLong(3);
+                        if (!p.isNull(4)) {
+                            double peak = Math.abs(p.getDouble(4));
+                            if (peak > DriveScorer.BUMP_PEAK_Z) {
+                                bLat.add(la); bLon.add(lo); bTs.add(ts); bPeak.add(peak);
+                            }
+                        }
+                    }
+                    int bn = bTs.size();
+                    d.bumpLat = new double[bn]; d.bumpLon = new double[bn];
+                    d.bumpTs = new long[bn]; d.bumpPeak = new double[bn];
+                    for (int i = 0; i < bn; i++) {
+                        d.bumpLat[i] = bLat.get(i); d.bumpLon[i] = bLon.get(i);
+                        d.bumpTs[i] = bTs.get(i); d.bumpPeak[i] = bPeak.get(i);
                     }
                 } finally { p.close(); }
             }
@@ -198,6 +234,7 @@ public class ValetDetailActivity extends Activity {
             try {
                 if (tc.moveToFirst() && !tc.isNull(0)) { d.tempMin = tc.getDouble(0); d.tempMax = tc.getDouble(1); }
             } finally { tc.close(); }
+            d.parking = com.geely.drivemem.state.ParkingCost.forValet(this, id);
         } catch (Throwable e) {
             android.util.Log.w("DriveMem", "valet detail: " + e);
         }
@@ -230,14 +267,60 @@ public class ValetDetailActivity extends Activity {
 
         if (d.lat.length >= 2) {
             route.setRoute(d.lat, d.lon, d.speed);
+            if (d.bumpLat.length > 0) {
+                route.setBumpMarkers(d.bumpLat, d.bumpLon);
+                route.setOnBumpPick(idx -> openBumpVideo(d, idx));
+            }
         } else {
             route.setVisibility(View.GONE);
             note.setText(R.string.valet_route_none);
             note.setVisibility(View.VISIBLE);
         }
         timeline.setData(d.vs, d.ve, d.moveStart, d.moveEnd);
+        if (d.bumpTs.length > 0) {
+            timeline.setTicks(d.bumpTs);
+            timeline.setOnTickPick(idx -> openBumpVideo(d, idx));
+        }
         showClips(d);
         showStats(d, km);
+    }
+
+    private void openBumpVideo(Loaded d, int bumpIdx) {
+        if (bumpIdx < 0 || bumpIdx >= d.bumpTs.length) return;
+        int[] match = findClipForBump(d, d.bumpTs[bumpIdx]);
+        if (match == null) {
+            Toast.makeText(this, R.string.valet_bump_no_clip, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Clips.Clip c = d.clips.get(match[0]);
+        startActivity(new Intent(this, ClipPlayerActivity.class)
+            .putExtra(ClipPlayerActivity.EXTRA_PATH, c.mp4.getAbsolutePath())
+            .putExtra(ClipPlayerActivity.EXTRA_SEEK_MS, match[1]));
+    }
+
+    private int[] findClipForBump(Loaded d, long eventMs) {
+        if (d.clips.isEmpty()) return null;
+        int n = d.clips.size();
+        long[] starts = new long[n];
+        int[] secs = new int[n];
+        for (int i = 0; i < n; i++) {
+            starts[i] = d.clips.get(i).whenMs;
+            secs[i] = d.clips.get(i).seconds;
+        }
+        return ValetDetail.findClipForTime(eventMs, starts, secs);
+    }
+
+    /** Returns the index of the strongest bump that has a covering dashcam clip, or -1. */
+    private int bestVideoBumpIndex(Loaded d) {
+        int best = -1;
+        double bestPeak = -1;
+        for (int i = 0; i < d.bumpTs.length; i++) {
+            if (d.bumpPeak[i] > bestPeak && findClipForBump(d, d.bumpTs[i]) != null) {
+                bestPeak = d.bumpPeak[i];
+                best = i;
+            }
+        }
+        return best;
     }
 
     private void showClips(Loaded d) {
@@ -280,33 +363,236 @@ public class ValetDetailActivity extends Activity {
 
     private void showStats(Loaded d, double km) {
         stats.removeAllViews();
-        stat(R.string.valet_stat_moves, String.valueOf(d.moveStart.length), null, Style.TEXT);
-        long total = d.ve - d.vs;
-        long moving = ValetDetail.movingMs(d.moveStart, d.moveEnd, d.vs, d.ve);
-        stat(R.string.route_stat_time, TripRouteStats.duration(total),
-            getString(R.string.route_stat_time_split, TripRouteStats.duration(moving),
-                TripRouteStats.duration(total - moving)), Style.TEXT);
-        stat(R.string.route_stat_distance, String.format(Locale.US, "%.1f km", km), null, Style.TEXT);
+        // 1. Scores lead the right column (owner's primary question after Valet).
+        stats.addView(scoreBlock(d));
+        addDivider(stats, 16, 6);
+
+        // 2. Speed & power immediately under scores.
         if (d.maxSpeed != null) {
-            stat(R.string.session_stat_max_speed, String.format(Locale.US, "%.0f km/h", d.maxSpeed), null,
-                ValetDetail.fast(d.maxSpeed) ? Style.DANGER : Style.TEXT);
+            int col = ValetDetail.fast(d.maxSpeed) ? Style.DANGER : Style.TEXT;
+            statSpan(R.string.session_stat_max_speed, Style.valueWithUnit(
+                String.format(Locale.US, "%.0f", d.maxSpeed), col, "km/h", Style.UNIT_SCALE_ROW), null, col);
         }
         if (d.maxPower != null) {
-            stat(R.string.session_stat_max_power, String.format(Locale.US, "%.0f kW", d.maxPower), null, Style.TEXT);
+            statSpan(R.string.session_stat_max_power, Style.valueWithUnit(
+                String.format(Locale.US, "%.0f", d.maxPower), Style.TEXT, "kW", Style.UNIT_SCALE_ROW), null, Style.TEXT);
         }
+
+        // 3. Context: moves, time, distance, battery, outside.
+        statSpan(R.string.valet_stat_moves, String.valueOf(d.moveStart.length), null, Style.TEXT);
+        long total = d.ve - d.vs;
+        long moving = ValetDetail.movingMs(d.moveStart, d.moveEnd, d.vs, d.ve);
+        statSpan(R.string.route_stat_time, TripRouteStats.duration(total),
+            getString(R.string.route_stat_time_split, TripRouteStats.duration(moving),
+                TripRouteStats.duration(total - moving)), Style.TEXT);
+        statSpan(R.string.route_stat_distance, Style.valueWithUnit(
+            String.format(Locale.US, "%.1f", km), Style.TEXT, "km", Style.UNIT_SCALE_ROW), null, Style.TEXT);
         if (d.startSoc != null) {
-            stat(R.string.session_stat_battery, d.startSoc + "%"
-                + (d.endSoc != null ? " → " + d.endSoc + "%" : ""), null, Style.TEXT);
+            CharSequence soc = d.endSoc != null
+                ? Style.percentRange(d.startSoc, d.endSoc, Style.UNIT_SCALE_ROW)
+                : Style.valueWithUnit(String.valueOf(d.startSoc), Style.TEXT, "%", Style.UNIT_SCALE_ROW);
+            statSpan(R.string.session_stat_battery, soc, null, Style.TEXT);
         }
+        costStat(d, km);
         if (d.tempMin != null) {
-            stat(R.string.route_stat_outside, Math.round(d.tempMin) == Math.round(d.tempMax)
-                ? String.format(Locale.US, "%.0f °C", d.tempMin)
-                : String.format(Locale.US, "%.0f – %.0f °C", d.tempMin, d.tempMax), null, Style.TEXT);
+            String tNum = Math.round(d.tempMin) == Math.round(d.tempMax)
+                ? String.format(Locale.US, "%.0f", d.tempMin)
+                : String.format(Locale.US, "%.0f – %.0f", d.tempMin, d.tempMax);
+            statSpan(R.string.route_stat_outside,
+                Style.valueWithUnit(tNum, Style.TEXT, "°C", Style.UNIT_SCALE_ROW), null, Style.TEXT);
         }
     }
 
-    // One number: a small dim label, the value, and an optional dim line under it.
-    private void stat(int label, String value, String sub, int color) {
+    /** Hero Driver & Road scores (44sp + 6dp bar) and four fixed event slots. */
+    private View scoreBlock(Loaded d) {
+        LinearLayout block = new LinearLayout(this);
+        block.setOrientation(LinearLayout.VERTICAL);
+
+        TextView lbl = new TextView(this);
+        lbl.setText(R.string.route_stat_scores);
+        lbl.setTextColor(Style.TEXT_DIM);
+        lbl.setTextSize(17);
+        Drawable info = getDrawable(R.drawable.ic_info_outline).mutate();
+        info.setTint(Style.TEXT_DIM);
+        int isz = Style.dp(this, 20);
+        info.setBounds(0, 0, isz, isz);
+        lbl.setCompoundDrawablesRelative(null, null, info, null);
+        lbl.setCompoundDrawablePadding(Style.dp(this, 8));
+        lbl.setOnClickListener(v -> ChargeStatsView.showInfo(this,
+            getString(R.string.route_stat_scores), getString(R.string.valet_scores_info)));
+        block.addView(lbl);
+
+        LinearLayout pair = new LinearLayout(this);
+        pair.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams drvLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        pair.addView(heroScore(d.driverScore, R.string.route_stat_driver_score, true), drvLp);
+        LinearLayout.LayoutParams rdLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        rdLp.leftMargin = Style.dp(this, 36);
+        pair.addView(heroScore(d.roadScore, R.string.route_stat_road_score, false), rdLp);
+        block.addView(pair);
+
+        if (d.driverScore == null && d.roadScore == null) return block;
+
+        addDivider(block, 14, 12);
+
+        int bumps = d.roadBumps != null ? d.roadBumps : 0;
+        int brakes = d.hardBrakes != null ? d.hardBrakes : 0;
+        int accels = d.hardAccels != null ? d.hardAccels : 0;
+        int corners = d.hardCorners != null ? d.hardCorners : 0;
+
+        if (bumps == 0 && brakes == 0 && accels == 0 && corners == 0) {
+            LinearLayout calm = new LinearLayout(this);
+            calm.setOrientation(LinearLayout.HORIZONTAL);
+            calm.setGravity(Gravity.CENTER_VERTICAL);
+            ImageView ck = new ImageView(this);
+            ck.setImageResource(R.drawable.ic_check_circle);
+            ck.setColorFilter(Style.GOOD);
+            calm.addView(ck, new LinearLayout.LayoutParams(Style.dp(this, 22), Style.dp(this, 22)));
+            TextView tv = new TextView(this);
+            tv.setText(R.string.route_score_smooth);
+            tv.setTextColor(Style.GOOD);
+            tv.setTextSize(18);
+            tv.setTypeface(Typeface.DEFAULT_BOLD);
+            tv.setPadding(Style.dp(this, 8), 0, 0, 0);
+            calm.addView(tv);
+            block.addView(calm);
+        } else {
+            int videoBump = bestVideoBumpIndex(d);
+            LinearLayout evRow = new LinearLayout(this);
+            evRow.setOrientation(LinearLayout.HORIZONTAL);
+            View bumpCell = eventCell(R.drawable.ic_score_bump, bumps, R.string.score_word_bumps,
+                bumps > 0 ? Style.TEXT : Style.TEXT_DIM, videoBump >= 0);
+            if (videoBump >= 0) {
+                final int hit = videoBump;
+                bumpCell.setOnClickListener(v -> openBumpVideo(d, hit));
+            }
+            evRow.addView(bumpCell, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            evRow.addView(eventCell(R.drawable.ic_score_brake, brakes, R.string.score_word_brakes,
+                brakes > 0 ? Style.WARN : Style.TEXT_DIM, false),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            evRow.addView(eventCell(R.drawable.ic_score_launch, accels, R.string.score_word_launches,
+                accels > 0 ? Style.WARN : Style.TEXT_DIM, false),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            evRow.addView(eventCell(R.drawable.ic_score_turn, corners, R.string.score_word_turns,
+                corners > 0 ? Style.WARN : Style.TEXT_DIM, false),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            block.addView(evRow);
+        }
+        return block;
+    }
+
+    private View heroScore(Integer score, int labelRes, boolean semanticColor) {
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+
+        int numColor = score == null ? Style.TEXT_DIM
+            : (semanticColor ? TripRouteActivity.scoreColor(score) : Style.TEXT);
+        int barColor = score == null ? Style.CARD_HI
+            : (semanticColor ? TripRouteActivity.scoreColor(score) : Style.TEXT_DIM);
+
+        TextView num = new TextView(this);
+        num.setText(score == null ? "—"
+            : Style.valueWithUnit(String.valueOf(score), numColor, "/100", Style.UNIT_SCALE_HERO));
+        num.setTextColor(numColor);
+        num.setTextSize(42);
+        num.setTypeface(Typeface.DEFAULT_BOLD);
+        col.addView(num);
+
+        // 6dp progress bar (ClipDrawable over Style.CARD_HI track).
+        View bar = new View(this);
+        float rad = Style.dp(this, 3);
+        GradientDrawable track = new GradientDrawable();
+        track.setColor(Style.CARD_HI);
+        track.setCornerRadius(rad);
+        GradientDrawable fill = new GradientDrawable();
+        fill.setColor(barColor);
+        fill.setCornerRadius(rad);
+        ClipDrawable clip = new ClipDrawable(fill, Gravity.START, ClipDrawable.HORIZONTAL);
+        clip.setLevel(score == null ? 0 : Math.max(0, Math.min(100, score)) * 100);
+        bar.setBackground(new LayerDrawable(new Drawable[]{track, clip}));
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 6));
+        blp.topMargin = Style.dp(this, 4);
+        blp.bottomMargin = Style.dp(this, 5);
+        col.addView(bar, blp);
+
+        TextView lbl = new TextView(this);
+        lbl.setText(labelRes);
+        lbl.setTextColor(Style.TEXT_DIM);
+        lbl.setTextSize(16);
+        col.addView(lbl);
+        return col;
+    }
+
+    private View eventCell(int iconRes, int count, int wordRes, int color, boolean hasVideo) {
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout top = new LinearLayout(this);
+        top.setOrientation(LinearLayout.HORIZONTAL);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+        ImageView ic = new ImageView(this);
+        ic.setImageResource(iconRes);
+        ic.setColorFilter(color);
+        top.addView(ic, new LinearLayout.LayoutParams(Style.dp(this, 22), Style.dp(this, 22)));
+        TextView n = new TextView(this);
+        n.setText(hasVideo ? count + " ▶" : String.valueOf(count));
+        n.setTextColor(hasVideo ? Style.WARN : color);
+        n.setTextSize(22);
+        n.setTypeface(Typeface.DEFAULT_BOLD);
+        n.setPadding(Style.dp(this, 6), 0, 0, 0);
+        top.addView(n);
+        col.addView(top);
+
+        TextView w = new TextView(this);
+        w.setText(wordRes);
+        w.setTextColor(hasVideo ? Style.WARN : Style.TEXT_DIM);
+        w.setTextSize(14);
+        w.setPadding(0, Style.dp(this, 2), 0, 0);
+        col.addView(w);
+        return col;
+    }
+
+    private void addDivider(LinearLayout parent, int topDp, int bottomDp) {
+        View line = new View(this);
+        line.setBackgroundColor(Style.CARD_HI);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 1));
+        lp.topMargin = Style.dp(this, topDp);
+        lp.bottomMargin = Style.dp(this, bottomDp);
+        parent.addView(line, lp);
+    }
+
+    /** The Valet stay's cost (or a dim "Tap to add"); a tap edits it. A
+     * stay still running has no cost yet. */
+    private void costStat(Loaded d, double km) {
+        if (d.open) return;
+        final long id = getIntent().getLongExtra(EXTRA_VALET_ID, -1);
+        if (id <= 0) return;
+        CharSequence value;
+        if (d.parking != null) {
+            value = Style.moneyWithUnit(d.parking.cost, Style.ACCENT, Style.UNIT_SCALE_ROW);
+        } else {
+            android.text.SpannableString tap = new android.text.SpannableString(getString(R.string.session_cost_tap));
+            tap.setSpan(new android.text.style.ForegroundColorSpan(Style.TEXT_DIM), 0, tap.length(), 0);
+            tap.setSpan(new android.text.style.StyleSpan(Typeface.NORMAL), 0, tap.length(), 0);
+            tap.setSpan(new android.text.style.RelativeSizeSpan(0.75f), 0, tap.length(), 0);
+            value = tap;
+        }
+        int from = stats.getChildCount();
+        statSpan(R.string.session_stat_cost, value, null, Style.TEXT);
+        Runnable reloadCost = () -> new Thread(() -> {
+            d.parking = com.geely.drivemem.state.ParkingCost.forValet(this, id);
+            runOnUiThread(() -> { if (!isFinishing()) showStats(d, km); });
+        }, "valet-cost").start();
+        View.OnClickListener edit = v -> ParkingCostDialog.open(this, d.vs, d.ve, id, d.parking, reloadCost);
+        for (int i = from; i < stats.getChildCount(); i++) {
+            View v = stats.getChildAt(i);
+            v.setMinimumHeight(Style.dp(this, 22));
+            v.setOnClickListener(edit);
+        }
+    }
+
+    private void statSpan(int label, CharSequence value, String sub, int color) {
         TextView l = new TextView(this);
         l.setText(label);
         l.setTextColor(Style.TEXT_DIM);
@@ -317,7 +603,7 @@ public class ValetDetailActivity extends Activity {
         v.setText(value);
         v.setTextColor(color);
         v.setTextSize(26);
-        v.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        v.setTypeface(Typeface.DEFAULT_BOLD);
         stats.addView(v);
         if (sub != null) {
             TextView s = new TextView(this);

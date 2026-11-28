@@ -40,6 +40,8 @@ import javax.microedition.khronos.opengles.GL10;
  * fisheye-to-rectilinear conversion via OpenGL shader. */
 public class ClipPlayerActivity extends Activity {
     public static final String EXTRA_PATH = "path";
+    /** Optional start offset in milliseconds (e.g. 3 s before a Valet bump strike). */
+    public static final String EXTRA_SEEK_MS = "seek_ms";
 
     // Which quadrant each camera is: top-left/right are sides, bottom-left
     // is front, bottom-right is rear.
@@ -215,8 +217,8 @@ public class ClipPlayerActivity extends Activity {
         });
         FrameLayout.LayoutParams pp = new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        pp.gravity = Gravity.CENTER_VERTICAL | Gravity.START;
-        pp.leftMargin = Style.dp(this, 20);
+        pp.gravity = Gravity.CENTER_VERTICAL | Style.driverGravity();
+        Style.setDriverMargin(pp, Style.dp(this, 20), 0);
         root.addView(picker, pp);
 
         tele = new TextView(this);
@@ -239,8 +241,8 @@ public class ClipPlayerActivity extends Activity {
         back.setOnClickListener(v -> finish());
         FrameLayout.LayoutParams bp = new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        bp.gravity = Gravity.TOP | Gravity.START;
-        bp.leftMargin = Style.dp(this, 20);
+        bp.gravity = Gravity.TOP | Style.driverGravity();
+        Style.setDriverMargin(bp, Style.dp(this, 20), 0);
         bp.topMargin  = Style.dp(this, 20) + Style.statusBarHeight(this);
         root.addView(back, bp);
 
@@ -436,6 +438,9 @@ public class ClipPlayerActivity extends Activity {
                     mp.setSurface(s);
                     mp.setDataSource(path);
                     mp.setOnPreparedListener(m -> {
+                        int seekMs = Math.max(0, getIntent().getIntExtra(EXTRA_SEEK_MS, 0));
+                        int dur = m.getDuration();
+                        if (seekMs > 0 && (dur <= 0 || seekMs < dur)) m.seekTo(seekMs);
                         m.start();
                         tick();
                         if (controller != null) { controller.setEnabled(true); controller.show(4000); }

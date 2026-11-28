@@ -99,15 +99,16 @@ public class ComfortActivity extends Activity {
     // control surface — see statusSidebar()/refreshStatusSidebar().
     private static final int MODE_CARDS = 0;
     private static final int MODE_DRIVING_STATS = 1;
-    private static final int MODE_CHARGE_STATS = 2;
+    private static final int MODE_DIARY = 3;
     private int mainViewMode = MODE_CARDS;
 
     private android.widget.ImageView haStatusIcon, abrpStatusIcon, obd2StatusIcon;
-    private android.widget.ImageView cardsDockIcon, statsDockIcon, chargeDockIcon;
+    private android.widget.ImageView cardsDockIcon, statsDockIcon, diaryDockIcon;
+    private View diaryBadgeDot;
     private DailyStatsView dailyStatsView;
     private FrameLayout statsContainer;
-    private ChargeStatsView chargeStatsView;
-    private FrameLayout chargeStatsContainer;
+    private CarDiaryView carDiaryView;
+    private FrameLayout diaryContainer;
     private FrameLayout konamiZone;
     // purge: one button, both directions. The Purge object holds where each pane
     // was before it moved, so closing puts them back rather than shutting them.
@@ -175,6 +176,9 @@ public class ComfortActivity extends Activity {
     // Lyrics button. It is both the consent and the behaviour; see
     // Prefs.getLyricsSearch.
     private boolean lyricsEnabled;
+    // The driver asked for the lyrics while other cards had the room: the
+    // columns those cards used then (ComfortCardVisibility.jumboPlaced); 0 = no ask.
+    private int lyricsAskedCols;
     private boolean lyricsWantedAtPack;     // what the last repack decided from, so refreshLyrics() repacks only on a change
     private Lrc lyricsTickLines;            // the lines the slots show now
     private int lyricIndex = Integer.MIN_VALUE;
@@ -216,6 +220,12 @@ public class ComfortActivity extends Activity {
     private android.widget.ImageView tripIcon, tripLeftIcon, tripRightIcon;
     private EfficiencyBadgeView tripEff;
     private TextView parkedHero, parkedBattery;
+    /** The Parked card's quick parking price: "+ R$", or what this stop cost. */
+    private TextView parkedCost;
+    /** The parked start parkedCostRow was read for (-1: read again). */
+    private long parkedCostFor = -1;
+    private com.geely.drivemem.state.ParkingCost.Row parkedCostRow;
+    private long parkedStopStartMs;
     private TempRangeView parkedTemp;
     private boolean driveCardEnabledAtBuild;
     private boolean lastJourneyAvailable;
@@ -235,6 +245,7 @@ public class ComfortActivity extends Activity {
     // for what this screen actually looks like.
     private String themeId;       // theme this screen was drawn with
     private boolean themeLight;   // ...and which of its Palettes
+    private boolean rhdAtBuild;   // ...and whether RHD mirroring was active
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -242,6 +253,7 @@ public class ComfortActivity extends Activity {
         Style.load(this);                  // before any View: the palette rules the drawing
         themeId = Style.current().id;
         themeLight = Style.LIGHT;
+        rhdAtBuild = Style.RHD;
         currencyAtBuild = Prefs.getCurrency(this);
         turboEnabledAtBuild = Prefs.getTurboEnabled(this);
         turboSlotsAtBuild = turboSlotsFromPrefs();
@@ -303,7 +315,7 @@ public class ComfortActivity extends Activity {
         // own edge margin + width + a card-to-card gap (not the wider padH,
         // see statusSidebar()), replacing padH entirely on this one side.
         int sidebarClearance = Style.dp(this, SIDEBAR_EDGE_MARGIN_DP + SIDEBAR_WIDTH_DP + SIDEBAR_CARD_GAP_DP);
-        band.setPadding(sidebarClearance, padTop + Style.statusBarHeight(this), padH, padV);
+        Style.setDriverPadding(band, sidebarClearance, padTop + Style.statusBarHeight(this), padH, padV);
 
         columns = new LinearLayout(this);
         columns.setOrientation(LinearLayout.HORIZONTAL);
@@ -356,7 +368,7 @@ public class ComfortActivity extends Activity {
 
         // Daily Statistics view on home screen (swappable with band cards)
         statsContainer = new FrameLayout(this);
-        statsContainer.setPadding(sidebarClearance, padTop + Style.statusBarHeight(this), padH, padV);
+        Style.setDriverPadding(statsContainer, sidebarClearance, padTop + Style.statusBarHeight(this), padH, padV);
         // No ScrollView here: the view scrolls by itself, under its own
         // header row, which stays in place.
         dailyStatsView = new DailyStatsView(this, null);
@@ -366,43 +378,46 @@ public class ComfortActivity extends Activity {
         screen.addView(statsContainer, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        // Charging Statistics view on home screen (swappable with band cards)
-        chargeStatsContainer = new FrameLayout(this);
-        chargeStatsContainer.setPadding(sidebarClearance, padTop + Style.statusBarHeight(this), padH, padV);
-        android.widget.ScrollView chargeStatsScroll = new android.widget.ScrollView(this);
-        chargeStatsScroll.setLayoutParams(new FrameLayout.LayoutParams(
+        // Car Diary & Battery Health view on home screen (swappable with band cards)
+        diaryContainer = new FrameLayout(this);
+        Style.setDriverPadding(diaryContainer, sidebarClearance, padTop + Style.statusBarHeight(this), padH, padV);
+        android.widget.ScrollView diaryScroll = new android.widget.ScrollView(this);
+        diaryScroll.setLayoutParams(new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        chargeStatsScroll.setVerticalScrollBarEnabled(false);
-        chargeStatsScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        chargeStatsView = new ChargeStatsView(this, null);
-        chargeStatsScroll.addView(chargeStatsView);
-        chargeStatsContainer.addView(chargeStatsScroll);
-        chargeStatsContainer.setVisibility(View.GONE);
-        screen.addView(chargeStatsContainer, new FrameLayout.LayoutParams(
+        diaryScroll.setVerticalScrollBarEnabled(false);
+        diaryScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        // No badge callback: the badge follows CarDiary.EVENT_CHANGED itself
+        // (diaryBusListener), so the screen's own load need not trigger it.
+        carDiaryView = new CarDiaryView(this, null);
+        diaryScroll.addView(carDiaryView);
+        diaryContainer.addView(diaryScroll);
+        diaryContainer.setVisibility(View.GONE);
+        screen.addView(diaryContainer, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        // Status sidebar: a fixed strip pinned to the left edge, OUTSIDE
+        // Status sidebar: a fixed strip pinned to the driver's edge, OUTSIDE
         // `band`'s scrolling row on purpose — unlike the cards, it must
-        // never scroll out of view. band's own left padding (above) already
+        // never scroll out of view. band's own driver-side padding (above) already
         // clears this width.
         LinearLayout sidebar = statusSidebar();
         FrameLayout.LayoutParams sidebarLp = new FrameLayout.LayoutParams(
-            Style.dp(this, SIDEBAR_WIDTH_DP), ViewGroup.LayoutParams.MATCH_PARENT, Gravity.START);
-        sidebarLp.leftMargin = Style.dp(this, SIDEBAR_EDGE_MARGIN_DP);
+            Style.dp(this, SIDEBAR_WIDTH_DP), ViewGroup.LayoutParams.MATCH_PARENT, Style.driverGravity());
+        Style.setDriverMargin(sidebarLp, Style.dp(this, SIDEBAR_EDGE_MARGIN_DP), 0);
         sidebarLp.topMargin = padTop + Style.statusBarHeight(this);
         sidebarLp.bottomMargin = padV;
         screen.addView(sidebar, sidebarLp);
 
-        // The hidden Konami pad: pinned to the physical right third of the
-        // SCREEN, not to wherever panelCard happens to be packed — the code
-        // is muscle memory (CLAUDE.md: "the right third"), so its location
+        // The hidden Konami pad: pinned to the passenger third of the
+        // SCREEN (right third in LHD, left third in RHD, matching the open art),
+        // not to wherever panelCard happens to be packed — the code
+        // is muscle memory, so its location
         // must never move with the card layout. A plain fixed overlay on
         // `screen`, outside `band`'s scrolling row entirely, on purpose: it
         // does not scroll, does not track any card's position, and simply
         // sits on top of whatever's physically there.
         // It only WATCHES taps, it never takes them: KonamiView counts each
         // ACTION_DOWN and declines it, so the tap still reaches the card
-        // underneath. When the cards fill the right third (enough of them
+        // underneath. When the cards fill the open third (enough of them
         // enabled), a consuming pad here made their buttons dead. It can't
         // go below `band` instead -- band's HorizontalScrollView claims every
         // ACTION_DOWN, even on empty space, so the pad would never see one.
@@ -418,8 +433,8 @@ public class ComfortActivity extends Activity {
             // width yet on this very first pass, same reason repackColumns()
             // itself retries via post().
             FrameLayout.LayoutParams klp = new FrameLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.END);
-            klp.rightMargin = padH;
+                0, ViewGroup.LayoutParams.MATCH_PARENT, Style.passengerGravity());
+            Style.setDriverMargin(klp, 0, padH);
             klp.topMargin = padTop + Style.statusBarHeight(this);
             klp.bottomMargin = padV;
             screen.addView(konamiZone, klp);
@@ -496,6 +511,9 @@ public class ComfortActivity extends Activity {
         boolean jumbo = lyricsWanted();
         lyricsWantedAtPack = jumbo;
         if (jumbo) {
+            // Detach jumbo first so Style.packIntoColumns' prevCount tracks real
+            // columns only (not the jumbo card itself).
+            detachJumbo();
             // The others first; the jumbo card takes the two columns they
             // leave -- again after the pack's own verify pass, if that one
             // repacks (it clears `columns`).
@@ -517,13 +535,24 @@ public class ComfortActivity extends Activity {
     /** False when the other cards took more than one column: then the music
      * card goes back to its own size. */
     private boolean placeJumbo(int usedColumns, int colW, int availH) {
-        if (!ComfortCardVisibility.jumboFits(usedColumns)) return false;
+        boolean placed = ComfortCardVisibility.jumboPlaced(usedColumns, lyricsAskedCols);
+        lyricsAskedCols = ComfortCardVisibility.jumboAskAfterPack(usedColumns, lyricsAskedCols);
+        if (!placed) return false;
         detachJumbo();
         int gapH = Style.dp(this, Style.COLUMN_GAP_DP);
         int span = ComfortCardVisibility.JUMBO_COLUMNS;
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(span * colW + (span - 1) * gapH, availH);
-        lp.leftMargin = gapH;
-        columns.addView(musicJumbo, lp);
+        // Asked back over a crowd: the card covers columns 2 and 3. The
+        // columns it covers are taken off the row (their cards come back at
+        // the next pack); only the driver's column stays beside it.
+        while (columns.getChildCount() > 1) columns.removeViewAt(Style.RHD ? 0 : 1);
+        if (Style.RHD) {
+            if (columns.getChildCount() > 0) lp.rightMargin = gapH;
+            columns.addView(musicJumbo, 0, lp);
+        } else {
+            if (columns.getChildCount() > 0) lp.leftMargin = gapH;
+            columns.addView(musicJumbo, lp);
+        }
         setLyricsVisible(true);
         return true;
     }
@@ -566,16 +595,23 @@ public class ComfortActivity extends Activity {
         outsideLbl.setPadding(Style.dp(this, 16), 0, 0, Style.dp(this, 16));
         tempRow.addView(outsideLbl);
         c.addView(tempRow);
-        Style.gap(c, this, 18);
 
         // The effort scale: drawn into a Bitmap, same idiom as the old ruler —
         // needs the width already measured, redrawn only when something in it
         // actually changed (see redrawScale()).
+        // The bar is 15 high with 18 of air above and below, as before. The
+        // view is taller than the bar: it is the touch area, and nothing of
+        // it shows. It goes 30 up over the foot of the outside reading (not a
+        // touch target) and stops short of the ask tiles below.
         scaleView = new android.widget.ImageView(this);
-        scaleView.setLayoutParams(new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, 15)));
+        LinearLayout.LayoutParams scaleLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Style.dp(this, SCALE_TOUCH_UP + 18 + SCALE_H + 18));
+        scaleLp.topMargin = -Style.dp(this, SCALE_TOUCH_UP);
+        scaleView.setLayoutParams(scaleLp);
+        scaleView.setPadding(0, Style.dp(this, SCALE_TOUCH_UP + 18), 0, Style.dp(this, 18));
+        scaleView.setScaleType(android.widget.ImageView.ScaleType.FIT_XY);
+        scaleView.setOnTouchListener(this::onScaleTouch);
         c.addView(scaleView);
-        Style.gap(c, this, 18);
 
         // Ask row: glyph only, no text label, no coloured outline — side carries
         // the direction, icons tinted Style.TEXT to match the other buttons in
@@ -719,21 +755,41 @@ public class ComfortActivity extends Activity {
         View spacerTop = new View(this);
         bar.addView(spacerTop, new LinearLayout.LayoutParams(0, 0, 1f));
 
-        // CarPlay-style middle dock with larger icons almost as wide as the bar (84dp)
+        // CarPlay-style middle dock with 3 focused icons: Home · Stats · Maintenance & Health
         cardsDockIcon = createDockButton(R.drawable.ic_cards_view, () -> setMainViewMode(MODE_CARDS));
         statsDockIcon = createDockButton(R.drawable.ic_chart_bar, () -> setMainViewMode(MODE_DRIVING_STATS));
-        chargeDockIcon = createDockButton(R.drawable.ic_ev_station, () -> setMainViewMode(MODE_CHARGE_STATS));
+        diaryDockIcon = createDockButton(R.drawable.ic_diary, () -> setMainViewMode(MODE_DIARY));
+
+        // Wrap diary dock button with an iOS-style notification dot overlay
+        FrameLayout diaryWrap = new FrameLayout(this);
+        int dockSize = Style.dp(this, 62);
+        LinearLayout.LayoutParams dwLp = new LinearLayout.LayoutParams(dockSize, dockSize);
+        dwLp.gravity = Gravity.CENTER_HORIZONTAL;
+        diaryDockIcon.setLayoutParams(new FrameLayout.LayoutParams(dockSize, dockSize));
+        diaryWrap.addView(diaryDockIcon);
+        diaryBadgeDot = new View(this);
+        android.graphics.drawable.GradientDrawable dotBg = new android.graphics.drawable.GradientDrawable();
+        dotBg.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        dotBg.setColor(Style.WARN);
+        diaryBadgeDot.setBackground(dotBg);
+        int dotPx = Style.dp(this, 10);
+        FrameLayout.LayoutParams dotLp = new FrameLayout.LayoutParams(dotPx, dotPx, Gravity.TOP | Gravity.END);
+        dotLp.topMargin = Style.dp(this, 6);
+        dotLp.rightMargin = Style.dp(this, 6);
+        diaryBadgeDot.setVisibility(View.GONE);
+        diaryWrap.addView(diaryBadgeDot, dotLp);
 
         bar.addView(cardsDockIcon);
-        Style.gap(bar, this, 14);
+        Style.gap(bar, this, 16);
         bar.addView(statsDockIcon);
-        Style.gap(bar, this, 14);
-        bar.addView(chargeDockIcon);
+        Style.gap(bar, this, 16);
+        bar.addView(diaryWrap, dwLp);
 
         // Flexible space pushing settings cog to the bottom
         View spacerBottom = new View(this);
         bar.addView(spacerBottom, new LinearLayout.LayoutParams(0, 0, 1f));
 
+        // Config asks for the PIN itself when it opens (TelemetryActivity.checkGate).
         bar.addView(Style.cogButton(this,
             () -> startActivity(new Intent(this, TelemetryActivity.class))));
 
@@ -758,39 +814,89 @@ public class ComfortActivity extends Activity {
     }
 
     private void setMainViewMode(int mode) {
+        if (ValetSession.isActive(this) && mode != MODE_CARDS) return;
         if (mainViewMode == mode) return;
         mainViewMode = mode;
         if (mainViewMode == MODE_DRIVING_STATS) {
             band.setVisibility(View.GONE);
             statsContainer.setVisibility(View.VISIBLE);
-            chargeStatsContainer.setVisibility(View.GONE);
+            if (diaryContainer != null) diaryContainer.setVisibility(View.GONE);
             if (konamiZone != null) konamiZone.setVisibility(View.GONE);
             if (dailyStatsView != null) dailyStatsView.refresh();
-        } else if (mainViewMode == MODE_CHARGE_STATS) {
+        } else if (mainViewMode == MODE_DIARY) {
             band.setVisibility(View.GONE);
             statsContainer.setVisibility(View.GONE);
-            chargeStatsContainer.setVisibility(View.VISIBLE);
+            if (diaryContainer != null) diaryContainer.setVisibility(View.VISIBLE);
             if (konamiZone != null) konamiZone.setVisibility(View.GONE);
-            if (chargeStatsView != null) chargeStatsView.showCurrent();
+            // CarDiaryView reloads by itself when it becomes visible.
         } else {
             statsContainer.setVisibility(View.GONE);
-            chargeStatsContainer.setVisibility(View.GONE);
+            if (diaryContainer != null) diaryContainer.setVisibility(View.GONE);
             band.setVisibility(View.VISIBLE);
             if (konamiZone != null) konamiZone.setVisibility(View.VISIBLE);
         }
         updateDockButtons();
+        recomputeDiaryBadge();
     }
 
     private void updateDockButtons() {
-        if (cardsDockIcon == null || statsDockIcon == null || chargeDockIcon == null) return;
+        if (cardsDockIcon == null || statsDockIcon == null) return;
+        int dockVis = ComfortCardVisibility.showDockStats(ValetSession.isActive(this)) ? View.VISIBLE : View.GONE;
+        statsDockIcon.setVisibility(dockVis);
+        if (diaryDockIcon != null && diaryDockIcon.getParent() instanceof View) {
+            ((View) diaryDockIcon.getParent()).setVisibility(dockVis);
+        }
         cardsDockIcon.setBackground(Style.card(mainViewMode == MODE_CARDS ? Style.CARD_ON : 0x00000000, this, 18));
         cardsDockIcon.setColorFilter(mainViewMode == MODE_CARDS ? Style.onFill(Style.CARD_ON) : Style.TEXT_DIM);
 
         statsDockIcon.setBackground(Style.card(mainViewMode == MODE_DRIVING_STATS ? Style.CARD_ON : 0x00000000, this, 18));
         statsDockIcon.setColorFilter(mainViewMode == MODE_DRIVING_STATS ? Style.onFill(Style.CARD_ON) : Style.TEXT_DIM);
 
-        chargeDockIcon.setBackground(Style.card(mainViewMode == MODE_CHARGE_STATS ? Style.CARD_ON : 0x00000000, this, 18));
-        chargeDockIcon.setColorFilter(mainViewMode == MODE_CHARGE_STATS ? Style.onFill(Style.CARD_ON) : Style.TEXT_DIM);
+        if (diaryDockIcon != null) {
+            diaryDockIcon.setBackground(Style.card(mainViewMode == MODE_DIARY ? Style.CARD_ON : 0x00000000, this, 18));
+            diaryDockIcon.setColorFilter(mainViewMode == MODE_DIARY ? Style.onFill(Style.CARD_ON) : Style.TEXT_DIM);
+        }
+    }
+
+    // Diary dock badge. The answer is cached; it is worked out again only on
+    // resume, on a tab change and when the diary changes (diaryBusListener),
+    // never on the 10 s status poll, and always on the diary worker thread
+    // (CarDiary.runAsync), never on the hub thread: it reads the database.
+    private boolean diaryBadgeShown;
+    private boolean diaryBadgeBusy, diaryBadgeAgain;
+    private final EntityBus.Listener diaryBusListener = (key, reading) -> ui.post(this::recomputeDiaryBadge);
+
+    /** Shows the cached answer. Cheap; safe to call from any refresh. */
+    private void applyDiaryBadge() {
+        if (diaryBadgeDot != null) diaryBadgeDot.setVisibility(diaryBadgeShown ? View.VISIBLE : View.GONE);
+    }
+
+    /** Works the badge out again, off the hub and UI threads. Calls made while
+     * one is running are folded into a single run after it. UI thread only. */
+    private void recomputeDiaryBadge() {
+        applyDiaryBadge();
+        if (diaryBadgeDot == null) return;
+        if (diaryBadgeBusy) { diaryBadgeAgain = true; return; }
+        diaryBadgeBusy = true;
+        final Context app = getApplicationContext();
+        com.geely.drivemem.state.CarDiary.runAsync(() -> {
+            boolean show = diaryBadgeShown;
+            try {
+                show = com.geely.drivemem.state.CarDiary.hasAttentionDot(app);
+            } catch (Throwable ignored) {
+                // Keep the last answer.
+            }
+            final boolean result = show;
+            ui.post(() -> {
+                diaryBadgeBusy = false;
+                diaryBadgeShown = result;
+                applyDiaryBadge();
+                if (diaryBadgeAgain) {
+                    diaryBadgeAgain = false;
+                    recomputeDiaryBadge();
+                }
+            });
+        });
     }
 
     private android.widget.ImageView statusIcon(int drawableRes) {
@@ -838,6 +944,7 @@ public class ComfortActivity extends Activity {
         if (obd2On) obd2StatusIcon.setColorFilter(com.geely.drivemem.sensors.ObdHub.connected(CarActor.get(this)) ? Style.ACCENT : Style.TEXT_DIM);
 
         updateDockButtons();
+        applyDiaryBadge();
     }
 
     // Gate availability: available() (HA's zone call — "is the car home")
@@ -847,7 +954,8 @@ public class ComfortActivity extends Activity {
     // verify (Wi-Fi dropped after HA last said yes) must hide the card.
     // See gateVisible().
     private boolean gateVisible() {
-        return ComfortCardVisibility.showGateCard(GateState.available(), GateState.connected());
+        return ComfortCardVisibility.showGateCard(GateState.available(), GateState.connected(),
+            ValetSession.isActive(this));
     }
 
 
@@ -898,7 +1006,8 @@ public class ComfortActivity extends Activity {
         // whatever CarState already knows at build time; the listener (see
         // below) keeps it in sync as gear actually changes. All buttons
         // share this one rule.
-        t.setVisibility(ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, CarState.isParked()) ? View.VISIBLE : View.GONE);
+        t.setVisibility(ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, CarState.isParked(),
+            ValetSession.isActive(this)) ? View.VISIBLE : View.GONE);
         turboCardView = t;
         quickButtons.refresh();
         return t;
@@ -1494,24 +1603,28 @@ public class ComfortActivity extends Activity {
     }
 
     // The Lyrics button. The big card needs two free columns and no HA
-    // panel; when the other cards (a charging Battery card, say) take them,
-    // the tap did nothing visible. Say so, once the repack has had its turn.
+    // panel; when other cards (a charging Battery card, the gate, the panel)
+    // take them, it gives way. This tap is the driver asking for it back: it
+    // then grows over columns 2 and 3 and covers the cards there, until
+    // more cards come (see ComfortCardVisibility.jumboPlaced).
     private void openLyrics() {
         setLyricsOpen(true);
-        ui.postDelayed(() -> {
-            String id = MusicState.trackId();
-            int msg = 0;
-            if (LyricsClient.linesFor(id) == null) {
-                // Nothing timed or plain for this song (the button is dim).
-                if (!LyricsClient.pending(id)) msg = R.string.music_lyrics_not_found;
-            } else if (!lyricsShown()) {
-                msg = R.string.music_lyrics_no_room;
-            }
-            if (msg != 0) android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_LONG).show();
-        }, 400);
+        String id = MusicState.trackId();
+        if (LyricsClient.linesFor(id) == null) {
+            // Nothing timed or plain for this song (the button is dim).
+            if (!LyricsClient.pending(id))
+                android.widget.Toast.makeText(this, R.string.music_lyrics_not_found,
+                    android.widget.Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (!lyricsShown() && columns != null) {
+            lyricsAskedCols = Integer.MAX_VALUE;   // the pack turns it into the real count
+            repackColumns();
+        }
     }
 
     private void setLyricsOpen(boolean open) {
+        if (!open) lyricsAskedCols = 0;
         if (open == lyricsOpen) return;
         lyricsOpen = open;
         Prefs.setLyricsOpen(this, open);
@@ -1659,7 +1772,8 @@ public class ComfortActivity extends Activity {
             // when it is small, so a song with no lyrics does not flash it big.
             LyricsClient.linesFor(MusicState.trackId()) != null
                 || (lyricsShown() && LyricsClient.pending(MusicState.trackId())),
-            panelCard != null && panelCard.getVisibility() == View.VISIBLE);
+            // The panel takes the room, but not from a card the driver asked back.
+            lyricsAskedCols == 0 && panelCard != null && panelCard.getVisibility() == View.VISIBLE);
     }
 
     // Starts or stops the lyrics clock; the jumbo card's place is placeJumbo()'s.
@@ -1940,8 +2054,23 @@ public class ComfortActivity extends Activity {
         // easy to forget Valet is on and pull away, and making the owner
         // wait for a stop light isn't worth the drive going untracked.
         tripValetStop.setOnClickListener(v -> {
-            if (ValetSession.isActive(this)) ValetSession.stop(this);
-            refreshJourneyCard();
+            if (!ValetSession.isActive(this)) {
+                refreshJourneyCard();
+                return;
+            }
+            Runnable endValet = () -> {
+                long valetRow = ValetSession.activeRowId(this);
+                boolean ended = ValetSession.isActive(this) && ValetSession.stop(this);
+                refreshJourneyCard();
+                if (ended && com.geely.drivemem.state.CarState.isParked()) {
+                    ParkingCostDialog.offerAfterValet(this, valetRow);
+                }
+            };
+            if (com.geely.drivemem.util.SecurityLock.needsUnlockForValet(this)) {
+                PinDialog.requireUnlock(this, R.string.sec_unlock_valet, endValet);
+            } else {
+                endValet.run();
+            }
         });
         right.addView(tripValetStop, new android.widget.FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -1988,6 +2117,25 @@ public class ComfortActivity extends Activity {
         parkedHero.setTypeface(null, android.graphics.Typeface.BOLD);
         parkedHero.setSingleLine(true);
         line1.addView(parkedHero);
+        // Right after paying at the kiosk: one tap, before shifting to D.
+        line1.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
+        parkedCost = new TextView(this);
+        parkedCost.setTextSize(22);
+        parkedCost.setTypeface(null, android.graphics.Typeface.BOLD);
+        parkedCost.setSingleLine(true);
+        parkedCost.setGravity(Gravity.CENTER);
+        parkedCost.setMinHeight(Style.dp(this, 48));
+        parkedCost.setMinWidth(Style.dp(this, 64));
+        parkedCost.setPadding(Style.dp(this, 14), 0, Style.dp(this, 14), 0);
+        parkedCost.setVisibility(View.GONE);
+        parkedCost.setOnClickListener(v -> {
+            if (parkedStopStartMs <= 0) return;
+            ParkingCostDialog.open(this, parkedStopStartMs, null, null, parkedCostRow, () -> {
+                parkedCostFor = -1;
+                refreshJourneyCard();
+            });
+        });
+        line1.addView(parkedCost);
         left.addView(line1);
 
         LinearLayout line2 = new LinearLayout(this);
@@ -2093,8 +2241,10 @@ public class ComfortActivity extends Activity {
             tripLeft.setText(labelled(R.string.session_stat_max_speed,
                 Style.valueWithUnit(String.format(Locale.getDefault(), "%.0f", s.maxSpeedKmh), null, "km/h",
                     Style.UNIT_SCALE_ROW)));
+            // No power reading yet: a dash. The word "Unavailable" did not fit
+            // the card and was cut.
             tripRight.setText(labelled(R.string.session_stat_max_power, s.maxPowerKw == null
-                ? getString(R.string.value_unavailable)
+                ? "—"
                 : Style.valueWithUnit(String.format(Locale.getDefault(), "%.1f", s.maxPowerKw), null, "kW",
                     Style.UNIT_SCALE_ROW)));
         } else if (driving) {
@@ -2137,6 +2287,7 @@ public class ComfortActivity extends Activity {
                 Style.appendUnit(hero, "   " + getString(R.string.session_since, formatClock(s.startMs)), 0.6f);
             }
             parkedHero.setText(hero);
+            updateParkedCost(s.startMs);
             // "44% → 100%" instead of "+56 pp": the two ends say more than the
             // difference, and "pp" is a word few drivers know.
             if (s.startSoc != null && s.currentSoc != null) {
@@ -2156,6 +2307,41 @@ public class ComfortActivity extends Activity {
         }
         if (!lastJourneyAvailable) { lastJourneyAvailable = true; repackColumns(); }
     }
+
+    /** Reads this stop's parking cost once per stop (and after an edit),
+     * off the main thread, then paints the Parked card's price. */
+    private void updateParkedCost(long parkStartMs) {
+        if (parkedCost == null) return;
+        if (parkStartMs <= 0) { parkedCost.setVisibility(View.GONE); return; }
+        if (parkStartMs == parkedCostFor) return;
+        parkedCostFor = parkStartMs;
+        final android.content.Context app = getApplicationContext();
+        new Thread(() -> {
+            long stopStart = com.geely.drivemem.state.ParkingCost.stopStart(app, parkStartMs);
+            com.geely.drivemem.state.ParkingCost.Row row =
+                com.geely.drivemem.state.ParkingCost.forGap(app, stopStart, System.currentTimeMillis());
+            ui.post(() -> {
+                if (parkedCostFor != parkStartMs) return;
+                parkedStopStartMs = stopStart;
+                parkedCostRow = row;
+                if (row != null) {
+                    parkedCost.setText(Style.moneyWithUnit(row.cost, Style.ACCENT, Style.UNIT_SCALE_ROW));
+                    parkedCost.setTextColor(Style.TEXT);
+                } else {
+                    SpannableStringBuilder sb = new SpannableStringBuilder("+ ");
+                    Style.appendUnit(sb, Prefs.currencySymbol(), 1f);
+                    parkedCost.setText(sb);
+                    parkedCost.setTextColor(Style.TEXT_DIM);
+                }
+                parkedCost.setVisibility(View.VISIBLE);
+            });
+        }, "parked-cost").start();
+    }
+
+    private final EntityBus.Listener parkingCostListener = (key, reading) -> ui.post(() -> {
+        parkedCostFor = -1;
+        refreshJourneyCard();
+    });
 
     /** "Vel. máxima 58 km/h": a small dim label, then the value. */
     private CharSequence labelled(int labelRes, CharSequence value) {
@@ -2420,12 +2606,57 @@ public class ComfortActivity extends Activity {
     private boolean scaleApprox = false;
     private boolean scaleDefrosting = false;
 
+    private static final int SCALE_H = 15, SCALE_TOUCH_UP = 30;
+    private static final int NO_MARK = Integer.MIN_VALUE;
+    // The mark under the finger while it is on the bar; NO_MARK otherwise.
+    private int scaleFinger = NO_MARK;
+    private boolean scaleFingerCold;
+    private float scaleDownX;
+
+    // A touch on the bar goes to the mark under the finger. The bar follows
+    // the finger while it slides; the ruler gets the mark when the finger
+    // lifts, so one touch is one write to the car. The side (cool or warm) is
+    // the one the bar shows when the finger comes down.
+    private boolean onScaleTouch(View v, android.view.MotionEvent e) {
+        int w = v.getWidth();
+        if (w <= 0) return false;
+        switch (e.getActionMasked()) {
+            case android.view.MotionEvent.ACTION_DOWN:
+                scaleFingerCold = comfortRuler.pointer() >= 0;
+                scaleDownX = e.getX();
+                // fall through
+            case android.view.MotionEvent.ACTION_MOVE:
+                // A slide along the bar is ours; an up-down move stays the
+                // page's (it then cancels this touch and nothing is set).
+                if (Math.abs(e.getX() - scaleDownX)
+                        > android.view.ViewConfiguration.get(this).getScaledTouchSlop())
+                    v.getParent().requestDisallowInterceptTouchEvent(true);
+                scaleFinger = EffortTable.markAt(e.getX(), w,
+                    Style.dp(this, Style.EFFORT_GAP_DP), scaleFingerCold);
+                redrawScale();
+                return true;
+            case android.view.MotionEvent.ACTION_UP:
+                if (scaleFinger != NO_MARK) comfortRuler.set(scaleFinger);
+                // The bar keeps the finger's mark; the ruler's answer
+                // (syncRuler) finds it already drawn.
+                scaleFinger = NO_MARK;
+                return true;
+            case android.view.MotionEvent.ACTION_CANCEL:
+                scaleFinger = NO_MARK;
+                redrawScale();
+                return true;
+            default:
+                return true;
+        }
+    }
+
     private void redrawScale() {
         if (scaleView == null) return;
         int w = scaleView.getWidth();
         if (w <= 0) { LayoutWait.onNextLayout(scaleView, this::redrawScale); return; }
-        int level = comfortRuler.pointer();
-        boolean approx = comfortRuler.approx();
+        boolean finger = scaleFinger != NO_MARK;
+        int level = finger ? scaleFinger : comfortRuler.pointer();
+        boolean approx = !finger && comfortRuler.approx();
         boolean defrosting = comfortRuler.defrosting();
         // Standing still nothing moved: with no change, there is nothing to
         // redraw (the 10 s poll used to allocate a new Bitmap every time for
@@ -2433,7 +2664,7 @@ public class ComfortActivity extends Activity {
         if (level == scalePointer && w == scaleW && approx == scaleApprox
                 && defrosting == scaleDefrosting) return;
         scalePointer = level; scaleW = w; scaleApprox = approx; scaleDefrosting = defrosting;
-        scaleView.setImageBitmap(Style.effortScale(this, w, scaleView.getHeight(), level, approx, defrosting));
+        scaleView.setImageBitmap(Style.effortScale(this, w, Style.dp(this, SCALE_H), level, approx, defrosting));
     }
 
     // held as a field so onDestroy can drop exactly this subscription
@@ -2542,7 +2773,7 @@ public class ComfortActivity extends Activity {
     // already says everything: nothing is loaded worth showing a card for.
     private final MusicState.Listener musicListener = (playing, title, artist, artUrl) ->
         ui.post(() -> {
-            boolean available = ComfortCardVisibility.showMusicCard(title);
+            boolean available = ComfortCardVisibility.showMusicCard(title, ValetSession.isActive(this));
             if (musicCard != null) musicCard.setVisibility(available ? View.VISIBLE : View.GONE);
             if (available) {
                 showMusicText(title, artist);
@@ -2601,9 +2832,41 @@ public class ComfortActivity extends Activity {
     };
     private final EntityBus.Listener chargeBusListener = (key, reading) -> ui.post(this::checkRetainedCharge);
     private final EntityBus.Listener journeyBusListener = (key, reading) -> ui.post(() -> {
-        if ("valet.changed".equals(key)) checkRetainedCharge();
+        if ("valet.changed".equals(key)) {
+            applyValetLockdown();
+            return;
+        }
         refreshJourneyCard();
     });
+
+    /** In Valet Mode, hide every card except Climate + Valet and block Stats/Config. */
+    private void applyValetLockdown() {
+        boolean valet = ValetSession.isActive(this);
+        if (valet && mainViewMode != MODE_CARDS) setMainViewMode(MODE_CARDS);
+        updateDockButtons();
+        boolean gateNow = gateVisible();
+        if (gateCard != null) {
+            gateCard.setVisibility(gateNow ? View.VISIBLE : View.GONE);
+            if (gateNow) gateCard.refreshStatus();
+        }
+        lastGateAvailable = gateNow;
+        if (turboCardView != null) {
+            boolean turboNow = ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, CarState.isParked(), valet);
+            turboCardView.setVisibility(turboNow ? View.VISIBLE : View.GONE);
+            lastTurboVisible = turboNow;
+        }
+        boolean musicNow = ComfortCardVisibility.showMusicCard(MusicState.title(), valet);
+        if (musicCard != null) musicCard.setVisibility(musicNow ? View.VISIBLE : View.GONE);
+        if (musicNow) {
+            showMusicText(MusicState.title(), MusicState.artist());
+            showMusicArt();
+        }
+        lastMusicAvailable = musicNow;
+        showPanel(PanelState.get());
+        checkRetainedCharge();
+        refreshJourneyCard();
+        if (columns != null) repackColumns();
+    }
 
     private Updater.UpdateInfo pendingUpdate = null;
     private android.app.AlertDialog activeUpdateDialog = null;
@@ -2647,15 +2910,15 @@ public class ComfortActivity extends Activity {
     // re-derive both from their own current state whenever gear changes,
     // since a gear change and a charging/turbo change are independent events.
     private final CarState.Listener carStateListener = parked -> ui.post(() -> {
+        boolean valet = ValetSession.isActive(this);
         if (turboCardView != null) {
-            boolean visible = ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, parked);
+            boolean visible = ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, parked, valet);
             if ((turboCardView.getVisibility() == View.VISIBLE) != visible) {
                 turboCardView.setVisibility(visible ? View.VISIBLE : View.GONE);
                 lastTurboVisible = visible;
                 if (columns != null) repackColumns();
             }
         }
-        boolean valet = ValetSession.isActive(this);
         if (ComfortCardVisibility.showActiveCharging(parked, ChargeSession.isCharging(), valet)) {
             showCharging(ChargeSession.currentSocStart(), ChargeSession.currentSocEnd(),
                 ChargeSession.currentStartWallMs(), System.currentTimeMillis());
@@ -2880,7 +3143,8 @@ public class ComfortActivity extends Activity {
         // show only if there IS content AND it was NOT dismissed (a local
         // comparison, without depending on the broker to clear it). Different
         // content => it comes back.
-        boolean has = ComfortCardVisibility.showPanelCard(empty, s.hashCode() == dismissedHash);
+        boolean has = ComfortCardVisibility.showPanelCard(empty, s.hashCode() == dismissedHash,
+            ValetSession.isActive(this));
         if (has) {
             // THE CARD ALREADY UP DOES NOT ARRIVE AGAIN — HA republishing an
             // unchanged payload (or this screen resuming) must not reload it.
@@ -2894,6 +3158,7 @@ public class ComfortActivity extends Activity {
         if (has != lastPanelAvailable) {
             lastPanelAvailable = has;
             panelCard.setVisibility(View.VISIBLE);
+            lyricsAskedCols = 0;   // a new panel takes the room again
             repackColumns();
         }
     }
@@ -3011,6 +3276,20 @@ public class ComfortActivity extends Activity {
         if (canDrivePosted.compareAndSet(false, true)) ui.post(applyCanDrive);
     };
 
+    // Head-unit IMU -> art (Noturno suspension bounce & cornering roll), 16 Hz
+    // while driving. Same single-Runnable coalesce pattern as CAN speed/drive.
+    private volatile float imuAxG, imuAyG, imuAzG;
+    private final java.util.concurrent.atomic.AtomicBoolean imuPosted =
+        new java.util.concurrent.atomic.AtomicBoolean();
+    private final Runnable applyImu = () -> {
+        imuPosted.set(false);
+        if (art != null) art.setImu(imuAxG, imuAyG, imuAzG);
+    };
+    private final com.geely.drivemem.sensors.ImuHub.Listener imuListener = (ax, ay, az) -> {
+        imuAxG = ax; imuAyG = ay; imuAzG = az;
+        if (imuPosted.compareAndSet(false, true)) ui.post(applyImu);
+    };
+
     // brake pedal -> art (brake lamps). Injected by the CAN reader the moment
     // it changes, so this is the one art input that is not 1 s late.
     private final EntityBus.Listener brakeListener = (key, reading) -> {
@@ -3036,8 +3315,10 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe("telemetry.ambient_brightness", ambientBrightnessListener);
         EntityBus.subscribe("telemetry.speed", speedListener);
         EntityBus.subscribe(CanHub.BRAKE, brakeListener);
+        EntityBus.subscribe(com.geely.drivemem.state.ParkingCost.CHANGED, parkingCostListener);
         CanEnergyReader.setSpeedListener(canSpeedListener);
         CanEnergyReader.setDriveListener(canDriveListener);
+        com.geely.drivemem.sensors.ImuHub.setListener(imuListener);
         if (art != null) art.setBraking(isPressed(a.get(CanHub.BRAKE)));   // no replay on the bus
         EntityBus.subscribe("car.window_pos", windowPosListener);
         EntityBus.subscribe("car.hvac_recirc", hvacRecircListener);
@@ -3073,8 +3354,10 @@ public class ComfortActivity extends Activity {
         EntityBus.unsubscribe("telemetry.ambient_brightness", ambientBrightnessListener);
         EntityBus.unsubscribe("telemetry.speed", speedListener);
         EntityBus.unsubscribe(CanHub.BRAKE, brakeListener);
+        EntityBus.unsubscribe(com.geely.drivemem.state.ParkingCost.CHANGED, parkingCostListener);
         CanEnergyReader.clearSpeedListener(canSpeedListener);
         CanEnergyReader.clearDriveListener(canDriveListener);
+        com.geely.drivemem.sensors.ImuHub.clearListener(imuListener);
         quickButtons.stop();
         EntityBus.unsubscribe("car.window_pos", windowPosListener);
         EntityBus.unsubscribe("car.hvac_recirc", hvacRecircListener);
@@ -3102,7 +3385,10 @@ public class ComfortActivity extends Activity {
         // theme OR appearance changed on the Config screen -> redraw this
         // whole screen (see the themeId/themeLight comment above)
         Style.load(this);
-        if (!Style.current().id.equals(themeId) || Style.LIGHT != themeLight) { recreate(); return; }
+        if (!Style.current().id.equals(themeId) || Style.LIGHT != themeLight || Style.RHD != rhdAtBuild) {
+            recreate();
+            return;
+        }
         if (!Prefs.getCurrency(this).equals(currencyAtBuild)) { recreate(); return; }
         // same idea: the Turbo toggle in Config only takes effect on the next
         // build of this screen, same as a theme change
@@ -3166,7 +3452,7 @@ public class ComfortActivity extends Activity {
         MusicState.setListener(musicListener);
         // Same "changed while paused" re-check as the gate, and the same
         // reason: a track can start or end while the screen is off.
-        boolean nowMusicAvailable = ComfortCardVisibility.showMusicCard(MusicState.title());
+        boolean nowMusicAvailable = ComfortCardVisibility.showMusicCard(MusicState.title(), ValetSession.isActive(this));
         if (musicCard != null) musicCard.setVisibility(nowMusicAvailable ? View.VISIBLE : View.GONE);
         lyricsEnabled = Prefs.getLyricsSearch(this);   // may have changed in Config
         lyricsOpen = Prefs.getLyricsOpen(this);
@@ -3195,6 +3481,8 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe("parking.changed", journeyBusListener);
         EntityBus.subscribe(ParkingState.TRAIL_KEY, journeyBusListener);
         EntityBus.subscribe(TripSession.LIVE_KEY, journeyBusListener);
+        EntityBus.subscribe(com.geely.drivemem.state.CarDiary.EVENT_CHANGED, diaryBusListener);
+        recomputeDiaryBadge();
         // Same "did it actually change while this screen was away" re-check
         // as the gate and music cards just above, and the same reason: a
         // park↔drive edge (and therefore Turbo's own visibility) can happen
@@ -3205,14 +3493,15 @@ public class ComfortActivity extends Activity {
         // it (reported 2026-09-21: parked -> opened Config -> car started
         // driving -> back to Home, Portão/Turbo had no gap between them).
         if (turboCardView != null) {
-            boolean turboVisible = ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, CarState.isParked());
+            boolean turboVisible = ComfortCardVisibility.showTurboCard(turboEnabledAtBuild, CarState.isParked(),
+                ValetSession.isActive(this));
             if (turboVisible != lastTurboVisible) {
                 lastTurboVisible = turboVisible;
                 turboCardView.setVisibility(turboVisible ? View.VISIBLE : View.GONE);
                 if (columns != null) repackColumns();
             }
         }
-        refreshJourneyCard();
+        applyValetLockdown();
         // Phone music: the links to the car's players stay up while the app
         // runs, not only on this screen. A new link knows nothing of a player
         // that already went quiet (CarPlay after the cable is pulled), so
@@ -3263,6 +3552,7 @@ public class ComfortActivity extends Activity {
         EntityBus.unsubscribe("parking.changed", journeyBusListener);
         EntityBus.unsubscribe(ParkingState.TRAIL_KEY, journeyBusListener);
         EntityBus.unsubscribe(TripSession.LIVE_KEY, journeyBusListener);
+        EntityBus.unsubscribe(com.geely.drivemem.state.CarDiary.EVENT_CHANGED, diaryBusListener);
         try { unregisterReceiver(updateReceiver); } catch (Throwable ignored) {}
         if (activeUpdateDialog != null && activeUpdateDialog.isShowing()) {
             try { activeUpdateDialog.dismiss(); } catch (Throwable ignored) {}

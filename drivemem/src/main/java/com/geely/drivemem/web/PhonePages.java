@@ -3,9 +3,11 @@ package com.geely.drivemem.web;
 import android.content.Context;
 
 import com.geely.drivemem.R;
+import com.geely.drivemem.state.CarDiary;
 import com.geely.drivemem.util.AppBackup;
 import com.geely.drivemem.util.CarCaps;
 import com.geely.drivemem.util.Clips;
+import com.geely.drivemem.util.DiaryClipTrimmer;
 import com.geely.drivemem.util.Prefs;
 
 import java.text.DateFormat;
@@ -53,7 +55,12 @@ final class PhonePages {
         + "color:var(--text);font:15px ui-monospace,monospace}"
         + "ul{list-style:none;padding:0;margin:0}li{display:flex;justify-content:space-between;gap:12px;"
         + "align-items:center;padding:10px 0;border-top:1px solid var(--line)}li:first-child{border-top:0}"
-        + ".ok{color:#1a7f37;font-weight:600}a{color:var(--accent)}";
+        + ".ok{color:#1a7f37;font-weight:600}a{color:var(--accent)}"
+        + "input[type=checkbox]{width:auto;margin:0 8px 0 0}label.check{display:flex;align-items:center;font-weight:400}"
+        + "select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);"
+        + "color:var(--text);font:inherit}button.quiet{background:transparent;color:var(--accent);border:1px solid var(--line)}"
+        + "pre.sel{margin:4px 0;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);"
+        + "font:15px ui-monospace,monospace;white-space:pre-wrap;word-break:break-all;-webkit-user-select:all;user-select:all}";
 
     private static String page(Context c, String title, String body) {
         return page(c, title, body, 0);
@@ -101,6 +108,20 @@ final class PhonePages {
          .append("<a class=\"btn\" href=\"/charges.csv\">").append(Http.esc(c.getString(R.string.phone_charges_csv))).append("</a>")
          .append("</div>");
 
+        b.append("<div class=\"card\"><h2>").append(Http.esc(c.getString(R.string.phone_diary))).append("</h2>")
+         .append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.phone_diary_hint))).append("</p>")
+         .append("<a class=\"btn\" href=\"/diary\">").append(Http.esc(c.getString(R.string.phone_diary_open))).append("</a>")
+         .append("<a class=\"btn\" href=\"/diary.csv\">").append(Http.esc(c.getString(R.string.phone_diary_csv))).append("</a>")
+         .append("</div>");
+
+        b.append("<div class=\"card\"><h2>").append(Http.esc(c.getString(R.string.phone_costs))).append("</h2>")
+         .append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.phone_costs_hint))).append("</p>")
+         .append("<a class=\"btn\" href=\"/tolls\">").append(Http.esc(c.getString(R.string.phone_tolls_title))).append("</a>")
+         .append("<a class=\"btn\" href=\"/costs\">").append(Http.esc(c.getString(R.string.parking_title))).append("</a>")
+         .append("<a class=\"btn\" href=\"/tolls.csv\">").append(Http.esc(c.getString(R.string.phone_tolls_csv))).append("</a>")
+         .append("<a class=\"btn\" href=\"/parking.csv\">").append(Http.esc(c.getString(R.string.phone_parking_csv))).append("</a>")
+         .append("</div>");
+
         b.append("<div class=\"card\"><h2>").append(Http.esc(c.getString(R.string.phone_routes))).append("</h2>")
          .append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.phone_routes_hint))).append("</p>")
          .append("<a class=\"btn\" href=\"/routes\">").append(Http.esc(c.getString(R.string.phone_routes_open))).append("</a></div>");
@@ -131,7 +152,36 @@ final class PhonePages {
          .append("<a class=\"btn\" href=\"/settings\">").append(Http.esc(c.getString(R.string.phone_settings_open))).append("</a></div>");
 
         b.append(carCaps(c, caps));
+        b.append(versionCard(c));
         return page(c, title, b.toString());
+    }
+
+    /** The installed versions, as one block the owner can select with one
+     * tap and paste into an issue or a chat. No copy button: the page is
+     * plain HTTP, where a phone's browser does not give a page the
+     * clipboard, and the pages carry no script. */
+    static String versionCard(Context c) {
+        String helperVn = null;
+        long helperVc = -1;
+        try {
+            android.content.pm.PackageInfo pi = c.getPackageManager()
+                .getPackageInfo(com.geely.drivemem.net.Updater.HELPER_PKG, 0);
+            helperVn = pi.versionName;
+            helperVc = pi.versionCode;
+        } catch (Throwable ignored) {}   // not installed: the block says so
+        return "<div class=\"card\"><h2>" + Http.esc(c.getString(R.string.phone_version_header)) + "</h2>"
+            + "<pre class=\"sel\">" + Http.esc(versionText(
+                com.geely.drivemem.BuildConfig.VERSION_NAME, com.geely.drivemem.BuildConfig.VERSION_CODE,
+                helperVn, helperVc, c.getString(R.string.phone_version_no_helper))) + "</pre>"
+            + "<p class=\"dim\">" + Http.esc(c.getString(R.string.phone_version_hint)) + "</p></div>";
+    }
+
+    /** Pure: the lines of the version block. helperVn null = ModeHelper is
+     * not installed, and the second line says so: without it the app cannot
+     * update itself or run its car controls, so a report must show it. */
+    static String versionText(String appVn, long appVc, String helperVn, long helperVc, String noHelper) {
+        return "Drive Assist " + appVn + " (" + appVc + ")\n"
+            + (helperVn != null ? "ModeHelper " + helperVn + " (" + helperVc + ")" : noHelper);
     }
 
     /** The System page's "Car equipment" card, as text the owner can copy
@@ -177,6 +227,162 @@ final class PhonePages {
         if (n == 0) b.append("<p>").append(Http.esc(c.getString(R.string.phone_no_clips))).append("</p>");
         else b.append("<p class=\"dim\">").append(Http.esc(c.getString(R.string.phone_clips_hint))).append("</p>").append(list);
         b.append("</div>");
+        return page(c, title, b.toString());
+    }
+
+    /** Printable/viewable Car Diary report with CSV & 5s incident clip downloads. */
+    static String diary(Context c, List<CarDiary.Entry> entries) {
+        StringBuilder b = new StringBuilder(back(c));
+        String title = c.getString(R.string.phone_diary);
+        b.append("<h1>").append(Http.esc(title)).append("</h1>");
+        b.append("<div class=\"card\">");
+        double totalCost = 0;
+        int count = 0;
+        if (entries != null) {
+            for (CarDiary.Entry e : entries) {
+                if (e.parentId != null) continue;
+                count++;
+                if (e.cost != null && e.cost > 0) totalCost += e.cost;
+            }
+        }
+        String summary = totalCost > 0
+            ? count + " · " + Prefs.formatMoney(totalCost)
+            : String.valueOf(count);
+        b.append("<p class=\"dim\">").append(Http.esc(summary)).append("</p>")
+         .append("<a class=\"btn\" href=\"/diary.csv\">").append(Http.esc(c.getString(R.string.phone_diary_csv))).append("</a>");
+
+        if (count == 0) {
+            b.append("<p style=\"margin-top:12px\">").append(Http.esc(c.getString(R.string.diary_empty))).append("</p>");
+        } else {
+            DateFormat fmt = DateFormat.getDateInstance(DateFormat.MEDIUM);
+            b.append("<ul style=\"margin-top:12px\">");
+            for (CarDiary.Entry e : entries) {
+                if (e.parentId != null) continue;
+                String label = (e.title != null && !e.title.isEmpty())
+                    ? e.title : (e.category != null ? c.getString(e.category.labelRes) : "");
+                StringBuilder meta = new StringBuilder(fmt.format(new Date(e.tsMs)));
+                if (e.odoKm != null && e.odoKm > 0) {
+                    meta.append(" · ").append(String.format(java.util.Locale.getDefault(), "%,.0f km", e.odoKm));
+                }
+                if (e.cost != null && e.cost > 0) {
+                    meta.append(" · ").append(Prefs.formatMoney(e.cost));
+                }
+                if (e.note != null && !e.note.isEmpty()) {
+                    meta.append(" — ").append(e.note);
+                }
+                b.append("<li><div><strong>").append(Http.esc(label)).append("</strong>")
+                 .append("<p class=\"dim\">").append(Http.esc(meta.toString())).append("</p></div>");
+                if (e.clipName != null && DiaryClipTrimmer.resolveClip(c, e.clipName) != null) {
+                    b.append("<a class=\"btn\" href=\"/diary-clip?f=").append(Http.esc(Http.urlEnc(e.clipName)))
+                     .append("\">").append(Http.esc(c.getString(R.string.diary_btn_play_clip))).append("</a>");
+                }
+                b.append("</li>");
+            }
+            b.append("</ul>");
+        }
+        b.append("</div>");
+        return page(c, title, b.toString());
+    }
+
+    /** A price for an input field: "12,50" in the car's locale, empty when unset. */
+    static String moneyField(Double v) {
+        if (v == null || v <= 0) return "";
+        return String.format(java.util.Locale.getDefault(), "%.2f", v);
+    }
+
+    private static String savedCard(Context c) {
+        return "<div class=\"card\"><p class=\"ok\">" + Http.esc(c.getString(R.string.phone_saved)) + "</p></div>";
+    }
+
+    /** The toll booths this car crossed (or the owner priced, pinned or
+     * turned off): one small form each for the price, both directions, and
+     * on/off. */
+    static String tolls(Context c, List<com.geely.drivemem.state.TollTracker.BoothRow> booths, boolean saved) {
+        StringBuilder b = new StringBuilder(back(c));
+        String title = c.getString(R.string.phone_tolls_title);
+        b.append("<h1>").append(Http.esc(title)).append("</h1>");
+        if (saved) b.append(savedCard(c));
+        b.append("<div class=\"card\"><p class=\"dim\">").append(Http.esc(c.getString(R.string.phone_tolls_hint)))
+         .append("</p><a class=\"btn\" href=\"/tolls.csv\">").append(Http.esc(c.getString(R.string.phone_tolls_csv)))
+         .append("</a></div>");
+        if (booths.isEmpty()) {
+            b.append("<div class=\"card\"><p>").append(Http.esc(c.getString(R.string.phone_no_tolls))).append("</p></div>");
+            return page(c, title, b.toString());
+        }
+        for (com.geely.drivemem.state.TollTracker.BoothRow t : booths) {
+            String kind = c.getString(com.geely.drivemem.sensors.TollMatcher.KIND_FREE_FLOW.equals(t.kind)
+                ? R.string.toll_kind_free_flow : R.string.toll_kind_plaza);
+            StringBuilder meta = new StringBuilder(kind).append(" · ")
+                .append(c.getString(R.string.phone_toll_passages, t.passages));
+            if (t.catalogPrice != null && t.catalogPrice > 0) {
+                meta.append(" · ").append(c.getString(R.string.phone_toll_osm_price, Prefs.formatMoney(t.catalogPrice)));
+            }
+            if (t.bearingDeg == null) meta.append(" · ").append(c.getString(R.string.phone_toll_both_ways));
+            b.append("<form class=\"card\" method=\"post\" action=\"/tolls\" autocomplete=\"off\">")
+             .append("<h2>").append(Http.esc(t.name)).append("</h2>")
+             .append("<p class=\"dim\">").append(Http.esc(meta.toString())).append("</p>")
+             .append("<input type=\"hidden\" name=\"id\" value=\"").append(t.id).append("\">")
+             .append("<label for=\"p").append(t.id).append("\">").append(Http.esc(c.getString(R.string.phone_price,
+                 Prefs.currencySymbol()))).append("</label>")
+             .append("<input id=\"p").append(t.id).append("\" name=\"price\" inputmode=\"decimal\" value=\"")
+             .append(Http.esc(moneyField(t.userPrice))).append("\" placeholder=\"")
+             .append(Http.esc(moneyField(t.catalogPrice))).append("\">");
+            if (t.bearingDeg != null) {
+                b.append("<label class=\"check\"><input type=\"checkbox\" name=\"any\" value=\"1\">")
+                 .append(Http.esc(c.getString(R.string.phone_toll_any_dir))).append("</label>");
+            }
+            b.append("<label class=\"check\"><input type=\"checkbox\" name=\"on\" value=\"1\"")
+             .append(t.enabled ? " checked" : "").append(">")
+             .append(Http.esc(c.getString(R.string.phone_toll_enabled))).append("</label>")
+             .append("<button type=\"submit\">").append(Http.esc(c.getString(R.string.phone_save))).append("</button></form>");
+        }
+        return page(c, title, b.toString());
+    }
+
+    /** Parking costs, newest first: price, place and kind, or delete. */
+    static String costs(Context c, List<com.geely.drivemem.state.ParkingCost.Row> rows, boolean saved) {
+        StringBuilder b = new StringBuilder(back(c));
+        String title = c.getString(R.string.parking_title);
+        b.append("<h1>").append(Http.esc(title)).append("</h1>");
+        if (saved) b.append(savedCard(c));
+        b.append("<div class=\"card\"><a class=\"btn\" href=\"/parking.csv\">")
+         .append(Http.esc(c.getString(R.string.phone_parking_csv))).append("</a></div>");
+        if (rows.isEmpty()) {
+            b.append("<div class=\"card\"><p>").append(Http.esc(c.getString(R.string.phone_no_parking))).append("</p></div>");
+            return page(c, title, b.toString());
+        }
+        DateFormat fmt = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
+        DateFormat timeFmt = DateFormat.getTimeInstance(DateFormat.SHORT);
+        java.util.List<com.geely.drivemem.state.ParkingCost.Row> sorted = new java.util.ArrayList<>(rows);
+        sorted.sort((x, y) -> Long.compare(y.startMs, x.startMs));
+        for (com.geely.drivemem.state.ParkingCost.Row r : sorted) {
+            String when = fmt.format(new Date(r.startMs))
+                + (r.endMs != null && r.endMs > r.startMs ? " – " + timeFmt.format(new Date(r.endMs)) : "");
+            String what = r.valetId != null ? c.getString(R.string.parking_valet_title)
+                : c.getString(r.isStreet() ? R.string.parking_kind_street : R.string.parking_kind_lot);
+            b.append("<form class=\"card\" method=\"post\" action=\"/costs\" autocomplete=\"off\">")
+             .append("<h2>").append(Http.esc(when)).append("</h2>")
+             .append("<p class=\"dim\">").append(Http.esc(what)).append("</p>")
+             .append("<input type=\"hidden\" name=\"id\" value=\"").append(r.id).append("\">")
+             .append("<label for=\"n").append(r.id).append("\">").append(Http.esc(c.getString(R.string.parking_place_hint)))
+             .append("</label><input id=\"n").append(r.id).append("\" name=\"name\" maxlength=\"80\" value=\"")
+             .append(Http.esc(r.placeName == null ? "" : r.placeName)).append("\">")
+             .append("<label for=\"p").append(r.id).append("\">").append(Http.esc(c.getString(R.string.phone_price,
+                 Prefs.currencySymbol()))).append("</label>")
+             .append("<input id=\"p").append(r.id).append("\" name=\"price\" inputmode=\"decimal\" value=\"")
+             .append(Http.esc(moneyField(r.cost))).append("\">");
+            if (r.valetId == null) {
+                b.append("<label for=\"k").append(r.id).append("\">").append(Http.esc(c.getString(R.string.phone_parking_kind)))
+                 .append("</label><select id=\"k").append(r.id).append("\" name=\"kind\">")
+                 .append("<option value=\"lot\"").append(r.isStreet() ? "" : " selected").append(">")
+                 .append(Http.esc(c.getString(R.string.parking_kind_lot))).append("</option>")
+                 .append("<option value=\"street\"").append(r.isStreet() ? " selected" : "").append(">")
+                 .append(Http.esc(c.getString(R.string.parking_kind_street))).append("</option></select>");
+            }
+            b.append("<button type=\"submit\">").append(Http.esc(c.getString(R.string.phone_save))).append("</button>")
+             .append("<button class=\"quiet\" type=\"submit\" name=\"del\" value=\"1\">")
+             .append(Http.esc(c.getString(R.string.parking_btn_clear))).append("</button></form>");
+        }
         return page(c, title, b.toString());
     }
 

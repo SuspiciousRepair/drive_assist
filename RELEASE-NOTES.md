@@ -12,6 +12,23 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.12.0 — 2026-11-27
+
+- New: Car diary. Keep maintenance, costs and tickets on one page. The car tells you what is due next.
+- New: trip scores. Each trip gets a score for your driving and a score for the road.
+- New: tolls and parking. Type what a stop cost. With OpenStreetMap on, the car finds the tolls by itself.
+- New: join two trips into one, or split a long trip.
+- New: a PIN for Valet Mode and Config. It is optional, and your phone near the car takes its place.
+- New: right-hand drive layout.
+- Changed: the comfort ruler has 10 cooling marks and 5 heating marks. One tap is one small change.
+- Changed: touch the ruler's bar to go to a mark at once.
+- Changed: Valet Mode shows only the climate.
+- Changed: tap Lyrics to bring the big lyrics card back when other cards made it small.
+- Changed: the trip screen is tidier and shows the odometer.
+- Fixed: old trips no longer show 0 km after 90 days.
+- Fixed: drive mode and regeneration come back after a remote A/C start.
+- Fixed: window targets go in steps of 10.
+
 ## v0.11.5 — 2026-11-27
 
 - Fixed: the car's drive mode and regeneration level are remembered and put back in Park at each start, also when you changed them on the car's own screen.

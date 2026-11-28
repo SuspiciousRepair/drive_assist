@@ -67,7 +67,9 @@ final class Integrations {
         new Integration(TelemetryActivity.SEC_MUSIC, R.string.int_music_name, R.string.int_music_desc,
             R.drawable.ic_lyrics, 0xFFD81B60, Integrations::music),
         new Integration(TelemetryActivity.SEC_OEM_TEXT, R.string.int_oem_name, R.string.int_oem_desc,
-            R.drawable.ic_translate, 0xFF5E6AD2, Integrations::oemText)
+            R.drawable.ic_translate, 0xFF5E6AD2, Integrations::oemText),
+        new Integration(TelemetryActivity.SEC_TOLLS, R.string.int_tolls_name, R.string.int_tolls_desc,
+            R.drawable.ic_toll, 0xFFF57C00, Integrations::tolls)
     );
 
     /** The integration whose settings page is `section`, or null. */
@@ -128,5 +130,11 @@ final class Integrations {
     // Follows the "Phone music" switch: it is what turns the card on.
     private static Status music(Context c) {
         return Prefs.getBtMusic(c) ? new Status(State.OK, c.getString(R.string.int_status_on)) : off(c);
+    }
+
+    private static Status tolls(Context c) {
+        return (Prefs.getOsmMapsEnabled(c) || Prefs.getTollsEnabled(c))
+            ? new Status(State.OK, c.getString(R.string.int_status_on))
+            : off(c);
     }
 }

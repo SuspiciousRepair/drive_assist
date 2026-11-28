@@ -294,11 +294,43 @@ public final class TelemetryRollup {
         return out;
     }
 
+    /** Room kept around each trip, charge and Valet stay: a trip's start
+     * sample can be read just before its start_ms. */
+    static final long KEEP_MARGIN_MS = 2 * 60_000L;
+    /** Each run prunes this far back from the cutoff, so a run missed for a
+     * few days still catches up, while each run stays small. */
+    static final long PRUNE_WINDOW_MS = 7 * 24L * 3600 * 1000;
+
+    /** Deletes the raw samples in [from, to) of days already frozen into
+     * daily_stat, except the samples a trip, a charge or a Valet stay still
+     * reads. A trip shows its km, odometer, battery and energy from its
+     * samples (DailyStatsProvider.queryRawTrips), so deleting them showed old
+     * trips as 0 km and 0 kWh. The parked samples between sessions are the
+     * ones that go: daily_stat, BatteryHeat and MovingTime have already
+     * kept what the stats need from them. Args: from, to, then the margin
+     * six times. */
+    static final String PRUNE_SQL =
+        "DELETE FROM telemetry_sample WHERE ts_ms >= ? AND ts_ms < ? "
+      + "AND date(ts_ms/1000,'unixepoch','localtime') IN (SELECT date FROM daily_stat) "
+      + "AND NOT EXISTS (SELECT 1 FROM trip t WHERE telemetry_sample.ts_ms "
+      + "    BETWEEN t.start_ms - ? AND COALESCE(t.end_ms, t.start_ms) + ?) "
+      + "AND NOT EXISTS (SELECT 1 FROM charge_session c WHERE telemetry_sample.ts_ms "
+      + "    BETWEEN c.start_ms - ? AND c.end_ms + ?) "
+      + "AND NOT EXISTS (SELECT 1 FROM valet_session v WHERE telemetry_sample.ts_ms "
+      + "    BETWEEN v.start_ms - ? AND COALESCE(v.end_ms, v.start_ms) + ?) "
+      + "AND id NOT IN (SELECT start_sample_id FROM trip WHERE start_sample_id IS NOT NULL "
+      + "    UNION SELECT end_sample_id FROM trip WHERE end_sample_id IS NOT NULL "
+      + "    UNION SELECT start_sample_id FROM charge_session WHERE start_sample_id IS NOT NULL "
+      + "    UNION SELECT end_sample_id FROM charge_session WHERE end_sample_id IS NOT NULL)";
+
+    static String[] pruneArgs(long cutoffMs) {
+        String m = String.valueOf(KEEP_MARGIN_MS);
+        return new String[]{String.valueOf(cutoffMs - PRUNE_WINDOW_MS), String.valueOf(cutoffMs), m, m, m, m, m, m};
+    }
+
     private static void pruneOldRawRows(SQLiteDatabase db) {
         long cutoffMs = System.currentTimeMillis() - RETAIN_DAYS * 24L * 3600 * 1000;
-        int n = db.delete("telemetry_sample",
-            "ts_ms < ? AND date(ts_ms/1000,'unixepoch','localtime') IN (SELECT date FROM daily_stat)",
-            new String[]{String.valueOf(cutoffMs)});
-        if (n > 0) Log.i(TAG, "rollup: pruned " + n + " raw row(s) older than " + RETAIN_DAYS + "d");
+        db.execSQL(PRUNE_SQL, pruneArgs(cutoffMs));
+        Log.i(TAG, "rollup: pruned parked samples older than " + RETAIN_DAYS + "d");
     }
 }

@@ -32,7 +32,7 @@ public final class CarDb extends SQLiteOpenHelper {
     // to OPEN a db newer than requested (onDowngrade, not onUpgrade), and
     // every write failed until this was bumped past 14. See the v15 entry in
     // onUpgrade below for what v15 itself actually does.
-    private static final int VERSION = 35;
+    private static final int VERSION = 40;
 
     /** SQL predicate for telemetry rows representing driving: gear is not Park (4),
      * or if gear is missing, car is not charging. */
@@ -177,7 +177,7 @@ public final class CarDb extends SQLiteOpenHelper {
             + "spent_kwh REAL,"
             + "net_kwh REAL,"
             + "energy_source TEXT, estimated_net_kwh REAL,"
-            + TRIP_SPLIT_COLUMNS + ")");
+            + TRIP_SPLIT_COLUMNS + ", " + TRIP_SCORE_COLUMNS_V37 + ")");
         createTripEnergySegment(db);
         createTripPoint(db);
 
@@ -187,7 +187,7 @@ public final class CarDb extends SQLiteOpenHelper {
             + "event TEXT NOT NULL,"
             + "pointer INTEGER, out_c REAL, setpoint REAL, fan INTEGER,"
             + "ac INTEGER, recirc INTEGER, power INTEGER,"
-            + "detail TEXT)");
+            + "detail TEXT, " + COMFORT_COLUMNS_V40 + ")");
 
         db.execSQL("CREATE TABLE battery_health_reading ("
             + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -198,6 +198,11 @@ public final class CarDb extends SQLiteOpenHelper {
 
         createValetSession(db);
         createChargeStopEvent(db);
+        createDiaryEvent(db);
+        createAux12vReading(db);
+        createTollTables(db);
+        createParkingCost(db);
+        createTripEdit(db);
 
         createDailyStat(db);
     }
@@ -255,16 +260,128 @@ public final class CarDb extends SQLiteOpenHelper {
       + "   AND p.ts_ms >= charge_session.start_ms - 86400000 ORDER BY p.ts_ms DESC LIMIT 1)"
       + " WHERE lat IS NULL";
 
+    /** Per-route-point vertical roughness and peak bump from sensors.ImuHub (m/s^2). */
+    public static final String TRIP_POINT_ROAD_COLUMNS_V37 = "road_rms_z REAL, road_peak_z REAL";
+
+    /** Per-trip Road & Driver scores (0-100) and debounced event counts (sensors.DriveScorer). */
+    public static final String TRIP_SCORE_COLUMNS_V37 =
+        "road_score INTEGER, driver_score INTEGER, "
+      + "road_bumps INTEGER, hard_brakes INTEGER, hard_accels INTEGER, hard_corners INTEGER";
+
+    /** Per-valet Road & Driver scores (0-100) and debounced event counts (sensors.DriveScorer). */
+    public static final String VALET_SCORE_COLUMNS_V37 =
+        "road_score INTEGER, driver_score INTEGER, road_bumps INTEGER, hard_brakes INTEGER, hard_accels INTEGER, hard_corners INTEGER";
+
     public static final String TRIP_POINT_DDL = "CREATE TABLE IF NOT EXISTS trip_point ("
         + "id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER,"
         + "ts_ms INTEGER NOT NULL, lat REAL NOT NULL, lon REAL NOT NULL,"
         + "alt_m REAL, speed_kmh REAL, bearing REAL, accuracy_m REAL,"
         + "drive_mode INTEGER, regen_mode INTEGER,"
-        + "power_kw REAL, spent_kwh REAL, regen_kwh REAL)";
+        + "power_kw REAL, spent_kwh REAL, regen_kwh REAL, "
+        + TRIP_POINT_ROAD_COLUMNS_V37 + ")";
 
     /** Gives the open trip's points to the trip row just saved. Args: trip id, start ms, end ms. */
     public static final String CLAIM_TRIP_POINTS_SQL =
         "UPDATE trip_point SET trip_id = ? WHERE trip_id IS NULL AND ts_ms BETWEEN ? AND ?";
+
+    /** Gives the open trip's live toll passages to the trip row just saved. Args: trip id, start ms, end ms. */
+    public static final String CLAIM_TOLL_PASSAGES_SQL =
+        "UPDATE toll_passage SET trip_id = ? WHERE trip_id IS NULL AND ts_ms BETWEEN ? AND ?";
+
+    public static final String TOLL_BOOTH_DDL = "CREATE TABLE IF NOT EXISTS toll_booth ("
+        + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        + "uuid TEXT NOT NULL UNIQUE,"
+        + "source TEXT NOT NULL,"
+        + "external_id TEXT,"
+        + "name TEXT NOT NULL,"
+        + "operator TEXT,"
+        + "kind TEXT NOT NULL DEFAULT 'PLAZA',"
+        + "lat REAL NOT NULL,"
+        + "lon REAL NOT NULL,"
+        + "radius_m REAL NOT NULL DEFAULT 80.0,"
+        + "bearing_deg REAL,"
+        + "bearing_tol_deg REAL NOT NULL DEFAULT 45.0,"
+        + "charge_raw TEXT,"
+        + "catalog_price REAL,"
+        + "user_price REAL,"
+        + "check_date TEXT,"
+        + "enabled INTEGER NOT NULL DEFAULT 1,"
+        + "updated_ms INTEGER NOT NULL)";
+
+    public static final String TOLL_PASSAGE_DDL = "CREATE TABLE IF NOT EXISTS toll_passage ("
+        + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        + "uuid TEXT NOT NULL UNIQUE,"
+        + "trip_id INTEGER,"
+        + "booth_id INTEGER,"
+        + "ts_ms INTEGER NOT NULL,"
+        + "lat REAL NOT NULL,"
+        + "lon REAL NOT NULL,"
+        + "speed_kmh REAL,"
+        + "booth_name TEXT NOT NULL,"
+        + "booth_kind TEXT NOT NULL DEFAULT 'PLAZA',"
+        + "cost REAL,"
+        + "dismissed INTEGER NOT NULL DEFAULT 0,"
+        + "source TEXT NOT NULL)";
+
+    public static final String TOLL_REGION_DDL = "CREATE TABLE IF NOT EXISTS toll_region ("
+        + "tile_key TEXT PRIMARY KEY,"
+        + "fetched_ms INTEGER NOT NULL,"
+        + "booth_count INTEGER NOT NULL DEFAULT 0)";
+
+    private static void createTollTables(SQLiteDatabase db) {
+        db.execSQL(TOLL_BOOTH_DDL);
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_toll_booth_ext "
+            + "ON toll_booth(source, external_id) WHERE external_id IS NOT NULL");
+        db.execSQL(TOLL_PASSAGE_DDL);
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_toll_passage_trip ON toll_passage(trip_id, ts_ms)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_toll_passage_ts ON toll_passage(ts_ms)");
+        db.execSQL(TOLL_REGION_DDL);
+    }
+
+    /** What one stop cost: a parked gap between two sessions, or one Valet
+     * stay (valet_id). Kept apart from park_session, which splits on every
+     * short shift to P. Never frozen into daily_stat, so a late edit shows on
+     * every period at once. kind: 'lot' (a car park) or 'street' (paid
+     * street parking). lat/lon: where the car was, for the place memory in
+     * state.ParkingCost. */
+    public static final String PARKING_COST_DDL = "CREATE TABLE IF NOT EXISTS parking_cost ("
+        + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        + "uuid TEXT NOT NULL UNIQUE,"
+        + "start_ms INTEGER NOT NULL,"
+        + "end_ms INTEGER,"
+        + "valet_id INTEGER,"
+        + "cost REAL NOT NULL,"
+        + "place_name TEXT,"
+        + "kind TEXT NOT NULL DEFAULT 'lot',"
+        + "note TEXT,"
+        + "lat REAL, lon REAL,"
+        + "updated_ms INTEGER NOT NULL)";
+
+    private static void createParkingCost(SQLiteDatabase db) {
+        db.execSQL(PARKING_COST_DDL);
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_parking_cost_time ON parking_cost(start_ms, end_ms)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_parking_cost_valet ON parking_cost(valet_id)");
+    }
+
+    /** Trips joined or split by hand (issue #210). The trip rows never
+     * change: a row here only says how to SHOW them, and deleting it undoes
+     * it. kind 'join': every trip that starts in [start_ms, end_ms] shows as
+     * one trip (the first trip's start to the last trip's end). kind 'cut':
+     * trip_id shows as two parts, the first ending at start_ms and the second
+     * starting at end_ms (the same moment, or the two ends of a stop). */
+    public static final String TRIP_EDIT_DDL = "CREATE TABLE IF NOT EXISTS trip_edit ("
+        + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        + "kind TEXT NOT NULL,"
+        + "trip_id INTEGER,"
+        + "start_ms INTEGER NOT NULL,"
+        + "end_ms INTEGER NOT NULL,"
+        + "created_ms INTEGER NOT NULL)";
+
+    private static void createTripEdit(SQLiteDatabase db) {
+        db.execSQL(TRIP_EDIT_DDL);
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_trip_edit_time ON trip_edit(kind, start_ms)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_trip_edit_trip ON trip_edit(trip_id)");
+    }
 
     /** Drops unclaimed points before a time: a trip too short to keep, or
      * one a crash never closed. Arg: ms. */
@@ -290,7 +407,8 @@ public final class CarDb extends SQLiteOpenHelper {
             + "start_ms INTEGER NOT NULL, end_ms INTEGER,"
             + "start_odo_km REAL, end_odo_km REAL,"
             + "start_soc INTEGER, end_soc INTEGER,"
-            + "max_speed_kmh REAL, max_power_kw REAL)");
+            + "max_speed_kmh REAL, max_power_kw REAL, "
+            + VALET_SCORE_COLUMNS_V37 + ")");
     }
 
     private static void createChargeStopEvent(SQLiteDatabase db) {
@@ -298,6 +416,54 @@ public final class CarDb extends SQLiteOpenHelper {
             + "id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER NOT NULL,"
             + "occurred_ms INTEGER NOT NULL, soc INTEGER, kwh REAL, published INTEGER NOT NULL DEFAULT 0,"
             + "UNIQUE(session_id, occurred_ms))");
+    }
+
+    /** Permanent owner diary events: routine care, cosmetic work, noises,
+     * incidents, and auto-logged car warnings. Kept forever and merged across
+     * backup restores via DbMerge. */
+    public static final String DIARY_EVENT_DDL =
+        "CREATE TABLE IF NOT EXISTS diary_event ("
+        + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        + "uuid TEXT NOT NULL UNIQUE,"
+        + "ts_ms INTEGER NOT NULL,"
+        + "kind TEXT NOT NULL,"
+        + "category TEXT NOT NULL,"
+        + "status TEXT NOT NULL DEFAULT 'DONE',"
+        + "odo_km REAL,"
+        + "outside_temp_c REAL,"
+        + "lat REAL, lon REAL,"
+        + "cost REAL,"
+        + "title TEXT,"
+        + "note TEXT,"
+        + "tags TEXT,"
+        + "clip_name TEXT,"
+        + "parent_id INTEGER,"
+        + "meta_json TEXT)";
+
+    /** Compact 12V auxiliary battery readings (wake, resting, DC-DC active,
+     * warning) for multi-month health trend tracking. */
+    public static final String AUX_12V_READING_DDL =
+        "CREATE TABLE IF NOT EXISTS aux_12v_reading ("
+        + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        + "ts_ms INTEGER NOT NULL,"
+        + "odo_km REAL,"
+        + "voltage_v REAL,"
+        + "phase TEXT NOT NULL,"
+        + "dcdc_active INTEGER,"
+        + "dcdc_amps REAL,"
+        + "outside_temp_c REAL,"
+        + "parked_hours REAL,"
+        + "source TEXT NOT NULL)";
+
+    private static void createDiaryEvent(SQLiteDatabase db) {
+        db.execSQL(DIARY_EVENT_DDL);
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_diary_ts ON diary_event(ts_ms)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_diary_cat_ts ON diary_event(category, ts_ms)");
+    }
+
+    private static void createAux12vReading(SQLiteDatabase db) {
+        db.execSQL(AUX_12V_READING_DDL);
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_aux12v_ts ON aux_12v_reading(ts_ms)");
     }
 
     @Override public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
@@ -562,6 +728,46 @@ public final class CarDb extends SQLiteOpenHelper {
         // page's moving speed. NULL = not stored: the next rollup fills the
         // days the samples still cover, and a read works it out until then.
         if (oldVersion < 35) db.execSQL("ALTER TABLE daily_stat ADD COLUMN " + MOVING_COLUMN_V35);
+        // v36: Car Diary (diary_event) and 12V health history (aux_12v_reading).
+        if (oldVersion < 36) {
+            createDiaryEvent(db);
+            createAux12vReading(db);
+        }
+        // v37: head-unit IMU road & driver scores + automatic OSM toll tables.
+        // Per-column existence check & IF NOT EXISTS keep the migration idempotent.
+        if (oldVersion < 37) {
+            addColumnsIfMissing(db, "trip_point", TRIP_POINT_ROAD_COLUMNS_V37);
+            addColumnsIfMissing(db, "trip", TRIP_SCORE_COLUMNS_V37);
+            addColumnsIfMissing(db, "valet_session", VALET_SCORE_COLUMNS_V37);
+            createTollTables(db);
+        }
+        // v38: what parking cost (a car park, paid street parking, or Valet).
+        if (oldVersion < 38) createParkingCost(db);
+        // v39: trips joined or split by hand (issue #210).
+        if (oldVersion < 39) createTripEdit(db);
+        // v40: the climate log also saves where the air goes and the rear
+        // window defogger. NULL = not read (and every row before v40).
+        if (oldVersion < 40) addColumnsIfMissing(db, "comfort_event", COMFORT_COLUMNS_V40);
+    }
+
+    /** comfort_event, v40: air direction (EffortTable.DIR_*) and the rear
+     *  window defogger (1/0). */
+    static final String COMFORT_COLUMNS_V40 = "direction INTEGER, rear_defrost INTEGER";
+
+    private static void addColumnsIfMissing(SQLiteDatabase db, String table, String columnDefs) {
+        java.util.Set<String> existing = new java.util.HashSet<>();
+        Cursor c = db.rawQuery("PRAGMA table_info(" + table + ")", null);
+        try {
+            while (c.moveToNext()) existing.add(c.getString(1));
+        } finally { c.close(); }
+        for (String raw : columnDefs.split(",")) {
+            String def = raw.trim();
+            if (def.isEmpty()) continue;
+            String name = def.split("\\s+")[0];
+            if (!existing.contains(name)) {
+                db.execSQL("ALTER TABLE " + table + " ADD COLUMN " + def);
+            }
+        }
     }
 
     /** sensors.MovingTime's time with a speed above zero, ms per day. */

@@ -75,8 +75,7 @@ public final class AppBackup {
     static final String SETTINGS = "settings.json";
     static final String DB = "car.db";
     /** Every file of files/ that goes in a backup and comes back on restore. */
-    static final String[] FILES = {MqttTls.CLIENT_P12, MqttTls.CUSTOM_CA_CRT,
-        com.geely.drivemem.hvac.ComfortTableStore.FILE};
+    static final String[] FILES = {MqttTls.CLIENT_P12, MqttTls.CUSTOM_CA_CRT};
     public static final String EXT = ".dabackup";
     static final int KEEP = 7;
     static final long AUTO_EVERY_MS = 24L * 3600 * 1000;

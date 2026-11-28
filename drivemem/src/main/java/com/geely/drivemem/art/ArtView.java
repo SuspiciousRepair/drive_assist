@@ -130,6 +130,18 @@ public abstract class ArtView extends View {
         postInvalidateOnAnimation();
     }
 
+    // Calibrated car-frame acceleration in g (+fwd, +right, +up), from the
+    // head-unit accelerometer (ImuHub). Only drives motion while moving;
+    // STOPPED, IT STOPS still holds.
+    protected float imuFwdG = 0f, imuLatG = 0f, imuVertG = 0f;
+
+    public void setImu(float axG, float ayG, float azG) {
+        imuFwdG  = Float.isFinite(axG) ? Math.max(-2.0f, Math.min(2.0f, axG)) : 0f;
+        imuLatG  = Float.isFinite(ayG) ? Math.max(-1.5f, Math.min(1.5f, ayG)) : 0f;
+        imuVertG = Float.isFinite(azG) ? Math.max(-2.5f, Math.min(2.5f, azG)) : 0f;
+        if (speedKmh > 0.5f) kick();
+    }
+
     // Does the art occupy the WHOLE SCREEN (behind the controls) or only the
     // right-hand third? The art itself answers, not the Activity: a scene that
     // full-bleeds needs to know this in order to paint its own scrim on the

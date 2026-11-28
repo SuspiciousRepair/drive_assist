@@ -35,6 +35,8 @@ public class CarMode {
     // gear: CURRENT_GEAR (same id the telemetry uses). VehicleGear enum:
     // NEUTRAL=1, REVERSE=2, PARK=4, DRIVE=8
     static final int GEAR = 289408001;
+    /** The car's Parking Mode: 0 = off, else the low byte is the chosen duration. */
+    static final int PARK_MODE = 557885463;
     static final int GEAR_DRIVE = 8;
     static final int GEAR_PARK = 4;
 

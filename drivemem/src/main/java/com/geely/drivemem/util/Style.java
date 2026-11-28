@@ -179,6 +179,124 @@ public class Style {
     public static final String APPEARANCE_DARK  = "dark";
     public static final String APPEARANCE_AUTO  = "auto";
 
+    // Right-hand drive layout: resolved once per load(Context) from the
+    // drive_side setting (Left / Right), seeded from CarCaps.rhd once known.
+    public static boolean RHD = false;
+    public static final String DRIVE_SIDE_LEFT  = "left";
+    public static final String DRIVE_SIDE_RIGHT = "right";
+
+    /** Returns the effective driving position (Left or Right). When unset (or
+     * legacy "auto"), reads CarCaps.rhd and saves it once the car has reported
+     * "0" or "1", falling back to Left without saving until then. */
+    public static String driveSide(Context c) {
+        String saved = Prefs.getDriveSide(c, null);
+        if (DRIVE_SIDE_LEFT.equals(saved) || DRIVE_SIDE_RIGHT.equals(saved)) return saved;
+        String detected = detectDriveSide(CarCaps.read(c));
+        if (detected != null) {
+            Prefs.setDriveSide(c, detected);
+            return detected;
+        }
+        return DRIVE_SIDE_LEFT;
+    }
+
+    /** Saves the driving position setting (Left or Right) and updates {@link #RHD}. */
+    public static void setDriveSide(Context c, String mode) {
+        String normalized = DRIVE_SIDE_RIGHT.equals(mode) ? DRIVE_SIDE_RIGHT : DRIVE_SIDE_LEFT;
+        Prefs.setDriveSide(c, normalized);
+        RHD = DRIVE_SIDE_RIGHT.equals(normalized);
+    }
+
+    /** Pure detector from car.caps: "1" -> RIGHT, "0" -> LEFT, unknown/missing -> null. */
+    static String detectDriveSide(CarCaps caps) {
+        if (caps == null) return null;
+        if ("1".equals(caps.rhd)) return DRIVE_SIDE_RIGHT;
+        if ("0".equals(caps.rhd)) return DRIVE_SIDE_LEFT;
+        return null;
+    }
+
+    /** Pure resolver for RHD: LEFT -> false, RIGHT -> true, unset/legacy -> CarCaps.rhd == "1". */
+    public static boolean resolveRhd(String mode, CarCaps caps) {
+        if (DRIVE_SIDE_RIGHT.equals(mode)) return true;
+        if (DRIVE_SIDE_LEFT.equals(mode)) return false;
+        return DRIVE_SIDE_RIGHT.equals(detectDriveSide(caps));
+    }
+
+    /** Pure index mapping for mirrored horizontal rows and columns. */
+    static int mirrorIndex(int index, int count, boolean rhd) {
+        return rhd ? (count - 1 - index) : index;
+    }
+
+    /** Physical horizontal gravity for the driver's edge: LEFT on LHD, RIGHT on RHD. */
+    public static int driverGravity() { return RHD ? Gravity.RIGHT : Gravity.LEFT; }
+
+    /** Physical horizontal gravity for the passenger's edge: RIGHT on LHD, LEFT on RHD. */
+    public static int passengerGravity() { return RHD ? Gravity.LEFT : Gravity.RIGHT; }
+
+    /** Sets padding with horizontal driver/passenger edges mirrored in RHD. */
+    public static void setDriverPadding(View v, int driverPx, int topPx, int passengerPx, int bottomPx) {
+        if (RHD) v.setPadding(passengerPx, topPx, driverPx, bottomPx);
+        else v.setPadding(driverPx, topPx, passengerPx, bottomPx);
+    }
+
+    /** Sets horizontal margins with driver/passenger sides mirrored in RHD. */
+    public static void setDriverMargin(ViewGroup.MarginLayoutParams lp, int driverPx, int passengerPx) {
+        if (RHD) { lp.leftMargin = passengerPx; lp.rightMargin = driverPx; }
+        else { lp.leftMargin = driverPx; lp.rightMargin = passengerPx; }
+    }
+
+    /** Adds items horizontally in LHD order (0..n-1) or mirrored RHD order (n-1..0),
+     * skipping null entries. When gapDp > 0, applies a uniform gap between adjacent
+     * visual items (preserving each item's width, height, weight, gravity, and
+     * vertical margins). When gapDp <= 0, swaps each freshly built item's horizontal
+     * margins in RHD. */
+    public static void addMirrored(LinearLayout row, int gapDp, View... items) {
+        if (items == null) return;
+        int gapPx = gapDp > 0 ? dp(row.getContext(), gapDp) : 0;
+        int added = 0;
+        int n = items.length;
+        for (int i = 0; i < n; i++) {
+            View v = items[mirrorIndex(i, n, RHD)];
+            if (v == null) continue;
+            ViewGroup.LayoutParams raw = v.getLayoutParams();
+            if (gapPx > 0) {
+                LinearLayout.LayoutParams lp;
+                if (raw instanceof LinearLayout.LayoutParams) {
+                    lp = (LinearLayout.LayoutParams) raw;
+                } else if (raw instanceof ViewGroup.MarginLayoutParams) {
+                    lp = new LinearLayout.LayoutParams((ViewGroup.MarginLayoutParams) raw);
+                } else if (raw != null) {
+                    lp = new LinearLayout.LayoutParams(raw);
+                } else {
+                    lp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                }
+                lp.leftMargin = added > 0 ? gapPx : 0;
+                lp.rightMargin = 0;
+                row.addView(v, lp);
+            } else {
+                if (RHD && raw instanceof ViewGroup.MarginLayoutParams) {
+                    ViewGroup.MarginLayoutParams mlp = (ViewGroup.MarginLayoutParams) raw;
+                    if (mlp.isMarginRelative()) {
+                        int s = mlp.getMarginStart();
+                        int e = mlp.getMarginEnd();
+                        mlp.setMarginStart(e);
+                        mlp.setMarginEnd(s);
+                    } else {
+                        int tmp = mlp.leftMargin;
+                        mlp.leftMargin = mlp.rightMargin;
+                        mlp.rightMargin = tmp;
+                    }
+                }
+                if (raw != null) row.addView(v, raw);
+                else row.addView(v);
+            }
+            added++;
+        }
+    }
+
+    /** Mirrors a normalized [0..1] horizontal coordinate in RHD. */
+    public static float mirrorX(float frac) { return RHD ? 1f - frac : frac; }
+
     /** Returns the saved appearance setting (Light/Dark/Auto). */
     public static String appearance(Context c) {
         return Prefs.getAppearance(c, APPEARANCE_DARK);
@@ -212,6 +330,7 @@ public class Style {
     /** Loads the saved theme (or transient override) and applies it. Called at onCreate start. */
     public static void load(Context c) {
         Prefs.getCurrency(c);
+        RHD = DRIVE_SIDE_RIGHT.equals(driveSide(c));
         String savedTheme = Prefs.getTheme(c, THEMES[0].id);
         if ("claro".equals(savedTheme)) {
             // Legacy: Claro theme merged into Default's light Palette; migrate to APPEARANCE_LIGHT.
@@ -308,7 +427,21 @@ public class Style {
     public static android.graphics.drawable.Drawable configScreenBg(Context c) {
         if (!"geely".equals(current.id)) return screenBg();
         int res = resolvedLight(c, current) ? R.drawable.config_bg_day : R.drawable.config_bg_night;
-        return c.getResources().getDrawable(res, c.getTheme());
+        android.graphics.drawable.Drawable d = c.getResources().getDrawable(res, c.getTheme());
+        return RHD && d != null ? new FlippedDrawable(d) : d;
+    }
+
+    /** Horizontally mirrors a drawable at draw time (zero extra bitmap allocation). */
+    private static final class FlippedDrawable extends android.graphics.drawable.DrawableWrapper {
+        FlippedDrawable(android.graphics.drawable.Drawable dr) { super(dr); }
+
+        @Override public void draw(android.graphics.Canvas canvas) {
+            android.graphics.Rect b = getBounds();
+            canvas.save();
+            canvas.scale(-1f, 1f, b.exactCenterX(), b.exactCenterY());
+            super.draw(canvas);
+            canvas.restore();
+        }
     }
 
     /** Config screen's background for every OTHER section: a flat fill of
@@ -518,6 +651,39 @@ public class Style {
         return sb;
     }
 
+    /**
+     * A ready text with its units made smaller and dim: "7 h 40 min",
+     * "↑2493  ↓1789 m", "24 – 25 °C". A word with no digit in it is a unit
+     * ({@link #isUnitWord}); the space before it goes with it.
+     */
+    public static CharSequence unitsDimmed(String text, float unitScale) {
+        SpannableStringBuilder sb = new SpannableStringBuilder();
+        int i = 0, n = text.length();
+        while (i < n) {
+            int ws = i;
+            while (i < n && text.charAt(i) == ' ') i++;
+            int we = i;
+            while (i < n && text.charAt(i) != ' ') i++;
+            String word = text.substring(we, i);
+            if (isUnitWord(word)) appendUnit(sb, text.substring(ws, i), unitScale);
+            else sb.append(text, ws, i);
+        }
+        return sb;
+    }
+
+    /** True for "km", "min", "°C", "Wh/km"; false for a number ("↑2493",
+     * "7.185") and for a sign that joins two numbers ("→", "–", "~", "·"). */
+    public static boolean isUnitWord(String word) {
+        if (word.isEmpty()) return false;
+        boolean letter = false;
+        for (int i = 0; i < word.length(); i++) {
+            char ch = word.charAt(i);
+            if (Character.isDigit(ch)) return false;
+            if (Character.isLetter(ch) || ch == '°' || ch == '%') letter = true;
+        }
+        return letter;
+    }
+
     /** Appends text as smaller, normal-weight and dim — used for units and parenthetical asides. */
     public static void appendUnit(SpannableStringBuilder sb, String text, float scale) {
         int start = sb.length();
@@ -682,11 +848,14 @@ public class Style {
         return iv;
     }
 
-    /** Creates the effort scale (11 pills from C5 to W5) showing HVAC level. */
+    /** Creates the comfort ruler's bar (see {@link #effortScale(Context, int, int, int, boolean, boolean)}). */
     public static android.graphics.Bitmap effortScale(Context c, int w, int h,
             int level, boolean approx) {
         return effortScale(c, w, h, level, approx, false);
     }
+
+    /** The space between two marks of the bar; the touch on the bar uses it too. */
+    public static final int EFFORT_GAP_DP = 8;
 
     /** Darkens a color to indicate frozen/disabled state. */
     private static int darken(int color) {
@@ -697,65 +866,47 @@ public class Style {
         return Color.argb(a, r, g, b);
     }
 
-    /** Creates the effort scale with optional defrosting (dimmed) state. */
+    /**
+     * Creates the comfort ruler's bar. It shows how much effort is in use,
+     * like a level meter:
+     * off = 10 grey marks; cooling = 10 marks that fill with the cool
+     * colour from right to left (C1 is the mark at the right end); warming =
+     * 5 marks that fill with the warm colour from left to right. A state that
+     * is not exactly on its mark draws the last filled mark as an outline.
+     * Defrosting dims the whole bar.
+     */
     public static android.graphics.Bitmap effortScale(Context c, int w, int h,
             int level, boolean approx, boolean defrosting) {
         android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(
             Math.max(w, 1), Math.max(h, 1), android.graphics.Bitmap.Config.ARGB_8888);
         android.graphics.Canvas cv = new android.graphics.Canvas(bmp);
         android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
-
-        int max = EffortTable.MAX_LEVEL;                 // 5, fixed both sides
-        float gap = dp(c, 8);
         float radius = dp(c, 8);
-        boolean off = (level == 0);
-        // The zero pill is fixed 15dp ONLY while a side is lit (it is then just
-        // the divider between them). At level 0 — HVAC off — it takes an equal
-        // flex:1 share like every other pill instead, so "off" reads as one
-        // wide filled bar, not a small dot lost among ten empty ones. Straight
-        // from the mock's own render script, which the README's one-line "fixed
-        // 15x15" undersells.
-        float totalGap = gap * 10;
-        float zeroW = off ? (w - totalGap) / 11f : dp(c, 15);
-        float sideW = off ? zeroW : (w - totalGap - zeroW) / 10f;
-        boolean coldSide = level > 0;                     // which side is "current"
+        int grey = defrosting ? darken(CARD_HI) : CARD_HI;
 
-        float x = 0;
-        for (int i = 0; i < 11; i++) {
-            int n = max - i;                              // C5..C1, 0, W1..W5
-            float pw = (n == 0) ? zeroW : sideW;
+        // Off shows the 10 cool marks, all grey: a finger can go to one of them.
+        boolean cold = level >= 0;
+        int marks = cold ? EffortTable.COOL_MAX : EffortTable.WARM_MAX;
+        int lit = Math.min(Math.abs(level), marks);
+        int side = defrosting ? darken(cold ? COOL : HEAT) : (cold ? COOL : HEAT);
+        float gap = dp(c, EFFORT_GAP_DP);
+        float stroke = dp(c, 2);
+        float pw = (w - gap * (marks - 1)) / marks;
+        for (int i = 0; i < marks; i++) {
+            // Cooling counts from the right end, warming from the left end.
+            int n = cold ? marks - i : i + 1;
+            float x = i * (pw + gap);
             android.graphics.RectF r = new android.graphics.RectF(x, 0, x + pw, h);
-
-            if (n == 0) {
-                if (level == 0) {
-                    p.setStyle(android.graphics.Paint.Style.FILL);
-                    p.setColor(defrosting ? darken(TEXT) : TEXT);
-                } else {
-                    p.setStyle(android.graphics.Paint.Style.STROKE);
-                    p.setStrokeWidth(dp(c, 2));
-                    p.setColor(defrosting ? darken(CARD_HI) : CARD_HI);
-                }
+            if (approx && n == lit) {
+                p.setStyle(android.graphics.Paint.Style.STROKE);
+                p.setStrokeWidth(stroke);
+                p.setColor(side);
+                r.inset(stroke / 2f, stroke / 2f);
             } else {
-                boolean cold = n > 0;
-                int abs = Math.abs(n);
-                int side = cold ? COOL : HEAT;
-                boolean lit = level != 0 && cold == coldSide && abs <= Math.abs(level);
-                boolean approxNext = approx && level != 0 && cold == coldSide
-                                    && abs == Math.abs(level) + 1;
-                if (lit) {
-                    p.setStyle(android.graphics.Paint.Style.FILL);
-                    p.setColor(defrosting ? darken(side) : side);
-                } else if (approxNext) {
-                    p.setStyle(android.graphics.Paint.Style.STROKE);
-                    p.setStrokeWidth(dp(c, 2));
-                    p.setColor(defrosting ? darken(side) : side);
-                } else {
-                    p.setStyle(android.graphics.Paint.Style.FILL);
-                    p.setColor(defrosting ? darken(CARD_HI) : CARD_HI);
-                }
+                p.setStyle(android.graphics.Paint.Style.FILL);
+                p.setColor(n <= lit ? side : grey);
             }
             cv.drawRoundRect(r, radius, radius, p);
-            x += pw + gap;
         }
         return bmp;
     }
@@ -938,17 +1089,39 @@ public class Style {
      * repack removes it). */
     public static int packIntoColumns(Context c, LinearLayout columns, List<LinearLayout> cards,
             int columnWidthPx, int availableHeightPx, java.util.function.IntConsumer afterRepack) {
+        int prevCount = columns.getChildCount();
         int n = packIntoColumnsOnce(c, columns, cards, columnWidthPx, availableHeightPx);
         columns.post(() -> {
             for (int i = 0; i < columns.getChildCount(); i++) {
                 if (columns.getChildAt(i).getHeight() > availableHeightPx) {
                     int again = packIntoColumnsOnce(c, columns, cards, columnWidthPx, availableHeightPx);
                     if (afterRepack != null) afterRepack.accept(again);
+                    if (shouldScrollToDriverEdge(prevCount, again, RHD)) {
+                        columns.post(() -> scrollColumnsToDriverEdge(columns));
+                    }
                     return;
                 }
             }
+            if (shouldScrollToDriverEdge(prevCount, n, RHD)) scrollColumnsToDriverEdge(columns);
         });
         return n;
+    }
+
+    /** Auto-scrolls overflowing RHD columns to the driver edge only on the initial
+     * pack or when the column count changes, preserving manual horizontal scroll
+     * when cards resize or toggle within the same number of columns. */
+    static boolean shouldScrollToDriverEdge(int prevCols, int newCols, boolean rhd) {
+        return rhd && (prevCols == 0 || newCols != prevCols);
+    }
+
+    /** Scrolls an overflowing HorizontalScrollView to the right (driver) edge in RHD.
+     * Avoids FrameLayout Gravity.END on an overflowing HorizontalScrollView child,
+     * which can yield a negative childLeft and break scrolling. */
+    private static void scrollColumnsToDriverEdge(LinearLayout columns) {
+        if (!(columns.getParent() instanceof android.widget.HorizontalScrollView)) return;
+        android.widget.HorizontalScrollView hsv = (android.widget.HorizontalScrollView) columns.getParent();
+        int maxScroll = Math.max(0, columns.getWidth() - hsv.getWidth());
+        hsv.scrollTo(maxScroll, 0);
     }
 
     /** Returns how many columns the cards took. */
@@ -957,6 +1130,7 @@ public class Style {
         columns.removeAllViews();
         int gapV = dp(c, CARD_GAP_DP), gapH = dp(c, COLUMN_GAP_DP);
 
+        java.util.List<LinearLayout> built = new java.util.ArrayList<>();
         LinearLayout col = null;
         int used = 0;
         for (LinearLayout card : cards) {
@@ -977,10 +1151,7 @@ public class Style {
             if (startNew) {
                 col = new LinearLayout(c);
                 col.setOrientation(LinearLayout.VERTICAL);
-                LinearLayout.LayoutParams clp =
-                    new LinearLayout.LayoutParams(columnWidthPx, ViewGroup.LayoutParams.WRAP_CONTENT);
-                if (columns.getChildCount() > 0) clp.leftMargin = gapH;
-                columns.addView(col, clp);
+                built.add(col);
                 used = 0;
             } else if (visible) {
                 // A GONE card contributes no height, so it must not contribute
@@ -996,7 +1167,19 @@ public class Style {
             col.addView(card);
             used += cardH;
         }
-        return columns.getChildCount();
+        if (columns.getParent() instanceof android.widget.HorizontalScrollView) {
+            ((android.widget.HorizontalScrollView) columns.getParent()).setFillViewport(true);
+        }
+        columns.setGravity(driverGravity());
+        int count = built.size();
+        for (int i = 0; i < count; i++) {
+            LinearLayout next = built.get(mirrorIndex(i, count, RHD));
+            LinearLayout.LayoutParams clp =
+                new LinearLayout.LayoutParams(columnWidthPx, ViewGroup.LayoutParams.WRAP_CONTENT);
+            if (i > 0) clp.leftMargin = gapH;
+            columns.addView(next, clp);
+        }
+        return count;
     }
 
     /** Applies margin values to an already-added view. */

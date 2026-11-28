@@ -11,6 +11,8 @@ set -euo pipefail
 MH_OUT="$(mktemp -d)"
 javac -d "$MH_OUT" \
   modehelper/src/com/geely/modehelper/RestorePolicy.java \
+  modehelper/src/com/geely/modehelper/StayAwakePolicy.java \
+  modehelper/test/com/geely/modehelper/StayAwakePolicyTest.java \
   modehelper/src/com/geely/modehelper/ModeRestore.java \
   modehelper/test/com/geely/modehelper/ModeRestoreTest.java \
   modehelper/src/com/geely/modehelper/AvasPolicy.java \
@@ -70,6 +72,7 @@ for t in MotionGate MotionEventPolicy MotionStall ParkedMonitorPolicy PreRoll \
   java -cp "$MH_OUT" "com.geely.modehelper.${t}Test" >/dev/null
 done
 java -cp "$MH_OUT" com.geely.modehelper.RestorePolicyTest
+java -cp "$MH_OUT" com.geely.modehelper.StayAwakePolicyTest
 java -cp "$MH_OUT" com.geely.modehelper.ModeRestoreTest
 java -cp "$MH_OUT" com.geely.modehelper.LockSoundPolicyTest
 java -cp "$MH_OUT" com.geely.modehelper.AvasPolicyTest

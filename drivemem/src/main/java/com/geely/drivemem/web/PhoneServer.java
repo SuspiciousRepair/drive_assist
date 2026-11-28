@@ -7,11 +7,13 @@ import android.util.Log;
 import com.geely.drivemem.R;
 import com.geely.drivemem.car.CarAccess;
 import com.geely.drivemem.services.TelemetryService;
+import com.geely.drivemem.state.CarDiary;
 import com.geely.drivemem.state.CarState;
 import com.geely.drivemem.util.AppBackup;
 import com.geely.drivemem.util.BackupCrypto;
 import com.geely.drivemem.util.Clips;
 import com.geely.drivemem.util.CsvExport;
+import com.geely.drivemem.util.DiaryClipTrimmer;
 import com.geely.drivemem.util.GpxExport;
 import com.geely.drivemem.util.Prefs;
 
@@ -172,6 +174,10 @@ public final class PhoneServer {
             if ("/settings".equals(r.path) && r.boundary == null) {
                 saveSettings(app, r);
                 Http.redirect(out, "/settings?saved=1");
+            } else if ("/tolls".equals(r.path) && r.boundary == null) {
+                Http.redirect(out, saveBooth(app, r.form) ? "/tolls?saved=1" : "/tolls");
+            } else if ("/costs".equals(r.path) && r.boundary == null) {
+                Http.redirect(out, saveParking(app, r.form) ? "/costs?saved=1" : "/costs");
             } else if ("/restore".equals(r.path) && r.boundary != null) {
                 restoreUpload(app, r, in, out);
             } else {
@@ -187,13 +193,45 @@ public final class PhoneServer {
                 return;
             case "/trips.csv":
             case "/charges.csv": {
-                // One at a time: write() overwrites the same two files, so a
+                // One at a time: write() overwrites the same files, so a
                 // second download must not rewrite them under the first.
                 synchronized (CsvExport.class) {
-                    File[] csv = CsvExport.write(app);   // {charges, trips}
+                    File[] csv = CsvExport.write(app);   // {charges, trips, diary}
                     File f = "/trips.csv".equals(r.path) ? csv[1] : csv[0];
                     Http.file(out, f, "text/csv; charset=utf-8", f.getName());
                 }
+                return;
+            }
+            case "/tolls":
+                Http.html(out, 200, PhonePages.tolls(app,
+                    com.geely.drivemem.state.TollTracker.boothsForPhone(app), "1".equals(r.query.get("saved"))));
+                return;
+            case "/costs":
+                Http.html(out, 200, PhonePages.costs(app,
+                    com.geely.drivemem.state.ParkingCost.all(app), "1".equals(r.query.get("saved"))));
+                return;
+            case "/tolls.csv":
+            case "/parking.csv": {
+                synchronized (CsvExport.class) {
+                    File f = "/tolls.csv".equals(r.path) ? CsvExport.writeTolls(app) : CsvExport.writeParking(app);
+                    Http.file(out, f, "text/csv; charset=utf-8", f.getName());
+                }
+                return;
+            }
+            case "/diary":
+                Http.html(out, 200, PhonePages.diary(app, CarDiary.readEntries(app)));
+                return;
+            case "/diary.csv": {
+                synchronized (CsvExport.class) {
+                    File f = CsvExport.writeDiary(app);
+                    Http.file(out, f, "text/csv; charset=utf-8", f.getName());
+                }
+                return;
+            }
+            case "/diary-clip": {
+                File clip = DiaryClipTrimmer.resolveClip(app, r.query.get("f"));
+                if (clip == null || !clip.exists()) { Http.send(out, 404, "text/plain", new byte[0]); return; }
+                Http.file(out, clip, "video/mp4", clip.getName());
                 return;
             }
             case "/routes": {
@@ -352,6 +390,82 @@ public final class PhoneServer {
             try { app.startForegroundService(new Intent(app, TelemetryService.class)); }
             catch (Throwable t) { Log.w(TAG, "phone: mqtt restart: " + t); }
         }
+    }
+
+    /** Waits (a short while) for a write queued on the database thread, so
+     * the page after the redirect shows the new values, not the old ones. */
+    private static void await(java.util.concurrent.CountDownLatch done) {
+        try { done.await(3, java.util.concurrent.TimeUnit.SECONDS); }
+        catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+
+    /** One booth form: price (empty clears the owner's price), "any" makes
+     * a one-way booth count both ways, "on" absent turns detection off.
+     * False when nothing was saved (a bad id or a price that is not one). */
+    private static boolean saveBooth(Context app, Map<String, String> form) {
+        long id = tripId(form.get("id"));
+        if (id <= 0) return false;
+        String raw = form.get("price");
+        Double price = raw == null || raw.trim().isEmpty() ? null : parseMoney(raw);
+        if (price != null && price < 0) return false;   // not a number: change nothing
+        java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        com.geely.drivemem.state.TollTracker.updateBooth(app, id, price,
+            "1".equals(form.get("any")), "1".equals(form.get("on")), done::countDown);
+        await(done);
+        Log.i(TAG, "phone: saved toll booth " + id);
+        return true;
+    }
+
+    /** One parking form: Clear deletes the row; else price (when a number
+     * above 0), place and kind change. False when nothing was saved. */
+    private static boolean saveParking(Context app, Map<String, String> form) {
+        long id = tripId(form.get("id"));
+        if (id <= 0) return false;
+        com.geely.drivemem.state.ParkingCost.Row row = null;
+        for (com.geely.drivemem.state.ParkingCost.Row x : com.geely.drivemem.state.ParkingCost.all(app)) {
+            if (x.id == id) { row = x; break; }
+        }
+        if (row == null) return false;
+        java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        if ("1".equals(form.get("del"))) {
+            com.geely.drivemem.state.ParkingCost.delete(app, id, done::countDown);
+            await(done);
+            return true;
+        }
+        Double price = parseMoney(form.get("price"));
+        if (price != null && price > 0) row.cost = price;
+        String name = form.get("name");
+        if (name != null && name.length() <= 80 && !hasControl(name)) row.placeName = name.trim();
+        String kind = form.get("kind");
+        if (row.valetId == null && kind != null) {
+            row.kind = com.geely.drivemem.state.ParkingCost.KIND_STREET.equals(kind)
+                ? com.geely.drivemem.state.ParkingCost.KIND_STREET : com.geely.drivemem.state.ParkingCost.KIND_LOT;
+        }
+        com.geely.drivemem.state.ParkingCost.save(app, row, done::countDown);
+        await(done);
+        Log.i(TAG, "phone: saved parking " + id);
+        return true;
+    }
+
+    /** A price typed on a phone: "12,50", "12.50", "1.234,50" or "1,234.50".
+     * The last comma or dot is the decimal mark. Null when empty, -1 when
+     * it is not a price. */
+    static Double parseMoney(String v) {
+        if (v == null) return null;
+        String t = v.trim().replace(" ", "");
+        if (t.isEmpty()) return null;
+        int dec = Math.max(t.lastIndexOf(','), t.lastIndexOf('.'));
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < t.length(); i++) {
+            char ch = t.charAt(i);
+            if (ch >= '0' && ch <= '9') sb.append(ch);
+            else if (i == dec && t.length() - i - 1 <= 2) sb.append('.');
+            else if (ch == ',' || ch == '.') continue;
+            else return -1.0;
+        }
+        if (sb.length() == 0 || sb.length() > 12) return -1.0;
+        try { return Math.round(Double.parseDouble(sb.toString()) * 100) / 100.0; }
+        catch (NumberFormatException e) { return -1.0; }
     }
 
     /** A trip id from the address, or -1. Digits only, so nothing else

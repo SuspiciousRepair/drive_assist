@@ -18,8 +18,13 @@ reverse-engineering evidence are in the
 The home screen is made for quick use while you drive:
 
 - The big number is the outside temperature.
-- The comfort scale asks for cooler or warmer air in one move, instead of
-  setting fan, temperature and A/C one by one.
+- The comfort ruler asks for cooler or warmer air with one tap, instead of
+  setting fan, temperature and A/C one by one. It has 10 cooling marks and 5
+  heating marks. Each tap goes to the next mark and changes one small thing,
+  so the fan never jumps. The first tap is always the gentlest mark, and a
+  mark does the same thing in all weather. To go far in one move, touch the
+  bar: touch a mark, or slide a finger along the bar and lift it. When the
+  climate is off, the bar shows the 10 cooling marks.
 - Large buttons do cooling, heating, recirculation and a window clear.
 - While the car charges, a charging card takes the place of the Parked card. It
   shows the time charging, the time left to 100%, the battery level, the energy
@@ -50,7 +55,11 @@ explicitly from Drive Assist (turning AEB off in the car's own screen stays
 temporary; turning it off in Drive Assist keeps it off across restarts).
 
 Settings are grouped in **Config**: Doors, Climate, Driving mode, Elements (what
-shows on the home screen), Appearance (themes and Auto day/night), and System.
+shows on the home screen), Appearance (themes, Auto day/night, and **Driver
+side**: Left or Right, detected from the car on first start and changeable
+anytime — moving sidebars, card columns, two-pane layouts, floating controls
+and art to the driver's side for right-hand-drive cars while keeping card
+contents left-to-right), and System.
 
 Vehicle settings are applied through the small **ModeHelper** companion that
 installs with Drive Assist. The dashboard and the privileged helper stay
@@ -77,24 +86,83 @@ separate, for safety and reliability.
 Tap a finished trip (in Park) to see its **route** on an OpenStreetMap map,
 coloured by speed. The map needs the internet the first time a place is shown;
 after that it is kept in the car, so a trip that ends in a garage still shows its
-map. Under the route is the height along the trip, and the trip's numbers.
+map. Under the route is the height along the trip, and the trip's numbers,
+with the **odometer** at the start and the end.
 
-Tap the trip count to open **all routes in one picture**. Routes are recorded
+**Trip scores.** With the trip's numbers are two scores from 0 to 100, measured
+by the head unit's motion sensor. **Driver** is how smooth the drive was: hard
+brakes, launches, sharp turns, and slowing with regeneration. **Road** is how
+rough the surface was. A line under them counts the events, the map marks each
+hard bump, and **(i)** explains the scores. Trips recorded before the scores
+existed, and trips with less than 20 seconds of movement, have none.
+
+Tap the map next to the sessions to open **all routes in one picture**, for the
+day, week, month or year you are looking at. Routes are recorded
 from **Config → System** (on by default) and stay in the car. You can export
 them as **GPX** (one file per day) and the trip list as **CSV**, to a USB stick
-or to your phone.
+or to your phone. Each trip row, on screen and in the CSV, has the odometer at
+the start and the end, ready for an expense app.
+
+**Join and split trips.** A short stop cuts one drive into two trips. To see
+the whole drive as one, tap the **link** icon on the Sessions card, then tap
+the first and the last trip. Everything between them turns blue: the other
+trips, the stops and any charge on the way. Tap **Join**. The joined card shows
+"2 trips" (or more) and lists the stops and charges inside it. To cut a trip in
+two, open it and tap **Split**. The first place where you shifted to P is
+picked at once; **‹** and **›** step through the others (or drag on the height
+chart). Check the two new trips on the right and tap **Split here**. A trip with no shift to P inside it has no Split.
+**Undo join** and **Undo split** on the trip screen put the trips back as they
+were recorded: nothing is ever deleted. The height chart marks each toll with a
+line; in split mode it also marks each shift to P. The CSV and GPX exports keep the trips as
+recorded.
 
 If the car was lent out in **Valet** mode, tap its card for a detail screen: a
 map of every move, a timeline, the dashcam clips from that time, and the numbers
 (moves, time moving and parked, distance, top speed and power, battery and
-temperature low to high).
+temperature low to high). It has the driver and road scores too; tap a bump to
+open the dashcam clip of that moment.
+
+## Car diary: maintenance, costs and incidents
+
+The **Car diary** (the third icon on the stats screen) keeps what you do to
+the car and what it costs:
+
+- **Entries**: tires, service and fluids, electrical parts, looks and body,
+  fees and insurance, accessories, parking, tolls and tickets. Each entry
+  takes a date, the odometer (filled in from the date), a cost and a note.
+- **Next maintenance**: each scheduled item shows when it is due, by distance,
+  by time, or both. The intervals are in **Config → Maintenance**: change one
+  with the arrows, tap the value to type any figure, and add a schedule to an
+  item that has none. A changed row shows a reset icon.
+  Set the **pick-up date** under **My car** (and the odometer then, for a used
+  car): the first service then counts its 12 months from that day.
+- **Postponed**: when the shop looks at a part that is due and says to wait,
+  add an entry for that item and pick **Postponed**, with the odometer (or the
+  day) to wait for. The item is due again at that point; it is not counted as
+  changed.
+- **Cost of ownership**: what the car cost in the chosen period, split in four
+  groups. Tap the card to see it as money, per km, or in percent.
+- **Battery health**: the main battery (state of health needs an OBD2 dongle)
+  and a 60-day chart of the 12 V battery at rest. Readings taken while the car
+  wakes or just after a recharge are shown in other colours and do not count
+  against the battery.
+- **Impacts**: the car's motion sensor notes a hard bump while driving. In
+  Park the diary asks whether to keep it. A kept impact has the place on the
+  map and, on a car with the dashcam, a 5-second clip. Set the sensitivity,
+  or turn it off, in **Config → Maintenance**.
+- **Tickets**: type the hour from the notice and the diary finds the place on
+  that day's saved route.
+- **Export**: the diary as CSV, with its clips, to a USB stick or to your
+  phone.
+
+The diary stays in the car and is part of the backup.
 
 ## Charging and cost
 
 ![Charging stats](screenshots/charging-statistics-live.png)
 
-**Charging stats** keeps every past charge — energy, time, battery change and
-average power. Tap a charge (in Park) to add or fix its price; a free charge can
+**Charging stats** keeps every past charge — energy, time, battery change,
+average power and the odometer at plug-in. Tap a charge (in Park) to add or fix its price; a free charge can
 be saved as zero, and that stays different from a charge whose price you never
 entered. To change the currency symbol (R$ by default), go to Config → Elements
 → Localization. There is a month and year view, a battery-temperature card, and a map
@@ -103,6 +171,40 @@ of the places where you charge.
 A **battery health** card shows kWh per charge, the hours the battery spent below
 10% and 20%, and — with an OBD2 dongle — the battery's state of health. Without a
 dongle, the charge screen still shows the outside temperature during the charge.
+
+## Tolls and parking
+
+Turn on **Detect tolls via OpenStreetMap** under **Config → Integrations →
+OpenStreetMap** (off by default). The car then marks each toll plaza and Free Flow gantry it
+drives through. It downloads the toll places for wide areas (about 55 km
+across), never your route.
+
+- **On the trip screen**, each toll is a pin on the map and a mark on the
+  height chart. Tap a toll to set its price. Keep **Remember price for this
+  booth** on, and later trips through it take that price.
+- **A toll it missed**: touch the height chart where the toll was, then tap
+  **+ Add a missed toll**. Pick plaza or Free Flow, and type the price. Later
+  trips in the same direction find it.
+- **Parking**: on the stats page, tap a **Parked** line to type what that stop
+  cost. Pick **Car park** or **Street**, and give the place a name if you
+  like. The next time you park there, the name and the last prices are ready
+  as one-tap buttons. Stops of 15 minutes or more show a quiet **+ R$**.
+  When the car's place is known and OpenStreetMap maps are on, the dialog
+  shows where the car was parked.
+- **Parking filter**: next to Trips and Charges, **Parking** lists only the
+  parked stops (15 minutes or more, or priced) and the Valet stays. Each
+  filter button shows how many there are.
+- **On the Parked card** at home, tap **+ R$** to type the price right after
+  you pay at the kiosk.
+- **Valet**: the Valet card and the Valet screen have a **Cost** to set. When
+  you end Valet in Park at a place where you paid for Valet before, the price
+  asks for one tap.
+- The trip screen shows the **parking on arrival** and the trip's **tolls +
+  parking**. The **cost of ownership** in the Car diary counts tolls and
+  parking in its road group.
+
+On your phone (**Phone access**), **Tolls and parking** lists the booths and
+the parking costs to edit with a phone keyboard, and downloads both as CSV.
 
 ## Bring your own services
 
@@ -140,8 +242,11 @@ the screen. At the top are the art, the song, the artist and the album. Under th
 in time with it: the line sung now in large type, the line before it, and the
 next two. The bar at the bottom has Play, Skip and **✕**, which closes the
 lyrics. The card remembers your last choice, open or closed, from song to song
-and after the car sleeps. The card stays at its normal size when the Home
-Assistant panel is up, or when the other cards need more than one column.
+and after the car sleeps. The card goes back to its normal size when the
+Home Assistant panel comes up, or when the other cards need more than one
+column. Tap **Lyrics** again and it grows back over the second and third
+columns, on top of the cards there. Close it with **✕** to see them again.
+It gives way again when more cards come.
 
 The lyrics come from [LRCLIB](https://lrclib.net), a free lyrics site. To find
 them, the car sends the song, artist and album names there, once for each song.
@@ -175,7 +280,19 @@ same values on every car.
 ## More you can do
 
 - **Phone access**: scan a QR code on the car screen to get a page on your phone
-  for backups, clips and trip files. It runs only in Park, on the local network.
+  for backups, clips, trip files, and toll and parking prices. At the bottom,
+  **App version** shows the installed Drive Assist and ModeHelper versions
+  (or "ModeHelper: not installed"): tap the text to select it, then copy it. It runs only in Park, on the
+  local network.
+- **Valet Mode and the PIN**: while Valet Mode is on, the home screen shows
+  only Climate and the Valet card, the music volume goes to zero, and Config
+  is closed (with a PIN set, the PIN opens it). Under **Config → Security** you can set a PIN of 4 to 6 digits
+  and choose what it guards: ending Valet Mode, opening Config, or both. With
+  no PIN set, nothing asks for one. The PIN is not asked while the car sees
+  something of yours: your iPhone on the USB cable, a known Wi-Fi router, or a
+  trusted Bluetooth phone or beacon. **Forgot PIN?** works with a trusted
+  device near, or when parked at the safe place you saved. The PIN stays on
+  the car and is not in backups.
 - **Backup and restore**: save your settings, trips and certificates to a USB
   stick and to the car, locked with a password you choose.
 - **Darkest mode**: at night, after a minute of driving with no touch, the

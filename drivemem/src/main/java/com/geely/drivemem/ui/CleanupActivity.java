@@ -101,7 +101,7 @@ public class CleanupActivity extends Activity {
 
         View spacer = new View(this);
         spacer.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
-        outer.addView(root); outer.addView(spacer);
+        Style.addMirrored(outer, 0, root, spacer);
         setContentView(outer);
     }
 
