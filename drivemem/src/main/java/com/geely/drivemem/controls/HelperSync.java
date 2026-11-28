@@ -25,9 +25,9 @@ public final class HelperSync {
 
     public static void push(Context ctx) {
         Intent i = base();
-        // "Exact energy": modehelper starts/stops roadcastd. Synced on every
-        // watchdog tick, so a helper reinstalled later still learns it.
-        i.putExtra(Prefs.KEY_CAN_ENERGY, Prefs.getCanEnergyEnabled(ctx));
+        // "Exact energy": modehelper starts roadcastd. Always on; synced on
+        // every watchdog tick, so a helper reinstalled later still learns it.
+        i.putExtra(Prefs.KEY_CAN_ENERGY, true);
         send(ctx, i);
     }
 

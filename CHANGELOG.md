@@ -10,6 +10,11 @@
 - **Wider left bar, tighter cards.** The left bar is as wide as the CarPlay
   bar, with bigger buttons and the status icons in one row. The gaps between
   cards are smaller on every screen.
+- **Car data (CAN) is always on.** The switch in Config → System is gone;
+  the card still shows the reader's status. A car where the switch was off
+  starts to read CAN again.
+- **Trip screen: no Efficiency line under the Energy by use chart.** The
+  chart already shows Wh/km. Trips with no chart keep the line.
 
 ### Fixed
 - **CarPlay no longer shows as connected with no phone.** The app took the

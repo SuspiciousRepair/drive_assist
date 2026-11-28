@@ -164,7 +164,7 @@ public final class SettingsFile {
                 "aeb_on", "avas_on", "restore_drive", "restore_regen", "restore_aeb", "restore_avas",
                 "turbo_enabled", "regen_cycle", "turbo_card_turbo", "turbo_card_regen",
                 "turbo_card_avas", "window_on_door", "parked_monitoring", "obd2_enabled",
-                "can_energy", "wifi_keep_on"}) m.put(k, T_BOOL);
+                "wifi_keep_on"}) m.put(k, T_BOOL);
         for (String k : new String[]{"tele_interval_s", "overlay_x", "overlay_y", "drive", "regen",
                 "turbo_duration_s", "switch_lock_s", "dashcam_limit_gb"}) m.put(k, T_INT);
         for (String k : new String[]{"spotify_token_expiry", "skyline_seed"}) m.put(k, T_LONG);

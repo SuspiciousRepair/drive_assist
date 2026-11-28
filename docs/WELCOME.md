@@ -23,12 +23,12 @@ no data from your car.
 
 ### The CAN reader
 
-Since v0.5.0 Drive Assist reads the CAN bus, and the switch **Car data (CAN)**
-is on by default (Config > System). The reader is
+Since v0.5.0 Drive Assist reads the CAN bus. This is always on and has no
+switch; Config > System shows its status under **Car data (CAN)**. The reader is
 [roadcast](../third_party/roadcast/README.md), a small program that runs as
 root on the head unit. ModeHelper starts it through the car's local ADB. It
-only listens: it never sends anything to the car. Turn the switch off and
-ModeHelper stops starting it.
+only listens: it never sends anything to the car. **Cleanup** (Config >
+System) removes it.
 
 ## What it can change
 

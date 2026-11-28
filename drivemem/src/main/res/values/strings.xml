@@ -544,8 +544,7 @@
     <string name="backup_pw_enter_msg">Type the password of the backup from %1$s.</string>
     <string name="backup_pw_wrong">Wrong password. Try again.</string>
     <string name="can_header">Car data (CAN)</string>
-    <string name="can_enable_label">Read battery power from the car (CAN)</string>
-    <string name="can_hint" formatted="false">Exact battery volts × amps from the car itself. On by default; nothing to set up. It needs the ModeHelper app. To start its reader, it may switch ADB on for a few seconds, then off again. If it does not work, the app falls back to the dongle or to the battery % estimate. While it is on, other apps on the car can also read this car data.</string>
+    <string name="can_hint">Exact battery power, read from the car itself. Always on. Other apps on the car can read it too.</string>
     <string name="routes_header">Trip routes</string>
     <string name="routes_enable_label">Record trip routes (GPS)</string>
     <string name="routes_hint">Saves where each trip went and where each charge was. This stays in the car and goes into your backup. If you also turn on “Map backgrounds”, the areas of your trips are sent to OpenStreetMap to get the maps. Trips from before this setting have no route.</string>
