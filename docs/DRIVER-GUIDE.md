@@ -18,8 +18,13 @@ reverse-engineering evidence are in the
 The home screen is made for quick use while you drive:
 
 - The big number is the outside temperature.
-- The comfort scale asks for cooler or warmer air in one move, instead of
-  setting fan, temperature and A/C one by one.
+- The comfort ruler asks for cooler or warmer air with one tap, instead of
+  setting fan, temperature and A/C one by one. It has 10 cooling marks and 5
+  heating marks. Each tap goes to the next mark and changes one small thing,
+  so the fan never jumps. The first tap is always the gentlest mark, and a
+  mark does the same thing in all weather. To go far in one move, touch the
+  bar: touch a mark, or slide a finger along the bar and lift it. When the
+  climate is off, the bar shows the 10 cooling marks.
 - Large buttons do cooling, heating, recirculation and a window clear.
 - While the car charges, a charging card takes the place of the Parked card. It
   shows the time charging, the time left to 100%, the battery level, the energy
@@ -84,6 +89,13 @@ after that it is kept in the car, so a trip that ends in a garage still shows it
 map. Under the route is the height along the trip, and the trip's numbers,
 with the **odometer** at the start and the end.
 
+**Trip scores.** With the trip's numbers are two scores from 0 to 100, measured
+by the head unit's motion sensor. **Driver** is how smooth the drive was: hard
+brakes, launches, sharp turns, and slowing with regeneration. **Road** is how
+rough the surface was. A line under them counts the events, the map marks each
+hard bump, and **(i)** explains the scores. Trips recorded before the scores
+existed, and trips with less than 20 seconds of movement, have none.
+
 Tap the map next to the sessions to open **all routes in one picture**, for the
 day, week, month or year you are looking at. Routes are recorded
 from **Config → System** (on by default) and stay in the car. You can export
@@ -107,7 +119,8 @@ recorded.
 If the car was lent out in **Valet** mode, tap its card for a detail screen: a
 map of every move, a timeline, the dashcam clips from that time, and the numbers
 (moves, time moving and parked, distance, top speed and power, battery and
-temperature low to high).
+temperature low to high). It has the driver and road scores too; tap a bump to
+open the dashcam clip of that moment.
 
 ## Car diary: maintenance, costs and incidents
 
@@ -271,6 +284,15 @@ same values on every car.
   **App version** shows the installed Drive Assist and ModeHelper versions
   (or "ModeHelper: not installed"): tap the text to select it, then copy it. It runs only in Park, on the
   local network.
+- **Valet Mode and the PIN**: while Valet Mode is on, the home screen shows
+  only Climate and the Valet card, the music volume goes to zero, and Config
+  is closed (with a PIN set, the PIN opens it). Under **Config → Security** you can set a PIN of 4 to 6 digits
+  and choose what it guards: ending Valet Mode, opening Config, or both. With
+  no PIN set, nothing asks for one. The PIN is not asked while the car sees
+  something of yours: your iPhone on the USB cable, a known Wi-Fi router, or a
+  trusted Bluetooth phone or beacon. **Forgot PIN?** works with a trusted
+  device near, or when parked at the safe place you saved. The PIN stays on
+  the car and is not in backups.
 - **Backup and restore**: save your settings, trips and certificates to a USB
   stick and to the car, locked with a password you choose.
 - **Darkest mode**: at night, after a minute of driving with no touch, the
