@@ -159,7 +159,7 @@ android {
     // don't apply and would otherwise fail the build.
     lint {
         checkReleaseBuilds false
-        abortOnError false
+        abortOnError true
         xmlReport true
         htmlReport true
         textReport true
@@ -204,7 +204,6 @@ dependencies {
     // settings.gradle), not Maven Central.
     implementation "com.github.PhilJay:MPAndroidChart:v3.1.0"
 
-    testImplementation files(carStubsJar)
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.json:json:20231013"
     testImplementation "org.xerial:sqlite-jdbc:3.44.0.0"

@@ -80,11 +80,22 @@ gitSha=$GIT_SHA
 buildDate=$BUILD_DATE
 EOF
 
-if [ -f "$ROOT/CHANGELOG.md" ]; then
-  cp "$ROOT/CHANGELOG.md" assets/changelog.txt
-else
-  git -C "$ROOT" log -n 15 --no-merges --pretty=format:"• %s (%cd)" --date=short > assets/changelog.txt
-fi
+# Bundle driver-facing release notes for the newest released version -- same
+# rule as drivemem/build.sh and tools/check-docs.sh, never the full developer
+# CHANGELOG.md.
+CL_VER=$(grep -oP '^## \[v\K[0-9.]+(?=\])' "$ROOT/CHANGELOG.md" | head -1)
+[ -n "$CL_VER" ] || { echo "Could not find a released version header in CHANGELOG.md" >&2; exit 1; }
+[ -f "$ROOT/RELEASE-NOTES.md" ] || { echo "Missing $ROOT/RELEASE-NOTES.md -- add driver-facing notes for v$CL_VER before building" >&2; exit 1; }
+RN_VER=$(grep -oP '^## v\K[0-9.]+' "$ROOT/RELEASE-NOTES.md" | head -1)
+[ "$RN_VER" = "$CL_VER" ] || { echo "RELEASE-NOTES.md's newest entry (v${RN_VER:-none}) doesn't match CHANGELOG.md's newest (v$CL_VER) -- add driver-facing notes for v$CL_VER" >&2; exit 1; }
+awk -v ver="$CL_VER" '
+  /^## / {
+    if (insec) exit
+    if ($0 ~ "^## v" ver "([[:space:]]|$)") { insec=1; next }
+    next
+  }
+  insec && NF { print }
+' "$ROOT/RELEASE-NOTES.md" > assets/changelog.txt
 
 echo "Bundling assets (version: $VN, versionCode: $VC):"
 ls -lh assets/

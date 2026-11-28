@@ -54,9 +54,9 @@ for f in plan/active/*.md; do
 done
 
 # --- 4. The in-app changelog is the newest RELEASE-NOTES.md section ---------
-# drivemem/build.sh regenerates it, but the GitHub release APK is built by
-# Gradle from whatever is committed. Same rule as build.sh, kept in step by
-# hand: change both.
+# drivemem/build.sh and installer/build-installer.sh regenerate it, while the
+# GitHub release APK is built by Gradle from whatever is committed. Same rule
+# in all three places, kept in step by hand: change all three together.
 CL_VER=$(grep -oP '^## \[v\K[0-9.]+(?=\])' CHANGELOG.md | head -1)
 RN_VER=$(grep -oP '^## v\K[0-9.]+' RELEASE-NOTES.md | head -1)
 if [[ -z "$CL_VER" || "$CL_VER" != "$RN_VER" ]]; then

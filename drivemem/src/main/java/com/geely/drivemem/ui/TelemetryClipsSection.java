@@ -211,15 +211,14 @@ public final class TelemetryClipsSection extends LinearLayout {
         Toast.makeText(activity, activity.getString(R.string.clips_usb_copying, clips.size(), Clips.mb(bytes)),
             Toast.LENGTH_LONG).show();
         ClipExport.toUsb(activity, clips, (r, n) -> activity.runOnUiThread(() -> {
-            int msg;
+            String text;
             switch (r) {
-                case OK:       msg = R.string.clips_usb_done; break;
-                case NO_DRIVE: msg = R.string.clips_usb_no_drive; break;
-                case NO_SPACE: msg = R.string.clips_usb_no_space; break;
-                default:       msg = R.string.clips_usb_failed; break;
+                case OK:       text = activity.getString(R.string.clips_usb_done, n); break;
+                case NO_DRIVE: text = activity.getString(R.string.clips_usb_no_drive); break;
+                case NO_SPACE: text = activity.getString(R.string.clips_usb_no_space); break;
+                default:       text = activity.getString(R.string.clips_usb_failed); break;
             }
-            Toast.makeText(activity, r == ClipExport.Result.OK
-                ? activity.getString(msg, n) : activity.getString(msg), Toast.LENGTH_LONG).show();
+            Toast.makeText(activity, text, Toast.LENGTH_LONG).show();
         }));
     }
 

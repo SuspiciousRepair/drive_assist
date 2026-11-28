@@ -290,7 +290,7 @@
     <string name="cfg_extra_dark_global">Em todas as telas</string>
     <string name="cfg_extra_dark_shade">Escuridão</string>
     <string name="cfg_extra_dark_label">Modo mais escuro</string>
-    <string name="cfg_extra_dark_note">No horário escolhido, com o carro no modo escuro, depois de um minuto dirigindo sem tocar na tela, o Modo mais escuro baixa a luz da tela ao mínimo. Escuridão deixa ainda mais escuro, com uma camada escura por cima: 0 % é só a luz mínima, 100 % desliga a tela. Toque na tela ou troque a marcha para a luz voltar. O primeiro toque só acende a tela. O brilho do carro não muda.</string>
+    <string name="cfg_extra_dark_note" formatted="false">No horário escolhido, com o carro no modo escuro, depois de um minuto dirigindo sem tocar na tela, o Modo mais escuro baixa a luz da tela ao mínimo. Escuridão deixa ainda mais escuro, com uma camada escura por cima: 0 % é só a luz mínima, 100 % desliga a tela. Toque na tela ou troque a marcha para a luz voltar. O primeiro toque só acende a tela. O brilho do carro não muda.</string>
     <string name="cfg_theme_selection_header">Seleção do tema</string>
     <string name="cfg_theme_sub">Vale para todas as telas do Drive Assist. A miniatura mostra a cor e o formato dos cartões — a troca é imediata.</string>
     <string name="cfg_theme_selected">%1$s  ✓</string>
@@ -526,7 +526,7 @@
     <string name="backup_pw_wrong">Senha errada. Tente de novo.</string>
     <string name="can_header">Dados do carro (CAN)</string>
     <string name="can_enable_label">Ler a potência da bateria do carro (CAN)</string>
-    <string name="can_hint">Volts × ampères exatos da bateria, lidos do próprio carro. Ligado por padrão; não há nada para configurar. Precisa do app ModeHelper. Para iniciar o leitor, pode ligar o ADB por alguns segundos e desligar de novo. Se não funcionar, o app volta para o dongle ou para a estimativa pelo % da bateria. Enquanto estiver ligado, outros apps no carro também podem ler esses dados do carro.</string>
+    <string name="can_hint" formatted="false">Volts × ampères exatos da bateria, lidos do próprio carro. Ligado por padrão; não há nada para configurar. Precisa do app ModeHelper. Para iniciar o leitor, pode ligar o ADB por alguns segundos e desligar de novo. Se não funcionar, o app volta para o dongle ou para a estimativa pelo % da bateria. Enquanto estiver ligado, outros apps no carro também podem ler esses dados do carro.</string>
     <string name="routes_header">Rotas das viagens</string>
     <string name="routes_enable_label">Gravar as rotas das viagens (GPS)</string>
     <string name="routes_hint">Salva por onde cada viagem passou e onde cada carga foi feita. Isso fica no carro e entra no seu backup. Se você também ligar “Mapas de fundo”, as regiões das suas viagens são enviadas ao OpenStreetMap para buscar os mapas. Viagens de antes desta opção não têm rota.</string>
@@ -1046,7 +1046,7 @@
     <string name="toll_cfg_header">Pedágios automáticos</string>
     <string name="toll_cfg_cache_header">Cache local e viagens anteriores</string>
     <string name="toll_cfg_enable_label">Detectar pedágios via OpenStreetMap</string>
-    <string name="toll_cfg_privacy_hint">Desligado por padrão. Baixa posições de praças e Free Flow do OpenStreetMap usando apenas áreas amplas de ~55 km — sua rota exata e sua casa nunca são enviadas. Os resultados ficam salvos em cache neste carro, então passagens recorrentes e trajetos repetidos são detectados 100% localmente e nunca são enviados a nenhum servidor.</string>
+    <string name="toll_cfg_privacy_hint" formatted="false">Desligado por padrão. Baixa posições de praças e Free Flow do OpenStreetMap usando apenas áreas amplas de ~55 km — sua rota exata e sua casa nunca são enviadas. Os resultados ficam salvos em cache neste carro, então passagens recorrentes e trajetos repetidos são detectados 100% localmente e nunca são enviados a nenhum servidor.</string>
     <string name="toll_cfg_offline_hint">Funciona offline em rodovias sem sinal de celular. Se você passar por uma região nova sem sinal, a área é baixada e a viagem é verificada automaticamente na próxima vez que estacionar com Wi-Fi ou sinal.</string>
     <string name="toll_cfg_status">%1$d praças salvas · %2$d passagens · %3$d áreas</string>
     <string name="toll_cfg_scanning">Verificando viagens anteriores…</string>
