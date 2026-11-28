@@ -46,6 +46,16 @@ public class BootReceiver extends BroadcastReceiver {
             return;
         }
 
+        // The receiver is exported, and what follows opens ADB: only the
+        // manifest's own boot and replace actions may reach it.
+        if (!Intent.ACTION_BOOT_COMPLETED.equals(a)
+                && !Intent.ACTION_LOCKED_BOOT_COMPLETED.equals(a)
+                && !"android.intent.action.ACTION_BOOT_HU".equals(a)
+                && !Intent.ACTION_MY_PACKAGE_REPLACED.equals(a)) {
+            Log.w(CarMode.TAG, "boot receiver: ignoring unexpected action " + a);
+            return;
+        }
+
         Log.i(CarMode.TAG, "boot received: " + a + " - starting helper");
         try {
             Intent svc = new Intent(ctx, ModeHelperService.class);

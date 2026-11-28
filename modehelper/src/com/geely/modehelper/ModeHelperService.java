@@ -715,7 +715,7 @@ public class ModeHelperService extends Service {
     }
 
     // Explicit Drive Assist override for AVAS mute. 0 = muted, >=1 = active
-    // sound type (see AvasMuteTestReceiver). Same "no preference yet, don't
+    // sound type (see plan/archive/implemented/AVAS-MUTE-ROADMAP.md). Same "no preference yet, don't
     // touch it" rule as enforceAeb().
     //
     // The car re-arms AVAS on wake/power-on, so the saved choice is held for

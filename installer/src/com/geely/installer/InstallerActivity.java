@@ -458,6 +458,7 @@ public class InstallerActivity extends Activity implements InstallerCore.Listene
 
     @Override
     public void onError(String errorMessage) {
+        onLog(errorMessage);   // the reason, on screen
         mainHandler.post(() -> {
             statusTextView.setText("Installation Failed");
             statusTextView.setTextColor(Color.parseColor("#FF453A"));

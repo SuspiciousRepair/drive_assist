@@ -149,6 +149,43 @@ public class Updater {
         return null;
     }
 
+    private static final Pattern FORCE_PARAM =
+        Pattern.compile("[?&]force(?:=(?:1|true))?(?:&|$)", Pattern.CASE_INSENSITIVE);
+
+    /** Whether an update command asks to skip the Park/charging checks: the
+     * word "force" (see {@link #isForceWord}) or a URL with the query
+     * parameter force, force=1 or force=true. "force" anywhere else in a URL
+     * (https://salesforce.example/...) does not count. */
+    public static boolean isForcedUpdate(String raw) {
+        if (raw == null) return false;
+        if (isForceWord(raw)) return true;
+        String u = raw.trim();
+        int hash = u.indexOf('#');
+        if (hash >= 0) u = u.substring(0, hash);
+        int q = u.indexOf('?');
+        return q >= 0 && FORCE_PARAM.matcher(u.substring(q)).find();
+    }
+
+    /** "force" alone, or as a separate word before or after the URL. */
+    static boolean isForceWord(String raw) {
+        if (raw == null) return false;
+        String s = raw.trim().toLowerCase(java.util.Locale.US);
+        return s.equals("force") || s.startsWith("force ") || s.endsWith(" force");
+    }
+
+    /** The URL (or "go", or "") left once the word "force" is taken away.
+     * "" means the configured update URL. */
+    static String stripForceWord(String raw) {
+        if (raw == null) return "";
+        String s = raw.trim();
+        if (!isForceWord(s)) return s;
+        if (s.equalsIgnoreCase("force")) return "";
+        if (s.regionMatches(true, 0, "force ", 0, 6)) s = s.substring(6).trim();
+        if (s.regionMatches(true, s.length() - 6, " force", 0, 6))
+            s = s.substring(0, s.length() - 6).trim();
+        return s;
+    }
+
     public static void check(final Context ctx, final String url, final String targetPkg, final CheckCallback cb) {
         new Thread(() -> {
             try {
@@ -408,7 +445,11 @@ public class Updater {
      * instead of update() directly -- one place doing the URL swap, not
      * one per call site. */
     public static void updateHelper(final Context ctx, final String helperApkUrl, final Progress p) {
+        boolean force = isForcedUpdate(helperApkUrl);
         String u = helperApkUrl;
+        // The word comes off before the filename swap. With no URL of its
+        // own, a forced command means the configured one.
+        if (isForceWord(u)) u = resolveUrl(ctx, stripForceWord(u));
         int slash = (u == null) ? -1 : u.lastIndexOf('/');
         if (slash >= 0) {
             String rest = u.substring(slash + 1);
@@ -416,10 +457,41 @@ public class Updater {
             String query = q >= 0 ? rest.substring(q) : "";
             u = u.substring(0, slash + 1) + "drive_assist_installer.apk" + query;
         }
-        update(ctx, u, p);
+        startUpdate(ctx, u, HELPER_PKG, force, p);
     }
 
     public static void update(final Context ctx, final String url, final Progress p) {
+        startUpdate(ctx, stripForceWord(url), null, isForcedUpdate(url), p);
+    }
+
+    /** True only when `url` matches `lastUrl`, is not forced, and -- when the
+     * URL carries `?v=<vc>` -- the target package is already at `>= vc` (so an
+     * install that modehelper blocked when the car left Park can retry later). */
+    static boolean alreadyAppliedUrl(String url, String lastUrl, int installedVc, boolean force) {
+        if (force || url == null || !url.equals(lastUrl)) return false;
+        Matcher m = Pattern.compile("[?&]v=([0-9]+)").matcher(url);
+        if (m.find()) {
+            try {
+                int remoteVc = Integer.parseInt(m.group(1));
+                if (remoteVc > 0 && installedVc > 0 && remoteVc > installedVc) return false;
+            } catch (Exception ignored) {}
+        }
+        return true;
+    }
+
+    private static int installedVersionCode(Context ctx, String targetPkg) {
+        if (targetPkg == null || targetPkg.equals(ctx.getPackageName())) {
+            return BuildConfig.VERSION_CODE;
+        }
+        try {
+            return ctx.getPackageManager().getPackageInfo(targetPkg, 0).versionCode;
+        } catch (Throwable ignored) {
+            return 0;
+        }
+    }
+
+    private static void startUpdate(final Context ctx, final String url, final String targetPkg,
+                                    final boolean force, final Progress p) {
         new Thread(() -> {
             try {
                 String u = (url == null) ? "" : url.trim();
@@ -429,7 +501,6 @@ public class Updater {
                 }
                 if (!u.startsWith("https://")) { p.step("erro: URL precisa ser https"); return; }
 
-                boolean force = url != null && url.toLowerCase(java.util.Locale.US).contains("force");
                 String blocked = installBlockedReason(force);
                 if (blocked != null) {
                     if (p != null) p.step(blocked);
@@ -441,8 +512,10 @@ public class Updater {
 
                 // Has this URL already been applied? Retained MQTT commands are
                 // redelivered on every reconnect, so this check avoids repeated
-                // downloads/installs of the same APK.
-                if (u.equals(Prefs.getUpdateLastUrl(ctx))) {
+                // downloads/installs of the same APK while still allowing a
+                // blocked ?v=<vc> update (or an explicit force) to retry.
+                if (alreadyAppliedUrl(u, Prefs.getUpdateLastUrl(ctx),
+                        installedVersionCode(ctx, targetPkg), force)) {
                     p.step("já aplicado"); return;
                 }
 
@@ -460,6 +533,7 @@ public class Updater {
                     p.step("entregue ao helper de sistema");
                     Intent i = new Intent(HELPER_INSTALL).setPackage(HELPER_PKG);
                     i.putExtra("url", u);
+                    if (force) i.putExtra("force", force);
                     ctx.sendBroadcast(i);
                     return;
                 }

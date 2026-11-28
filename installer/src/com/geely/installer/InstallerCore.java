@@ -6,7 +6,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageInstaller;
+import android.content.ServiceConnection;
 import android.os.Build;
+import android.os.IBinder;
 import android.os.Process;
 import android.util.Log;
 
@@ -14,6 +16,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Method;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -86,6 +89,14 @@ public class InstallerCore {
             return;
         }
 
+        // Right before the first install, and before either APK changes.
+        String blocked = carBlockedMessage(ctx, listener);
+        if (blocked != null) {
+            helperFile.delete();
+            error(listener, blocked);
+            return;
+        }
+
         update(listener, "Installing ModeHelper service...", 30);
         boolean helperOk = installPackage(ctx, helperFile, PKG_MODEHELPER, listener);
         if (helperFile.exists()) helperFile.delete();
@@ -137,6 +148,68 @@ public class InstallerCore {
         } catch (InterruptedException ignored) {}
 
         uninstallSelf(ctx, listener);
+    }
+
+    // Car property ids and values: the same ones modehelper's CarMode uses.
+    private static final int PROP_GEAR = 289408001, GEAR_PARK = 4;
+    private static final int PROP_CHARGE_SWITCH = 605028608, CHARGE_ON = 605028611;
+    private static final int PROP_CHARGE_CURRENT = 605291008, PROP_PLUG = 557887621;
+
+    /** Why the car's state forbids an install now, or null. By reflection, so
+     * this module still builds against plain android.jar. A unit without a
+     * car service is not blocked. */
+    private static String carBlockedMessage(Context ctx, Listener listener) {
+        Object car = null;
+        Class<?> carClass = null;
+        try {
+            carClass = Class.forName("android.car.Car");
+            ServiceConnection conn = new ServiceConnection() {
+                @Override public void onServiceConnected(ComponentName n, IBinder b) {}
+                @Override public void onServiceDisconnected(ComponentName n) {}
+            };
+            car = carClass.getMethod("createCar", Context.class, ServiceConnection.class)
+                .invoke(null, ctx.getApplicationContext(), conn);
+            carClass.getMethod("connect").invoke(car);
+            Method connected = carClass.getMethod("isConnected");
+            for (int i = 0; i < 60 && !(Boolean) connected.invoke(car); i++) Thread.sleep(100);
+            if (!(Boolean) connected.invoke(car)) {
+                log(listener, "Notice: car service did not connect; Park/charging not checked.");
+                return null;
+            }
+            Object props = carClass.getMethod("getCarManager", String.class).invoke(car, "property");
+            Method getInt = props.getClass().getMethod("getIntProperty", int.class, int.class);
+            Method getFloat = props.getClass().getMethod("getFloatProperty", int.class, int.class);
+
+            Number gear = readProp(props, getInt, PROP_GEAR, 0, 1, 16777216);
+            if (gear != null && gear.intValue() != GEAR_PARK) {
+                return "Park the car before installing Drive Assist.";
+            }
+            Number chargeSwitch = readProp(props, getInt, PROP_CHARGE_SWITCH, 0);
+            Number current = readProp(props, getFloat, PROP_CHARGE_CURRENT, 0, 1);
+            Number plug = readProp(props, getInt, PROP_PLUG, 0);
+            boolean switchOn = chargeSwitch != null && chargeSwitch.intValue() == CHARGE_ON;
+            boolean currentIn = current != null && current.floatValue() > 0.5f
+                && (plug == null || plug.intValue() != 0);
+            if (switchOn || currentIn) {
+                return "Unplug / stop active charging before installing Drive Assist.";
+            }
+            return null;
+        } catch (Throwable t) {
+            log(listener, "Notice: car state unavailable (" + t + "); Park/charging not checked.");
+            return null;
+        } finally {
+            if (car != null) {
+                try { carClass.getMethod("disconnect").invoke(car); } catch (Throwable ignored) {}
+            }
+        }
+    }
+
+    /** The first area that answers, or null. */
+    private static Number readProp(Object props, Method getter, int prop, int... areas) {
+        for (int area : areas) {
+            try { return (Number) getter.invoke(props, prop, area); } catch (Throwable ignored) {}
+        }
+        return null;
     }
 
     private static File extractAsset(Context ctx, String name) throws Exception {
