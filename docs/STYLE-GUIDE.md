@@ -67,14 +67,25 @@ fall back to `Style.TEXT_DIM` rather than guessing AC or DC.
 
 ## Card spacing
 
-**The gap between two cards in a list should be at least as large as the
-padding inside one card.** A gap smaller than the internal padding reads
-as "these cards are crowded together" even though each one individually
-looks fine — the eye compares whitespace-between to whitespace-within,
-not either in isolation.
+**The main screen sets the spacing; every other screen follows it.** The
+main screen uses the same tight rhythm as CarPlay on this panel, so the
+two look alike when the driver goes from one to the other:
 
-**Use `Style.CARD_GAP_DP` (16) for the gap between stacked cards and
-`Style.COLUMN_GAP_DP` (24) between columns of cards — not a fresh literal.**
+| Where | Value | Constant |
+| --- | --- | --- |
+| Between two stacked cards | 10 | `Style.CARD_GAP_DP` |
+| Between two columns of cards | 10 | `Style.COLUMN_GAP_DP` |
+| Left rail to the first card | 10 | `Style.COLUMN_GAP_DP` |
+| Last column to the screen edge | 10 | `Style.COLUMN_GAP_DP` |
+| Cards to the bottom edge | 10 | `Style.CARD_GAP_DP` |
+| Left rail width / edge inset | 110 / 6 | `ComfortActivity.SIDEBAR_WIDTH_DP`, `SIDEBAR_EDGE_MARGIN_DP` |
+
+The gap between cards is smaller than the padding inside a card, on
+purpose. The cards are solid shapes on an open background, so a thin gap
+is enough to separate them, and the space goes to the content.
+
+**Use `Style.CARD_GAP_DP` (10) for the gap between stacked cards and
+`Style.COLUMN_GAP_DP` (10) between columns of cards — not a fresh literal.**
 Before these existed, every screen picked its own number (12/14/16/20dp all
 appeared for the same conceptual gap), which is what read as *erratic*
 rather than merely "two deliberately different values" (found live on the

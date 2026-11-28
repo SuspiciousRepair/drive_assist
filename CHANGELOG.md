@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Added
+- **CarPlay button on the left bar.** It shows while CarPlay is connected.
+  Touch it to go to the CarPlay screen.
+
+### Changed
+- **Wider left bar, tighter cards.** The left bar is as wide as the CarPlay
+  bar, with bigger buttons and the status icons in one row. The gaps between
+  cards are smaller on every screen.
+
+### Fixed
+- **CarPlay no longer shows as connected with no phone.** The app took the
+  car's CarPlay music link as a sign of a phone; the car keeps that link
+  with no phone at all.
+
 ## [v0.12.1] — 2026-11-28
 
 ### Added

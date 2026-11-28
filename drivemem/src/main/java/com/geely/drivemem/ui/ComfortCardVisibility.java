@@ -214,4 +214,10 @@ public final class ComfortCardVisibility {
     public static boolean showDockStats(boolean valetActive) {
         return !valetActive;
     }
+
+    /** Dock button that opens the phone's screen (CarPlay): only while a
+     * phone is connected, and never during Valet Mode. */
+    public static boolean showDockPhone(boolean valetActive, boolean phoneConnected) {
+        return !valetActive && phoneConnected;
+    }
 }

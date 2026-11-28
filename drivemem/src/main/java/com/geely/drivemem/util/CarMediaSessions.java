@@ -43,7 +43,7 @@ public final class CarMediaSessions {
     private static final String TAG = CarAccess.TAG;
     private static final Handler main = new Handler(Looper.getMainLooper());
     private static Context app;
-    // Copy-on-write: hasCarplaySession() reads it from the hub thread while the
+    // Copy-on-write: safe to read from another thread while the
     // UI thread links and drops sessions. Writes are rare (start, stop, link).
     private static final List<Link> links = new java.util.concurrent.CopyOnWriteArrayList<>();
     private static MediaController current;
@@ -540,18 +540,6 @@ public final class CarMediaSessions {
             Log.i(TAG, "music: asked the car's Bluetooth app to play");
             return true;
         } catch (Throwable t) { Log.w(TAG, "music bt play: " + t); return false; }
-    }
-
-    /** True when a CarPlay MediaBrowserService session is currently linked. */
-    public static boolean hasCarplaySession() {
-        for (Link l : links) {
-            if (l.controller == null || l.name == null) continue;
-            String pkg = l.name.getPackageName();
-            if (pkg == null) continue;
-            String lo = pkg.toLowerCase(java.util.Locale.ROOT);
-            if (lo.contains("carplay")) return true;
-        }
-        return false;
     }
 
     /** A stable id for a session track (sessions give no track id): the

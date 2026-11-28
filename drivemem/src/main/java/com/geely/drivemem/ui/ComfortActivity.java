@@ -104,7 +104,7 @@ public class ComfortActivity extends Activity {
     private int mainViewMode = MODE_CARDS;
 
     private android.widget.ImageView haStatusIcon, abrpStatusIcon, obd2StatusIcon;
-    private android.widget.ImageView cardsDockIcon, statsDockIcon, diaryDockIcon;
+    private android.widget.ImageView cardsDockIcon, statsDockIcon, diaryDockIcon, phoneDockIcon;
     private View diaryBadgeDot;
     private DailyStatsView dailyStatsView;
     private FrameLayout statsContainer;
@@ -304,7 +304,7 @@ public class ComfortActivity extends Activity {
         // padded band — is what clipped the Turbo card's top edge).
         band = new LinearLayout(this);
         band.setOrientation(LinearLayout.HORIZONTAL);
-        int padH = Style.dp(this, 36), padV = Style.dp(this, 32);
+        int padH = Style.dp(this, Style.COLUMN_GAP_DP), padV = Style.dp(this, Style.CARD_GAP_DP);
         // Top clearance: statusBarHeight() keeps content below the system
         // status bar; padTop is additional breathing room above the cards,
         // separate from padV so they can be adjusted independently.
@@ -461,7 +461,7 @@ public class ComfortActivity extends Activity {
     // a valid answer here — every caller already has to handle it (see
     // repackColumns()'s own retry, and sizeKonamiZone() below).
     private int columnWidth() {
-        int gapH = Style.dp(this, 24);
+        int gapH = Style.dp(this, Style.COLUMN_GAP_DP);
         int bandInnerW = band.getWidth() - band.getPaddingLeft() - band.getPaddingRight();
         return (bandInnerW - 2 * gapH) / 3;
     }
@@ -734,12 +734,16 @@ public class ComfortActivity extends Activity {
     /** Left-edge status rail: one rounded card containing status icons
      * (HA/MQTT, ABRP, OBD2) arranged CarPlay-dock style. Room is reserved
      * below for future stat icons, before the settings cog at the bottom. */
-    static final int SIDEBAR_WIDTH_DP = 84;
-    static final int SIDEBAR_EDGE_MARGIN_DP = 8;
+    // 110 wide, 6 from the edge: the same strip CarPlay's own dock takes on
+    // this panel (measured 5..115 px in a screenshot), so the two line up
+    // when the driver goes from one to the other.
+    static final int SIDEBAR_WIDTH_DP = 110;
+    static final int SIDEBAR_EDGE_MARGIN_DP = 6;
+    static final int DOCK_BUTTON_DP = 76;
     // Same rhythm as the gap BETWEEN the three main cards (repackColumns'
     // own gapH), not the wider screen-edge inset (padH) — that mismatch is
     // exactly what made the gap to Clima read as too big.
-    static final int SIDEBAR_CARD_GAP_DP = 24;
+    static final int SIDEBAR_CARD_GAP_DP = Style.COLUMN_GAP_DP;
 
     private LinearLayout statusSidebar() {
         LinearLayout bar = new LinearLayout(this);
@@ -748,26 +752,19 @@ public class ComfortActivity extends Activity {
         bar.setPadding(0, Style.dp(this, 20), 0, Style.dp(this, 14));
         bar.setBackground(Style.card(Style.cardFillColor(), this));
 
-        // Small icons in a 2-wide grid: line 1 has HA/MQTT + ABRP,
-        // line 2 has OBD2 (with room for a 4th icon).
+        // Small icons in one row: HA/MQTT, ABRP, OBD2. The rail is wide
+        // enough for all three now (it was a 2-wide grid at 84 dp).
         haStatusIcon = statusIcon(R.drawable.ic_home_assistant);
         abrpStatusIcon = statusIcon(R.drawable.ic_route);
         obd2StatusIcon = statusIcon(R.drawable.ic_bluetooth);
 
-        LinearLayout statusRow1 = new LinearLayout(this);
-        statusRow1.setOrientation(LinearLayout.HORIZONTAL);
-        statusRow1.setGravity(Gravity.CENTER_VERTICAL);
-        statusRow1.addView(haStatusIcon, statusIconLp(0));
-        statusRow1.addView(abrpStatusIcon, statusIconLp(4));
-        bar.addView(statusRow1, new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        Style.gap(bar, this, 4);
-
-        LinearLayout statusRow2 = new LinearLayout(this);
-        statusRow2.setOrientation(LinearLayout.HORIZONTAL);
-        statusRow2.setGravity(Gravity.CENTER_VERTICAL);
-        statusRow2.addView(obd2StatusIcon, statusIconLp(0));
-        bar.addView(statusRow2, new LinearLayout.LayoutParams(
+        LinearLayout statusRow = new LinearLayout(this);
+        statusRow.setOrientation(LinearLayout.HORIZONTAL);
+        statusRow.setGravity(Gravity.CENTER_VERTICAL);
+        statusRow.addView(haStatusIcon, statusIconLp(0));
+        statusRow.addView(abrpStatusIcon, statusIconLp(4));
+        statusRow.addView(obd2StatusIcon, statusIconLp(4));
+        bar.addView(statusRow, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         // Flexible space pushing dock to the middle of the rail
@@ -781,7 +778,7 @@ public class ComfortActivity extends Activity {
 
         // Wrap diary dock button with an iOS-style notification dot overlay
         FrameLayout diaryWrap = new FrameLayout(this);
-        int dockSize = Style.dp(this, 62);
+        int dockSize = Style.dp(this, DOCK_BUTTON_DP);
         LinearLayout.LayoutParams dwLp = new LinearLayout.LayoutParams(dockSize, dockSize);
         dwLp.gravity = Gravity.CENTER_HORIZONTAL;
         diaryDockIcon.setLayoutParams(new FrameLayout.LayoutParams(dockSize, dockSize));
@@ -799,10 +796,20 @@ public class ComfortActivity extends Activity {
         diaryWrap.addView(diaryBadgeDot, dotLp);
 
         bar.addView(cardsDockIcon);
-        Style.gap(bar, this, 16);
+        Style.gap(bar, this, 20);
         bar.addView(statsDockIcon);
-        Style.gap(bar, this, 16);
+        Style.gap(bar, this, 20);
         bar.addView(diaryWrap, dwLp);
+
+        // Fourth button: goes to the phone's screen (CarPlay). Shown only
+        // while a phone is connected (updateDockButtons). Its gap is its own
+        // top margin, so nothing is left behind while it is hidden.
+        phoneDockIcon = createDockButton(R.drawable.ic_phone_projection,
+            () -> com.geely.drivemem.state.CarplayState.openScreen(this));
+        ((LinearLayout.LayoutParams) phoneDockIcon.getLayoutParams()).topMargin = Style.dp(this, 20);
+        phoneDockIcon.setColorFilter(Style.TEXT_DIM);
+        phoneDockIcon.setVisibility(View.GONE);
+        bar.addView(phoneDockIcon);
 
         // Flexible space pushing settings cog to the bottom
         View spacerBottom = new View(this);
@@ -820,9 +827,9 @@ public class ComfortActivity extends Activity {
         android.widget.ImageView v = new android.widget.ImageView(this);
         v.setImageResource(drawableRes);
         v.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-        int pad = Style.dp(this, 12);
+        int pad = Style.dp(this, 16);
         v.setPadding(pad, pad, pad, pad);
-        int size = Style.dp(this, 62);
+        int size = Style.dp(this, DOCK_BUTTON_DP);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(size, size);
         lp.gravity = Gravity.CENTER_HORIZONTAL;
         v.setLayoutParams(lp);
@@ -865,14 +872,21 @@ public class ComfortActivity extends Activity {
         if (diaryDockIcon != null && diaryDockIcon.getParent() instanceof View) {
             ((View) diaryDockIcon.getParent()).setVisibility(dockVis);
         }
-        cardsDockIcon.setBackground(Style.card(mainViewMode == MODE_CARDS ? Style.CARD_ON : 0x00000000, this, 18));
+        if (phoneDockIcon != null) {
+            CarActor.Reading cp = CarActor.get(this).get(com.geely.drivemem.state.CarplayState.HUB_KEY);
+            boolean phone = cp.status == CarActor.Reading.Status.OK && cp.value instanceof Number
+                && ((Number) cp.value).intValue() == 1;
+            phoneDockIcon.setVisibility(ComfortCardVisibility.showDockPhone(ValetSession.isActive(this), phone)
+                ? View.VISIBLE : View.GONE);
+        }
+        cardsDockIcon.setBackground(Style.card(mainViewMode == MODE_CARDS ? Style.CARD_ON : 0x00000000, this, 22));
         cardsDockIcon.setColorFilter(mainViewMode == MODE_CARDS ? Style.onFill(Style.CARD_ON) : Style.TEXT_DIM);
 
-        statsDockIcon.setBackground(Style.card(mainViewMode == MODE_DRIVING_STATS ? Style.CARD_ON : 0x00000000, this, 18));
+        statsDockIcon.setBackground(Style.card(mainViewMode == MODE_DRIVING_STATS ? Style.CARD_ON : 0x00000000, this, 22));
         statsDockIcon.setColorFilter(mainViewMode == MODE_DRIVING_STATS ? Style.onFill(Style.CARD_ON) : Style.TEXT_DIM);
 
         if (diaryDockIcon != null) {
-            diaryDockIcon.setBackground(Style.card(mainViewMode == MODE_DIARY ? Style.CARD_ON : 0x00000000, this, 18));
+            diaryDockIcon.setBackground(Style.card(mainViewMode == MODE_DIARY ? Style.CARD_ON : 0x00000000, this, 22));
             diaryDockIcon.setColorFilter(mainViewMode == MODE_DIARY ? Style.onFill(Style.CARD_ON) : Style.TEXT_DIM);
         }
     }
@@ -884,6 +898,7 @@ public class ComfortActivity extends Activity {
     private boolean diaryBadgeShown;
     private boolean diaryBadgeBusy, diaryBadgeAgain;
     private final EntityBus.Listener diaryBusListener = (key, reading) -> ui.post(this::recomputeDiaryBadge);
+    private final EntityBus.Listener phoneBusListener = (key, reading) -> ui.post(this::updateDockButtons);
 
     /** Shows the cached answer. Cheap; safe to call from any refresh. */
     private void applyDiaryBadge() {
@@ -3503,6 +3518,7 @@ public class ComfortActivity extends Activity {
         EntityBus.subscribe(ParkingState.TRAIL_KEY, journeyBusListener);
         EntityBus.subscribe(TripSession.LIVE_KEY, journeyBusListener);
         EntityBus.subscribe(com.geely.drivemem.state.CarDiary.EVENT_CHANGED, diaryBusListener);
+        EntityBus.subscribe(com.geely.drivemem.state.CarplayState.HUB_KEY, phoneBusListener);
         recomputeDiaryBadge();
         // Same "did it actually change while this screen was away" re-check
         // as the gate and music cards just above, and the same reason: a
@@ -3574,6 +3590,7 @@ public class ComfortActivity extends Activity {
         EntityBus.unsubscribe(ParkingState.TRAIL_KEY, journeyBusListener);
         EntityBus.unsubscribe(TripSession.LIVE_KEY, journeyBusListener);
         EntityBus.unsubscribe(com.geely.drivemem.state.CarDiary.EVENT_CHANGED, diaryBusListener);
+        EntityBus.unsubscribe(com.geely.drivemem.state.CarplayState.HUB_KEY, phoneBusListener);
         try { unregisterReceiver(updateReceiver); } catch (Throwable ignored) {}
         if (activeUpdateDialog != null && activeUpdateDialog.isShowing()) {
             try { activeUpdateDialog.dismiss(); } catch (Throwable ignored) {}
