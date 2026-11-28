@@ -26,7 +26,8 @@ public final class CanEventLog {
     static final String FILE = "can-events.log";
     private static final long CAP_BYTES = 1024L * 1024;
     static final long SAME_EVENT_MS = 10 * 60_000L;
-    private static final SimpleDateFormat FMT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+    private static final ThreadLocal<SimpleDateFormat> FMT =
+        ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US));
 
     private static volatile Context app;
     private static String lastMsg;
@@ -57,7 +58,7 @@ public final class CanEventLog {
             boolean fresh = !f.exists();
             try (FileWriter w = new FileWriter(f, true)) {
                 if (fresh) w.write("wall\tevent\n");
-                w.write(FMT.format(new Date(now)) + '\t' + msg.replaceAll("[\\r\\n\\t]+", " ") + '\n');
+                w.write(FMT.get().format(new Date(now)) + '\t' + msg.replaceAll("[\\r\\n\\t]+", " ") + '\n');
             }
         } catch (Throwable t) {
             Log.w(TAG, "can: " + FILE + " write: " + t);

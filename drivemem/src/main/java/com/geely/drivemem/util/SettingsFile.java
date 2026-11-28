@@ -160,7 +160,7 @@ public final class SettingsFile {
                 "adb_trusted_ssid", "adb_home_gw", "update_url"}) m.put(k, T_STRING);
         for (String k : new String[]{"tele_enabled", "commands_enabled", "abrp_enabled",
                 "abrp_send_location", "spotify_large_card", "outtemp_on", "soc_on", "wifiicon_on",
-                "overlay_on", "skyline_enabled", "skyline_random_per_drive", "drive_card_enabled",
+                "overlay_on", "skyline_enabled", "skyline_random_per_drive", "drive_card_enabled", "rear_defrost_tile",
                 "aeb_on", "avas_on", "restore_drive", "restore_regen", "restore_aeb", "restore_avas",
                 "turbo_enabled", "regen_cycle", "turbo_card_turbo", "turbo_card_regen",
                 "turbo_card_avas", "window_on_door", "parked_monitoring", "obd2_enabled",

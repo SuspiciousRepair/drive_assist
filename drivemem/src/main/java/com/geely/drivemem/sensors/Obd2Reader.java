@@ -230,11 +230,11 @@ public final class Obd2Reader {
     // for verification of charging/regen behavior and ABRP reliability.
     // Capped at LOG_CAP_BYTES and checked before each write to prevent unbounded growth.
     private static final long LOG_CAP_BYTES = 5L * 1024 * 1024;
-    private static final java.text.SimpleDateFormat LOG_FMT =
-        new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US);
+    private static final ThreadLocal<java.text.SimpleDateFormat> LOG_FMT =
+        ThreadLocal.withInitial(() -> new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US));
 
     private static void logReading(Reading r) {
-        String line = LOG_FMT.format(new java.util.Date(r.atMs)) + '\t'
+        String line = LOG_FMT.get().format(new java.util.Date(r.atMs)) + '\t'
             + r.soc + '\t' + r.voltage + '\t' + r.current + '\t'
             + r.powerKw + '\t' + r.battTempC + '\t' + r.speedKmh;
         appendLine("obd2-reading.log", "wall\tsoc\tvoltage\tcurrent\tpowerKw\tbattTempC\tspeedKmh",
@@ -264,7 +264,7 @@ public final class Obd2Reader {
         lastEventAtMs = now;
         Log.i(TAG, "obd2: " + msg);
         appendLine("obd2-events.log", "wall\tevent",
-            LOG_FMT.format(new java.util.Date(now)) + '\t' + msg, EVENT_CAP_BYTES);
+            LOG_FMT.get().format(new java.util.Date(now)) + '\t' + msg, EVENT_CAP_BYTES);
     }
 
     /** The event line for one poll round, or null when there is nothing new

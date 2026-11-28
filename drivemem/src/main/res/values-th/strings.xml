@@ -15,6 +15,9 @@
     <string name="ac_recirc_refused">การหมุนเวียนอากาศ: รถปฏิเสธ</string>
     <string name="ac_recirc_on">กำลังหมุนเวียนอากาศ — ปิดช่องรับอากาศภายนอก</string>
     <string name="ac_recirc_off">เปิดช่องรับอากาศภายนอก</string>
+    <string name="ac_rear_defrost_on">เปิดไล่ฝ้ากระจกหลัง</string>
+    <string name="ac_rear_defrost_off">ปิดไล่ฝ้ากระจกหลัง</string>
+    <string name="ac_rear_defrost_refused">รถไม่ยอมรับคำสั่งไล่ฝ้ากระจกหลัง</string>
     <string name="ac_connect_failed">เชื่อมต่อกับรถไม่ได้</string>
     <string name="clima_title">ระบบปรับอากาศ</string>
     <!-- Turbo card: 30s Sport-mode boost, then back to whatever mode was running before -->
@@ -260,13 +263,14 @@
     <string name="cfg_bar_topbar_header">แถบสถานะ</string>
     <string name="cfg_bar_home_header">หน้าจอหลัก</string>
     <string name="cfg_drive_card">แสดงการ์ดการขับขี่ปัจจุบัน</string>
+    <string name="cfg_rear_defrost_tile">ปุ่มไล่ฝ้ากระจกหลังบนการ์ดแอร์</string>
     <string name="cfg_appearance_header">ลักษณะที่ปรากฏ</string>
     <string name="cfg_dark_mode_header">โหมดมืด</string>
     <string name="cfg_extra_dark_try">ลองดู</string>
     <string name="cfg_extra_dark_global">ทุกหน้าจอ</string>
     <string name="cfg_extra_dark_shade">ความมืด</string>
     <string name="cfg_extra_dark_label">โหมดมืดที่สุด</string>
-    <string name="cfg_extra_dark_note">ในช่วงเวลาที่ตั้งไว้ เมื่อรถอยู่ในโหมดมืด และขับไปหนึ่งนาทีโดยไม่แตะหน้าจอ โหมดมืดที่สุดจะลดแสงหน้าจอให้ต่ำสุด ความมืดทำให้มืดลงอีก ด้วยชั้นสีเข้มด้านบน: 0 % คือแสงต่ำสุดอย่างเดียว 100 % คือปิดหน้าจอ แตะหน้าจอหรือเปลี่ยนเกียร์เพื่อให้สว่างกลับมา การแตะครั้งแรกจะเปิดความสว่างเท่านั้น ความสว่างของรถไม่เปลี่ยน</string>
+    <string name="cfg_extra_dark_note" formatted="false">ในช่วงเวลาที่ตั้งไว้ เมื่อรถอยู่ในโหมดมืด และขับไปหนึ่งนาทีโดยไม่แตะหน้าจอ โหมดมืดที่สุดจะลดแสงหน้าจอให้ต่ำสุด ความมืดทำให้มืดลงอีก ด้วยชั้นสีเข้มด้านบน: 0 % คือแสงต่ำสุดอย่างเดียว 100 % คือปิดหน้าจอ แตะหน้าจอหรือเปลี่ยนเกียร์เพื่อให้สว่างกลับมา การแตะครั้งแรกจะเปิดความสว่างเท่านั้น ความสว่างของรถไม่เปลี่ยน</string>
     <string name="cfg_appearance_light">สว่าง</string>
     <string name="cfg_appearance_dark">มืด</string>
     <string name="cfg_appearance_auto">อัตโนมัติ</string>
@@ -530,7 +534,7 @@
     <string name="backup_pw_wrong">รหัสผ่านไม่ถูกต้อง ลองอีกครั้ง</string>
     <string name="can_header">ข้อมูลรถ (CAN)</string>
     <string name="can_enable_label">อ่านกำลังไฟแบตเตอรี่จากรถ (CAN)</string>
-    <string name="can_hint">อ่านโวลต์ × แอมป์ของแบตเตอรี่จากตัวรถโดยตรง เปิดไว้เป็นค่าเริ่มต้น ไม่ต้องตั้งค่าใดๆ ต้องมีแอป ModeHelper ในการเริ่มตัวอ่าน แอปอาจเปิด ADB สักครู่แล้วปิดอีกครั้ง หากใช้ไม่ได้ แอปจะกลับไปใช้ดองเกิลหรือการประมาณจาก % แบตเตอรี่ ขณะเปิดอยู่ แอปอื่นในรถก็สามารถอ่านข้อมูลรถนี้ได้เช่นกัน</string>
+    <string name="can_hint" formatted="false">อ่านโวลต์ × แอมป์ของแบตเตอรี่จากตัวรถโดยตรง เปิดไว้เป็นค่าเริ่มต้น ไม่ต้องตั้งค่าใดๆ ต้องมีแอป ModeHelper ในการเริ่มตัวอ่าน แอปอาจเปิด ADB สักครู่แล้วปิดอีกครั้ง หากใช้ไม่ได้ แอปจะกลับไปใช้ดองเกิลหรือการประมาณจาก % แบตเตอรี่ ขณะเปิดอยู่ แอปอื่นในรถก็สามารถอ่านข้อมูลรถนี้ได้เช่นกัน</string>
     <string name="routes_header">เส้นทางการเดินทาง</string>
     <string name="routes_enable_label">บันทึกเส้นทางการเดินทาง (GPS)</string>
     <string name="routes_hint">บันทึกว่าแต่ละทริปไปที่ไหน และชาร์จที่ไหน ข้อมูลนี้อยู่ในรถและรวมอยู่ในข้อมูลสำรองของคุณ หากคุณเปิด “พื้นหลังแผนที่” ด้วย บริเวณที่ทริปของคุณผ่านจะถูกส่งไปยัง OpenStreetMap เพื่อดึงแผนที่ ทริปก่อนเปิดตัวเลือกนี้จะไม่มีเส้นทาง</string>
@@ -1050,7 +1054,7 @@
     <string name="toll_cfg_header">ค่าผ่านทางอัตโนมัติ</string>
     <string name="toll_cfg_cache_header">แคชในเครื่องและการเดินทางที่ผ่านมา</string>
     <string name="toll_cfg_enable_label">ตรวจจับด่านผ่านทางผ่าน OpenStreetMap</string>
-    <string name="toll_cfg_privacy_hint">ปิดไว้เป็นค่าเริ่มต้น ดาวน์โหลดตำแหน่งด่านและ Free Flow จาก OpenStreetMap ด้วยกรอบแผนที่กว้างประมาณ 55 กม. เท่านั้น ไม่ส่งเส้นทางจริงหรือตำแหน่งบ้าน ผลลัพธ์จะถูกเก็บแคชไว้ในรถ ดังนั้นการผ่านด่านซ้ำและการเดินทางในพื้นที่ที่มีแคชแล้วจะตรวจจับในเครื่อง 100% และไม่ส่งข้อมูลไปยังเซิร์ฟเวอร์ใดๆ</string>
+    <string name="toll_cfg_privacy_hint" formatted="false">ปิดไว้เป็นค่าเริ่มต้น ดาวน์โหลดตำแหน่งด่านและ Free Flow จาก OpenStreetMap ด้วยกรอบแผนที่กว้างประมาณ 55 กม. เท่านั้น ไม่ส่งเส้นทางจริงหรือตำแหน่งบ้าน ผลลัพธ์จะถูกเก็บแคชไว้ในรถ ดังนั้นการผ่านด่านซ้ำและการเดินทางในพื้นที่ที่มีแคชแล้วจะตรวจจับในเครื่อง 100% และไม่ส่งข้อมูลไปยังเซิร์ฟเวอร์ใดๆ</string>
     <string name="toll_cfg_offline_hint">ใช้งานออฟไลน์ได้บนทางด่วนที่ไม่มีสัญญาณมือถือ หากขับผ่านพื้นที่ใหม่ขณะไม่มีสัญญาณ ระบบจะดาวน์โหลดและตรวจสอบการเดินทางนั้นให้อัตโนมัติเมื่อจอดและมี Wi-Fi หรือเน็ตมือถือ</string>
     <string name="toll_cfg_status">บันทึกไว้ %1$d ด่าน · %2$d ครั้ง · %3$d พื้นที่</string>
     <string name="toll_cfg_scanning">กำลังตรวจสอบการเดินทางที่ผ่านมา…</string>

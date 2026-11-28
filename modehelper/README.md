@@ -135,7 +135,7 @@ Drive Assist (`drivemem`) and ModeHelper (`modehelper`) are deliberately separat
 | Intent Action | Component | Exported | Key Extras / Parameters | Description |
 |---|---|---|---|---|
 | `com.geely.modehelper.SET_MODE` | Dynamic (`ModeHelperService`) | Internal | `int drive`<br>`int regen` | Informs helper of user-preferred drive mode and regen level |
-| `com.geely.modehelper.INSTALL_APK` | `InstallReceiver` | **Yes** | `String url` | Initiates silent HTTPS package update for `com.geely.drivemem` |
+| `com.geely.modehelper.INSTALL_APK` | `InstallReceiver` | **Yes** | `String url`<br>`boolean force` (optional) | Initiates silent HTTPS package update. Without `force`, it does not install if the car is not in Park or is charging |
 | `com.geely.modehelper.SET_ADB` | `AdbReceiver` | **Yes** | `boolean enable`<br>`int minutes` | Toggles network ADB with auto-off timer |
 | `com.geely.modehelper.SET_TRUSTED_WIFI` | `WifiGuardReceiver` | **Yes** | `String ssid` | Configures the privileged Wi-Fi network (cleared if empty) |
 | `com.geely.modehelper.DASHCAM` | `DashReceiver` | **Yes** | `int on` (1=start, 0=stop) | Controls hardware dashcam recording |

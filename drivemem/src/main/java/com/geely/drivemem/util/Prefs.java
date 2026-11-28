@@ -127,6 +127,9 @@ public final class Prefs {
     // --- Drive card ---
     public static boolean getDriveCardEnabled(Context ctx) { return file(ctx).getBoolean("drive_card_enabled", true); }
     public static void setDriveCardEnabled(Context ctx, boolean v) { file(ctx).edit().putBoolean("drive_card_enabled", v).apply(); }
+    /** Climate card: a third switch tile for the rear defroster. Off by default. */
+    public static boolean getRearDefrostTile(Context ctx) { return file(ctx).getBoolean("rear_defrost_tile", false); }
+    public static void setRearDefrostTile(Context ctx, boolean v) { file(ctx).edit().putBoolean("rear_defrost_tile", v).apply(); }
     /** Home cards drop their colour scales (temperature bar, consumption
      * tile) and draw them in the theme's text colours instead. Off by default. */
     public static boolean getCardGrayscale(Context ctx) { return file(ctx).getBoolean("card_grayscale", false); }

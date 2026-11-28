@@ -35,7 +35,8 @@ public final class TelemetryRollup {
     // Version the guard whenever a DB migration invalidates frozen summaries,
     // so an update installed after today's rollup still rebuilds them at once.
     private static final int RETAIN_DAYS = 90;
-    private static final SimpleDateFormat DAY_FMT = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+    private static final ThreadLocal<SimpleDateFormat> DAY_FMT =
+        ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd", Locale.US));
 
     private TelemetryRollup() {}
 
@@ -48,7 +49,7 @@ public final class TelemetryRollup {
         java.util.Calendar cal = java.util.Calendar.getInstance();
         cal.set(java.util.Calendar.HOUR_OF_DAY, 0); cal.set(java.util.Calendar.MINUTE, 0);
         cal.set(java.util.Calendar.SECOND, 0); cal.set(java.util.Calendar.MILLISECOND, 0);
-        try { cal.setTime(DAY_FMT.parse(dateStr)); } catch (Exception ignored) { /* keep today */ }
+        try { cal.setTime(DAY_FMT.get().parse(dateStr)); } catch (Exception ignored) { /* keep today */ }
         long start = cal.getTimeInMillis();
         cal.add(java.util.Calendar.DAY_OF_MONTH, 1);
         return new long[]{start, cal.getTimeInMillis()};
@@ -57,7 +58,7 @@ public final class TelemetryRollup {
     /** Freezes completed days and prunes old telemetry if not already done today. */
     public static void runIfDue(Context ctx) {
         final Context app = ctx.getApplicationContext();
-        final String today = DAY_FMT.format(new Date());
+        final String today = DAY_FMT.get().format(new Date());
 
         CarDb.get(app).write(() -> {
             if (today.equals(Prefs.getRollupLastDay(app))) return;

@@ -55,6 +55,44 @@ public class UpdaterInstallGateTest {
         assertEquals("bloqueado: veículo carregando", Updater.installBlockedReason(false));
     }
 
+    @Test public void forceInHostOrPathIsNotForced() {
+        assertFalse(Updater.isForcedUpdate("https://salesforce.example/drive_assist.apk"));
+        assertFalse(Updater.isForcedUpdate("https://example.com/force/drive_assist.apk"));
+        assertFalse(Updater.isForcedUpdate("https://example.com/force.apk?v=12"));
+        assertFalse(Updater.isForcedUpdate("https://example.com/a.apk&force"));
+    }
+
+    @Test public void otherQueryTextIsNotForced() {
+        assertFalse(Updater.isForcedUpdate("https://example.com/a.apk?force=0"));
+        assertFalse(Updater.isForcedUpdate("https://example.com/a.apk?force=false"));
+        assertFalse(Updater.isForcedUpdate("https://example.com/a.apk?force=10"));
+        assertFalse(Updater.isForcedUpdate("https://example.com/a.apk?enforce=1"));
+        assertFalse(Updater.isForcedUpdate("https://example.com/a.apk?forced"));
+        assertFalse(Updater.isForcedUpdate("https://example.com/a.apk?n=force"));
+        assertFalse(Updater.isForcedUpdate("https://example.com/a.apk#x?force"));
+        assertFalse(Updater.isForcedUpdate(null));
+        assertFalse(Updater.isForcedUpdate(""));
+        assertFalse(Updater.isForcedUpdate("go"));
+        assertFalse(Updater.isForcedUpdate("enforce"));
+    }
+
+    @Test public void forceQueryParameterIsForced() {
+        assertTrue(Updater.isForcedUpdate("https://example.com/a.apk?force"));
+        assertTrue(Updater.isForcedUpdate("https://example.com/a.apk?force=1"));
+        assertTrue(Updater.isForcedUpdate("https://example.com/a.apk?v=12&force=true"));
+        assertTrue(Updater.isForcedUpdate("https://example.com/a.apk?FORCE=TRUE&v=12"));
+        assertTrue(Updater.isForcedUpdate("https://example.com/a.apk?force#top"));
+        assertTrue(Updater.isForcedUpdate(" https://example.com/a.apk?v=12&force \n"));
+    }
+
+    @Test public void forceWordIsForced() {
+        assertTrue(Updater.isForcedUpdate("force"));
+        assertTrue(Updater.isForcedUpdate(" FORCE "));
+        assertTrue(Updater.isForcedUpdate("force https://example.com/a.apk"));
+        assertTrue(Updater.isForcedUpdate("https://example.com/a.apk force"));
+        assertTrue(Updater.isForcedUpdate("force go"));
+    }
+
     @Test public void forceBypassesBothChecks() {
         CarState.setParkedForTesting(false);
         ChargeSession.setSessionStateForTesting(true, true, System.currentTimeMillis(), 50, 60, 1000, 5);
