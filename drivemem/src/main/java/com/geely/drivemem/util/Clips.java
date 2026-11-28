@@ -30,10 +30,10 @@ public final class Clips {
     // second, so anything colder than this is not being written by anyone.
     private static final long LIVE_MS = 15_000;
 
-    private static final SimpleDateFormat STAMP =
-        new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US);
-    private static final SimpleDateFormat SHOWN =
-        new SimpleDateFormat("d MMM  HH:mm", Locale.getDefault());
+    private static final ThreadLocal<SimpleDateFormat> STAMP =
+        ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US));
+    private static final ThreadLocal<SimpleDateFormat> SHOWN =
+        ThreadLocal.withInitial(() -> new SimpleDateFormat("d MMM  HH:mm", Locale.getDefault()));
 
     /** Clip state: DONE (playable), RECORDING (being written), or ORPHAN (incomplete). */
     public enum Kind {
@@ -70,7 +70,7 @@ public final class Clips {
             this.seconds = cueCount(this.vtt);
         }
 
-        public String title() { return SHOWN.format(new Date(whenMs)); }
+        public String title() { return SHOWN.get().format(new Date(whenMs)); }
 
         public boolean playable() { return kind == Kind.DONE; }
 
@@ -375,7 +375,7 @@ public final class Clips {
     private static long parseStamp(String stem, long fallback) {
         int i = stem.indexOf('_');
         if (i < 0) return fallback;
-        try { return STAMP.parse(stem.substring(i + 1)).getTime(); }
+        try { return STAMP.get().parse(stem.substring(i + 1)).getTime(); }
         catch (Exception e) { return fallback; }
     }
 }

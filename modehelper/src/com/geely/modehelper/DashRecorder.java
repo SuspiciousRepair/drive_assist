@@ -45,10 +45,10 @@ public final class DashRecorder {
     static final int P_NAVI_LIMIT = 0x2140303a;
     static final int P_NAVSPEED   = 0x2140a405;
 
-    private static final SimpleDateFormat NAME =
-        new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US);
-    private static final SimpleDateFormat SUB_TIME =
-        new SimpleDateFormat("HH:mm:ss", Locale.US);    // the date is the clip's name
+    private static final ThreadLocal<SimpleDateFormat> NAME =
+        ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US));
+    private static final ThreadLocal<SimpleDateFormat> SUB_TIME =
+        ThreadLocal.withInitial(() -> new SimpleDateFormat("HH:mm:ss", Locale.US));    // the date is the clip's name
 
     private final Context ctx;
     private final CarMode car;
@@ -259,7 +259,7 @@ public final class DashRecorder {
                     // The pedal comes from Drive Assist (BrakeSignal); nothing
                     // while its CAN reader is off.
                     boolean brake = BrakeSignal.SHARED.take(SystemClock.elapsedRealtime());
-                    tele = SubtitleLine.line(SUB_TIME.format(new Date()), sp, trend, car.readGear(), brake, lim);
+                    tele = SubtitleLine.line(SUB_TIME.get().format(new Date()), sp, trend, car.readGear(), brake, lim);
                 }
             } catch (Throwable t) { Log.w(TAG, "dashcam: sample: " + t); }
             try { Thread.sleep(1000); } catch (InterruptedException e) { return; }
@@ -487,11 +487,11 @@ public final class DashRecorder {
             String suffix = new File(dir(), "valet.active").exists() ? "_valet"
                           : park ? PARK_SUFFIX : "";
             long now = startWall;
-            String name = "dash_" + NAME.format(new Date(now)) + suffix;
+            String name = "dash_" + NAME.get().format(new Date(now)) + suffix;
             for (int tries = 0; SegmentFiles.taken(dir(), name) && tries < 3; tries++) {
                 Thread.sleep(1000 - now % 1000 + 5);
                 now = System.currentTimeMillis();
-                name = "dash_" + NAME.format(new Date(now)) + suffix;
+                name = "dash_" + NAME.get().format(new Date(now)) + suffix;
             }
             stem = name;
             startWallMs = now;

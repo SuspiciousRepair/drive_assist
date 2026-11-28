@@ -21,9 +21,12 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class DailyStatsProvider {
 
-    private static final SimpleDateFormat DAY_FMT = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-    private static final SimpleDateFormat DISPLAY_DAY_FMT = new SimpleDateFormat("EEEE, d 'de' MMMM", new Locale("pt", "BR"));
-    private static final SimpleDateFormat TIME_FMT = new SimpleDateFormat("HH:mm", Locale.US);
+    private static final ThreadLocal<SimpleDateFormat> DAY_FMT =
+        ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd", Locale.US));
+    private static final ThreadLocal<SimpleDateFormat> DISPLAY_DAY_FMT =
+        ThreadLocal.withInitial(() -> new SimpleDateFormat("EEEE, d 'de' MMMM", new Locale("pt", "BR")));
+    private static final ThreadLocal<SimpleDateFormat> TIME_FMT =
+        ThreadLocal.withInitial(() -> new SimpleDateFormat("HH:mm", Locale.US));
 
     // getDayOverview() for a past (non-today) date never changes once
     // computed -- that day is frozen history. Week/Month (recentWeeks/
@@ -51,8 +54,8 @@ public final class DailyStatsProvider {
         protected DaySession(long startMs, long endMs) {
             this.startMs = startMs;
             this.endMs = endMs;
-            this.timeLabel = TIME_FMT.format(new Date(startMs)) + " – "
-                    + (endMs > 0 ? TIME_FMT.format(new Date(endMs)) : "em andamento");
+            this.timeLabel = TIME_FMT.get().format(new Date(startMs)) + " – "
+                    + (endMs > 0 ? TIME_FMT.get().format(new Date(endMs)) : "em andamento");
             this.durationLabel = formatDuration(startMs, endMs > 0 ? endMs : System.currentTimeMillis());
         }
 
@@ -380,7 +383,7 @@ public final class DailyStatsProvider {
         cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
         List<String> out = new ArrayList<>(7);
         for (int i = 0; i < 7; i++) {
-            out.add(DAY_FMT.format(cal.getTime()));
+            out.add(DAY_FMT.get().format(cal.getTime()));
             cal.add(Calendar.DAY_OF_MONTH, 1);
         }
         return out;
@@ -393,7 +396,7 @@ public final class DailyStatsProvider {
         int daysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH);
         List<String> out = new ArrayList<>(daysInMonth);
         for (int i = 0; i < daysInMonth; i++) {
-            out.add(DAY_FMT.format(cal.getTime()));
+            out.add(DAY_FMT.get().format(cal.getTime()));
             cal.add(Calendar.DAY_OF_MONTH, 1);
         }
         return out;
@@ -424,7 +427,7 @@ public final class DailyStatsProvider {
         Calendar cal = Calendar.getInstance();
         cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0);
         cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0);
-        try { cal.setTime(DAY_FMT.parse(dateStr)); } catch (Exception ignored) { /* keep today */ }
+        try { cal.setTime(DAY_FMT.get().parse(dateStr)); } catch (Exception ignored) { /* keep today */ }
         return cal;
     }
 
@@ -455,13 +458,15 @@ public final class DailyStatsProvider {
         try { return c.moveToFirst() && c.getInt(0) != 0; } finally { c.close(); }
     }
 
-    private static final SimpleDateFormat WEEK_BOUND_FMT = new SimpleDateFormat("d 'de' MMM", new Locale("pt", "BR"));
-    private static final SimpleDateFormat MONTH_LABEL_FMT = new SimpleDateFormat("MMMM 'de' yyyy", new Locale("pt", "BR"));
+    private static final ThreadLocal<SimpleDateFormat> WEEK_BOUND_FMT =
+        ThreadLocal.withInitial(() -> new SimpleDateFormat("d 'de' MMM", new Locale("pt", "BR")));
+    private static final ThreadLocal<SimpleDateFormat> MONTH_LABEL_FMT =
+        ThreadLocal.withInitial(() -> new SimpleDateFormat("MMMM 'de' yyyy", new Locale("pt", "BR")));
 
     private static String weekLabel(List<String> weekDates) {
         try {
-            String first = WEEK_BOUND_FMT.format(DAY_FMT.parse(weekDates.get(0)));
-            String last = WEEK_BOUND_FMT.format(DAY_FMT.parse(weekDates.get(weekDates.size() - 1)));
+            String first = WEEK_BOUND_FMT.get().format(DAY_FMT.get().parse(weekDates.get(0)));
+            String last = WEEK_BOUND_FMT.get().format(DAY_FMT.get().parse(weekDates.get(weekDates.size() - 1)));
             return first + " - " + last;
         } catch (Exception e) {
             return weekDates.get(0) + " - " + weekDates.get(weekDates.size() - 1);
@@ -469,7 +474,7 @@ public final class DailyStatsProvider {
     }
 
     public static String monthLabel(String anyDateInMonth) {
-        String s = MONTH_LABEL_FMT.format(dayCalendar(anyDateInMonth).getTime());
+        String s = MONTH_LABEL_FMT.get().format(dayCalendar(anyDateInMonth).getTime());
         return s.substring(0, 1).toUpperCase(new Locale("pt", "BR")) + s.substring(1);
     }
 
@@ -486,7 +491,7 @@ public final class DailyStatsProvider {
         for (int i = count - 1; i >= 0; i--) {
             Calendar c2 = (Calendar) cal.clone();
             c2.add(Calendar.DAY_OF_MONTH, -7 * i);
-            List<String> dates = weekDates(DAY_FMT.format(c2.getTime()));
+            List<String> dates = weekDates(DAY_FMT.get().format(c2.getTime()));
             out.add(buildPeriodOverview(ctx, dates, weekLabel(dates)));
         }
         return out;
@@ -501,7 +506,7 @@ public final class DailyStatsProvider {
         for (int i = count - 1; i >= 0; i--) {
             Calendar c2 = (Calendar) cal.clone();
             c2.add(Calendar.MONTH, -i);
-            String d = DAY_FMT.format(c2.getTime());
+            String d = DAY_FMT.get().format(c2.getTime());
             out.add(buildPeriodOverview(ctx, monthDates(d), monthLabel(d)));
         }
         return out;
@@ -833,7 +838,7 @@ public final class DailyStatsProvider {
             cal.add(Calendar.DAY_OF_MONTH, 1);
             long end = cal.getTimeInMillis();
 
-            DayEnergyBalance item = new DayEnergyBalance(DAY_FMT.format(new Date(start)));
+            DayEnergyBalance item = new DayEnergyBalance(DAY_FMT.get().format(new Date(start)));
             Cursor c = db.rawQuery(
                 "SELECT COALESCE(SUM(energy_spent_kwh),0), COALESCE(SUM(energy_regen_kwh),0), "
               // battery_temp_c is OBD2-exclusive (see CarDb's v22 migration
@@ -901,7 +906,7 @@ public final class DailyStatsProvider {
     }
 
     public static String todayDateStr() {
-        return DAY_FMT.format(new Date());
+        return DAY_FMT.get().format(new Date());
     }
 
     /** Every calendar day from `from` to today (inclusive), oldest first,
@@ -1766,7 +1771,7 @@ public final class DailyStatsProvider {
 
     private static String formatDisplayDate(String dateStr) {
         try {
-            String s = DISPLAY_DAY_FMT.format(DAY_FMT.parse(dateStr));
+            String s = DISPLAY_DAY_FMT.get().format(DAY_FMT.get().parse(dateStr));
             if (s.length() > 0) return Character.toUpperCase(s.charAt(0)) + s.substring(1);
             return s;
         } catch (Exception e) { return dateStr; }

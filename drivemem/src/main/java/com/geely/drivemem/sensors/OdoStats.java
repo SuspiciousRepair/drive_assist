@@ -19,7 +19,8 @@ import java.util.Locale;
  * from the legacy odo.log file. Gracefully handles gaps in history.
  */
 public final class OdoStats {
-    private static final SimpleDateFormat DAY_FMT = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+    private static final ThreadLocal<SimpleDateFormat> DAY_FMT =
+        ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd", Locale.US));
 
     private OdoStats() {}
 
@@ -66,7 +67,8 @@ public final class OdoStats {
         DailySeries(double[] km, String[] labels) { this.km = km; this.labels = labels; }
     }
 
-    private static final SimpleDateFormat SHORT_DAY_FMT = new SimpleDateFormat("d/M", Locale.US);
+    private static final ThreadLocal<SimpleDateFormat> SHORT_DAY_FMT =
+        ThreadLocal.withInitial(() -> new SimpleDateFormat("d/M", Locale.US));
 
     /** Formats day ranges into a series of distances for the last N calendar days. */
     public static DailySeries recentDaily(List<DayRange> ranges, int days) {
@@ -85,12 +87,12 @@ public final class OdoStats {
     }
 
     private static String shortLabel(String isoDate) {
-        try { return SHORT_DAY_FMT.format(DAY_FMT.parse(isoDate)); }
+        try { return SHORT_DAY_FMT.get().format(DAY_FMT.get().parse(isoDate)); }
         catch (Exception e) { return ""; }
     }
 
     private static long dayMs(String date) {
-        try { return DAY_FMT.parse(date).getTime(); } catch (Exception e) { return -1; }
+        try { return DAY_FMT.get().parse(date).getTime(); } catch (Exception e) { return -1; }
     }
 
     /** Returns oldest-first odometer readings for each calendar day from the database.
@@ -133,7 +135,7 @@ public final class OdoStats {
         java.util.Calendar cal = java.util.Calendar.getInstance();
         cal.set(java.util.Calendar.HOUR_OF_DAY, 0); cal.set(java.util.Calendar.MINUTE, 0);
         cal.set(java.util.Calendar.SECOND, 0); cal.set(java.util.Calendar.MILLISECOND, 0);
-        try { cal.setTime(DAY_FMT.parse(dateStr)); } catch (Exception ignored) { /* keep today */ }
+        try { cal.setTime(DAY_FMT.get().parse(dateStr)); } catch (Exception ignored) { /* keep today */ }
         long start = cal.getTimeInMillis();
         cal.add(java.util.Calendar.DAY_OF_MONTH, 1);
         return new long[]{start, cal.getTimeInMillis()};

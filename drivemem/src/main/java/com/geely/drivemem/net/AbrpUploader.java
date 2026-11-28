@@ -175,8 +175,8 @@ public final class AbrpUploader {
     // point, /send) vs "batch xN" (N points in one /bulk call) — since a
     // representative JSONObject alone looks identical in the log either way.
     private static volatile Context appCtx;
-    private static final java.text.SimpleDateFormat ATTEMPT_LOG_FMT =
-        new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US);
+    private static final ThreadLocal<java.text.SimpleDateFormat> ATTEMPT_LOG_FMT =
+        ThreadLocal.withInitial(() -> new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US));
 
     // Persistent append-only record of every upload attempt. Unlike debugLog
     // (in-memory, capped, cleared on process death), this stays on disk and
@@ -187,7 +187,7 @@ public final class AbrpUploader {
     private static void logAttemptToFile(boolean ok, String kind, JSONObject representative) {
         Context app = appCtx;
         if (app == null) return;
-        String line = ATTEMPT_LOG_FMT.format(new java.util.Date()) + '\t'
+        String line = ATTEMPT_LOG_FMT.get().format(new java.util.Date()) + '\t'
             + (ok ? "OK" : "FAILED(" + lastError + ")") + '\t' + kind + '\t'
             + (representative != null ? representative.toString() : "(no data)")
             + "\treply=" + (lastReply != null ? lastReply : "(none)");

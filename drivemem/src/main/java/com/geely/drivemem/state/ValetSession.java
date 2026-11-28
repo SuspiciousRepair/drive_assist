@@ -273,8 +273,9 @@ public final class ValetSession {
             if (!dir.exists()) dir.mkdirs();
             java.io.File marker = new java.io.File(base, VALET_MARKER);
             if (active) {
-                java.io.FileWriter writer = new java.io.FileWriter(marker, false);
-                writer.write(String.valueOf(rowId)); writer.close();
+                try (java.io.FileWriter writer = new java.io.FileWriter(marker, false)) {
+                    writer.write(String.valueOf(rowId));
+                }
             } else if (marker.exists()) marker.delete();
         } catch (Throwable ignored) { }
     }
