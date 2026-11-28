@@ -16,8 +16,6 @@ import android.hardware.usb.UsbManager;
 import android.os.Handler;
 import android.util.Log;
 
-import com.geely.drivemem.util.CarMediaSessions;
-
 import java.util.Map;
 
 /** Detects CarPlay connection state and re-enables Bluetooth if needed.
@@ -31,10 +29,22 @@ import java.util.Map;
  *  2. Live USB inspection ({@link UsbManager} for Apple vendor ID 0x05AC / USB
  *     accessories) so wired cable CarPlay is detected immediately even after an
  *     app restart or OTA update when no fresh broadcast was fired, and
- *  3. Linked CarPlay media session ({@link CarMediaSessions#hasCarplaySession()}). */
+ *  3. The last broadcast, kept on disk, for an app restart in the middle of
+ *     a session (an install kills the process and no broadcast comes after).
+ *
+ * The CarPlay media session is NOT a sign of a connection: the car's CarPlay
+ * app keeps it linked, active and "playing" with no phone at all (seen on the
+ * car, 2026-11-28, cable pulled). */
 public final class CarplayState {
     private static final String TAG = CarAccess.TAG;
     private static final String ACTION = "com.njda.carplay.broadcast";
+    /** Hub key: 1 while CarPlay is connected, else 0. */
+    public static final String HUB_KEY = "car.carplay_connected";
+    /** Where the last broadcast is kept across an app restart. */
+    private static final String STORE = "carplay_state", STORE_CONNECTED = "connected";
+    /** The car's own CarPlay screen. */
+    private static final String SCREEN_PKG = "com.njda.adapter";
+    private static final String SCREEN_CLS = "com.njda.adapter.view.CarplayMainActivity";
     /** Apple Inc. USB Vendor ID (iPhone / iPad over cable CarPlay). */
     public static final int USB_VENDOR_APPLE = 0x05AC;
     // Time for CarPlay's A2DP/HFP teardown before re-enabling Bluetooth.
@@ -66,8 +76,7 @@ public final class CarplayState {
     public static boolean isConnected(Context ctx) {
         if (connected) return true;
         Context c = ctx != null ? ctx.getApplicationContext() : appCtx;
-        if (hasWiredAppleUsb(c)) return true;
-        return CarMediaSessions.hasCarplaySession();
+        return hasWiredAppleUsb(c);
     }
 
     /** True when an Apple USB device (iPhone/iPad, VID 0x05AC) or CarPlay USB accessory is attached. */
@@ -153,12 +162,28 @@ public final class CarplayState {
         return out;
     }
 
+    /** Brings the car's CarPlay screen to the front. False when it could not. */
+    public static boolean openScreen(Context ctx) {
+        try {
+            ctx.startActivity(new Intent()
+                .setClassName(SCREEN_PKG, SCREEN_CLS)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            return true;
+        } catch (Throwable t) {
+            Log.w(TAG, "carplay: open screen: " + t);
+            return false;
+        }
+    }
+
     /** Subscribes to CarPlay events; idempotent. */
     public static synchronized void ensureSubscribed(Context ctx) {
         if (ctx != null) appCtx = ctx.getApplicationContext();
         if (subscribed || appCtx == null) return;
         subscribed = true;
         Context app = appCtx;
+        try {
+            connected = app.getSharedPreferences(STORE, Context.MODE_PRIVATE).getBoolean(STORE_CONNECTED, false);
+        } catch (Throwable ignored) {}
         Handler h = new Handler(app.getMainLooper());
         try {
             app.registerReceiver(new BroadcastReceiver() {
@@ -166,12 +191,14 @@ public final class CarplayState {
                     String n = intent.getStringExtra("notification");
                     if ("connected".equals(n)) {
                         connected = true;
+                        remember(app, true);
                         sessionSerial = sessionOwner(lastCableSerial, lastCableAtMs,
                             android.os.SystemClock.elapsedRealtime());
                         Log.i(TAG, "carplay: connected" + (sessionSerial != null ? " (cable)" : ""));
                         h.postDelayed(() -> reenableBluetoothIfOff(h), REENABLE_DELAY_MS);
                     } else if ("disconnected".equals(n)) {
                         connected = false;
+                        remember(app, false);
                         sessionSerial = null;
                         Log.i(TAG, "carplay: disconnected");
                     }
@@ -192,6 +219,12 @@ public final class CarplayState {
                 }
             }, new IntentFilter(UsbManager.ACTION_USB_DEVICE_ATTACHED));
         } catch (Throwable t) { Log.w(TAG, "carplay: usb register: " + t); }
+    }
+
+    private static void remember(Context app, boolean on) {
+        try {
+            app.getSharedPreferences(STORE, Context.MODE_PRIVATE).edit().putBoolean(STORE_CONNECTED, on).apply();
+        } catch (Throwable ignored) {}
     }
 
     private static void reenableBluetoothIfOff(Handler h) {

@@ -241,7 +241,7 @@ public final class CarActor {
         // Not a car property -- CarplayState owns the actual subscription (the
         // OEM CarPlay app's own broadcast) and the Bluetooth-recovery action.
         // This just puts its state on the same bus everything else reads from.
-        registerPoll("car.carplay_connected", 4000, c ->
+        registerPoll(CarplayState.HUB_KEY, 4000, c ->
             Reading.ok(CarplayState.connected() ? 1 : 0));
 
         // The car's soft-tyre warning, per wheel (indirect: no pressures).

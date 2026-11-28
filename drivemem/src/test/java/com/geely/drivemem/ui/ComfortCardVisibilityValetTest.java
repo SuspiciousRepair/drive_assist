@@ -27,4 +27,11 @@ public class ComfortCardVisibilityValetTest {
         assertTrue(ComfortCardVisibility.showPanelCard(false, false, false));
         assertTrue(ComfortCardVisibility.showDockStats(false));
     }
+
+    @Test
+    public void phoneDockButtonNeedsAPhoneAndNoValet() {
+        assertTrue(ComfortCardVisibility.showDockPhone(false, true));
+        assertFalse(ComfortCardVisibility.showDockPhone(false, false));
+        assertFalse(ComfortCardVisibility.showDockPhone(true, true));
+    }
 }

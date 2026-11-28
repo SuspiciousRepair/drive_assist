@@ -1053,8 +1053,8 @@ public class Style {
     // (12/14/16/20dp all appeared for the same conceptual "space between two
     // cards"), which read as inconsistent across screens doing the same
     // thing. New card layouts should use these, not a fresh literal.
-    public static final int CARD_GAP_DP = 16;
-    public static final int COLUMN_GAP_DP = 24;
+    public static final int CARD_GAP_DP = 10;
+    public static final int COLUMN_GAP_DP = 10;
 
     /** Packs `cards` into vertical, equal-width columns inside `columns` (a
      * HORIZONTAL LinearLayout that already has its final width/height),

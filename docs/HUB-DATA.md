@@ -47,7 +47,7 @@ Property IDs and scales of the car's own (VHAL) properties are in
 | `telemetry.ambient_color` | colour the cabin light really shows (derived, `AmbientLight`: the drive mode's colour in follow mode, else `ambient_color_set`) | when any input changes |
 | `telemetry.ambient_brightness` | cabin light brightness, 0..20 | every 4 s |
 | `telemetry.speed` | speed, km/h | every 1 s, **only while the Comfort screen is open** |
-| `car.carplay_connected` | CarPlay link (from `CarplayState`): the OEM CarPlay broadcast, an Apple USB device on the cable, or a linked CarPlay media session | every 4 s |
+| `car.carplay_connected` | CarPlay link (from `CarplayState`): the OEM CarPlay broadcast, an Apple USB device on the cable, or the last broadcast kept from before an app restart | every 4 s |
 | `car.tire_warn_fl`, `car.tire_warn_fr`, `car.tire_warn_rl`, `car.tire_warn_rr` | soft-tyre warning per wheel (`TireWarning`), raw value: 0 = no warning. **No pressures**: this car's warning is indirect (ITPMS_TYRE_WARN, wheel speeds), the pressure properties are "not supported". The value of a real warning is not yet seen; anything not 0 counts as a warning | every 10 s |
 | `car.tire_warn` | 1 when any wheel warns, else 0 (derived) | when a wheel changes |
 | `car.aux_12v_v` | auxiliary 12V battery rail voltage, V (`BODY_BATTERY_U_BATT_INFO`, `557875206`, `raw × 0.1 V`, 0.1 V steps). Works without OBD2 or CAN (`Aux12vHub`) | every 10 s |
