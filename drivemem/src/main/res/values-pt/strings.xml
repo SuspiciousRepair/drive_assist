@@ -25,6 +25,9 @@
     <string name="ac_recirc_refused">Recirculação: o carro recusou</string>
     <string name="ac_recirc_on">Recirculando — entrada de ar externo fechada</string>
     <string name="ac_recirc_off">Entrada de ar externo aberta</string>
+    <string name="ac_rear_defrost_on">Desembaçador traseiro ligado</string>
+    <string name="ac_rear_defrost_off">Desembaçador traseiro desligado</string>
+    <string name="ac_rear_defrost_refused">O carro recusou o desembaçador traseiro</string>
     <string name="ac_connect_failed">Falha ao conectar ao carro</string>
     <string name="clima_title">Clima</string>
     <!-- card Turbo: 30s de reforco no modo Sport, depois volta ao modo que estava rodando antes -->
@@ -251,6 +254,7 @@
     <string name="cfg_current">Atual: %1$s + %2$s</string>
     <string name="cfg_bar_header">Elementos</string>
     <string name="cfg_drive_card">Mostrar cartão da viagem atual</string>
+    <string name="cfg_rear_defrost_tile">Botão do desembaçador traseiro no cartão Clima</string>
     <string name="parked_card_title">Estacionado</string>
     <string name="value_unavailable">Indisponível</string>
     <string name="value_calculating">Calculando…</string>

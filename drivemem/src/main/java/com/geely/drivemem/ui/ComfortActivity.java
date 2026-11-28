@@ -93,6 +93,7 @@ public class ComfortActivity extends Activity {
     private boolean recircOn = false;
     private android.widget.ImageView windDirIcon;
     private android.widget.ImageView rearDefrostIcon;
+    private android.widget.ImageView rearDefrostBtn;   // the optional third switch tile
     private int currentWindDir = 0;
     private boolean rearDefrostOn = false;
     // Status sidebar (left edge): connection state only, no
@@ -670,6 +671,23 @@ public class ComfortActivity extends Activity {
             });
         });
         switchRow.addView(purgeBtn, tileLp(96, 14));
+        // Third tile, only when Config > Elements asks for it: the rear
+        // defroster. Without it the footer icon below shows the state, but
+        // can only turn the defroster off.
+        rearDefrostBtn = iconSwitchTile(R.drawable.ic_hvac_rear_defrost, 10);
+        rearDefrostBtn.setOnClickListener(v -> {
+            final boolean want = !rearDefrostOn;
+            CarActor.get(this).runOnCarThread(() -> {
+                boolean ok = CarActor.get(this).rawAccess().setRearDefrost(want);
+                ui.post(() -> {
+                    if (ok) setRearDefrost(want);  // only move it if the car agreed
+                    hint.setText(!ok ? getString(R.string.ac_rear_defrost_refused)
+                        : want ? getString(R.string.ac_rear_defrost_on)
+                                : getString(R.string.ac_rear_defrost_off));
+                });
+            });
+        });
+        switchRow.addView(rearDefrostBtn, tileLp(96, 14));
         c.addView(switchRow);
         Style.gap(c, this, 18);
 
@@ -709,6 +727,7 @@ public class ComfortActivity extends Activity {
 
         setRecirc(false);
         setPurge(false);          // drawn dim; the first read corrects it if not
+        setRearDefrost(false);
         return c;
     }
 
@@ -2735,6 +2754,7 @@ public class ComfortActivity extends Activity {
         lastAmbient = c;
         if (card != null) card.setAccent(c);
         setRecirc(recircOn);
+        setRearDefrost(rearDefrostOn);
         setPurge(purgeOpen);
         redrawTurboBar(turboBarFraction < 0 ? 1f : turboBarFraction);
         if (gateCard != null) gateCard.setAccent(c);
@@ -3395,6 +3415,7 @@ public class ComfortActivity extends Activity {
         if (Prefs.getTurboEnabled(this) != turboEnabledAtBuild) { recreate(); return; }
         if (!turboSlotsFromPrefs().equals(turboSlotsAtBuild)) { recreate(); return; }
         if (Prefs.getDriveCardEnabled(this) != driveCardEnabledAtBuild) { recreate(); return; }
+        setRearDefrost(rearDefrostOn);   // the tile's Config switch may have changed
         // Same mistake as the skyline comment above describes, made fresh:
         // musicLargeCardAtBuild was read once at onCreate with no onResume
         // check, so toggling Config > Music > "Large card" and coming
@@ -3695,7 +3716,16 @@ public class ComfortActivity extends Activity {
 
     private void setRearDefrost(boolean on) {
         rearDefrostOn = on;
-        if (rearDefrostIcon == null) return;
-        rearDefrostIcon.setVisibility(on ? View.VISIBLE : View.GONE);
+        if (rearDefrostIcon == null || rearDefrostBtn == null) return;
+        // One place shows it: the tile when Config > Elements turned it on,
+        // else the small footer icon, which is there only while it is on.
+        // Read here, not cached: onResume calls this after a Config change.
+        boolean tile = Prefs.getRearDefrostTile(this);
+        rearDefrostBtn.setVisibility(tile ? View.VISIBLE : View.GONE);
+        rearDefrostIcon.setVisibility(!tile && on ? View.VISIBLE : View.GONE);
+        int accent = Style.FOLLOW_AMBIENT ? lastAmbient : Style.ACCENT;
+        if (accent == 0) accent = Style.ACCENT;
+        rearDefrostBtn.setColorFilter(on ? Style.onFill(accent) : Style.TEXT);
+        rearDefrostBtn.setBackground(on ? Style.card(accent, this, Style.RADIUS_DP - 8) : Style.tile(this));
     }
 }

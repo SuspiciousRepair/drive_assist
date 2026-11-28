@@ -37,6 +37,9 @@
     <string name="ac_recirc_refused">Recirculation unavailable</string>
     <string name="ac_recirc_on">Recirculating</string>
     <string name="ac_recirc_off">Outside air</string>
+    <string name="ac_rear_defrost_on">Rear defroster on</string>
+    <string name="ac_rear_defrost_off">Rear defroster off</string>
+    <string name="ac_rear_defrost_refused">Rear defroster unavailable</string>
     <string name="ac_connect_failed">Could not connect to the car</string>
     <string name="clima_title">Climate</string>
     <!-- Turbo card: 30s Sport-mode boost, then back to whatever mode was running before -->
@@ -263,6 +266,7 @@
     <string name="cfg_current">Current: %1$s + %2$s</string>
     <string name="cfg_bar_header">Elements</string>
     <string name="cfg_drive_card">Show current drive card</string>
+    <string name="cfg_rear_defrost_tile">Rear defroster button on the Climate card</string>
     <string name="parked_card_title">Parked</string>
     <string name="value_unavailable">Unavailable</string>
     <string name="value_calculating">Calculating…</string>
