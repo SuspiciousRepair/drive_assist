@@ -85,6 +85,8 @@ public class CarMode {
     static final int CHARGE_SWITCH = 605028608;
     static final int CHARGE_ON = 605028611;
     static final int CHARGE_CURRENT = 605291008, CHARGE_VOLTAGE = 605290752;
+    /** Cable in the port, charging or not: 3 = connected, 0 = not. */
+    static final int PLUG_CONNECTED = 557887621;
     Integer readCharging() {
         try { return cpm.getIntProperty(CHARGE_SWITCH, 0); } catch (Throwable t) { return null; }
     }
@@ -101,10 +103,9 @@ public class CarMode {
     Boolean readBoolProp(int prop, int area) {
         try { return cpm.getBooleanProperty(prop, area); } catch (Throwable t) { return null; }
     }
-    // Generic writer. Package-private on purpose: only a narrowly-scoped,
-    // hardcoded-property receiver (e.g. AebWriteTestReceiver) may call this —
-    // never wire it behind a receiver that takes an arbitrary id from the
-    // caller. See ProbeReceiver's own comment for why.
+    // Generic writer. Package-private on purpose: only call it with a
+    // hardcoded property — never wire it behind a receiver that takes an
+    // arbitrary id from the caller. See ProbeReceiver's own comment for why.
     boolean writeBoolProp(int prop, int area, boolean val) {
         try { cpm.setBooleanProperty(prop, area, val); return true; }
         catch (Throwable t) { Log.w(TAG, "writeBoolProp " + prop + "@" + area + ": " + t); return false; }
@@ -125,10 +126,10 @@ public class CarMode {
     }
     // android.car.media.CarAudioManager — hidden framework class, called by
     // reflection rather than compiled against (same class drivemem's
-    // CarAccess.audioCall() uses). Package-private: only a narrowly-scoped,
-    // hardcoded-method receiver (e.g. AvasMuteTestReceiver) may call this —
-    // never wire it behind a receiver that takes an arbitrary method name
-    // from the caller. See ProbeReceiver's own comment for why.
+    // CarAccess.audioCall() uses). Package-private: only call it with a
+    // hardcoded method — never wire it behind a receiver that takes an
+    // arbitrary method name from the caller. See ProbeReceiver's own comment
+    // for why.
     Object audioCall(String method, Object... args) {
         if (car == null) return "ERR:no car";
         try {

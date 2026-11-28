@@ -54,16 +54,21 @@ public class Installer {
     static boolean busy() { return BUSY.get(); }
 
     public static void install(Context ctx, String url) {
+        install(ctx, url, false);
+    }
+
+    /** @param force install even when the car is not in Park or is charging. */
+    public static void install(Context ctx, String url, boolean force) {
         if (!BUSY.compareAndSet(false, true)) {
             Log.i(TAG, "install: already running, ignoring the repeat");
             return;
         }
         new Thread(() -> {
-            try { run(ctx, url); } finally { BUSY.set(false); }
+            try { run(ctx, url, force); } finally { BUSY.set(false); }
         }, "installer").start();
     }
 
-    private static void run(Context ctx, String url) {
+    private static void run(Context ctx, String url, boolean force) {
         File apk = null;
         try {
             if (url == null || !url.startsWith("https://")) {
@@ -76,6 +81,14 @@ public class Installer {
             String targetPkg = verify(ctx, apk);      // logs its own reason
             if (targetPkg == null) return;
 
+            // Checked here, after the download: a slow download leaves time
+            // to shift into Drive or to plug in.
+            String reason = carBlockedReason(ctx, force);
+            if (reason != null) {
+                Log.w(TAG, "install: blocked before commit: " + reason);
+                return;
+            }
+
             commit(ctx, apk, targetPkg);
         } catch (Throwable t) {
             Log.e(TAG, "install: failed: " + t, t);
@@ -83,6 +96,23 @@ public class Installer {
             // the session copied the bytes already; keeping them wastes cache
             if (apk != null && apk.exists() && !apk.delete())
                 Log.w(TAG, "install: could not delete " + apk);
+        }
+    }
+
+    /** Reads the car now and asks InstallPolicy. Null also when the car
+     * service cannot be reached (a bench unit). */
+    private static String carBlockedReason(Context ctx, boolean force) {
+        if (force) return null;
+        CarMode cm = new CarMode();
+        try {
+            if (!cm.connect(ctx.getApplicationContext())) {
+                Log.w(TAG, "install: car service unavailable, Park/charging not checked");
+                return null;
+            }
+            return InstallPolicy.installBlockedReason(force, cm.readGear(), cm.readChargeCurrent(),
+                cm.readIntProp(CarMode.PLUG_CONNECTED, 0), cm.readCharging());
+        } finally {
+            cm.disconnect();
         }
     }
 

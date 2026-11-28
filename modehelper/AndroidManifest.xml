@@ -91,30 +91,18 @@
             </intent-filter>
         </receiver>
         <receiver android:name=".InstallResultReceiver" android:exported="false" />
-        <receiver android:name=".ProbeReceiver" android:exported="true">
+        <!-- ADB only: adb holds DUMP, a normal app cannot. -->
+        <receiver android:name=".ProbeReceiver" android:exported="true"
+            android:permission="android.permission.DUMP">
             <intent-filter>
                 <action android:name="com.geely.modehelper.READPROP" />
             </intent-filter>
         </receiver>
-        <!-- One-off diagnostic, hardcoded to the AEB property only — see the
-             class header. Not a general write capability. -->
         <!-- Extra dark's floor: backlight below Android's 10, through the
              local root adbd when it is open. See the class header. -->
         <receiver android:name=".BacklightFloorReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="com.geely.modehelper.BACKLIGHT_FLOOR" />
-            </intent-filter>
-        </receiver>
-        <receiver android:name=".AebWriteTestReceiver" android:exported="true">
-            <intent-filter>
-                <action android:name="com.geely.modehelper.AEBWRITETEST" />
-            </intent-filter>
-        </receiver>
-        <!-- One-off diagnostic, hardcoded to setAVASMode only — see the class
-             header. AVAS (pedestrian warning sound), not ADAS/AEB. -->
-        <receiver android:name=".AvasMuteTestReceiver" android:exported="true">
-            <intent-filter>
-                <action android:name="com.geely.modehelper.AVASMUTETEST" />
             </intent-filter>
         </receiver>
         <receiver android:name=".DashReceiver" android:exported="true">
@@ -158,7 +146,9 @@
              as string extras. Bypasses the car's own Bluetooth screen entirely,
              which the vLinker investigation found silently hides a device the
              radio itself already discovered (docs/field-catalog.md / OBD2 section). -->
-        <receiver android:name=".BtPairReceiver" android:exported="true">
+        <!-- ADB only, so DUMP, as for ProbeReceiver. -->
+        <receiver android:name=".BtPairReceiver" android:exported="true"
+            android:permission="android.permission.DUMP">
             <intent-filter>
                 <action android:name="com.geely.modehelper.BT_PAIR" />
             </intent-filter>

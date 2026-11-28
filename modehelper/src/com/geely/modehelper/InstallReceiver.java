@@ -16,9 +16,10 @@ public class InstallReceiver extends BroadcastReceiver {
     @Override public void onReceive(Context ctx, Intent i) {
         if (!INSTALL_APK.equals(i.getAction())) return;
         String url = i.getStringExtra("url");
-        Log.i(TAG, "install: asked for " + url);
+        boolean force = i.getBooleanExtra("force", false);
+        Log.i(TAG, "install: asked for " + url + (force ? " (forced)" : ""));
         // goAsync is not used: Installer spawns its own thread and the download
         // outlives any receiver window we could hold open anyway.
-        Installer.install(ctx.getApplicationContext(), url);
+        Installer.install(ctx.getApplicationContext(), url, force);
     }
 }

@@ -227,8 +227,27 @@ public class UpdateDialog {
                 if (onDecline != null) onDecline.run();
             });
 
+            // Leaving Park closes the window, whoever opened it. A plain
+            // dismiss: not a "Later", so it is offered again.
+            final CarState.Listener parkListener = parked -> activity.runOnUiThread(() -> {
+                if (!parked) dismissIfShowing(dialog);
+            });
+            dialog.setOnDismissListener(d -> CarState.removeListener(parkListener));
+
             dialog.show();
+            CarState.addListener(parkListener);
+            // The car may have left Park before the listener was in place.
+            if (!CarState.isParked()) dismissIfShowing(dialog);
             return dialog;
+    }
+
+    private static void dismissIfShowing(AlertDialog dialog) {
+        try {
+            if (dialog.isShowing()) dialog.dismiss();
+        } catch (Throwable t) {
+            // The activity's window can already be gone.
+            Log.w(TAG, "dismiss: " + t);
+        }
     }
 
     private static class ScrollScrollView extends ScrollView {

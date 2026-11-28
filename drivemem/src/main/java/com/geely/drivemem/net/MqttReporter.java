@@ -734,6 +734,17 @@ public class MqttReporter {
         });
     }
 
+    // A retained "force" word comes back on every reconnect, and with no URL
+    // of its own the "already applied" check cannot stop it: it would force an
+    // install again and again, even while driving.
+    private void postUpdateCommand(int what, boolean retained, String body) {
+        if (retained && Updater.isForceWord(body)) {
+            Log.w(TAG, "update: retained force command ignored, publish it without retain");
+            return;
+        }
+        h.obtainMessage(what, body).sendToTarget();
+    }
+
     // Paho's callbacks ONLY post to the mailbox: they return in microseconds and
     // never hold up Paho's network thread (bugs 3 and 4).
     private void subscribeCommands() {
@@ -758,11 +769,11 @@ public class MqttReporter {
             Log.i(TAG, "subscribed to " + PARK_CMD_TOPIC + " e " + PARK_TIMER_CMD_TOPIC);
 
             client.subscribe(UPDATE_CMD_TOPIC, 1, (IMqttMessageListener) (topic, msg) ->
-                h.obtainMessage(MSG_CMD_UPDATE, new String(msg.getPayload()).trim()).sendToTarget());
+                postUpdateCommand(MSG_CMD_UPDATE, msg.isRetained(), new String(msg.getPayload()).trim()));
             Log.i(TAG, "subscribed to " + UPDATE_CMD_TOPIC);
 
             client.subscribe(UPDATE_HELPER_CMD_TOPIC, 1, (IMqttMessageListener) (topic, msg) ->
-                h.obtainMessage(MSG_CMD_UPDATE_HELPER, new String(msg.getPayload()).trim()).sendToTarget());
+                postUpdateCommand(MSG_CMD_UPDATE_HELPER, msg.isRetained(), new String(msg.getPayload()).trim()));
             Log.i(TAG, "subscribed to " + UPDATE_HELPER_CMD_TOPIC);
 
             client.subscribe(ACTION_CMD_TOPIC, 1, (IMqttMessageListener) (topic, msg) ->
@@ -978,7 +989,7 @@ public class MqttReporter {
         if (ctx == null) { Log.w(TAG, "update: no Context"); return; }
         Log.i(TAG, "CMD update from HA: " + body);
 
-        if (body != null && body.toLowerCase(java.util.Locale.US).contains("force")) {
+        if (Updater.isForcedUpdate(body)) {
             pub(UPDATE_STATE_TOPIC, "iniciando (forçado)", false);
             Updater.update(ctx, body, s -> pub(UPDATE_STATE_TOPIC, s, false));
             return;
@@ -1019,7 +1030,7 @@ public class MqttReporter {
         if (ctx == null) { Log.w(TAG, "update: no Context"); return; }
         Log.i(TAG, "CMD update (modehelper) from HA: " + body);
 
-        if (body != null && body.toLowerCase(java.util.Locale.US).contains("force")) {
+        if (Updater.isForcedUpdate(body)) {
             pub(UPDATE_HELPER_STATE_TOPIC, "iniciando (forçado)", false);
             Updater.updateHelper(ctx, body, s -> pub(UPDATE_HELPER_STATE_TOPIC, s, false));
             return;
