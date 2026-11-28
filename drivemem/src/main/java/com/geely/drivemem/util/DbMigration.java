@@ -80,8 +80,8 @@ public final class DbMigration {
     // restart re-logged the day once), collapsed here with an in-memory
     // seen-set rather than a DB constraint, since telemetry_sample has no
     // natural unique key to hang CONFLICT_IGNORE off for this.
-    private static final java.text.SimpleDateFormat DAY_FMT =
-        new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US);
+    private static final ThreadLocal<java.text.SimpleDateFormat> DAY_FMT =
+        ThreadLocal.withInitial(() -> new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US));
 
     private static void migrateOdo(Context ctx) {
         List<String[]> rows = new ArrayList<>();   // [date, odoKm]
@@ -99,7 +99,7 @@ public final class DbMigration {
                 long tsMs;
                 double odoKm;
                 try {
-                    tsMs = DAY_FMT.parse(r[0]).getTime();
+                    tsMs = DAY_FMT.get().parse(r[0]).getTime();
                     odoKm = Double.parseDouble(r[1]);
                 } catch (Throwable t) { continue; }   // survives a malformed/hand-edited line
                 ContentValues v = new ContentValues();

@@ -34,8 +34,8 @@ public final class ChargeSession {
     // Legacy flat file name (migration only; data now in CarDb.charge_session).
     static final String NAME = "charge.log";
 
-    private static final SimpleDateFormat FMT =
-        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+    private static final ThreadLocal<SimpleDateFormat> FMT =
+        ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US));
 
     public interface Listener { void onSession(Summary s); }
     private static volatile Listener listener;
@@ -129,14 +129,14 @@ public final class ChargeSession {
             return h + ":" + String.format(Locale.US, "%02d", m);
         }
 
-        private static final SimpleDateFormat ROW_FMT =
-            new SimpleDateFormat("d MMM  HH:mm", Locale.getDefault());
+        private static final ThreadLocal<SimpleDateFormat> ROW_FMT =
+            ThreadLocal.withInitial(() -> new SimpleDateFormat("d MMM  HH:mm", Locale.getDefault()));
 
         // Numbers and dates only, same as Clips.Clip.title() — no words, so
         // no string resource needed here.
         public String title() {
             SimpleDateFormat t = new SimpleDateFormat("HH:mm", Locale.getDefault());
-            return ROW_FMT.format(new Date(startWallMs)) + " → " + t.format(new Date(endWallMs));
+            return ROW_FMT.get().format(new Date(startWallMs)) + " → " + t.format(new Date(endWallMs));
         }
 
         // Duration is already on the bar (durationLabel()) — not repeated
@@ -737,8 +737,8 @@ public final class ChargeSession {
         try {
             String[] c = line.split("\t", -1);
             if (c.length < 8) return null;
-            long start = FMT.parse(c[0]).getTime();
-            long end = FMT.parse(c[1]).getTime();
+            long start = FMT.get().parse(c[0]).getTime();
+            long end = FMT.get().parse(c[1]).getTime();
             int socStart = Integer.parseInt(c[3]);
             int socEnd = Integer.parseInt(c[4]);
             double kwh = Double.parseDouble(c[5]);   // the ctor stores kwh as-is, no unit conversion

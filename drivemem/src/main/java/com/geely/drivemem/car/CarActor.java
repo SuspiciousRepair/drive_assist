@@ -1,17 +1,6 @@
 package com.geely.drivemem.car;
 
-import com.geely.drivemem.controls.DoorWindow;
-import com.geely.drivemem.controls.Purge;
-import com.geely.drivemem.controls.TurboMode;
-import com.geely.drivemem.hvac.ComfortHub;
-import com.geely.drivemem.hvac.ComfortRuler;
-import com.geely.drivemem.net.MqttReporter;
-import com.geely.drivemem.sensors.OdoStats;
-import com.geely.drivemem.services.OutTempService;
 import com.geely.drivemem.state.CarplayState;
-import com.geely.drivemem.state.ChargeSession;
-import com.geely.drivemem.ui.ComfortActivity;
-import com.geely.drivemem.ui.TelemetryActivity;
 import com.geely.drivemem.util.Modes;
 
 import android.content.Context;
@@ -52,6 +41,12 @@ public final class CarActor {
         // Null is a valid answer (e.g. a test double with no real thread) --
         // assertCarThread() already treats a null looper as "can't check, skip it".
         Looper getLooper();
+        // True when the caller is on this handler's thread. With no thread
+        // (null looper) there is nothing to hop to, so the answer is true.
+        default boolean isCurrentThread() {
+            Looper carLooper = getLooper();
+            return carLooper == null || Looper.myLooper() == carLooper;
+        }
     }
 
     /** Cached reading with explicit status (not_available/loading/ok/error). */
@@ -112,6 +107,10 @@ public final class CarActor {
     }
 
     public Looper getLooper() { return h != null ? h.getLooper() : null; }
+
+    /** False only when a real car thread exists and the caller is not on it.
+     * EntityBus.publish uses this to hop onto that thread first. */
+    boolean isOnCarThread() { return h == null || h.isCurrentThread(); }
 
     public CarActor(Handler h) {
         this.ctx = null;
@@ -437,9 +436,10 @@ public final class CarActor {
         });
     }
 
-    // For ordered sequences of I/O (e.g., ComfortRuler). Runs on actor's thread
-    // and must never be called from any other thread. No ensureConnected()
-    // wrapper: caller is responsible for checking car.isReady() first.
+    // For ordered sequences of I/O (e.g., ComfortRuler). Posts to the actor's
+    // thread, so it is safe from any thread; EntityBus.publish uses it for
+    // publishes made off that thread. No ensureConnected() wrapper: caller is
+    // responsible for checking car.isReady() first.
     public void runOnCarThread(Runnable r) {
         if (h != null) h.post(r);
         else r.run();

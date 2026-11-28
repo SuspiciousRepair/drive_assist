@@ -24,7 +24,8 @@ public final class LockEventLog {
     private static final String TAG = "DriveMem";
     static final String FILE = "car-events.log";
     private static final long CAP_BYTES = 1024L * 1024;
-    private static final SimpleDateFormat FMT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+    private static final ThreadLocal<SimpleDateFormat> FMT =
+        ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US));
 
     private static volatile boolean subscribed;
 
@@ -74,7 +75,7 @@ public final class LockEventLog {
             boolean fresh = !f.exists();
             try (FileWriter w = new FileWriter(f, true)) {
                 if (fresh) w.write("wall\tevent\n");
-                w.write(FMT.format(new Date()) + '\t' + msg + '\n');
+                w.write(FMT.get().format(new Date()) + '\t' + msg + '\n');
             }
         } catch (Throwable t) {
             Log.w(TAG, "car: " + FILE + " write: " + t);
