@@ -12,6 +12,12 @@ stale the way the raw-copied changelog did.
 Rules for entries: one line per bullet, plain words, no code names, no
 issue numbers, no markdown emphasis (the update dialog is plain text).
 
+## v0.12.1 — 2026-11-28
+
+- New: a rear defroster button on the Climate card. Turn it on in Config, Elements.
+- Fixed: an update is checked once more before it installs. It does not start out of Park or during a charge.
+- Fixed: the update window opened from Config closes when the car leaves Park.
+
 ## v0.12.0 — 2026-11-27
 
 - New: Car diary. Keep maintenance, costs and tickets on one page. The car tells you what is due next.
