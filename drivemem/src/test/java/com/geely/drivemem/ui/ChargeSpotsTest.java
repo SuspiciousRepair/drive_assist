@@ -119,4 +119,18 @@ public class ChargeSpotsTest {
         assertEquals(-1, ChargeSpots.placeOf(p, 99));
         assertTrue(ChargeSpots.places(java.util.Collections.emptyList()).isEmpty());
     }
+
+    @Test public void aChargeInsideTheTripIsOnItsMap() {
+        // A joined trip: a charge at a stop on the way, far from both ends.
+        long tripStart = 10 * H, tripEnd = 18 * H;
+        List<ChargeSpots.Charge> all = Arrays.asList(
+            ch(90_000, 13 * H, 14 * H, true),              // on the way: yes
+            ch(90_000, tripEnd + 5 * H, tripEnd + 6 * H, true));   // hours after, far: no
+        List<ChargeSpots.Spot> s = ChargeSpots.forTrip(all, tripStart, tripEnd,
+            LAT, LON, LAT + 200_000 / 111_195.0, LON);
+        assertEquals(1, s.size());
+        assertTrue(s.get(0).dc);
+        // A trip that is still open has no end: nothing is "inside" it.
+        assertTrue(ChargeSpots.forTrip(all, tripStart, 0, LAT, LON, LAT, LON).isEmpty());
+    }
 }

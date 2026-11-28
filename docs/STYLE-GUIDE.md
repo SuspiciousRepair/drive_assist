@@ -27,6 +27,7 @@ symbol. The helper for each:
 | `27° → 31°` (any from → to) | `Style.rangeWithUnit` |
 | `3h 12m`, `44m` | `Style.durationWithUnits` |
 | `R$ 35,40` (symbol first) | `Style.moneyWithUnit` |
+| a ready text: `7 h 40 min`, `24 – 25 °C` | `Style.unitsDimmed` |
 | anything else after a number | `Style.appendUnit` |
 
 On a `Canvas` (chart labels, value boxes) draw the unit with its own

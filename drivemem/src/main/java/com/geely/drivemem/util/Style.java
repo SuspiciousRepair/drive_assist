@@ -651,6 +651,39 @@ public class Style {
         return sb;
     }
 
+    /**
+     * A ready text with its units made smaller and dim: "7 h 40 min",
+     * "↑2493  ↓1789 m", "24 – 25 °C". A word with no digit in it is a unit
+     * ({@link #isUnitWord}); the space before it goes with it.
+     */
+    public static CharSequence unitsDimmed(String text, float unitScale) {
+        SpannableStringBuilder sb = new SpannableStringBuilder();
+        int i = 0, n = text.length();
+        while (i < n) {
+            int ws = i;
+            while (i < n && text.charAt(i) == ' ') i++;
+            int we = i;
+            while (i < n && text.charAt(i) != ' ') i++;
+            String word = text.substring(we, i);
+            if (isUnitWord(word)) appendUnit(sb, text.substring(ws, i), unitScale);
+            else sb.append(text, ws, i);
+        }
+        return sb;
+    }
+
+    /** True for "km", "min", "°C", "Wh/km"; false for a number ("↑2493",
+     * "7.185") and for a sign that joins two numbers ("→", "–", "~", "·"). */
+    public static boolean isUnitWord(String word) {
+        if (word.isEmpty()) return false;
+        boolean letter = false;
+        for (int i = 0; i < word.length(); i++) {
+            char ch = word.charAt(i);
+            if (Character.isDigit(ch)) return false;
+            if (Character.isLetter(ch) || ch == '°' || ch == '%') letter = true;
+        }
+        return letter;
+    }
+
     /** Appends text as smaller, normal-weight and dim — used for units and parenthetical asides. */
     public static void appendUnit(SpannableStringBuilder sb, String text, float scale) {
         int start = sb.length();

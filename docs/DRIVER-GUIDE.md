@@ -229,8 +229,11 @@ the screen. At the top are the art, the song, the artist and the album. Under th
 in time with it: the line sung now in large type, the line before it, and the
 next two. The bar at the bottom has Play, Skip and **✕**, which closes the
 lyrics. The card remembers your last choice, open or closed, from song to song
-and after the car sleeps. The card stays at its normal size when the Home
-Assistant panel is up, or when the other cards need more than one column.
+and after the car sleeps. The card goes back to its normal size when the
+Home Assistant panel comes up, or when the other cards need more than one
+column. Tap **Lyrics** again and it grows back over the second and third
+columns, on top of the cards there. Close it with **✕** to see them again.
+It gives way again when more cards come.
 
 The lyrics come from [LRCLIB](https://lrclib.net), a free lyrics site. To find
 them, the car sends the song, artist and album names there, once for each song.

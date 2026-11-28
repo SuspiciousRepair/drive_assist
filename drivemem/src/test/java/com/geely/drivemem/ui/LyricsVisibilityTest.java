@@ -23,4 +23,26 @@ public class LyricsVisibilityTest {
         assertFalse(ComfortCardVisibility.jumboFits(2));
         assertFalse(ComfortCardVisibility.jumboFits(3));
     }
+
+    @Test public void aCrowdTakesTheRoomUntilTheDriverAsksAgain() {
+        // A second column of cards came: the card gives way.
+        assertFalse(ComfortCardVisibility.jumboPlaced(2, 0));
+        // The driver taps Lyrics (the pack turns the ask into the real count).
+        assertTrue(ComfortCardVisibility.jumboPlaced(2, Integer.MAX_VALUE));
+        assertEquals(2, ComfortCardVisibility.jumboAskAfterPack(2, Integer.MAX_VALUE));
+        // The same crowd, or a smaller one: it stays.
+        assertTrue(ComfortCardVisibility.jumboPlaced(2, 2));
+        assertEquals(2, ComfortCardVisibility.jumboAskAfterPack(2, 2));
+    }
+
+    @Test public void moreCardsAfterTheAskTakeTheRoomAgain() {
+        assertFalse(ComfortCardVisibility.jumboPlaced(3, 2));
+        assertEquals(0, ComfortCardVisibility.jumboAskAfterPack(3, 2));
+    }
+
+    @Test public void theAskIsForgottenWhenTheCardFitsByItself() {
+        assertTrue(ComfortCardVisibility.jumboPlaced(1, 2));
+        assertEquals(0, ComfortCardVisibility.jumboAskAfterPack(1, 2));
+        assertEquals(0, ComfortCardVisibility.jumboAskAfterPack(2, 0));
+    }
 }

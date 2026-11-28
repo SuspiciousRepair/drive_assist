@@ -95,6 +95,28 @@ public final class ComfortCardVisibility {
     }
 
     /**
+     * Where the jumbo card goes, and when it goes there with no room.
+     *
+     * It is placed when it fits. When the other cards took its room, it gives
+     * way (the music card goes back to its own size) until the driver asks for
+     * the lyrics again: then it is placed anyway, over columns 2 and 3, and
+     * the cards there are covered. {@code askedAtColumns} is the
+     * number of columns the others used at that ask (0 = no ask). A crowd that
+     * grows after the ask takes the room again.
+     */
+    public static boolean jumboPlaced(int columnsUsedByOthers, int askedAtColumns) {
+        return jumboFits(columnsUsedByOthers)
+            || (askedAtColumns > 0 && columnsUsedByOthers <= askedAtColumns);
+    }
+
+    /** What is left of the driver's ask after a pack: kept only while it is
+     * still what holds the card up. */
+    public static int jumboAskAfterPack(int columnsUsedByOthers, int askedAtColumns) {
+        if (askedAtColumns <= 0 || jumboFits(columnsUsedByOthers)) return 0;
+        return columnsUsedByOthers <= askedAtColumns ? columnsUsedByOthers : 0;
+    }
+
+    /**
      * Charge card shows active charging progress when parked and actively charging,
      * unless Valet is active (where the purple "End Valet" card stands alone).
      * Charging only makes sense while parked — see CarState's header for why this
