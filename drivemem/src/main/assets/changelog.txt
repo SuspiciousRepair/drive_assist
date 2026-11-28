@@ -1,12 +1,14 @@
-- New: a new comfort ruler. It has 10 cooling marks and 5 heating marks, and one tap changes one small thing, so the fan no longer jumps.
-- New: touch the comfort ruler's bar to go to a mark at once. Touch a mark, or slide a finger along the bar and lift it.
-- New: trip scores. Each trip gets a driver score and a road score, on the trip screen.
-- New: Car diary. A page for maintenance, costs, impacts and battery health.
-- New: tolls and parking. The car can find tolls with OpenStreetMap, and you can type what a stop cost.
-- New: join and split trips, and the odometer on every trip and charge.
-- New: Valet Mode shows only Climate, and a PIN in Config, Security can guard Valet and Config.
-- New: right-hand drive layout, picked from the car on first start.
-- Changed: the comfort ruler's learn mode and the Climate page in Config are gone. The marks are fixed.
-- Fixed: old trips no longer turn into 0 km after 90 days.
-- Fixed: window open targets in Config, Doors go in steps of 10. A typed 5 did nothing.
+- New: Car diary. Keep maintenance, costs and tickets on one page. The car tells you what is due next.
+- New: trip scores. Each trip gets a score for your driving and a score for the road.
+- New: tolls and parking. Type what a stop cost. With OpenStreetMap on, the car finds the tolls by itself.
+- New: join two trips into one, or split a long trip.
+- New: a PIN for Valet Mode and Config. It is optional, and your phone near the car takes its place.
+- New: right-hand drive layout.
+- Changed: the comfort ruler has 10 cooling marks and 5 heating marks. One tap is one small change.
+- Changed: touch the ruler's bar to go to a mark at once.
+- Changed: Valet Mode shows only the climate.
+- Changed: tap Lyrics to bring the big lyrics card back when other cards made it small.
+- Changed: the trip screen is tidier and shows the odometer.
+- Fixed: old trips no longer show 0 km after 90 days.
 - Fixed: drive mode and regeneration come back after a remote A/C start.
+- Fixed: window targets go in steps of 10.
