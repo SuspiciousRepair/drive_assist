@@ -15,6 +15,9 @@
     <string name="ac_recirc_refused">การหมุนเวียนอากาศ: รถปฏิเสธ</string>
     <string name="ac_recirc_on">กำลังหมุนเวียนอากาศ — ปิดช่องรับอากาศภายนอก</string>
     <string name="ac_recirc_off">เปิดช่องรับอากาศภายนอก</string>
+    <string name="ac_rear_defrost_on">เปิดไล่ฝ้ากระจกหลัง</string>
+    <string name="ac_rear_defrost_off">ปิดไล่ฝ้ากระจกหลัง</string>
+    <string name="ac_rear_defrost_refused">รถไม่ยอมรับคำสั่งไล่ฝ้ากระจกหลัง</string>
     <string name="ac_connect_failed">เชื่อมต่อกับรถไม่ได้</string>
     <string name="clima_title">ระบบปรับอากาศ</string>
     <!-- Turbo card: 30s Sport-mode boost, then back to whatever mode was running before -->
@@ -260,6 +263,7 @@
     <string name="cfg_bar_topbar_header">แถบสถานะ</string>
     <string name="cfg_bar_home_header">หน้าจอหลัก</string>
     <string name="cfg_drive_card">แสดงการ์ดการขับขี่ปัจจุบัน</string>
+    <string name="cfg_rear_defrost_tile">ปุ่มไล่ฝ้ากระจกหลังบนการ์ดแอร์</string>
     <string name="cfg_appearance_header">ลักษณะที่ปรากฏ</string>
     <string name="cfg_dark_mode_header">โหมดมืด</string>
     <string name="cfg_extra_dark_try">ลองดู</string>

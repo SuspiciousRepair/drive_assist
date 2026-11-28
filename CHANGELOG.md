@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+- **Rear defroster button on the Climate card.** Turn it on in Config →
+  Elements. It sits next to recirculation and the window button, and lights
+  up while the defroster is on.
+
 ## [v0.12.0] — 2026-11-27
 
 ### Added

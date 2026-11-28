@@ -15,6 +15,9 @@
     <string name="ac_recirc_refused">Recirculación no disponible</string>
     <string name="ac_recirc_on">Recirculando</string>
     <string name="ac_recirc_off">Aire exterior</string>
+    <string name="ac_rear_defrost_on">Desempañador trasero encendido</string>
+    <string name="ac_rear_defrost_off">Desempañador trasero apagado</string>
+    <string name="ac_rear_defrost_refused">El coche rechazó el desempañador trasero</string>
     <string name="ac_connect_failed">No se pudo conectar con el coche</string>
     <string name="clima_title">Climatización</string>
     <string name="turbo_title">Turbo</string>
@@ -159,6 +162,7 @@
     <string name="cfg_current">Actual: %1$s + %2$s</string>
     <string name="cfg_bar_header">Datos en la barra de menú</string>
     <string name="cfg_drive_card">Mostrar tarjeta del trayecto actual</string>
+    <string name="cfg_rear_defrost_tile">Botón del desempañador trasero en la tarjeta Clima</string>
     <string name="parked_card_title">Estacionado</string>
     <string name="value_unavailable">No disponible</string>
     <string name="value_calculating">Calculando…</string>

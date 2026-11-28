@@ -26,6 +26,7 @@ The home screen is made for quick use while you drive:
   bar: touch a mark, or slide a finger along the bar and lift it. When the
   climate is off, the bar shows the 10 cooling marks.
 - Large buttons do cooling, heating, recirculation and a window clear.
+- A rear defroster button can join them: turn it on in Config → Elements.
 - While the car charges, a charging card takes the place of the Parked card. It
   shows the time charging, the time left to 100%, the battery level, the energy
   added and the charging power. Tap the card, during or after the charge, to
