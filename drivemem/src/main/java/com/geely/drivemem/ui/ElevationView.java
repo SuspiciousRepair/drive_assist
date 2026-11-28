@@ -213,15 +213,19 @@ public class ElevationView extends View {
     }
 
     /** The event lines, dashed, each in its kind's colour, with a small
-     * label on top. A label that would overlap the one before it is left
-     * out; its line stays. */
+     * label on top. A label that would overlap one already drawn is left
+     * out; its line stays. Charges and stops get their label first: a trip
+     * has few of them, and a toll beside one must not hide it. */
     private void drawEvents(Canvas c, int n) {
         Context ctx = getContext();
-        float labelRight = -1;
+        java.util.List<float[]> taken = new java.util.ArrayList<>();   // {left, right} of each label
         float h = Style.dp(ctx, 32), padX = Style.dp(ctx, 8), icon = Style.dp(ctx, 20), gap = Style.dp(ctx, 4);
         Integer[] order = new Integer[evIdx.length];
         for (int i = 0; i < order.length; i++) order[i] = i;
-        java.util.Arrays.sort(order, (a, b) -> Integer.compare(evIdx[a], evIdx[b]));
+        java.util.Arrays.sort(order, (a, b) -> {
+            int ta = evKind[a] == EVENT_TOLL ? 1 : 0, tb = evKind[b] == EVENT_TOLL ? 1 : 0;
+            return ta != tb ? Integer.compare(ta, tb) : Integer.compare(evIdx[a], evIdx[b]);
+        });
         for (int k : order) {
             int i = evIdx[k];
             if (i < 0 || i >= n) continue;
@@ -234,12 +238,17 @@ public class ElevationView extends View {
             float textW = label == null ? 0 : chipText.measureText(label);
             float w = padX * 2 + (iconRes != 0 ? icon : 0) + (iconRes != 0 && label != null ? gap : 0) + textW;
             float left = Math.max(0, Math.min(getWidth() - w, xs[i] - w / 2));
-            if (left < labelRight + gap) continue;
-            labelRight = left + w;
+            boolean free = true;
+            for (float[] t : taken) if (left < t[1] + gap && left + w > t[0] - gap) { free = false; break; }
+            if (!free) continue;
+            taken.add(new float[]{left, left + w});
             float y0 = Style.dp(ctx, 6);
-            chip.setColor(color);
+            // A stop's line is in the text colour, but its chip is not: text
+            // on a chip of the text colour does not show (a blank white box).
+            int fill = evKind[k] == EVENT_PARK ? Style.CARD_HI : color;
+            chip.setColor(fill);
             c.drawRoundRect(left, y0, left + w, y0 + h, Style.dp(ctx, 8), Style.dp(ctx, 8), chip);
-            int fg = Style.onFill(color);
+            int fg = Style.onFill(fill);
             float x = left + padX;
             if (iconRes != 0) {
                 android.graphics.drawable.Drawable d = ctx.getDrawable(iconRes);

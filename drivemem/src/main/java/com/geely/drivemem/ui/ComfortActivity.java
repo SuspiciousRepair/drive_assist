@@ -176,6 +176,9 @@ public class ComfortActivity extends Activity {
     // Lyrics button. It is both the consent and the behaviour; see
     // Prefs.getLyricsSearch.
     private boolean lyricsEnabled;
+    // The driver asked for the lyrics while other cards had the room: the
+    // columns those cards used then (ComfortCardVisibility.jumboPlaced); 0 = no ask.
+    private int lyricsAskedCols;
     private boolean lyricsWantedAtPack;     // what the last repack decided from, so refreshLyrics() repacks only on a change
     private Lrc lyricsTickLines;            // the lines the slots show now
     private int lyricIndex = Integer.MIN_VALUE;
@@ -532,11 +535,17 @@ public class ComfortActivity extends Activity {
     /** False when the other cards took more than one column: then the music
      * card goes back to its own size. */
     private boolean placeJumbo(int usedColumns, int colW, int availH) {
-        if (!ComfortCardVisibility.jumboFits(usedColumns)) return false;
+        boolean placed = ComfortCardVisibility.jumboPlaced(usedColumns, lyricsAskedCols);
+        lyricsAskedCols = ComfortCardVisibility.jumboAskAfterPack(usedColumns, lyricsAskedCols);
+        if (!placed) return false;
         detachJumbo();
         int gapH = Style.dp(this, Style.COLUMN_GAP_DP);
         int span = ComfortCardVisibility.JUMBO_COLUMNS;
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(span * colW + (span - 1) * gapH, availH);
+        // Asked back over a crowd: the card covers columns 2 and 3. The
+        // columns it covers are taken off the row (their cards come back at
+        // the next pack); only the driver's column stays beside it.
+        while (columns.getChildCount() > 1) columns.removeViewAt(Style.RHD ? 0 : 1);
         if (Style.RHD) {
             if (columns.getChildCount() > 0) lp.rightMargin = gapH;
             columns.addView(musicJumbo, 0, lp);
@@ -1594,24 +1603,28 @@ public class ComfortActivity extends Activity {
     }
 
     // The Lyrics button. The big card needs two free columns and no HA
-    // panel; when the other cards (a charging Battery card, say) take them,
-    // the tap did nothing visible. Say so, once the repack has had its turn.
+    // panel; when other cards (a charging Battery card, the gate, the panel)
+    // take them, it gives way. This tap is the driver asking for it back: it
+    // then grows over columns 2 and 3 and covers the cards there, until
+    // more cards come (see ComfortCardVisibility.jumboPlaced).
     private void openLyrics() {
         setLyricsOpen(true);
-        ui.postDelayed(() -> {
-            String id = MusicState.trackId();
-            int msg = 0;
-            if (LyricsClient.linesFor(id) == null) {
-                // Nothing timed or plain for this song (the button is dim).
-                if (!LyricsClient.pending(id)) msg = R.string.music_lyrics_not_found;
-            } else if (!lyricsShown()) {
-                msg = R.string.music_lyrics_no_room;
-            }
-            if (msg != 0) android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_LONG).show();
-        }, 400);
+        String id = MusicState.trackId();
+        if (LyricsClient.linesFor(id) == null) {
+            // Nothing timed or plain for this song (the button is dim).
+            if (!LyricsClient.pending(id))
+                android.widget.Toast.makeText(this, R.string.music_lyrics_not_found,
+                    android.widget.Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (!lyricsShown() && columns != null) {
+            lyricsAskedCols = Integer.MAX_VALUE;   // the pack turns it into the real count
+            repackColumns();
+        }
     }
 
     private void setLyricsOpen(boolean open) {
+        if (!open) lyricsAskedCols = 0;
         if (open == lyricsOpen) return;
         lyricsOpen = open;
         Prefs.setLyricsOpen(this, open);
@@ -1759,7 +1772,8 @@ public class ComfortActivity extends Activity {
             // when it is small, so a song with no lyrics does not flash it big.
             LyricsClient.linesFor(MusicState.trackId()) != null
                 || (lyricsShown() && LyricsClient.pending(MusicState.trackId())),
-            panelCard != null && panelCard.getVisibility() == View.VISIBLE);
+            // The panel takes the room, but not from a card the driver asked back.
+            lyricsAskedCols == 0 && panelCard != null && panelCard.getVisibility() == View.VISIBLE);
     }
 
     // Starts or stops the lyrics clock; the jumbo card's place is placeJumbo()'s.
@@ -3144,6 +3158,7 @@ public class ComfortActivity extends Activity {
         if (has != lastPanelAvailable) {
             lastPanelAvailable = has;
             panelCard.setVisibility(View.VISIBLE);
+            lyricsAskedCols = 0;   // a new panel takes the room again
             repackColumns();
         }
     }

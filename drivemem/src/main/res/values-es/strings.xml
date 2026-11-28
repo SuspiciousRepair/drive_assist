@@ -81,7 +81,6 @@
     <string name="music_play_label">Reproducir</string>
     <string name="music_skip_label">Siguiente</string>
     <string name="music_lyrics_label">Letra</string>
-    <string name="music_lyrics_no_room">No hay espacio para la letra: otras tarjetas usan la pantalla.</string>
     <string name="music_lyrics_not_found">No se encontró la letra de esta canción.</string>
     <string name="cfg_commands_label">Aceptar comandos de Home Assistant</string>
     <string name="cfg_commands_on">Aceptando comandos de Home Assistant</string>
