@@ -78,6 +78,16 @@
   yet checked on a real right-hand-drive car.
 
 ### Changed
+- **Lyrics give way, and come back when you ask.** The big lyrics card goes
+  back to its normal size when other cards need its room: a second column of
+  cards, or the Home Assistant panel. Tap **Lyrics** again and it grows back
+  beside the driver's column; the cards it pushes are a sideways scroll away.
+  It gives way again when more cards come. Before, the tap only said there
+  was no room.
+- **Trip screen: tidier numbers.** Every unit is smaller and dimmer than its
+  number. The odometer is on the same line as the distance. The toll button
+  is the same size as the buttons beside it. The map marks a charge made
+  at a stop inside the trip, such as on a joined trip.
 - **Window targets go in steps of 10** (#208). In Config > Doors, each
   window's open target is now set with ‹ and ›, one row per window like
   Config > Maintenance, from 0 (stays shut) to 100.
@@ -114,6 +124,8 @@
   background, so the Settings page cannot be read behind it.
 
 ### Fixed
+- **Trip screen: a stop's mark on the height chart was a blank white box.**
+  It now shows its parking icon and the time parked.
 - **Old trips no longer turn into 0 km.** A trip reads its distance,
   odometer, battery and energy from the 30 s readings, and readings older
   than 90 days were deleted. From about 90 days after recording started, old

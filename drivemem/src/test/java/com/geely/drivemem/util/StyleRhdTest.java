@@ -117,4 +117,11 @@ public class StyleRhdTest {
         assertTrue(Prefs.isBackedUp(Prefs.KEY_DRIVE_SIDE));
         assertTrue(Prefs.isPhoneRestorable(Prefs.KEY_DRIVE_SIDE));
     }
+
+    @Test public void aWordWithNoDigitIsAUnit() {
+        for (String u : new String[]{"km", "min", "h", "s", "kWh", "Wh/km", "°C", "m", "%"})
+            assertTrue(u, Style.isUnitWord(u));
+        for (String v : new String[]{"7.185", "↑2493", "↓1789", "→", "–", "~", "·", "", "52%"})
+            assertFalse(v, Style.isUnitWord(v));
+    }
 }

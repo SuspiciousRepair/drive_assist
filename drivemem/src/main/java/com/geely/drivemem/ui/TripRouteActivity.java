@@ -152,10 +152,12 @@ public class TripRouteActivity extends Activity {
         head.addView(t, tlp);
 
         tollsToggle = new TextView(this);
-        tollsToggle.setTextSize(17);
-        tollsToggle.setTypeface(null, android.graphics.Typeface.BOLD);
-        int th = Style.dp(this, 16), tv = Style.dp(this, 8);
-        tollsToggle.setPadding(th, tv, th, tv);
+        // Same size as the buttons beside it (headButton).
+        tollsToggle.setTextSize(20);
+        tollsToggle.setGravity(Gravity.CENTER);
+        tollsToggle.setMinHeight(Style.dp(this, 60));
+        int th = Style.dp(this, 24);
+        tollsToggle.setPadding(th, 0, th, 0);
         tollsToggle.setVisibility(View.GONE);
         tollsToggle.setOnClickListener(v -> {
             showTollsOnMap = !showTollsOnMap;
@@ -506,13 +508,17 @@ public class TripRouteActivity extends Activity {
         boolean est = in.getBooleanExtra(EXTRA_ESTIMATED, false);
         boolean hasPoints = d != null && d.lat.length >= 2;
 
-        stat(R.string.route_stat_distance, String.format(Locale.US, "%.1f km", km), null);
-        // Start → end, as the car's panel shows it (issue #210).
+        // The distance, and on the same line the odometer, start → end, as
+        // the car's panel shows it (issue #210): smaller and dim, it is the
+        // second number here.
+        android.text.SpannableStringBuilder dist = new android.text.SpannableStringBuilder(
+            Style.valueWithUnit(String.format(Locale.US, "%.1f", km), null, "km", Style.UNIT_SCALE_ROW));
         String odo = SessionText.odometerSpan(in.getDoubleExtra(EXTRA_ODO_START, -1),
             in.getDoubleExtra(EXTRA_ODO_END, -1));
-        if (odo != null) {
-            stat(R.string.stat_odometer, Style.valueWithUnit(odo, null, "km", Style.UNIT_SCALE_ROW), null);
-        }
+        if (odo != null) Style.appendUnit(dist, "     " + odo + " km", Style.UNIT_SCALE_ROW);
+        stat(odo != null
+            ? getString(R.string.route_stat_distance) + "  ·  " + getString(R.string.stat_odometer)
+            : getString(R.string.route_stat_distance), dist, null);
 
         long total = endMs > startMs ? endMs - startMs : 0;
         String timeSub = null;
@@ -528,10 +534,10 @@ public class TripRouteActivity extends Activity {
             // points missing (GPS dropout) km / moving time was absurd.
             double avgKmh = TripRouteStats.avgMovingKmh(d.lat, d.lon, d.ts);
             String avg = Double.isNaN(avgKmh) ? "—" : String.format(Locale.US, "%.0f", avgKmh);
-            stat(R.string.route_stat_time, TripRouteStats.duration(total), timeSub);
+            stat(R.string.route_stat_time, units(TripRouteStats.duration(total)), timeSub);
             speedStat(avg, String.format(Locale.US, "%.0f", TripRouteStats.max(d.speed)));
         } else {
-            stat(R.string.route_stat_time, TripRouteStats.duration(total), null);
+            stat(R.string.route_stat_time, units(TripRouteStats.duration(total)), null);
         }
 
         // With the Energy by use chart, the net energy line is not shown: the
@@ -542,7 +548,7 @@ public class TripRouteActivity extends Activity {
             String netText = String.format(Locale.US, "%.1f kWh%s", net, est ? " ~" : "");
             String netSub = !est && regen > 0 ? getString(R.string.session_stat_net_breakdown,
                 String.format(Locale.US, "%.1f", spent), String.format(Locale.US, "%.1f", regen)) : null;
-            stat(R.string.session_stat_net_energy, netText, netSub);
+            stat(R.string.session_stat_net_energy, units(netText), netSub);
         }
         if (chart) {
             EnergySplit sp = d.fixedSplit != null ? d.fixedSplit
@@ -559,9 +565,10 @@ public class TripRouteActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }
         stat(R.string.session_stat_efficiency,
-            eff > 0 ? com.geely.drivemem.util.EnergyUnits.number(eff) + " " + com.geely.drivemem.util.EnergyUnits.WH_PER_KM : "—", null);
+            eff > 0 ? Style.valueWithUnit(com.geely.drivemem.util.EnergyUnits.number(eff), null,
+                com.geely.drivemem.util.EnergyUnits.WH_PER_KM, Style.UNIT_SCALE_ROW) : "—", null);
         stat(R.string.session_stat_battery, socStart >= 0 && socEnd >= 0
-            ? socStart + "% → " + socEnd + "%" : "—", null);
+            ? Style.percentRange(socStart, socEnd, Style.UNIT_SCALE_ROW) : "—", null);
 
         String climb = String.format(Locale.US, "↑%.0f  ↓%.0f m",
             in.getDoubleExtra(EXTRA_ASCENT, 0), in.getDoubleExtra(EXTRA_DESCENT, 0));
@@ -575,12 +582,12 @@ public class TripRouteActivity extends Activity {
                     String.format(Locale.US, "%.0f", TripRouteStats.max(sm)));
             }
         }
-        stat(R.string.session_stat_elevation, climb, heightSub);
+        stat(R.string.session_stat_elevation, units(climb), heightSub);
 
         if (d != null && d.tempMin != null) {
-            stat(R.string.route_stat_outside, Math.round(d.tempMin) == Math.round(d.tempMax)
+            stat(R.string.route_stat_outside, units(Math.round(d.tempMin) == Math.round(d.tempMax)
                 ? String.format(Locale.US, "%.0f °C", d.tempMin)
-                : String.format(Locale.US, "%.0f – %.0f °C", d.tempMin, d.tempMax), null);
+                : String.format(Locale.US, "%.0f – %.0f °C", d.tempMin, d.tempMax)), null);
         }
         if (d != null && (d.driverScore != null || d.roadScore != null)) {
             scoreStat(d);
@@ -1012,7 +1019,8 @@ public class TripRouteActivity extends Activity {
         tollsToggle.setVisibility(View.VISIBLE);
         tollsToggle.setText(getString(
             showTollsOnMap ? R.string.toll_map_show : R.string.toll_map_hide, tollPinCount));
-        tollsToggle.setBackground(Style.card(showTollsOnMap ? Style.ACCENT : Style.CARD_HI, this, 16));
+        tollsToggle.setBackground(Style.card(showTollsOnMap ? Style.ACCENT : Style.CARD_HI, this, 14));
+        tollsToggle.setTypeface(null, showTollsOnMap ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
         tollsToggle.setTextColor(showTollsOnMap ? Style.onFill(Style.ACCENT) : Style.TEXT);
     }
 
@@ -1173,8 +1181,17 @@ public class TripRouteActivity extends Activity {
         return col;
     }
 
-    // One number: a small dim label, the value, and an optional dim line under it.
+    /** A value's text with its units smaller and dim (STYLE-GUIDE, "Numbers and units"). */
+    private static CharSequence units(String text) {
+        return Style.unitsDimmed(text, Style.UNIT_SCALE_ROW);
+    }
+
     private void stat(int label, CharSequence value, String sub) {
+        stat(getString(label), value, sub);
+    }
+
+    // One number: a small dim label, the value, and an optional dim line under it.
+    private void stat(CharSequence label, CharSequence value, String sub) {
         TextView l = new TextView(this);
         l.setText(label);
         l.setTextColor(Style.TEXT_DIM);

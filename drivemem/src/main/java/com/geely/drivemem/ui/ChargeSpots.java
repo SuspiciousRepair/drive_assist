@@ -179,7 +179,7 @@ final class ChargeSpots {
             new ArrayList<Hop>());
     }
 
-    /** The charges that belong on one trip's map: ended at most NEAR_TRIP_MS
+    /** The charges that belong on one trip's map: started inside the trip; ended at most NEAR_TRIP_MS
      * before the trip started, near its first point; or started at most
      * NEAR_TRIP_MS after it ended, near its last point. "Near" is
      * {@link #reachM}: only short moves may come between, and they widen it.
@@ -198,7 +198,10 @@ final class ChargeSpots {
                 double reach = reachM(hops, tripEndMs, c.startMs);
                 after = reach >= 0 && distanceM(c.lat, c.lon, endLat, endLon) <= reach;
             }
-            if (before || after) near.add(c);
+            // A charge inside the trip: at a stop of a joined trip, or of a
+            // trip that was not cut at its stop. The car was there, no check.
+            boolean inside = tripEndMs > 0 && c.startMs >= tripStartMs && c.startMs <= tripEndMs;
+            if (before || after || inside) near.add(c);
         }
         return cluster(near);
     }

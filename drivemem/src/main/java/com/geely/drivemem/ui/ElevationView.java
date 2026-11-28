@@ -237,9 +237,12 @@ public class ElevationView extends View {
             if (left < labelRight + gap) continue;
             labelRight = left + w;
             float y0 = Style.dp(ctx, 6);
-            chip.setColor(color);
+            // A stop's line is in the text colour, but its chip is not: text
+            // on a chip of the text colour does not show (a blank white box).
+            int fill = evKind[k] == EVENT_PARK ? Style.CARD_HI : color;
+            chip.setColor(fill);
             c.drawRoundRect(left, y0, left + w, y0 + h, Style.dp(ctx, 8), Style.dp(ctx, 8), chip);
-            int fg = Style.onFill(color);
+            int fg = Style.onFill(fill);
             float x = left + padX;
             if (iconRes != 0) {
                 android.graphics.drawable.Drawable d = ctx.getDrawable(iconRes);
