@@ -804,8 +804,14 @@ public class ComfortActivity extends Activity {
         // Fourth button: goes to the phone's screen (CarPlay). Shown only
         // while a phone is connected (updateDockButtons). Its gap is its own
         // top margin, so nothing is left behind while it is hidden.
-        phoneDockIcon = createDockButton(R.drawable.ic_phone_projection,
-            () -> com.geely.drivemem.state.CarplayState.openScreen(this));
+        // moveTaskToBack: the CarPlay screen is not a full, opaque window, so
+        // this screen stays "started" behind it. AppForeground then still
+        // says we are in front, and the floating button stays hidden over
+        // CarPlay. With our task moved back, this screen stops, as it does
+        // when the driver gets to CarPlay from the car's own home screen.
+        phoneDockIcon = createDockButton(R.drawable.ic_phone_projection, () -> {
+            if (com.geely.drivemem.state.CarplayState.openScreen(this)) moveTaskToBack(true);
+        });
         ((LinearLayout.LayoutParams) phoneDockIcon.getLayoutParams()).topMargin = Style.dp(this, 20);
         phoneDockIcon.setColorFilter(Style.TEXT_DIM);
         phoneDockIcon.setVisibility(View.GONE);
