@@ -86,7 +86,8 @@
   was no room.
 - **Trip screen: tidier numbers.** Every unit is smaller and dimmer than its
   number. The odometer is on the same line as the distance. The toll button
-  is the same size as the buttons beside it. The map marks a charge made
+  is the same size as the buttons beside it, and they no longer touch the map.
+  On the height chart, a charge or a stop keeps its mark when a toll is close to it. The map marks a charge made
   at a stop inside the trip, such as on a joined trip.
 - **Window targets go in steps of 10** (#208). In Config > Doors, each
   window's open target is now set with ‹ and ›, one row per window like

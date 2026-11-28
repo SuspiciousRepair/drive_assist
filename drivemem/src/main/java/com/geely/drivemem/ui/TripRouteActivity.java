@@ -153,10 +153,10 @@ public class TripRouteActivity extends Activity {
 
         tollsToggle = new TextView(this);
         // Same size as the buttons beside it (headButton).
-        tollsToggle.setTextSize(20);
+        tollsToggle.setTextSize(HEAD_BUTTON_SP);
         tollsToggle.setGravity(Gravity.CENTER);
-        tollsToggle.setMinHeight(Style.dp(this, 60));
-        int th = Style.dp(this, 24);
+        tollsToggle.setMinHeight(Style.dp(this, HEAD_BUTTON_H));
+        int th = Style.dp(this, HEAD_BUTTON_PAD);
         tollsToggle.setPadding(th, 0, th, 0);
         tollsToggle.setVisibility(View.GONE);
         tollsToggle.setOnClickListener(v -> {
@@ -169,7 +169,12 @@ public class TripRouteActivity extends Activity {
         headActions.setOrientation(LinearLayout.HORIZONTAL);
         headActions.setGravity(Gravity.CENTER_VERTICAL);
         head.addView(headActions);
-        root.addView(head);
+        // Air under the head row: its buttons must not touch the map or the
+        // numbers card.
+        LinearLayout.LayoutParams headLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        headLp.bottomMargin = Style.dp(this, 10);
+        root.addView(head, headLp);
 
         LinearLayout body = new LinearLayout(this);
         body.setOrientation(LinearLayout.HORIZONTAL);
@@ -655,21 +660,25 @@ public class TripRouteActivity extends Activity {
         if (canSplit) headButton(R.drawable.ic_scissors, R.string.trip_split, false, true, this::enterSplit);
     }
 
+    // The buttons of the head row, the toll button too: lower than the back
+    // button, so the row keeps its height and nothing touches the cards under it.
+    private static final int HEAD_BUTTON_H = 46, HEAD_BUTTON_SP = 18, HEAD_BUTTON_PAD = 20;
+
     private void headButton(int icon, int text, boolean accent, boolean enabled, Runnable onClick) {
         TextView b = new TextView(this);
         b.setText(text);
-        b.setTextSize(20);
+        b.setTextSize(HEAD_BUTTON_SP);
         int fill = accent ? Style.ACCENT : Style.CARD;
         b.setTextColor(Style.onFill(fill));
         b.setTypeface(null, accent ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
         b.setBackground(Style.card(fill, this, 14));
         b.setGravity(Gravity.CENTER);
-        b.setMinHeight(Style.dp(this, 60));
-        int ph = Style.dp(this, 24);
+        b.setMinHeight(Style.dp(this, HEAD_BUTTON_H));
+        int ph = Style.dp(this, HEAD_BUTTON_PAD);
         b.setPadding(ph, 0, ph, 0);
         if (icon != 0) {
             android.graphics.drawable.Drawable d = getDrawable(icon).mutate();
-            int sz = Style.dp(this, 24);
+            int sz = Style.dp(this, 22);
             d.setBounds(0, 0, sz, sz);
             d.setTint(Style.onFill(fill));
             b.setCompoundDrawables(d, null, null, null);
