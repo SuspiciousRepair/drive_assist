@@ -2,10 +2,31 @@
 
 ## [Unreleased]
 
+## [v0.12.1] — 2026-11-28
+
 ### Added
 - **Rear defroster button on the Climate card.** Turn it on in Config →
   Elements. It sits next to recirculation and the window button, and lights
   up while the defroster is on.
+
+### Fixed
+- **An update is checked once more right before it installs.** The helper
+  and the setup installer look at the gear and at charging again just before
+  the install starts. An install does not start out of Park or during a
+  charge.
+- **The update window opened from Config closes when the car leaves Park.**
+  Before, only the window on the home screen did.
+- **A repeated "force" update command is ignored.** The word is now read as
+  a whole word, and a retained copy that the broker sends again does nothing.
+- **Dates and car values are safe across threads.** Date formatting no
+  longer shares one formatter between threads, and values published from
+  another thread are handed to the car thread.
+
+### Changed
+- **The setup installer shows the driver release notes** of the newest
+  version, not the full technical changelog.
+- **The build checks more.** The helper and the installer are compiled and
+  checked on every push, and Android Lint errors now stop the build.
 
 ## [v0.12.0] — 2026-11-27
 

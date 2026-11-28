@@ -27,6 +27,7 @@ A tela inicial foi feita para uso rápido enquanto você dirige:
   dedo pela barra e solte. Com o clima desligado, a barra mostra as 10 marcas
   de resfriar;
 - botões grandes fazem resfriar, aquecer, recirculação e abrir um vão nos vidros;
+- um botão do desembaçador traseiro pode ficar junto deles: ligue em Config → Elementos;
 - durante a recarga, um cartão de recarga fica no lugar do cartão Estacionado.
   Ele mostra o tempo carregando, o tempo até 100%, o nível da bateria, a energia
   colocada e a potência. Toque no cartão, durante ou depois da recarga, para abrir
