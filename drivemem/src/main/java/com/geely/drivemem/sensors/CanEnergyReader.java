@@ -9,8 +9,6 @@ import android.os.SystemClock;
 import android.util.Log;
 
 import com.geely.drivemem.car.CarActor;
-import com.geely.drivemem.controls.HelperSync;
-import com.geely.drivemem.util.Prefs;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -81,19 +79,8 @@ public final class CanEnergyReader {
 
     public static void setPowerListener(PowerListener l) { powerListener = l; }
 
-    public static boolean isEnabled(Context ctx) { return Prefs.getCanEnergyEnabled(ctx); }
-
-    /** The switch. Saves it, tells modehelper (which starts or stops the
-     * daemon), and starts or stops reading. */
-    public static void setEnabled(Context ctx, boolean on) {
-        Prefs.setCanEnergyEnabled(ctx, on);
-        HelperSync.push(ctx);
-        if (on) ensureStarted(ctx); else stop();
-    }
-
-    /** Idempotent; no-op while the switch is off. */
+    /** Idempotent. The reader is always on: there is no switch. */
     public static synchronized void ensureStarted(Context ctx) {
-        if (!Prefs.getCanEnergyEnabled(ctx)) return;
         CanEventLog.init(ctx);
         wanted = true;
         // Hub first (CLAUDE.md rule 7): consumers read the can.* keys.

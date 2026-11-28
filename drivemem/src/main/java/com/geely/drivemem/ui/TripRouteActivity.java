@@ -569,9 +569,13 @@ public class TripRouteActivity extends Activity {
             stats.addView(sankey, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }
-        stat(R.string.session_stat_efficiency,
-            eff > 0 ? Style.valueWithUnit(com.geely.drivemem.util.EnergyUnits.number(eff), null,
-                com.geely.drivemem.util.EnergyUnits.WH_PER_KM, Style.UNIT_SCALE_ROW) : "—", null);
+        // The chart already shows Wh/km, so the efficiency line is only for
+        // trips with no chart.
+        if (!chart) {
+            stat(R.string.session_stat_efficiency,
+                eff > 0 ? Style.valueWithUnit(com.geely.drivemem.util.EnergyUnits.number(eff), null,
+                    com.geely.drivemem.util.EnergyUnits.WH_PER_KM, Style.UNIT_SCALE_ROW) : "—", null);
+        }
         stat(R.string.session_stat_battery, socStart >= 0 && socEnd >= 0
             ? Style.percentRange(socStart, socEnd, Style.UNIT_SCALE_ROW) : "—", null);
 

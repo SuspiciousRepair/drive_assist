@@ -353,7 +353,7 @@ public final class TripSession {
                 if (tripSource == EnergySource.ESTIMATED && Double.isFinite(socEstimatedNetKwh)) {
                     v.put("estimated_net_kwh", socEstimatedNetKwh);
                 }
-                if (!ts.splitValid && com.geely.drivemem.sensors.CanEnergyReader.isEnabled(ctx)) {
+                if (!ts.splitValid) {
                     com.geely.drivemem.sensors.CanEventLog.log(ctx, "trip without split ("
                         + new java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(new java.util.Date(startMs0))
                         + "-" + new java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(new java.util.Date(endMs))

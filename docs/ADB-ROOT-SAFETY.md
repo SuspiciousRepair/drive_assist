@@ -36,7 +36,7 @@ A normal USB installation has four identifiable parts, plus one optional part yo
 | Drive Assist | `com.geely.drivemem` | The dashboard, settings, statistics, and optional integrations you use. |
 | ModeHelper | `com.geely.modehelper` | A small privileged companion used for supported system and vehicle operations. It has much greater access than an ordinary app. |
 | Drive Assist Installer | `com.geely.installer` | Installs the two packages above, then removes itself when setup succeeds. It should not remain installed. |
-| CAN reader (`roadcastd`) | Not an Android package | A small program that ModeHelper starts as root through the car's local ADB. It reads the car's CAN bus and never sends anything to it. It runs while **Car data (CAN)** is on in **Settings → System**, and that switch is on by default. |
+| CAN reader (`roadcastd`) | Not an Android package | A small program that ModeHelper starts as root through the car's local ADB. It reads the car's CAN bus and never sends anything to it. It is always on while Drive Assist and ModeHelper are installed: there is no switch. **Settings → System** shows its status under **Car data (CAN)**. |
 | Car app translations | Not an Android package | Only after you tap Install in **Settings → Integrations → Car app translations**. ModeHelper puts patched copies of the car's Energy, Wi-Fi and Settings apps in `/data/local/oem-i18n` and mounts them over the originals as root, through the car's local ADB. Only the apps' text differs. `/system` is not changed. Remove, or **Cleanup**, unmounts them and deletes the folder. You can check with `adb shell grep oem-i18n /proc/self/mountinfo`. |
 
 The optional SysProbe engineering tool (`com.geely.sysprobe`) is not required for

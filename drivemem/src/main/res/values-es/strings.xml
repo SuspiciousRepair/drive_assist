@@ -517,8 +517,7 @@
     <string name="backup_pw_enter_msg">Escribe la contraseña de la copia de %1$s.</string>
     <string name="backup_pw_wrong">Contraseña incorrecta. Inténtalo de nuevo.</string>
     <string name="can_header">Datos del coche (CAN)</string>
-    <string name="can_enable_label">Leer la potencia de la batería del coche (CAN)</string>
-    <string name="can_hint" formatted="false">Voltios × amperios exactos de la batería, leídos del propio coche. Activado por defecto; no hay nada que configurar. Necesita la app ModeHelper. Para iniciar el lector, puede activar ADB unos segundos y desactivarlo de nuevo. Si no funciona, la app vuelve al dongle o a la estimación por el % de batería. Mientras esté activado, otras apps del coche también pueden leer estos datos del coche.</string>
+    <string name="can_hint">Potencia exacta de la batería, leída del propio coche. Siempre activado. Otras apps del coche también pueden leerla.</string>
     <string name="routes_header">Rutas de los viajes</string>
     <string name="routes_enable_label">Grabar las rutas de los viajes (GPS)</string>
     <string name="routes_hint">Guarda por dónde pasó cada viaje y dónde se hizo cada carga. Esto se queda en el coche y entra en tu copia de seguridad. Si también activas “Mapas de fondo”, las zonas de tus viajes se envían a OpenStreetMap para obtener los mapas. Los viajes de antes de esta opción no tienen ruta.</string>

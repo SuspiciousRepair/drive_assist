@@ -179,7 +179,7 @@ WEBVTT
 | **Speed** | VHAL | `291504647` (`PERF_VEHICLE_SPEED`, km/h) |
 | **Speed change** | from the speed | `↑` rising or `↓` falling by 2 km/h a second or more; doubled (`↑↑`, `↓↓`) at 10 km/h a second or more, about 0.28 g. Nothing when steady |
 | **Gear** | VHAL | `289408001` (`GEAR_SELECTION`: 1=N, 2=R, 4=P, 8=D) |
-| **Brake pedal** | CAN, through Drive Assist | `BRAKE` while the pedal switch is pressed (the hub's `can.brake`, `ESC_BrakePedalSwitchStatus`). Only with the CAN reader on |
+| **Brake pedal** | CAN, through Drive Assist | `BRAKE` while the pedal switch is pressed (the hub's `can.brake`, `ESC_BrakePedalSwitchStatus`). Only while the CAN reader is live |
 | **Speed limit** | VHAL | camera sign, then navigation limit, then navigation speed; only plausible values (5-200) |
 
 The arrow is the change of the speed, not a pedal. So `↓` also shows a
@@ -191,7 +191,7 @@ on with a broadcast (`DashBrake` to `BrakeSignal`): once when the pedal
 changes, and again every 2 s while it is pressed. The helper believes
 "pressed" for 5 s after it last heard it, so the line cannot go on saying
 `BRAKE` if Drive Assist stops. A tap shorter than a second still reaches one
-line. With the CAN reader off (Config > System; it is on by default) there
+line. While the CAN reader is down (its status is in Config > System) there
 is no `BRAKE` at all: the line cannot tell "not pressed" from "not known".
 
 The outside temperature and the compass heading are no longer written, and

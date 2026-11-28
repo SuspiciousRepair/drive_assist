@@ -1,8 +1,8 @@
 # Car data for other apps (`@roadcast`)
 
-When Drive Assist's **Car data (CAN)** switch is on (the default; it is in
-Settings → System), the car runs one shared,
-read-only CAN reader: [roadcast](https://github.com/Timoteohss/roadcast) by
+While Drive Assist and ModeHelper are installed, the car runs one shared,
+read-only CAN reader (always on, no switch; its status is in
+Settings → System, **Car data (CAN)**): [roadcast](https://github.com/Timoteohss/roadcast) by
 Timoteo Sousa (Apache-2.0, vendored unchanged in `third_party/roadcast/`;
 credits in `THIRD-PARTY-NOTICES.md`). **Any app on the head unit
 may connect and read it.** No permission, no key, no Drive Assist API.
@@ -53,10 +53,10 @@ daemon starts, its signals report "never observed" (state 1), not valid.
   anyway ("adopts" it), so ADB off no longer kills it. It does nothing else
   to it. Better: move it yourself at launch, as Drive Assist does:
   `setsid sh -c 'echo $$ > /acct/cgroup.procs; exec <your roadcastd> ...'`.
-- Do not rely on Drive Assist being installed. The daemon runs only while its
-  switch is on.
+- Do not rely on Drive Assist being installed. The daemon runs only while
+  Drive Assist and ModeHelper are installed.
 
 ## Privacy
 
-Any installed app can read this data while the switch is on: speed, pedals,
-doors, charging, climate and more. The switch text in Drive Assist says so.
+Any installed app can read this data while the reader runs: speed, pedals,
+doors, charging, climate and more. The card text in Drive Assist says so.

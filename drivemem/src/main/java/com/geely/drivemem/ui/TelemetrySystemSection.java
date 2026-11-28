@@ -174,13 +174,9 @@ public final class TelemetrySystemSection extends LinearLayout {
         ConfigCards.add(right, maintCard);
 
         // ---- Car data (CAN) ----
-        // The car's own data, not an integration: on by default, nothing to
-        // set up. The switch stays only as a way out if the reader misbehaves
-        // on some car (it may open ADB for a few seconds to start).
+        // The car's own data, not an integration: always on, nothing to set
+        // up and no switch. The card only says what it is and how it is doing.
         LinearLayout canCard = ConfigCards.card(activity, activity.getString(R.string.can_header));
-        canCard.addView(Style.toggleRow(activity, activity.getString(R.string.can_enable_label),
-            com.geely.drivemem.sensors.CanEnergyReader.isEnabled(activity),
-            on -> com.geely.drivemem.sensors.CanEnergyReader.setEnabled(activity, on)));
         canCard.addView(ConfigCards.hint(activity, activity.getString(R.string.can_hint)));
         TextView canStatus = ConfigCards.hint(activity,
             "CAN: " + com.geely.drivemem.sensors.CanEnergyReader.statusLine());
