@@ -199,7 +199,7 @@
     <string name="cfg_extra_dark_global">En todas las pantallas</string>
     <string name="cfg_extra_dark_shade">Oscuridad</string>
     <string name="cfg_extra_dark_label">Modo más oscuro</string>
-    <string name="cfg_extra_dark_note">En su horario, con el auto en modo oscuro, después de un minuto conduciendo sin tocar la pantalla, el Modo más oscuro baja la luz de la pantalla al mínimo. Oscuridad la hace aún más oscura, con una capa oscura encima: 0 % es solo la luz mínima, 100 % apaga la pantalla. Toca la pantalla o cambia de marcha para que vuelva la luz. El primer toque solo enciende la pantalla. El brillo del auto no cambia.</string>
+    <string name="cfg_extra_dark_note" formatted="false">En su horario, con el auto en modo oscuro, después de un minuto conduciendo sin tocar la pantalla, el Modo más oscuro baja la luz de la pantalla al mínimo. Oscuridad la hace aún más oscura, con una capa oscura encima: 0 % es solo la luz mínima, 100 % apaga la pantalla. Toca la pantalla o cambia de marcha para que vuelva la luz. El primer toque solo enciende la pantalla. El brillo del auto no cambia.</string>
     <string name="cfg_theme_selection_header">Selección de tema</string>
     <string name="cfg_theme_sub">Se aplica a todas las pantallas de Drive Assist. La miniatura muestra el color y la forma de las tarjetas — el cambio es inmediato.</string>
     <string name="cfg_theme_selected">%1$s  ✓</string>
@@ -514,7 +514,7 @@
     <string name="backup_pw_wrong">Contraseña incorrecta. Inténtalo de nuevo.</string>
     <string name="can_header">Datos del coche (CAN)</string>
     <string name="can_enable_label">Leer la potencia de la batería del coche (CAN)</string>
-    <string name="can_hint">Voltios × amperios exactos de la batería, leídos del propio coche. Activado por defecto; no hay nada que configurar. Necesita la app ModeHelper. Para iniciar el lector, puede activar ADB unos segundos y desactivarlo de nuevo. Si no funciona, la app vuelve al dongle o a la estimación por el % de batería. Mientras esté activado, otras apps del coche también pueden leer estos datos del coche.</string>
+    <string name="can_hint" formatted="false">Voltios × amperios exactos de la batería, leídos del propio coche. Activado por defecto; no hay nada que configurar. Necesita la app ModeHelper. Para iniciar el lector, puede activar ADB unos segundos y desactivarlo de nuevo. Si no funciona, la app vuelve al dongle o a la estimación por el % de batería. Mientras esté activado, otras apps del coche también pueden leer estos datos del coche.</string>
     <string name="routes_header">Rutas de los viajes</string>
     <string name="routes_enable_label">Grabar las rutas de los viajes (GPS)</string>
     <string name="routes_hint">Guarda por dónde pasó cada viaje y dónde se hizo cada carga. Esto se queda en el coche y entra en tu copia de seguridad. Si también activas “Mapas de fondo”, las zonas de tus viajes se envían a OpenStreetMap para obtener los mapas. Los viajes de antes de esta opción no tienen ruta.</string>
@@ -1033,7 +1033,7 @@
     <string name="toll_cfg_header">Peajes automáticos</string>
     <string name="toll_cfg_cache_header">Caché local y viajes anteriores</string>
     <string name="toll_cfg_enable_label">Detectar peajes con OpenStreetMap</string>
-    <string name="toll_cfg_privacy_hint">Desactivado por defecto. Descarga cabinas y pórticos Free Flow desde OpenStreetMap usando solo cuadrículas amplias de ~55 km: tu ruta exacta y tu casa nunca se envían. Los resultados se guardan en caché en este coche, por lo que los pasos recurrentes y viajes repetidos se detectan 100% en local y nunca se envían a ningún servidor.</string>
+    <string name="toll_cfg_privacy_hint" formatted="false">Desactivado por defecto. Descarga cabinas y pórticos Free Flow desde OpenStreetMap usando solo cuadrículas amplias de ~55 km: tu ruta exacta y tu casa nunca se envían. Los resultados se guardan en caché en este coche, por lo que los pasos recurrentes y viajes repetidos se detectan 100% en local y nunca se envían a ningún servidor.</string>
     <string name="toll_cfg_offline_hint">Funciona sin conexión en autopistas sin cobertura móvil. Si recorres una zona nueva sin señal, la cuadrícula se descarga y el viaje se revisa automáticamente la próxima vez que aparques con Wi-Fi o datos.</string>
     <string name="toll_cfg_status">%1$d cabinas guardadas · %2$d pasos · %3$d zonas</string>
     <string name="toll_cfg_scanning">Buscando peajes en viajes anteriores…</string>
