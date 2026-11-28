@@ -2,6 +2,10 @@
 
 ## Status (2026-09-26)
 
+Update 2026-11-27, checked against the code: Phase C (fragmented MP4,
+`FragmentedMp4.java`) is built too. Open: the EVS stall watchdog and the
+bitrate A/B test.
+
 Phase A is done and verified on the car. D1-D5 are fixed, plus two more
 problems found while testing on the car:
 

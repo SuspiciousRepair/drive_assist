@@ -120,3 +120,38 @@ as a separate label. The existing implementation of this idea is
 `Style.chargeRangeBar()` (draws into a Bitmap, used by the older
 TelemetryActivity charge history). If another one is ever needed, extract
 a shared helper instead of writing a second version of the same math.
+
+## Stepper rows
+
+**To pick a value from a list (an interval, a step, a level), use one row:
+the name on the left, then ‹ [value] ›.** Config > Maintenance and the
+window targets in Config > Doors both look like this:
+
+```
+Recharge to 100 %            ‹  [ 15 d ]  ›
+Front left                   ‹  [ 50 % ]  ›
+```
+
+Use `ConfigCards.stepRow(context, label, valueBox, down, up)`:
+
+- **One row per item, full width.** Do not put two steppers side by side.
+  The value boxes then line up in one column down the card.
+- **Value box:** `ConfigCards.valueBox(context, text, off)`, 220 x 52 dp,
+  bold, `Style.CARD_HI` fill. The unit is smaller and dimmer than the number
+  (see "Numbers and units"). `off = true` (Off, 0, "nothing") shows the
+  value dim and not bold.
+- **Chevrons:** plain ‹ and ›, no box or circle, in a 60 dp touch target
+  (`ConfigCards.chevron`). At the end of the list the chevron is dim and
+  does nothing: pass `null`, or `ConfigCards.setChevron(view, null)` after a
+  step.
+- **Each tap is one step**, saved at once. Do not use a typed number field
+  for a value that has a fixed list: a typed value can be one the car does
+  not accept (a window target of 5 did nothing).
+- **A tap on the value box** may open a dialog for a value outside the list
+  (Maintenance does this). Leave it out when the list is all there is.
+- **A reset icon** (`ic_sync_reset`) goes between the name and ‹ only when
+  the row has a factory value to go back to. Keep its place empty
+  (`INVISIBLE`, not `GONE`) so the columns stay aligned.
+
+Do not use − and + buttons in circles for this. They were tried on the
+window targets and looked out of place next to the rest of Config.

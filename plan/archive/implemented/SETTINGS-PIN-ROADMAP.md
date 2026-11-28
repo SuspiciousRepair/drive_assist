@@ -1,5 +1,11 @@
 # Settings PIN lock roadmap
 
+Implemented (#206, 2026-11-26): `SecurityLock`, `PinDialog` and **Config →
+Security**. What was built goes further than this plan: the PIN can also
+guard the end of Valet Mode, and a trusted presence (the owner's iPhone on
+the USB cable, a known Wi-Fi router, a trusted Bluetooth phone or beacon)
+unlocks without the PIN and allows the PIN reset.
+
 ## Idea
 
 Gate access to Config (`TelemetryActivity` — MQTT credentials, ADAS/AVAS

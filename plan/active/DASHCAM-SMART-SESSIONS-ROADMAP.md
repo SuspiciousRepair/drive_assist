@@ -1,5 +1,8 @@
 # Smarter dashcam sessions roadmap
 
+Status (checked against the code 2026-11-27): item 3 is built (the subtitle
+has the wall-clock time). Items 1, 2 and 4 are open.
+
 **Quick win, ready now:** item 3 below (wall-clock timestamp in the
 subtitle) is decoupled from everything else here — no gear-edge plumbing,
 no kW source question, no session correlation. Pure text-formatting

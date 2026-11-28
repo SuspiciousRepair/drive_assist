@@ -1,5 +1,10 @@
 # "Hey Geely" voice assistant roadmap
 
+Status (2026-11-27): Phase 0 probing is done; see
+`probes/voiceprobe/PHASE0-RESULTS.md`. Its result: openWakeWord is a no-go
+for always-on listening, so the wake-word choice below is open again.
+Phases 1 to 5 are not built.
+
 ## Idea
 
 Say **"Hey Geely"**, then a short command in Portuguese: "liga o ar",

@@ -1,5 +1,8 @@
 # Runtime efficiency review
 
+Status (2026-11-27): E0, E1, E2 and E4 are marked fixed below. E3 (bitrate),
+E5 (log spam) and E6 (speed-limit reads) are open.
+
 Scope: what Drive Assist costs the head unit while it runs (CPU, memory,
 flash writes, log volume). Code structure is out of scope here.
 

@@ -1,5 +1,10 @@
 # Test coverage plan
 
+Update 2026-11-27, checked against the code: CI now runs the unit tests and
+JaCoCo (`tools/verify.sh`, called by `.github/workflows/verify.yml`), and
+SQLite-backed tests exist. The baseline below is old. Open: the coverage
+ratchet and the Robolectric decision.
+
 Reviewed 2026-09-11 by a dedicated code/test review agent, with a fresh JaCoCo run by the primary agent. This is a proposed implementation plan; no testing framework or CI changes have been made yet.
 
 ## Current measured baseline

@@ -51,11 +51,19 @@ public final class Purge {
      * whatever a raw pref value happens to hold. */
     public static Map<Integer, Integer> targetsFromPrefs(SharedPreferences prefs) {
         Map<Integer, Integer> targets = new LinkedHashMap<>();
-        for (int area : AREAS) {
-            int raw = prefs.getInt(prefKey(area), OPEN);
-            targets.put(area, Math.max(0, Math.min(100, raw)));
-        }
+        for (int area : AREAS) targets.put(area, snapTarget(prefs.getInt(prefKey(area), OPEN)));
         return targets;
+    }
+
+    /** Steps of an open target: the glass shows no movement below 10, so the
+     * targets go 0 (stay shut), 10, 20 ... 100. */
+    public static final int TARGET_STEP = 10;
+
+    /** A stored target on the step grid, inside 0..100. An old value typed
+     * by hand (5, 15, 37) goes to the nearest step, half up: 5 opens to 10. */
+    public static int snapTarget(int raw) {
+        int c = Math.max(0, Math.min(100, raw));
+        return (c + TARGET_STEP / 2) / TARGET_STEP * TARGET_STEP;
     }
 
     // Door-crack margin: DoorWindow cracks a pane to 10 and counts anything

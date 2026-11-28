@@ -19,12 +19,12 @@ work look pending.
 - [Home screen as a dashboard](active/HOME-DASHBOARD-ROADMAP.md)
 - [Integrations as data](active/INTEGRATIONS-DSL-ROADMAP.md)
 - [LLM integration (BYOK assistant and AI tasks)](active/LLM-INTEGRATION-ROADMAP.md)
-- [Road Score and Driver Score (head-unit IMU)](active/ROAD-AND-DRIVER-SCORE-ROADMAP.md)
+- [Road Score and Driver Score (head-unit IMU)](active/ROAD-AND-DRIVER-SCORE-ROADMAP.md).
+  The scores are built; the roughness map and the trends are open.
 - [Private web statistics sharing](active/PRIVATE-WEB-STATS-SHARE-ROADMAP.md)
 - [Car diary and maintenance log](active/car-diary-maintenance-log.md)
 - [Parking prices and automatic toll logging](active/PARKING-AND-TOLLS-ROADMAP.md)
 - ["Hey Geely" voice assistant](active/VOICE-ASSISTANT-ROADMAP.md)
-- [Settings PIN](active/SETTINGS-PIN-ROADMAP.md)
 - [Comfort ruler v2: one tap, one change](active/COMFORT-RULER-V2.md)
 
 ## Archive
@@ -39,6 +39,7 @@ work look pending.
 - [Home drive and parked cards](archive/implemented/HOME-DRIVE-CARDS-ROADMAP.md)
 - [ModeHelper watchdog](archive/implemented/MODEHELPER-WATCHDOG-ROADMAP.md)
 - [Right-hand-drive layout](archive/implemented/RIGHT-HAND-DRIVE-ROADMAP.md)
+- [Settings PIN](archive/implemented/SETTINGS-PIN-ROADMAP.md)
 - [Weekly and monthly statistics](archive/implemented/STATS-PERIOD-VIEWS-ROADMAP.md)
 - [Trip routes](archive/implemented/TRIP-ROUTES-ROADMAP.md)
 

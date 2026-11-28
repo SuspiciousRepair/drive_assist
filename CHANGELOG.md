@@ -108,6 +108,11 @@
   yet checked on a real right-hand-drive car.
 
 ### Changed
+- **Window targets go in steps of 10** (#208). In Config > Doors, each
+  window's open target is now set with ‹ and ›, one row per window like
+  Config > Maintenance, from 0 (stays shut) to 100.
+  The glass shows no movement below 10, so a typed 5 did nothing. An old
+  typed value moves to the nearest step: 5 becomes 10.
 - **A new comfort ruler: one tap, one small change** (#209). The ruler was
   5 cooling steps, and one tap could swap the fan, the temperature and the air
   direction together: the fan could jump from 1 to 6. Now it is one list of
@@ -118,8 +123,11 @@
   air at the feet. The first tap from off is always the gentlest mark.
   - **After a change on the car's own climate screen**, a tap moves only the
     setting that is out of line, one place. It no longer applies a full preset.
-  - **The bar is a level meter**: one grey bar when off; it splits into marks
-    that fill with colour as you tap.
+  - **The bar is a level meter**: 10 grey marks when off; they fill with
+    colour as you tap.
+  - **Touch the bar to go to a mark at once.** Touch a mark, or slide a
+    finger along the bar and lift it: from off to C7 is one touch. The touch
+    area is higher than the bar. The two buttons stay for small moves.
   - **One list for all weather**: a mark always does the same thing. The
     ruler no longer changes the climate by itself when the weather changes.
   - **Learn mode is gone.** The marks are fixed, so the Climate page of the
