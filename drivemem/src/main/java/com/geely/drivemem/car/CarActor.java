@@ -26,6 +26,13 @@ public final class CarActor {
     public static final String HVAC_FRONT_DEFROST = "car.hvac_front_defrost";
     /** AEB (automatic emergency braking) on/off, watched so screens know it at once. */
     public static final String AEB = "car.aeb";
+    /** BODY_LIGHT_WIDTHLAMP_SW (557850792): the position lamps, 1 on, 0 off.
+     * With the light switch on AUTO the body computer turns them on from the
+     * windshield light sensor, so this is the car's own "it is dark" signal
+     * (the car's CarPlay bridge already uses it for CarPlay's night mode).
+     * It also reads 0 when the car is locked. */
+    public static final String POSITION_LIGHTS = "car.position_lights";
+    static final int PROP_POSITION_LIGHTS = 557850792;
     /** Fan level, 0 (climate off) to 8. Feeds sensors.FanPower. */
     public static final String HVAC_FAN = "car.hvac_fan";
 
@@ -614,6 +621,7 @@ public final class CarActor {
         watchRawNow("car.hvac_rear_defrost", CarAccess.HVAC_ELECTRIC_DEFROSTER_ON, 2);
         watchRawNow(HVAC_FRONT_DEFROST, CarAccess.HVAC_MAX_DEFROST, 75);
         watchRawNow(AEB, CarAccess.AEB_PROP, 0);
+        watchRawNow(POSITION_LIGHTS, PROP_POSITION_LIGHTS, 0);
         watchRawNow(HVAC_FAN, Modes.HVAC_FAN, 75, true);
     }
 

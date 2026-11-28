@@ -65,7 +65,9 @@ public final class LockEventLog {
         }
     }
 
-    private static synchronized void write(Context c, String msg) {
+    /** Shared by every writer of car-events.log (LightEventLog too), so
+     * the lines of one file never interleave. */
+    static synchronized void write(Context c, String msg) {
         Log.i(TAG, "car: " + msg);
         try {
             File dir = c.getExternalFilesDir(null);

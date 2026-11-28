@@ -34,6 +34,7 @@ Property IDs and scales of the car's own (VHAL) properties are in
 | `car.avas_mode` | AVAS (pedestrian warning sound): 0 off, 1.. sound type. Reported by modehelper (`AvasState`): Drive Assist may not read it (`CAR_CONTROL_AUDIO_VOLUME`) | on change, read every 4 s by modehelper; on request |
 | `car.door_pos`, `car.window_pos` | doors, windows (per area) | on change |
 | `car.door_lock` | door locks (per area): 1 locked, 0 unlocked (`DOOR_LOCK`, 641736874) | on change |
+| `car.position_lights` | position lamps: 1 on, 0 off (`BODY_LIGHT_WIDTHLAMP_SW`, 557850792). With the light switch on AUTO the car turns them on when it is dark (windshield light sensor); also 0 when the car is locked. Each change is a line in `files/car-events.log` | on change (push) |
 | `car.hvac_recirc`, `car.hvac_direction`, `car.hvac_rear_defrost` | climate state | on change |
 | `car.hvac_fan` | climate fan level, 0 (climate off) to 8 (`HVAC_FAN`, 356517120) | on change |
 | `car.aeb` | AEB (automatic emergency braking) on/off (`557858874`), true/false. Config → Drive's switch reads it | on change |
@@ -212,6 +213,6 @@ except the SoC-based driving energy, which is marked "estimated".
 | `files/obd2-events.log` | why the dongle gave nothing: connect failures, link lost, rounds with no answer (with the dongle's raw answer) | on each change; a repeat at most once a minute (1 MB, then restarts) |
 | `files/abrp-attempt.log` | every ABRP send and its payload | while ABRP is on (5 MB, then restarts) |
 | `files/can-events.log` | "Exact energy" (CAN): the app's link to the CAN reader, modehelper's reports (started and why, failed), and each trip with no split and why (for example "app restarted 18 min into the trip") | on each change, with "Exact energy" on; the same line at most once per 10 min (1 MB, then restarts) |
-| `files/car-events.log` | when the car was locked and unlocked (`LockEventLog`), from `car.door_lock` | one line per change of the whole car (1 MB, then restarts) |
+| `files/car-events.log` | when the car was locked and unlocked (`LockEventLog`), from `car.door_lock`; when the position lamps went on and off, with the gear and the CAN speed (`LightEventLog`), from `car.position_lights` | one line per change (1 MB, then restarts) |
 
 `files/` is `Android/data/com.geely.drivemem/files/` on the car's storage.

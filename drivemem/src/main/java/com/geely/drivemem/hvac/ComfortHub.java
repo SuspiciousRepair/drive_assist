@@ -59,6 +59,7 @@ public final class ComfortHub {
             beat.postDelayed(ensureArmed, 15_000);
             DoorWindow.ensureSubscribed(app);
             com.geely.drivemem.car.LockEventLog.ensureSubscribed(app);
+            com.geely.drivemem.car.LightEventLog.ensureSubscribed(app);
             FrontDefrost.ensureSubscribed(app);
             beat.postDelayed(tick, BEAT_MS);
             Log.i(TAG, "comfort hub: ruler now owned by the process");
