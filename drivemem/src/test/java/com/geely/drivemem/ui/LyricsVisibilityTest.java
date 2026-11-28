@@ -45,13 +45,4 @@ public class LyricsVisibilityTest {
         assertEquals(0, ComfortCardVisibility.jumboAskAfterPack(1, 2));
         assertEquals(0, ComfortCardVisibility.jumboAskAfterPack(2, 0));
     }
-
-    @Test public void theCardStandsBesideTheDriversColumn() {
-        assertEquals(0, ComfortCardVisibility.jumboIndex(0, false));
-        assertEquals(1, ComfortCardVisibility.jumboIndex(1, false));
-        assertEquals(1, ComfortCardVisibility.jumboIndex(2, false));   // the 2nd column is pushed right
-        assertEquals(0, ComfortCardVisibility.jumboIndex(0, true));
-        assertEquals(0, ComfortCardVisibility.jumboIndex(1, true));
-        assertEquals(1, ComfortCardVisibility.jumboIndex(2, true));    // the driver's column is the last
-    }
 }

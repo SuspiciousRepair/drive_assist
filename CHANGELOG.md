@@ -81,8 +81,8 @@
 - **Lyrics give way, and come back when you ask.** The big lyrics card goes
   back to its normal size when other cards need its room: a second column of
   cards, or the Home Assistant panel. Tap **Lyrics** again and it grows back
-  beside the driver's column; the cards it pushes are a sideways scroll away.
-  It gives way again when more cards come. Before, the tap only said there
+  over the second and third columns, on top of the cards there; **✕** shows
+  them again. It gives way again when more cards come. Before, the tap only said there
   was no room.
 - **Trip screen: tidier numbers.** Every unit is smaller and dimmer than its
   number. The odometer is on the same line as the distance. The toll button

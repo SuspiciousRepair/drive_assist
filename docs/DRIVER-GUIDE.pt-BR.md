@@ -242,8 +242,9 @@ barra embaixo tem Tocar, Avançar e **✕**, que fecha a letra. O cartão lembra
 sua última escolha, aberta ou fechada, de uma música para a outra e depois que
 o carro dorme. O cartão volta ao tamanho normal quando o painel do Home Assistant
 aparece, ou quando os outros cartões precisam de mais de uma coluna. Toque em
-**Letra** de novo e ele cresce de volta: os cartões que ele empurra ficam a um
-deslize para o lado. Ele cede de novo quando chegam mais cartões.
+**Letra** de novo e ele cresce de volta sobre a segunda e a terceira colunas,
+por cima dos cartões que estão ali. Feche com **✕** para vê-los de novo. Ele
+cede de novo quando chegam mais cartões.
 
 A letra vem do [LRCLIB](https://lrclib.net), um site gratuito de letras. Para
 achá-la, o carro envia para lá os nomes da música, do artista e do álbum, uma

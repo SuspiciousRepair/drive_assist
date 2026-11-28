@@ -542,24 +542,19 @@ public class ComfortActivity extends Activity {
         int gapH = Style.dp(this, Style.COLUMN_GAP_DP);
         int span = ComfortCardVisibility.JUMBO_COLUMNS;
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(span * colW + (span - 1) * gapH, availH);
-        // Beside the driver's column. Every column but the leftmost has its
-        // gap as a left margin; the card takes the same, or a right margin
-        // when it is the leftmost itself.
-        int at = ComfortCardVisibility.jumboIndex(columns.getChildCount(), Style.RHD);
-        if (at > 0) lp.leftMargin = gapH;
-        else if (columns.getChildCount() > 0) lp.rightMargin = gapH;
-        columns.addView(musicJumbo, at, lp);
+        // Asked back over a crowd: the card covers columns 2 and 3. The
+        // columns it covers are taken off the row (their cards come back at
+        // the next pack); only the driver's column stays beside it.
+        while (columns.getChildCount() > 1) columns.removeViewAt(Style.RHD ? 0 : 1);
+        if (Style.RHD) {
+            if (columns.getChildCount() > 0) lp.rightMargin = gapH;
+            columns.addView(musicJumbo, 0, lp);
+        } else {
+            if (columns.getChildCount() > 0) lp.leftMargin = gapH;
+            columns.addView(musicJumbo, lp);
+        }
         setLyricsVisible(true);
-        if (lyricsAskedCols > 0) columns.post(this::scrollToDriverEdge);
         return true;
-    }
-
-    // The cards the jumbo card pushed are off the screen: show the driver's
-    // end of the row.
-    private void scrollToDriverEdge() {
-        if (!(columns.getParent() instanceof android.widget.HorizontalScrollView)) return;
-        android.widget.HorizontalScrollView hsv = (android.widget.HorizontalScrollView) columns.getParent();
-        hsv.scrollTo(Style.RHD ? Math.max(0, columns.getWidth() - hsv.getWidth()) : 0, 0);
     }
 
     private void detachJumbo() {
@@ -1610,8 +1605,8 @@ public class ComfortActivity extends Activity {
     // The Lyrics button. The big card needs two free columns and no HA
     // panel; when other cards (a charging Battery card, the gate, the panel)
     // take them, it gives way. This tap is the driver asking for it back: it
-    // then takes its place anyway and pushes those cards off the screen,
-    // until more cards come (see ComfortCardVisibility.jumboPlaced).
+    // then grows over columns 2 and 3 and covers the cards there, until
+    // more cards come (see ComfortCardVisibility.jumboPlaced).
     private void openLyrics() {
         setLyricsOpen(true);
         String id = MusicState.trackId();

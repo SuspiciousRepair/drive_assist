@@ -99,8 +99,8 @@ public final class ComfortCardVisibility {
      *
      * It is placed when it fits. When the other cards took its room, it gives
      * way (the music card goes back to its own size) until the driver asks for
-     * the lyrics again: then it is placed anyway, and the cards it pushes go
-     * off the screen, a sideways scroll away. {@code askedAtColumns} is the
+     * the lyrics again: then it is placed anyway, over columns 2 and 3, and
+     * the cards there are covered. {@code askedAtColumns} is the
      * number of columns the others used at that ask (0 = no ask). A crowd that
      * grows after the ask takes the room again.
      */
@@ -114,12 +114,6 @@ public final class ComfortCardVisibility {
     public static int jumboAskAfterPack(int columnsUsedByOthers, int askedAtColumns) {
         if (askedAtColumns <= 0 || jumboFits(columnsUsedByOthers)) return 0;
         return columnsUsedByOthers <= askedAtColumns ? columnsUsedByOthers : 0;
-    }
-
-    /** The jumbo card stands right beside the driver's column: index 1 from
-     * the left (left-hand drive), or the last but one (right-hand drive). */
-    public static int jumboIndex(int columnsUsedByOthers, boolean rhd) {
-        return rhd ? Math.max(0, columnsUsedByOthers - 1) : Math.min(1, columnsUsedByOthers);
     }
 
     /**
